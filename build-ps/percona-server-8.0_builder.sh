@@ -16,7 +16,6 @@ Usage: $0 [OPTIONS]
         --build_deb                 If it is 1 deb will be built
         --build_tarball             If it is 1 tarball will be built
         --with_ssl                  If it is 1 tarball will also include ssl libs
-        --with_zenfs                If it is 1 tarball and packages will also include zenfs
         --install_deps              Install build dependencies(root previlages are required)
         --branch                    Branch for build
         --repo                      Repo for build
@@ -25,8 +24,6 @@ Usage: $0 [OPTIONS]
         --perconaft_branch          Branch for PerconaFT
 	--tokubackup_repo           TokuBackup repo (The TokuDB storage has no longer supported since 8.0.28)
         --tokubackup_branch         Branch for TokuBackup
-        --zenfs_repo                ZenFS repo
-        --zenfs_branch              Branch for ZenFS
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
@@ -60,17 +57,14 @@ parse_arguments() {
             --get_sources=*) SOURCE="$val" ;;
             --build_tarball=*) TARBALL="$val" ;;
             --with_ssl=*) WITH_SSL="$val" ;;
-            --with_zenfs=*) WITH_ZENFS="$val" ;;
             --branch=*) BRANCH="$val" ;;
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
             --build_tokudb_tokubackup=*) BUILD_TOKUDB_TOKUBACKUP="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
             --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
-            --zenfs_branch=*)      ZENFS_BRANCH="$val" ;;
             --perconaft_repo=*) PERCONAFT_REPO="$val" ;;
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
-            --zenfs_repo=*) ZENFS_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
@@ -207,8 +201,6 @@ get_sources(){
     echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-8.0.properties
     echo "TOKUBACKUP_BRANCH=${TOKUBACKUP_BRANCH}" >> ../percona-server-8.0.properties
-    echo "ZENFS_REPO=${ZENFS_REPO}" >> ../percona-server-8.0.properties
-    echo "ZENFS_BRANCH=${ZENFS_BRANCH}" >> ../percona-server-8.0.properties
     export TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
     echo "TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
     BOOST_PACKAGE_NAME=$(cat cmake/boost.cmake|grep "SET(BOOST_PACKAGE_NAME"|awk -F '"' '{print $2}')
@@ -273,23 +265,7 @@ get_sources(){
         fi
     fi
     #
-
-    if [ ! ${ZENFS_REPO} = 0 ]; then
-        rm -rf ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
-        git clone ${ZENFS_REPO} ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
-    fi
-    if [ ! ${ZENFS_BRANCH} = 0 ]; then
-        cd ${WORKDIR}/percona-server/storage/rocksdb/rocksdb_plugins/zenfs
-        git checkout ${ZENFS_BRANCH}
-        cd -
-    fi
-
     git submodule update
-    cd storage/rocksdb/rocksdb_plugins/zenfs
-    ZEN_VER=$(git describe --abbrev=7 --dirty)
-    sed -i "s/^VERSION=.*/VERSION=$ZEN_VER/" generate-version.sh
-    ./generate-version.sh
-    cd -
     cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled
     make dist
     #
@@ -319,8 +295,6 @@ get_sources(){
     rsync -av storage/rocksdb/third_party/lz4/ ${PSDIR}/storage/rocksdb/third_party/lz4 --exclude .git
     rsync -av storage/rocksdb/third_party/zstd/ ${PSDIR}/storage/rocksdb/third_party/zstd --exclude .git
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
-    rsync -av extra/libzbd/ ${PSDIR}/extra/libzbd --exclude .git
-    rsync -av storage/rocksdb/rocksdb_plugins/ ${PSDIR}/storage/rocksdb/rocksdb_plugins --exclude .git
     rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     #
     cd ${PSDIR}
@@ -354,29 +328,8 @@ get_sources(){
     mkdir $CURDIR/source_tarball
     cp ${PSDIR}.tar.gz $WORKDIR/source_tarball
     cp ${PSDIR}.tar.gz $CURDIR/source_tarball
-    cp percona-server-8.0.properties $WORKDIR/source_tarball
-    cp percona-server-8.0.properties $CURDIR/source_tarball
     cd $CURDIR
     rm -rf percona-server
-    return
-}
-
-enable_zenfs() {
-    local mode=$1
-
-    cp $CURDIR/source_tarball/percona-server-8.0.properties $WORKDIR
-    source $WORKDIR/percona-server-8.0.properties
-
-    if [[ $mode == "tarball" ]]; then
-        echo "mode tarball selected"
-    elif [[ $mode == "debian" ]]; then
-        sed -i 's: \.\.: $(ZENFS_OPTS_DEFAULT) \.\.:g' debian/rules
-        sed -i '51s:percona-server:libgflags2.2, percona-server:' debian/control
-        echo "usr/bin/zenfs" >> debian/percona-server-rocksdb.install
-        dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"
-    elif [[ $mode == "rhel" ]]; then
-        echo "mode rhel selected"
-    fi
     return
 }
 
@@ -510,7 +463,6 @@ install_deps() {
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
-            yum -y install gflags-devel
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
@@ -575,12 +527,6 @@ install_deps() {
         else
             apt-get -y install libzstd1-dev
         fi
-        if [ x${DIST} = xhirsute ]; then
-            apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
-        fi
-	if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]]; then
-            apt-get -y install libgflags-dev
-	fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
@@ -806,17 +752,9 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
-        else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
-        fi
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
-        else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
-        fi
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then
@@ -919,11 +857,6 @@ build_deb(){
     dpkg-source -x ${DSC}
 
     cd ${DIRNAME}
-
-
-    if [[ ${WITH_ZENFS} == "1" ]]; then
-        enable_zenfs debian
-    fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
     if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm ]; then
@@ -967,7 +900,6 @@ build_tarball(){
         echo "Binary tarball will not be created"
         return;
     fi
-
     get_tar "source_tarball"
     cd $WORKDIR
     TARFILE=$(basename $(find . -name 'percona-server-*.tar.gz' | sort | tail -n1))
@@ -1032,10 +964,6 @@ build_tarball(){
         if [[ "${DEBUG}" == 1 ]]; then
             CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
-        elif [[ ${WITH_ZENFS} == 1 ]]; then
-            enable_zenfs tarball
-            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-zenfs --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-            DIRNAME="tarball"
         else
             CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
@@ -1060,7 +988,6 @@ DEB=0
 SOURCE=0
 TARBALL=0
 WITH_SSL=0
-WITH_ZENFS=0
 OS_NAME=
 ARCH=
 OS=

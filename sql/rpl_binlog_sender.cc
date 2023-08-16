@@ -100,8 +100,8 @@ class Observe_transmission_guard {
 
     - The event is an `XID_EVENT`
     - The event is an `XA_PREPARE_LOG_EVENT`.
-    - The event is a `QUERY_EVENT` with query equal to "XA COMMIT" or "XA ABORT"
-      or "COMMIT".
+    - The event is a `QUERY_EVENT` with query equal to "XA COMMIT" or
+      "XA ROLLBACK" or "COMMIT".
     - The event is the first `QUERY_EVENT` after a `GTID_EVENT` and the query is
       not "BEGIN" --the statement is a DDL, for instance.
 
@@ -139,7 +139,7 @@ class Observe_transmission_guard {
             m_to_set = (strcmp("BEGIN", ev.query) != 0);
           else
             m_to_set = (strncmp("XA COMMIT", ev.query, 9) == 0) ||
-                       (strncmp("XA ABORT", ev.query, 8) == 0) ||
+                       (strncmp("XA ROLLBACK", ev.query, 11) == 0) ||
                        (strncmp("COMMIT", ev.query, 6) == 0);
           break;
         }

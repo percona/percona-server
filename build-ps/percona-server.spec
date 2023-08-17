@@ -777,10 +777,8 @@ bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_serv
 rm -f /tmp/call-home.sh
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
-echo "Run the following commands to create these functions:"
-echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
-echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
-echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
+echo "Run the following command to install these functions (fnv_64, fnv1a_64, murmur_hash):"
+echo "mysql -e \"INSTALL COMPONENT 'file://component_percona_udf'\""
 echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html for more details"
 
 %preun -n percona-server-server
@@ -1117,12 +1115,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam_compat.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv1a_udf.*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv_udf.*
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmurmur_udf.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
@@ -1146,6 +1138,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kms.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_udf.so
 #
 #%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql

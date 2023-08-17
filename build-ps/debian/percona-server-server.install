@@ -122,12 +122,6 @@ usr/lib/mysql/plugin/auth_pam.so
 usr/lib/mysql/plugin/debug/auth_pam.so
 usr/lib/mysql/plugin/auth_pam_compat.so
 usr/lib/mysql/plugin/debug/auth_pam_compat.so
-usr/lib/mysql/plugin/libfnv1a_udf.so
-usr/lib/mysql/plugin/debug/libfnv1a_udf.so
-usr/lib/mysql/plugin/libfnv_udf.so
-usr/lib/mysql/plugin/debug/libfnv_udf.so
-usr/lib/mysql/plugin/libmurmur_udf.so
-usr/lib/mysql/plugin/debug/libmurmur_udf.so
 usr/lib/mysql/plugin/dialog.so
 usr/lib/mysql/plugin/debug/dialog.so
 usr/lib/mysql/plugin/connection_control.so
@@ -169,6 +163,8 @@ usr/lib/mysql/plugin/audit_log_filter.so
 usr/lib/mysql/plugin/debug/audit_log_filter.so
 usr/lib/mysql/plugin/component_masking_functions.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
+usr/lib/mysql/plugin/component_percona_udf.so
+usr/lib/mysql/plugin/debug/component_percona_udf.so
 
 
 # support files

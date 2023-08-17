@@ -1,11 +1,27 @@
-*** checking if UDF works without creating the function
+*** UDF should fail without functions or component
 SELECT MURMUR_HASH('hello', 'world');
 ERROR 42000: FUNCTION test.MURMUR_HASH does not exist
 
-*** creating UDF functions
-CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so';
-CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so';
-CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so';
+*** checking backward compatibility: create UDF functions
+CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'component_percona_udf.so';
+CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'component_percona_udf.so';
+CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'component_percona_udf.so';
+
+*** checking backward compatibility: check UDF functions
+include/assert.inc [checking hash value for FNV1A_64()]
+include/assert.inc [checking hash value for FNV_64()]
+include/assert.inc [checking hash value for MURMUR_HASH()]
+
+*** checking backward compatibility: drop UDF functions
+DROP FUNCTION fnv1a_64;
+DROP FUNCTION fnv_64;
+DROP FUNCTION murmur_hash;
+*** UDF should fail without functions or component
+SELECT MURMUR_HASH('hello', 'world');
+ERROR 42000: FUNCTION test.MURMUR_HASH does not exist
+
+*** installing percona_udf component
+INSTALL COMPONENT 'file://component_percona_udf';
 
 *** checking UDF functions
 include/assert.inc [checking hash value for FNV1A_64()]
@@ -31,7 +47,5 @@ include/assert.inc [checking hash value for BIT_XOR(MURMUR_HASH())]
 include/assert.inc [checking hash value for FNV1A_64(col1, col2, col3)]
 
 *** cleaning up
-DROP FUNCTION fnv1a_64;
-DROP FUNCTION fnv_64;
-DROP FUNCTION murmur_hash;
 DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_percona_udf';

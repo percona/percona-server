@@ -47,20 +47,12 @@
 #include <string.h>
 #include "my_sys.h"
 #include "mysql.h"
+#include "percona_udf.h"
 
 /* On the first call, use this as the initial_value. */
 #define HASH_64_INIT 0x84222325cbf29ce4ULL
 /* Default for NULLs, just so the result is never NULL. */
 #define HASH_NULL_DEFAULT 0x0a0b0c0d
-
-/* Prototypes */
-
-extern "C" {
-ulonglong MurmurHash2(const void *key, int len, unsigned int seed);
-bool murmur_hash_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
-ulonglong murmur_hash(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                      char *error);
-}
 
 /* Implementations */
 
@@ -69,7 +61,7 @@ ulonglong murmur_hash(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
  * This is the 64 bit version of MurmurHash2 for 32-bit platforms.
  */
 
-ulonglong MurmurHash2(const void *key, int len, unsigned int seed) {
+static ulonglong MurmurHash2(const void *key, int len, unsigned int seed) {
   const unsigned int m = 0x5bd1e995;
   const int r = 24;
 
@@ -131,7 +123,8 @@ ulonglong MurmurHash2(const void *key, int len, unsigned int seed) {
   return h;
 }
 
-bool murmur_hash_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+bool VISIBILITY_DEFAULT murmur_hash_init(UDF_INIT *initid, UDF_ARGS *args,
+                                         char *message) {
   if (args->arg_count == 0) {
     strcpy(message, "MURMUR_HASH requires at least one argument");
     return true;
@@ -140,9 +133,10 @@ bool murmur_hash_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return false;
 }
 
-ulonglong murmur_hash(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
-                      char *is_null [[maybe_unused]],
-                      char *error [[maybe_unused]]) {
+ulonglong VISIBILITY_DEFAULT murmur_hash(UDF_INIT *initid [[maybe_unused]],
+                                         UDF_ARGS *args,
+                                         char *is_null [[maybe_unused]],
+                                         char *error [[maybe_unused]]) {
   uint null_default = HASH_NULL_DEFAULT;
   ulonglong result = HASH_64_INIT;
   uint i;

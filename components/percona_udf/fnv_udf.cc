@@ -117,6 +117,7 @@
 #include <my_sys.h>
 #include <mysql.h>
 #include <string.h>
+#include "percona_udf.h"
 
 /* On the first call, use this as the initial_value. */
 #define HASH_64_INIT 0x84222325cbf29ce4ULL
@@ -125,17 +126,9 @@
 /* Magic number for the hashing. */
 #define FNV_64_PRIME 0x100000001b3ULL
 
-/* Prototypes */
-
-extern "C" {
-ulonglong hash64(const void *buf, size_t len, ulonglong hval);
-bool fnv_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
-ulonglong fnv_64(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-}
-
 /* Implementations */
 
-ulonglong hash64(const void *buf, size_t len, ulonglong hval) {
+static ulonglong hash64(const void *buf, size_t len, ulonglong hval) {
   const unsigned char *bp = (const unsigned char *)buf;
   const unsigned char *be = bp + len;
 
@@ -150,7 +143,8 @@ ulonglong hash64(const void *buf, size_t len, ulonglong hval) {
   return hval;
 }
 
-bool fnv_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+bool VISIBILITY_DEFAULT fnv_64_init(UDF_INIT *initid, UDF_ARGS *args,
+                                    char *message) {
   if (args->arg_count == 0) {
     strcpy(message, "FNV_64 requires at least one argument");
     return true;
@@ -159,9 +153,10 @@ bool fnv_64_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   return false;
 }
 
-ulonglong fnv_64(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
-                 char *is_null [[maybe_unused]],
-                 char *error [[maybe_unused]]) {
+ulonglong VISIBILITY_DEFAULT fnv_64(UDF_INIT *initid [[maybe_unused]],
+                                    UDF_ARGS *args,
+                                    char *is_null [[maybe_unused]],
+                                    char *error [[maybe_unused]]) {
   uint null_default = HASH_NULL_DEFAULT;
   ulonglong result = HASH_64_INIT;
   uint i;

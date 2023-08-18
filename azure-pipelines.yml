@@ -75,15 +75,15 @@ jobs:
 
   strategy:
     matrix:
-      macOS 12 RelWithDebInfo:
-        imageName: 'macOS-12'
+      macOS 13 RelWithDebInfo:
+        imageName: 'macOS-13'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       # skip for a pull request if branch name doesn't contain "fullci"
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        macOS 12 Debug:
-          imageName: 'macOS-12'
+        macOS 13 Debug:
+          imageName: 'macOS-13'
           Compiler: clang
           BuildType: Debug
 
@@ -271,7 +271,7 @@ jobs:
         BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-12 RelWithDebInfo Ubuntu 22.04 Jammy:
+        gcc-12 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
           Compiler: gcc
           CompilerVer: 12

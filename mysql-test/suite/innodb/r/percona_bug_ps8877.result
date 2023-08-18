@@ -1,0 +1,8 @@
+#
+# PS-8877 : Selecting from performance_schema.innodb_redo_log_files crashes MySQL
+#
+CREATE DATABASE mysqlslap;
+# Use 'mysqlslap' to run "SELECT * FROM P_S.innodb_redo_log_files" query
+# concurrently in 10 connections. This caused assertion failure before
+# the fix.
+DROP DATABASE mysqlslap;

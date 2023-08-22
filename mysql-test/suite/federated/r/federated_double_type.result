@@ -13,8 +13,8 @@ INSERT INTO t3 VALUES (0, 0, 8.730550);
 CREATE TABLE t1(id INT, i INT, d DOUBLE(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
-CREATE TABLE t2(id INT, i INT, d DOUBLE) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:13002/test/t2';
-CREATE TABLE t3(id INT, i INT, f FLOAT(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:13002/test/t3';
+CREATE TABLE t2(id INT, i INT, d DOUBLE) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t2';
+CREATE TABLE t3(id INT, i INT, f FLOAT(8,6)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t3';
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 include/assert.inc [Row should have been inserted]

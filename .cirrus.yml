@@ -127,13 +127,17 @@ script_template: &SCRIPT_TEMPLATE
 
 task:
   << : *FILTER_TEMPLATE
-  # don't run on percona/percona-server/8.0 as we have nightly cron builds for "8.0" branch
-  only_if: "$CIRRUS_CRON != '' || ($CIRRUS_REPO_FULL_NAME != 'percona/percona-server' || $CIRRUS_BRANCH != '8.0') && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
-  arm_container:
-    image: ubuntu:jammy
-    cpu: 8
-    memory: 32G
-    greedy: true
+  # run only on "percona/percona-server" but not on "8.0" as we have nightly cron builds for "8.0" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202307*"
+    image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20230728
+    # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
+    type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
+    region: us-east-1
+    architecture: arm64 # defautls to amd64
+    spot: true
   env:
     OS_TYPE: ubuntu-22.04-arm64
   matrix:
@@ -143,6 +147,7 @@ task:
         SELECTED_CXX: g++
         BUILD_TYPE: Debug
     - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Jammy]
+      skip: $CIRRUS_PR != ""  # skip PRs
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
@@ -151,14 +156,19 @@ task:
     lsblk
     lsblk -f
     df -Th
+    sudo mkfs -t xfs /dev/nvme1n1
+    sudo mkdir $MOUNT_POINT
+    sudo mount /dev/nvme1n1 $MOUNT_POINT
+    df -Th
   << : *SCRIPT_TEMPLATE
+
 
 
 task:
   << : *FILTER_TEMPLATE
-  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   # run only on "percona/percona-server" but not on "8.0" as we have nightly cron builds for "8.0" branch
   only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
     image: ami-0f9f8d3ed33d7cb88 # Ubuntu 22.04.1 x86-64 with 40 GB gp2 and percona-server gcc-13 gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12

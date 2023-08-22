@@ -18,15 +18,17 @@
 --connect (conn_recipient, 127.0.0.1, root,,test,$recipient_port)
 --connection conn_recipient
 
---echo # create a copy of plugin_dir for recipient without the example and validate_password plugin
---echo # Now the recipient server do not have these plugins and we do a clone now from donor which
---echo # these
+--echo
+--echo # create a different plugin_dir for recipient without the example and
+--echo # audit_log plugin. Now the recipient server do not have these plugins
+--echo # and we do a clone now from donor which has these plugins installed.
+
 --mkdir $MYSQL_TMP_DIR/plugin_dir
 --let $plugin_dir=`SELECT @@plugin_dir`
---force-cpdir $plugin_dir $MYSQL_TMP_DIR/plugin_dir
---let $RECIPIENT_NEW_PLUGIN_DIR=$MYSQL_TMP_DIR/plugin_dir/plugin_output_directory
---remove_file $RECIPIENT_NEW_PLUGIN_DIR/ha_example.so
---remove_file $RECIPIENT_NEW_PLUGIN_DIR/audit_log.so
+--let $RECIPIENT_NEW_PLUGIN_DIR=$MYSQL_TMP_DIR/plugin_dir
+
+# Copy only mysql_clone plugin that is required for the test.
+--copy_file $plugin_dir/mysql_clone.so $RECIPIENT_NEW_PLUGIN_DIR/mysql_clone.so
 
 --replace_result $RECIPIENT_NEW_PLUGIN_DIR RECIPIENT_NEW_PLUGIN_DIR
 --let $restart_parameters="restart: --plugin_dir=$RECIPIENT_NEW_PLUGIN_DIR"

@@ -292,32 +292,32 @@ DROP USER u1;
 # OK - multiple privileges
 --let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4
 --let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4'.
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 # OK - lowercase
 --let $utility_user_dynamic_privileges = system_user,privilege_2
 --let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_2'.
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 # OK - multiple comma
 --let $utility_user_dynamic_privileges = SYSTEM_USER,,,,,PRIVILEGE_3
 --let $expected_log_message = Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_3'.
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 # Malformed - comma at the end
 --let $utility_user_dynamic_privileges = SYSTEM_USER,PRIVILEGE_1,
 --let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER,PRIVILEGE_1,
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 # Malformed - comma at the beginning
 --let $utility_user_dynamic_privileges = ,SYSTEM_USER,PRIVILEGE_1
 --let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTEM_USER,PRIVILEGE_1
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 # Malformed - wrong separator
 --let $utility_user_dynamic_privileges = SYSTEM_USER;PRIVILEGE_1
 --let $expected_log_message = Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1
---source t/percona_utility_user_validate_dynamic_privileges.inc
+--source ../include/utility_user_validate_dynamic_privileges.inc
 
 --source include/start_mysqld.inc
 

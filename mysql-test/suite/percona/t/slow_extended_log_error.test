@@ -40,7 +40,7 @@ INSERT INTO t2(f1) VALUES (31.400191);
 --echo
 --let log_file=percona.slow_extended.log_error_4
 --source include/log_start.inc
-SELECT SCHEMA_NAME as Test FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema');
+SELECT SCHEMA_NAME as Test FROM information_schema.schemata WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema') ORDER BY SCHEMA_NAME;
 --source include/log_stop.inc
 --let grep_pattern = ^.*Last_errno: 0 .*\$
 --source include/log_grep.inc

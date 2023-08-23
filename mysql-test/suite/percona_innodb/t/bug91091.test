@@ -274,7 +274,7 @@ INSERT INTO t VALUES
 SET autocommit = 0;
 
 --disable_query_log
---source suite/innodb/include/bug91091.inc
+--source ../include/bug91091.inc
 --enable_query_log
 
 SELECT c1 FROM t WHERE c1 = 'Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00' ORDER BY c1, c3;
@@ -284,7 +284,7 @@ ROLLBACK;
 
 SET autocommit = 0;
 --disable_query_log
---source suite/innodb/include/bug91091.inc
+--source ../include/bug91091.inc
 --enable_query_log
 
 SELECT c1 FROM t FORCE KEY(igt_field_uni) WHERE c1 = 'Eid4i*******11372012******haFEIouxia1Aroo2aaT_*****_******00' ORDER BY c1, c3;

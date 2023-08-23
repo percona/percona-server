@@ -211,60 +211,60 @@ SET @saved_default_storage_engine = @@default_storage_engine;
 --let $modified_column_type = $original_column_type
 --let $modified_dict_name = $original_dict_name
 --let $alter_table_algorithm = DEFAULT
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 eval CREATE TABLE $modified_table_name LIKE $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (implicit SE)
 --let $modified_dict_name =
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (explicit SE)
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name ENGINE=InnoDB AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (implicitly changing SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (explicitly changing SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, implicit SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, explicit SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 
@@ -273,60 +273,60 @@ eval DROP TABLE $original_table_name;
 --let $modified_table_name = t2
 --let $original_dict_name = $dict_name
 --let $modified_dict_name = $original_dict_name
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 eval CREATE TABLE $modified_table_name LIKE $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (implicit SE)
 --let $modified_dict_name =
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (explicit SE)
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name ENGINE=InnoDB AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (implicitly changing SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (explicitly changing SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT * FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, implicit SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = MyISAM;
 eval CREATE TABLE $modified_table_name AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 --echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, explicit SE)
 --let $storage_engine_changed = 1
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 SET default_storage_engine = InnoDB;
 eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
 eval DROP TABLE $original_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
 
 # restoring @default_storage_engine
@@ -338,12 +338,12 @@ SET default_storage_engine = @saved_default_storage_engine;
 --let $modified_table_name = $original_table_name
 --let $original_dict_name = $dict_name
 --let $modified_dict_name = $original_dict_name
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 eval CREATE TEMPORARY TABLE $temporary_table_name AS SELECT * FROM $original_table_name;
 eval TRUNCATE TABLE $original_table_name;
 eval INSERT INTO $original_table_name SELECT * FROM $temporary_table_name;
 eval DROP TEMPORARY TABLE $temporary_table_name;
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 # remove remaining compression dictionary
 --eval DROP COMPRESSION_DICTIONARY $dict_name

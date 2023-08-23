@@ -25,47 +25,47 @@ select * from prefixinno;
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 0
 --let $prefix_index_check_query= select "no-op query"
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Eligible for optimization.
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('d', 31)
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Eligible for optimization, access via fake_id only.
 --let $prefix_index_check_query= select id, bigfield from prefixinno where fake_id = 1031
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Not eligible for optimization, access via fake_id of big row.
 --let $prefix_index_check_query= select id, bigfield from prefixinno where fake_id = 1033
 --let $prefix_index_check_read_delta= 1
 --let $prefix_index_check_read_avoided_delta= 0
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Not eligible for optimization.
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('x', 32)
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('y', 33)
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Eligible, should not increment lookup counter.
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('b', 8)
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('c', 24)
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= Should increment lookup counter
 --let $prefix_index_check_query= select id, bigfield from prefixinno where bigfield = repeat('z', 128)
 --let $prefix_index_check_read_delta= 1
 --let $prefix_index_check_read_avoided_delta= 0
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 DROP TABLE prefixinno;
 
@@ -94,19 +94,19 @@ INSERT INTO t1 VALUES
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "aa"
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= MB charset record longer than prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "ccc"
 --let $prefix_index_check_read_delta= 1
 --let $prefix_index_check_read_avoided_delta= 0
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= MB charset record shorter than prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "až"
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 DROP TABLE t1;
 
@@ -134,18 +134,18 @@ INSERT INTO t1 VALUES
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "a"
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= MB charset record longer than prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "ccc"
 --let $prefix_index_check_read_delta= 1
 --let $prefix_index_check_read_avoided_delta= 0
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 --let $prefix_index_check_title= MB charset record shorter than prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "až"
 --let $prefix_index_check_read_delta= 0
 --let $prefix_index_check_read_avoided_delta= 1
---source suite/innodb/include/prefix_index_only_query_check.inc
+--source ../include/prefix_index_only_query_check.inc
 
 DROP TABLE t1;

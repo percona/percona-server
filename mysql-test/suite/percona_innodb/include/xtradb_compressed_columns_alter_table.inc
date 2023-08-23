@@ -16,7 +16,7 @@
 #   '<dict>'(anything but '*') - meaning full column type will be just '$column_type COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY <dict>'
 #   'unknown'(literally)       - has the same meaning as '<dict>' but an error is expected
 
---source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
 
 --let $expected_error =
 if ($alter_table_algorithm == 'INPLACE')
@@ -65,7 +65,7 @@ if ($expected_error)
   --let $modified_column_definition = $original_column_definition
 }
 
---source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
 
 if ($expected_error)
 {

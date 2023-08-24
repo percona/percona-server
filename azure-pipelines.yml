@@ -547,9 +547,6 @@ jobs:
             -DWITH_FEDERATED_STORAGE_ENGINE=OFF
             -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
             -DWITH_INNODB_MEMCACHED=ON
-
-            -DROCKSDB_PLUGINS=zenfs
-            -DWITH_ZENFS_UTILITY=ON
           "
         fi
       fi

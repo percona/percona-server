@@ -1,3 +1,5 @@
+let $datadir = `SELECT @@datadir`;
+
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t2 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t3 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
@@ -35,14 +37,8 @@ delete from t4 where id <= 9900;
 delete from t5 where id <= 9900;
 delete from t6 where id <= 9900;
 
---let $disk_usage_path = .rocksdb
---let $disk_usage_mask = .sst
---let $disk_usage_output_file = $MYSQL_TMP_DIR/sst_size.dat
---let $disk_usage_output_file_overwrite = 0
---let $disk_usage_output_prefix =
---let $disk_usage_output_suffix =
---source zenfs_disk_usage.inc
-
+--let $size_cmd = du -ks $datadir/.rocksdb/*.sst | awk '{t=t+\$1} END{print t}' >> $MYSQL_TMP_DIR/sst_size.dat
+--exec $size_cmd
 optimize table t1;
 --sleep 5
 --exec $size_cmd

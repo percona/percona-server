@@ -1,6 +1,0 @@
-Deprecation and removal
-=================================================
-
-Starting with **Percona Server for MySQL** 8.0.28-19, the TokuDB storage engine is no longer supported. We have removed the storage engine from the installation packages and the storage engine is disabled in our binary builds. 
-
-.. seealso:: For more information, see :ref:`tokudb_intro`

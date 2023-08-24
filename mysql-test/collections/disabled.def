@@ -125,63 +125,6 @@ rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584
 # rocksdb_rpl suite tests
 rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP
 
-# tokudb suite tests
-tokudb.mvcc-19 : BUG#0 tokutek
-tokudb.mvcc-20 : BUG#0 tokutek
-tokudb.mvcc-27 : BUG#0 tokutek
-tokudb.storage_engine_default : BUG#0 tokudb is not the default storage engine
-
-# tokudb_alter_table suite tests
-# alter table
-tokudb_alter_table.hcad_tmp_tables : BUG#0 tmp tables bypass hot alter, we run hcad_tmp_tables_56 instead
-tokudb_alter_table.hcad_with_locks : BUG#0 can't alter table concurrent with reading a table in 5.5
-# virtual columns
-tokudb_alter_table.virtual_columns : BUG#0 no virtual columns in MySQL 5.5
-tokudb_alter_table.frm_discover_partition : BUG#0 needs the tokutek patch for frm discovery for partitioned tables
-# 8.0
-tokudb_alter_table.frm_discover : BUG#0 no .frm in 8.0
-
-# tokudb_bugs suite tests
-tokudb_bugs.2952 : BUG#0 tokutek not_5_5
-tokudb_bugs.4472 : BUG#0 #4521
-tokudb_bugs.fileops-2 : BUG#0 tokutek not_5_5
-tokudb_bugs.fileops-3 : BUG#0 tokutek not_5_5
-tokudb_bugs.fileops-4 : BUG#0 tokutek not_5_5
-tokudb_bugs.xa-2 : BUG#0 tokutek not_5_5
-tokudb_bugs.checkpoint_lock_2 : BUG#0 test can not work when the checkpoint_safe_lock is a fair rwlock
-tokudb_bugs.6053 : BUG#0 tokudb is not the default storage engine
-tokudb_bugs.1883 : BUG#0 tokutek's auto inc singleton patch missing
-tokudb_bugs.3083 : BUG#0 no patch to find_shortest_key to prefer PK over CK
-tokudb_bugs.db768 : BUG#768 https://tokutek.atlassian.net/browse/DB-768
-tokudb_bugs.dict_leak_3518 : BUG#635 https://tokutek.atlassian.net/browse/DB-635
-tokudb_bugs.1872 : BUG#750 https://tokutek.atlassian.net/browse/DB-750
-tokudb_bugs.db917 : BUG#917 https://tokutek.atlassian.net/browse/DB-917
-# 8.0
-tokudb_bugs.frm_store : BUG#0 no .frm in 8.0
-tokudb_bugs.frm_store2 : BUG#0 no .frm in 8.0
-tokudb_bugs.frm_store3 : BUG#0 no .frm in 8.0
-
-# tokudb_parts suite tests
-tokudb_parts.partition_basic_symlink_tokudb : BUG#0 tokudb_file_per_table is not supported
-tokudb_parts.partition_reorganize_tokudb : BUG#0 tokudb_file_per_table is not supported
-tokudb_parts.partition_exchange_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_qa_1_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_qa_4_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_qa_5_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_qa_7_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_qa_8_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_myisam_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_exch_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.partition_mgm_lc0_tokudb : BUG#0 exchange partition is not supported
-tokudb_parts.nonflushing_analyze_debug : BUG#0 percona's test which has not yet been ported to 8.0
-tokudb_parts.partition_debug_sync_tokudb : BUG#0 the "debug-sync" code does not exist in 8.0
-tokudb_parts.partition_debug_tokudb : BUG#0 the debug code does not exist in 8.0
-
-# tokudb_rpl suite tests
-tokudb_rpl.rpl_row_sp002_tokudb : BUG#0 tokudb does not support foreign keys
-tokudb_rpl.rpl_deadlock_tokudb : BUG#0 temporarily disabled until properly debugged
-tokudb_rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
-
 # Group Replication tests.
 
 # These will only run in XCom because of the following issue:

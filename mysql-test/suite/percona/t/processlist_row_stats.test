@@ -24,7 +24,7 @@ send SELECT a FROM t2 WHERE a > 15;
 --connection default
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 
---source include/percona_processlist_row_stats_show.inc
+--source ../include/percona_processlist_row_stats_show.inc
 
 --connection conn1
 reap;
@@ -45,7 +45,7 @@ send SELECT a FROM t2 WHERE a > 15;
 --connection default
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 
---source include/percona_processlist_row_stats_show.inc
+--source ../include/percona_processlist_row_stats_show.inc
 
 --connection conn1
 reap;
@@ -66,7 +66,7 @@ send UPDATE t2 SET a = 15 WHERE a = 10;
 --connection default
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 
---source include/percona_processlist_row_stats_show.inc
+--source ../include/percona_processlist_row_stats_show.inc
 
 --connection conn1
 reap;

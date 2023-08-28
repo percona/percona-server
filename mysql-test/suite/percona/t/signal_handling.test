@@ -5,4 +5,4 @@
 --echo # Test server signal handling with one-thread-per-connection handler
 --echo #
 
---source include/percona_signal_handling.inc
+--source ../include/percona_signal_handling.inc

@@ -4,7 +4,7 @@
 INSTALL COMPONENT 'file://component_encryption_udf';
 
 --let $include_digests_with_no_ans1_ids = 0
---source include/percona_encryption_udf_digest_table.inc
+--source ../include/encryption_udf_digest_table.inc
 
 --echo
 --echo ** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality

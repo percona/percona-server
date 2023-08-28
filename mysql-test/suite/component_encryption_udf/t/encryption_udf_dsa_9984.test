@@ -4,4 +4,4 @@
 --let $algorithm = DSA
 --let $key_length = 9984
 
---source include/percona_encryption_udf_xsa.inc
+--source ../include/encryption_udf_xsa.inc

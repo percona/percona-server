@@ -1,0 +1,5 @@
+--source include/have_encryption_udf_component.inc
+
+--let $key_length = 1024
+
+--source ../include/encryption_udf_dh.inc

@@ -41,7 +41,8 @@ Rdb_iterator_base::Rdb_iterator_base(THD *thd,
       m_scan_it_lower_bound(nullptr),
       m_scan_it_upper_bound(nullptr),
       m_prefix_buf(nullptr),
-      m_check_iterate_bounds(false) {}
+      m_check_iterate_bounds(false),
+      m_ignore_killed(false) {}
 
 Rdb_iterator_base::~Rdb_iterator_base() {
   release_scan_iterator();
@@ -69,7 +70,7 @@ int Rdb_iterator_base::read_before_key(const bool full_key_match,
   rocksdb_smart_seek(!m_kd->m_is_reverse_cf, m_scan_it, key_slice);
 
   while (is_valid_iterator(m_scan_it)) {
-    if (thd_killed(m_thd)) {
+    if (!m_ignore_killed && thd_killed(m_thd)) {
       return HA_ERR_QUERY_INTERRUPTED;
     }
     /*
@@ -243,7 +244,7 @@ int Rdb_iterator_base::next_with_direction(bool move_forward, bool skip_next) {
 
   for (;;) {
     DEBUG_SYNC(m_thd, "rocksdb.check_flags_nwd");
-    if (thd_killed(m_thd)) {
+    if (!m_ignore_killed && thd_killed(m_thd)) {
       rc = HA_ERR_QUERY_INTERRUPTED;
       break;
     }
@@ -647,7 +648,8 @@ int Rdb_iterator_partial::materialize_prefix() {
   // It is possible that someone else has already materialized this group
   // before we locked. Double check by doing a locking read on the sentinel.
   rocksdb::PinnableSlice value;
-  auto s = rdb_tx_get_for_update(tx, *m_kd, cur_prefix_key, &value, true, false);
+  auto s =
+      rdb_tx_get_for_update(tx, *m_kd, cur_prefix_key, &value, true, false);
   if (s.ok()) {
     rdb_tx_release_lock(tx, *m_kd, cur_prefix_key, true /* force */);
     thd_proc_info(m_thd, old_proc_info);
@@ -674,12 +676,16 @@ int Rdb_iterator_partial::materialize_prefix() {
 
   m_pkd->get_infimum_key(m_cur_prefix_key, &tmp);
   Rdb_iterator_base iter_pk(m_thd, m_pkd, m_pkd, m_tbl_def);
+  if (rocksdb_partial_index_ignore_killed) {
+    iter_pk.set_ignore_killed(true);
+  }
+
   rc = iter_pk.seek(HA_READ_KEY_EXACT, cur_prefix_key, false, cur_prefix_key,
                     true /* read current */);
   size_t num_rows = 0;
 
   while (!rc) {
-    if (thd_killed(m_thd)) {
+    if (!rocksdb_partial_index_ignore_killed && thd_killed(m_thd)) {
       rc = HA_ERR_QUERY_INTERRUPTED;
       goto exit;
     }
@@ -804,6 +810,12 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
                            rocksdb::Slice(val, m_sk_tails.get_current_pos()));
 
     num_rows++;
+
+#ifndef NDEBUG
+    if (num_rows > m_threshold) {
+      DEBUG_SYNC(m_thd, "rocksdb.partial_index_exceed_threshold");
+    }
+#endif
     rc = m_iterator_pk.next();
   }
 
@@ -814,13 +826,17 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
   rocksdb_partial_index_groups_sorted++;
   rocksdb_partial_index_rows_sorted += num_rows;
 
-  if (num_rows > m_threshold) {
-    rc = materialize_prefix();
-  } else if (num_rows == 0) {
+  if (num_rows == 0) {
     rc = HA_ERR_END_OF_FILE;
   }
 
 exit:
+  if (num_rows > m_threshold) {
+    if (rc == 0 || (rocksdb_partial_index_ignore_killed &&
+                    rc == HA_ERR_QUERY_INTERRUPTED)) {
+      rc = materialize_prefix();
+    }
+  }
   return rc;
 }
 

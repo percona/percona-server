@@ -93,6 +93,8 @@ class Rdb_iterator_base : public Rdb_iterator {
 
   void reset() override { release_scan_iterator(); }
 
+  void set_ignore_killed(bool flag) { m_ignore_killed = flag; }
+
  protected:
   friend class Rdb_iterator;
 
@@ -125,6 +127,7 @@ class Rdb_iterator_base : public Rdb_iterator {
   uchar *m_prefix_buf;
   rocksdb::Slice m_prefix_tuple;
   bool m_check_iterate_bounds;
+  bool m_ignore_killed;
 };
 
 class Rdb_iterator_partial : public Rdb_iterator_base {

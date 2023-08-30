@@ -842,7 +842,7 @@ bool mysql_update(THD *thd,
 
         found++;
 
-        if (!records_are_comparable(table) || compare_records(table))
+        if (!records_are_comparable(table) || compare_records(table) || thd->lex->is_force())
         {
           if ((res= table_list->view_check_option(thd)) != VIEW_CHECK_OK)
           {

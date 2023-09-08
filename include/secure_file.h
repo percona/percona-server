@@ -43,12 +43,13 @@
   @retval false The path isn't secure
 */
 
-bool is_secure_file_path(const char *path, const char *opt_secure_file_priv,
+bool is_secure_file_path(const std::string &path,
+                         const char *opt_secure_file_priv,
                          CHARSET_INFO *system_charset_info,
                          CHARSET_INFO *files_charset_info,
                          bool lower_case_file_system) {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
-  size_t opt_secure_file_priv_len;
+  size_t opt_secure_file_priv_len = 0;
   /*
     All paths are secure if opt_secure_file_priv is 0
   */
@@ -56,18 +57,18 @@ bool is_secure_file_path(const char *path, const char *opt_secure_file_priv,
 
   opt_secure_file_priv_len = strlen(opt_secure_file_priv);
 
-  if (strlen(path) >= FN_REFLEN) return false;
+  if (path.length() >= FN_REFLEN) return false;
 
   if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
     return false;
 
-  if (my_realpath(buff1, path, 0)) {
+  if (my_realpath(buff1, path.c_str(), 0)) {
     /*
       The supplied file path might have been a file and not a directory.
     */
-    const int length = (int)dirname_length(path);
+    const int length = (int)dirname_length(path.c_str());
     if (length >= FN_REFLEN) return false;
-    memcpy(buff2, path, length);
+    memcpy(buff2, path.c_str(), length);
     buff2[length] = '\0';
     if (length == 0 || my_realpath(buff1, buff2, 0)) return false;
   }

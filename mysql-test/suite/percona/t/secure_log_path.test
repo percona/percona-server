@@ -1,19 +1,146 @@
-# Test that general_log_file can't be set outside of secure_log_path
-# if it is set. If it is empty, it should be allowed anywhere, which is
-# tested by other existing general_log_file tests.
+--let $datadir = `SELECT @@datadir`
+--let $tmpdir = `SELECT @@tmpdir`
 
-SET @old_general_log_file = @@global.general_log_file;
+# --secure-log-path not set, all logs may be located in data directory
+--let $restart_parameters = "restart: --general-log=ON --general-log-file=general_log_in_datadir --slow-query-log=ON --slow-query-log-file=slow_log_in_datadir --buffered-error-log-size=1000 --buffered-error-log-filename=buffered_log_in_datadir"
+--source include/restart_mysqld.inc
 
-let $datadir= `select @@datadir`;
+# --secure-log-path is set, insecure log names are allowed while corresponding logs are disabled
+--let $restart_parameters = "restart: --secure-log-path=$tmpdir --general-log=OFF --general-log-file=general_log_in_datadir --slow-query-log=OFF --slow-query-log-file=slow_log_in_datadir --buffered-error-log-size=0 --buffered-error-log-filename=buffered_log_in_datadir"
+--replace_result $tmpdir TMPDIR
+--source include/restart_mysqld.inc
+
+# --secure-log-path is set, logs configured to be within secure path
+--let $restart_parameters = "restart: --secure-log-path=$tmpdir --general-log=ON --general-log-file=$tmpdir/general_log_in_tmpdir --slow-query-log=ON --slow-query-log-file=$tmpdir/slow_log_in_tmpdir --buffered-error-log-size=1000 --buffered-error-log-filename=$tmpdir/buffered_log_in_tmpdir"
+--replace_result $tmpdir TMPDIR
+--source include/restart_mysqld.inc
+
+# Logs in data directory with default name are not allowed,
+# except for buffered_error_log_filename which is empty by default
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL general_log_file=DEFAULT;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slow_query_log_file=DEFAULT;
+SET GLOBAL buffered_error_log_filename=DEFAULT;
+
+# Log name in data directory not allowed
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL general_log_file=general_log_in_datadir;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+
+# Log relative name in data directory not allowed
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL general_log_file="log_dir/general_log_in_datadir";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL slow_query_log_file="log_dir/slow_log_in_datadir";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL buffered_error_log_filename="log_dir/buffered_log_in_datadir";
+
+# Log full name in data directory not allowed
 --replace_result $datadir DATADIR
 --error ER_WRONG_VALUE_FOR_VAR
---eval SET GLOBAL general_log_file="$datadir/log_in_the_datadir"
+--eval SET GLOBAL general_log_file="$datadir/general_log_in_datadir"
+--replace_result $datadir DATADIR
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL slow_query_log_file="$datadir/slow_log_in_datadir"
+--replace_result $datadir DATADIR
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL buffered_error_log_filename="$datadir/buffered_log_in_datadir"
 
---let $tmpdir= `SELECT @@tmpdir`
+# Setting names to valid values
 --replace_result $tmpdir TMPDIR
---eval SET GLOBAL general_log_file="$tmpdir/log_in_the_secure_tmpdir"
+--eval SET GLOBAL general_log_file="$tmpdir/renamed_general_log_in_datadir"
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL slow_query_log_file="$tmpdir/renamed_slow_log_in_datadir"
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL buffered_error_log_filename="$tmpdir/renamed_buffered_log_in_datadir"
 
---disable_query_log
-SET GLOBAL general_log_file = @old_general_log_file;
-call mtr.add_suppression("Insecure configuration for --secure-log-path");
---enable_query_log
+#
+# Restrictions implied by --secure-log-path do not take effect in case
+# general-log/slow-query-log/buffered-error-log-size disabled.
+SET GLOBAL general_log=OFF;
+SET GLOBAL slow_query_log=OFF;
+SET GLOBAL buffered_error_log_size=0;
+
+SET GLOBAL general_log_file=DEFAULT;
+SET GLOBAL slow_query_log_file=DEFAULT;
+SET GLOBAL buffered_error_log_filename=DEFAULT;
+
+SET GLOBAL general_log_file=general_log_in_datadir;
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+
+--replace_result $datadir DATADIR
+--eval SET GLOBAL general_log_file="$datadir/general_log_in_datadir"
+--replace_result $datadir DATADIR
+--eval SET GLOBAL slow_query_log_file="$datadir/slow_log_in_datadir"
+--replace_result $datadir DATADIR
+--eval SET GLOBAL buffered_error_log_filename="$datadir/buffered_log_in_datadir"
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL general_log_file="$tmpdir/renamed_general_log_in_datadir"
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL slow_query_log_file="$tmpdir/renamed_slow_log_in_datadir"
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL buffered_error_log_filename="$tmpdir/renamed_buffered_log_in_datadir"
+
+#
+# Check general-log/slow-query-log/buffered-error-log-size cannot be enabled
+# while --secure-log-path is set and corresponding log names are configured
+# to be outside of secure location.
+SET GLOBAL general_log_file=general_log_in_datadir;
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+
+--error ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH_CLIENT
+SET GLOBAL general_log=ON;
+--error ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH_CLIENT
+SET GLOBAL slow_query_log=ON;
+--error ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH_CLIENT
+SET GLOBAL buffered_error_log_size=1000;
+
+#
+# Checking inconsistent log names when --secure-log-path is used during server start
+
+let restart_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+let SEARCH_FILE= $restart_log;
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Unsecure location for general-log-file during server start
+--error 0,1
+--remove_file $restart_log
+--error 1
+--exec $MYSQLD_CMD --secure-log-path=$tmpdir --general-log=ON --general-log-file=general_log_in_datadir --slow-query-log=ON --slow-query-log-file=$tmpdir/slow_log_in_tmpdir --buffered-error-log-size=1000 --buffered-error-log-filename=$tmpdir/buffered_log_in_tmpdir --loose-console > $restart_log 2>&1
+
+let SEARCH_PATTERN= The --secure-file-path is configured, --general-log-file must be set accordingly;
+--source include/search_pattern.inc
+
+# Unsecure location for slow-query-log-file during server start
+--error 0,1
+--remove_file $restart_log
+--error 1
+--exec $MYSQLD_CMD --secure-log-path=$tmpdir --general-log=ON --general-log-file=$tmpdir/general_log_in_tmpdir --slow-query-log=ON --slow-query-log-file=slow_log_in_datadir --buffered-error-log-size=1000 --buffered-error-log-filename=$tmpdir/buffered_log_in_tmpdir --loose-console > $restart_log 2>&1
+
+let SEARCH_PATTERN= The --secure-file-path is configured, --slow-query-log-file must be set accordingly;
+--source include/search_pattern.inc
+
+# Unsecure location for buffered-error-log-filename during server start
+--error 0,1
+--remove_file $restart_log
+--error 1
+--exec $MYSQLD_CMD --secure-log-path=$tmpdir --general-log=ON --general-log-file=$tmpdir/general_log_in_tmpdir --slow-query-log=ON --slow-query-log-file=$tmpdir/slow_log_in_tmpdir --buffered-error-log-size=1000 --buffered-error-log-filename=buffered_log_in_datadir --loose-console > $restart_log 2>&1
+
+let SEARCH_PATTERN= The --secure-file-path is configured, --buffered-error-log-filename must be set accordingly;
+--source include/search_pattern.inc
+
+--remove_file $restart_log 10
+
+--let $restart_parameters = "restart:"
+--source include/start_mysqld.inc

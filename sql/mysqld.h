@@ -135,7 +135,7 @@ void kill_mysql(void);
 void refresh_status();
 void reset_status_by_thd();
 bool is_secure_file_path(const char *path);
-bool is_secure_log_path(const char *path);
+bool is_secure_log_path(const std::string &path);
 ulong sql_rnd_with_mutex();
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);

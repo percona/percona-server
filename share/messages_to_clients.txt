@@ -10540,6 +10540,8 @@ ER_TOO_BIG_ERROR_CODE
 ER_DYNAMIC_ROLE
   eng "The role %s is a dynamic role and can't be revoked or dropped. It should be managed by the external authentication plugin instead."
 
+ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH_CLIENT
+  eng "The --secure-file-path is configured, %s must be set accordingly."
 #
 # End of Percona Server 8.0 client messages
 #

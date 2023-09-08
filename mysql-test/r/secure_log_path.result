@@ -1,4 +1,57 @@
-SET @old_general_log_file = @@global.general_log_file;
-SET GLOBAL general_log_file="DATADIR/log_in_the_datadir";
-ERROR 42000: Variable 'general_log_file' can't be set to the value of 'DATADIR/log_in_the_datadir'
-SET GLOBAL general_log_file="TMPDIR/log_in_the_secure_tmpdir";
+# restart: --general-log=ON --general-log-file=general_log_in_datadir --slow-query-log=ON --slow-query-log-file=slow_log_in_datadir --buffered-error-log-size=1000 --buffered-error-log-filename=buffered_log_in_datadir
+# restart: --secure-log-path=TMPDIR --general-log=OFF --general-log-file=general_log_in_datadir --slow-query-log=OFF --slow-query-log-file=slow_log_in_datadir --buffered-error-log-size=0 --buffered-error-log-filename=buffered_log_in_datadir
+# restart: --secure-log-path=TMPDIR --general-log=ON --general-log-file=TMPDIR/general_log_in_tmpdir --slow-query-log=ON --slow-query-log-file=TMPDIR/slow_log_in_tmpdir --buffered-error-log-size=1000 --buffered-error-log-filename=TMPDIR/buffered_log_in_tmpdir
+SET GLOBAL general_log_file=DEFAULT;
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'DEFAULT'
+SET GLOBAL slow_query_log_file=DEFAULT;
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'DEFAULT'
+SET GLOBAL buffered_error_log_filename=DEFAULT;
+SET GLOBAL general_log_file=general_log_in_datadir;
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'general_log_in_datadir'
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'slow_log_in_datadir'
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+ERROR 42000: Variable 'buffered_error_log_filename' can't be set to the value of 'buffered_log_in_datadir'
+SET GLOBAL general_log_file="log_dir/general_log_in_datadir";
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'log_dir/general_log_in_datadir'
+SET GLOBAL slow_query_log_file="log_dir/slow_log_in_datadir";
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'log_dir/slow_log_in_datadir'
+SET GLOBAL buffered_error_log_filename="log_dir/buffered_log_in_datadir";
+ERROR 42000: Variable 'buffered_error_log_filename' can't be set to the value of 'log_dir/buffered_log_in_datadir'
+SET GLOBAL general_log_file="DATADIR/general_log_in_datadir";
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'DATADIR/general_log_in_datadir'
+SET GLOBAL slow_query_log_file="DATADIR/slow_log_in_datadir";
+ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'DATADIR/slow_log_in_datadir'
+SET GLOBAL buffered_error_log_filename="DATADIR/buffered_log_in_datadir";
+ERROR 42000: Variable 'buffered_error_log_filename' can't be set to the value of 'DATADIR/buffered_log_in_datadir'
+SET GLOBAL general_log_file="TMPDIR/renamed_general_log_in_datadir";
+SET GLOBAL slow_query_log_file="TMPDIR/renamed_slow_log_in_datadir";
+SET GLOBAL buffered_error_log_filename="TMPDIR/renamed_buffered_log_in_datadir";
+SET GLOBAL general_log=OFF;
+SET GLOBAL slow_query_log=OFF;
+SET GLOBAL buffered_error_log_size=0;
+SET GLOBAL general_log_file=DEFAULT;
+SET GLOBAL slow_query_log_file=DEFAULT;
+SET GLOBAL buffered_error_log_filename=DEFAULT;
+SET GLOBAL general_log_file=general_log_in_datadir;
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+SET GLOBAL general_log_file="DATADIR/general_log_in_datadir";
+SET GLOBAL slow_query_log_file="DATADIR/slow_log_in_datadir";
+SET GLOBAL buffered_error_log_filename="DATADIR/buffered_log_in_datadir";
+SET GLOBAL general_log_file="TMPDIR/renamed_general_log_in_datadir";
+SET GLOBAL slow_query_log_file="TMPDIR/renamed_slow_log_in_datadir";
+SET GLOBAL buffered_error_log_filename="TMPDIR/renamed_buffered_log_in_datadir";
+SET GLOBAL general_log_file=general_log_in_datadir;
+SET GLOBAL slow_query_log_file=slow_log_in_datadir;
+SET GLOBAL buffered_error_log_filename=buffered_log_in_datadir;
+SET GLOBAL general_log=ON;
+ERROR HY000: The --secure-file-path is configured, --general-log-file must be set accordingly.
+SET GLOBAL slow_query_log=ON;
+ERROR HY000: The --secure-file-path is configured, --slow-query-log-file must be set accordingly.
+SET GLOBAL buffered_error_log_size=1000;
+ERROR HY000: The --secure-file-path is configured, --buffered-error-log-filename must be set accordingly.
+Pattern "The --secure-file-path is configured, --general-log-file must be set accordingly" found
+Pattern "The --secure-file-path is configured, --slow-query-log-file must be set accordingly" found
+Pattern "The --secure-file-path is configured, --buffered-error-log-filename must be set accordingly" found
+# restart:

@@ -7105,6 +7105,26 @@ int init_common_variables() {
                         make_query_log_name(slow_logname_path, QUERY_LOG_SLOW),
                         MYF(MY_WME)));
 
+  if (opt_general_log && opt_general_logname != nullptr &&
+      !is_secure_log_path(opt_general_logname)) {
+    LogErr(ERROR_LEVEL, ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH,
+           "--general-log-file");
+    return 1;
+  }
+  if (opt_slow_log && opt_slow_logname != nullptr &&
+      !is_secure_log_path(opt_slow_logname)) {
+    LogErr(ERROR_LEVEL, ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH,
+           "--slow-query-log-file");
+    return 1;
+  }
+  if (buffered_error_log_size > 0 && buffered_error_log_filename != nullptr &&
+      strlen(buffered_error_log_filename) > 0 &&
+      !is_secure_log_path(buffered_error_log_filename)) {
+    LogErr(ERROR_LEVEL, ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH,
+           "--buffered-error-log-filename");
+    return 1;
+  }
+
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
   if (debug_sync_init()) return 1; /* purecov: tested */
@@ -13341,9 +13361,9 @@ static const char *get_relative_path(const char *path) {
   return path;
 }
 
-static bool is_secure_path(const char *path, const char *opt_base) {
+static bool is_secure_path(const std::string &path, const char *opt_base) {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
-  size_t opt_base_len;
+  size_t opt_base_len = 0;
   /*
     All paths are secure if opt_base is 0
   */
@@ -13351,17 +13371,17 @@ static bool is_secure_path(const char *path, const char *opt_base) {
 
   opt_base_len = strlen(opt_base);
 
-  if (strlen(path) >= FN_REFLEN) return false;
+  if (path.length() >= FN_REFLEN) return false;
 
   if (!my_strcasecmp(system_charset_info, opt_base, "NULL")) return false;
 
-  if (my_realpath(buff1, path, 0)) {
+  if (my_realpath(buff1, path.c_str(), 0)) {
     /*
       The supplied file path might have been a file and not a directory.
     */
-    const int length = (int)dirname_length(path);
+    const int length = (int)dirname_length(path.c_str());
     if (length >= FN_REFLEN) return false;
-    memcpy(buff2, path, length);
+    memcpy(buff2, path.c_str(), length);
     buff2[length] = '\0';
     if (length == 0 || my_realpath(buff1, buff2, 0)) return false;
   }
@@ -13395,13 +13415,18 @@ bool is_secure_file_path(const char *path) {
   Test a file path to determine if the path is compatible with the secure log
   path restriction.
 
-  @param path null terminated character string
+  @param path Log path
 
   @retval true The path is secure
   @retval false The path isn't secure
 */
-bool is_secure_log_path(const char *path) {
-  return is_secure_path(path, opt_secure_log_path);
+bool is_secure_log_path(const std::string &path) {
+  if (strlen(opt_secure_log_path) == 0) {
+    // No secure path set
+    return true;
+  }
+
+  return !path.empty() && is_secure_path(path, opt_secure_log_path);
 }
 
 /**

@@ -12455,6 +12455,9 @@ ER_CONN_CONTROL_FAILED_CONN_THRESHOLD_REACHED_WITH_WARN
 ER_CONN_CONTROL_DELAYED_CONN_STATS
   eng "Delayed %llu connection attempts during last %llu seconds"
 
+ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH
+  eng "The --secure-file-path is configured, %s must be set accordingly."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -1438,7 +1438,7 @@ class Rdb_seq_generator {
 };
 
 interface Rdb_tables_scanner {
-  virtual int add_table(Rdb_tbl_def * tdef) = 0;
+  virtual int add_table(Rdb_tbl_def *tdef) = 0;
 };
 
 /*

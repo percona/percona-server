@@ -1,0 +1,17 @@
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/test_sig_handler.err --debug=d,simulate_sighup_print_status
+# Test SIGPIPE, SIGTSTP, SIGINT, which should be ignored
+SELECT 1;
+1
+1
+# Test SIGHUP, which should result in status dump in the error log
+SELECT 1;
+1
+1
+# Test SIGSTOP and SIGCONT which should be ignored
+SELECT 1;
+1
+1
+# Test SIGTERM, server should shutdown
+# restart
+include/assert_grep.inc [Status information found in error log]
+include/assert_grep.inc [Server is shutdown gracefully]

@@ -1,0 +1,39 @@
+#
+# PS-8882: Crash when performing CREATE TABLE AS SELECT during Alters/Renames
+#
+CREATE TABLE t0 (id INT PRIMARY KEY, v1 VARCHAR(100), v2 VARCHAR(100), v3 VARCHAR(100));
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+# Create lots of tables in 'db1' and run RENAME TABLES statement
+# that atomically moves them to 'db2'. Then number of tables was
+# chosen in such way that capacity of Data Dictionary Cache of
+# dd::Table objects is exceeded in the process. Pause execution
+# of RENAME TABLE at the point where dd::Tables are still pinned
+# to cache.
+#
+# Maximum capacity of data-dictionary cache for dd::Table objects
+# is derived from --max_connections value.
+#
+# Create tables and construct RENAME TABLES along the way.
+#
+# Start RENAME TABLES and pause at the point where DD cache is
+# full and dd::Table objects are pinned to the cache.
+connect  con1, localhost, root,,;
+# Wait until RENAME TABLES is paused.
+SET debug_sync = 'now WAIT_FOR parked';
+#
+# Thanks to full DD cache dd::Table objects which are acquired by
+# the below statement are immediately destroyed once they are released.
+# So premature release of one of dd::Table objects in it caused
+# crashes before the fix.
+CREATE TABLE tt SELECT * FROM t0;
+# Resume RENAME TABLES execution.
+SET debug_sync = 'now SIGNAL go';
+disconnect con1;
+connection default;
+# Reap RENAME TABLES.
+# Clean-up.
+SET debug_sync = 'RESET';
+DROP TABLES t0, tt;
+DROP DATABASE db1;
+DROP DATABASE db2;

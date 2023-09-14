@@ -1,0 +1,72 @@
+# We use DEBUG_SYNC facility.
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # PS-8882: Crash when performing CREATE TABLE AS SELECT during Alters/Renames
+--echo #
+--enable_connect_log
+CREATE TABLE t0 (id INT PRIMARY KEY, v1 VARCHAR(100), v2 VARCHAR(100), v3 VARCHAR(100));
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+--echo # Create lots of tables in 'db1' and run RENAME TABLES statement
+--echo # that atomically moves them to 'db2'. Then number of tables was
+--echo # chosen in such way that capacity of Data Dictionary Cache of
+--echo # dd::Table objects is exceeded in the process. Pause execution
+--echo # of RENAME TABLE at the point where dd::Tables are still pinned
+--echo # to cache.
+
+--disable_query_log
+--echo #
+--echo # Maximum capacity of data-dictionary cache for dd::Table objects
+--echo # is derived from --max_connections value.
+--let $max_tables = `SELECT @@max_connections + 10`
+
+--echo #
+--echo # Create tables and construct RENAME TABLES along the way.
+
+--let $i= 0
+--let $rename = RENAME TABLES
+while ($i < $max_tables)
+{
+  --eval CREATE TABLE db1.t$i (a INT PRIMARY KEY)
+  --let $rename = `SELECT CONCAT('$rename',' db1.t$i TO db2.t$i,')`
+  --inc $i
+}
+--eval CREATE TABLE db1.t$max_tables (a INT PRIMARY KEY)
+
+--echo #
+--echo # Start RENAME TABLES and pause at the point where DD cache is
+--echo # full and dd::Table objects are pinned to the cache.
+SET debug_sync = 'do_renames_before_return SIGNAL parked WAIT_FOR go';
+--send_eval $rename db1.t$max_tables TO db2.t$max_tables
+
+--enable_query_log
+connect (con1, localhost, root,,);
+
+--echo # Wait until RENAME TABLES is paused.
+SET debug_sync = 'now WAIT_FOR parked';
+
+--echo #
+--echo # Thanks to full DD cache dd::Table objects which are acquired by
+--echo # the below statement are immediately destroyed once they are released.
+--echo # So premature release of one of dd::Table objects in it caused
+--echo # crashes before the fix.
+CREATE TABLE tt SELECT * FROM t0;
+
+--echo # Resume RENAME TABLES execution.
+SET debug_sync = 'now SIGNAL go';
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # Reap RENAME TABLES.
+--reap
+
+--echo # Clean-up.
+SET debug_sync = 'RESET';
+DROP TABLES t0, tt;
+DROP DATABASE db1;
+DROP DATABASE db2;
+--disable_connect_log

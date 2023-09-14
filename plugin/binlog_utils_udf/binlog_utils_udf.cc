@@ -64,6 +64,10 @@ int binlog_utils_udf_init(void *) {
   sys_var_srv.reset(
       reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
           acquired_service));
+  // Here we initialize UDF wrapper error reporter with
+  // the default one from mysys
+  mysqlpp::udf_error_reporter::instance() = &my_error;
+
   binlog_utils_udf_initialized = true;
   return 0;
 }
@@ -107,16 +111,16 @@ namespace {
 //
 // Binlog utils shared functions
 //
-const ext::string_view default_component_name{"mysql_server"};
-const ext::string_view gtid_executed_variable_name{"gtid_executed"};
+const std::string_view default_component_name{"mysql_server"};
+const std::string_view gtid_executed_variable_name{"gtid_executed"};
 
 constexpr std::size_t default_static_buffer_size{1024};
 using static_buffer_t = std::array<char, default_static_buffer_size + 1>;
 using dynamic_buffer_t = std::vector<char>;
 using uni_buffer_t = std::pair<static_buffer_t, dynamic_buffer_t>;
 
-ext::string_view extract_sys_var_value(ext::string_view component_name,
-                                       ext::string_view variable_name,
+std::string_view extract_sys_var_value(std::string_view component_name,
+                                       std::string_view variable_name,
                                        uni_buffer_t &ub) {
   DBUG_TRACE;
   void *ptr = ub.first.data();
@@ -140,7 +144,7 @@ ext::string_view extract_sys_var_value(ext::string_view component_name,
 using log_event_ptr = std::shared_ptr<Log_event>;
 using fn_reflen_buffer = char[FN_REFLEN + 1];
 
-const char *check_and_normalize_binlog_name(ext::string_view binlog_name,
+const char *check_and_normalize_binlog_name(std::string_view binlog_name,
                                             fn_reflen_buffer &buffer) {
   if (binlog_name.empty())
     throw std::runtime_error("expecting non-empty binlog name");
@@ -164,7 +168,7 @@ const char *get_short_binlog_name(const std::string &binlog_name) noexcept {
   return binlog_name.c_str() + dirname_length(binlog_name.c_str());
 }
 
-log_event_ptr find_first_event(ext::string_view binlog_name) {
+log_event_ptr find_first_event(std::string_view binlog_name) {
   DBUG_TRACE;
 
   fn_reflen_buffer binlog_name_buffer;
@@ -186,7 +190,7 @@ log_event_ptr find_first_event(ext::string_view binlog_name) {
   return ev;
 }
 
-log_event_ptr find_last_event(ext::string_view binlog_name) {
+log_event_ptr find_last_event(std::string_view binlog_name) {
   DBUG_TRACE;
 
   fn_reflen_buffer binlog_name_buffer;
@@ -221,7 +225,7 @@ log_event_ptr find_last_event(ext::string_view binlog_name) {
   return ev;
 }
 
-log_event_ptr find_previous_gtids_event(ext::string_view binlog_name) {
+log_event_ptr find_previous_gtids_event(std::string_view binlog_name) {
   DBUG_TRACE;
 
   fn_reflen_buffer binlog_name_buffer;
@@ -252,7 +256,7 @@ log_event_ptr find_previous_gtids_event(ext::string_view binlog_name) {
   return {};
 }
 
-bool extract_previous_gtids(ext::string_view binlog_name, bool is_first,
+bool extract_previous_gtids(std::string_view binlog_name, bool is_first,
                             Gtid_set &extracted_gtids) {
   DBUG_TRACE;
 
@@ -275,7 +279,7 @@ bool extract_previous_gtids(ext::string_view binlog_name, bool is_first,
   return res;
 }
 
-log_event_ptr find_last_gtid_event(ext::string_view binlog_name) {
+log_event_ptr find_last_gtid_event(std::string_view binlog_name) {
   DBUG_TRACE;
 
   fn_reflen_buffer binlog_name_buffer;
@@ -308,7 +312,7 @@ log_event_ptr find_last_gtid_event(ext::string_view binlog_name) {
   return last_gtid_ev;
 }
 
-bool extract_last_gtid(ext::string_view binlog_name, Sid_map &sid_map,
+bool extract_last_gtid(std::string_view binlog_name, Sid_map &sid_map,
                        Gtid &extracted_gtid) {
   DBUG_TRACE;
 
@@ -441,8 +445,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_last_gtid_from_binlog_impl::calculate(
   auto length =
       static_cast<std::size_t>(extracted_gtid.to_string(&sid_map, buf));
 
-  return mysqlpp::udf_result_t<STRING_RESULT>{boost::in_place_init, buf,
-                                              length};
+  return mysqlpp::udf_result_t<STRING_RESULT>{std::in_place, buf, length};
 }
 
 //
@@ -525,7 +528,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_gtid_set_by_binlog_impl::calculate(
   dynamic_buffer_t result_buffer(covering_gtids.get_string_length() + 1);
   auto length = covering_gtids.to_string(result_buffer.data());
 
-  return mysqlpp::udf_result_t<STRING_RESULT>{boost::in_place_init,
+  return mysqlpp::udf_result_t<STRING_RESULT>{std::in_place,
                                               result_buffer.data(), length};
 }
 
@@ -651,7 +654,7 @@ get_first_record_timestamp_by_binlog_impl::calculate(
   auto binlog_name_sv = ctx.get_arg<STRING_RESULT>(0);
 
   auto ev = find_first_event(binlog_name_sv);
-  if (!ev) return {};
+  if (!ev) return {std::nullopt};
   return ev->common_header->when.tv_sec * 1000000LL +
          ev->common_header->when.tv_usec;
 }
@@ -692,23 +695,16 @@ get_last_record_timestamp_by_binlog_impl::calculate(
   auto binlog_name_sv = ctx.get_arg<STRING_RESULT>(0);
 
   auto ev = find_last_event(binlog_name_sv);
-  if (!ev) return {};
+  if (!ev) return {std::nullopt};
   return ev->common_header->when.tv_sec * 1000000LL +
          ev->common_header->when.tv_usec;
 }
 
 }  // end of anonymous namespace
 
-DECLARE_STRING_UDF(get_binlog_by_gtid_impl, get_binlog_by_gtid)
-
-DECLARE_STRING_UDF(get_last_gtid_from_binlog_impl, get_last_gtid_from_binlog)
-
-DECLARE_STRING_UDF(get_gtid_set_by_binlog_impl, get_gtid_set_by_binlog)
-
-DECLARE_STRING_UDF(get_binlog_by_gtid_set_impl, get_binlog_by_gtid_set)
-
-DECLARE_INT_UDF(get_first_record_timestamp_by_binlog_impl,
-                get_first_record_timestamp_by_binlog)
-
-DECLARE_INT_UDF(get_last_record_timestamp_by_binlog_impl,
-                get_last_record_timestamp_by_binlog)
+DECLARE_STRING_UDF_AUTO(get_binlog_by_gtid)
+DECLARE_STRING_UDF_AUTO(get_last_gtid_from_binlog)
+DECLARE_STRING_UDF_AUTO(get_gtid_set_by_binlog)
+DECLARE_STRING_UDF_AUTO(get_binlog_by_gtid_set)
+DECLARE_INT_UDF_AUTO(get_first_record_timestamp_by_binlog)
+DECLARE_INT_UDF_AUTO(get_last_record_timestamp_by_binlog)

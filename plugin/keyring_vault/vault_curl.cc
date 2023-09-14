@@ -18,9 +18,9 @@
 #include "vault_curl.h"
 
 #include <algorithm>
+#include <optional>
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional.hpp>
 
 #include <curl/curl.h>
 

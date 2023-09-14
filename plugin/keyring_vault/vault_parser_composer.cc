@@ -16,12 +16,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <algorithm>
+#include <optional>
 #include <sstream>
 #include <vector>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/lexical_cast/try_lexical_convert.hpp>
-#include <boost/optional.hpp>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE

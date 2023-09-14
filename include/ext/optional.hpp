@@ -17,14 +17,18 @@
 #ifndef EXT_OPTIONAL_HPP
 #define EXT_OPTIONAL_HPP
 
-#include <boost/optional.hpp>
+#include <optional>
 
 namespace ext {
 
-// TODO: the following 'using' directive can be changed to
-//   using std::optional;
-// once MySQL source code switches to c++17
-using boost::optional;
+// This using declaration is deprecated and should not be used.
+// All new code should use std::optional directly.
+//
+// Originally, when MySQL code was still uising c++14, it used to refer to
+// boost::string_view.
+// In c++17 it is no longer needed and left here only for compatibility
+// with old third party code.
+using std::optional;
 
 }  // namespace ext
 

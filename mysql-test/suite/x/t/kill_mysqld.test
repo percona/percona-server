@@ -1,0 +1,64 @@
+## This file provide test scenario for killing mysqld when there is an active mysqlx connection
+##
+
+--source include/have_debug.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test Setup
+--write_file $MYSQL_TMP_DIR/sleep.xpl
+-->setsession
+-->sleep 100
+-->closesession
+EOF
+
+#
+# Test the effect of various signals on the server
+#
+--let $test_error_log= $MYSQLTEST_VARDIR/tmp/test_sig_handler.err
+--let $restart_parameters=restart:--log-error=$test_error_log --debug=d,simulate_sighup_print_status
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+--exec_in_background $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/sleep.xpl 2>&1
+
+--let $mysqld_pid_file=`SELECT @@GLOBAL.pid_file`
+
+--echo # Test SIGPIPE, SIGTSTP, SIGINT, which should be ignored
+--exec kill -PIPE `cat $mysqld_pid_file`
+SELECT 1;
+
+--echo # Test SIGHUP, which should result in status dump in the error log
+--exec kill -HUP `cat $mysqld_pid_file`
+SELECT 1;
+
+
+--echo # Test SIGSTOP and SIGCONT which should be ignored
+--exec kill -STOP `cat $mysqld_pid_file`
+--exec kill -CONT `cat $mysqld_pid_file`
+SELECT 1;
+
+--echo # Test SIGTERM, server should shutdown
+--source include/expect_crash.inc
+--exec kill -TERM `cat $mysqld_pid_file`
+--source include/wait_until_disconnected.inc
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+# Test for SIGHUP output
+--let $assert_text = Status information found in error log
+--let $assert_file = $test_error_log
+--let $assert_count = 1
+--let $assert_select = Status information:
+--source include/assert_grep.inc
+
+# Test for SIGTERM output
+--let $assert_text = Server is shutdown gracefully
+--let $assert_file = $test_error_log
+--let $assert_count = 1
+--let $assert_select = mysqld.*: Shutdown complete
+--source include/assert_grep.inc
+
+--remove_file $test_error_log
+--source ../include/xplugin_cleanup.inc

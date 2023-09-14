@@ -42,6 +42,7 @@
 #include "sql/dd/types/abstract_table.h"     // dd::Abstract_table
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_sql_view.h"                 // View_metadata_updater
+#include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD
 #include "sql/handler.h"
 #include "sql/log.h"          // query_logger
@@ -887,6 +888,8 @@ static bool do_rename(THD *thd, Table_ref *ren_table, const char *new_db,
   // Now, we know that rename succeeded, and can log the schema access
   thd->add_to_binlog_accessed_dbs(ren_table->db);
   thd->add_to_binlog_accessed_dbs(new_db);
+
+  DEBUG_SYNC(thd, "do_renames_before_return");
 
   return false;
 }

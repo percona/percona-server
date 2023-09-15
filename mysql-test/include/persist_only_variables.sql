@@ -88,7 +88,7 @@ set @@persist_only.performance_schema_max_socket_classes=10;
 set @@persist_only.performance_schema_max_socket_instances=-1;
 set @@persist_only.performance_schema_max_sql_text_length=1024;
 set @@persist_only.performance_schema_max_stage_classes=250;
-set @@persist_only.performance_schema_max_statement_classes=202;
+set @@persist_only.performance_schema_max_statement_classes=256;
 set @@persist_only.performance_schema_max_statement_stack=10;
 set @@persist_only.performance_schema_max_table_handles=-1;
 set @@persist_only.performance_schema_max_table_instances=-1;
@@ -108,8 +108,9 @@ set @@persist_only.table_open_cache_instances=16;
 set @@persist_only.thread_handling='one-thread-per-connection';
 set @@persist_only.thread_stack=286720;
 set @@persist_only.tls_version='TLSv1.2,TLSv1.3';
-set @@persist_only.report_host=NULL;
+set @@persist_only.report_host='';
 set @@persist_only.report_port=21000;
+<<<<<<< HEAD
 set @@persist_only.report_password=NULL;
 set @@persist_only.report_user=NULL;
 
@@ -119,3 +120,10 @@ set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;
 set @@persist_only.proxy_protocol_networks='*';
+||||||| b5da0b9817c
+set @@persist_only.report_password=NULL;
+set @@persist_only.report_user=NULL;
+=======
+set @@persist_only.report_password='';
+set @@persist_only.report_user='';
+>>>>>>> mysql-8.1.0

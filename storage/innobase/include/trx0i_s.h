@@ -38,11 +38,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <optional>
 
 #include "dict0types.h"
+#include "lock0types.h"
 #include "trx0types.h"
 #include "univ.i"
 
 struct lock_t;
 class PSI_server_data_lock_container;
+
+struct CHARSET_INFO;
 
 /** The maximum amount of memory that can be consumed by innodb_trx,
 innodb_locks and innodb_lock_waits information schema tables. */

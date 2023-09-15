@@ -32,15 +32,16 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "m_string.h"
-#include "my_getopt.h"
-#include "mysql.h"
-#include "template_utils.h"
-#include "typelib.h"
-
 #ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql.h"
+#include "nulls.h"
+#include "template_utils.h"
+#include "typelib.h"
 
 const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
                                     "VERIFY_CA", "VERIFY_IDENTITY", NullS};
@@ -65,6 +66,7 @@ static ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly = false;
 static char *opt_ssl_session_data = nullptr;
 static bool opt_ssl_session_data_continue_on_failed_reuse = false;
+static char *opt_tls_sni_servername = nullptr;
 
 static inline int set_client_ssl_options(MYSQL *mysql) {
   /*
@@ -94,6 +96,7 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
     if (mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR) return 1;
   }
   mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
+  mysql_options(mysql, MYSQL_OPT_TLS_SNI_SERVERNAME, opt_tls_sni_servername);
   if (opt_ssl_session_data) {
     FILE *fi = fopen(opt_ssl_session_data, "rb");
     char buff[4096], *bufptr = &buff[0];

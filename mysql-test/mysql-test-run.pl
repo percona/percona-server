@@ -80,6 +80,7 @@ require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
 our $primary_engine_support = eval 'use mtr_external_engine; 1';
+our $external_language_support = eval 'use mtr_external_language; 1';
 
 # Global variable to keep track of completed test cases
 my $completed = [];
@@ -150,6 +151,7 @@ my $opt_user_args;
 my $opt_valgrind_path;
 my $opt_view_protocol;
 my $opt_wait_all;
+my $opt_telemetry;
 
 my $opt_build_thread  = $ENV{'MTR_BUILD_THREAD'}  || "auto";
 my $opt_colored_diff  = $ENV{'MTR_COLORED_DIFF'}  || 0;
@@ -376,6 +378,7 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
+our $exe_mysql_test_event_tracking;
 our $exe_openssl;
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
@@ -1695,6 +1698,7 @@ sub print_global_resfile {
   resfile_global("suite-opt",        $opt_suite_opt);
   resfile_global("suite-timeout",    $opt_suite_timeout);
   resfile_global("summary-report",   $opt_summary_report);
+  resfile_global("telemetry",        $opt_telemetry        ? 1 : 0);
   resfile_global("test-progress",    $opt_test_progress    ? 1 : 0);
   resfile_global("testcase-timeout", $opt_testcase_timeout);
   resfile_global("tmpdir",           $opt_tmpdir);
@@ -1895,6 +1899,7 @@ sub command_line_setup {
     'stress=s'              => \$opt_stress,
     'suite-opt=s'           => \$opt_suite_opt,
     'suite-timeout=i'       => \$opt_suite_timeout,
+    'telemetry'             => \$opt_telemetry,
     'testcase-timeout=i'    => \$opt_testcase_timeout,
     'timediff'              => \&report_option,
     'timer!'                => \&report_option,
@@ -1983,6 +1988,10 @@ sub command_line_setup {
   } else {
     # Run the mysqld to find out what features are available
     collect_mysqld_features();
+  }
+
+  if($external_language_support){
+    find_external_language_home($bindir);
   }
 
   # Look for language files and charsetsdir, use same share
@@ -2822,6 +2831,11 @@ sub executable_setup () {
   $exe_mysql_keyring_encryption_test =
     mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
 
+  # Look for mysql_test_event_tracking binary
+  $exe_mysql_test_event_tracking = my_find_bin($bindir,
+                [ "runtime_output_directory", "bin" ],
+                "mysql_test_event_tracking", NOT_REQUIRED);
+
   # For custom OpenSSL builds, look for the my_openssl executable.
   $exe_openssl =
     my_find_bin($bindir,
@@ -3376,6 +3390,7 @@ sub environment_setup {
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
+  $ENV{'MYSQL_TEST_EVENT_TRACKING'} = $exe_mysql_test_event_tracking;
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
   $ENV{'MYSQL_CLIENT_BIN_PATH'}    = $path_client_bindir;
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()
@@ -4480,6 +4495,11 @@ sub mysql_install_db {
 
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file, mtr_grab_file("include/mtr_check.sql"));
+
+  if($opt_telemetry) {
+    # Pre install the telemetry component
+    mtr_tofile($bootstrap_sql_file, mtr_grab_file("include/mtr_telemetry.sql"));
+  }
 
   if (defined $init_file) {
     # Append the contents of the init-file to the end of bootstrap.sql
@@ -8272,6 +8292,7 @@ Misc options
   suite-timeout=MINUTES Max test suite run time (default $opt_suite_timeout).
   summary-report=FILE   Generate a plain text file of the test summary only,
                         suitable for sending by email.
+  telemetry             Pre install the telemetry component
   testcase-timeout=MINUTES
                         Max test case run time (default $opt_testcase_timeout).
   timediff              With --timestamp, also print time passed since

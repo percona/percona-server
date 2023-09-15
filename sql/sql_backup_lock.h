@@ -73,6 +73,7 @@ class Sql_cmd_unlock_instance : public Sql_cmd {
 };
 
 /**
+<<<<<<< HEAD
    MDL_key::BACKUP_LOCK RAII.
  */
 class Shared_backup_lock_guard {
@@ -129,6 +130,53 @@ class Shared_backup_lock_guard {
 bool check_backup_admin_privilege(THD *thd);
 
 /**
+||||||| b5da0b9817c
+=======
+   MDL_key::BACKUP_LOCK RAII.
+ */
+class Shared_backup_lock_guard {
+ public:
+  /**
+    There are three possible results while checking if the instance is locked
+    for backup.
+  */
+  enum class Lock_result { not_locked = 0, locked = 1, oom = 2 };
+
+  Shared_backup_lock_guard(THD *thd);
+  Shared_backup_lock_guard(const Shared_backup_lock_guard &o) = delete;
+  Shared_backup_lock_guard(Shared_backup_lock_guard &&o) = default;
+  Shared_backup_lock_guard &operator=(const Shared_backup_lock_guard &o) =
+      delete;
+  Shared_backup_lock_guard &operator=(Shared_backup_lock_guard &&o) = default;
+
+  ~Shared_backup_lock_guard();
+
+  operator Lock_result() const;
+
+ private:
+  /**
+    Try to acquire shared backup lock.
+
+    @param[in] thd                Current thread context
+    @param[in] for_trx            true if MDL duration is MDL_TRANSACTION
+                                  false if MDL duration is MDL_EXPLICIT
+
+    @return Operation status.
+      @retval Shared_backup_lock_guard::Lock_result::locked       Locked shared
+    BACKUP lock.
+      @retval Shared_backup_lock_guard::Lock_result::not_locked   Could not lock
+    shared BACKUP lock. Conflicting lock exists.
+      @retval Shared_backup_lock_guard::Lock_result::oom          Error. Could
+    not lock shared BACKUP lock.
+  */
+  Shared_backup_lock_guard::Lock_result try_acquire_shared_backup_lock(
+      THD *thd, bool for_trx);
+  Shared_backup_lock_guard::Lock_result m_lock_state;
+  THD *m_thd;
+};
+
+/**
+>>>>>>> mysql-8.1.0
   Acquire exclusive Backup Lock.
 
   @param[in] thd                Current thread context

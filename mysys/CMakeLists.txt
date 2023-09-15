@@ -32,8 +32,8 @@ SET(MYSYS_SOURCES
   array.cc
   buffered_error_log.cc
   charset.cc
-  charset-def.cc
   dbug.cc
+  decimal.cc
   errors.cc
   lf_alloc-pin.cc
   lf_dynarray.cc
@@ -104,8 +104,12 @@ SET(MYSYS_SOURCES
   print_version.cc
   psi_noop.cc
   ptr_cmp.cc
-  sql_chars.cc
   stacktrace.cc
+  str2int.cc
+  strcont.cc
+  strmake.cc
+  strxmov.cc
+  strxnmov.cc
   thr_cond.cc
   thr_lock.cc
   thr_mutex.cc

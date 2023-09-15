@@ -430,8 +430,8 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table) {
       Allocate new Table_cache_element object and add it to the cache
       and array in TABLE_SHARE.
     */
-    std::string key(table->s->table_cache_key.str,
-                    table->s->table_cache_key.length);
+    const std::string key(table->s->table_cache_key.str,
+                          table->s->table_cache_key.length);
     assert(m_cache.count(key) == 0);
 
     el = new Table_cache_element(table->s);
@@ -480,10 +480,20 @@ void Table_cache::remove_table(TABLE *table) {
   if (table->triggers && table->triggers->has_load_been_finalized())
     m_table_triggers_count--;
 
+<<<<<<< HEAD
   if (el->used_tables.is_empty() && el->free_tables_full_triggers.is_empty() &&
       el->free_tables_slim.is_empty()) {
     std::string key(table->s->table_cache_key.str,
                     table->s->table_cache_key.length);
+||||||| b5da0b9817c
+  if (el->used_tables.is_empty() && el->free_tables.is_empty()) {
+    std::string key(table->s->table_cache_key.str,
+                    table->s->table_cache_key.length);
+=======
+  if (el->used_tables.is_empty() && el->free_tables.is_empty()) {
+    const std::string key(table->s->table_cache_key.str,
+                          table->s->table_cache_key.length);
+>>>>>>> mysql-8.1.0
     m_cache.erase(key);
     /*
       Remove reference to deleted cache element from array
@@ -526,7 +536,7 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
 
   *share = nullptr;
 
-  std::string key_str(key, key_length);
+  const std::string key_str(key, key_length);
   const auto el_it = m_cache.find(key_str);
   if (el_it == m_cache.end()) return nullptr;
   Table_cache_element *el = el_it->second.get();

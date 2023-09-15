@@ -152,8 +152,8 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
                  bool thread_safe) {
   DBUG_TRACE;
   if (!buf) {
-    uint size_in_bytes = bitmap_buffer_size(n_bits);
-    uint extra = 0;
+    const uint size_in_bytes = bitmap_buffer_size(n_bits);
+    const uint extra = 0;
 
     if (thread_safe) {
       size_in_bytes = ALIGN_SIZE(size_in_bytes);
@@ -209,8 +209,8 @@ void bitmap_free(MY_BITMAP *map) {
 
 bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit) {
   uchar *value = ((uchar *)map->bitmap) + (bitmap_bit / 8);
-  uchar bit = 1 << ((bitmap_bit)&7);
-  uchar res = (*value) & bit;
+  const uchar bit = 1 << ((bitmap_bit)&7);
+  const uchar res = (*value) & bit;
   *value |= bit;
   return res;
 }
@@ -299,7 +299,7 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size) {
 }
 
 bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size) {
-  uint prefix_bits = prefix_size % 32;
+  const uint prefix_bits = prefix_size % 32;
   my_bitmap_map *word_ptr = map->bitmap, last_word;
   my_bitmap_map *end_prefix = word_ptr + prefix_size / 32;
   assert(word_ptr && prefix_size <= map->n_bits);
@@ -419,7 +419,17 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
   my_bitmap_map *to = map->bitmap, *from = map2->bitmap, *end;
   uint len = no_words_in_map(map), len2 = no_words_in_map(map2);
 
+<<<<<<< HEAD
   assert(map->bitmap && map2->bitmap);
+||||||| b5da0b9817c
+  uint to_length = no_words_in_map(to);
+  uint from_length = no_words_in_map(from);
+  uint min_length = std::min(to_length, from_length);
+=======
+  const uint to_length = no_words_in_map(to);
+  const uint from_length = no_words_in_map(from);
+  uint min_length = std::min(to_length, from_length);
+>>>>>>> mysql-8.1.0
 
   end = to + std::min(len, len2);
   for (; to < end; to++, from++) *to &= *from;
@@ -452,8 +462,16 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2) {
     void
 */
 
+<<<<<<< HEAD
 void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit) {
   uchar use_byte = use_bit ? 0xff : 0;
+||||||| b5da0b9817c
+void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit) {
+  uchar use_byte = use_bit ? 0xff : 0;
+=======
+void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit) {
+  const uchar use_byte = use_bit ? 0xff : 0;
+>>>>>>> mysql-8.1.0
   uchar *to = (uchar *)map->bitmap + from_byte;
   uchar *end = (uchar *)map->bitmap + (map->n_bits + 7) / 8;
 

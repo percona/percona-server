@@ -26,12 +26,18 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+<<<<<<< HEAD
 #include "my_thread_local.h"     // my_thread_id
 #include "mysqld_error.h"
+||||||| b5da0b9817c
+#include "my_thread_local.h"     // my_thread_id
+=======
+#include "my_thread_local.h"  // my_thread_id
+#include "mysql/strings/m_ctype.h"
+>>>>>>> mysql-8.1.0
 #include "sql/rpl_gtid.h"        // Gitd_specification
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 #include "sql_string.h"

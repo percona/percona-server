@@ -28,9 +28,9 @@
 #include <array>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"             // enum_server_command
 #include "sql/handler.h"           // enum_schema_tables
 #include "sql/system_variables.h"  // System_variables

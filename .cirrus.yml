@@ -1,5 +1,5 @@
 env:  # Global defaults
-  PARENT_BRANCH: 8.0
+  PARENT_BRANCH: trunk
   MOUNT_POINT: "/data"
   CCACHE_SIZE: "500M"
   CCACHE_NOHASHDIR: "1"  # Debug info might contain a stale path if the build dir changes, but this is fine
@@ -120,8 +120,8 @@ script_template: &SCRIPT_TEMPLATE
 
 task:
   << : *FILTER_TEMPLATE
-  # run only on "percona/percona-server" but not on "8.0" as we have nightly cron builds for "8.0" branch
-  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  # run only on "percona/percona-server" but not on "trunk" as we have nightly cron builds for "trunk" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != 'trunk' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202307*"
@@ -159,8 +159,8 @@ task:
 
 task:
   << : *FILTER_TEMPLATE
-  # run only on "percona/percona-server" but not on "8.0" as we have nightly cron builds for "8.0" branch
-  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.0' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  # run only on "percona/percona-server" but not on "trunk" as we have nightly cron builds for "trunk" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != 'trunk' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
@@ -198,7 +198,7 @@ task:
   << : *FILTER_TEMPLATE
   aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
   # run only on "inikep/percona-server" when a branch name contains "cirrus-arm"
-  only_if: "$CIRRUS_BRANCH =~ '.*cirrus-arm.*' && $CIRRUS_REPO_FULL_NAME == 'inikep/percona-server' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')" # we have nightly cron builds for "8.0" branch
+  only_if: "$CIRRUS_BRANCH =~ '.*cirrus-arm.*' && $CIRRUS_REPO_FULL_NAME == 'inikep/percona-server' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202212*"
     image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20221206

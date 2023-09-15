@@ -3,14 +3,14 @@ schedules:
   displayName: Daily 1:00 AM UTC build
   branches:
     include:
-    - 8.0
+    - trunk
 
 trigger:
   branches:
     include:
     - '*'
     exclude:
-    - 8.0
+    - trunk
   paths:
     exclude:
     - doc
@@ -47,8 +47,8 @@ jobs:
     fetchDepth: 32
 
   - script: |
-      git fetch origin 8.0
-      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/8.0 -- . | tr '\n' ' ')
+      git fetch origin trunk
+      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/trunk -- . | tr '\n' ' ')
 
       if [ -z "${CHANGED_FILES}" ]; then
           echo --- No changed files
@@ -70,7 +70,7 @@ jobs:
     CCACHE_CPP2: 1
     CCACHE_MAXSIZE: 2G
     OS_NAME: $(Agent.OS)
-    PARENT_BRANCH: 8.0
+    PARENT_BRANCH: trunk
     INVERTED: OFF
 
   strategy:

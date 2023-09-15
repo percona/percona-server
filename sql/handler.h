@@ -60,12 +60,8 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/bits/psi_table_bits.h"
-<<<<<<< HEAD
-#include "mysql_com.h"
-||||||| b5da0b9817c
-=======
 #include "mysql/strings/m_ctype.h"
->>>>>>> mysql-8.1.0
+#include "mysql_com.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"
@@ -682,7 +678,6 @@ enum legacy_db_type {
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TEMPTABLE,
-  DB_TYPE_TOKUDB = 41,
   DB_TYPE_ROCKSDB = 42,
   DB_TYPE_FIRST_DYNAMIC = 43,
   DB_TYPE_DEFAULT = 127  // Must be last

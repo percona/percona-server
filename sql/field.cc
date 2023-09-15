@@ -48,14 +48,9 @@
 #include "my_double2ulonglong.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
-<<<<<<< HEAD
-#include "scope_guard.h"
-||||||| b5da0b9817c
-=======
 #include "mysql/strings/dtoa.h"
 #include "mysql/strings/int2str.h"
 #include "scope_guard.h"
->>>>>>> mysql-8.1.0
 #include "sql-common/json_binary.h"  // json_binary::serialize
 #include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
 #include "sql/create_field.h"
@@ -10525,18 +10520,10 @@ Create_field *generate_create_field(THD *thd, Item *source_item,
     assert(table);
     const dd::Table *table_obj =
         table->s->tmp_table ? table->s->tmp_table_def : nullptr;
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::cache::Dictionary_client::Auto_releaser releaser(
+        thd->dd_client());
 
     if (!table_obj && table->s->table_category != TABLE_UNKNOWN_CATEGORY) {
-<<<<<<< HEAD
-||||||| b5da0b9817c
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-=======
-      const dd::cache::Dictionary_client::Auto_releaser releaser(
-          thd->dd_client());
-
->>>>>>> mysql-8.1.0
       if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
                                     &table_obj)) {
         return nullptr; /* purecov: inspected */

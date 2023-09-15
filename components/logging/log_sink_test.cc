@@ -670,13 +670,7 @@ static void banner() {
   {
     const int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
     const char *label_key = log_bi->wellknown_get_name(wellknown);
-<<<<<<< HEAD
-    int wellagain [[maybe_unused]] =
-||||||| b5da0b9817c
-    int wellagain =
-=======
-    const int wellagain =
->>>>>>> mysql-8.1.0
+    const int wellagain [[maybe_unused]] =
         log_bi->wellknown_by_name(label_key, log_bs->length(label_key));
 
     assert(wellknown == wellagain);

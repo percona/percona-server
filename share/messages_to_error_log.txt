@@ -12237,12 +12237,6 @@ ER_WARN_SCHEDULED_TASK_RUN_FAILED
 ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
    eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
 
-<<<<<<< HEAD
-ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
-  eng "Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock."
-
-||||||| b5da0b9817c
-=======
 ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
   eng "Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock."
 
@@ -12343,7 +12337,6 @@ ER_NUM_THREADS_STILL_ALIVE
 ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR
    eng "Failed to accept a MySQL connection for Group Replication. %s. Please retry."
 
->>>>>>> mysql-8.1.0
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -12359,7 +12352,6 @@ ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR
 # End of 8.1 error messages intended to be written to the server error log.
 #
 
-<<<<<<< HEAD
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -12501,10 +12493,6 @@ ER_CONN_CONTROL_DELAYED_CONN_STATS
 # End of Percona Server 8.0 server error log messages
 #
 
-||||||| b5da0b9817c
-=======
-
->>>>>>> mysql-8.1.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

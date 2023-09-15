@@ -230,7 +230,7 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
                     reinterpret_cast<const uchar *>(end));
 
     /* Skip control characters */
-    if (!(ctype & _MY_CTR)) {
+    if (!(ctype & MY_CHAR_CTR)) {
       bool_info->position = position;
       position += node->rlength;
 

@@ -8338,18 +8338,6 @@ extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
   }
 }
 
-<<<<<<< HEAD
-||||||| b5da0b9817c
-inline bool true_word_char(int c, uchar ch) {
-  return c & (_MY_U | _MY_L | _MY_NMR) || ch == '_';
-}
-
-=======
-inline bool true_word_char(int c, uint8_t ch) {
-  return ((c & (MY_CHAR_U | MY_CHAR_L | MY_CHAR_NMR)) != 0) || ch == '_';
-}
-
->>>>>>> mysql-8.1.0
 /** Get the next token from the given string and store it in *token.
  It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
  @return length of string processed */

@@ -37,13 +37,7 @@
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include "lex_string.h"
-<<<<<<< HEAD
-#include "m_ctype.h"
 #include "map_helpers.h"
-||||||| b5da0b9817c
-#include "m_ctype.h"
-=======
->>>>>>> mysql-8.1.0
 #include "my_command.h"
 #include "my_compress.h"
 #include "my_getopt.h"
@@ -695,13 +689,8 @@ extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
 extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
 extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
 extern PSI_stage_info stage_communication_delegation;
-<<<<<<< HEAD
 extern PSI_stage_info stage_restoring_secondary_keys;
 extern PSI_stage_info stage_wait_on_commit_ticket;
-||||||| b5da0b9817c
-=======
-extern PSI_stage_info stage_wait_on_commit_ticket;
->>>>>>> mysql-8.1.0
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

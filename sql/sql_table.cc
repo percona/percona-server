@@ -191,15 +191,11 @@
 #include "sql/trigger.h"
 #include "sql/xa.h"
 #include "sql_string.h"
-<<<<<<< HEAD
 #include "sql_zip_dict.h"
-||||||| b5da0b9817c
-=======
 #include "string_with_len.h"
 #include "strmake.h"
 #include "strxmov.h"
 #include "strxnmov.h"
->>>>>>> mysql-8.1.0
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "typelib.h"
@@ -9228,17 +9224,9 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
     Stop if table's uses general tablespace and the requested encryption
     type does not match the general tablespace encryption type.
   */
-<<<<<<< HEAD
-  bool requested_type = dd::is_encrypted(create_info->encrypt_type);
+  const bool requested_type = dd::is_encrypted(create_info->encrypt_type);
   if ((uses_general_tablespace || uses_system_tablespace) &&
       ((requested_type != uses_encrypted_tablespace))) {
-||||||| b5da0b9817c
-  bool requested_type = dd::is_encrypted(create_info->encrypt_type);
-  if (uses_general_tablespace && requested_type != uses_encrypted_tablespace) {
-=======
-  const bool requested_type = dd::is_encrypted(create_info->encrypt_type);
-  if (uses_general_tablespace && requested_type != uses_encrypted_tablespace) {
->>>>>>> mysql-8.1.0
     my_error(ER_INVALID_ENCRYPTION_REQUEST, MYF(0),
              requested_type ? "'encrypted'" : "'unencrypted'",
              uses_encrypted_tablespace ? "'encrypted'" : "'unencrypted'");
@@ -11508,7 +11496,6 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
        missing tablespace.
   */
 
-<<<<<<< HEAD
   if (table_list->table->has_compressed_columns()) {
     /*
       ALTER TABLE ... DISCARD/IMPORT TABLESPACE is not supported for tables
@@ -11521,16 +11508,6 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
     error = table_list->table->file->ha_discard_or_import_tablespace(discard,
                                                                      table_def);
   }
-||||||| b5da0b9817c
-  bool discard = (m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE);
-  error = table_list->table->file->ha_discard_or_import_tablespace(discard,
-                                                                   table_def);
-=======
-  const bool discard =
-      (m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE);
-  error = table_list->table->file->ha_discard_or_import_tablespace(discard,
-                                                                   table_def);
->>>>>>> mysql-8.1.0
 
   THD_STAGE_INFO(thd, stage_end);
 

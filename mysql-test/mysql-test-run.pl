@@ -3476,16 +3476,6 @@ sub environment_setup {
            "$basedir/storage/rocksdb/sst_dump");
   $ENV{'MYSQL_SST_DUMP'}= native_path($exe_sst_dump);
 
-  # ----------------------------------------------------
-  # tokuft_dump
-  # ----------------------------------------------------
-  my $exe_tokuftdump=
-    mtr_exe_maybe_exists(
-           vs_config_dirs('storage/tokudb/PerconaFT/tools', 'tokuftdump'),
-           "$path_client_bindir/tokuftdump",
-           "$basedir/storage/tokudb/PerconaFT/tools/tokuftdump");
-  $ENV{'MYSQL_TOKUFTDUMP'}= native_path($exe_tokuftdump);
-
   # Setup env so childs can execute myisampack and myisamchk
   $ENV{'MYISAMCHK'} =
     native_path(mtr_exe_exists("$path_client_bindir/myisamchk"));

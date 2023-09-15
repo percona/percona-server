@@ -2125,69 +2125,17 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index())) {
-<<<<<<< HEAD
       if (!handle_double_type_with_explicit_precision(
               *field, record, old_data, where_string, field_value)) {
-||||||| b5da0b9817c
-      size_t field_name_length = strlen((*field)->field_name);
-      append_ident(&where_string, (*field)->field_name, field_name_length,
-                   ident_quote_char);
-      if ((*field)->is_null_in_record(old_data))
-        where_string.append(STRING_WITH_LEN(" IS NULL "));
-      else {
-        bool needs_quote = (*field)->str_needs_quotes();
-        where_string.append(STRING_WITH_LEN(" = "));
-
-        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
-        if (is_json) {
-          where_string.append("CAST(");
-        }
-
-        (*field)->val_str(
-            &field_value,
-            const_cast<uchar *>(old_data + (*field)->offset(record)));
-        if (needs_quote) where_string.append(value_quote_char);
-        field_value.print(&where_string);
-        if (needs_quote) where_string.append(value_quote_char);
-
-        if (is_json) {
-          where_string.append(" AS JSON)");
-        }
-=======
-      const size_t field_name_length = strlen((*field)->field_name);
-      append_ident(&where_string, (*field)->field_name, field_name_length,
-                   ident_quote_char);
-      if ((*field)->is_null_in_record(old_data))
-        where_string.append(STRING_WITH_LEN(" IS NULL "));
-      else {
-        const bool needs_quote = (*field)->str_needs_quotes();
-        where_string.append(STRING_WITH_LEN(" = "));
-
-        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
-        if (is_json) {
-          where_string.append("CAST(");
-        }
-
-        (*field)->val_str(
-            &field_value,
-            const_cast<uchar *>(old_data + (*field)->offset(record)));
-        if (needs_quote) where_string.append(value_quote_char);
-        field_value.print(&where_string);
-        if (needs_quote) where_string.append(value_quote_char);
-
-        if (is_json) {
-          where_string.append(" AS JSON)");
-        }
->>>>>>> mysql-8.1.0
         field_value.length(0);
       } else {
-        size_t field_name_length = strlen((*field)->field_name);
+        const size_t field_name_length = strlen((*field)->field_name);
         append_ident(&where_string, (*field)->field_name, field_name_length,
                      ident_quote_char);
         if ((*field)->is_null_in_record(old_data))
           where_string.append(STRING_WITH_LEN(" IS NULL "));
         else {
-          bool needs_quote = (*field)->str_needs_quotes();
+          const bool needs_quote = (*field)->str_needs_quotes();
           where_string.append(STRING_WITH_LEN(" = "));
 
           const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;

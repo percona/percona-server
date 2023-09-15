@@ -939,7 +939,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
   }
 
   const std::string &cn = Command_names::str_notranslate(COM_QUERY);
-  mysql_audit_notify(
+  mysql_event_tracking_general_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
       cn.c_str(), cn.length());

@@ -110,9 +110,8 @@ set @@persist_only.thread_stack=286720;
 set @@persist_only.tls_version='TLSv1.2,TLSv1.3';
 set @@persist_only.report_host='';
 set @@persist_only.report_port=21000;
-<<<<<<< HEAD
-set @@persist_only.report_password=NULL;
-set @@persist_only.report_user=NULL;
+set @@persist_only.report_password='';
+set @@persist_only.report_user='';
 
 # Added by Percona
 call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
@@ -120,10 +119,3 @@ set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;
 set @@persist_only.proxy_protocol_networks='*';
-||||||| b5da0b9817c
-set @@persist_only.report_password=NULL;
-set @@persist_only.report_user=NULL;
-=======
-set @@persist_only.report_password='';
-set @@persist_only.report_user='';
->>>>>>> mysql-8.1.0

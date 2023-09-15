@@ -125,68 +125,10 @@ constexpr size_t MY_MAX_ALLOWED_BUF = static_cast<size_t>(1024) * 1024;
 
 const char *charsets_dir = nullptr;
 
-<<<<<<< HEAD
-static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
-                                 const char *filename, myf myflags) {
-  uchar *buf;
-  int fd;
-  size_t len, tmp_len;
-  MY_STAT stat_info;
-
-  if (!my_stat(filename, &stat_info, MYF(myflags))) return true;
-
-  len = stat_info.st_size;
-  if ((len > MY_MAX_ALLOWED_BUF) && (myflags & MY_WME)) {
-    my_printf_error(EE_UNKNOWN_CHARSET,
-                    "Error while reading '%s': its length %llu is larger than "
-                    "maximum allowed length %llu\n",
-                    MYF(0), filename, static_cast<unsigned long long>(len),
-                    static_cast<unsigned long long>(MY_MAX_ALLOWED_BUF));
-    return true;
-  }
-
-  buf = static_cast<uchar *>(my_malloc(key_memory_charset_file, len, myflags));
-  if (!buf) return true;
-
-  if ((fd = mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
-    goto error;
-  tmp_len = mysql_file_read(fd, buf, len, myflags);
-  mysql_file_close(fd, myflags);
-  if (tmp_len != len) goto error;
-
-  if (my_parse_charset_xml(loader, (char *)buf, len)) {
-    my_printf_error(EE_UNKNOWN_CHARSET, "Error while parsing '%s': %s\n",
-                    MYF(0), filename, loader->errarg);
-    goto error;
-||||||| b5da0b9817c
-static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
-                                 const char *filename, myf myflags) {
-  uchar *buf;
-  int fd;
-  size_t len, tmp_len;
-  MY_STAT stat_info;
-
-  if (!my_stat(filename, &stat_info, MYF(myflags)) ||
-      ((len = (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
-      !(buf = (uchar *)my_malloc(key_memory_charset_file, len, myflags)))
-    return true;
-
-  if ((fd = mysql_file_open(key_file_charset, filename, O_RDONLY, myflags)) < 0)
-    goto error;
-  tmp_len = mysql_file_read(fd, buf, len, myflags);
-  mysql_file_close(fd, myflags);
-  if (tmp_len != len) goto error;
-
-  if (my_parse_charset_xml(loader, (char *)buf, len)) {
-    my_printf_error(EE_UNKNOWN_CHARSET, "Error while parsing '%s': %s\n",
-                    MYF(0), filename, loader->errarg);
-    goto error;
-=======
 void *Mysys_charset_loader::read_file(const char *path, size_t *size) {
   MY_STAT stat_info{};
   if (!my_stat(path, &stat_info, 0)) {
     return nullptr;
->>>>>>> mysql-8.1.0
   }
 
   size_t len = stat_info.st_size;
@@ -248,27 +190,9 @@ static void init_available_charsets() {
   char charset_dir[FN_REFLEN];
   get_charsets_dir(charset_dir);
 
-<<<<<<< HEAD
-  /* Copy compiled charsets */
-
-  my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
-  my_read_charset_file(&loader, fname,
-#ifdef MYSQL_SERVER
-                       MYF(MY_WME)
-#else
-                       MYF(0)
-#endif
-  );
-||||||| b5da0b9817c
-  /* Copy compiled charsets */
-
-  my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
-  my_read_charset_file(&loader, fname, MYF(0));
-=======
   mysql::collation::initialize(charset_dir, loader);
   entry()->iterate(
       [](const CHARSET_INFO *cs) { all_charsets[cs->number] = cs; });
->>>>>>> mysql-8.1.0
 }
 
 uint get_collation_number(const char *collation_name) {

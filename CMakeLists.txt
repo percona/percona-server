@@ -2185,14 +2185,6 @@ OPTION(WITH_HYPERGRAPH_OPTIMIZER
   ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
   )
 
-<<<<<<< HEAD
-OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
-IF(WITH_ENCRYPTION_UDF)
-  ADD_SUBDIRECTORY(extra/opensslpp)
-ENDIF()
-
-||||||| b5da0b9817c
-=======
 # Allow SHOW PARSE_TREE on debug build by default.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
   SET(WITH_SHOW_PARSE_TREE_DEFAULT ON)
@@ -2204,7 +2196,11 @@ OPTION(WITH_SHOW_PARSE_TREE
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
 
->>>>>>> mysql-8.1.0
+OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
+IF(WITH_ENCRYPTION_UDF)
+  ADD_SUBDIRECTORY(extra/opensslpp)
+ENDIF()
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 

@@ -147,7 +147,7 @@ FOREACH(test_file
   ADD_HARNESS_TEST_FILE(${test_file}
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
-      test-helpers mysqlclient router_lib
+      test-helpers perconaserverclient router_lib
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
       ../src/

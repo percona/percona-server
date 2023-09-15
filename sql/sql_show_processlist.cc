@@ -135,17 +135,9 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
     if (lex_string_strmake(thd->mem_root, &info_len, "100", 3)) return true;
   }
 
-<<<<<<< HEAD
   /* Id, User, Host, db, Command, Time, State, Time_ms,
    * Rows_sent, Rows_examined */
-  PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list();
-||||||| b5da0b9817c
-  /* Id, User, Host, db, Command, Time, State */
-  PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list();
-=======
-  /* Id, User, Host, db, Command, Time, State */
   PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list(pos);
->>>>>>> mysql-8.1.0
   if (item_list == nullptr) return true;
 
   if (add_expression(pos, thd, item_list, field_id, alias_id)) return true;

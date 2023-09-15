@@ -1,5 +1,4 @@
 call mtr.add_suppression("dir NotFound");
-call mtr.add_suppression("No such file or directory: while stat a file for size");
 # restart:--rocksdb-wal-dir=WAL_DIR
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(50)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES (1, "foo");

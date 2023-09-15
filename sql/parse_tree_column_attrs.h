@@ -188,23 +188,12 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 */
 class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
  public:
-<<<<<<< HEAD
-  PT_unique_combo_clustering_key_column_attr(enum keytype key_type) noexcept
-      : m_key_type(key_type) {}
+  explicit PT_unique_combo_clustering_key_column_attr(const POS &pos, enum keytype key_type)
+      : PT_column_attr_base(pos), m_key_type(key_type) {}
 
   void apply_type_flags(ulong *type_flags) const noexcept override {
     if (m_key_type & KEYTYPE_UNIQUE) *type_flags |= UNIQUE_FLAG;
     if (m_key_type & KEYTYPE_CLUSTERING) *type_flags |= CLUSTERING_FLAG;
-||||||| b5da0b9817c
-  void apply_type_flags(ulong *type_flags) const override {
-    *type_flags |= UNIQUE_FLAG;
-=======
-  explicit PT_unique_key_column_attr(const POS &pos)
-      : PT_column_attr_base(pos) {}
-
-  void apply_type_flags(ulong *type_flags) const override {
-    *type_flags |= UNIQUE_FLAG;
->>>>>>> mysql-8.1.0
   }
 
   void apply_alter_info_flags(ulonglong *flags) const override {
@@ -450,41 +439,16 @@ class PT_column_format_column_attr : public PT_column_attr_base {
   column_format_type format;
 
  public:
-<<<<<<< HEAD
-  explicit PT_column_format_column_attr(
-      column_format_type format, const LEX_CSTRING &zip_dict_name) noexcept
-      : format(format), m_zip_dict_name(zip_dict_name) {}
-||||||| b5da0b9817c
-  explicit PT_column_format_column_attr(column_format_type format)
-      : format(format) {}
-=======
   explicit PT_column_format_column_attr(const POS &pos,
-                                        column_format_type format)
-      : super(pos), format(format) {}
->>>>>>> mysql-8.1.0
+      column_format_type format, const LEX_CSTRING &zip_dict_name) noexcept
+      : super(pos), format(format), m_zip_dict_name(zip_dict_name) {}
 
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     *type_flags |= format << FIELD_FLAGS_COLUMN_FORMAT;
   }
-<<<<<<< HEAD
-  bool contextualize(Column_parse_context *pc) override {
-    return super::contextualize(pc);
-||||||| b5da0b9817c
-  bool contextualize(Column_parse_context *pc) override {
-    if (pc->is_generated) {
-      my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
-      return true;
-    }
-    return super::contextualize(pc);
-=======
   bool do_contextualize(Column_parse_context *pc) override {
-    if (pc->is_generated) {
-      my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
-      return true;
-    }
     return super::do_contextualize(pc);
->>>>>>> mysql-8.1.0
   }
   void apply_zip_dict(LEX_CSTRING *to) const noexcept override {
     *to = m_zip_dict_name;
@@ -965,8 +929,7 @@ class PT_field_def_base : public Parse_tree_node {
   Value_generator *default_val_info = nullptr;
   std::optional<gis::srid_t> m_srid{};
   // List of column check constraint's specification.
-<<<<<<< HEAD
-  Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
+  Sql_check_constraint_spec_list *check_const_spec_list = nullptr;
   /**
     Compression dictionary name (in column definition)
     CREATE TABLE t1(
@@ -977,11 +940,6 @@ class PT_field_def_base : public Parse_tree_node {
     );
   */
   LEX_CSTRING m_zip_dict;
-||||||| b5da0b9817c
-  Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
-=======
-  Sql_check_constraint_spec_list *check_const_spec_list = nullptr;
->>>>>>> mysql-8.1.0
 
  protected:
   PT_type *type_node;

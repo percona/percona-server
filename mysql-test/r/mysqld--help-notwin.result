@@ -1701,17 +1701,13 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, pool-of-threads
  --thread-stack=#    The stack size for each thread
-<<<<<<< HEAD
  --thread-statistics Control TABLE_STATISTICS running, when userstat is
  enabled
-||||||| b5da0b9817c
-=======
  --tls-certificates-enforced-validation 
  If set to TRUE, server stops execution at the start up in
  case of invalid certificates When ALTER INSTANCE RELOAD
  TLS executed, new certficates will not be used if
  validation fails. 
->>>>>>> mysql-8.1.0
  --tls-ciphersuites=name 
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will
@@ -2089,13 +2085,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 175
-<<<<<<< HEAD
-performance-schema-max-statement-classes 227
-||||||| b5da0b9817c
-performance-schema-max-statement-classes 219
-=======
-performance-schema-max-statement-classes 220
->>>>>>> mysql-8.1.0
+performance-schema-max-statement-classes 228
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -2234,12 +2224,8 @@ tf-sequence-table-max-upper-bound 1048576
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 1048576
-<<<<<<< HEAD
 thread-statistics FALSE
-||||||| b5da0b9817c
-=======
 tls-certificates-enforced-validation FALSE
->>>>>>> mysql-8.1.0
 tls-ciphersuites (No default value)
 tmp-table-size 16777216
 transaction-alloc-block-size 8192

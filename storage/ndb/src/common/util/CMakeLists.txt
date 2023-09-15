@@ -84,14 +84,6 @@ FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
-<<<<<<< HEAD
-# Suppress warnings for gcc-13 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=suggest-attribute=format FILES cstrbuf.cpp)
-ENDIF()
-
-||||||| b5da0b9817c
-=======
 # This looks like a gcc bug, there *are* ATTRIBUTE_FORMAT annotations for
 # cstrbuf::appendf()
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
@@ -99,7 +91,6 @@ IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     "-Wno-error=suggest-attribute=format")
 ENDIF()
 
->>>>>>> mysql-8.1.0
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
 FOREACH(tests

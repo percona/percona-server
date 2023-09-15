@@ -91,16 +91,10 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_File_query_log_name
 #include "sql/query_options.h"
-<<<<<<< HEAD
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"  // sp_lex_instr
 #include "sql/sp_rcontext.h"
-#include "sql/sql_audit.h"  // mysql_audit_general_log
-||||||| b5da0b9817c
-#include "sql/sql_audit.h"  // mysql_audit_general_log
-=======
 #include "sql/sql_audit.h"  // mysql_event_tracking_general_notify
->>>>>>> mysql-8.1.0
 #include "sql/sql_base.h"   // close_log_table
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -1461,33 +1455,15 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx = thd->security_context();
-<<<<<<< HEAD
-  LEX_CSTRING sctx_user = sctx->user();
-  LEX_CSTRING sctx_host = sctx->host();
-  LEX_CSTRING sctx_ip = sctx->ip();
-  size_t user_host_len =
+  const LEX_CSTRING sctx_user = sctx->user();
+  const LEX_CSTRING sctx_host = sctx->host();
+  const LEX_CSTRING sctx_ip = sctx->ip();
+  const size_t user_host_len =
       (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                 sctx->priv_user().str ? sctx->priv_user().str : "", "[",
                 sctx_user.length ? sctx_user.str
                                  : (thd->slave_thread ? "SQL_SLAVE" : ""),
                 "] @ ", sctx_host.length ? sctx_host.str : "", " [",
-||||||| b5da0b9817c
-  LEX_CSTRING sctx_user = sctx->user();
-  LEX_CSTRING sctx_host = sctx->host();
-  LEX_CSTRING sctx_ip = sctx->ip();
-  size_t user_host_len =
-      (strxnmov(user_host_buff, MAX_USER_HOST_SIZE, sctx->priv_user().str, "[",
-                sctx_user.length ? sctx_user.str : "", "] @ ",
-                sctx_host.length ? sctx_host.str : "", " [",
-=======
-  const LEX_CSTRING sctx_user = sctx->user();
-  const LEX_CSTRING sctx_host = sctx->host();
-  const LEX_CSTRING sctx_ip = sctx->ip();
-  const size_t user_host_len =
-      (strxnmov(user_host_buff, MAX_USER_HOST_SIZE, sctx->priv_user().str, "[",
-                sctx_user.length ? sctx_user.str : "", "] @ ",
-                sctx_host.length ? sctx_host.str : "", " [",
->>>>>>> mysql-8.1.0
                 sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
        user_host_buff);
   const ulonglong current_utime = my_micro_time();
@@ -1831,7 +1807,6 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
       (unlikely(thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR)))
     return false;
 
-<<<<<<< HEAD
   /* Collect query exec time as the first step. */
   ulonglong query_exec_time = get_query_exec_time(thd);
 
@@ -1839,26 +1814,13 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
   bool warn_failed_query =
       thd->is_error() && thd->variables.log_query_errors.check_error_set(
                              thd->get_stmt_da()->mysql_errno());
-  bool warn_no_index =
-||||||| b5da0b9817c
-  bool warn_no_index =
-=======
   const bool warn_no_index =
->>>>>>> mysql-8.1.0
       ((thd->server_status &
         (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
        opt_log_queries_not_using_indexes &&
        !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
-<<<<<<< HEAD
-  bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index || warn_failed_query) &&
-||||||| b5da0b9817c
-  bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
-=======
   const bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index) &&
->>>>>>> mysql-8.1.0
+      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index || warn_failed_query) &&
       (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
 
   // The docs say slow queries must be counted even when the log is off.
@@ -1868,15 +1830,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     Do not log administrative statements unless the appropriate option is
     set.
   */
-<<<<<<< HEAD
   if (!thd->enable_slow_log || !opt_slow_log) return false;
-||||||| b5da0b9817c
-  if (thd->enable_slow_log && opt_slow_log) {
-    bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
-=======
-  if (thd->enable_slow_log && opt_slow_log) {
-    const bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
->>>>>>> mysql-8.1.0
 
   /*
     Copy all needed global variables into a session one before doing all checks.
@@ -1940,7 +1894,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
 	  return false;
   }
 
-  bool suppress_logging =
+  const bool suppress_logging =
       log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
   if (!suppress_logging && log_this_query) return true;

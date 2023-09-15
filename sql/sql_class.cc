@@ -724,16 +724,10 @@ THD::THD(bool enable_plugins)
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
       bind_parameter_values_count(0),
-<<<<<<< HEAD
       is_rpl_stmt_event_format_used(true),
-      external_store_() {
-||||||| b5da0b9817c
-      external_store_() {
-=======
       external_store_(),
       events_cache_(nullptr),
       audit_plugins_present(false) {
->>>>>>> mysql-8.1.0
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);

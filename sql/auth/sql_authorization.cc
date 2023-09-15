@@ -1551,17 +1551,9 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, acl_db_user) &&
-<<<<<<< HEAD
         hosts_match_for_grants(acl_db->host, acl_user_host, acl_db_host,
                                effective_grants)) {
-      ulong want_access = acl_db->access;
-||||||| b5da0b9817c
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
-      ulong want_access = acl_db->access;
-=======
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
       const ulong want_access = acl_db->access;
->>>>>>> mysql-8.1.0
       if (want_access) {
         if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)})) {
           (*db_wild_map)[std::string(acl_db->db)] |= want_access;
@@ -4792,18 +4784,9 @@ void get_privilege_access_maps(
   boost::vector_property_map<boost::default_color_type> v_color(
       boost::num_vertices(*g_granted_roles));
 
-<<<<<<< HEAD
-  Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map, sp_map,
+  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map, sp_map,
                       func_map, with_admin_acl, dynamic_acl, &restrictions,
                       effective_grants);
-||||||| b5da0b9817c
-  Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map, sp_map,
-                      func_map, with_admin_acl, dynamic_acl, &restrictions);
-=======
-  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map,
-                            sp_map, func_map, with_admin_acl, dynamic_acl,
-                            &restrictions);
->>>>>>> mysql-8.1.0
   if (has_granted_roles || mandatory_roles.size() > 0) {
     bool acl_user_has_vertex = (user_vertex_it != g_authid_to_vertex->end());
     if (!acl_user_has_vertex) return;

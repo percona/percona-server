@@ -418,12 +418,6 @@ createSignalChain(NdbApiSignal*& poolHead, int length, int bias)
   NdbApiSignal* chainHead= NULL;
   NdbApiSignal* chainTail= NULL;
   int pos= 0;
-<<<<<<< HEAD
-  int signals [[maybe_unused]] = 0;
-||||||| b5da0b9817c
-  int signals= 0;
-=======
->>>>>>> mysql-8.1.0
 
   while (pos < length)
   {

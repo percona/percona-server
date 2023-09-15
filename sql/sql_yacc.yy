@@ -3432,13 +3432,7 @@ create_table_stmt:
           CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           '(' table_element_list ')' opt_create_table_options_etc
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $1, $2, $4, $5,
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5,
-=======
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5,
                                              $7,
                                              $9.opt_create_table_options,
                                              $9.opt_partitioning,
@@ -3448,13 +3442,7 @@ create_table_stmt:
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           opt_create_table_options_etc
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $1, $2, $4, $5,
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5,
-=======
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5,
                                              NULL,
                                              $6.opt_create_table_options,
                                              $6.opt_partitioning,
@@ -3464,24 +3452,12 @@ create_table_stmt:
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           LIKE table_ident
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $1, $2, $4, $5, $7);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5, $7);
-=======
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5, $7);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5, $7);
           }
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           '(' LIKE table_ident ')'
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $1, $2, $4, $5, $8);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5, $8);
-=======
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5, $8);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5, $8);
           }
         ;
 
@@ -4067,13 +4043,7 @@ sp_suid:
 call_stmt:
           CALL_SYM sp_name opt_paren_expr_list
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_call($1, $2, $3);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_call($2, $3);
-=======
-            $$= NEW_PTN PT_call(@$, $2, $3);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_call(@$, $1, $2, $3);
           }
         ;
 
@@ -7602,63 +7572,35 @@ column_attribute:
           }
         | UNIQUE_SYM
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_UNIQUE);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_unique_key_column_attr;
-=======
-            $$= NEW_PTN PT_unique_key_column_attr(@$);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_UNIQUE);
           }
         | UNIQUE_SYM KEY_SYM
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_UNIQUE);
+            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_UNIQUE);
           }
         | CLUSTERING_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_CLUSTERING);
+            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_CLUSTERING);
           }
         | CLUSTERING_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_CLUSTERING);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_unique_key_column_attr;
-=======
-            $$= NEW_PTN PT_unique_key_column_attr(@$);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_CLUSTERING);
           }
         | COMMENT_SYM TEXT_STRING_sys
-<<<<<<< HEAD
         {
-            $$= NEW_PTN PT_comment_column_attr(to_lex_cstring($2));
-        }
-||||||| b5da0b9817c
-          {
-            $$= NEW_PTN PT_comment_column_attr(to_lex_cstring($2));
-          }
-=======
-          {
             $$= NEW_PTN PT_comment_column_attr(@$, to_lex_cstring($2));
-          }
->>>>>>> mysql-8.1.0
+        }
         | COLLATE_SYM collation_name
           {
             $$= NEW_PTN PT_collate_column_attr(@$, $2);
           }
         | COLUMN_FORMAT_SYM column_format
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_column_format_column_attr($2, null_lex_cstr);
+            $$= NEW_PTN PT_column_format_column_attr(@$, $2, null_lex_cstr);
           }
         | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
           {
-            $$= NEW_PTN PT_column_format_column_attr(COLUMN_FORMAT_TYPE_COMPRESSED, $3);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_column_format_column_attr($2);
-=======
-            $$= NEW_PTN PT_column_format_column_attr(@$, $2);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_column_format_column_attr(@$, COLUMN_FORMAT_TYPE_COMPRESSED, $3);
           }
         | STORAGE_SYM storage_media
           {
@@ -9745,23 +9687,11 @@ analyze_table_stmt:
           opt_histogram
           {
             if ($5.param) {
-<<<<<<< HEAD
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
-||||||| b5da0b9817c
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
-=======
-              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
->>>>>>> mysql-8.1.0
+              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $1, $2, $4,
                                                 $5.command, $5.param->num_buckets,
                                                 $5.columns, $5.param->data);
             } else {
-<<<<<<< HEAD
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $1, $2, $4,
-||||||| b5da0b9817c
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
-=======
-              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
->>>>>>> mysql-8.1.0
+              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $1, $2, $4,
                                                 $5.command, 0,
                                                 $5.columns, {nullptr, 0});
             }
@@ -9833,13 +9763,7 @@ binlog_base64_event:
 check_table_stmt:
           CHECK_SYM table_or_tables table_list opt_mi_check_types
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_check_table_stmt(YYMEM_ROOT, $1, $3,
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_check_table_stmt(YYMEM_ROOT, $3,
-=======
-            $$= NEW_PTN PT_check_table_stmt(@$, YYMEM_ROOT, $3,
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_check_table_stmt(@$, YYMEM_ROOT, $1, $3,
                                             $4.flags, $4.sql_flags);
           }
         ;
@@ -9876,13 +9800,7 @@ mi_check_type:
 optimize_table_stmt:
           OPTIMIZE opt_no_write_to_binlog table_or_tables table_list
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_optimize_table_stmt(YYMEM_ROOT, $1, $2, $4);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_optimize_table_stmt(YYMEM_ROOT, $2, $4);
-=======
-            $$= NEW_PTN PT_optimize_table_stmt(@$, YYMEM_ROOT, $2, $4);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_optimize_table_stmt(@$, YYMEM_ROOT, $1, $2, $4);
           }
         ;
 
@@ -9984,13 +9902,7 @@ preload_stmt:
           }
         | LOAD INDEX_SYM INTO CACHE_SYM preload_list
           {
-<<<<<<< HEAD
-            $$= NEW_PTN PT_load_index_stmt(YYMEM_ROOT, $1, $5);
-||||||| b5da0b9817c
-            $$= NEW_PTN PT_load_index_stmt(YYMEM_ROOT, $5);
-=======
-            $$= NEW_PTN PT_load_index_stmt(@$, YYMEM_ROOT, $5);
->>>>>>> mysql-8.1.0
+            $$= NEW_PTN PT_load_index_stmt(@$, YYMEM_ROOT, $1, $5);
           }
         ;
 
@@ -12362,7 +12274,7 @@ table_function:
                          ER_THD(YYTHD, ER_TF_MUST_HAVE_ALIAS), MYF(0));
               MYSQL_YYABORT;
             }
-            $$= NEW_PTN PT_table_sequence_function($3, $5);
+            $$= NEW_PTN PT_table_sequence_function(@$, $3, $5);
           }
         ;
 

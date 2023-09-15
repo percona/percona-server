@@ -1369,9 +1369,8 @@ bool PT_table_factor_function::do_contextualize(Parse_context *pc) {
   return false;
 }
 
-<<<<<<< HEAD
-bool PT_table_sequence_function::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
+bool PT_table_sequence_function::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
   auto stf = new (pc->mem_root)
       Table_function_sequence(m_table_alias.str, m_expr);
@@ -1393,13 +1392,8 @@ bool PT_table_sequence_function::contextualize(Parse_context *pc) {
   return false;
 }
 
-PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
-||||||| b5da0b9817c
-PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
-=======
 PT_derived_table::PT_derived_table(const POS &pos, bool lateral,
                                    PT_subquery *subquery,
->>>>>>> mysql-8.1.0
                                    const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
     : super(pos),

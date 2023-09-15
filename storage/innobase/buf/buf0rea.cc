@@ -720,26 +720,8 @@ void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
 
     dberr_t err;
 
-<<<<<<< HEAD
-    if ((i + 1 == n_stored) && sync) {
-      buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, cur_page_id,
-                        page_size, true, nullptr, false);
-    } else {
-      buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                        cur_page_id, page_size, true, nullptr, false);
-    }
-||||||| b5da0b9817c
-    if ((i + 1 == n_stored) && sync) {
-      buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, cur_page_id,
-                        page_size, true);
-    } else {
-      buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                        cur_page_id, page_size, true);
-    }
-=======
     buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                      cur_page_id, page_size, true);
->>>>>>> mysql-8.1.0
+                      cur_page_id, page_size, true, nullptr, false);
   }
 
   os_aio_simulated_wake_handler_threads();

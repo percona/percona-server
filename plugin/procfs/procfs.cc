@@ -81,7 +81,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 #define LOG_COMPONENT_TAG "procfs"
 
-#include "m_ctype.h"
 #include "mf_wcomp.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -90,6 +89,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/service_security_context.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/sql_class.h" /* THD, Security context */

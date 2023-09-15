@@ -480,20 +480,10 @@ void Table_cache::remove_table(TABLE *table) {
   if (table->triggers && table->triggers->has_load_been_finalized())
     m_table_triggers_count--;
 
-<<<<<<< HEAD
   if (el->used_tables.is_empty() && el->free_tables_full_triggers.is_empty() &&
       el->free_tables_slim.is_empty()) {
-    std::string key(table->s->table_cache_key.str,
-                    table->s->table_cache_key.length);
-||||||| b5da0b9817c
-  if (el->used_tables.is_empty() && el->free_tables.is_empty()) {
-    std::string key(table->s->table_cache_key.str,
-                    table->s->table_cache_key.length);
-=======
-  if (el->used_tables.is_empty() && el->free_tables.is_empty()) {
     const std::string key(table->s->table_cache_key.str,
                           table->s->table_cache_key.length);
->>>>>>> mysql-8.1.0
     m_cache.erase(key);
     /*
       Remove reference to deleted cache element from array

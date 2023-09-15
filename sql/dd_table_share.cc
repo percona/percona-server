@@ -297,7 +297,6 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     KEY_PART_INFO *key_part;
     uint primary_key = (uint)(
         find_type(primary_key_name, &share->keynames, FIND_TYPE_NO_PREFIX) - 1);
-<<<<<<< HEAD
 
     /*
       The following if-else is here for MyRocks:
@@ -310,12 +309,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     else
       share->primary_key = MAX_KEY;
 
-    longlong ha_option = handler_file->ha_table_flags();
-||||||| b5da0b9817c
-    longlong ha_option = handler_file->ha_table_flags();
-=======
     const longlong ha_option = handler_file->ha_table_flags();
->>>>>>> mysql-8.1.0
     keyinfo = share->key_info;
     key_part = keyinfo->key_part;
 

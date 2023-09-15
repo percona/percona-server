@@ -3257,7 +3257,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-<<<<<<< HEAD
   /*
     If table has triggers create Table_trigger_dispacher object with some
     initial state. Do not finalize trigger parsing/loading until it is
@@ -3270,8 +3269,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (outparam->triggers == nullptr) goto err;  // OOM
   }
 
-||||||| b5da0b9817c
-=======
   /*
     Acquire histogram statistics for the TABLE from TABLE_SHARE. We must
     remember to release the pointer back to the share in case we fail to open
@@ -3284,7 +3281,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     mysql_mutex_unlock(&LOCK_open);
   }
 
->>>>>>> mysql-8.1.0
   /* The table struct is now initialized;  Open the table */
   error = 2;
   if (db_stat) {

@@ -1320,17 +1320,9 @@ int log_line_submit(log_line *ll) {
     if (ll->seen & LOG_ITEM_SQL_ERRCODE) {
       const int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       if (n >= 0) {
-<<<<<<< HEAD
-        int ec = (int)ll->item[n].data.data_integer;
+        const int ec = (int)ll->item[n].data.data_integer;
         assert((ec < 1) || (ec == ER_AUDIT_API_ABORT) ||
                (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
-||||||| b5da0b9817c
-        int ec = (int)ll->item[n].data.data_integer;
-        assert((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
-=======
-        const int ec = (int)ll->item[n].data.data_integer;
-        assert((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
->>>>>>> mysql-8.1.0
                (ec >= ER_SERVER_RANGE_START));
       }
     }

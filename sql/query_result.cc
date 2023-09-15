@@ -41,12 +41,8 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-<<<<<<< HEAD
-#include "sql/debug_sync.h"
-||||||| b5da0b9817c
-=======
 #include "nulls.h"
->>>>>>> mysql-8.1.0
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
 #include "sql/item_func.h"
@@ -212,15 +208,7 @@ void Query_result_to_file::cleanup() {
 
 static File create_file(THD *thd, char *path, sql_exchange *exchange,
                         IO_CACHE *cache) {
-<<<<<<< HEAD
-  uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
-||||||| b5da0b9817c
-  File file;
-  uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
-=======
-  File file;
   const uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
->>>>>>> mysql-8.1.0
 
   if (!dirname_length(exchange->file_name)) {
     strxnmov(path, FN_REFLEN - 1, mysql_real_data_home,

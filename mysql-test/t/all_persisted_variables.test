@@ -47,20 +47,12 @@ call mtr.add_suppression("Server certificate .* verification has failed. Check l
 call mtr.add_suppression("Failed to set up TLS. Check logs for details");
 call mtr.add_suppression("Internal TLS error error.*");
 
-<<<<<<< HEAD
-let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%' AND variable_name NOT LIKE 'debug_%'`;
-let $total_persistent_vars=498;
-||||||| b5da0b9817c
-let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%' AND variable_name NOT LIKE 'debug_%'`;
-let $total_persistent_vars=448;
-=======
 let $total_global_vars=`SELECT COUNT(*)
    FROM performance_schema.global_variables
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-let $total_persistent_vars=448;
->>>>>>> mysql-8.1.0
+let $total_persistent_vars=498;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

@@ -6196,14 +6196,8 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
   size_t result_length = 0;
   char *result = nullptr;
   char buff[NAME_LEN * 2 + 3];
-<<<<<<< HEAD
-  char *quoted_field;
-  static const constexpr char desc_index[] = " DESC";
-||||||| b5da0b9817c
-  char *quoted_field;
-=======
   char *order_by_part;
->>>>>>> mysql-8.1.0
+  static const constexpr char desc_index[] = " DESC";
 
   snprintf(show_keys_buff, sizeof(show_keys_buff), "SHOW KEYS FROM %s",
            table_name);
@@ -6223,24 +6217,6 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
    * row, and UNIQUE keys come before others.  So we only need to check
    * the first key, not all keys.
    */
-<<<<<<< HEAD
-  if ((row = mysql_fetch_row(res)) && atoi(row[1]) == 0) {
-    /* Key is unique */
-    do {
-      quoted_field = quote_name(row[4], buff, false);
-      result_length += strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
-      if (desc) {
-        result_length += strlen(desc_index);
-      }
-    } while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
-||||||| b5da0b9817c
-  if ((row = mysql_fetch_row(res)) && atoi(row[1]) == 0) {
-    /* Key is unique */
-    do {
-      quoted_field = quote_name(row[4], buff, false);
-      result_length += strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
-    } while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
-=======
   while (nullptr != (row = mysql_fetch_row(res))) {
     unsigned braces_length = 0;
     if (!row[3] || !*row[3]) {
@@ -6272,7 +6248,7 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
     }
     result_length +=
         strlen(order_by_part) + braces_length + 1; /* + 1 for ',' or \0 */
->>>>>>> mysql-8.1.0
+    if (desc) result_length += strlen(desc_index);
   }
 
   /* Build the ORDER BY clause result */
@@ -6285,24 +6261,6 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
       goto cleanup;
     }
     mysql_data_seek(res, 0);
-<<<<<<< HEAD
-    row = mysql_fetch_row(res);
-    quoted_field = quote_name(row[4], buff, false);
-    end = my_stpcpy(result, quoted_field);
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1) {
-      quoted_field = quote_name(row[4], buff, false);
-      end = strxmov(end, desc ? "DESC," : ",", quoted_field, NullS);
-    }
-    if (desc) {
-      end = my_stpmov(end, " DESC");
-||||||| b5da0b9817c
-    row = mysql_fetch_row(res);
-    quoted_field = quote_name(row[4], buff, false);
-    end = my_stpcpy(result, quoted_field);
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1) {
-      quoted_field = quote_name(row[4], buff, false);
-      end = strxmov(end, ",", quoted_field, NullS);
-=======
     while (nullptr != (row = mysql_fetch_row(res))) {
       unsigned braces_length = 0;
       if (!row[3] || !*row[3]) continue;
@@ -6321,7 +6279,7 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
         end = strxmov(end, "(", order_by_part, ")", NullS);
       else
         end = my_stpcpy(end, order_by_part);
->>>>>>> mysql-8.1.0
+      if (desc) end = my_stpmov(end, " DESC");
     }
   }
 

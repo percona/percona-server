@@ -46,13 +46,8 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
-<<<<<<< HEAD
-#include "mysql/components/services/validate_password.h"
-||||||| b5da0b9817c
-=======
 #include "mysql/components/services/validate_password.h"
 #include "mysql/my_loglevel.h"
->>>>>>> mysql-8.1.0
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -1293,16 +1288,10 @@ bool set_and_validate_user_attributes(
   const enum_sql_command command = thd->lex->sql_command;
   bool current_password_empty = false;
   bool new_password_empty = false;
-<<<<<<< HEAD
   char new_password[MAX_FIELD_WIDTH]{0};
   unsigned int new_password_length = 0;
 
   assert(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
-||||||| b5da0b9817c
-=======
-  char new_password[MAX_FIELD_WIDTH]{0};
-  unsigned int new_password_length = 0;
->>>>>>> mysql-8.1.0
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;

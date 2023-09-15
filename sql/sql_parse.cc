@@ -224,7 +224,7 @@ using std::max;
 
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-const std::array<const std::string, COM_END + 1> Command_names::m_names = {
+const std::string Command_names::m_names[] = {
     "Sleep",
     "Quit",
     "Init DB",
@@ -2201,14 +2201,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       copy_bind_parameter_values(thd, com_data->com_query.parameters,
                                  com_data->com_query.parameter_count);
 
-<<<<<<< HEAD
-      dispatch_sql_command(thd, &parser_state, false);
-||||||| b5da0b9817c
-      dispatch_sql_command(thd, &parser_state);
-=======
       /* This will call MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES() */
-      dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.1.0
+      dispatch_sql_command(thd, &parser_state, false);
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.

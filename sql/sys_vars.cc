@@ -5594,6 +5594,7 @@ static bool check_tmp_table_size(sys_var *, THD *thd, set_var *var) {
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_PERCONA_IGNORE_TMP_TABLE_SIZE,
                  ER_THD(thd, ER_PERCONA_IGNORE_TMP_TABLE_SIZE));
+    var->save_result.ulonglong_value = 1024 * 1024;
   }
   return false;
 }
@@ -8337,7 +8338,16 @@ static Sys_var_enum Sys_explain_format(
     SESSION_VAR(explain_format), CMD_LINE(OPT_ARG), explain_format_names,
     DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
-<<<<<<< HEAD
+
+static Sys_var_bool Sys_tls_certificates_enforced_validation(
+    "tls_certificates_enforced_validation",
+    "If set to TRUE, server stops execution at the start up in case of invalid "
+    "certificates "
+    "When ALTER INSTANCE RELOAD TLS executed, new certficates will not be used "
+    "if validation fails. ",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_tls_certificates_enforced_validation),
+    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};
@@ -8369,16 +8379,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| b5da0b9817c
-=======
-
-static Sys_var_bool Sys_tls_certificates_enforced_validation(
-    "tls_certificates_enforced_validation",
-    "If set to TRUE, server stops execution at the start up in case of invalid "
-    "certificates "
-    "When ALTER INSTANCE RELOAD TLS executed, new certficates will not be used "
-    "if validation fails. ",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_tls_certificates_enforced_validation),
-    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(nullptr), ON_UPDATE(nullptr));
->>>>>>> mysql-8.1.0

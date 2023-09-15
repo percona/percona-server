@@ -5505,12 +5505,9 @@ static void show_flow_control_status_vars(THD *thd, SHOW_VAR *var, char *buff) {
 static SHOW_VAR group_replication_status_vars[] = {
     {"group_replication_primary_member", (char *)&show_primary_member,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-<<<<<<< HEAD
     {"group_replication_flow_control",
      reinterpret_cast<char *>(&show_flow_control_status_vars), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-||||||| b5da0b9817c
-=======
     {"Gr_control_messages_sent_count",
      (char *)&Plugin_status_variables::get_control_messages_sent_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -5587,7 +5584,6 @@ static SHOW_VAR group_replication_status_vars[] = {
     {"Gr_last_consensus_end_timestamp",
      (char *)&Plugin_status_variables::get_last_consensus_end_timestamp,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
->>>>>>> mysql-8.1.0
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
 

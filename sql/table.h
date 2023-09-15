@@ -2472,7 +2472,16 @@ struct TABLE {
             set or not
   */
   bool should_binlog_drop_if_temp(void) const;
-<<<<<<< HEAD
+
+  /**
+    Find the histogram for the given field index.
+
+    @param field_index The index of the field we want to find a histogram for.
+
+    @retval nullptr if no histogram is found.
+    @retval Pointer to a histogram if one is found.
+  */
+  const histograms::Histogram *find_histogram(uint field_index) const;
 
   void set_tmp_dd_table_ptr(const dd::Table *tmp_dd_table_ptr_) noexcept {
     assert(tmp_dd_table_ptr_ != nullptr);
@@ -2491,19 +2500,6 @@ struct TABLE {
      INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES queries.
   */
   const dd::Table *tmp_dd_table_ptr{nullptr};
-||||||| b5da0b9817c
-=======
-
-  /**
-    Find the histogram for the given field index.
-
-    @param field_index The index of the field we want to find a histogram for.
-
-    @retval nullptr if no histogram is found.
-    @retval Pointer to a histogram if one is found.
-  */
-  const histograms::Histogram *find_histogram(uint field_index) const;
->>>>>>> mysql-8.1.0
 };
 
 static inline void empty_record(TABLE *table) {

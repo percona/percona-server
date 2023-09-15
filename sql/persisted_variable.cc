@@ -391,35 +391,9 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       uint dummy_err;
       String bool_str;
       if (setvar->value) {
-<<<<<<< HEAD
+        if (setvar->value->is_null()) is_null = true;
         system_var->persist_only_to_string(thd, setvar, &str);
         res = &str;
-||||||| b5da0b9817c
-        res = setvar->value->val_str(&str);
-        if (system_var->get_var_type() == GET_BOOL) {
-          if (res == nullptr ||
-              check_boolean_value(res->c_ptr_quick(), bool_str)) {
-            my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name.c_str(),
-                     (res ? res->c_ptr_quick() : "null"));
-            return true;
-          } else {
-            res = &bool_str;
-          }
-        }
-=======
-        res = setvar->value->val_str(&str);
-        if (setvar->value->is_null()) is_null = true;
-        if (system_var->get_var_type() == GET_BOOL) {
-          if (res == nullptr ||
-              check_boolean_value(res->c_ptr_quick(), bool_str)) {
-            my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name.c_str(),
-                     (res ? res->c_ptr_quick() : "null"));
-            return true;
-          } else {
-            res = &bool_str;
-          }
-        }
->>>>>>> mysql-8.1.0
         if (res && res->length()) {
           /*
             value held by Item class can be of different charset,

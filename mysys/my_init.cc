@@ -462,26 +462,11 @@ PSI_stage_info stage_waiting_for_table_level_lock = {
 PSI_stage_info stage_waiting_for_disk_space = {0, "Waiting for disk space", 0,
                                                PSI_DOCUMENT_ME};
 
-<<<<<<< HEAD
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-    key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_charset,
-    key_THR_LOCK_heap, key_THR_LOCK_lock, key_THR_LOCK_malloc,
-    key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-    key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
-    key_THR_LOCK_myisam_mmap;
-||||||| b5da0b9817c
-PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
-    key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
+    key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_heap,
     key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
     key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
     key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
-=======
-PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
-    key_KEY_CACHE_cache_lock, key_THR_LOCK_heap, key_THR_LOCK_lock,
-    key_THR_LOCK_malloc, key_THR_LOCK_mutex, key_THR_LOCK_myisam,
-    key_THR_LOCK_net, key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
-    key_THR_LOCK_myisam_mmap;
->>>>>>> mysql-8.1.0
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 

@@ -881,147 +881,7 @@ const char *Log_event::get_type_str(uint type) {
 }
 
 const char *Log_event::get_type_str(Log_event_type type) {
-<<<<<<< HEAD
-  switch (type) {
-    case binary_log::STOP_EVENT:
-      return "Stop";
-    case binary_log::QUERY_EVENT:
-      return "Query";
-    case binary_log::ROTATE_EVENT:
-      return "Rotate";
-    case binary_log::INTVAR_EVENT:
-      return "Intvar";
-    case binary_log::APPEND_BLOCK_EVENT:
-      return "Append_block";
-    case binary_log::DELETE_FILE_EVENT:
-      return "Delete_file";
-    case binary_log::RAND_EVENT:
-      return "RAND";
-    case binary_log::XID_EVENT:
-      return "Xid";
-    case binary_log::USER_VAR_EVENT:
-      return "User var";
-    case binary_log::FORMAT_DESCRIPTION_EVENT:
-      return "Format_desc";
-    case binary_log::TABLE_MAP_EVENT:
-      return "Table_map";
-    case binary_log::WRITE_ROWS_EVENT_V1:
-      return "Write_rows_v1";
-    case binary_log::UPDATE_ROWS_EVENT_V1:
-      return "Update_rows_v1";
-    case binary_log::DELETE_ROWS_EVENT_V1:
-      return "Delete_rows_v1";
-    case binary_log::BEGIN_LOAD_QUERY_EVENT:
-      return "Begin_load_query";
-    case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      return "Execute_load_query";
-    case binary_log::INCIDENT_EVENT:
-      return "Incident";
-    case binary_log::IGNORABLE_LOG_EVENT:
-      return "Ignorable";
-    case binary_log::ROWS_QUERY_LOG_EVENT:
-      return "Rows_query";
-    case binary_log::WRITE_ROWS_EVENT:
-      return "Write_rows";
-    case binary_log::UPDATE_ROWS_EVENT:
-      return "Update_rows";
-    case binary_log::DELETE_ROWS_EVENT:
-      return "Delete_rows";
-    case binary_log::GTID_LOG_EVENT:
-      return "Gtid";
-    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-      return "Anonymous_Gtid";
-    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
-      return "Previous_gtids";
-    case binary_log::HEARTBEAT_LOG_EVENT:
-    case binary_log::HEARTBEAT_LOG_EVENT_V2:
-      return "Heartbeat";
-    case binary_log::TRANSACTION_CONTEXT_EVENT:
-      return "Transaction_context";
-    case binary_log::VIEW_CHANGE_EVENT:
-      return "View_change";
-    case binary_log::XA_PREPARE_LOG_EVENT:
-      return "XA_prepare";
-    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
-      return "Update_rows_partial";
-    case binary_log::TRANSACTION_PAYLOAD_EVENT:
-      return "Transaction_payload";
-    case binary_log::START_5_7_ENCRYPTION_EVENT:
-      return "Start_5_7_encryption";
-    default:
-      return "Unknown"; /* impossible */
-  }
-||||||| b5da0b9817c
-  switch (type) {
-    case binary_log::STOP_EVENT:
-      return "Stop";
-    case binary_log::QUERY_EVENT:
-      return "Query";
-    case binary_log::ROTATE_EVENT:
-      return "Rotate";
-    case binary_log::INTVAR_EVENT:
-      return "Intvar";
-    case binary_log::APPEND_BLOCK_EVENT:
-      return "Append_block";
-    case binary_log::DELETE_FILE_EVENT:
-      return "Delete_file";
-    case binary_log::RAND_EVENT:
-      return "RAND";
-    case binary_log::XID_EVENT:
-      return "Xid";
-    case binary_log::USER_VAR_EVENT:
-      return "User var";
-    case binary_log::FORMAT_DESCRIPTION_EVENT:
-      return "Format_desc";
-    case binary_log::TABLE_MAP_EVENT:
-      return "Table_map";
-    case binary_log::WRITE_ROWS_EVENT_V1:
-      return "Write_rows_v1";
-    case binary_log::UPDATE_ROWS_EVENT_V1:
-      return "Update_rows_v1";
-    case binary_log::DELETE_ROWS_EVENT_V1:
-      return "Delete_rows_v1";
-    case binary_log::BEGIN_LOAD_QUERY_EVENT:
-      return "Begin_load_query";
-    case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      return "Execute_load_query";
-    case binary_log::INCIDENT_EVENT:
-      return "Incident";
-    case binary_log::IGNORABLE_LOG_EVENT:
-      return "Ignorable";
-    case binary_log::ROWS_QUERY_LOG_EVENT:
-      return "Rows_query";
-    case binary_log::WRITE_ROWS_EVENT:
-      return "Write_rows";
-    case binary_log::UPDATE_ROWS_EVENT:
-      return "Update_rows";
-    case binary_log::DELETE_ROWS_EVENT:
-      return "Delete_rows";
-    case binary_log::GTID_LOG_EVENT:
-      return "Gtid";
-    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-      return "Anonymous_Gtid";
-    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
-      return "Previous_gtids";
-    case binary_log::HEARTBEAT_LOG_EVENT:
-    case binary_log::HEARTBEAT_LOG_EVENT_V2:
-      return "Heartbeat";
-    case binary_log::TRANSACTION_CONTEXT_EVENT:
-      return "Transaction_context";
-    case binary_log::VIEW_CHANGE_EVENT:
-      return "View_change";
-    case binary_log::XA_PREPARE_LOG_EVENT:
-      return "XA_prepare";
-    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
-      return "Update_rows_partial";
-    case binary_log::TRANSACTION_PAYLOAD_EVENT:
-      return "Transaction_payload";
-    default:
-      return "Unknown"; /* impossible */
-  }
-=======
   return binary_log::get_event_type_as_string(type).c_str();
->>>>>>> mysql-8.1.0
 }
 
 const char *Log_event::get_type_str() const {
@@ -1646,18 +1506,10 @@ static void my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits) {
   uint bitnum;
   my_b_printf(file, "b'");
   for (bitnum = skip_bits; bitnum < nbits8; bitnum++) {
-<<<<<<< HEAD
-    int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
+    const int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
     [[maybe_unused]]
     int write_res = my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
     assert(write_res == 0);
-||||||| b5da0b9817c
-    int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
-    my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
-=======
-    const int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
-    my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
->>>>>>> mysql-8.1.0
   }
   my_b_printf(file, "'");
 }

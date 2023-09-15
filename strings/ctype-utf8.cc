@@ -5026,22 +5026,10 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
                                               size_t dstlen, uint nweights,
                                               const uint8_t *src, size_t srclen,
                                               uint flags) {
-<<<<<<< HEAD
-  uchar *dst0 = dst;
-  uchar *de = dst + dstlen;
-  const uchar *se = src + srclen;
-  assert(src || srclen == 0);
-||||||| b5da0b9817c
-  uchar *dst0 = dst;
-  uchar *de = dst + dstlen;
-  const uchar *se = src + srclen;
-  assert(src);
-=======
   uint8_t *dst0 = dst;
   uint8_t *de = dst + dstlen;
   const uint8_t *se = src + srclen;
-  assert(src);
->>>>>>> mysql-8.1.0
+  assert(src || srclen == 0);
 
   // We manually hoist this if test out of the loop; seemingly GCC
   // (at least 6.1.1) isn't smart enough to do it on its own.

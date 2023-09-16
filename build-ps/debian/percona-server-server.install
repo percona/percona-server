@@ -82,11 +82,9 @@ usr/lib/mysql/plugin/component_test_udf_services.so
 usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/component_keyring_file.so
 usr/lib/mysql/plugin/mysql_clone.so
-usr/lib/mysql/plugin/data_masking.*
 usr/lib/mysql/plugin/component_mysqlbackup.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
-usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
@@ -120,8 +118,6 @@ usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/authentication_fido_client.so
 
 # Percona plugins
-usr/lib/mysql/plugin/audit_log.so
-usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/auth_pam.so
 usr/lib/mysql/plugin/debug/auth_pam.so
 usr/lib/mysql/plugin/auth_pam_compat.so

@@ -95,7 +95,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
-usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_kerberos.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
@@ -104,7 +103,6 @@ usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/component_keyring_oci.so
-usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_hashicorp.so

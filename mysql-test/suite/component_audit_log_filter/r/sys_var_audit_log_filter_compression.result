@@ -1,0 +1,13 @@
+SET GLOBAL audit_log_filter.compression=GZIP;
+ERROR HY000: Variable 'audit_log_filter.compression' is a read only variable
+SELECT @@global.audit_log_filter.compression;
+@@global.audit_log_filter.compression
+NONE
+# restart: --audit-log-filter.compression=GZIP
+SELECT @@global.audit_log_filter.compression;
+@@global.audit_log_filter.compression
+GZIP
+# restart:
+SELECT @@global.audit_log_filter.compression;
+@@global.audit_log_filter.compression
+NONE

@@ -159,8 +159,8 @@ usr/lib/mysql/plugin/component_test_mysql_thd_store_service.so
 usr/lib/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 usr/lib/mysql/plugin/component_test_server_telemetry_traces.so
 usr/lib/mysql/plugin/debug/component_test_server_telemetry_traces.so
-usr/lib/mysql/plugin/audit_log_filter.so
-usr/lib/mysql/plugin/debug/audit_log_filter.so
+usr/lib/mysql/plugin/component_audit_log_filter.so
+usr/lib/mysql/plugin/debug/component_audit_log_filter.so
 usr/lib/mysql/plugin/component_masking_functions.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
 usr/lib/mysql/plugin/component_percona_udf.so

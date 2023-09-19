@@ -1,0 +1,34 @@
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+# restart: --audit_log_filter.buffer_size=4096
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
+Variable_name	Value
+Audit_log_filter_event_max_drop_size	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
+Variable_name	Value
+Audit_log_filter_event_max_drop_size	0
+# restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
+Variable_name	Value
+Audit_log_filter_event_max_drop_size	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	2
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
+Variable_name	Value
+Audit_log_filter_event_max_drop_size	4307
+#
+# Cleanup

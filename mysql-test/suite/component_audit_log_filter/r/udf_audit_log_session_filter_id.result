@@ -1,0 +1,7 @@
+#
+# Check wrong argument number
+SELECT audit_log_session_filter_id("");
+ERROR HY000: Can't initialize function 'audit_log_session_filter_id'; Wrong argument list: audit_log_session_filter_id()
+SELECT audit_log_session_filter_id();
+audit_log_session_filter_id()
+0

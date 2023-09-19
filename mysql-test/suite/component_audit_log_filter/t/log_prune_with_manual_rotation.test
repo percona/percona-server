@@ -1,0 +1,9 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $log_rotate_type = manual
+--source log_prune_max_size_base.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

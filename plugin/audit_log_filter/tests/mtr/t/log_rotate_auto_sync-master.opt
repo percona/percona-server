@@ -1,4 +1,0 @@
---audit_log_filter_file=audit_filter.xml.log
---audit_log_filter_format=NEW
---audit_log_filter_rotate_on_size=4096
---audit_log_filter_strategy=SYNCHRONOUS

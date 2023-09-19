@@ -1,0 +1,54 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}');
+SELECT audit_log_filter_set_user('%', 'filter_1');
+
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+# Update filter in mysql.audit_log_filter directly, change should not affect filter behavior
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "table_access"}}}' WHERE name = 'filter_1';
+
+--source generate_audit_events.inc
+--let $search_tag=!<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+# Fail filters reload, already loaded filters remain functional
+SET GLOBAL DEBUG='+d,audit_log_filter_fail_filters_flush';
+SELECT audit_log_filter_flush();
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=!<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+SET GLOBAL DEBUG='-d,audit_log_filter_fail_filters_flush';
+
+# Changed filter loaded after audit_log_filter_flush() invocation
+SELECT audit_log_filter_flush();
+
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_filter_flush("");
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

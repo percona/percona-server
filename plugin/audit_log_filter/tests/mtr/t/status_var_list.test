@@ -1,7 +1,0 @@
---source audit_tables_init.inc
-
---replace_column 2 #
---sorted_result
-SHOW GLOBAL STATUS LIKE 'Audit_log_filter_%';
-
---source audit_tables_cleanup.inc

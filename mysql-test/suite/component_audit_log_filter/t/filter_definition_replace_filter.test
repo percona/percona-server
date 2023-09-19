@@ -1,0 +1,75 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+CREATE TABLE temp_1 (id INT);
+CREATE TABLE temp_2 (id INT);
+CREATE TABLE temp_3 (id INT);
+INSERT INTO temp_1 VALUES (1);
+INSERT INTO temp_2 VALUES (1);
+
+let $filter = {
+  "filter": {
+    "id": "main",
+    "class": [
+      {
+        "name": "table_access",
+        "event": {
+          "name": [ "update", "delete" ],
+          "log": false,
+          "filter": {
+            "class": {
+              "name": "general",
+              "event" : { "name": "status",
+                          "log": true,
+                          "filter": { "ref": "main" } }
+            },
+            "activate": {
+              "or": [
+                { "field": { "name": "table_name.str", "value": "temp_1" } },
+                { "field": { "name": "table_name.str", "value": "temp_2" } }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "table_access",
+        "event": {
+          "name": "insert",
+          "log": {
+            "field": { "name": "table_name.str", "value": "temp_3" }
+          }
+        }
+      }
+    ]
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('filter_replace', '$filter');
+SELECT audit_log_filter_set_user('%', 'filter_replace');
+
+UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23;
+
+# to make sure original filter is restored
+INSERT INTO temp_3 VALUES (1);
+
+--let $search_tag=[<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>.*<SQLTEXT>UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23</SQLTEXT>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>temp_3</TABLE>]
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+DROP TABLE temp_1, temp_2, temp_3;
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

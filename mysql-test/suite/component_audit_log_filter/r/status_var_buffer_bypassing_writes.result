@@ -1,0 +1,14 @@
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
+Variable_name	Value
+Audit_log_filter_direct_writes	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
+Variable_name	Value
+Audit_log_filter_direct_writes	2
+#
+# Cleanup

@@ -1,0 +1,13 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_session_filter_id("");
+
+SELECT audit_log_session_filter_id();
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

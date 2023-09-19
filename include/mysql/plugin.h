@@ -23,7 +23,7 @@
 
 #ifndef _my_plugin_h
 #define _my_plugin_h
-#ifdef MYSQL_COMPONENT
+#if defined(MYSQL_COMPONENT) && !defined(ALLOW_COMPONENT_INCLUDE)
 #error This header shall not be included in components
 #endif
 /**

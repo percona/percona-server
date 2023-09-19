@@ -29,8 +29,11 @@
 */
 
 #include "mysql/mysql_lex_string.h"
-#ifndef MYSQL_COMPONENT
+
+#if !defined(MYSQL_COMPONENT) || defined(ALLOW_COMPONENT_INCLUDE)
 #include "plugin.h"
+#else
+#include "mysql/strings/m_ctype.h"
 #endif
 
 #ifndef MYSQL_ABI_CHECK

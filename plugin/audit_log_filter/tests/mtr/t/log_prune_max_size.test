@@ -1,2 +1,0 @@
---let $log_rotate_type = auto
---source log_prune_max_size_base.inc

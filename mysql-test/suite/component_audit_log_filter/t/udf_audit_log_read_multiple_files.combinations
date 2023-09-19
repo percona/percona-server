@@ -1,0 +1,8 @@
+[json]
+loose-audit_log_filter.format=JSON
+loose-audit_log_filter.file=audit_filter.json.log
+
+[json_gzip]
+loose-audit_log_filter.format=JSON
+loose-audit_log_filter.file=audit_filter.json.log
+loose-audit_log_filter.compression=GZIP

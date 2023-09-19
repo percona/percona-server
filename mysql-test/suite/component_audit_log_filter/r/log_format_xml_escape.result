@@ -1,0 +1,10 @@
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query", "event": {"name": "start"}}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query", "event": {"name": "start"}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+Escape rules Ok
+#
+# Cleanup
+DROP TABLE a;

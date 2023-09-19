@@ -1,0 +1,2 @@
+--loose-audit_log_filter.format=JSON
+--log_slow_extra=ON

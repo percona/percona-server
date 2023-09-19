@@ -1,2 +1,0 @@
---audit_log_filter_buffer_size=4096
---audit_log_filter_strategy=ASYNCHRONOUS

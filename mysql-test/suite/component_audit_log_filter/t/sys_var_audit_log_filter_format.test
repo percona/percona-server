@@ -1,0 +1,22 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter.format=NEW;
+SELECT @@global.audit_log_filter.format;
+
+--let $restart_parameters="restart: --audit-log-filter.format=NEW"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter.format;
+
+--let $restart_parameters="restart: --audit-log-filter.format=OLD"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter.format;
+
+--let $restart_parameters="restart: --audit-log-filter.format=JSON"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter.format;
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

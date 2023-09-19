@@ -1,0 +1,11 @@
+SET GLOBAL audit_log_filter.buffer_size=4096;
+ERROR HY000: Variable 'audit_log_filter.buffer_size' is a read only variable
+SELECT @@global.audit_log_filter.buffer_size;
+@@global.audit_log_filter.buffer_size
+1048576
+# restart: --audit-log-filter.buffer-size=4096
+SELECT @@global.audit_log_filter.buffer_size;
+@@global.audit_log_filter.buffer_size
+4096
+call mtr.add_suppression("Component audit_log_filter reported: 'Failed to init log writer'");
+# restart: --audit-log-filter.buffer-size=99999999999

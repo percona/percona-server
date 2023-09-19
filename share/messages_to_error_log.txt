@@ -12892,6 +12892,228 @@ ER_CONN_CONTROL_FAILED_CONN_THRESHOLD_REACHED_WITH_WARN
 ER_CONN_CONTROL_DELAYED_CONN_STATS
   eng "Delayed %llu connection attempts during last %llu seconds"
 
+ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH
+  eng "The --secure-file-path is configured, %s must be set accordingly."
+
+ER_AUDIT_INIT_STARTED
+  eng "Initializing Audit Event Filter..."
+
+ER_AUDIT_DEINIT_DONE
+  eng "Uninstalled Audit Event Filter"
+
+ER_AUDIT_INIT_ENCRYPTION_PASSWORD_FAILURE
+  eng "Failed to check/generate encryption password"
+
+ER_AUDIT_INIT_PRIV_FAILURE
+  eng "Failed to init AUDIT_ABORT_EXEMPT privilege"
+
+ER_AUDIT_INIT_UDF_CREATE_FAILURE
+  eng "Failed to create UDFs handler instance"
+
+ER_AUDIT_INIT_UDF_INIT_FAILURE
+  eng "Failed to init UDFs"
+
+ER_AUDIT_INIT_FILTERS_INIT_FAILURE
+  eng "Failed to create audit rule registry instance"
+
+ER_AUDIT_INIT_FORMATTER_INIT_FAILURE
+  eng "Failed to init record formatter"
+
+ER_AUDIT_INIT_WRITER_INIT_FAILURE
+  eng "Failed to init log writer"
+
+ER_AUDIT_INIT_WRITER_OPEN_FAILURE
+  eng "Cannot open log writer, error: %s"
+
+ER_AUDIT_INIT_READER_INIT_FAILURE
+  eng "Failed to create log reader instance"
+
+ER_AUDIT_INIT_FAILURE
+  eng "Failed to init component"
+
+ER_AUDIT_INIT_DISABLED_WARN
+  eng "Audit Log Filter is disabled. Enable it with audit_log_filter.disable = false."
+
+ER_AUDIT_REMOVE_FILTER_UDF_NAME_CHECK_FAIL
+  eng "Failed to check filtering rule name existence"
+
+ER_AUDIT_REMOVE_FILTER_UDF_REMOVE_USER_FAIL
+  eng "Failed to remove filter '%s' from users table"
+
+ER_AUDIT_REMOVE_FILTER_UDF_REMOVE_FILTER_FAIL
+  eng "Failed to remove filter '%s'"
+
+ER_AUDIT_SET_USER_UDF_NAME_CHECK_FAIL
+  eng "Failed to check filtering rule name existence"
+
+ER_AUDIT_SET_USER_UDF_UNKNOWN_NAME
+  eng "Unknown filtering rule name '%s'"
+
+ER_AUDIT_SET_USER_UDF_FAIL
+  eng "Failed to set '%s' filtering rule for user '%s@%s'"
+
+ER_AUDIT_REMOVE_USER_UDF_FAIL
+  eng "Failed to remove filter for user '%s@%s' from users table"
+
+ER_AUDIT_LOG_ROTATE_UDF_FAIL
+  eng "Log rotation failed: '%s'"
+
+ER_AUDIT_STATUS_VAR_REGISTER_FAILURE
+  eng "Failed to register status variables"
+
+ER_AUDIT_STATUS_VAR_UNREGISTER_FAILURE
+  eng "Failed to unregister status variables"
+
+ER_AUDIT_SYS_VAR_REGISTER_FAILURE
+  eng "Failed to register %s.%s system variable"
+
+ER_AUDIT_SYS_VAR_UNREGISTER_FAILURE
+  eng "Failed to unregister %s.%s system variable"
+
+ER_AUDIT_SYS_VAR_SOURCE_CHECK_FAILURE
+  eng "Failed to check %s variable source"
+
+ER_AUDIT_PARSE_DEFAULT_LOG_ACTION_BAD_LOG_TYPE
+  eng "Wrong JSON filter '%s' format, the 'log' member must be of type bool"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_CLASS_LIST_TYPE
+  eng "Wrong JSON filter '%s' format, 'class' array element must be of object type"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_CLASS_TYPE
+  eng "Wrong JSON filter '%s' format, 'class' must be an object or an array"
+
+ER_AUDIT_PARSE_EVENT_CLASS_NO_CLASS_NAME
+  eng "Wrong JSON filter '%s' format, no name provided for event class"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_ABORT_DEF
+  eng "Wrong JSON filter '%s' format, 'abort' condition should be set for subclass only"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_LOG_TYPE
+  eng "Wrong JSON filter '%s' format, 'log' must be of bool type"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_PRINT_DEF
+  eng "Wrong JSON filter '%s' format, failed to parse 'print' replacement rule"
+
+ER_AUDIT_PARSE_EVENT_CLASS_UNEXPECTED_PRINT_DEF
+  eng "Wrong JSON filter '%s' format, replacement rule not expected for event class"
+
+ER_AUDIT_PARSE_EVENT_CLASS_UNEXPECTED_EVENT_DEF
+  eng "Wrong JSON filter '%s' format, there must be no 'event' in case class names provided as an array of strings"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_EVENT_NAME_FOR_LIST
+  eng "Wrong JSON filter '%s' format, event class name within an array should be of a string type"
+
+ER_AUDIT_PARSE_EVENT_CLASS_BAD_EVENT_NAME_TYPE
+  eng "Wrong JSON filter '%s' format, event class name type must be either string or an array of strings"
+
+ER_AUDIT_PARSE_EVENT_SUBCLASS_BAD_SUBCLASS_LIST_TYPE
+  eng "Wrong JSON filter '%s' format, 'event' array element must be of object type"
+
+ER_AUDIT_PARSE_EVENT_SUBCLASS_BAD_SUBCLASS_TYPE
+  eng "Wrong JSON filter '%s' format, type of 'event' must be either an object or an array of objects"
+
+ER_AUDIT_PARSE_ACTION_BAD_ABORT_TYPE
+  eng "Wrong JSON filter '%s' format, 'abort' must be of bool or object type"
+
+ER_AUDIT_PARSE_ACTION_BAD_REPLACE
+  eng "Event field '%s' cannot be replaced"
+
+ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_FORMAT
+  eng "Wrong JSON filter '%s' format, there must be only one condition specified for 'log' field"
+
+ER_AUDIT_PARSE_CONDITION_TYPE_BAD_COND_TYPE
+  eng "Wrong JSON filter '%s' format, the 'log' condition name must be of string type"
+
+ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_NAME
+  eng "Wrong JSON filter '%s' format, unknown 'log' condition name '%s'"
+
+ER_AUDIT_PARSE_CONDITION_BAD_FIELD_TYPE
+  eng "Wrong JSON filter '%s' format, condition definition 'field' must be of object type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE
+  eng "Wrong JSON filter '%s' format, event field definition 'field' must have field 'name' and 'value' provided as strings"
+
+ER_AUDIT_PARSE_CONDITION_BAD_AND_COND_TYPE
+  eng "Wrong JSON filter '%s' format, condition definition 'and' must be of array type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_AND_COND_FORMAT
+  eng "Wrong JSON filter '%s' format, a member of 'and' condition must be of object type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_AND_COND_OPERANDS
+  eng "Wrong JSON filter '%s' format, there should be at least two fields provided for 'and' condition"
+
+ER_AUDIT_PARSE_CONDITION_BAD_OR_COND_TYPE
+  eng "Wrong JSON filter '%s' format, condition definition 'or' must be of array type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_OR_COND_FORMAT
+  eng "Wrong JSON filter '%s' format, a member of 'or' condition must be of object type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_OR_COND_OPERANDS
+  eng "Wrong JSON filter '%s' format, there should be at least two fields provided for 'or' condition"
+
+ER_AUDIT_PARSE_CONDITION_BAD_NOT_COND_TYPE
+  eng "Wrong JSON filter '%s' format, condition definition 'not' must be of object type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_VARIABLE_COND_TYPE
+  eng "Wrong JSON filter '%s' format, condition definition 'variable' must be of object type"
+
+ER_AUDIT_PARSE_CONDITION_BAD_VARIABLE_NAME_AND_VALUE
+  eng "Wrong JSON filter '%s' format, event field definition 'variable' must have field 'name' and 'value' provided as strings"
+
+ER_AUDIT_PARSE_FUNCTION_NOT_OBJECT
+  eng "Wrong JSON filter '%s' format, 'function' must be of object type"
+
+ER_AUDIT_PARSE_FUNCTION_NO_FUNCTION_NAME
+  eng "Wrong JSON filter '%s' format, missing 'function' name or not a string"
+
+ER_AUDIT_PARSE_FUNCTION_UNKNOWN_FUNCTION_NAME
+  eng "Wrong JSON filter '%s' format, unknown function name '%s'"
+
+ER_AUDIT_PARSE_FUNCTION_BAD_ARGS_FORMAT
+  eng "Wrong JSON filter '%s' format, wrong function args format provided"
+
+ER_AUDIT_PARSE_FUNCTION_BAD_ARGS
+  eng "Wrong JSON filter '%s' format, invalid arguments for '%s' function"
+
+ER_AUDIT_PARSE_NO_SUBCLASS_NAME
+  eng "Wrong JSON filter '%s' format, no name provided for event subclass"
+
+ER_AUDIT_PARSE_BAD_SUBCLASS_NAME_TYPE
+  eng "Wrong JSON filter '%s' format, event subclass name within an array should be of a string type"
+
+ER_AUDIT_PARSE_BAD_SUBCLASS_NAME_LIST_TYPE
+  eng "Wrong JSON filter '%s' format, event subclass name type must be either string or an array of strings"
+
+ER_AUDIT_PARSE_CONDITION_DUPLICATED
+  eng "Wrong JSON filter '%s' format, there must be only one condition provided, 'log' or 'abort'"
+
+ER_AUDIT_PARSE_UNKNOWN_TAG
+  eng "Wrong JSON filter '%s' format, unknown tag '%s'"
+
+ER_AUDIT_PARSE_BAD_ACTION_FORMAT
+  eng "Wrong JSON filter '%s' format, bad format for '%s' action"
+
+ER_AUDIT_PARSE_BAD_REPLACEMENT_RULE
+  eng "Wrong JSON filter '%s' format, failed to parse 'filter' replacement rule"
+
+ER_AUDIT_UDF_INTERNAL_ERROR
+  eng "ERROR: Internal error"
+
+ER_AUDIT_UDF_SET_FILTER_BAD_DEFINITION
+  eng "Wrong argument: incorrect rule definition '%s'"
+
+ER_AUDIT_UDF_SET_FILTER_UNIQUE_CHECK_FAIL
+  eng "Failed to check filtering rule name existence"
+
+ER_AUDIT_UDF_SET_FILTER_NAME_EXISTS
+  eng "Filtering rule with the name '%s' already exists"
+
+ER_AUDIT_UDF_SET_FILTER_FAILURE
+  eng "Failed to insert filtering rule '%s', '%s'"
+
+ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE
+  eng "Unexpected event type for replace_field action"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

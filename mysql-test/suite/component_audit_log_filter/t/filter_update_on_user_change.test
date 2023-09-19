@@ -1,0 +1,60 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "connect"
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_connect', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "disconnect"
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_disconnect', '$filter');
+
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+CREATE USER 'user2'@'localhost' IDENTIFIED BY '222';
+GRANT SYSTEM_USER ON *.* to 'user1'@'localhost';
+GRANT SYSTEM_USER ON *.* to 'user2'@'localhost';
+
+SELECT audit_log_filter_set_user('user1@localhost', 'log_connect');
+SELECT audit_log_filter_set_user('user2@localhost', 'log_disconnect');
+
+SELECT CURRENT_USER();
+SELECT audit_log_session_filter_id();
+
+--change_user user1,111
+SELECT CURRENT_USER();
+SELECT audit_log_session_filter_id();
+
+--change_user user2,222
+SELECT CURRENT_USER();
+SELECT audit_log_session_filter_id();
+
+--change_user root
+SELECT CURRENT_USER();
+SELECT audit_log_session_filter_id();
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP USER user1@localhost;
+DROP USER user2@localhost;

@@ -1,0 +1,2 @@
+--loose-audit_log_filter.buffer_size=4096
+--loose-audit_log_filter.strategy=ASYNCHRONOUS

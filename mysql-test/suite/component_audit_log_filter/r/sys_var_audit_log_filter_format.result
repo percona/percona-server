@@ -1,0 +1,17 @@
+SET GLOBAL audit_log_filter.format=NEW;
+ERROR HY000: Variable 'audit_log_filter.format' is a read only variable
+SELECT @@global.audit_log_filter.format;
+@@global.audit_log_filter.format
+NEW
+# restart: --audit-log-filter.format=NEW
+SELECT @@global.audit_log_filter.format;
+@@global.audit_log_filter.format
+NEW
+# restart: --audit-log-filter.format=OLD
+SELECT @@global.audit_log_filter.format;
+@@global.audit_log_filter.format
+OLD
+# restart: --audit-log-filter.format=JSON
+SELECT @@global.audit_log_filter.format;
+@@global.audit_log_filter.format
+JSON

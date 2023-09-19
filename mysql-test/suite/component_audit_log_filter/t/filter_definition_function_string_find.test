@@ -1,0 +1,184 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+CREATE TABLE user_list (id INT, name VARCHAR(32));
+CREATE TABLE product_list (id INT, name VARCHAR(32));
+INSERT INTO user_list VALUES (1, "user_1");
+INSERT INTO product_list VALUES (1, "product_1");
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--echo #
+--echo # Match table name by its suffix using string_find() function
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": "user_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_users_access', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_users_access');
+
+SELECT * FROM user_list;
+SELECT * FROM product_list;
+
+--let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>.*<TABLE>user_list</TABLE>
+--source check_all_events_with_tag.inc
+--let $search_tag=!<TABLE>product_list</TABLE>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Make sure string_find() does a case-sensitive search
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": "User_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
+
+SELECT * FROM user_list;
+SELECT * FROM product_list;
+
+--let $search_tag=!<TABLE>user_list</TABLE>
+--source check_all_events_with_tag.inc
+--let $search_tag=!<TABLE>product_list</TABLE>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Wrong arguments for string_find()
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'missing_args' format, invalid arguments for 'string_find' function'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'one_missing_arg' format, invalid arguments for 'string_find' function'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'wrong_pattern_type' format, wrong function args format provided'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
+--enable_query_log
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find"
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('missing_args', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('one_missing_arg', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": "table_name.str"}},
+              {"string": {"string": 2}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('wrong_pattern_type', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "read",
+        "log": {
+          "function": {
+            "name": "string_find",
+            "args": [
+              {"string": {"field": 2}},
+              {"string": {"string": "User_"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('wrong_field_type', '$filter');
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP TABLE user_list, product_list;

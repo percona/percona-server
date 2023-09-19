@@ -1,0 +1,35 @@
+SELECT audit_log_filter_set_filter('log_prepared', '{
+"filter": {
+"class": {
+"name": "query",
+"event": { "name": "start" }
+}
+}
+}');
+audit_log_filter_set_filter('log_prepared', '{
+"filter": {
+"class": {
+"name": "query",
+"event": { "name": "start" }
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_prepared');
+audit_log_filter_set_user('%', 'log_prepared')
+OK
+CREATE TABLE t1 (c1 INT);
+PREPARE prepared_stmt FROM 'INSERT INTO t1 VALUES (?)';
+SET @c = 1;
+EXECUTE prepared_stmt USING @c;
+SET @c = 2;
+EXECUTE prepared_stmt USING @c;
+SET @c = 3;
+EXECUTE prepared_stmt USING @c;
+DEALLOCATE PREPARE prepared_stmt;
+<SQLTEXT>INSERT INTO t1 VALUES (1)</SQLTEXT>
+<SQLTEXT>INSERT INTO t1 VALUES (2)</SQLTEXT>
+<SQLTEXT>INSERT INTO t1 VALUES (3)</SQLTEXT>
+#
+# Cleanup
+DROP TABLE t1;

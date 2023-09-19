@@ -1,0 +1,10 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--replace_column 2 #
+--sorted_result
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_%';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

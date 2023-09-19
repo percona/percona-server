@@ -1,0 +1,162 @@
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+#
+# Log only events with specific query digest
+SELECT audit_log_filter_set_filter('log_by_digest', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": "INSERT INTO `t` VALUES (?)"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_by_digest', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": "INSERT INTO `t` VALUES (?)"}}
+]
+}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_by_digest');
+audit_log_filter_set_user('%', 'log_by_digest')
+OK
+CREATE TABLE t (id INT);
+INSERT INTO t VALUES (1);
+SELECT * FROM t;
+id
+1
+DROP TABLE t;
+Tag <EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>start</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT INTO t VALUES \(1\)</SQLTEXT> Ok
+#
+# Unexpected query_digest() context
+SELECT audit_log_filter_set_filter('log_by_digest_no_args', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest"
+          }
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_by_digest_no_args', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest"
+          }
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+#
+# Wrong arguments for query_digest()
+SELECT audit_log_filter_set_filter('wrong_digest_type', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": 5}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('wrong_digest_type', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": 5}}
+]
+}
+}
+}
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('too_many_args', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": "INSERT INTO `t` VALUES (?)"}},
+{"string": {"string": "unexpected arg"}}
+]
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('too_many_args', '{
+"filter": {
+"class": {
+"name": "query",
+"event": {
+"name": "start",
+"log": {
+"function": {
+"name": "query_digest",
+"args": [
+{"string": {"string": "INSERT INTO `t` VALUES (?)"}},
+{"string": {"string": "unexp
+ERROR: Incorrect rule definition
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_by_digest	{"filter": {"class": {"name": "query", "event": {"log": {"function": {"args": [{"string": {"string": "INSERT INTO `t` VALUES (?)"}}], "name": "query_digest"}}, "name": "start"}}}}
+#
+# Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';

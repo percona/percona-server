@@ -1,0 +1,48 @@
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+32768
+SET GLOBAL audit_log_filter.read_buffer_size=32768;
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+32768
+SET GLOBAL audit_log_filter.read_buffer_size=60000;
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+60000
+SET GLOBAL audit_log_filter.read_buffer_size=4194304;
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+4194304
+SET GLOBAL audit_log_filter.read_buffer_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter.read_buffer_size value: '-1'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+32768
+SET GLOBAL audit_log_filter.read_buffer_size=4000;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter.read_buffer_size value: '4000'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+32768
+SET GLOBAL audit_log_filter.read_buffer_size=6000000;
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+6000000
+SET GLOBAL audit_log_filter.read_buffer_size=0.5;
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter.read_buffer_size'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+6000000
+SET GLOBAL audit_log_filter.read_buffer_size='str';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter.read_buffer_size'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+6000000
+SET GLOBAL audit_log_filter.read_buffer_size='';
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter.read_buffer_size'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+6000000
+SET SESSION audit_log_filter.read_buffer_size=32768;
+ERROR HY000: Variable 'audit_log_filter.read_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL

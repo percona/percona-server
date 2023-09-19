@@ -1,0 +1,10 @@
+SET GLOBAL audit_log_filter.syslog_tag=audit-filter-test;
+ERROR HY000: Variable 'audit_log_filter.syslog_tag' is a read only variable
+SELECT @@global.audit_log_filter.syslog_tag;
+@@global.audit_log_filter.syslog_tag
+audit-filter
+# restart: --audit-log-filter.syslog-tag=audit-filter-test
+SELECT @@global.audit_log_filter.syslog_tag;
+@@global.audit_log_filter.syslog_tag
+audit-filter-test
+# restart:

@@ -1,0 +1,32 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # AUDIT_ADMIN privilege required to use any filtering function
+
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
+
+connect(conn1, localhost, user1, 111, test);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_filter_set_user('%', 'log_all');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_filter_remove_user('%');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_filter_remove_filter('log_all');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_filter_flush();
+
+--disconnect conn1
+--connection default
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP USER user1;

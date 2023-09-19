@@ -1,0 +1,17 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter.syslog_priority=LOG_WARNING;
+SELECT @@global.audit_log_filter.syslog_priority;
+
+--let $restart_parameters="restart: --audit-log-filter.syslog-priority=LOG_WARNING"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter.syslog_priority;
+
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

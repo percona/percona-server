@@ -1,0 +1,13 @@
+SET GLOBAL audit_log_filter.handler=FILE;
+ERROR HY000: Variable 'audit_log_filter.handler' is a read only variable
+SELECT @@global.audit_log_filter.handler;
+@@global.audit_log_filter.handler
+FILE
+# restart: --audit-log-filter.handler=FILE
+SELECT @@global.audit_log_filter.handler;
+@@global.audit_log_filter.handler
+FILE
+# restart: --audit-log-filter.handler=SYSLOG
+SELECT @@global.audit_log_filter.handler;
+@@global.audit_log_filter.handler
+SYSLOG

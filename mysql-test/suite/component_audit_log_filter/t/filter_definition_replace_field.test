@@ -1,0 +1,294 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+
+--echo #
+--echo # Field replacement for all events of "query" class
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "print": {
+        "field": {
+          "name": "query.str",
+          "print": false,
+          "replace": {"function": {"name": "query_digest"}}
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_query', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_query');
+
+INSERT INTO t1 VALUES (1);
+
+--let $search_tag=<EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>.*<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t1` VALUES \(\?\))</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Field replacement for all events of "parse" class
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "parse",
+      "print": {
+        "field": {
+          "name": "query.str",
+          "print": false,
+          "replace": {"function": {"name": "query_digest"}}
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_parse_query', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_parse_query');
+
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET id = 2 WHERE id = 1;
+SELECT * FROM t2;
+DELETE FROM t2 WHERE id = 2;
+
+--let $search_tag=<EVENT_CLASS_NAME>parse</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:INSERT INTO `t2` VALUES \(\?\)|UPDATE `t2` SET `id` = \? WHERE `id` = \?|SELECT \* FROM `t2`|DELETE FROM `t2` WHERE `id` = \?|\.\.\.)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Field replacement for specific event subclass
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": ["start", "status_end"],
+        "print": {
+          "field": {
+            "name": "query.str",
+            "print": false,
+            "replace": {"function": {"name": "query_digest"}}
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_query_start_end', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_query_start_end');
+
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET id = 2 WHERE id = 1;
+SELECT * FROM t2;
+DELETE FROM t2 WHERE id = 2;
+
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t2` VALUES \(\?\)|UPDATE `t2` SET `id` = \? WHERE `id` = \?|SELECT \* FROM `t2`|DELETE FROM `t2` WHERE `id` = \?)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Replace for queries not matching provided digest
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": ["start", "status_end"],
+        "print": {
+          "field": {
+            "name": "query.str",
+            "print": {
+              "function": {
+                "name": "query_digest",
+                "args": [{"string": {"string": "INSERT INTO `t2` VALUES (?)"}}]
+              }
+            },
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_not_matching_digest', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_not_matching_digest');
+
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET id = 2 WHERE id = 1;
+SELECT * FROM t2;
+DELETE FROM t2 WHERE id = 2;
+
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO t2 VALUES \(1\)|UPDATE `t2` SET `id` = \? WHERE `id` = \?|SELECT \* FROM `t2`|DELETE FROM `t2` WHERE `id` = \?)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Replace for queries matching provided digest
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": ["start"],
+        "print": {
+          "field": {
+            "name": "query.str",
+            "print": {
+              "not": {
+                "function": {
+                  "name": "query_digest",
+                  "args": [{"string": {"string": "INSERT INTO `t2` VALUES (?)"}}]
+                }
+              }
+            },
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_matching_digest', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_matching_digest');
+
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET id = 2 WHERE id = 1;
+SELECT * FROM t2;
+DELETE FROM t2 WHERE id = 2;
+
+--let $search_tag=<EVENT_SUBCLASS_NAME>start</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:INSERT INTO `t2` VALUES \(\?\)|UPDATE t2 SET id = 2 WHERE id = 1|SELECT \* FROM t2|DELETE FROM t2 WHERE id = 2)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Replace only for events matching specific fields
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": ["start", "status_end"],
+        "print": {
+          "field": {
+            "name": "query.str",
+            "print": false,
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        },
+        "log": {
+          "or": [
+            {
+              "field": {
+                "name": "sql_command_id",
+                "value": "select"
+              }
+            },
+            {
+              "field": {
+                "name": "sql_command_id",
+                "value": "insert"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_for_tables', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_for_tables');
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+DELETE FROM t1;
+DELETE FROM t2;
+
+--let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t1` VALUES \(\?\)|INSERT INTO `t2` VALUES \(\?\))</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Check incorrect replacement rule definitions
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, failed to parse 'print' replacement rule'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Event field 'status' cannot be replaced'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Event field 'connection_id' cannot be replaced'");
+#call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
+--enable_query_log
+
+# Attempt to replace anything except "query.str" for "query" event
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "print": {
+        "field": {
+          "name": "status",
+          "print": false,
+          "replace": {"function": {"name": "query_digest"}}
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');
+
+# Attempt to replace anything except "query.str" for "parse" event
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "parse",
+      "print": {
+        "field": {
+          "name": "connection_id",
+          "print": false,
+          "replace": {"function": {"name": "query_digest"}}
+        }
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+DROP TABLE t1, t2;
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -1,0 +1,54 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+--disable_query_log
+--disable_result_log
+UPDATE performance_schema.setup_instruments
+SET ENABLED = 'YES'
+WHERE NAME LIKE 'memory/%';
+
+CREATE TABLE test (col1 LONGBLOB NOT NULL);
+# 10M query
+--let $very_long_text = `SELECT REPEAT('a', 10485760)`
+eval INSERT INTO test (col1) VALUES ('$very_long_text');
+--enable_query_log
+--enable_result_log
+
+--let memory_used = `SELECT current_alloc FROM sys.memory_global_by_current_bytes WHERE event_name = 'memory/sql/THD::variables'`
+
+perl;
+  use strict;
+  use warnings;
+
+  my $memory_used = $ENV{'memory_used'};
+  $memory_used =~ s/\s//g;
+
+  die "Missing memory_used value\n" if (!$memory_used);
+
+  if ($memory_used =~ /^(\d+\.?\d*)(\w+)$/gm) {
+    my $value = $1;
+    my $units = $2;
+
+    if ($value > 100 && $units !~ /bytes|KiB/) {
+      die "Memory consumption is higher than 100 MiB\n";
+    }
+    else {
+      print "memory/sql/THD::variables current_alloc Ok\n";
+    }
+  }
+  else {
+    die "Unexpected memory_used format: $memory_used\n";
+  }
+
+EOF
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP TABLE test;

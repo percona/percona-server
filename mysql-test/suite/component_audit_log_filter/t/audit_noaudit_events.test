@@ -1,0 +1,17 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+--source clean_current_audit_log.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_comp_install.inc
+
+--let $search_tag=<NAME>(?:Audit|NoAudit)</NAME>
+--source check_all_events_with_tag.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -1,9 +1,0 @@
---source include/have_component_keyring_file.inc
---source suite/component_keyring_file/inc/setup_component.inc
-
---source clean_all_audit_logs.inc
-
---let $log_rotate_type = auto
---source log_prune_max_size_base.inc
-
---source suite/component_keyring_file/inc/teardown_component.inc

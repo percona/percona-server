@@ -1,0 +1,14 @@
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+# restart: --audit_log_filter.format=OLD
+# restart: --audit_log_filter.format=JSON
+# restart: --audit_log_filter.format=NEW
+File format Ok
+File format Ok
+File format Ok
+#
+# Cleanup

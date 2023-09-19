@@ -1,0 +1,4 @@
+--loose-audit_log_filter.handler=SYSLOG
+--loose-audit_log_filter.syslog_tag=audit_filter
+--loose-audit_log_filter.syslog_facility=LOG_AUTH
+--loose-audit_log_filter.syslog_priority=LOG_INFO

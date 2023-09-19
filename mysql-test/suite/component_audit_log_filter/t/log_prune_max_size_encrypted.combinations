@@ -1,0 +1,8 @@
+[log_name_one_ext]
+loose-audit_log_filter.file=audit_filter.xml
+
+[log_name_mult_ext]
+loose-audit_log_filter.file=audit_filter.xml.log
+
+[log_name_no_ext]
+loose-audit_log_filter.file=audit_filter_xml_log

@@ -1,0 +1,10 @@
+SET GLOBAL audit_log_filter.syslog_facility=LOG_DAEMON;
+ERROR HY000: Variable 'audit_log_filter.syslog_facility' is a read only variable
+SELECT @@global.audit_log_filter.syslog_facility;
+@@global.audit_log_filter.syslog_facility
+LOG_USER
+# restart: --audit-log-filter.syslog-facility=LOG_DAEMON
+SELECT @@global.audit_log_filter.syslog_facility;
+@@global.audit_log_filter.syslog_facility
+LOG_DAEMON
+# restart:

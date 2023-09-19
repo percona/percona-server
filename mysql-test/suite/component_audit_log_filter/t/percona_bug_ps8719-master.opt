@@ -1,0 +1,3 @@
+--debug=+d,audit_log_write_full_buffer
+--loose-audit_log_filter.strategy=ASYNCHRONOUS
+--loose-audit_log_filter.buffer_size=4096

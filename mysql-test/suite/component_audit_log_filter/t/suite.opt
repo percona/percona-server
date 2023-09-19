@@ -1,0 +1,5 @@
+$AUDIT_LOG_COMPONENT_OPT
+--loose-audit-log-filter.prune-seconds=0
+--loose-audit-log-filter.max-size=0
+--loose-audit-log-filter.rotate-on-size=0
+--loose-audit-log-filter.strategy=SYNCHRONOUS

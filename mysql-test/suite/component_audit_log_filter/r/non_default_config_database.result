@@ -1,0 +1,20 @@
+# restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=audit_filter.xml.log
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT * FROM test.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+SELECT * FROM test.audit_log_user;
+username	userhost	filtername
+%	%	log_all
+SELECT audit_log_rotate();
+audit_log_rotate()
+<file_name>
+Rotated files Ok
+#
+# Cleanup
+# restart: 

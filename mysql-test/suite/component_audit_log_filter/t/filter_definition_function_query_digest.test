@@ -1,0 +1,126 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--echo #
+--echo # Log only events with specific query digest
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": "start",
+        "log": {
+          "function": {
+            "name": "query_digest",
+            "args": [
+              {"string": {"string": "INSERT INTO `t` VALUES (?)"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_by_digest', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_by_digest');
+
+CREATE TABLE t (id INT);
+INSERT INTO t VALUES (1);
+SELECT * FROM t;
+DROP TABLE t;
+
+--let $search_tag=<EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>start</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT INTO t VALUES \(1\)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'log_by_digest_no_args' format, invalid arguments for 'query_digest' function'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'wrong_digest_type' format, wrong function args format provided'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'too_many_args' format, invalid arguments for 'query_digest' function'");
+--enable_query_log
+
+--echo #
+--echo # Unexpected query_digest() context
+# In case query_digest() is invoked without arguments it returns current query
+# digest string which is not expected in context of a logical condition.
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": "start",
+        "log": {
+          "function": {
+            "name": "query_digest"
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_by_digest_no_args', '$filter');
+
+--echo #
+--echo # Wrong arguments for query_digest()
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": "start",
+        "log": {
+          "function": {
+            "name": "query_digest",
+            "args": [
+              {"string": {"string": 5}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('wrong_digest_type', '$filter');
+
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "query",
+      "event": {
+        "name": "start",
+        "log": {
+          "function": {
+            "name": "query_digest",
+            "args": [
+              {"string": {"string": "INSERT INTO `t` VALUES (?)"}},
+              {"string": {"string": "unexpected arg"}}
+            ]
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('too_many_args', '$filter');
+
+SELECT * FROM mysql.audit_log_filter;
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

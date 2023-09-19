@@ -1,0 +1,39 @@
+--source include/have_component_audit_log.inc
+--let $audit_db_name=mysql
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_db_name=test
+--source ../inc/audit_tables_init.inc
+
+--let $restart_parameters="restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=audit_filter.xml.log"
+--source include/restart_mysqld.inc
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+SELECT * FROM test.audit_log_filter;
+SELECT * FROM test.audit_log_user;
+
+--source generate_audit_events.inc
+
+--replace_column 1 <file_name>
+SELECT audit_log_rotate();
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_filter_log_format = xml
+--source validate_logs_format.inc
+
+--echo #
+--echo # Cleanup
+--let $restart_parameters="restart: "
+--source include/restart_mysqld.inc
+
+--source ../inc/audit_comp_uninstall.inc
+
+--let $audit_db_name=mysql
+--source ../inc/audit_tables_cleanup.inc
+
+--let $audit_db_name=test
+--source ../inc/audit_tables_cleanup.inc

@@ -1,0 +1,2 @@
+--source include/have_component_audit_log.inc
+--source log_rotate_auto_base.inc

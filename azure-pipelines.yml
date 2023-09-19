@@ -485,7 +485,7 @@ jobs:
       function get_ver { printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' ' '); }
       if [[ ( "$(Compiler)" == "clang" ) && ( 10#$(get_ver $REAL_COMPILER_VER) -lt 10#$(get_ver 7.0.0) ) ]]; then
         CMAKE_OPT+="
-          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
+          -DWITH_COMPONENT_AUDIT_LOG_FILTER=OFF
           -DWITH_ROUTER=OFF
         "
       fi

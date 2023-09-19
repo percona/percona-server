@@ -84,19 +84,14 @@ while($stage <= $number_of_stages)
 
 --echo
 --echo *** checking if UDF works without loading the plugin
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_last_gtid_from_binlog RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
 --replace_result $binlog_file_name <binlog_file_name>
---error ER_CANT_INITIALIZE_UDF
+--error ER_SP_DOES_NOT_EXIST
 eval SELECT get_last_gtid_from_binlog('$binlog_file_name');
-DROP FUNCTION get_last_gtid_from_binlog;
+
+INSTALL COMPONENT 'file://component_binlog_utils_udf';
 
 --echo
 --echo *** checking 'get_last_gtid_from_binlog()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval INSTALL PLUGIN binlog_utils_udf SONAME '$BINLOG_UTILS_UDF_LIB';
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_last_gtid_from_binlog RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_last_gtid_from_binlog();
@@ -125,12 +120,9 @@ while($stage <= $number_of_stages)
   --inc $stage
 }
 
-DROP FUNCTION get_last_gtid_from_binlog;
 
 --echo
 --echo *** checking 'get_binlog_by_gtid()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_binlog_by_gtid RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_binlog_by_gtid();
@@ -159,12 +151,9 @@ while($stage <= $number_of_stages)
   --inc $stage
 }
 
-DROP FUNCTION get_binlog_by_gtid;
 
 --echo
 --echo *** checking 'get_gtid_set_by_binlog()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_gtid_set_by_binlog RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_gtid_set_by_binlog();
@@ -192,12 +181,9 @@ while($stage <= $number_of_stages)
   --inc $stage
 }
 
-DROP FUNCTION get_gtid_set_by_binlog;
 
 --echo
 --echo *** checking 'get_binlog_by_gtid_set()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_binlog_by_gtid_set RETURNS STRING SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_binlog_by_gtid_set();
@@ -237,7 +223,6 @@ while($outer_index < $number_of_iterations)
   --inc $outer_index
 }
 
-DROP FUNCTION get_binlog_by_gtid_set;
 
 # creating a temporary table which will be used for LOAD DATA LOCAL INFILE
 CREATE TEMPORARY TABLE loaded_ts(
@@ -246,8 +231,6 @@ CREATE TEMPORARY TABLE loaded_ts(
 
 --echo
 --echo *** checking 'get_first_record_timestamp_by_binlog()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_first_record_timestamp_by_binlog RETURNS INTEGER SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_first_record_timestamp_by_binlog();
@@ -289,12 +272,10 @@ while($stage <= $number_of_stages)
 
   --inc $stage
 }
-DROP FUNCTION get_first_record_timestamp_by_binlog;
+
 
 --echo
 --echo *** checking 'get_last_record_timestamp_by_binlog()' function
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-eval CREATE FUNCTION get_last_record_timestamp_by_binlog RETURNS INTEGER SONAME "$BINLOG_UTILS_UDF_LIB";
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_last_record_timestamp_by_binlog();
@@ -336,13 +317,11 @@ while($stage <= $number_of_stages)
 
   --inc $stage
 }
-DROP FUNCTION get_last_record_timestamp_by_binlog;
 
 # temporary table cleanup
 DROP TABLE loaded_ts;
 
---replace_result $BINLOG_UTILS_UDF_LIB BINLOG_UTILS_UDF_LIB
-UNINSTALL PLUGIN binlog_utils_udf;
+UNINSTALL COMPONENT 'file://component_binlog_utils_udf';
 
 DROP TABLE captured_gtid;
 DROP TABLE t1;

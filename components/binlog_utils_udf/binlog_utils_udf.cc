@@ -1,110 +1,45 @@
+/* Copyright (c) 2023 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #include <array>
 #include <cstring>
 #include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 
 #include <boost/algorithm/find_backward.hpp>
-
-#include <mysql/plugin.h>
+#include <boost/preprocessor/stringize.hpp>
 
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/mysql_runtime_error_service.h>
 
+#include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
 #include <sql/binlog.h>
 #include <sql/binlog/decompressing_event_object_istream.h>
 #include <sql/binlog_reader.h>
 
-namespace {
+// defined as a macro because needed both raw and stringized
+#define CURRENT_COMPONENT_NAME binlog_utils_udf
+#define CURRENT_COMPONENT_NAME_STR BOOST_PP_STRINGIZE(CURRENT_COMPONENT_NAME)
 
-bool binlog_utils_udf_initialized{false};
-
-struct registry_service_releaser {
-  void operator()(SERVICE_TYPE(registry) * srv) const noexcept {
-    if (srv != nullptr) mysql_plugin_registry_release(srv);
-  }
-};
-using registry_service_ptr =
-    std::unique_ptr<SERVICE_TYPE(registry), registry_service_releaser>;
-
-registry_service_ptr reg_srv{nullptr, registry_service_releaser{}};
-
-struct component_sys_variable_register_releaser {
-  registry_service_ptr &parent;
-  void operator()(SERVICE_TYPE(component_sys_variable_register) *
-                  srv) const noexcept {
-    if (parent && srv != nullptr)
-      parent->release(reinterpret_cast<my_h_service>(
-          const_cast<SERVICE_TYPE_NO_CONST(component_sys_variable_register) *>(
-              srv)));
-  }
-};
-using component_sys_variable_register_ptr =
-    std::unique_ptr<SERVICE_TYPE(component_sys_variable_register),
-                    component_sys_variable_register_releaser>;
-
-component_sys_variable_register_ptr sys_var_srv{
-    nullptr, component_sys_variable_register_releaser{reg_srv}};
-
-int binlog_utils_udf_init(void *) {
-  DBUG_TRACE;
-  registry_service_ptr local_reg_srv{mysql_plugin_registry_acquire(),
-                                     registry_service_releaser{}};
-  if (!local_reg_srv) return 1;
-  my_h_service acquired_service{nullptr};
-  if (local_reg_srv->acquire("component_sys_variable_register",
-                             &acquired_service) != 0)
-    return 1;
-  if (acquired_service == nullptr) return 1;
-
-  reg_srv = std::move(local_reg_srv);
-  sys_var_srv.reset(
-      reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
-          acquired_service));
-  // Here we initialize UDF wrapper error reporter with
-  // the default one from mysys
-  mysqlpp::udf_error_reporter::instance() = &my_error;
-
-  binlog_utils_udf_initialized = true;
-  return 0;
-}
-
-int binlog_utils_udf_deinit(void *) {
-  DBUG_TRACE;
-  sys_var_srv.reset();
-  reg_srv.reset();
-  binlog_utils_udf_initialized = false;
-  return 0;
-}
-
-struct st_mysql_daemon binlog_utils_udf_decriptor = {
-    MYSQL_DAEMON_INTERFACE_VERSION};
-
-}  // end of anonymous namespace
-
-/*
-  Plugin library descriptor
-*/
-
-mysql_declare_plugin(binlog_utils_udf){
-    MYSQL_DAEMON_PLUGIN,
-    &binlog_utils_udf_decriptor,
-    "binlog_utils_udf",
-    PLUGIN_AUTHOR_ORACLE,
-    "Binlog utils UDF plugin",
-    PLUGIN_LICENSE_GPL,
-    binlog_utils_udf_init,   /* Plugin Init */
-    nullptr,                 /* Plugin check uninstall */
-    binlog_utils_udf_deinit, /* Plugin Deinit */
-    0x0100 /* 1.0 */,
-    nullptr, /* status variables                */
-    nullptr, /* system variables                */
-    nullptr, /* config options                  */
-    0,       /* flags                           */
-} mysql_declare_plugin_end;
+REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 
 namespace {
 
@@ -126,14 +61,14 @@ std::string_view extract_sys_var_value(std::string_view component_name,
   void *ptr = ub.first.data();
   std::size_t length = ub.first.size() - 1;
 
-  if (sys_var_srv->get_variable(component_name.data(), variable_name.data(),
-                                &ptr, &length) == 0)
+  if (mysql_service_component_sys_variable_register->get_variable(
+          component_name.data(), variable_name.data(), &ptr, &length) == 0)
     return {static_cast<char *>(ptr), length};
 
   ub.second.resize(length + 1);
   ptr = ub.second.data();
-  if (sys_var_srv->get_variable(component_name.data(), variable_name.data(),
-                                &ptr, &length) != 0)
+  if (mysql_service_component_sys_variable_register->get_variable(
+          component_name.data(), variable_name.data(), &ptr, &length) != 0)
     throw std::runtime_error("Cannot get sys_var value");
 
   if (ptr == nullptr) throw std::runtime_error("The value of sys_var is null");
@@ -337,11 +272,6 @@ class get_binlog_by_gtid_impl {
   get_binlog_by_gtid_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
 
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
-
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
@@ -413,11 +343,6 @@ class get_last_gtid_from_binlog_impl {
   get_last_gtid_from_binlog_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
 
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
-
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
@@ -457,11 +382,6 @@ class get_gtid_set_by_binlog_impl {
  public:
   get_gtid_set_by_binlog_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
-
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
 
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
@@ -541,11 +461,6 @@ class get_binlog_by_gtid_set_impl {
  public:
   get_binlog_by_gtid_set_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
-
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
 
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
@@ -628,11 +543,6 @@ class get_first_record_timestamp_by_binlog_impl {
   get_first_record_timestamp_by_binlog_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
 
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
-
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
@@ -669,11 +579,6 @@ class get_last_record_timestamp_by_binlog_impl {
   get_last_record_timestamp_by_binlog_impl(mysqlpp::udf_context &ctx) {
     DBUG_TRACE;
 
-    if (!binlog_utils_udf_initialized)
-      throw std::invalid_argument(
-          "This function requires binlog_utils_udf plugin which is not "
-          "installed.");
-
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
     ctx.mark_result_const(false);
@@ -708,3 +613,66 @@ DECLARE_STRING_UDF_AUTO(get_gtid_set_by_binlog)
 DECLARE_STRING_UDF_AUTO(get_binlog_by_gtid_set)
 DECLARE_INT_UDF_AUTO(get_first_record_timestamp_by_binlog)
 DECLARE_INT_UDF_AUTO(get_last_record_timestamp_by_binlog)
+
+static const std::array known_udfs{
+    DECLARE_UDF_INFO(get_binlog_by_gtid, STRING_RESULT),
+    DECLARE_UDF_INFO(get_last_gtid_from_binlog, STRING_RESULT),
+    DECLARE_UDF_INFO(get_gtid_set_by_binlog, STRING_RESULT),
+    DECLARE_UDF_INFO(get_binlog_by_gtid_set, STRING_RESULT),
+    DECLARE_UDF_INFO(get_first_record_timestamp_by_binlog, INT_RESULT),
+    DECLARE_UDF_INFO(get_last_record_timestamp_by_binlog, INT_RESULT)};
+
+#undef DECLARE_UDF_INFO
+
+static void binlog_utils_my_error(int error_id, myf flags, ...) {
+  va_list args;
+  va_start(args, flags);
+  mysql_service_mysql_runtime_error->emit(error_id, flags, args);
+  va_end(args);
+}
+
+using udf_bitset_type =
+    std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
+static udf_bitset_type registered_udfs;
+
+static mysql_service_status_t component_init() {
+  // here we use a custom error reporting function
+  // 'binlog_utils_my_error()' based on the
+  // 'mysql_service_mysql_runtime_error' service instead of the standard
+  // 'my_error()' from 'mysys' to get rid of the 'mysys' dependency for this
+  // component
+  mysqlpp::udf_error_reporter::instance() = &binlog_utils_my_error;
+
+  mysqlpp::register_udfs(mysql_service_udf_registration, known_udfs,
+                         registered_udfs);
+  return registered_udfs.all() ? 0 : 1;
+}
+
+static mysql_service_status_t component_deinit() {
+  mysqlpp::unregister_udfs(mysql_service_udf_registration, known_udfs,
+                           registered_udfs);
+  return registered_udfs.none() ? 0 : 1;
+}
+
+// clang-format off
+BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)
+END_COMPONENT_PROVIDES();
+
+BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
+  REQUIRES_SERVICE(udf_registration),
+  REQUIRES_SERVICE(component_sys_variable_register),
+END_COMPONENT_REQUIRES();
+
+BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)
+  METADATA("mysql.author", "Percona Corporation"),
+  METADATA("mysql.license", "GPL"),
+END_COMPONENT_METADATA();
+
+DECLARE_COMPONENT(CURRENT_COMPONENT_NAME, CURRENT_COMPONENT_NAME_STR)
+  component_init,
+  component_deinit,
+END_DECLARE_COMPONENT();
+// clang-format on
+
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(CURRENT_COMPONENT_NAME)
+    END_DECLARE_LIBRARY_COMPONENTS

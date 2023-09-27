@@ -388,7 +388,7 @@ jobs:
         sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
-        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libreadline-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         `# SYSTEM_LIBRARIES = CURL EDITLINE ICU LIBEVENT LZ4 PROTOBUF SSL ZSTD FIDO (Ubuntu 21.04+)`
         if [[ "$(INVERTED)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libicu-dev libevent-dev liblz4-dev zlib1g-dev protobuf-compiler libprotobuf-dev libprotoc-dev libzstd-dev libfido2-dev || exit 1;
@@ -489,8 +489,8 @@ jobs:
           CMAKE_OPT+="
             -DWITH_MECAB=system
             -DWITH_NUMA=ON
-            -DWITH_READLINE=system
             -DWITH_SYSTEM_LIBS=ON
+            -DWITH_EDITLINE=system
           "
           `# Required liblz4 1.9.3 and installed version is 1.9.2`
           if [[ "$(imageName)" == "ubuntu-20.04" ]]; then

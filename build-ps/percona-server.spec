@@ -540,7 +540,7 @@ mkdir debug
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
            -DWITH_ZSTD=bundled \
-           -DWITH_READLINE=system \
+           -DWITH_EDITLINE=bundled \
            -DWITH_LIBEVENT=bundled \
            -DWITH_FIDO=bundled \
            -DWITH_ENCRYPTION_UDF=ON \
@@ -590,7 +590,7 @@ mkdir release
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
            -DWITH_ICU=bundled \
-           -DWITH_READLINE=system \
+           -DWITH_EDITLINE=bundled \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
            -DWITH_FIDO=bundled \

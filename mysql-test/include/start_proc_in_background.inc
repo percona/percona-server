@@ -46,18 +46,6 @@ if (!$command)
 
 if ($output_file)
 {
-<<<<<<< HEAD
-  if ($redirect_stderr == 1)
-  {
-    --let $line = $line 2> $output_file
-  }
-  if ($redirect_stderr == 0)
-  {
-    --let $line = $line > $output_file
-  }
-||||||| bf77b2eae08
-  --let $line = $line > $output_file
-=======
   if ($redirect_stderr)
   {
     --let $line = $line 2> $output_file
@@ -66,7 +54,6 @@ if ($output_file)
   {
     --let $line = $line > $output_file
   }
->>>>>>> release-8.0.34-26
 }
 
 --let $line = $line &

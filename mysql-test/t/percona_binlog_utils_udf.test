@@ -104,6 +104,9 @@ SELECT get_last_gtid_from_binlog();
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_last_gtid_from_binlog('blah', 'blah');
 
+--error ER_UDF_ERROR
+SELECT get_last_gtid_from_binlog(NULL);
+
 # EE_FILENOTFOUND 29
 --replace_regex $non_existing_binlog_name_regex
 --error 29
@@ -134,6 +137,9 @@ SELECT get_binlog_by_gtid();
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_binlog_by_gtid('blah', 'blah');
+
+--error ER_UDF_ERROR
+SELECT get_binlog_by_gtid(NULL);
 
 --let $stage = 1
 while($stage <= $number_of_stages)
@@ -167,6 +173,9 @@ SELECT get_gtid_set_by_binlog();
 SELECT get_gtid_set_by_binlog('blah', 'blah');
 
 --error ER_UDF_ERROR
+SELECT get_gtid_set_by_binlog(NULL);
+
+--error ER_UDF_ERROR
 eval SELECT get_gtid_set_by_binlog('$non_existing_binlog_name');
 
 --let $stage = 1
@@ -195,6 +204,9 @@ SELECT get_binlog_by_gtid_set();
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_binlog_by_gtid_set('blah', 'blah');
+
+--error ER_UDF_ERROR
+SELECT get_binlog_by_gtid_set(NULL);
 
 SET SESSION group_concat_max_len = 65536;
 
@@ -243,6 +255,9 @@ SELECT get_first_record_timestamp_by_binlog();
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_first_record_timestamp_by_binlog('blah', 'blah');
 
+--error ER_UDF_ERROR
+SELECT get_first_record_timestamp_by_binlog(NULL);
+
 # EE_FILENOTFOUND 29
 --replace_regex $non_existing_binlog_name_regex
 --error 29
@@ -286,6 +301,9 @@ SELECT get_last_record_timestamp_by_binlog();
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT get_last_record_timestamp_by_binlog('blah', 'blah');
+
+--error ER_UDF_ERROR
+SELECT get_last_record_timestamp_by_binlog(NULL);
 
 # EE_FILENOTFOUND 29
 --replace_regex $non_existing_binlog_name_regex

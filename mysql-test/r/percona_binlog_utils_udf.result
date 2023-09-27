@@ -30,6 +30,8 @@ SELECT get_last_gtid_from_binlog();
 ERROR HY000: Can't initialize function 'get_last_gtid_from_binlog'; Function requires exactly one argument
 SELECT get_last_gtid_from_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_last_gtid_from_binlog'; Function requires exactly one argument
+SELECT get_last_gtid_from_binlog(NULL);
+ERROR HY000: get_last_gtid_from_binlog<string> UDF failed; argument 1 cannot be null
 SELECT get_last_gtid_from_binlog('non_existing.000001');
 ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 include/assert.inc ['GTID extracted via get_last_gtid_from_binlog() for stage 1 should match the recorded value']
@@ -56,6 +58,8 @@ SELECT get_binlog_by_gtid();
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid'; Function requires exactly one argument
 SELECT get_binlog_by_gtid('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid'; Function requires exactly one argument
+SELECT get_binlog_by_gtid(NULL);
+ERROR HY000: get_binlog_by_gtid<string> UDF failed; argument 1 cannot be null
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 1 should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 2 should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid() for stage 1, substage 3 should match the recorded value']
@@ -320,6 +324,8 @@ SELECT get_gtid_set_by_binlog();
 ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; Function requires exactly one argument
 SELECT get_gtid_set_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_gtid_set_by_binlog'; Function requires exactly one argument
+SELECT get_gtid_set_by_binlog(NULL);
+ERROR HY000: get_gtid_set_by_binlog<string> UDF failed; argument 1 cannot be null
 SELECT get_gtid_set_by_binlog('non_existing.000001');
 ERROR HY000: get_gtid_set_by_binlog<string> UDF failed; Binary log does not exist
 include/assert.inc ['GTID set extracted via get_gtid_set_by_binlog() for stage 1 should match the recorded value']
@@ -346,6 +352,8 @@ SELECT get_binlog_by_gtid_set();
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid_set'; Function requires exactly one argument
 SELECT get_binlog_by_gtid_set('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_binlog_by_gtid_set'; Function requires exactly one argument
+SELECT get_binlog_by_gtid_set(NULL);
+ERROR HY000: get_binlog_by_gtid_set<string> UDF failed; argument 1 cannot be null
 SET SESSION group_concat_max_len = 65536;
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid_set() for (1, 1)..(1, 1) should match the recorded value']
 include/assert.inc ['binlog name extracted via get_binlog_by_gtid_set() for (1, 1)..(1, 8) should match the recorded value']
@@ -1534,6 +1542,8 @@ SELECT get_first_record_timestamp_by_binlog();
 ERROR HY000: Can't initialize function 'get_first_record_timestamp_by_binlog'; Function requires exactly one argument
 SELECT get_first_record_timestamp_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_first_record_timestamp_by_binlog'; Function requires exactly one argument
+SELECT get_first_record_timestamp_by_binlog(NULL);
+ERROR HY000: get_first_record_timestamp_by_binlog<int> UDF failed; argument 1 cannot be null
 SELECT get_first_record_timestamp_by_binlog('non_existing.000001');
 ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 DELETE FROM loaded_ts;
@@ -1592,6 +1602,8 @@ SELECT get_last_record_timestamp_by_binlog();
 ERROR HY000: Can't initialize function 'get_last_record_timestamp_by_binlog'; Function requires exactly one argument
 SELECT get_last_record_timestamp_by_binlog('blah', 'blah');
 ERROR HY000: Can't initialize function 'get_last_record_timestamp_by_binlog'; Function requires exactly one argument
+SELECT get_last_record_timestamp_by_binlog(NULL);
+ERROR HY000: get_last_record_timestamp_by_binlog<int> UDF failed; argument 1 cannot be null
 SELECT get_last_record_timestamp_by_binlog('non_existing.000001');
 ERROR HY000: File 'non_existing.000001' not found (OS errno 2 - No such file or directory)
 DELETE FROM loaded_ts;

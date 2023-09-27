@@ -141,4 +141,6 @@ include/assert.inc [Default group_replication_xcom_ssl_accept_retries is 10]
 #
 # Clean up
 #
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

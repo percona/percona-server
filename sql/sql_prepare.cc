@@ -1131,6 +1131,10 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
     query_block->context.resolve_in_select_list = true;
 
+    // Use the hypergraph optimizer for the SELECT statement, if enabled.
+    lex->using_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     Query_result *result = new (thd->mem_root)
@@ -1879,7 +1883,6 @@ static void reset_stmt_parameters(Prepared_statement *stmt) {
 void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
                          ulong execute_flags, PS_PARAM *parameters) {
   DBUG_TRACE;
-
   statement_id_to_session(thd);
 #if defined(ENABLED_PROFILING)
   thd->profiling->set_query_source(stmt->m_query_string.str,
@@ -3114,6 +3117,10 @@ reexecute:
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !m_lex->unit->is_executed()) {
+        if (has_external_table(m_lex->query_tables)) {
+          set_external_engine_fail_reason(m_lex,
+                                          thd->get_stmt_da()->message_text());
+        }
         thd->clear_error();
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_ONLY);

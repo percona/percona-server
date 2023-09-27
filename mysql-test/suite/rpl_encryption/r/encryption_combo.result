@@ -21,6 +21,8 @@ INSERT INTO table1_no_encryption VALUES (NULL,NOW(),'data_no_encryption');
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 FLUSH BINARY LOGS;
 SET binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 Pattern "table1_no_encryption" found
@@ -54,6 +56,8 @@ INSERT INTO table2_to_encrypt VALUES (NULL,NOW(),'data_to_encrypt');
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 FLUSH BINARY LOGS;
 SET binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 # Here we try to find several plain texts that would appear in not encrypted binlog files.

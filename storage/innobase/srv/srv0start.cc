@@ -1891,17 +1891,6 @@ dberr_t srv_start(bool create_new_db) {
   err = srv_sys_space.open_or_create(false, create_new_db, &sum_of_new_sizes,
                                      &flushed_lsn);
 
-  if (flushed_lsn < LOG_START_LSN) {
-    ut_ad(!create_new_db);
-    /* Data directory hasn't been initialized yet. */
-    ib::error(ER_IB_MSG_DATA_DIRECTORY_NOT_INITIALIZED_OR_CORRUPTED);
-    return DB_ERROR;
-  }
-
-  /* FIXME: This can be done earlier, but we now have to wait for
-  checking of system tablespace. */
-  dict_persist_init();
-
   switch (err) {
     case DB_SUCCESS:
       err = srv_sys_enable_encryption(create_new_db);
@@ -1917,6 +1906,17 @@ dberr_t srv_start(bool create_new_db) {
 
       return (srv_init_abort(err));
   }
+
+  if (flushed_lsn < LOG_START_LSN) {
+    ut_ad(!create_new_db);
+    /* Data directory hasn't been initialized yet. */
+    ib::error(ER_IB_MSG_DATA_DIRECTORY_NOT_INITIALIZED_OR_CORRUPTED);
+    return srv_init_abort(DB_ERROR);
+  }
+
+  /* FIXME: This can be done earlier, but we now have to wait for
+  checking of system tablespace. */
+  dict_persist_init();
 
   mtr_t::s_logging.init();
 

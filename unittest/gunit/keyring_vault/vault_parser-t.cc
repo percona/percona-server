@@ -18,8 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
-
-#include <boost/optional.hpp>
+#include <optional>
 
 #include "i_keys_container.h"
 #include "mock_logger.h"
@@ -257,8 +256,8 @@ TEST_F(Vault_parser_test, GetMountConfig) {
       payload, max_versions, cas_required, delete_version_after));
   EXPECT_EQ(max_versions, 42U);
   EXPECT_TRUE(cas_required);
-  EXPECT_TRUE(delete_version_after != boost::none);
-  EXPECT_STREQ(delete_version_after.get().c_str(), "0s");
+  EXPECT_TRUE(delete_version_after != std::nullopt);
+  EXPECT_STREQ(delete_version_after.value().c_str(), "0s");
 
   payload =
       "{"
@@ -278,7 +277,7 @@ TEST_F(Vault_parser_test, GetMountConfig) {
       payload, max_versions, cas_required, delete_version_after));
   EXPECT_EQ(max_versions, 43U);
   EXPECT_FALSE(cas_required);
-  EXPECT_TRUE(delete_version_after == boost::none);
+  EXPECT_TRUE(delete_version_after == std::nullopt);
 }
 
 TEST_F(Vault_parser_test, GetMountConfigNull) {

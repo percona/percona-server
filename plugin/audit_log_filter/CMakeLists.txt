@@ -81,10 +81,18 @@ IF(WITH_PERCONA_AUDIT_LOG_FILTER)
                    LINK_LIBRARIES ${SSL_LIBRARIES} extra::rapidjson ext::zlib
                    MODULE_ONLY MODULE_OUTPUT_NAME "audit_log_filter")
 
+<<<<<<< HEAD
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
     TARGET_LINK_LIBRARIES(audit_log_filter stdc++fs)
   ENDIF()
 
+||||||| bf77b2eae08
+=======
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+    TARGET_LINK_LIBRARIES(audit_log_filter stdc++fs)
+  ENDIF()
+
+>>>>>>> release-8.0.34-26
   IF(UNIX)
     IF(INSTALL_MYSQLTESTDIR)
       INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/audit_log_filter COMPONENT Test)

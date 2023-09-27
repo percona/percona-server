@@ -8,9 +8,9 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 **** [RSA][4096] deriving public key
 **** [RSA][4096] checking operations on NULL message
 ****** [RSA][4096] checking encryption with public key of NULL message
-ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
 ****** [RSA][4096] checking encryption with private key of NULL message
-ERROR HY000: asymmetric_encrypt<string> UDF failed; Message cannot be NULL
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
 **** [RSA][4096][message_len=0] checking operations
 ****** [RSA][4096][message_len=0] checking encryption with public key
 ****** [RSA][4096][message_len=0] checking decryption with private key

@@ -224,6 +224,9 @@ CHECK_INCLUDE_FILES ("sys/types.h;sasl/sasl.h" HAVE_SASL_SASL_H)
 IF(WITH_ASAN)
   CHECK_SYMBOL_EXISTS (__lsan_do_recoverable_leak_check
     "sanitizer/lsan_interface.h" HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK)
+ELSE()
+  UNSET(HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK)
+  UNSET(HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK CACHE)
 ENDIF()
 CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
@@ -419,50 +422,6 @@ int main()
   struct timespec ts;
   return clock_gettime(CLOCK_REALTIME, &ts);
 }" HAVE_CLOCK_REALTIME)
-
-IF(NOT STACK_DIRECTION)
-  IF(CMAKE_CROSSCOMPILING)
-   MESSAGE(FATAL_ERROR 
-   "STACK_DIRECTION is not defined.  Please specify -DSTACK_DIRECTION=1, "
-   "-DSTACK_DIRECTION=-1 or -DSTACK_DIRECTION=0 (disables stack overrun "
-   "checking, should be used for ASan builds) when calling cmake.")
-  ELSE()
-    # Under Address Sanitizer when "detect_stack_use_after_return" runtime
-    # option is enabled (either via ASAN_OPTIONS environment variable or via
-    # "__asan_default_options()" function), there is no such concept as stack
-    # growth direction as stack frames are allocated with
-    # "__asan_stack_malloc()" special function that can return random
-    # addresses.
-    # Here, we just detect that the binaries are compiled under ASan
-    # and set "STACK_DIRECTION" to a special value "0" which will be
-    # processed by the #cmakedefine in the "config.h.cmake" into an
-    # /* #undef STACK_DIRECTION */
-    IF(WITH_ASAN)
-       SET(STACK_DIRECTION 0 CACHE INTERNAL "Stack growth direction")
-       MESSAGE(STATUS
-        "Stack growth direction under Address Sanitizer could be an "
-        "invalid concept. STACK_DIRECTION is set to a special value")
-    ELSE()
-      TRY_RUN(STACKDIR_RUN_RESULT STACKDIR_COMPILE_RESULT
-        ${CMAKE_BINARY_DIR}
-        ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
-       )
-       IF(NOT STACKDIR_COMPILE_RESULT)
-         MESSAGE(FATAL_ERROR
-          "Cannot compile stack_direction.c needed to detect stack growth "
-          "direction")
-       ENDIF()
-       # Test program returns 0 (down) or 1 (up).
-       # Convert to -1 or 1
-       IF(STACKDIR_RUN_RESULT EQUAL 0)
-         SET(STACK_DIRECTION -1 CACHE INTERNAL "Stack growth direction")
-       ELSE()
-         SET(STACK_DIRECTION 1 CACHE INTERNAL "Stack growth direction")
-       ENDIF()
-     ENDIF()
-     MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
-   ENDIF()
-ENDIF()
 
 CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)

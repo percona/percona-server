@@ -72,19 +72,26 @@ dberr_t File_reader::prepare() noexcept {
     }
   }
 
-  if (!m_aligned_buffer.allocate(m_buffer_size)) {
+  m_aligned_buffer = ut::make_unique_aligned<byte[]>(
+      ut::make_psi_memory_key(mem_key_ddl), UNIV_SECTOR_SIZE, m_buffer_size);
+
+  if (!m_aligned_buffer) {
     return DB_OUT_OF_MEMORY;
   }
 
-  m_io_buffer = m_aligned_buffer.io_buffer();
+  m_io_buffer = {m_aligned_buffer.get(), m_buffer_size};
 
   if (log_tmp_is_encrypted()) {
-    if (!m_aligned_buffer_crypt.allocate(m_io_buffer.second)) {
+    m_aligned_buffer_crypt =
+        ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                        UNIV_SECTOR_SIZE, m_io_buffer.second);
+
+    if (!m_aligned_buffer_crypt) {
       return DB_OUT_OF_MEMORY;
     }
-  }
 
-  m_crypt_buffer = m_aligned_buffer_crypt.io_buffer();
+    m_crypt_buffer = {m_aligned_buffer_crypt.get(), m_io_buffer.second};
+  }
 
   m_mrec = m_io_buffer.first;
 

@@ -93,9 +93,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <readline.h>
 #include <syslog.h>
 
-#if defined(HAVE_READLINE_HISTORY_H)
-#include <history.h>
-#endif
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
@@ -1182,13 +1179,11 @@ typedef struct _hist_entry {
 } HIST_ENTRY;
 #endif
 
-#if !defined(HAVE_READLINE_HISTORY_H)
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);
 extern "C" int write_history(const char *command);
 extern "C" HIST_ENTRY *history_get(int num);
 extern "C" int history_length;
-#endif
 static int not_in_history(const char *line);
 static void initialize_readline(char *name);
 #endif /* HAVE_READLINE */
@@ -2832,9 +2827,9 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
-#if defined(XLINE_HAVE_COMPLETION_CHAR)
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int) { return nullptr; }
-#elif defined(XLINE_HAVE_COMPLETION_INT)
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int) { return 0; }
 #else
 char *no_completion() { return nullptr; }
@@ -2852,16 +2847,15 @@ static int not_in_history(const char *line) {
   return 1;
 }
 
-#if defined(USE_NEW_XLINE_INTERFACE)
+#if defined(USE_NEW_EDITLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
- static int fake_magic_space(const char *, int)
+static int fake_magic_space(const char *, int)
 #endif
 {
   rl_insert(1, ' ');
   return 0;
 }
-#endif
 static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
@@ -2870,12 +2864,12 @@ static void initialize_readline(char *name) {
   setlocale(LC_ALL, "");
 
   /* Tell the completer that we want a crack first. */
-#if defined(XLINE_HAVE_COMPLETION_CHAR)
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(XLINE_HAVE_COMPLETION_INT)
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);
@@ -2895,7 +2889,7 @@ static void initialize_readline(char *name) {
 static char **new_mysql_completion(const char *text, int start [[maybe_unused]],
                                    int end [[maybe_unused]]) {
   if (!status.batch && !quick)
-#if defined(USE_NEW_XLINE_INTERFACE)
+#if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
     return completion_matches(const_cast<char *>(text), new_command_generator);
@@ -3099,6 +3093,7 @@ char *rindex(const char *s, int c) {
 }
 }
 #endif /* ! HAVE_INDEX */
+#endif /* HAVE_READLINE */
 
 static void fix_line(String *final_command) {
   int total_lines = 1;

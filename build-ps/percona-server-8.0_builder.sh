@@ -495,7 +495,7 @@ install_deps() {
         apt-get -y install dh-systemd || true
         apt-get -y install copyright-update
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm ]; then
             apt-get -y install python3-mysqldb

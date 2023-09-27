@@ -26,7 +26,7 @@ script_template: &SCRIPT_TEMPLATE
   install_dependencies_script: |
     export DEBIAN_FRONTEND=noninteractive
     PACKAGES_TO_INSTALL="lz4 unzip ca-certificates git pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison npm"
-    PACKAGES_LIBS="libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev liblzma-dev libreadline-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    PACKAGES_LIBS="libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     apt update
     apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
@@ -74,7 +74,7 @@ script_template: &SCRIPT_TEMPLATE
     OPTIONS_BUILD="-DMYSQL_MAINTAINER_MODE=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_CONFIG=mysql_release -DWITH_PACKAGE_FLAGS=OFF"
     OPTIONS_COMPILER="-DCMAKE_C_COMPILER=$SELECTED_CC -DCMAKE_CXX_COMPILER=$SELECTED_CXX -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
     OPTIONS_COMPONENTS="-DWITH_ROCKSDB=ON -DWITH_COREDUMPER=ON -DWITH_KEYRING_VAULT=ON -DWITH_KEYRING_VAULT_TEST=ON -DWITH_PAM=ON"
-    OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_NUMA=ON -DWITH_READLINE=system -DWITH_SYSTEM_LIBS=ON -DWITH_ZLIB=bundled"
+    OPTIONS_LIBS="-DWITH_MECAB=system -DWITH_NUMA=ON -DWITH_SYSTEM_LIBS=ON -DWITH_EDITLINE=system -DWITH_ZLIB=bundled"
     OPTIONS_INVERTED="-DWITH_NDB=ON -DWITH_NDBCLUSTER=ON -DWITH_NDB_JAVA=OFF -DWITH_ROUTER=OFF -DWITH_UNIT_TESTS=OFF -DWITH_NUMA=OFF"
     OPTIONS_LIBS_BUNDLED="-DWITH_EDITLINE=bundled -DWITH_FIDO=bundled -DWITH_ICU=bundled -DWITH_LIBEVENT=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled -DWITH_RAPIDJSON=bundled -DWITH_ZLIB=bundled -DWITH_ZSTD=bundled"
     OPTIONS_SE_INVERTED="-DWITH_ARCHIVE_STORAGE_ENGINE=OFF -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF -DWITH_EXAMPLE_STORAGE_ENGINE=ON -DWITH_FEDERATED_STORAGE_ENGINE=OFF -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON -DWITH_INNODB_MEMCACHED=ON"

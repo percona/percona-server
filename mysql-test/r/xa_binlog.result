@@ -1,5 +1,7 @@
 CREATE TABLE t1 (a INT PRIMARY KEY);
 SET binlog_format= mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 XA START 'xatest';
 INSERT INTO t1 VALUES (1);

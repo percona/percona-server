@@ -8,7 +8,7 @@ ERROR HY000: Can't initialize function 'create_digest'; Function requires exactl
 SELECT create_digest(@digest_type);
 ERROR HY000: Can't initialize function 'create_digest'; Function requires exactly two arguments
 SELECT create_digest(@digest_type, NULL);
-ERROR HY000: create_digest<string> UDF failed; Message cannot be NULL
+ERROR HY000: create_digest<string> UDF failed; argument 2 cannot be null
 SELECT create_digest('FOO', @message);
 ERROR HY000: create_digest<string> UDF failed; unknown digest name
 UNINSTALL COMPONENT 'file://component_encryption_udf';

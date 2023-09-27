@@ -494,19 +494,24 @@ dberr_t Merge_file_sort::sort(Builder *builder,
   const auto n_buffers = (m_merge_ctx->m_n_threads * N_WAY_MERGE) + 1;
   const auto io_buffer_size = ctx.merge_io_buffer_size(n_buffers);
 
-  Aligned_buffer aligned_buffer{};
+  ut::unique_ptr_aligned<byte[]> aligned_buffer =
+      ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                      UNIV_SECTOR_SIZE, io_buffer_size);
 
-  if (!aligned_buffer.allocate(io_buffer_size)) {
+  if (!aligned_buffer) {
     return DB_OUT_OF_MEMORY;
   }
 
   /* Buffer for writing the merged rows to the output file. */
-  auto io_buffer = aligned_buffer.io_buffer();
+  IO_buffer io_buffer{aligned_buffer.get(), io_buffer_size};
 
-  Aligned_buffer aligned_buffer_crypt{};
+  ut::unique_ptr_aligned<byte[]> aligned_buffer_crypt{};
 
   if (log_tmp_is_encrypted()) {
-    if (!aligned_buffer_crypt.allocate(io_buffer_size)) {
+    aligned_buffer_crypt = ut::make_unique_aligned<byte[]>(
+        ut::make_psi_memory_key(mem_key_ddl), UNIV_SECTOR_SIZE, io_buffer_size);
+
+    if (!aligned_buffer_crypt) {
       return DB_OUT_OF_MEMORY;
     }
   }
@@ -525,7 +530,7 @@ dberr_t Merge_file_sort::sort(Builder *builder,
   /* Merge until there is a single list of rows in the file. */
   while (offsets.size() > 1) {
     Output_file output_file(ctx, tmpfd, io_buffer,
-                            aligned_buffer_crypt.io_buffer());
+                            {aligned_buffer_crypt.get(), io_buffer_size});
     Cursor cursor{builder, file, m_merge_ctx->m_dup, m_merge_ctx->m_stage};
 
     err = merge_ranges(cursor, offsets, output_file, io_buffer_size);

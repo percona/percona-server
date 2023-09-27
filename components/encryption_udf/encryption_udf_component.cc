@@ -34,6 +34,7 @@
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/udf_registration.h>
 
+#include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
 #include <opensslpp/core_error.hpp>
@@ -78,14 +79,14 @@ constexpr std::size_t number_of_algorithms =
     static_cast<std::size_t>(algorithm_id_type::delimiter);
 
 #define ENCRYPTION_UDF_X_MACRO(X) BOOST_PP_STRINGIZE(X)
-constexpr std::array<ext::string_view, number_of_algorithms>
+constexpr std::array<std::string_view, number_of_algorithms>
     algorithm_id_labels = {ENCRYPTION_UDF_X_MACRO_LIST()};
 #undef ENCRYPTION_UDF_X_MACRO
 
 #undef ENCRYPTION_UDF_X_MACRO_LIST
 
 algorithm_id_type get_algorithm_id_by_label(
-    ext::string_view algorithm) noexcept {
+    std::string_view algorithm) noexcept {
   assert(algorithm.data() != nullptr);
   std::size_t index = 0;
   while (index < number_of_algorithms &&
@@ -95,9 +96,7 @@ algorithm_id_type get_algorithm_id_by_label(
 }
 
 algorithm_id_type get_and_validate_algorithm_id_by_label(
-    ext::string_view algorithm) {
-  if (algorithm.data() == nullptr)
-    throw std::invalid_argument("Algorithm cannot be NULL");
+    std::string_view algorithm) {
   auto res = get_algorithm_id_by_label(algorithm);
   if (res == algorithm_id_type::delimiter)
     throw std::invalid_argument("Invalid algorithm specified");
@@ -206,17 +205,12 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
 
   std::string pem;
   if (algorithm_id == algorithm_id_type::dh) {
-    if (length_or_dh_parameters.data() == nullptr)
-      throw std::invalid_argument("DH parameters cannot be NULL");
     auto dh_parameters_pem = static_cast<std::string>(length_or_dh_parameters);
 
     auto key = opensslpp::dh_key::import_parameters_pem(dh_parameters_pem);
     key.promote_to_key();
     pem = opensslpp::dh_key::export_private_pem(key);
   } else {
-    if (length_or_dh_parameters.data() == nullptr)
-      throw std::invalid_argument("Key length cannot be NULL");
-
     std::uint32_t length = 0;
     if (!boost::conversion::try_lexical_convert(length_or_dh_parameters,
                                                 length))
@@ -284,8 +278,6 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
   auto algorithm = ctx.get_arg<STRING_RESULT>(0);
   auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm);
   auto priv_key_pem = static_cast<std::string>(ctx.get_arg<STRING_RESULT>(1));
-  if (priv_key_pem.data() == nullptr)
-    throw std::invalid_argument("Private key cannot be NULL");
 
   std::string pem;
   if (algorithm_id == algorithm_id_type::rsa) {
@@ -340,13 +332,9 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (message_sv.data() == nullptr)
-    throw std::invalid_argument("Message cannot be NULL");
   auto message = static_cast<std::string>(message_sv);
 
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  if (key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Key cannot be NULL");
   auto key_pem = static_cast<std::string>(key_pem_sv);
 
   opensslpp::rsa_key key;
@@ -401,13 +389,9 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (message_sv.data() == nullptr)
-    throw std::invalid_argument("Message cannot be NULL");
   auto message = static_cast<std::string>(message_sv);
 
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  if (key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Key cannot be NULL");
   auto key_pem = static_cast<std::string>(key_pem_sv);
 
   opensslpp::rsa_key key;
@@ -454,13 +438,9 @@ class create_digest_impl {
 mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(0);
-  if (digest_type_sv.data() == nullptr)
-    throw std::invalid_argument("Digest type cannot be NULL");
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (message_sv.data() == nullptr)
-    throw std::invalid_argument("Message cannot be NULL");
   auto message = static_cast<std::string>(message_sv);
 
   return {opensslpp::calculate_digest(digest_type, message)};
@@ -519,18 +499,12 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (message_digest_sv.data() == nullptr)
-    throw std::invalid_argument("Message digest cannot be NULL");
   auto message_digest = static_cast<std::string>(message_digest_sv);
 
   auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
-  if (private_key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Private key cannot be NULL");
   auto private_key_pem = static_cast<std::string>(private_key_pem_sv);
 
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(3);
-  if (digest_type_sv.data() == nullptr)
-    throw std::invalid_argument("Digest type cannot be NULL");
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   std::string signature;
@@ -605,23 +579,15 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (message_digest_sv.data() == nullptr)
-    throw std::invalid_argument("Message digest cannot be NULL");
   auto message_digest = static_cast<std::string>(message_digest_sv);
 
   auto signature_sv = ctx.get_arg<STRING_RESULT>(2);
-  if (signature_sv.data() == nullptr)
-    throw std::invalid_argument("Signature cannot be NULL");
   auto signature = static_cast<std::string>(signature_sv);
 
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(3);
-  if (public_key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Public key cannot be NULL");
   auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
 
   auto digest_type_sv = ctx.get_arg<STRING_RESULT>(4);
-  if (digest_type_sv.data() == nullptr)
-    throw std::invalid_argument("Digest type cannot be NULL");
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   bool verification_result = false;
@@ -667,7 +633,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_dh_parameters_impl::calculate(
   auto optional_length = ctx.get_arg<INT_RESULT>(0);
   if (!optional_length)
     throw std::invalid_argument("Parameters length cannot be NULL");
-  auto length = optional_length.get();
+  auto length = optional_length.value();
 
   if (!check_if_bits_in_range(length, threshold_index_type::dh))
     throw std::invalid_argument("Invalid DH parameters length specified");
@@ -717,14 +683,10 @@ class asymmetric_derive_impl {
 mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto public_key_pem_sv = ctx.get_arg<STRING_RESULT>(0);
-  if (public_key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Public key cannot be NULL");
   auto public_key_pem = static_cast<std::string>(public_key_pem_sv);
   auto public_key = opensslpp::dh_key::import_public_pem(public_key_pem);
 
   auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(1);
-  if (private_key_pem_sv.data() == nullptr)
-    throw std::invalid_argument("Private key cannot be NULL");
   auto private_key_pem = static_cast<std::string>(private_key_pem_sv);
   auto private_key = opensslpp::dh_key::import_private_pem(private_key_pem);
 
@@ -734,51 +696,49 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_derive_impl::calculate(
 
 }  // end of anonymous namespace
 
-DECLARE_STRING_UDF(create_asymmetric_priv_key_impl, create_asymmetric_priv_key)
-DECLARE_STRING_UDF(create_asymmetric_pub_key_impl, create_asymmetric_pub_key)
-DECLARE_STRING_UDF(asymmetric_encrypt_impl, asymmetric_encrypt)
-DECLARE_STRING_UDF(asymmetric_decrypt_impl, asymmetric_decrypt)
-DECLARE_STRING_UDF(create_digest_impl, create_digest)
-DECLARE_STRING_UDF(asymmetric_sign_impl, asymmetric_sign)
-DECLARE_INT_UDF(asymmetric_verify_impl, asymmetric_verify)
-DECLARE_STRING_UDF(create_dh_parameters_impl, create_dh_parameters)
-DECLARE_STRING_UDF(asymmetric_derive_impl, asymmetric_derive)
+DECLARE_STRING_UDF_AUTO(create_asymmetric_priv_key)
+DECLARE_STRING_UDF_AUTO(create_asymmetric_pub_key)
+DECLARE_STRING_UDF_AUTO(asymmetric_encrypt)
+DECLARE_STRING_UDF_AUTO(asymmetric_decrypt)
+DECLARE_STRING_UDF_AUTO(create_digest)
+DECLARE_STRING_UDF_AUTO(asymmetric_sign)
+DECLARE_INT_UDF_AUTO(asymmetric_verify)
+DECLARE_STRING_UDF_AUTO(create_dh_parameters)
+DECLARE_STRING_UDF_AUTO(asymmetric_derive)
 
-struct udf_info {
-  const char *name;
-  Item_result return_type;
-  Udf_func_any func;
-  Udf_func_init init_func;
-  Udf_func_deinit deinit_func;
-};
-
-#define DECLARE_UDF_INFO(NAME, TYPE) \
-  udf_info { #NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, &NAME##_deinit }
-
+// TODO: in c++20 (where CTAD works for alias templates) this shoud be changed
+// to 'static const udf_info_container known_udfs'
 static const std::array known_udfs{
-    DECLARE_UDF_INFO(create_asymmetric_priv_key, STRING_RESULT),
-    DECLARE_UDF_INFO(create_asymmetric_pub_key, STRING_RESULT),
-    DECLARE_UDF_INFO(asymmetric_encrypt, STRING_RESULT),
-    DECLARE_UDF_INFO(asymmetric_decrypt, STRING_RESULT),
-    DECLARE_UDF_INFO(create_digest, STRING_RESULT),
-    DECLARE_UDF_INFO(asymmetric_sign, STRING_RESULT),
-    DECLARE_UDF_INFO(asymmetric_verify, INT_RESULT),
-    DECLARE_UDF_INFO(create_dh_parameters, STRING_RESULT),
-    DECLARE_UDF_INFO(asymmetric_derive, STRING_RESULT)};
+    DECLARE_UDF_INFO_AUTO(create_asymmetric_priv_key),
+    DECLARE_UDF_INFO_AUTO(create_asymmetric_pub_key),
+    DECLARE_UDF_INFO_AUTO(asymmetric_encrypt),
+    DECLARE_UDF_INFO_AUTO(asymmetric_decrypt),
+    DECLARE_UDF_INFO_AUTO(create_digest),
+    DECLARE_UDF_INFO_AUTO(asymmetric_sign),
+    DECLARE_UDF_INFO_AUTO(asymmetric_verify),
+    DECLARE_UDF_INFO_AUTO(create_dh_parameters),
+    DECLARE_UDF_INFO_AUTO(asymmetric_derive)};
 
-#undef DECLARE_UDF_INFO
+static void encryption_udf_my_error(int error_id, myf flags, ...) {
+  va_list args;
+  va_start(args, flags);
+  mysql_service_mysql_runtime_error->emit(error_id, flags, args);
+  va_end(args);
+}
 
 using udf_bitset_type =
-    std::bitset<std::tuple_size<decltype(known_udfs)>::value>;
+    mysqlpp::udf_bitset<std::tuple_size_v<decltype(known_udfs)>>;
 static udf_bitset_type registered_udfs;
 
 using threshold_bitset_type = std::bitset<number_of_thresholds>;
 static threshold_bitset_type registered_thresholds;
 
-static constexpr std::size_t max_unregister_attempts = 10;
-static constexpr auto unregister_sleep_interval = std::chrono::seconds(1);
-
 static mysql_service_status_t component_init() {
+  // here, we use a custom error reporting function 'encryption_udf_my_error()'
+  // based on the 'mysql_service_mysql_runtime_error' service instead of
+  // the standard 'my_error()' from 'mysys' to get rid of the 'mysys'
+  // dependency for this component
+  mysqlpp::udf_error_reporter::instance() = &encryption_udf_my_error;
   std::size_t index = 0U;
 
   for (const auto &threshold : thresholds) {
@@ -799,41 +759,16 @@ static mysql_service_status_t component_init() {
     ++index;
   }
 
-  index = 0U;
-  for (const auto &element : known_udfs) {
-    if (!registered_udfs.test(index)) {
-      if (mysql_service_udf_registration->udf_register(
-              element.name, element.return_type, element.func,
-              element.init_func, element.deinit_func) == 0)
-        registered_udfs.set(index);
-    }
-    ++index;
-  }
+  mysqlpp::register_udfs(mysql_service_udf_registration, known_udfs,
+                         registered_udfs);
   return registered_udfs.all() && registered_thresholds.all() ? 0 : 1;
 }
 
 static mysql_service_status_t component_deinit() {
-  int was_present = 0;
+  mysqlpp::unregister_udfs(mysql_service_udf_registration, known_udfs,
+                           registered_udfs);
 
-  std::size_t index = 0U;
-
-  for (const auto &element : known_udfs) {
-    if (registered_udfs.test(index)) {
-      std::size_t attempt = 0;
-      mysql_service_status_t status = 0;
-      while (attempt < max_unregister_attempts &&
-             (status = mysql_service_udf_registration->udf_unregister(
-                  element.name, &was_present)) != 0 &&
-             was_present != 0) {
-        std::this_thread::sleep_for(unregister_sleep_interval);
-        ++attempt;
-      }
-      if (status == 0) registered_udfs.reset(index);
-    }
-    ++index;
-  }
-
-  index = 0;
+  std::size_t index = 0;
   for (const auto &threshold : thresholds) {
     if (registered_thresholds.test(index)) {
       if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -844,19 +779,6 @@ static mysql_service_status_t component_deinit() {
   }
 
   return registered_udfs.none() && registered_thresholds.none() ? 0 : 1;
-}
-
-// Currently UDF wrappers exception handling is build so that
-// 'generic_udf_base<...>::handle_exception()' calls 'my_error()'
-// to report errors with codes. In order to avoid linking 'mysys'
-// (a static library where 'my_error()' is defined) as a dependency
-// we simply define this function here. Internally it just redirects
-// everything to the 'mysql_runtime_error' service.
-void my_error(int error_id, myf flags, ...) {
-  va_list args;
-  va_start(args, flags);
-  mysql_service_mysql_runtime_error->emit(error_id, flags, args);
-  va_end(args);
 }
 
 // clang-format off

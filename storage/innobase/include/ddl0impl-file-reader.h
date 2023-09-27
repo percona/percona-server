@@ -149,13 +149,13 @@ struct File_reader : private ut::Non_copyable {
   size_t m_buffer_size{};
 
   /** Aligned IO buffer. */
-  Aligned_buffer m_aligned_buffer{};
+  ut::unique_ptr_aligned<byte[]> m_aligned_buffer{};
+
+  /** Aligned buffer for cryptography. */
+  ut::unique_ptr_aligned<byte[]> m_aligned_buffer_crypt{};
 
   /** File buffer for reading. */
   IO_buffer m_io_buffer{};
-
-  /** Aligned buffer for cryptography. */
-  Aligned_buffer m_aligned_buffer_crypt{};
 
   /** File buffer for cryptography. */
   IO_buffer m_crypt_buffer{};

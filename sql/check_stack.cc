@@ -24,6 +24,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <algorithm>
 #include <atomic>
@@ -43,20 +44,45 @@
         Check stack size; Send error if there isn't enough stack to continue
 ****************************************************************************/
 
+namespace {
+int stack_direction = 0;
+}
+
+NO_INLINE
+int stack_direction_f(int *a) {
+  int b;
+  if (&b > a) {
+    // printf("Stack grows upward\n");
+    return 1;
+  }
+  // printf("Stack grows downward\n");
+  return 0;
+}
+
 /*
-  Leaving "used_stack" macro undefined when STACK_DIRECTION is undefined
-  deliberately so that an attempt to use it would result in compilation
-  errors.
+ Prevent compiler optimizations by calling function
+ through pointer.
 */
-#ifdef STACK_DIRECTION
+int (*ptr_f)(int *) = stack_direction_f;
 
-#if STACK_DIRECTION < 0
-#define used_stack(A, B) (long)(A - B)
-#elif STACK_DIRECTION > 0
-#define used_stack(A, B) (long)(B - A)
-#endif
+NO_INLINE
+int initialize_stack_direction() {
+  int a;
+  int retval = ptr_f(&a);
+  if (retval == 0) {
+    stack_direction = -1;
+  } else {
+    stack_direction = 1;
+  }
+  return retval;
+}
 
-#endif
+namespace {
+long used_stack(const char *a_ptr, const char *b_ptr) {
+  if (stack_direction < 0) return a_ptr - b_ptr;
+  return b_ptr - a_ptr;
+}
+}  // namespace
 
 #ifndef NDEBUG
 std::atomic<long> max_stack_used;
@@ -80,13 +106,19 @@ std::atomic<long> max_stack_used;
   - For -flto builds, the dummy buffer may be optimized away,
     so we need to write something into it.
 */
-bool check_stack_overrun([[maybe_unused]] const THD *thd,
-                         [[maybe_unused]] long margin,
-                         [[maybe_unused]] unsigned char *buf) {
-#ifndef STACK_DIRECTION
-  return false;
-#else
+bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
   assert(thd == current_thd);
+  assert(stack_direction == -1 || stack_direction == 1);
+
+#if defined(HAVE_ASAN)
+  // Address computations do not work with the "fake stack" of ASAN.
+  // Just return OK.
+  // With ASAN_OPTIONS=detect_stack_use_after_return=true
+  // any test which deliberately runs out of stack
+  // (expects ER_STACK_OVERRUN_NEED_MORE) will most likely crash.
+  return false;
+#endif
+
   long stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
   if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||
@@ -112,5 +144,4 @@ bool check_stack_overrun([[maybe_unused]] const THD *thd,
   max_stack_used = std::max(max_stack_used.load(), stack_used);
 #endif
   return false;
-#endif
 }

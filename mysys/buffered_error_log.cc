@@ -68,3 +68,8 @@ void Buffered_error_logger::write_to_disk_() {
   data->clear();
   data->reserve(curr_size);
 }
+
+void Buffered_error_logger::close() {
+  std::lock_guard<std::mutex> lk{data_mtx};
+  buffered_error_log_filename = nullptr;
+}

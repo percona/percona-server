@@ -1,9 +1,17 @@
 SET @old_binlog_format=@@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_format='STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_format='STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@binlog_format;
 @@binlog_format
 STATEMENT
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 SHOW VARIABLES LIKE 'have_backup_locks';
 Variable_name	Value
@@ -171,3 +179,5 @@ DROP USER user@localhost;
 DROP VIEW v_innodb, v_myisam, v_memory, v_csv, v_blackhole, v_archive;
 DROP TABLE t_innodb, t_myisam, t_memory, t_csv, t_blackhole, t_archive;
 SET GLOBAL binlog_format = @old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

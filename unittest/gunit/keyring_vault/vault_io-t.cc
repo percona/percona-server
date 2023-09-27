@@ -18,10 +18,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <boost/optional.hpp>
-#include <boost/optional/optional_io.hpp>
 #include <boost/scope_exit.hpp>
 #include <cstring>
+#include <optional>
 #include "generate_credential_file.h"
 #include "i_vault_curl.h"
 #include "incorrect_vault_key.h"

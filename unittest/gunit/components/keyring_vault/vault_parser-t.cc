@@ -174,8 +174,9 @@ TEST_F(Vault_parser_test, ParseKeyData) {
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
   auto key = Data("key1", "rob");
-  EXPECT_FALSE(Keyring_vault_parser_composer::parse_key_data(
-      payload, &key, keyring_vault::config::Vault_version_v1));
+  EXPECT_EQ(keyring_vault::backend::ParseStatus::Ok,
+            Keyring_vault_parser_composer::parse_key_data(
+                payload, &key, keyring_vault::config::Vault_version_v1));
   ASSERT_TRUE(memcmp(key.data().decode().c_str(), "Robi",
                      key.data().decode().size()) == 0);
   EXPECT_STREQ("AES", key.type().c_str());
@@ -189,8 +190,9 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingTypeTag) {
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
   auto key_data = Data{"key1", "rob"};
-  EXPECT_TRUE(Keyring_vault_parser_composer::parse_key_data(
-      payload, &key_data, keyring_vault::config::Vault_version_v1));
+  EXPECT_EQ(keyring_vault::backend::ParseStatus::Fail,
+            Keyring_vault_parser_composer::parse_key_data(
+                payload, &key_data, keyring_vault::config::Vault_version_v1));
 }
 
 TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag) {
@@ -201,8 +203,26 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag) {
       "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
 
   auto key_data = Data{"key1", "rob"};
-  EXPECT_TRUE(Keyring_vault_parser_composer::parse_key_data(
-      payload, &key_data, keyring_vault::config::Vault_version_v1));
+  EXPECT_EQ(keyring_vault::backend::ParseStatus::Fail,
+            Keyring_vault_parser_composer::parse_key_data(
+                payload, &key_data, keyring_vault::config::Vault_version_v1));
+}
+
+TEST_F(Vault_parser_test, ParseKeyDataDeleted) {
+  pfs_string payload(
+      "{\"request_id\":\"4559df83-fc5f-9959-314a-443c85eef27c\","
+      "\"lease_id\":\"\",\"renewable\":false,\"lease_duration\":0,"
+      "\"data\":{\"data\":null,\"metadata\":{"
+      "\"created_time\":\"2023-09-27T14:44:07.703848947Z\","
+      "\"custom_metadata\":null,"
+      "\"deletion_time\":\"2023-09-27T14:44:07.705030251Z\","
+      "\"destroyed\":false,\"version\":1}},"
+      "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
+
+  Data key{};
+  EXPECT_EQ(keyring_vault::backend::ParseStatus::DataDeleted,
+            Keyring_vault_parser_composer::parse_key_data(
+                payload, &key, keyring_vault::config::Vault_version_v2));
 }
 
 TEST_F(Vault_parser_test, GetMountConfig) {
@@ -302,8 +322,9 @@ TEST_F(Vault_parser_test, ParsePayloadThatsGarbage) {
   pfs_string payload(reinterpret_cast<char *>(garbage), sizeof(garbage));
 
   auto key_data = Data{"key1", "rob"};
-  EXPECT_TRUE(Keyring_vault_parser_composer::parse_key_data(
-      payload, &key_data, keyring_vault::config::Vault_version_v1));
+  EXPECT_EQ(keyring_vault::backend::ParseStatus::Fail,
+            Keyring_vault_parser_composer::parse_key_data(
+                payload, &key_data, keyring_vault::config::Vault_version_v1));
 }
 
 }  // namespace keyring_vault_parser_unittest

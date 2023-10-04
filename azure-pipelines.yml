@@ -88,21 +88,45 @@ jobs:
           BuildType: Debug
 
       # clang-6 and newer compilers
-      clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+      clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         UBUNTU_CODE_NAME: jammy
         Compiler: clang
-        CompilerVer: 16
+        CompilerVer: 17
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-16 RelWithDebInfo INVERTED=ON [Ubuntu 22.04 Jammy]:
+        clang-17 RelWithDebInfo INVERTED=ON [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 17
+          BuildType: RelWithDebInfo
+          INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-17 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 17
+          BuildType: Debug
+
+      clang-17 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 17
+        BuildType: Debug
+        INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
           UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 16
           BuildType: RelWithDebInfo
-          INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-16 Debug [Ubuntu 22.04 Jammy]:
@@ -111,14 +135,6 @@ jobs:
           Compiler: clang
           CompilerVer: 16
           BuildType: Debug
-
-      clang-16 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
-        Compiler: clang
-        CompilerVer: 16
-        BuildType: Debug
-        INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-15 RelWithDebInfo [Ubuntu 22.04 Jammy]:

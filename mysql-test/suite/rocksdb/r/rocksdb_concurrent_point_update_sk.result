@@ -39,7 +39,7 @@ COMMIT;
 Conn B: COMMIT for update done
 set DEBUG_SYNC = "now SIGNAL update_done";
 Conn B: signalled Conn A with event `update_done`
-Conn A: reaping SELECT * from table1 FORCE INDEX(idx_val1) WHERE row_key = 1 AND val1 = 14 AND val2 = 'Alfa';
+Conn A: reaping SELECT * from table1 FORCE INDEX(idx_val1) WHERE row_key = 1 AND val1 = 14 AND val2 = 'Alfa';  
 The SELECT output should be empty
 row_key	val1	val2
 ROLLBACK;

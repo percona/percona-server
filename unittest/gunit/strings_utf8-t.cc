@@ -197,7 +197,7 @@ class StringLiteral {
   size_t size;
 };
 
-StringLiteral operator"" _sl(const char *ptr, size_t size) {
+StringLiteral operator""_sl(const char *ptr, size_t size) {
   return StringLiteral(ptr, size);
 }
 

@@ -226,13 +226,47 @@ macro (ROCKSDB_SET_ARM64_DEFINTIONS)
   CHECK_VARIABLE_DEFINED(__ARM_FEATURE_CRYPTO HAVE_ARMV8_CRYPTO)
 
   IF (NOT HAVE_ARMV8_CRC OR NOT HAVE_ARMV8_CRYPTO)
-    IF (ALLOW_NO_ARMV8A_CRC_CRYPTO)
-      MESSAGE(WARNING "No ARMv8-A+crc+crypto support found and ALLOW_NO_ARMV8A_CRC_CRYPTO specified, building MyRocks but without ARMv8-A+crc+crypto/FastCRC32 support")
+    IF (ALLOW_NO_ARMV81A_CRYPTO)
+      MESSAGE(WARNING "No ARMv8.1-A+crypto support found and ALLOW_NO_ARMV81A_CRYPTO specified, building MyRocks but without ARMv8.1-A+crypto/FastCRC32 support")
     ELSE()
-      MESSAGE(FATAL_ERROR "No ARMv8-A+crc+crypto support found. Not building MyRocks. Set ALLOW_NO_ARMV8A_CRC_CRYPTO to build MyRocks with slow CRC32.")
+      MESSAGE(FATAL_ERROR "No ARMv8.1-A+crypto support found. Not building MyRocks. Set ALLOW_NO_ARMV81A_CRYPTO to build MyRocks with slow CRC32.")
     ENDIF()
   ENDIF()
 endmacro (ROCKSDB_SET_ARM64_DEFINTIONS)
+
+
+macro (ROCKSDB_SET_BUILD_ARCHITECTURE)
+  IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    IF (NOT ROCKSDB_BUILD_ARCH)
+      IF (ROCKSDB_DISABLE_MARCH_NATIVE)
+        # Intel Westmere is oldest CPU that supports SSE 4.2 and PCLMUL instruction sets
+        # the compiled binary will also work on "core2" and "nehalem" because "sse4.2" and "pclmul" are checked on runtime
+        SET(ROCKSDB_BUILD_ARCH "westmere")
+      ELSE()
+        SET(ROCKSDB_BUILD_ARCH "native")
+      ENDIF()
+      MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
+    ELSE()
+      MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")
+    ENDIF()
+
+    # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_COMPILES called from ROCKSDB_SET_X86_DEFINTIONS()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
+    ROCKSDB_SET_X86_DEFINTIONS()
+  ELSE() # aarch64
+    IF (NOT ROCKSDB_BUILD_ARCH)
+      # minimal required platform is armv8.1-a (with "+lse" and "+crc"); support for "+crypto" is checked on runtime
+      SET(ROCKSDB_BUILD_ARCH "armv8.1-a+crypto")
+      MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
+    ELSE()
+      MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")
+    ENDIF()
+
+    # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_COMPILES called from ROCKSDB_SET_ARM64_DEFINTIONS()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
+    ROCKSDB_SET_ARM64_DEFINTIONS()
+  ENDIF()
+endmacro (ROCKSDB_SET_BUILD_ARCHITECTURE)
 
 
 macro (ROCKSDB_SET_DEFINTIONS)

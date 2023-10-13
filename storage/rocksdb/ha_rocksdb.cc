@@ -3363,7 +3363,7 @@ class Rdb_transaction {
   }
 
   ulonglong get_max_row_lock_count() const {
-    assert(m_row_lock_count <= m_max_row_locks);
+    assert(m_row_lock_count <= m_max_row_locks || get_thd()->rli_slave);
     return m_max_row_locks;
   }
 
@@ -4627,8 +4627,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
     assert(!is_ac_nl_ro_rc_transaction());
 
     rocksdb::ColumnFamilyHandle *const column_family = key_descr.get_cf();
-    /* check row lock limit in a trx */
-    if (get_row_lock_count() >= get_max_row_lock_count()) {
+    /* check row lock limit in a trx. ignore replication threads */
+    if (!m_thd->rli_slave && get_row_lock_count() >= get_max_row_lock_count()) {
       return rocksdb::Status::Aborted(rocksdb::Status::kLockLimit);
     }
 

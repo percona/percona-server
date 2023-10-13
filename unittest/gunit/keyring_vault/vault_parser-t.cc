@@ -230,6 +230,26 @@ TEST_F(Vault_parser_test, ParseKeyDataMissingValueTag) {
   EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v1));
 }
 
+TEST_F(Vault_parser_test, ParseKeyDataDeleted) {
+  Secure_string payload(
+      "{\"request_id\":\"4559df83-fc5f-9959-314a-443c85eef27c\","
+      "\"lease_id\":\"\",\"renewable\":false,\"lease_duration\":0,"
+      "\"data\":{\"data\":null,\"metadata\":{"
+      "\"created_time\":\"2023-09-27T14:44:07.703848947Z\","
+      "\"custom_metadata\":null,"
+      "\"deletion_time\":\"2023-09-27T14:44:07.705030251Z\","
+      "\"destroyed\":false,\"version\":1}},"
+      "\"wrap_info\":null,\"warnings\":null,\"auth\":null}");
+
+  Vault_parser_composer vault_parser(logger);
+  Vault_key key{};
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(logger)),
+      log(MY_INFORMATION_LEVEL, StrEq("Vault Server response metadata has "
+                                      "\"deletion_time\" set")));
+  EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v2));
+}
+
 TEST_F(Vault_parser_test, GetMountConfig) {
   Vault_parser_composer vault_parser(logger);
   std::size_t max_versions = 0;

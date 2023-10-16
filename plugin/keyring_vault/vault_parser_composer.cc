@@ -40,12 +40,14 @@
 namespace {
 const char errors_key[] = "errors";
 const char data_key[] = "data";
+const char metadata_key[] = "metadata";
 const char keys_key[] = "keys";
 const char type_key[] = "type";
 const char value_key[] = "value";
 const char max_versions_key[] = "max_versions";
 const char cas_required_key[] = "cas_required";
 const char delete_version_after_key[] = "delete_version_after";
+const char deletion_time_key[] = "deletion_time";
 
 }  // anonymous namespace
 
@@ -314,6 +316,20 @@ bool Vault_parser_composer::parse_key_data(const Secure_string &payload,
   }
 
   if (vault_version == Vault_version_v2) {
+    it = data_node->FindMember(metadata_key);
+
+    if (it != data_node->MemberEnd() && it->value.IsObject()) {
+      const auto *metadata_node = &it->value;
+      it = metadata_node->FindMember(deletion_time_key);
+
+      if (it != metadata_node->MemberEnd() && it->value.IsString() &&
+          strlen(it->value.GetString()) != 0) {
+        logger->log(MY_INFORMATION_LEVEL,
+                    "Vault Server response metadata has \"deletion_time\" set");
+        return true;
+      }
+    }
+
     it = data_node->FindMember(data_key);
     if (it == data_node->MemberEnd()) {
       logger->log(

@@ -424,7 +424,6 @@ extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_suppression_list;
 extern char *opt_log_error_services;
 extern bool encrypt_tmp_files;
-extern ulonglong tf_sequence_table_max_upper_bound;
 extern char *opt_protocol_compression_algorithms;
 /** The size of the host_cache. */
 extern uint host_cache_size;

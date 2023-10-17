@@ -103,7 +103,7 @@ ELSE()
   # get a list of rocksdb library source files
   # run with env -i to avoid passing variables
   EXECUTE_PROCESS(
-    COMMAND env -i ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh ${ROCKSDB_FOLLY}
+    COMMAND env -i CXX=${CMAKE_CXX_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh ${ROCKSDB_FOLLY}
     OUTPUT_VARIABLE SCRIPT_OUTPUT
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
@@ -145,43 +145,8 @@ ENDIF()
 
 
 INCLUDE(compiler_features)
-
-IF (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
-  IF (NOT ROCKSDB_BUILD_ARCH)
-    IF (ROCKSDB_DISABLE_MARCH_NATIVE)
-      # Intel Westmere is oldest CPU that supports SSE 4.2 and PCLMUL instruction sets
-      # the compiled binary will also work on "core2" and "nehalem" because "sse4.2" and "pclmul" are checked on runtime
-      SET(ROCKSDB_BUILD_ARCH "westmere")
-    ELSE()
-      SET(ROCKSDB_BUILD_ARCH "native")
-    ENDIF()
-    MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
-  ELSE()
-    MESSAGE(STATUS "MyRocks x86_64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")
-  ENDIF()
-
-  # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_COMPILES called from ROCKSDB_SET_X86_DEFINTIONS()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
-  ROCKSDB_SET_X86_DEFINTIONS()
-ELSE() # aarch64
-  IF (NOT ROCKSDB_BUILD_ARCH)
-    IF (ROCKSDB_DISABLE_MARCH_NATIVE)
-      # the compiled binary will also work on "armv8-a" because "+crc" and "+crypto" are checked on runtime
-      SET(ROCKSDB_BUILD_ARCH "armv8-a+crc+crypto")
-    ELSE()
-      SET(ROCKSDB_BUILD_ARCH "native")
-    ENDIF()
-    MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
-  ELSE()
-    MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")
-  ENDIF()
-
-  # CMAKE_CXX_FLAGS are used by CHECK_CXX_SOURCE_COMPILES called from ROCKSDB_SET_ARM64_DEFINTIONS()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${ROCKSDB_BUILD_ARCH}")
-  ROCKSDB_SET_ARM64_DEFINTIONS()
-ENDIF()
-
-ROCKSDB_SET_DEFINTIONS()  # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW
+ROCKSDB_SET_BUILD_ARCHITECTURE()  # sets "-march=" using ROCKSDB_BUILD_ARCH or ROCKSDB_DISABLE_MARCH_NATIVE
+ROCKSDB_SET_DEFINTIONS()          # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW
 
 IF (HAVE_URING AND ROCKSDB_USE_IO_URING)
   SET(rocksdb_static_libs ${rocksdb_static_libs} ${URING_LIBRARY})

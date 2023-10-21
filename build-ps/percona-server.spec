@@ -1095,8 +1095,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_vault.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so

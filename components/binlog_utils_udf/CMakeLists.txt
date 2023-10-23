@@ -28,7 +28,7 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_COMPONENT(binlog_utils_udf
   binlog_utils_udf.cc
-  LINK_LIBRARIES extra::rapidjson
+  LINK_LIBRARIES extra::rapidjson ext::zlib
   MODULE_ONLY
 )
 

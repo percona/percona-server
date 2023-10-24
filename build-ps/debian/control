@@ -41,13 +41,13 @@ Description: MyRocks storage engine plugin for Percona Server
  .
  This package includes the MyRocks/RocksDB plugin library.
 
-Package: libperconaserverclient21
+Package: libperconaserverclient22
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Depends: percona-server-common (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20
+Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20, libperconaserverclient21
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -56,12 +56,13 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient21-dev
+Package: libperconaserverclient22-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient21 (= ${binary:Version}),
+Depends: libperconaserverclient22 (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
-Breaks: libperconaserverclient20-dev,
+Breaks: libperconaserverclient21-dev,
+	libperconaserverclient20-dev,
         libperconaserverclient18.1-dev,
         libperconaserverclient18-dev,
         libperconaserverclient16-dev,
@@ -72,8 +73,10 @@ Breaks: libperconaserverclient20-dev,
         libmysqlclient-dev,
         libmysqlclient18-dev,
         libmysqlclient20-dev,
+        libmysqlclient21-dev,
         libmariadbclient-dev
-Replaces: libperconaserverclient20-dev,
+Replaces: libperconaserverclient21-dev,
+	  libperconaserverclient20-dev,
           libperconaserverclient18.1-dev,
           libperconaserverclient18-dev,
           libperconaserverclient16-dev,
@@ -234,7 +237,7 @@ Package: percona-server-test
 Architecture: any
 Depends: percona-server-client (= ${binary:Version}),
          percona-server-server (= ${binary:Version}),
-         libperconaserverclient21-dev (= ${binary:Version}),
+         libperconaserverclient22-dev (= ${binary:Version}),
          perl, ${misc:Depends}, ${shlibs:Depends}
 Replaces: percona-server-server, percona-server-client
 Description: Percona Server database test suite

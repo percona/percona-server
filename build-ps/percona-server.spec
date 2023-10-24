@@ -1246,6 +1246,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
+%attr(755, root, root) %{_bindir}/mysql_test_event_tracking
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1325,6 +1326,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_command_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_c.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
@@ -1402,6 +1409,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_command_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
 
 %if 0%{?tokudb}
 %files -n percona-server-tokudb

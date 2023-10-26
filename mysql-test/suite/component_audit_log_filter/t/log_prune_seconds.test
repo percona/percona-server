@@ -1,0 +1,54 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+
+SET @old_prune_seconds = @@global.audit_log_filter.prune_seconds;
+SET @old_max_size = @@global.audit_log_filter.max_size;
+
+SET GLOBAL audit_log_filter.prune_seconds = 0;
+SET GLOBAL audit_log_filter.max_size = 0;
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+# prune_seconds is not set, no logs prune happens
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+
+# stop updating log before size check
+SELECT audit_log_filter_remove_user('%');
+
+--let $log_path = `SELECT @@global.datadir`
+--let $log_name = `SELECT @@global.audit_log_filter.file`
+--let $prune_seconds = 180
+
+--source check_logs_age.inc
+
+# logs get pruned after prune_seconds update
+SET GLOBAL audit_log_filter.prune_seconds = 180;
+
+--source check_logs_age.inc
+
+# oldest log rotation time should not exceed prune_seconds while writing
+# audit events
+SELECT audit_log_filter_set_user('%', 'log_all');
+--source generate_audit_events.inc
+--source generate_audit_events.inc
+
+# stop updating log before size check
+SELECT audit_log_filter_remove_user('%');
+
+--source check_logs_age.inc
+
+--echo #
+--echo # Cleanup
+SET GLOBAL audit_log_filter.prune_seconds = @old_prune_seconds;
+SET GLOBAL audit_log_filter.max_size = @old_max_size;
+
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

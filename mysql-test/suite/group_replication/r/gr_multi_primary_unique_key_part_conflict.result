@@ -109,5 +109,6 @@ SET DEBUG_SYNC='RESET';
 
 ############################################################
 # Clean up.
+SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 include/group_replication_end.inc

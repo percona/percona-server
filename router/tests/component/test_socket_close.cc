@@ -386,13 +386,13 @@ class SocketCloseOnMetadataAuthFail
 
 TEST_P(SocketCloseOnMetadataAuthFail, SocketCloseOnMetadataAuthFailTest) {
   auto check_ports_available = [this]() {
-    for (const auto port :
+    for (const auto &port :
          {router_rw_port, router_ro_port, router_rw_x_port, router_ro_x_port}) {
       EXPECT_TRUE(wait_for_port_unused(*port));
     }
   };
   auto check_ports_not_available = [this]() {
-    for (const auto port :
+    for (const auto &port :
          {router_rw_port, router_ro_port, router_rw_x_port, router_ro_x_port}) {
       EXPECT_TRUE(wait_for_port_used(*port));
     }

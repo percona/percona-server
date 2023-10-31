@@ -2614,16 +2614,10 @@ void row_sel_field_store_in_mysql_format_func(
       /* Store a pointer to the BLOB buffer to dest: the BLOB was
       already copied to the buffer in row_sel_store_mysql_rec */
 
-<<<<<<< HEAD
       row_mysql_store_blob_ref(
-          dest, templ->mysql_col_len, data, len, templ->compressed,
+          dest, mysql_col_len, data, len, templ->compressed,
           reinterpret_cast<const byte *>(templ->zip_dict_data.str),
           templ->zip_dict_data.length, compress_heap);
-||||||| 057f5c9509c
-      row_mysql_store_blob_ref(dest, templ->mysql_col_len, data, len);
-=======
-      row_mysql_store_blob_ref(dest, mysql_col_len, data, len);
->>>>>>> mysql-8.0.35
       break;
 
     case DATA_POINT:

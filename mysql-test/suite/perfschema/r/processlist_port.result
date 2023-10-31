@@ -40,6 +40,8 @@ select connection_id() into @con_user0_id;
 
 ## New SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = on;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
@@ -66,6 +68,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -74,14 +77,38 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| 057f5c9509c
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+Warnings:
+<Id>	1287	<Host>
+>>>>>>> mysql-8.0.35
 
 # Connection user1
 # Get Host:Port, new
 
 ## Legacy SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = off;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
+<<<<<<< HEAD
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -90,6 +117,27 @@ Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| 057f5c9509c
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+=======
+Id	User	Host	db	Command	Time	State	Info
+<Id>	1287	<Host>
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+Warnings:
+>>>>>>> mysql-8.0.35
 
 # Performance Schema processlist table
 
@@ -106,6 +154,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 # Information Schema processlist table
 
 select * from information_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -114,6 +163,27 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| 057f5c9509c
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+Warnings:
+<Id>	1287	<Host>
+>>>>>>> mysql-8.0.35
 
 # Connection user1
 # Get Host:Port, legacy
@@ -143,3 +213,5 @@ drop user user3@localhost;
 drop user user4@localhost;
 
 set @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.

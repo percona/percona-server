@@ -203,7 +203,6 @@ CREATE TABLE t1 LIKE temp_t1;
 --connection master
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
---source include/rpl_end.inc
 
 --sync_slave_with_master
 #

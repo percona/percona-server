@@ -11268,7 +11268,7 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
 
           /*
             As the reference table is temporary and may not exist on slave, we
-            must force the ENGINE to be present into CREATE TABLE.
+            must force the ENGINE and CHARSET to be present into CREATE TABLE.
           */
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
           create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET; 

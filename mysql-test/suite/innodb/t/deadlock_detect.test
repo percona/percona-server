@@ -8,6 +8,7 @@
 --source include/not_embedded.inc
 --source include/count_sessions.inc
 
+SET @innodb_show_verbose_locks_save = @@global.innodb_show_verbose_locks;
 SET GLOBAL innodb_deadlock_detect=OFF;
 SET GLOBAL innodb_lock_wait_timeout=2;
 
@@ -66,6 +67,7 @@ SET GLOBAL innodb_deadlock_detect=default;
 
 SET GLOBAL innodb_deadlock_detect=ON;
 SET GLOBAL innodb_lock_wait_timeout=20;
+SET GLOBAL innodb_show_verbose_locks = 1;
 
 connect(con1, localhost, root,,);
 connect(con2, localhost, root,,);
@@ -146,6 +148,7 @@ INSERT INTO bug(id) VALUES(0), (1);
 disconnect con1;
 disconnect con2;
 
+SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_save;
 SET GLOBAL innodb_lock_wait_timeout = default;
 SET GLOBAL innodb_deadlock_detect = default;
 

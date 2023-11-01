@@ -154,7 +154,6 @@ NULL
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '' for function str_to_date
-Warning	1411	Incorrect datetime value: '' for function str_to_date
 DROP TABLE t1;
 CREATE TABLE t1 (a DATE, b INT, PRIMARY KEY (a,b));
 INSERT INTO t1 VALUES (DATE('2015-12-08 2:00:00'), 1);

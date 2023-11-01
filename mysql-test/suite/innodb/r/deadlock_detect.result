@@ -1,3 +1,4 @@
+SET @innodb_show_verbose_locks_save = @@global.innodb_show_verbose_locks;
 SET GLOBAL innodb_deadlock_detect=OFF;
 SET GLOBAL innodb_lock_wait_timeout=2;
 CREATE TABLE t1(
@@ -28,6 +29,7 @@ SET GLOBAL innodb_deadlock_detect=default;
 #
 SET GLOBAL innodb_deadlock_detect=ON;
 SET GLOBAL innodb_lock_wait_timeout=20;
+SET GLOBAL innodb_show_verbose_locks = 1;
 CREATE TABLE bug(
 id INT PRIMARY KEY,
 ColumnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA INT,
@@ -211,5 +213,6 @@ Record lock, heap no 2 PHYSICAL RECORD: n_fields 23; compact format; info bits 0
 ------------
 
 DROP TABLE bug;
+SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_save;
 SET GLOBAL innodb_lock_wait_timeout = default;
 SET GLOBAL innodb_deadlock_detect = default;

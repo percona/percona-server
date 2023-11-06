@@ -482,8 +482,6 @@ install_deps() {
             yum -y install devtoolset-11-annobin-plugin-gcc
             yum -y install cyrus-sasl-gssapi cyrus-sasl-gs2 cyrus-sasl-md5 cyrus-sasl-plain
             source /opt/rh/devtoolset-11/enable
-            yum -y remove openssl-devel
-            yum -y install openssl11 openssl11-devel
         fi
 	if [ "x${RHEL}" = "x6" ]; then
             source /opt/rh/devtoolset-8/enable

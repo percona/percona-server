@@ -556,7 +556,11 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -611,7 +615,11 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \

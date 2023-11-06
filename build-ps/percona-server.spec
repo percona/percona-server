@@ -187,7 +187,11 @@ BuildRequires:  ncurses-devel
 BuildRequires:  pam-devel
 BuildRequires:  readline-devel
 BuildRequires:  numactl-devel
+%if 0%{?rhel} == 7
+BuildRequires:  openssl11-devel
+%else
 BuildRequires:  openssl-devel
+%endif
 BuildRequires:  zlib-devel
 BuildRequires:  bison
 BuildRequires:  openldap-devel
@@ -241,7 +245,11 @@ Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
 Requires:       percona-icu-data-files
+%if 0%{?rhel} == 7
+Requires:       openssl11
+%else
 Requires:       openssl
+%endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
 Obsoletes:     mariadb-connector-c-config

@@ -175,6 +175,7 @@ Depends: percona-server-common (= ${binary:Version}),
          percona-server-client (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},
          psmisc,
+         curl,
          openssl
 Provides: mysql-server,
           virtual-mysql-server, virtual-mysql-server-core,

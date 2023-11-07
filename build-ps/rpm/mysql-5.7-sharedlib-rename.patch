@@ -211,7 +211,7 @@
    IF(UNIX)
 --- plugin/x/tests/driver/CMakeLists.txt
 +++ plugin/x/tests/driver/CMakeLists.txt
-@@ -42,7 +42,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
+@@ -41,7 +41,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
    LINK_LIBRARIES
    mysys
    strings
@@ -219,7 +219,7 @@
 +  mysqlclient
    ${MYSQLX_CLIENT_FULL_LIB}
    ${MYSQLX_PROTOCOL_FULL_LIB}
-   ${PROTOBUF_LIBRARY}
+   ext::libprotobuf
 --- router/src/router/src/CMakeLists.txt
 +++ router/src/router/src/CMakeLists.txt
 @@ -61,7 +61,7 @@
@@ -330,9 +330,9 @@
  ENDFOREACH()
 --- unittest/gunit/xplugin/xcl/CMakeLists.txt
 +++ unittest/gunit/xplugin/xcl/CMakeLists.txt
-@@ -68,7 +68,7 @@
+@@ -68,7 +68,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
    ${MYSQLX_PROTOCOL_FULL_LIB}
-   ${PROTOBUF_LIBRARY}
+   ext::libprotobuf
    ext::lz4
 -  perconaserverclient
 +  mysqlclient

@@ -67,6 +67,12 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?src_base:                    %global src_base percona-server}
 
+%if 0%{?rhel} >= 8
+%global add_fido_plugins 1
+%else
+%global add_fido_plugins 0
+%endif # rhel8 or above
+
 # Setup cmake flags for TokuDB
 %if 0%{?tokudb}
   %global TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=%{tokudb_backup_version}
@@ -144,6 +150,7 @@ Source5:        mysql_config.sh
 Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+Source999:      call-home.sh
 Patch0:         mysql-5.7-sharedlib-rename.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  gcc
@@ -241,6 +248,7 @@ Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
 Requires:       percona-icu-data-files
+Requires:       curl
 Requires:       openssl
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
@@ -550,7 +558,11 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -605,7 +617,11 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -675,7 +691,9 @@ install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysco
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # set rpath for plugin to use private/libfido2.so
+%if 0%{?add_fido_plugins}
 patchelf --debug --set-rpath '$ORIGIN/../private' %{buildroot}/%{_libdir}/mysql/plugin/authentication_fido.so
+%endif # add_fido_plugins
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -765,6 +783,10 @@ if [ -d /etc/percona-server.conf.d ]; then
         echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
     fi
 fi
+
+cp %SOURCE999 /tmp/ 2>/dev/null ||
+bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+rm -f /tmp/call-home.sh
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
@@ -973,14 +995,18 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
+%endif # add_fido_plugins
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1033,7 +1059,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1115,8 +1143,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 

@@ -609,11 +609,23 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
+    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/mysql_config.sh' --strip=3
     #
+    cd ${WORKDIR}/rpmbuild/SPECS
+    line_number=$(grep -n SOURCE999 percona-server.spec | awk -F ':' '{print $1}')
+    cp ../SOURCES/call-home.sh ./
+    awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
+    head -n -1 part1.txt > temp && mv temp part1.txt
+    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> part1.txt
+    cat call-home.sh >> part1.txt
+    echo "CALLHOME" >> part1.txt
+    cat part2.txt >> part1.txt
+    rm -f call-home.sh part2.txt
+    mv part1.txt percona-server.spec
     cd ${WORKDIR}
     #
     mv -fv ${TARFILE} ${WORKDIR}/rpmbuild/SOURCES
@@ -853,6 +865,18 @@ build_deb(){
 
     cd ${DIRNAME}
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
+
+    cd debian/
+    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    sed -i 's:exit 0::' percona-server-server.postinst
+    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server.postinst
+    cat call-home.sh >> percona-server-server.postinst
+    echo "CALLHOME" >> percona-server-server.postinst
+    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
+    echo "rm -rf /tmp/call-home.sh" >> percona-server-server.postinst
+    echo "exit 0" >> percona-server-server.postinst
+    rm -f call-home.sh
+    cd ../
 
     if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)

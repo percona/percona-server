@@ -5732,14 +5732,14 @@ bool Rdb_dict_manager::get_index_info(
 
   if (error) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Found invalid key version number (%" PRIu16
-                    ", %hhu, %" PRIu16
-                    ", %llu) from data dictionary. This should never happen "
-                    "and it may be a bug.",
-                    index_info->m_index_dict_version, index_info->m_index_type,
-                    index_info->m_kv_version,
-                    (ulonglong)(index_info->m_ttl_duration));
-    abort();
+        "Found invalid key version number (%hu"
+        ", %hhu, %hu"
+        ", %" PRIu64
+        ") from data dictionary. This should never happen "
+        "and it may be a bug.",
+        index_info->m_index_dict_version, index_info->m_index_type,
+        index_info->m_kv_version, index_info->m_ttl_duration);
+     abort();
   }
 
   return found;

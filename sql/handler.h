@@ -3094,16 +3094,13 @@ struct handlerton {
 struct TABLE_STATS {
   ulonglong rows_read, rows_changed;
   ulonglong rows_changed_x_indexes;
-  /* Stores enum db_type, but forward declarations cannot be done */
-  const int engine_type;
 
-  TABLE_STATS(int engine_type_, ulonglong rows_read_, ulonglong rows_changed_,
+  TABLE_STATS(ulonglong rows_read_, ulonglong rows_changed_,
               ulonglong rows_changed_x_indexes_)
   noexcept
       : rows_read(rows_read_),
         rows_changed(rows_changed_),
-        rows_changed_x_indexes(rows_changed_x_indexes_),
-        engine_type(engine_type_) {}
+        rows_changed_x_indexes(rows_changed_x_indexes_) {}
 };
 
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{

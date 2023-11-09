@@ -5472,8 +5472,7 @@ void handler::update_global_table_stats() {
   if (it == global_table_stats->cend()) {
     global_table_stats->emplace(
         std::piecewise_construct, std::forward_as_tuple(key),
-        std::forward_as_tuple(static_cast<int>(ht->db_type), rows_read,
-                              rows_changed, rows_changed_x_indexes));
+        std::forward_as_tuple(rows_read, rows_changed, rows_changed_x_indexes));
   } else {
     TABLE_STATS *const table_stats = &it->second;
     table_stats->rows_read += rows_read;

@@ -174,4 +174,22 @@ SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.USER_S
 SET autocommit=1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug PS-8975: Mysql freeze (threads waiting on __lll_lock_wait)
+--echo #
+CREATE DATABASE mysqltest1;
+CREATE TABLE mysqltest1.t1 (i INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO mysqltest1.t1 VALUES (), (), (), (), ();
+--echo # Create user which has only table-level privilege on mysqltest1.t1.
+CREATE USER mysqltest_1@localhost;
+GRANT RELOAD ON *.* TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
+--echo # Use mysqlslap to concurrently run queries to I_S.TABLE/INDEX_STATISTICS
+--echo # and mysqltest1.t1 tables, as well as FLUSH PRIVILEGES statements
+--echo # under mysqltest_1 user. This caused deadlock before the fix.
+--exec $MYSQL_SLAP --create-schema=test --user=mysqltest_1 --query="SELECT * FROM information_schema.table_statistics; SELECT * FROM information_schema.index_statistics; FLUSH PRIVILEGES; SELECT * FROM mysqltest1.t1" --iterations=1000 --concurrency=10 --silent 2>&1
+DROP USER mysqltest_1@localhost;
+DROP DATABASE mysqltest1;
+
 SET GLOBAL userstat= @userstat_old;

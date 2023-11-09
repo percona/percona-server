@@ -141,4 +141,19 @@ COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
 17	1
 SET autocommit=1;
 DROP TABLE t1;
+#
+# Bug PS-8975: Mysql freeze (threads waiting on __lll_lock_wait)
+#
+CREATE DATABASE mysqltest1;
+CREATE TABLE mysqltest1.t1 (i INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO mysqltest1.t1 VALUES (), (), (), (), ();
+# Create user which has only table-level privilege on mysqltest1.t1.
+CREATE USER mysqltest_1@localhost;
+GRANT RELOAD ON *.* TO mysqltest_1@localhost;
+GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
+# Use mysqlslap to concurrently run queries to I_S.TABLE/INDEX_STATISTICS
+# and mysqltest1.t1 tables, as well as FLUSH PRIVILEGES statements
+# under mysqltest_1 user. This caused deadlock before the fix.
+DROP USER mysqltest_1@localhost;
+DROP DATABASE mysqltest1;
 SET GLOBAL userstat= @userstat_old;

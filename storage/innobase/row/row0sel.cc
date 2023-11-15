@@ -3318,9 +3318,9 @@ row_sel_store_mysql_rec(
 		row_mysql_prebuilt_free_blob_heap(prebuilt);
 	}
 
-	if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
-		row_mysql_prebuilt_free_compress_heap(prebuilt);
-
+	if (UNIV_LIKELY_NULL(prebuilt->compress_heap)){
+		mem_heap_empty(prebuilt->compress_heap);
+	}
 	if (clust_templ_for_sec) {
 		/* Store all clustered index column of
 		secondary index record. */

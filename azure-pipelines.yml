@@ -87,7 +87,7 @@ jobs:
           Compiler: clang
           BuildType: Debug
 
-      # clang-6 and newer compilers
+      # clang-10 and newer compilers
       clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         UBUNTU_CODE_NAME: jammy
@@ -206,12 +206,11 @@ jobs:
           CompilerVer: 11
           BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 10
-          BuildType: RelWithDebInfo
+      clang-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
+        imageName: 'ubuntu-20.04'
+        Compiler: clang
+        CompilerVer: 10
+        BuildType: RelWithDebInfo
 
       clang-10 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
@@ -219,61 +218,7 @@ jobs:
         CompilerVer: 10
         BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-9 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 9
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-9 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 9
-          BuildType: Debug
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 8
-          BuildType: RelWithDebInfo
-
-      clang-8 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 8
-        BuildType: Debug
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-7 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 7
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-7 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 7
-          BuildType: Debug
-
-      clang-6 RelWithDebInfo [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 6.0
-        BuildType: RelWithDebInfo
-
-      clang-6 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 6.0
-        BuildType: Debug
-
-
-      # gcc-8 and newer compilers
+      # gcc-10 and newer compilers
       gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
@@ -313,43 +258,16 @@ jobs:
           CompilerVer: 11
           BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 10
-          BuildType: RelWithDebInfo
+      gcc-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
+        imageName: 'ubuntu-20.04'
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: RelWithDebInfo
 
       gcc-10 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
         CompilerVer: 10
-        BuildType: Debug
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-9 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 9
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-9 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 9
-          BuildType: Debug
-
-      gcc-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 8
-        BuildType: RelWithDebInfo
-
-      gcc-8 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 8
         BuildType: Debug
 
   steps:

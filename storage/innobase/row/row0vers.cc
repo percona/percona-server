@@ -651,7 +651,7 @@ static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
 
       col = reinterpret_cast<const dict_v_col_t *>(ind_field->col);
 
-      innobase_get_computed_value(&prebuilt->compress_heap, row, col,
+      innobase_get_computed_value(&prebuilt->blob_heap, row, col,
                                   clust_index->table, &local_heap, heap,
                                   current_thd, nullptr);
     }

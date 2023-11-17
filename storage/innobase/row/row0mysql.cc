@@ -2442,6 +2442,19 @@ row_insert_for_mysql(
 	const byte*		mysql_rec,
 	row_prebuilt_t*		prebuilt)
 {
+	struct CompressHeapCleaner {
+		CompressHeapCleaner(row_prebuilt_t* prebuilt)
+		: prebuilt_(prebuilt) { }
+
+		~CompressHeapCleaner() {
+			if (prebuilt_ && UNIV_LIKELY_NULL(prebuilt_->compress_heap)) {
+				mem_heap_empty(prebuilt_->compress_heap);
+			}
+		}
+
+		row_prebuilt_t *prebuilt_;
+	} compressCheapCleaner(prebuilt);
+
 	/* For intrinsic tables there a lot of restrictions that can be
 	relaxed including locking of table, transaction handling, etc.
 	Use direct cursor interface for inserting to intrinsic tables. */

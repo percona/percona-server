@@ -959,7 +959,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
 
     const dfield_t *const vfield = innobase_get_computed_value(
         update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr,
-        &prebuilt->compress_heap);
+        &prebuilt->blob_heap);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -982,7 +982,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
     } else {
       const dfield_t *const new_vfield = innobase_get_computed_value(
           update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr,
-          &prebuilt->compress_heap, nullptr, nullptr, update);
+          &prebuilt->blob_heap, nullptr, nullptr, update);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;

@@ -938,7 +938,7 @@ upd_t *row_upd_build_difference_binary(
 
       dfield_t *vfield = innobase_get_computed_value(
           update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr, &prebuilt->compress_heap);
+          mysql_table, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
 
       if (vfield == nullptr) {
         *error = DB_COMPUTE_VALUE_FAILED;
@@ -1900,9 +1900,9 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
                 row_upd_dup_v_new_vals(update);
                 new_val_v_cols_dup = true;
               }
-              innobase_get_computed_value(node->row, col, index, &heap,
-                                          node->heap, nullptr, thd, mysql_table,
-                                          nullptr, nullptr, nullptr, &prebuilt->compress_heap);
+              innobase_get_computed_value(
+                  node->row, col, index, &heap, node->heap, nullptr, thd,
+                  mysql_table, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
             }
           }
         } else {
@@ -1910,7 +1910,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
           deleting row */
           innobase_get_computed_value(node->row, col, index, &heap, node->heap,
                                       nullptr, thd, mysql_table, nullptr,
-                                      nullptr, nullptr, &prebuilt->compress_heap);
+                                      nullptr, nullptr, &prebuilt->blob_heap);
         }
       }
     }

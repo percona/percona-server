@@ -1251,8 +1251,13 @@ que_thr_t *row_purge_step(que_thr_t *thr) {
     row_purge_end(thr);
   }
 
-  if (thr->prebuilt != nullptr && thr->prebuilt->compress_heap != nullptr)
-    mem_heap_empty(thr->prebuilt->compress_heap);
+  /* Most probably this is not needed at all, because purge for virtual columns
+   is disabled in 8.0 (see #ifdef INNODB_DD_VC_SUPPORT) */
+  if (thr->prebuilt != nullptr && thr->prebuilt->blob_heap != nullptr)
+    mem_heap_empty(thr->prebuilt->blob_heap);
+
+  /* compress_heap was not used */
+  ut_ad(thr->prebuilt == 0 || thr->prebuilt->compress_heap == 0);
 
   return (thr);
 }

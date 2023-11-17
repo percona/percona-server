@@ -958,7 +958,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
     }
 
     const dfield_t *const vfield = innobase_get_computed_value(
-        &prebuilt->compress_heap, update->old_vrow, col, table, &v_heap,
+        &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
         update->heap, thd, nullptr);
 
     if (vfield == nullptr) {
@@ -981,7 +981,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
       dfield_copy(&(upd_field->new_val), vfield);
     } else {
       const dfield_t *const new_vfield = innobase_get_computed_value(
-          &prebuilt->compress_heap, update->old_vrow, col, table, &v_heap,
+          &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
           update->heap, thd, nullptr, nullptr, nullptr, update);
 
       if (new_vfield == nullptr) {

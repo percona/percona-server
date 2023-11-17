@@ -85,6 +85,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "sql/raii/sentry.h"  // raii::Sentry
 #include "sql/sql_zip_dict.h"
 
 static const char *MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
@@ -2180,6 +2181,24 @@ run_again:
 @param[in,out]  prebuilt        prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
 dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
+  /** We need to empty the compress heap after row insertion, because of two
+  following reasons:
+  1. When updating the row, first we read it (and decompress), then construct
+     new row and insert. If BLOB column didn't change, it is the same data
+     as obtained during row read, so it has to retain till the end of insertion.
+  2. When we alter table in the way that uncompressed BLOB column becomes
+     compressed one, interanally we copy between original table and temp table
+     row-by-row. Write allocates space on compress heap to compress BLOB column.
+     Compress heap is freed after the statement, but if the table is big enough
+     we can hit OOM before the query is finished.
+     This is why we have to empty the compress heap if the data is not needed
+     anymore. */
+  raii::Sentry<> compress_heap_cleaner([prebuilt] {
+    if (UNIV_LIKELY_NULL(prebuilt->compress_heap)) {
+      mem_heap_empty(prebuilt->compress_heap);
+    }
+  });
+
   /* For intrinsic tables there a lot of restrictions that can be
   relaxed including locking of table, transaction handling, etc.
   Use direct cursor interface for inserting to intrinsic tables. */

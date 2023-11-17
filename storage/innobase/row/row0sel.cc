@@ -242,7 +242,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       vfield = innobase_get_computed_value(
           row, v_col, clust_index, &heap, heap, nullptr,
           thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table, nullptr,
-          nullptr, nullptr, &thr->prebuilt->compress_heap);
+          nullptr, nullptr, &thr->prebuilt->blob_heap);
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
@@ -2832,7 +2832,7 @@ void row_sel_field_store_in_mysql_format_func(
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, rec_index, field_no, data, len,
-                                        &prebuilt->compress_heap, ULINT_UNDEFINED);
+                                        &prebuilt->blob_heap, ULINT_UNDEFINED);
 
     if (heap != blob_heap) {
       mem_heap_free(heap);
@@ -2888,7 +2888,7 @@ void row_sel_field_store_in_mysql_format_func(
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, rec_index, field_no, data, len,
-                                        &prebuilt->compress_heap, sec_field_no);
+                                        &prebuilt->blob_heap, sec_field_no);
   }
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
@@ -2922,8 +2922,9 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     mem_heap_empty(blob_heap);
   }
 
-  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
-    row_mysql_prebuilt_free_compress_heap(prebuilt);
+  if (UNIV_LIKELY_NULL(prebuilt->compress_heap)) {
+    mem_heap_empty(prebuilt->compress_heap);
+  }
 
   if (clust_templ_for_sec) {
     /* Store all clustered index column of secondary index record. */
@@ -3005,7 +3006,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
         row_sel_field_store_in_mysql_format(
             mysql_rec + templ->mysql_col_offset, templ, rec_index,
             templ->clust_rec_field_no, (const byte *)dfield->data, dfield->len,
-            &prebuilt->compress_heap, ULINT_UNDEFINED);
+            &prebuilt->blob_heap, ULINT_UNDEFINED);
         if (templ->mysql_null_bit_mask) {
           mysql_rec[templ->mysql_null_byte_offset] &=
               ~(byte)templ->mysql_null_bit_mask;

@@ -929,7 +929,7 @@ upd_t *row_upd_build_difference_binary(
       dfield = dtuple_get_nth_v_field(entry, i);
 
       const dfield_t *const vfield = innobase_get_computed_value(
-          &prebuilt->compress_heap, update->old_vrow, col, table, &v_heap, heap,
+          &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap, heap,
           thd, mysql_table);
 
       if (vfield == nullptr) {
@@ -1871,15 +1871,15 @@ static void row_upd_store_v_row(upd_node_t *node, upd_t *update, THD *thd,
                 row_upd_dup_v_new_vals(update);
                 new_val_v_cols_dup = true;
               }
-              innobase_get_computed_value(&prebuilt->compress_heap, node->row,
-                                          col, table, &heap, node->heap, thd,
+              innobase_get_computed_value(&prebuilt->blob_heap, node->row, col,
+                                          table, &heap, node->heap, thd,
                                           mysql_table);
             }
           }
         } else {
           /* Need to compute, this happens when
           deleting row */
-          innobase_get_computed_value(&prebuilt->compress_heap, node->row, col,
+          innobase_get_computed_value(&prebuilt->blob_heap, node->row, col,
                                       table, &heap, node->heap, thd,
                                       mysql_table);
         }

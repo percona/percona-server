@@ -217,9 +217,6 @@ static Rdb_index_stats_thread rdb_is_thread;
 static Rdb_manual_compaction_thread rdb_mc_thread;
 
 static Rdb_drop_index_thread rdb_drop_idx_thread;
-// List of table names (using regex) that are exceptions to the strict
-// collation check requirement.
-static Regex_list_handler *rdb_collation_exceptions;
 
 static const char *rdb_get_error_messages(int error);
 
@@ -575,11 +572,6 @@ static void rocksdb_set_delayed_write_rate(THD *thd, struct SYS_VAR *var,
 static void rocksdb_set_max_latest_deadlocks(THD *thd, struct SYS_VAR *var,
                                              void *var_ptr, const void *save);
 
-static void rdb_set_collation_exception_list(const char *exception_list);
-static void rocksdb_set_collation_exception_list(THD *thd, struct SYS_VAR *var,
-                                                 void *var_ptr,
-                                                 const void *save);
-
 static int rocksdb_validate_update_cf_options(THD *thd, struct SYS_VAR *var,
                                               void *save,
                                               st_mysql_value *value);
@@ -700,9 +692,7 @@ static char *rocksdb_checkpoint_name = nullptr;
 static char *rocksdb_block_cache_trace_options_str = nullptr;
 static char *rocksdb_trace_options_str = nullptr;
 static bool rocksdb_signal_drop_index_thread = false;
-static bool rocksdb_strict_collation_check = true;
 static bool rocksdb_ignore_unknown_options = true;
-static char *rocksdb_strict_collation_exceptions = nullptr;
 static bool rocksdb_collect_sst_properties = true;
 static bool rocksdb_force_flush_memtable_now_var = true;
 static bool rocksdb_force_flush_memtable_and_lzero_now_var = false;
@@ -2180,22 +2170,6 @@ static MYSQL_SYSVAR_BOOL(ignore_unknown_options, rocksdb_ignore_unknown_options,
                          "Enable ignoring unknown options passed to RocksDB",
                          nullptr, nullptr, true);
 
-/*
-  TODO(herman) - Both strict_collation_check and strict_collation_exceptions can
-  be deprecated now that SKs support index lookups for all collations.
-*/
-static MYSQL_SYSVAR_BOOL(strict_collation_check, rocksdb_strict_collation_check,
-                         PLUGIN_VAR_RQCMDARG,
-                         "Enforce case sensitive collation for MyRocks indexes",
-                         nullptr, nullptr, true);
-
-static MYSQL_SYSVAR_STR(strict_collation_exceptions,
-                        rocksdb_strict_collation_exceptions,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Regex that describes set of tables that are excluded "
-                        "from the case sensitive collation enforcement",
-                        nullptr, rocksdb_set_collation_exception_list, "");
-
 static MYSQL_SYSVAR_BOOL(collect_sst_properties, rocksdb_collect_sst_properties,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "Enables collecting SST file properties on each flush",
@@ -2645,8 +2619,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(signal_drop_index_thread),
     MYSQL_SYSVAR(pause_background_work),
     MYSQL_SYSVAR(ignore_unknown_options),
-    MYSQL_SYSVAR(strict_collation_check),
-    MYSQL_SYSVAR(strict_collation_exceptions),
     MYSQL_SYSVAR(collect_sst_properties),
     MYSQL_SYSVAR(force_flush_memtable_now),
     MYSQL_SYSVAR(force_flush_memtable_and_lzero_now),
@@ -6183,13 +6155,6 @@ static int rocksdb_init_internal(void *const p) {
                                 MY_MUTEX_INIT_FAST);
   rdb_mem_cmp_space_mutex.init(rdb_mem_cmp_space_mutex_key, MY_MUTEX_INIT_FAST);
 
-#if defined(HAVE_PSI_INTERFACE)
-  rdb_collation_exceptions =
-      new Regex_list_handler(key_rwlock_collation_exception_list);
-#else
-  rdb_collation_exceptions = new Regex_list_handler();
-#endif
-
   rdb_sysvars_mutex.init(rdb_sysvars_psi_mutex_key, MY_MUTEX_INIT_FAST);
   rdb_block_cache_resize_mutex.init(rdb_block_cache_resize_mutex_key,
                                     MY_MUTEX_INIT_FAST);
@@ -6728,8 +6693,6 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_threads",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
-  rdb_set_collation_exception_list(rocksdb_strict_collation_exceptions);
-
   if (rocksdb_pause_background_work) {
     rdb->PauseBackgroundWork();
   }
@@ -6871,11 +6834,6 @@ static int rocksdb_shutdown(bool minimalShutdown) {
   rdb_sysvars_mutex.destroy();
   rdb_block_cache_resize_mutex.destroy();
   rdb_bottom_pri_background_compactions_resize_mutex.destroy();
-
-  if (!minimalShutdown) {
-    delete rdb_collation_exceptions;
-    rdb_collation_exceptions = nullptr;
-  }
 
   rdb_collation_data_mutex.destroy();
   rdb_mem_cmp_space_mutex.destroy();
@@ -16023,27 +15981,6 @@ static void rocksdb_set_max_latest_deadlocks(THD *thd, struct SYS_VAR *var,
     rdb->SetDeadlockInfoBufferSize(rocksdb_max_latest_deadlocks);
   }
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
-}
-
-static void rdb_set_collation_exception_list(const char *const exception_list) {
-  assert(rdb_collation_exceptions != nullptr);
-
-  if (!rdb_collation_exceptions->set_patterns(exception_list,
-                                              get_regex_flags())) {
-    warn_about_bad_patterns(rdb_collation_exceptions,
-                            "strict_collation_exceptions");
-  }
-}
-
-static void rocksdb_set_collation_exception_list(THD *const thd,
-                                                 struct SYS_VAR *const var,
-                                                 void *const var_ptr,
-                                                 const void *const save) {
-  const char *const val = *static_cast<const char *const *>(save);
-
-  rdb_set_collation_exception_list(val == nullptr ? "" : val);
-
-  *static_cast<const char **>(var_ptr) = val;
 }
 
 static int mysql_value_to_bool(struct st_mysql_value *value,

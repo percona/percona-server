@@ -58,9 +58,9 @@ protected:
 */
 struct Bad_path
 {
-  const bool m_begins_with_column_id;  ///< true if column scope
-  const char *m_path_expression;       ///< the path to parse
-  const size_t m_expected_index;       ///< the offset of the syntax error
+  bool m_begins_with_column_id;  ///< true if column scope
+  const char *m_path_expression; ///< the path to parse
+  size_t m_expected_index;       ///< the offset of the syntax error
 };
 
 /**
@@ -76,9 +76,9 @@ class JsonBadPathTestP : public ::testing::TestWithParam<Bad_path>
 */
 struct Good_path
 {
-  const bool m_begins_with_column_id;  ///< true if column scope
-  const char *m_path_expression;       ///< the path to parse
-  const char *m_expected_path;         ///< expected canonical path
+  bool m_begins_with_column_id;  ///< true if column scope
+  const char *m_path_expression; ///< the path to parse
+  const char *m_expected_path;   ///< expected canonical path
 };
 
 /**
@@ -87,9 +87,9 @@ struct Good_path
 */
 struct Location_tuple
 {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_json_text;             // the document text
-  const char *m_path_expression;       // the path to parse
+  bool m_begins_with_column_id;  // true if column scope
+  const char *m_json_text;       // the document text
+  const char *m_path_expression; // the path to parse
 };
 
 /**
@@ -98,10 +98,10 @@ struct Location_tuple
 */
 struct Ono_tuple
 {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_json_text;             // the document text
-  const char *m_path_expression;       // the path to parse
-  const uint m_expected_hits;         // total number of matches
+  bool m_begins_with_column_id;  // true if column scope
+  const char *m_json_text;       // the document text
+  const char *m_path_expression; // the path to parse
+  uint m_expected_hits;          // total number of matches
 };
 
 /**
@@ -109,9 +109,9 @@ struct Ono_tuple
 */
 struct Clone_tuple
 {
-  const bool m_begins_with_column_id;  // true if column scope
-  const char *m_path_expression_1;     // the first path to parse
-  const char *m_path_expression_2;     // the second path to parse
+  bool m_begins_with_column_id;    // true if column scope
+  const char *m_path_expression_1; // the first path to parse
+  const char *m_path_expression_2; // the second path to parse
 };
 
 /**

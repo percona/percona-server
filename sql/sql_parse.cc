@@ -5520,10 +5520,19 @@ bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 ****************************************************************************/
 
 
+/*
+  Leaving "used_stack" macro undefined when STACK_DIRECTION is undefined
+  deliberately so that an attempt to use it would result in compilation
+  errors.
+*/
+#ifdef STACK_DIRECTION
+
 #if STACK_DIRECTION < 0
 #define used_stack(A,B) (long) (A - B)
-#else
+#elif STACK_DIRECTION > 0
 #define used_stack(A,B) (long) (B - A)
+#endif
+
 #endif
 
 #ifndef NDEBUG
@@ -5537,9 +5546,13 @@ long max_stack_used;
     corresponding exec. (Thus we only have to check in fix_fields.)
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
-bool check_stack_overrun(THD *thd, long margin,
+bool check_stack_overrun(THD *thd MY_ATTRIBUTE((unused)),
+			 long margin MY_ATTRIBUTE((unused)),
 			 uchar *buf MY_ATTRIBUTE((unused)))
 {
+#ifndef STACK_DIRECTION
+  return false;
+#else
   long stack_used;
   assert(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
@@ -5562,6 +5575,7 @@ bool check_stack_overrun(THD *thd, long margin,
   max_stack_used= max(max_stack_used, stack_used);
 #endif
   return 0;
+#endif
 }
 
 

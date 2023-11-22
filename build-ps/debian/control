@@ -178,7 +178,7 @@ Pre-Depends: adduser,
 Depends: percona-server-common-5.7 (= ${binary:Version}),
 	 percona-server-client-5.7 (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},
-         psmisc,
+         psmisc, curl,
          openssl
 Provides: mysql-server,
           virtual-mysql-server, virtual-mysql-server-core,

@@ -58,11 +58,6 @@ MYSQL_ADD_COMPONENT(masking_functions
   MODULE_ONLY
 )
 
-set_target_properties(component_masking_functions PROPERTIES
-  CXX_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN YES
-)
-
 target_compile_definitions(component_masking_functions PRIVATE LOG_COMPONENT_TAG="component_masking_functions")
 target_include_directories(component_masking_functions PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(component_masking_functions SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})

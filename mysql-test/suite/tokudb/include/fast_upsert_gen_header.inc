@@ -1,5 +1,0 @@
---source include/have_tokudb.inc
---disable_query_log
-set tokudb_enable_fast_upsert=1;
---source setup_fast_update_upsert.inc
---enable_query_log

@@ -26,15 +26,17 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "my_thread_local.h"     // my_thread_id
+#include "my_thread_local.h"  // my_thread_id
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
+#include "sql/mysqld_cs.h"
 #include "sql/rpl_gtid.h"        // Gitd_specification
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 #include "sql_string.h"
+#include "str2int.h"
 
 class MY_LOCALE;
 class Time_zone;

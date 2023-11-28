@@ -24,13 +24,13 @@ Warnings:
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = 60020;
 Warnings:
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-60020
+1048576
 SET @@global.tmp_table_size = 4294967295;
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
@@ -41,7 +41,7 @@ Warnings:
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-1024
+1048576
 SET @@session.tmp_table_size = 4294967295;
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
@@ -51,7 +51,7 @@ Warnings:
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-65535
+1048576
 '#------------------FN_DYNVARS_005_05-----------------------#'
 SET @@global.tmp_table_size = 0;
 Warnings:
@@ -59,21 +59,21 @@ Warning	1292	Truncated incorrect tmp_table_size value: '0'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '-1024'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = 1000;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '1000'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = 4294967299;
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
@@ -93,14 +93,14 @@ Warning	1292	Truncated incorrect tmp_table_size value: '1'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = False;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '0'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@global.tmp_table_size;
 @@global.tmp_table_size
-1024
+1048576
 SET @@global.tmp_table_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@global.tmp_table_size ="Test";
@@ -115,7 +115,7 @@ Warning	1292	Truncated incorrect tmp_table_size value: '1'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-1024
+1048576
 SET @@session.tmp_table_size = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@session.tmp_table_size = False;
@@ -124,21 +124,21 @@ Warning	1292	Truncated incorrect tmp_table_size value: '0'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-1024
+1048576
 SET @@session.tmp_table_size = "Test";
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SET @@session.tmp_table_size = ' ';
 ERROR 42000: Incorrect argument type to variable 'tmp_table_size'
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-1024
+1048576
 SET @@session.tmp_table_size = 1000;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '1000'
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@session.tmp_table_size;
 @@session.tmp_table_size
-1024
+1048576
 SET @@session.tmp_table_size = 12345678901;
 SELECT @@session.tmp_table_size IN (12345678901,4294967295);
 @@session.tmp_table_size IN (12345678901,4294967295)
@@ -180,7 +180,7 @@ Warnings:
 Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT @@tmp_table_size;
 @@tmp_table_size
-1027
+1048576
 SELECT local.tmp_table_size;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT global.tmp_table_size;

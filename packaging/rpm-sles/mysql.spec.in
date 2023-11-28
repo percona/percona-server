@@ -427,10 +427,10 @@ Provides:       MySQL-shared = %{version}-%{release}
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
-Obsoletes:      libmysqlclient21 < %{version}-%{release}
+Obsoletes:      libmysqlclient22 < %{version}-%{release}
 Obsoletes:      mysql-connector-c-shared < 6.2
 Provides:       mysql-libs = %{version}-%{release}
-Provides:       libmysqlclient21 = %{version}-%{release}
+Provides:       libmysqlclient22 = %{version}-%{release}
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -878,7 +878,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %endif
 %if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
@@ -891,7 +890,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
@@ -903,6 +902,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws
@@ -963,12 +963,11 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif # mecab
 %if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
@@ -983,6 +982,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_scheduler.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1137,7 +1137,7 @@ rm -r $(readlink var) var
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.21*
+%{_libdir}/mysql/libmysqlclient.so.22*
 
 %files client-plugins
 %defattr(-, root, root, -)
@@ -1172,6 +1172,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
+%attr(755, root, root) %{_bindir}/mysql_test_event_tracking
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
@@ -1265,6 +1266,12 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_c.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1359,6 +1366,12 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
 
 %if 0%{?cluster}
 %files management-server
@@ -1450,6 +1463,12 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Wed Apr 05 2023 Erlend Dahl <erlend.dahl@oracle.com> - 8.1.0-1
+- Bump in the major version of MySQL, so increase the libmysqlclient major version to 22.
+
+* Wed Mar 01 2023 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.34-1
+- Added components, libraries and binaries related to event tracking
+
 * Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
 - Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service
 

@@ -656,8 +656,8 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
   }
 }
 
-void buf_read_recv_pages(bool sync, space_id_t space_id,
-                         const page_no_t *page_nos, ulint n_stored) {
+void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
+                         ulint n_stored) {
   ulint count;
   fil_space_t *space = fil_space_get(space_id);
 
@@ -704,7 +704,8 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
     buf_pool = buf_pool_get(cur_page_id);
     os_rmb;
 
-    while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
+    while (buf_pool->n_pend_reads >=
+           recv_n_frames_for_pages_per_pool_instance / 2) {
       os_aio_simulated_wake_handler_threads();
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
@@ -719,13 +720,8 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 
     dberr_t err;
 
-    if ((i + 1 == n_stored) && sync) {
-      buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, cur_page_id,
-                        page_size, true, nullptr, false);
-    } else {
-      buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                        cur_page_id, page_size, true, nullptr, false);
-    }
+    buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
+                      cur_page_id, page_size, true, nullptr, false);
   }
 
   os_aio_simulated_wake_handler_threads();

@@ -1,4 +1,0 @@
---audit_log_file=test_audit.log
---audit_log_policy=QUERIES
---audit-log-format=NEW
---audit_log_strategy=SEMISYNCHRONOUS

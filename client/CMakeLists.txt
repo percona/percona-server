@@ -25,10 +25,7 @@ ADD_WSHADOW_WARNING()
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE_DIRECTORIES(SYSTEM ${MY_XLINE_INCLUDE_DIR})
-
 ## Subdirectory with common client code.
-
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
@@ -48,7 +45,7 @@ MYSQL_ADD_EXECUTABLE(mysql
   client_query_attributes.cc
   multi_factor_passwordopt-vars.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
-  LINK_LIBRARIES perconaserverclient client_base ${MY_XLINE_LIBRARY}
+  LINK_LIBRARIES perconaserverclient client_base ${EDITLINE_LIBRARY}
   )
 
 IF(NOT WITHOUT_SERVER)
@@ -183,7 +180,7 @@ MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
 MYSQL_ADD_EXECUTABLE(json_client_library_main
   json_client_library_main.cc
   INCLUDE_DIRECTORIES ../sql
-  LINK_LIBRARIES json_client_library  strings
+  LINK_LIBRARIES json_client_library  strings mysys
   SKIP_INSTALL
   )
 

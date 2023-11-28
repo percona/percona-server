@@ -1,0 +1,46 @@
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+0
+SELECT @@session.audit_log_filter.disable;
+ERROR HY000: Variable 'audit_log_filter.disable' is a GLOBAL variable
+SET GLOBAL audit_log_filter.disable=ON;
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+1
+SET GLOBAL audit_log_filter.disable=OFF;
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+0
+SET GLOBAL audit_log_filter.disable=1;
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+1
+SET GLOBAL audit_log_filter.disable=0;
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+0
+SET GLOBAL audit_log_filter.disable=-1;
+ERROR 42000: Variable 'audit_log_filter.disable' can't be set to the value of '-1'
+SET GLOBAL audit_log_filter.disable=0.5;
+ERROR 42000: Incorrect argument type to variable 'audit_log_filter.disable'
+SET GLOBAL audit_log_filter.disable="";
+ERROR 42000: Variable 'audit_log_filter.disable' can't be set to the value of ''
+SET GLOBAL audit_log_filter.disable="str";
+ERROR 42000: Variable 'audit_log_filter.disable' can't be set to the value of 'str'
+# restart: --audit-log-filter.disable=ON
+include/assert_grep.inc [ER_WARN_AUDIT_LOG_FILTER_DISABLED in error log]
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
+SET GLOBAL audit_log_filter.disable=OFF;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN and AUDIT_ADMIN privilege(s) for this operation
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+1
+GRANT AUDIT_ADMIN ON *.* to 'user1'@'%';
+SET GLOBAL audit_log_filter.disable=OFF;
+SELECT @@global.audit_log_filter.disable;
+@@global.audit_log_filter.disable
+0
+#
+# Cleanup
+DROP USER user1;

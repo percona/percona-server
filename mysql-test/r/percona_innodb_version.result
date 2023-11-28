@@ -1,3 +1,0 @@
-SELECT @@innodb_version;
-@@innodb_version
-8.0.x-x

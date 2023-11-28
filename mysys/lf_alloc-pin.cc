@@ -195,8 +195,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
     el = (LF_PINS *)lf_dynarray_value(&pinbox->pinarray, pins);
     next = el->link;
   } while (!pinbox->pinstack_top_ver.compare_exchange_strong(
-      top_ver,
-      top_ver - pins + next + LF_PINBOX_MAX_PINS));
+      top_ver, top_ver - pins + next + LF_PINBOX_MAX_PINS));
   /*
     set el->link to the index of el in the dynarray (el->link has two usages:
     - if element is allocated, it's its own index
@@ -246,8 +245,7 @@ void lf_pinbox_put_pins(LF_PINS *pins) {
   do {
     pins->link = top_ver % LF_PINBOX_MAX_PINS;
   } while (!pinbox->pinstack_top_ver.compare_exchange_strong(
-      top_ver,
-      top_ver - pins->link + nr + LF_PINBOX_MAX_PINS));
+      top_ver, top_ver - pins->link + nr + LF_PINBOX_MAX_PINS));
 }
 
 /*

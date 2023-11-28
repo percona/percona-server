@@ -224,6 +224,7 @@
 #cmakedefine SCRAM_LIB_CONFIGURED
 #cmakedefine WITH_HYPERGRAPH_OPTIMIZER
 #cmakedefine KERBEROS_LIB_SSPI
+#cmakedefine WITH_SHOW_PARSE_TREE
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
@@ -252,10 +253,9 @@
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
-#cmakedefine USE_NEW_XLINE_INTERFACE 1
-#cmakedefine HAVE_READLINE_HISTORY_H 1
-#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
-#cmakedefine XLINE_HAVE_COMPLETION_INT 1
+#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
+#cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
 
 /*
  * Libedit

@@ -1,2 +1,0 @@
-SET default_storage_engine=InnoDB;
---source include/percona_kill_idle_trx.inc

@@ -43,7 +43,6 @@
 
 #include "keycache.h"  // dflt_key_cache
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_compiler.h"
@@ -54,6 +53,9 @@
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -609,7 +611,7 @@ class Sys_var_typelib : public sys_var {
       else
         var->save_result.ulonglong_value--;
     } else {
-      longlong tmp = var->value->val_int();
+      const longlong tmp = var->value->val_int();
       if (tmp < 0 || tmp >= static_cast<longlong>(typelib.count))
         return true;
       else
@@ -928,11 +930,11 @@ class Sys_var_multi_enum : public sys_var {
                           &valid_len, &len_error))
         return true;
 
-      int value = find_value(res->ptr());
+      const int value = find_value(res->ptr());
       if (value == -1) return true;
       var->save_result.ulonglong_value = (uint)value;
     } else {
-      longlong value = var->value->val_int();
+      const longlong value = var->value->val_int();
       if (value < 0 || value >= (longlong)value_count)
         return true;
       else
@@ -984,7 +986,7 @@ class Sys_var_multi_enum : public sys_var {
   }
   void global_save_default(THD *, set_var *var) override {
     DBUG_TRACE;
-    int value = find_value((char *)option.def_value);
+    const int value = find_value((char *)option.def_value);
     assert(value != -1);
     var->save_result.ulonglong_value = value;
     return;
@@ -1237,7 +1239,8 @@ class Sys_var_external_user : public Sys_var_proxy_user {
  protected:
   const uchar *session_value_ptr(THD *, THD *target_thd,
                                  std::string_view) override {
-    LEX_CSTRING external_user = target_thd->security_context()->external_user();
+    const LEX_CSTRING external_user =
+        target_thd->security_context()->external_user();
     return external_user.length ? pointer_cast<const uchar *>(external_user.str)
                                 : nullptr;
   }
@@ -1453,7 +1456,7 @@ class Sys_var_keycache : public Sys_var_ulonglong {
     assert(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var) override {
-    ulonglong new_value = var->save_result.ulonglong_value;
+    const ulonglong new_value = var->save_result.ulonglong_value;
 
     assert(var->m_var_tracker.is_keycache_var());
     std::string_view base_name = var->m_var_tracker.get_keycache_name();
@@ -1535,7 +1538,7 @@ class Sys_var_double : public sys_var {
   }
   bool do_check(THD *thd, set_var *var) override {
     bool fixed;
-    double v = var->value->val_real();
+    const double v = var->value->val_real();
     var->save_result.double_value =
         getopt_double_limit_value(v, &option, &fixed);
 
@@ -1687,13 +1690,13 @@ class Sys_var_flagset : public Sys_var_typelib {
             &typelib, typelib.count, current_value, default_value, res->ptr(),
             static_cast<uint>(res->length()), &error, &error_len);
         if (error) {
-          ErrConvString err(error, error_len, res->charset());
+          const ErrConvString err(error, error_len, res->charset());
           my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, err.ptr());
           return true;
         }
       }
     } else {
-      longlong tmp = var->value->val_int();
+      const longlong tmp = var->value->val_int();
       if ((tmp < 0 && !var->value->unsigned_flag) ||
           (ulonglong)tmp > MAX_SET(typelib.count))
         return true;
@@ -1791,13 +1794,13 @@ class Sys_var_set : public Sys_var_typelib {
           errors by find_set(), these errors are ignored here
         */
         if (error_len) {
-          ErrConvString err(error, error_len, res->charset());
+          const ErrConvString err(error, error_len, res->charset());
           my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, err.ptr());
           return true;
         }
       }
     } else {
-      longlong tmp = var->value->val_int();
+      const longlong tmp = var->value->val_int();
       if ((tmp < 0 && !var->value->unsigned_flag) ||
           (ulonglong)tmp > MAX_SET(typelib.count))
         return true;
@@ -1886,7 +1889,7 @@ class Sys_var_plugin : public sys_var {
     /* NULLs can't be used as a default storage engine */
     if (!(res = var->value->val_str(&str))) return true;
 
-    LEX_CSTRING pname_cstr = res->lex_cstring();
+    const LEX_CSTRING pname_cstr = res->lex_cstring();
     plugin_ref plugin;
 
     // special code for storage engines (e.g. to handle historical aliases)
@@ -1899,7 +1902,7 @@ class Sys_var_plugin : public sys_var {
     if (!plugin) {
       // historically different error code
       if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN) {
-        ErrConvString err(res);
+        const ErrConvString err(res);
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), err.ptr());
       }
       return true;
@@ -2450,7 +2453,7 @@ class Sys_var_tz : public sys_var {
     if (!res) return true;
 
     if (!(var->save_result.time_zone = my_tz_find(thd, res))) {
-      ErrConvString err(res);
+      const ErrConvString err(res);
       my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), err.ptr());
       return true;
     }
@@ -2851,7 +2854,7 @@ class Sys_var_gtid_purged : public sys_var {
       return true;
     }
     var->save_result.string_value.length = res->length();
-    bool ret =
+    const bool ret =
         Gtid_set::is_valid(var->save_result.string_value.str) ? false : true;
     DBUG_PRINT("info", ("ret=%d", ret));
     return ret;
@@ -2908,7 +2911,7 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
                                  std::string_view) override {
     DBUG_TRACE;
     char *buf = nullptr;
-    bool remote = (target_thd != running_thd);
+    const bool remote = (target_thd != running_thd);
 
     if (target_thd->owned_gtid.sidno == 0)
       return (uchar *)running_thd->mem_strdup("");

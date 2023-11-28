@@ -1,0 +1,86 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # Check wrong argument number
+--error 1123
+SELECT audit_log_filter_set_filter();
+--error 1123
+SELECT audit_log_filter_set_filter(1);
+--error 1123
+SELECT audit_log_filter_set_filter('filter_1');
+
+--echo #
+--echo # Check wrong argument types
+--error 1123
+SELECT audit_log_filter_set_filter(1, 2);
+--error 1123
+SELECT audit_log_filter_set_filter('filter_1', 2);
+--error 1123
+SELECT audit_log_filter_set_filter(1, '{"filter": {"class": {"name": "connection"}}}');
+
+--echo #
+--echo # Check empty argument
+--error 1123
+SELECT audit_log_filter_set_filter('', '{"filter": {"class": {"name": "connection"}}}');
+--error 1123
+SELECT audit_log_filter_set_filter('filter_1', '');
+
+--echo #
+--echo # Check too long argument
+--let $too_long_name = `SELECT REPEAT('a', 256)`
+--let $too_long_definition = `SELECT REPEAT('a', 1025)`
+--error 1123
+--eval SELECT audit_log_filter_set_filter('$too_long_name', '{"filter": {"class": {"name": "connection"}}}')
+--error 1123
+--eval SELECT audit_log_filter_set_filter('filter_1', '$too_long_definition')
+
+--disable_query_log
+call mtr.add_suppression("Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Failed to check filtering rule name existence");
+call mtr.add_suppression("Filtering rule with the name 'filter_2' already exists");
+call mtr.add_suppression("Failed to insert filtering rule 'filter_3'");
+--enable_query_log
+
+--echo #
+--echo # Filter validity check, incorrect JSON
+SELECT audit_log_filter_set_filter('filter_1', '{}');
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}}');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Filter name duplicate check failure
+SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+
+--echo #
+--echo # Insert valid filtering rules
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}');
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "table_access"}}}');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Filter name duplicate check
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general"}}}');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Filter insertion failure
+SET SESSION debug="+d,udf_audit_log_filter_insertion_failure";
+SELECT audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "general"}}}');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+SET SESSION debug="-d,udf_audit_log_filter_insertion_failure";
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

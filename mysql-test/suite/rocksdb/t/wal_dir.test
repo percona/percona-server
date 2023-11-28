@@ -2,19 +2,10 @@
 # Test MyRocks with non-default rocksdb-wal-dir setting
 #
 --source include/have_rocksdb.inc
---source include/parse_rocksdb_fs_uri.inc
 
-if (!$rocksdb_zenfs_disabled)
-{
-  --let WAL_DIR=/rdb_wal
-}
-if ($rocksdb_zenfs_disabled)
-{
-  --let WAL_DIR=$MYSQL_TMP_DIR/rdb_wal
-}
+--let WAL_DIR=$MYSQL_TMP_DIR/rdb_wal
 
 call mtr.add_suppression("dir NotFound");
-call mtr.add_suppression("No such file or directory: while stat a file for size");
 
 --replace_result $WAL_DIR WAL_DIR
 --let $restart_parameters=restart:--rocksdb-wal-dir=$WAL_DIR
@@ -33,17 +24,7 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
---source include/shutdown_mysqld.inc
-
-if (!$rocksdb_zenfs_disabled)
-{
-  --file_exists $MYSQL_ZENFS
-  --exec $MYSQL_ZENFS rmdir --zbd=$extracted_zenfs_device --path=$WAL_DIR --force > /dev/null 2>&1
-}
-if ($rocksdb_zenfs_disabled)
-{
-  --force-rmdir $WAL_DIR
-}
-
 --let $restart_parameters=
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
+
+--force-rmdir $WAL_DIR

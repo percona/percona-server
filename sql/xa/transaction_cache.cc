@@ -29,18 +29,18 @@
 #include <utility>
 
 #include "include/mutex_lock.h"  // MUTEX_LOCK
-#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"  // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"  // Scope_guard
@@ -171,10 +171,7 @@ xa::Transaction_cache::list xa::Transaction_cache::get_cached_transactions() {
   auto &instance = xa::Transaction_cache::instance();
   list to_return;
   MUTEX_LOCK(mutex_guard, &instance.m_LOCK_transaction_cache);
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
   for (auto [_, trx] : instance.m_transaction_cache) to_return.push_back(trx);
-  MY_COMPILER_DIAGNOSTIC_POP()
   return to_return;
 }
 

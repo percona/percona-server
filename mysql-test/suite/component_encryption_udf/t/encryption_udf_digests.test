@@ -1,0 +1,53 @@
+--source include/have_encryption_udf_component.inc
+
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+--echo ** checking digests calculation
+
+--let $number_of_length_iterations = 16
+--let $length_increment = 7
+eval SET @random_pattern = REPEAT(MD5(42), $number_of_length_iterations * $length_increment DIV 32 + 1);
+
+--let $include_digests_with_no_ans1_ids = 1
+--source ../include/encryption_udf_digest_table.inc
+
+--disable_query_log
+--let $digest_type_idx = 1
+while($digest_type_idx <= $number_of_digest_types)
+{
+  --let $digest_name = `SELECT digest_name FROM digest_type WHERE id = $digest_type_idx`
+  --let $udf_template = HEX(create_digest("$digest_name", @message))
+
+  --let $builtin_template = `SELECT builtin_template FROM digest_type WHERE id = $digest_type_idx`
+  --let $current_length_iteration = 0
+  --let $number_of_length_iterations = 16
+  while($current_length_iteration <= $number_of_length_iterations)
+  {
+    --let $message_length = `SELECT $current_length_iteration * $length_increment`
+    eval SET @message = LEFT(@random_pattern, $message_length);
+
+    if($builtin_template)
+    {
+      --let $assert_text = [$digest_name][message_len=$message_length] digest of a message calculated via UDF should match built-in function result
+      --let $assert_cond = $udf_template = $builtin_template
+    }
+    if(!$builtin_template)
+    {
+      --let $assert_text = [$digest_name][message_len=$message_length] digest of a message calculated via UDF is not NULL
+      --let $assert_cond = $udf_template IS NOT NULL
+    }
+    --let $include_silent = 1
+    --source include/assert.inc
+    --let $include_silent =
+
+    --inc $current_length_iteration
+  }
+
+  --inc $digest_type_idx
+}
+--enable_query_log
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

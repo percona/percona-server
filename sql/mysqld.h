@@ -37,7 +37,6 @@
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_command.h"
 #include "my_compress.h"
@@ -62,6 +61,7 @@
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"  // SERVER_VERSION_LENGTH
 #include "sql/handler.h"
 #ifdef _WIN32
@@ -134,7 +134,7 @@ void kill_mysql(void);
 void refresh_status();
 void reset_status_by_thd();
 bool is_secure_file_path(const char *path);
-bool is_secure_log_path(const char *path);
+bool is_secure_log_path(const std::string &path);
 ulong sql_rnd_with_mutex();
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated);
@@ -154,11 +154,6 @@ void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
 void clean_up_mysqld_mutexes();
-
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
-extern CHARSET_INFO *character_set_filesystem;
 
 enum enum_server_operational_state {
   SERVER_BOOTING,      /* Server is not operational. It is starting */

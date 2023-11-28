@@ -1,0 +1,11 @@
+--let $number_of_steps = 13
+--let $partitioning =
+
+--let $field_type = BLOB
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = TEXT
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $field_type = JSON
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc

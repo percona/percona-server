@@ -25,6 +25,7 @@
 
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
 #include "storage/innobase/include/fts0tokenize.h"
 
 /* We are following InnoDB coding guidelines. */
@@ -70,7 +71,7 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
       /* Skip SPACE and control characters */
       int ctype = 0;
       cs->cset->ctype(cs, &ctype, (uchar *)next, (uchar *)end);
-      if (char_len == 1 && (*next == ' ' || ctype & _MY_CTR)) {
+      if (char_len == 1 && (*next == ' ' || ctype & MY_CHAR_CTR)) {
         start = next + 1;
         next = start;
         n_chars = 0;

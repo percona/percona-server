@@ -12,7 +12,7 @@
 --echo # not installed on recipient
 
 --eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN'
---eval INSTALL PLUGIN audit_log SONAME '$AUDIT_LOG';
+--eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
 
 --let $recipient_port= \$SERVER_PORT_2
 --connect (conn_recipient, 127.0.0.1, root,,test,$recipient_port)
@@ -65,7 +65,7 @@ SET GLOBAL clone_exclude_plugins_list='example';
 --error ER_CLONE_PLUGIN_MATCH
 --eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
 
-SET GLOBAL clone_exclude_plugins_list='example,audit_log';
+SET GLOBAL clone_exclude_plugins_list='example,version_tokens';
 --replace_result $CLONED_DATADIR CLONED_DATADIR $USER USER $HOST HOST $PORT PORT
 --eval CLONE INSTANCE FROM $USER@$HOST:$PORT IDENTIFIED BY '' DATA DIRECTORY='$CLONED_DATADIR'
 
@@ -93,7 +93,7 @@ UNINSTALL PLUGIN clone;
 
 --connection default
 --disable_warnings
-UNINSTALL PLUGIN audit_log;
+UNINSTALL PLUGIN version_tokens;
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN example;
 --enable_warnings

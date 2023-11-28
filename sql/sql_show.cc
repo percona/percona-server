@@ -39,9 +39,9 @@
 #include <vector>
 
 #include "decimal.h"
+#include "dig_vec.h"
 #include "field_types.h"
 #include "keycache.h"  // dflt_key_cache
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_alloc.h"
@@ -53,7 +53,6 @@
 #include "my_default.h"
 #include "my_hostname.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -61,14 +60,19 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"  // st_mysql_plugin
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "scope_guard.h"         // Scope_guard
 #include "sql/auth/auth_acls.h"  // DB_ACLS
 #include "sql/auth/auth_common.h"
@@ -138,6 +142,8 @@
 #include "sql/trigger.h"                   // Trigger
 #include "sql/tztime.h"                    // my_tz_SYSTEM
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -349,7 +355,7 @@ bool Sql_cmd_show_create_table::execute_inner(THD *thd) {
   LEX *old_lex = thd->lex;
   LEX local_lex;
 
-  Pushed_lex_guard lex_guard(thd, &local_lex);
+  const Pushed_lex_guard lex_guard(thd, &local_lex);
 
   LEX *lex = thd->lex;
 
@@ -428,7 +434,7 @@ bool Sql_cmd_show_create_user::check_privileges(THD *) { return false; }
 bool Sql_cmd_show_create_user::execute_inner(THD *thd) {
   LEX_USER *show_user = get_current_user(thd, lex->grant_user);
   Security_context *sctx = thd->security_context();
-  bool are_both_users_same =
+  const bool are_both_users_same =
       !strcmp(sctx->priv_user().str, show_user->user.str) &&
       !my_strcasecmp(system_charset_info, show_user->host.str,
                      sctx->priv_host().str);
@@ -526,7 +532,7 @@ bool Sql_cmd_show_grants::check_privileges(THD *) {
 
 bool Sql_cmd_show_grants::execute_inner(THD *thd) {
   DBUG_TRACE;
-  bool show_mandatory_roles = (for_user == nullptr);
+  const bool show_mandatory_roles = (for_user == nullptr);
   bool have_using_clause =
       (using_users != nullptr && using_users->elements > 0);
 
@@ -629,9 +635,9 @@ bool Sql_cmd_show_routine_code::check_privileges(THD *) {
 
 bool Sql_cmd_show_routine_code::execute_inner(THD *thd) {
 #ifndef NDEBUG
-  enum_sp_type sp_type = m_sql_command == SQLCOM_SHOW_PROC_CODE
-                             ? enum_sp_type::PROCEDURE
-                             : enum_sp_type::FUNCTION;
+  const enum_sp_type sp_type = m_sql_command == SQLCOM_SHOW_PROC_CODE
+                                   ? enum_sp_type::PROCEDURE
+                                   : enum_sp_type::FUNCTION;
   sp_head *sp;
   if (sp_cache_routine(thd, sp_type, m_routine_name, false, &sp)) {
     return true;
@@ -744,7 +750,7 @@ bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
 
   // Stop if given database does not exist.
   dd::Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
   if (mdl_handler.ensure_locked(dst_table->db) ||
       thd->dd_client()->acquire(dst_table->db, &schema))
@@ -769,7 +775,7 @@ bool Sql_cmd_show_status::execute(THD *thd) {
   System_status_var old_status_var = thd->status_var;
   thd->initial_status_var = &old_status_var;
 
-  bool status = Sql_cmd_show::execute(thd);
+  const bool status = Sql_cmd_show::execute(thd);
 
   // Don't log SHOW STATUS commands to slow query log
   thd->server_status &=
@@ -1147,7 +1153,7 @@ bool mysqld_show_create(THD *thd, Table_ref *table_list) {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
 
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
     uint counter;
     bool open_error = open_tables(thd, &table_list, &counter,
                                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
@@ -1277,7 +1283,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   uint db_access;
   HA_CREATE_INFO create;
   bool schema_read_only{false};
-  uint create_options = create_info ? create_info->options : 0;
+  const uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
@@ -1312,7 +1318,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     create.default_table_charset = system_charset_info;
   } else {
     dd::Schema_MDL_locker mdl_handler(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::cache::Dictionary_client::Auto_releaser releaser(
+        thd->dd_client());
     const dd::Schema *schema = nullptr;
     if (mdl_handler.ensure_locked(dbname) ||
         thd->dd_client()->acquire(dbname, &schema))
@@ -1455,8 +1462,8 @@ static const char *require_quotes(const char *name, size_t name_length) {
   if (name_length && static_cast<uchar>(*name) == '$') return name;
 
   for (; name < end; name++) {
-    uchar chr = (uchar)*name;
-    uint length = my_mbcharlen(system_charset_info, chr);
+    const uchar chr = (uchar)*name;
+    const uint length = my_mbcharlen(system_charset_info, chr);
     if (length == 0 || (length == 1 && !system_charset_info->ident_map[chr]))
       return name;
     if (length == 1 && (chr < '0' || chr > '9')) pure_digit = false;
@@ -1478,7 +1485,7 @@ static const char *require_quotes(const char *name, size_t name_length) {
 
 void append_identifier(String *packet, const char *name, size_t length) {
   const char *name_end;
-  char quote_char = '`';
+  const char quote_char = '`';
 
   const CHARSET_INFO *cs_info = system_charset_info;
   const char *to_name = name;
@@ -1494,7 +1501,7 @@ void append_identifier(String *packet, const char *name, size_t length) {
 
   for (name_end = to_name + to_length; to_name < name_end;
        to_name += to_length) {
-    uchar chr = static_cast<uchar>(*to_name);
+    const uchar chr = static_cast<uchar>(*to_name);
     to_length = my_mbcharlen(cs_info, chr);
     /*
       my_mbcharlen can return 0 on a wrong multibyte
@@ -1568,7 +1575,7 @@ void append_identifier(const THD *thd, String *packet, const char *name,
 
   for (name_end = to_name + to_length; to_name < name_end;
        to_name += to_length) {
-    uchar chr = static_cast<uchar>(*to_name);
+    const uchar chr = static_cast<uchar>(*to_name);
     to_length = my_mbcharlen(cs_info, chr);
     /*
       my_mbcharlen can return 0 on a wrong multibyte
@@ -1630,7 +1637,7 @@ void append_identifier(const THD *thd, String *packet, const char *name,
 static void append_directory(THD *thd, String *packet, const char *dir_type,
                              const char *filename) {
   if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)) {
-    size_t length = dirname_length(filename);
+    const size_t length = dirname_length(filename);
     packet->append(' ');
     packet->append(dir_type);
     packet->append(STRING_WITH_LEN(" DIRECTORY='"));
@@ -1685,7 +1692,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
 */
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted) {
-  enum enum_field_types field_type = field->type();
+  const enum enum_field_types field_type = field->type();
   const bool has_default = (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
                             !(field->auto_flags & Field::NEXT_NUMBER));
 
@@ -1714,9 +1721,9 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
       String type(tmp, sizeof(tmp), field->charset());
       // Wrap bit values in b'...'
       if (field_type == MYSQL_TYPE_BIT) {
-        longlong dec = field->val_int();
+        const longlong dec = field->val_int();
         char *ptr = longlong2str(dec, tmp + 2, 2);
-        uint32 length = (uint32)(ptr - tmp);
+        const uint32 length = (uint32)(ptr - tmp);
         tmp[0] = 'b';
         tmp[1] = '\'';
         tmp[length] = '\'';
@@ -1819,7 +1826,7 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
 
   // Find schema encryption default.
   dd::Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
   if (mdl_handler.ensure_locked(share->db.str) ||
       thd->dd_client()->acquire(share->db.str, &schema))
@@ -1830,7 +1837,7 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
   }
 
   // Decide if we need to print the clause.
-  bool table_is_encrypted = dd::is_encrypted(share->encrypt_type);
+  const bool table_is_encrypted = dd::is_encrypted(share->encrypt_type);
   *print = table_is_encrypted ||
            (schema->default_encryption() != table_is_encrypted);
 
@@ -1974,7 +1981,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   TABLE_SHARE *share = table->s;
   HA_CREATE_INFO create_info;
   bool show_table_options = false;
-  bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
+  const bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
   my_bitmap_map *old_map;
   bool error = false;
   bool omit_compressed_columns_extensions = false;
@@ -2026,7 +2033,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   old_map = tmp_use_all_columns(table, table->read_set);
   auto grd = create_scope_guard(
       [&]() { tmp_restore_column_map(table->read_set, old_map); });
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj = nullptr;
   if (share->tmp_table)
     table_obj = table->s->tmp_table_def;
@@ -2047,7 +2054,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     if system variable 'show_gipk_in_create_table_and_information_schema' is set
     to OFF.
   */
-  bool skip_gipk =
+  const bool skip_gipk =
       (for_show_create_stmt &&
        table_has_generated_invisible_primary_key(table) &&
        !thd->variables.show_gipk_in_create_table_and_information_schema);
@@ -2066,7 +2073,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     // Skip hidden system fields.
     if (field->is_hidden_by_system()) continue;
 
-    enum_field_types field_type = field->real_type();
+    const enum_field_types field_type = field->real_type();
 
     if (ptr != first_field) packet->append(STRING_WITH_LEN(",\n"));
 
@@ -2409,7 +2416,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     /* Print autoextend_size attribute if it is set to a non-zero value */
     if (autoextend_size > 0) {
       char buf[std::numeric_limits<decltype(autoextend_size)>::digits10 + 2];
-      int len = snprintf(buf, sizeof(buf), "%llu", autoextend_size);
+      const int len = snprintf(buf, sizeof(buf), "%llu", autoextend_size);
       assert(len < static_cast<int>(sizeof(buf)));
       packet->append(STRING_WITH_LEN(" /*!80023 AUTOEXTEND_SIZE="));
       packet->append(buf, len);
@@ -2636,7 +2643,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
 
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info) {
-  bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
+  const bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
   char *end, buff[32];
 
   if (!foreign_db_mode) {
@@ -2746,10 +2753,10 @@ void append_definer(const THD *thd, String *buffer,
 
 static void view_store_create_info(const THD *thd, Table_ref *table,
                                    String *buff) {
-  bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
+  const bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
 
   // Print compact view name if the view belongs to the current database
-  bool compact_view_name =
+  const bool compact_view_name =
       thd->db().str != nullptr && (!strcmp(thd->db().str, table->db));
 
   buff->append(STRING_WITH_LEN("CREATE "));
@@ -2869,9 +2876,9 @@ class List_process_list : public Do_THD_Impl {
 
       Security_context *inspect_sctx = inspect_thd->security_context();
 
-      LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-      LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-      LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
+      const LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
+      const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
+      const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
       const bool is_utility_user = acl_is_utility_user(
           inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
@@ -3054,7 +3061,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   // Return list sorted by thread_id.
   std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
 
-  time_t now = time(nullptr);
+  const time_t now = time(nullptr);
   auto now_us = my_micro_time();
   for (size_t ix = 0; ix < thread_infos.size(); ++ix) {
     thread_info *thd_info = thread_infos.at(ix);
@@ -3138,9 +3145,9 @@ class Fill_process_list : public Do_THD_Impl {
 
       Security_context *inspect_sctx = inspect_thd->security_context();
 
-      LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
-      LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
-      LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
+      const LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
+      const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
+      const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
       const bool is_utility_user = acl_is_utility_user(
           inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
@@ -3464,7 +3471,7 @@ static bool get_recursive_status_var_inner(THD *thd, SHOW_VAR *list,
                                            size_t *length,
                                            const CHARSET_INFO **charset) {
   for (; list->name; list++) {
-    int res = strcmp(list->name, name);
+    const int res = strcmp(list->name, name);
     if (res == 0) {
       /*
         if var->type is SHOW_FUNC, call the function.
@@ -4677,7 +4684,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
     }
 
     // EXTRA
-    bool on_update_clause_was_printed =
+    const bool on_update_clause_was_printed =
         print_on_update_clause(field, &type, true);
     if (field->auto_flags & Field::NEXT_NUMBER) {
       if (on_update_clause_was_printed) type.append(STRING_WITH_LEN(" "), cs);
@@ -4900,7 +4907,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
         // CARDINALITY
         KEY *key = show_table->key_info + i;
         if (key->has_records_per_key(j)) {
-          double records =
+          const double records =
               (show_table->file->stats.records / key->records_per_key(j));
           table->field[TMP_TABLE_KEYS_CARDINALITY]->store(
               static_cast<longlong>(round(records)), true);
@@ -4912,7 +4919,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
       if (key_info->flags & HA_SPATIAL)
         str = "SPATIAL";
       else {
-        ha_key_alg key_alg = key_info->algorithm;
+        const ha_key_alg key_alg = key_info->algorithm;
         /* If index algorithm is implicit get SE default. */
         switch (key_alg) {
           case HA_KEY_ALG_SE_SPECIFIC:
@@ -5024,7 +5031,7 @@ bool get_cs_converted_part_value_from_string(THD *thd, Item *item,
                                              const CHARSET_INFO *cs,
                                              bool use_hex) {
   if (item->result_type() == INT_RESULT) {
-    longlong value = item->val_int();
+    const longlong value = item->val_int();
     output_str->set(value, system_charset_info);
     return false;
   }
@@ -5244,10 +5251,16 @@ static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
             query_block->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return nullptr;
+
+  // create_tmp_table() makes read_set and write_set share the same buffer, so
+  // they are always identical, and always have all bits set. For information
+  // schema tables we need to distinguish between read and write, so break the
+  // link between them here.
   my_bitmap_map *bitmaps =
       (my_bitmap_map *)thd->alloc(bitmap_buffer_size(field_count));
   bitmap_init(&table->def_read_set, bitmaps, field_count);
   table->read_set = &table->def_read_set;
+  table->read_set_internal = table->def_read_set;
   bitmap_clear_all(table->read_set);
   return table;
 }
@@ -5348,9 +5361,10 @@ bool mysql_schema_table(THD *thd, LEX *lex, Table_ref *table_list) {
     Query_block *sel = lex->current_query_block();
     Field_translator *transl;
 
-    ulonglong want_privilege_saved = thd->want_privilege;
+    const ulonglong want_privilege_saved = thd->want_privilege;
     thd->want_privilege = SELECT_ACL;
-    enum enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
+    const enum enum_mark_columns save_mark_used_columns =
+        thd->mark_used_columns;
     thd->mark_used_columns = MARK_COLUMNS_READ;
 
     if (table_list->field_translation) {
@@ -5497,7 +5511,8 @@ bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
-  bool res = table_list->schema_table->fill_table(thd, table_list, condition);
+  const bool res =
+      table_list->schema_table->fill_table(thd, table_list, condition);
 
   thd->pop_diagnostics_area();
 
@@ -6108,7 +6123,7 @@ static Table_ref *get_trigger_table(THD *thd, const sp_name *trg_name) {
   dd::Schema_MDL_locker mdl_locker(thd);
 
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
 
   const dd::Schema *sch_obj = nullptr;
   if (mdl_locker.ensure_locked(trg_name->m_db.str) ||
@@ -6142,7 +6157,7 @@ static Table_ref *get_trigger_table(THD *thd, const sp_name *trg_name) {
     table_name_ptr = lc_table_name;
   }
 
-  size_t table_name_length = strlen(table_name_ptr);
+  const size_t table_name_length = strlen(table_name_ptr);
 
   tbl_name.str = thd->strmake(table_name_ptr, table_name_length);
   tbl_name.length = table_name_length;
@@ -6375,8 +6390,8 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
 
       high = (*ptr) >> 4;
       low = (*ptr) & 0x0F;
-      buf[0] = _dig_vec_upper[high];
-      buf[1] = _dig_vec_upper[low];
+      buf[0] = dig_vec_upper[high];
+      buf[1] = dig_vec_upper[low];
       buf[2] = 0;
       output_str->append((const char *)buf);
       ptr++;
@@ -6479,25 +6494,25 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
 
     case MYSQL_TYPE_BIT: {
       const CHARSET_INFO *cs = str->charset();
-      int bit_length = 8 * (metadata >> 8) + (metadata & 0xFF);
-      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
-                                         "bit(%d)", bit_length);
+      const int bit_length = 8 * (metadata >> 8) + (metadata & 0xFF);
+      const size_t length = cs->cset->snprintf(
+          cs, str->ptr(), str->alloced_length(), "bit(%d)", bit_length);
       str->length(length);
     } break;
 
     case MYSQL_TYPE_DECIMAL: {
       const CHARSET_INFO *cs = str->charset();
-      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
-                                         "decimal(%d,?)", metadata);
+      const size_t length = cs->cset->snprintf(
+          cs, str->ptr(), str->alloced_length(), "decimal(%d,?)", metadata);
       str->length(length);
     } break;
 
     case MYSQL_TYPE_NEWDECIMAL: {
       const CHARSET_INFO *cs = str->charset();
-      uint len = (metadata >> 8) & 0xff;
-      uint dec = metadata & 0xff;
-      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
-                                         "decimal(%d,%d)", len, dec);
+      const uint len = (metadata >> 8) & 0xff;
+      const uint dec = metadata & 0xff;
+      const size_t length = cs->cset->snprintf(
+          cs, str->ptr(), str->alloced_length(), "decimal(%d,%d)", len, dec);
       str->length(length);
     } break;
 
@@ -6565,7 +6580,8 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
         This is taken from Field_string::unpack.
       */
       const CHARSET_INFO *cs = str->charset();
-      uint bytes = (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
+      const uint bytes =
+          (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       size_t length;
       if (field_cs)
         length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),

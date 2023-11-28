@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "ut0new.h"
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/object_id.h"
 
 #include <atomic>

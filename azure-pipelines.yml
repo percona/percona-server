@@ -3,14 +3,14 @@ schedules:
   displayName: Daily 1:00 AM UTC build
   branches:
     include:
-    - 8.0
+    - trunk
 
 trigger:
   branches:
     include:
     - '*'
     exclude:
-    - 8.0
+    - trunk
   paths:
     exclude:
     - doc
@@ -47,8 +47,8 @@ jobs:
     fetchDepth: 32
 
   - script: |
-      git fetch origin 8.0
-      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/8.0 -- . | tr '\n' ' ')
+      git fetch origin trunk
+      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/trunk -- . | tr '\n' ' ')
 
       if [ -z "${CHANGED_FILES}" ]; then
           echo --- No changed files
@@ -72,39 +72,63 @@ jobs:
     CCACHE_CPP2: 1
     CCACHE_MAXSIZE: 2G
     OS_NAME: $(Agent.OS)
-    PARENT_BRANCH: 8.0
+    PARENT_BRANCH: trunk
     INVERTED: OFF
 
   strategy:
     matrix:
-      macOS 12 RelWithDebInfo:
-        imageName: 'macOS-12'
+      macOS 13 RelWithDebInfo:
+        imageName: 'macOS-13'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       # skip for a pull request if branch name doesn't contain "fullci"
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        macOS 12 Debug:
-          imageName: 'macOS-12'
+        macOS 13 Debug:
+          imageName: 'macOS-13'
           Compiler: clang
           BuildType: Debug
 
       # clang-6 and newer compilers
-      clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+      clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         UBUNTU_CODE_NAME: jammy
         Compiler: clang
-        CompilerVer: 16
+        CompilerVer: 17
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-16 RelWithDebInfo INVERTED=ON [Ubuntu 22.04 Jammy]:
+        clang-17 RelWithDebInfo INVERTED=ON [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 17
+          BuildType: RelWithDebInfo
+          INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-17 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 17
+          BuildType: Debug
+
+      clang-17 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 17
+        BuildType: Debug
+        INVERTED: ON
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
           UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 16
           BuildType: RelWithDebInfo
-          INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-16 Debug [Ubuntu 22.04 Jammy]:
@@ -113,14 +137,6 @@ jobs:
           Compiler: clang
           CompilerVer: 16
           BuildType: Debug
-
-      clang-16 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
-        Compiler: clang
-        CompilerVer: 16
-        BuildType: Debug
-        INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-15 RelWithDebInfo [Ubuntu 22.04 Jammy]:
@@ -259,7 +275,7 @@ jobs:
         BuildType: Debug
 
 
-      # gcc-7 and newer compilers
+      # gcc-8 and newer compilers
       gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         Compiler: gcc
@@ -279,25 +295,25 @@ jobs:
           CompilerVer: 12
           BuildType: RelWithDebInfo
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-12 Debug [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          Compiler: gcc
-          CompilerVer: 12
-          BuildType: Debug
+      gcc-12 Debug [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        Compiler: gcc
+        CompilerVer: 12
+        BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-11 RelWithDebInfo Ubuntu 20.04 Focal:
+        gcc-11 RelWithDebInfo [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
-      gcc-11 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 11
-        BuildType: Debug
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-11 Debug [Ubuntu 20.04 Focal]:
+          imageName: 'ubuntu-20.04'
+          Compiler: gcc
+          CompilerVer: 11
+          BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
@@ -306,12 +322,11 @@ jobs:
           CompilerVer: 10
           BuildType: RelWithDebInfo
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-10 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 10
-          BuildType: Debug
+      gcc-10 Debug [Ubuntu 20.04 Focal]:
+        imageName: 'ubuntu-20.04'
+        Compiler: gcc
+        CompilerVer: 10
+        BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         gcc-9 RelWithDebInfo [Ubuntu 20.04 Focal]:
@@ -320,36 +335,23 @@ jobs:
           CompilerVer: 9
           BuildType: RelWithDebInfo
 
-      gcc-9 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: gcc
-        CompilerVer: 9
-        BuildType: Debug
-
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
+        gcc-9 Debug [Ubuntu 20.04 Focal]:
           imageName: 'ubuntu-20.04'
           Compiler: gcc
-          CompilerVer: 8
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-8 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: gcc
-          CompilerVer: 8
+          CompilerVer: 9
           BuildType: Debug
 
-      gcc-7 RelWithDebInfo [Ubuntu 20.04 Focal]:
+      gcc-8 RelWithDebInfo [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
-        CompilerVer: 7
+        CompilerVer: 8
         BuildType: RelWithDebInfo
 
-      gcc-7 Debug [Ubuntu 20.04 Focal]:
+      gcc-8 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: gcc
-        CompilerVer: 7
+        CompilerVer: 8
         BuildType: Debug
 
   steps:
@@ -388,7 +390,7 @@ jobs:
         sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
-        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libreadline-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         `# SYSTEM_LIBRARIES = CURL EDITLINE ICU LIBEVENT LZ4 PROTOBUF SSL ZSTD FIDO (Ubuntu 21.04+)`
         if [[ "$(INVERTED)" != "ON" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libicu-dev libevent-dev liblz4-dev zlib1g-dev protobuf-compiler libprotobuf-dev libprotoc-dev libzstd-dev libfido2-dev || exit 1;
@@ -476,22 +478,15 @@ jobs:
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DWITH_ROCKSDB=ON
         -DWITH_COREDUMPER=ON
-        -DWITH_KEYRING_VAULT=ON
-        -DWITH_KEYRING_VAULT_TEST=ON
+        -DWITH_COMPONENT_KEYRING_VAULT=ON
         -DWITH_PAM=ON
       "
 
       function get_ver { printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' ' '); }
-      if [[ ( "$(Compiler)" == "gcc" ) && ( 10#$(get_ver $REAL_COMPILER_VER) -lt 10#$(get_ver 8.1.0) ) ]]; then
-        CMAKE_OPT+="
-          -DWITH_ROUTER=OFF
-          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
-        "
-      fi
-
       if [[ ( "$(Compiler)" == "clang" ) && ( 10#$(get_ver $REAL_COMPILER_VER) -lt 10#$(get_ver 7.0.0) ) ]]; then
         CMAKE_OPT+="
-          -DWITH_PERCONA_AUDIT_LOG_FILTER=OFF
+          -DWITH_COMPONENT_AUDIT_LOG_FILTER=OFF
+          -DWITH_ROUTER=OFF
         "
       fi
 
@@ -514,8 +509,8 @@ jobs:
           CMAKE_OPT+="
             -DWITH_MECAB=system
             -DWITH_NUMA=ON
-            -DWITH_READLINE=system
             -DWITH_SYSTEM_LIBS=ON
+            -DWITH_EDITLINE=system
           "
           `# Required liblz4 1.9.3 and installed version is 1.9.2`
           if [[ "$(imageName)" == "ubuntu-20.04" ]]; then
@@ -547,9 +542,6 @@ jobs:
             -DWITH_FEDERATED_STORAGE_ENGINE=OFF
             -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
             -DWITH_INNODB_MEMCACHED=ON
-
-            -DROCKSDB_PLUGINS=zenfs
-            -DWITH_ZENFS_UTILITY=ON
           "
         fi
       fi

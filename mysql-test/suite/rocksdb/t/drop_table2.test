@@ -87,16 +87,7 @@ set @@global.rocksdb_compact_cf = 'default';
 
 let $output= $MYSQLTEST_VARDIR/tmp/size_output;
 
---source include/parse_rocksdb_fs_uri.inc
-
---let $disk_usage_path = .rocksdb
---let $disk_usage_mask = .sst
---let $disk_usage_output_file = $output
---let $disk_usage_output_file_overwrite = 1
---let $disk_usage_output_prefix =
---let $disk_usage_output_suffix = " before"
---source ../include/zenfs_disk_usage.inc
-
+--exec du -c $MYSQLTEST_VARDIR/mysqld.1/data/.rocksdb/*.sst |grep total |sed 's/[\t]total/ before/' > $output
 drop table t1;
 drop table t2;
 drop table t3;
@@ -120,15 +111,8 @@ let $wait_condition = select count(*) = 0
 --source include/wait_condition.inc
 
 # Check that space is reclaimed
---let $disk_usage_path = .rocksdb
---let $disk_usage_mask = .sst
---let $disk_usage_output_file = $output
---let $disk_usage_output_file_overwrite = 0
---let $disk_usage_output_prefix =
---let $disk_usage_output_suffix = " after"
---source ../include/zenfs_disk_usage.inc
-
+--exec du -c $MYSQLTEST_VARDIR/mysqld.1/data/.rocksdb/*.sst |grep total |sed 's/[\t]total/ after/' >> $output
 --exec perl suite/rocksdb/t/drop_table2_check.pl $output
 
 # Cleanup
---remove_file $output
+--remove_file $MYSQLTEST_VARDIR/tmp/size_output

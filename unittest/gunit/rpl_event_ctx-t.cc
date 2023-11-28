@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "sql/mysqld.h"  // system_charset_info
+#include "sql/mysqld_cs.h"
 #include "sql/rpl_event_ctx.h"
 
 #define INSTANCE Rpl_event_ctx::get_instance()

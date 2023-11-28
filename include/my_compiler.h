@@ -39,6 +39,8 @@
 
 #include "my_config.h"
 
+#include "mysql/attribute.h"
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelihood of the truthfulness
@@ -100,28 +102,15 @@ constexpr bool unlikely(bool expr) { return expr; }
 #endif /* defined(__cplusplus) && defined(__cpp_attributes) && \
           defined(__has_cpp_attribute) */
 
-/*
-  Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
-  Note that Sun Studio supports some __attribute__ variants,
-  but not format or unused which we use quite a lot.
-*/
-#ifndef MY_ATTRIBUTE
-#if defined(__GNUC__) || defined(__clang__)
-#define MY_ATTRIBUTE(A) __attribute__(A)
-#else
-#define MY_ATTRIBUTE(A)
-#endif
-#endif
+#ifndef MY_NODISCARD
+#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
+#endif /* MY_NODISCARD */
 
 #if defined(_MSC_VER)
 #define ALWAYS_INLINE __forceinline
 #else
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
 #endif
-
-#ifndef MY_NODISCARD
-#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
-#endif /* MY_NODISCARD */
 
 #if defined(_MSC_VER)
 #define NO_INLINE __declspec(noinline)

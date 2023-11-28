@@ -21,7 +21,7 @@
 #include <unordered_map>
 
 /* MySQL header files */
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /* RocksDB header files */
 #include "rocksdb/table.h"

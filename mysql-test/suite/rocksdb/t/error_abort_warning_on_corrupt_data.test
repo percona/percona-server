@@ -4,12 +4,6 @@
 --source include/not_parallel.inc
 --source include/have_rocksdb.inc
 --source suite/rocksdb/include/have_write_committed.inc
---source include/parse_rocksdb_fs_uri.inc
-
-if (!$rocksdb_zenfs_disabled)
-{
-  --skip Test doesn't support ZenFS
-}
 
 let DATADIR_LOCATION=$MYSQLTEST_VARDIR/mysqld.1/data;
 

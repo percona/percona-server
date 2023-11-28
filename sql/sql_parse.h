@@ -25,12 +25,11 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <array>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"             // enum_server_command
 #include "sql/handler.h"           // enum_schema_tables
 #include "sql/system_variables.h"  // System_variables
@@ -149,7 +148,7 @@ class Command_names {
     Array indexed by enum_server_command, where each element is a
     description string.
   */
-  static const std::array<const std::string, COM_END + 1> m_names;
+  static const std::string m_names[];
   /**
     Command whose name depends on @@terminology_use_previous.
 
@@ -255,23 +254,6 @@ class Command_names {
   */
   static const std::string &str_session(int cmd) {
     return str_session(int_to_cmd(cmd));
-  }
-
-  /**
-   * Return an enum_server_command corresponding to command string description.
-   * The COM_END is returned in case the command is unknown.
-   *
-   * @param cmd_name The description string
-   * @return The enum_server_command corresponding to the description string
-   */
-  static enum_server_command get_index_by_str_name(const std::string cmd_name) {
-    for (size_t i = 0; i < m_names.size(); ++i) {
-      if (m_names[i] == cmd_name) {
-        return static_cast<enum_server_command>(i);
-      }
-    }
-
-    return COM_END;
   }
 };
 

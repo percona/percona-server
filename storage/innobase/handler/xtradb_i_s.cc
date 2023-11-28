@@ -23,9 +23,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/auth/sql_acl.h"  // PROCESS_ACL
 
 #include "i_s.h"
-#include "m_ctype.h"
 #include "my_sys.h"
 #include "myisampack.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "sql/sql_plugin.h"
 

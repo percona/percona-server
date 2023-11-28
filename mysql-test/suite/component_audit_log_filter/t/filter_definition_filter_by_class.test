@@ -1,0 +1,111 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+--echo #
+--echo # Create all simple filters
+SELECT audit_log_filter_set_filter('log_general', '{"filter": {"class": {"name": "general"}}}');
+SELECT audit_log_filter_set_filter('log_connection', '{"filter": {"class": {"name": "connection"}}}');
+SELECT audit_log_filter_set_filter('log_table_access', '{"filter": {"class": {"name": "table_access"}}}');
+SELECT audit_log_filter_set_filter('log_global_variable', '{"filter": {"class": {"name": "global_variable"}}}');
+SELECT audit_log_filter_set_filter('log_command', '{"filter": {"class": {"name": "command"}}}');
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+SELECT audit_log_filter_set_filter('log_stored_program', '{"filter": {"class": {"name": "stored_program"}}}');
+SELECT audit_log_filter_set_filter('log_authentication', '{"filter": {"class": {"name": "authentication"}}}');
+SELECT audit_log_filter_set_filter('log_message', '{"filter": {"class": {"name": "message"}}}');
+
+SELECT * FROM mysql.audit_log_filter;
+
+SET GLOBAL DEBUG='+d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--echo #
+--echo # Log 'general' events only
+SELECT audit_log_filter_set_user('%', 'log_general');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'connection' events only
+SELECT audit_log_filter_set_user('%', 'log_connection');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'table_access' events only
+SELECT audit_log_filter_set_user('%', 'log_table_access');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'global_variable' events only
+SELECT audit_log_filter_set_user('%', 'log_global_variable');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>global_variable</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'command' events only
+SELECT audit_log_filter_set_user('%', 'log_command');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>command</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'query' events only
+SELECT audit_log_filter_set_user('%', 'log_query');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'stored_program' events only
+SELECT audit_log_filter_set_user('%', 'log_stored_program');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>stored_program</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'authentication' events only
+SELECT audit_log_filter_set_user('%', 'log_authentication');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>authentication</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Log 'message' events only
+SELECT audit_log_filter_set_user('%', 'log_message');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>message</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Enable logging multiple classes with one rule
+SELECT audit_log_filter_set_filter('log_classes_list_1', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
+SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Another way to enable logging multiple classes with one rule
+SELECT audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}');
+SELECT audit_log_filter_set_user('%', 'log_classes_list_2');
+--source generate_audit_events.inc
+--let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>
+--source check_all_events_with_tag.inc
+
+--echo #
+--echo # Cleanup
+SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
+SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

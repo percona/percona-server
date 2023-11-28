@@ -30,16 +30,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 2014/11/17 Shaohua Wang
  ***********************************************************************/
 
+#include <cstdint>
+
 #include "ft_global.h"
-#include "m_ctype.h"
 #include "mysql/plugin_ftparser.h"
+#include "mysql/strings/m_ctype.h"
 
 /* Macros and structs below are from ftdefs.h in MyISAM */
 /** Check a char is true word */
 inline bool true_word_char(char c, bool extra_word_chars, char ch) {
   bool result =
-      ((extra_word_chars) ? !((c) & (_MY_SPC))
-                          : ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_'));
+      ((extra_word_chars)
+           ? !(c & (MY_CHAR_SPC))
+           : (c & (MY_CHAR_U | MY_CHAR_L | MY_CHAR_NMR) || ch == '_'));
   return result;
 }
 
@@ -152,7 +155,7 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
       if (extra_word_chars && *doc == FTB_RQUOT) {
         break;
       }
-      
+
       if (!true_word_char(ctype, extra_word_chars, *doc)) {
         break;
       }

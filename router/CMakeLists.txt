@@ -26,8 +26,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_
   STRING_APPEND(CMAKE_CXX_LINK_FLAGS " --rtlib=compiler-rt -lgcc_s")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.1)
-  MESSAGE(FATAL_ERROR "Compiler version not supported. Please, use -DWITH_ROUTER=OFF or use at least gcc 8.1.")
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+  MESSAGE(FATAL_ERROR "Compiler version not supported. Please, use -DWITH_ROUTER=OFF or use at least clang 7")
 ENDIF()
 
 # Disable ld.gold for clang-7 and clang-8

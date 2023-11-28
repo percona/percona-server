@@ -11,26 +11,10 @@ if ($succeeds)
   eval SET GLOBAL ROCKSDB_CREATE_CHECKPOINT = '$checkpoint';
 
   # Check checkpoint
-  --let $file_exists_file_name = $checkpoint/CURRENT
-  --let $file_exists_inverted = 0
-  --source zenfs_file_exists.inc
+  --exec ls $checkpoint/CURRENT | sed s/.*CURRENT/CURRENT/g
 
   # Cleanup
-  if (!$rocksdb_zenfs_disabled)
-  {
-    --source include/shutdown_mysqld.inc
-  }
-  --let $directory_to_force_delete = $checkpoint
-  --source zenfs_force_rmdir.inc
-  if ($rocksdb_zenfs_disabled)
-  {
-    # fake "# restart" message written to the test log to get identical results in ZenFS / non-ZenFS modes
-    --echo # restart
-  }
-  if (!$rocksdb_zenfs_disabled)
-  {
-    --source include/start_mysqld.inc
-  }
+  --force-rmdir $checkpoint
 }
 if (!$succeeds)
 {

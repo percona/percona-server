@@ -143,20 +143,8 @@ select count(b) from t3;
 # Create a dummy file with a bulk load extesion.  It should be removed when
 # the server starts
 --let $tmpext = .bulk_load.tmp.sst
-
-if ($rocksdb_zenfs_disabled)
-{
-  --let $MYSQLD_DATADIR= `SELECT @@datadir`
-  --let $datadir = $MYSQLD_DATADIR/.rocksdb
-}
-if (!$rocksdb_zenfs_disabled)
-{
-  --let $datadir = $MYSQL_TMP_DIR/zentmp
-  --mkdir $datadir
-}
-
---source include/shutdown_mysqld.inc
-
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $datadir = $MYSQLD_DATADIR/.rocksdb
 --write_file $datadir/test$tmpext
 dummy data
 EOF
@@ -164,38 +152,14 @@ EOF
 dummy data
 EOF
 
-if (!$rocksdb_zenfs_disabled)
-{
-  --file_exists $MYSQL_ZENFS
-
-  --exec $MYSQL_ZENFS restore --zbd=$extracted_zenfs_device --path=$datadir --restore_path=/.rocksdb > /dev/null 2>&1
-  --force-rmdir $datadir
-}
-
 # Show the files exists
-if ($rocksdb_zenfs_disabled)
-{
-  --list_files $datadir *$tmpext
-}
-if (!$rocksdb_zenfs_disabled)
-{
-  --let $zenfs_cmd = $MYSQL_ZENFS list --zbd=$extracted_zenfs_device --path=/.rocksdb | awk '{ print \$6 }' | grep $tmpext
-  --exec $zenfs_cmd
-}
+--list_files $datadir *$tmpext
 
 # Now restart the server and make sure it automatically removes this test file
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
 
 # Show the files do not exist
-if ($rocksdb_zenfs_disabled)
-{
-  --list_files $datadir *$tmpext
-}
-if (!$rocksdb_zenfs_disabled)
-{
-  --error 1
-  --exec $zenfs_cmd
-}
+--list_files $datadir *$tmpext
 
 # Cleanup
 disconnect other;

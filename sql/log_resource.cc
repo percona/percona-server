@@ -50,7 +50,7 @@ bool Log_resource_mi_wrapper::collect_info() {
 
   LOG_INFO log_info;
   mi->get_flushed_relay_log_info(&log_info);
-  size_t dir_len = dirname_length(log_info.log_file_name);
+  const size_t dir_len = dirname_length(log_info.log_file_name);
   Json_string json_log_file(log_info.log_file_name + dir_len);
   Json_int json_log_pos(log_info.pos);
   Json_string json_relay_master_log_file(mi->rli->get_group_master_log_name());
@@ -91,7 +91,7 @@ bool Log_resource_binlog_wrapper::collect_info() {
 
     LOG_INFO log_info;
     binlog->get_current_log(&log_info, false);
-    size_t dir_len = dirname_length(log_info.log_file_name);
+    const size_t dir_len = dirname_length(log_info.log_file_name);
     Json_string json_log_file(log_info.log_file_name + dir_len);
     Json_int json_log_pos(log_info.pos);
 
@@ -122,7 +122,8 @@ bool Log_resource_gtid_state_wrapper::collect_info() {
 
   char *gtid_executed_string;
   Json_object *json_local = static_cast<Json_object *>(get_json());
-  int len = gtid_state->get_executed_gtids()->to_string(&gtid_executed_string);
+  const int len =
+      gtid_state->get_executed_gtids()->to_string(&gtid_executed_string);
   if (!(error = (len < 0))) {
     Json_string json_gtid_executed(gtid_executed_string);
     error = json_local->add_clone("gtid_executed", &json_gtid_executed);

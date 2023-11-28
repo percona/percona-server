@@ -94,12 +94,10 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
-usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/authentication_kerberos.so
-usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
 usr/lib/mysql/plugin/keyring_hashicorp.so
@@ -114,12 +112,18 @@ usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_masking.so
 usr/lib/mysql/plugin/component_masking_functions.so
 usr/lib/mysql/plugin/component_scheduler.so
+usr/lib/mysql/plugin/component_telemetry.so
 ")
 
    SET (DEB_INSTALL_TEST_PLUGINS
 "
 usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
+")
+
+  SET (DEB_INSTALL_CLIENT_PLUGINS
+"
+usr/lib/mysql/plugin/telemetry_client.so
 ")
 
   IF (DEB_AWS_SDK)
@@ -165,15 +169,15 @@ override_dh_strip:
 	dh_strip -pmysql-server
 	dh_strip -pmysql-client
 	dh_strip -pmysql-testsuite
-	dh_strip -plibmysqlclient21 --dbg-package=libmysqlclient21-dbgsym
+	dh_strip -plibmysqlclient22 --dbg-package=libmysqlclient22-dbgsym
 	dh_strip -plibmysqlclient-dev
 ")
 SET (DEB_CONTROL_DBGSYM_DEFAULT
 "
-Package: libmysqlclient21-dbgsym
+Package: libmysqlclient22-dbgsym
 Architecture: any
 Section: debug
-Depends: libmysqlclient21 (=\${binary:Version}), \${misc:Depends}
+Depends: libmysqlclient22 (=\${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for client library
 
 Package: mysql-${DEB_PRODUCTNAME}-test-dbgsym

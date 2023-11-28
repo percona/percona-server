@@ -60,6 +60,7 @@ FOREACH(test_file
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
     test_pidfile.cc
+    test_read_replica.cc
     test_rest_api.cc
     test_rest_api_enable.cc
     test_rest_metadata_cache.cc
@@ -72,6 +73,7 @@ FOREACH(test_file
     test_routing.cc
     test_routing_connection.cc
     test_routing_connection_errors.cc
+    test_routing_retry.cc
     test_routing_strategy.cc
     test_routing_sharing.cc
     test_sd_notify.cc
@@ -155,14 +157,6 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   routing
   )
 ENDFOREACH()
-
-# Suppress warnings for gcc-5 or older
-IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-value" HAVE_NO_UNUSED_VALUE)
-  IF(HAVE_NO_UNUSED_VALUE)
-    ADD_COMPILE_FLAGS(test_rest_api_enable.cc COMPILE_FLAGS "-Wno-unused-value")
-  ENDIF()
-ENDIF()
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.

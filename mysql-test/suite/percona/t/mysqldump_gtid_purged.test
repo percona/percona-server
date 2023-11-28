@@ -1,0 +1,25 @@
+# PS-6112: Inconsistent Binlog_snapshot_gtid when mysqldump used with --single-transaction
+
+--source include/have_debug_sync.inc
+
+# mysqldump supports start-sql-file/finish-sql-file options needed for MTR only in debug build
+--source include/have_debug.inc
+
+--let $MYSQLDUMP_OPTS=--single-transaction --source-data
+--source ../include/mysqldump_gtid_purged.inc
+
+--let $MYSQLDUMP_OPTS=--single-transaction
+--source ../include/mysqldump_gtid_purged.inc
+
+--let $MYSQLDUMP_OPTS=--lock-for-backup --single-transaction
+--source ../include/mysqldump_gtid_purged.inc
+
+# Note for two below cases:
+# This will fallback to --lock-all-tables. As the result in the dump file we will see
+# neither start gtid_executed nor finish gtid_executed. It is caused by FLUSH TABLES
+# statement executed by mysqldump 
+--let $MYSQLDUMP_OPTS=--lock-for-backup
+--source ../include/mysqldump_gtid_purged.inc
+
+--let $MYSQLDUMP_OPTS=--lock-all-tables
+--source ../include/mysqldump_gtid_purged.inc

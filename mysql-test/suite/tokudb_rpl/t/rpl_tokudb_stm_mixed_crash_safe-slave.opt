@@ -1,1 +1,0 @@
---skip-slave-start --relay-log-recovery=1 --transaction_isolation=READ-COMMITTED

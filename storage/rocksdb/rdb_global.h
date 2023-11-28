@@ -277,8 +277,7 @@ const constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 /*
   Maximum index prefix length in bytes.
 */
-const constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
-const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
+constexpr uint MAX_INDEX_COL_LEN = 3072;
 
 /*
   MyRocks specific error codes. NB! Please make sure that you will update

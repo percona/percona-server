@@ -119,26 +119,6 @@ DROP TABLE t1;
 
 --enable_testcase
 
-#
-# Test index prefix length limits.
-#
-set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
-set @@global.rocksdb_large_prefix=0;
-
-CREATE TABLE t1 (
-  a BLOB(1024),
-  KEY (a(767))
-) ENGINE=ROCKSDB;
-DROP TABLE t1;
-
---error ER_TOO_LONG_KEY
-CREATE TABLE t1 (
-  a BLOB(1024),
-  KEY (a(768))
-) ENGINE=ROCKSDB;
-
-set @@global.rocksdb_large_prefix=1;
-
 CREATE TABLE t1 (
   a BLOB(4096),
   KEY (a(3072))
@@ -149,6 +129,4 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   a BLOB(4096),
   KEY (a(3073))
-) ENGINE=ROCKSDB;
-
-set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
+) ENGINE=rocksdb;

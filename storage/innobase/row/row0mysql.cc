@@ -589,7 +589,7 @@ row_decompress_column(
 	ulint		dict_data_len,
 				/*!< in: optional dictionary data length */
 	row_prebuilt_t*	prebuilt)
-				/*!< in: use prebuilt->compress_heap only
+				/*!< in: use prebuilt->blob_heap only
 				here*/
 {
 	ulint buf_len = 0;
@@ -834,7 +834,7 @@ row_mysql_store_blob_ref(
 				/*!< in: optional compression dictionary data
 				length */
 	row_prebuilt_t*	prebuilt)
-				/*<! in: use prebuilt->compress_heap only
+				/*<! in: use prebuilt->blob_heap only
 				here */
 {
 	/* MySQL might assume the field is set to zero except the length and

@@ -2868,7 +2868,8 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 				or templ->icp_rec_field_no
 @param[in]	data		data to store
 @param[in]	len		length of the data
-@param[in]	prebuilt	use prebuilt->compress_heap only here
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression)
 @param[in]	sec_field	secondary index field no if the secondary index
 				record but the prebuilt template is in
 				clustered index format and used only for end

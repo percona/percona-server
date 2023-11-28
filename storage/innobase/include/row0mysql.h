@@ -85,7 +85,7 @@ row_decompress_column(
 	ulint		dict_data_len,
 				/*!< in: optional dictionary data length */
 	row_prebuilt_t*	prebuilt);
-				/*!< in: use prebuilt->compress_heap only
+				/*!< in: use prebuilt->blob_heap only
 				here*/
 
 /** Compress blob/text/varchar column using zlib
@@ -155,7 +155,7 @@ row_mysql_store_blob_ref(
 				/*!< in: optional compression dictionary data
 				length */
 	row_prebuilt_t*	prebuilt);
-				/*<! in: use prebuilt->compress_heap only
+				/*<! in: use prebuilt->blob_heap only
 				here */
 /*******************************************************************//**
 Reads a reference to a BLOB in the MySQL format.
@@ -955,9 +955,9 @@ struct row_prebuilt_t {
 	ulint		n_fetch_cached;	/*!< number of not yet fetched rows
 					in fetch_cache */
 	mem_heap_t*	blob_heap;	/*!< in SELECTS BLOB fields are copied
-					to this heap */
-	mem_heap_t*	compress_heap;  /*!< memory heap used to compress
-					/decompress blob column*/
+					to this heap. It is also used to decompress compressed
+					column */
+	mem_heap_t*	compress_heap;  /*!< memory heap used to compress blob column*/
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
 	bool		in_fts_query;	/*!< Whether we are in a FTS query */
@@ -1066,7 +1066,8 @@ innobase_get_field_from_update_vector(
 				or NULL.
 @param[in]	parent_update	update vector for the parent row
 @param[in]	foreign		foreign key information
-@param[in]	prebuilt	compress_heap must be taken from here
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression)
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(

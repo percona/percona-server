@@ -79,7 +79,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "my_psi_config.h"
 #include "my_shm_defaults.h"
 #include "mysql.h"
@@ -8779,18 +8778,6 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       fprintf(stderr,
               "WARNING: MYSQL_OPT_SSL_FIPS_MODE is deprecated and will be "
               "removed in a future version.\n");
-      char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-      mysql->options.extension->ssl_fips_mode =
-          *static_cast<const ulong *>(arg);
-      if (set_fips_mode(mysql->options.extension->ssl_fips_mode,
-                        ssl_err_string)) {
-        DBUG_PRINT("error", ("fips mode set error %s:", ssl_err_string));
-        set_mysql_extended_error(
-            mysql, CR_SSL_FIPS_MODE_ERR, unknown_sqlstate,
-            "Set Fips mode ON/STRICT failed, detail: '%s'.", ssl_err_string);
-        return 1;
-      }
     } break;
     case MYSQL_OPT_SSL_MODE:
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);

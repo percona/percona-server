@@ -281,6 +281,11 @@ enum mysql_ssl_fips_mode {
   SSL_FIPS_MODE_STRICT
 };
 
+enum mysql_check_ssl_fips_enabled {
+  CHECK_SSL_FIPS_ENABLED_OFF = 0,
+  CHECK_SSL_FIPS_ENABLED_FORCE
+};
+
 typedef struct character_set {
   unsigned int number;   /* character set number              */
   unsigned int state;    /* character set state               */

@@ -325,20 +325,6 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
   return 0;
 }
 
-/**
-  @retval true     for error
-  @retval false    for success
-*/
-static bool configure_ssl_fips_mode(const int fips_mode) {
-  bool rc = false;
-  char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(fips_mode, err_string)) {
-    G_ERROR("openssl fips mode set failed: %s", err_string);
-    rc = true;
-  }
-  return rc;
-}
-
 static int configure_ssl_ca(SSL_CTX *ssl_ctx, const char *ca_file,
                             const char *ca_path) {
   /* Load certs from the trusted ca. */
@@ -476,12 +462,6 @@ int Xcom_network_provider_ssl_library::xcom_init_ssl(
     const char *tls_ciphersuites) {
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
-
-  if (configure_ssl_fips_mode(
-          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode())) {
-    G_ERROR("Error setting the ssl fips mode");
-    goto error;
-  }
 
   SSL_library_init();
   SSL_load_error_strings();

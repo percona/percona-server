@@ -1992,6 +1992,7 @@ static const char *default_dbug_option;
 bool opt_use_ssl = true;
 bool opt_use_admin_ssl = true;
 ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
+ulong opt_check_ssl_fips_enabled = CHECK_SSL_FIPS_ENABLED_OFF;
 
 /* Function declarations */
 
@@ -5685,10 +5686,17 @@ static int init_ssl() {
     LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
            "CRYPTO_set_mem_functions");
   ssl_start();
-  char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string)) {
-    LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
-    return 1;
+
+  if (get_fips_mode() == 1) {
+    LogErr(INFORMATION_LEVEL, ER_SSL_FIPS_MODE_ENABLED);
+  }
+  else {
+    LogErr(INFORMATION_LEVEL, ER_SSL_FIPS_MODE_DISABLED);
+
+    if (opt_check_ssl_fips_enabled == CHECK_SSL_FIPS_ENABLED_FORCE) {
+      LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_FORCE_SET);
+      return 1;
+    }
   }
 
   if (opt_ssl_fips_mode != SSL_FIPS_MODE_OFF)

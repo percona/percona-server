@@ -790,6 +790,7 @@ extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_rwlock_t LOCK_consistent_snapshot;
 
 extern ulong opt_ssl_fips_mode;
+extern ulong opt_check_ssl_fips_enabled;
 
 extern char *opt_disabled_storage_engines;
 

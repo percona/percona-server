@@ -5212,6 +5212,15 @@ static Sys_var_enum Sys_ssl_fips_mode(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""), sys_var::PARSE_EARLY);
 
+static const char *check_ssl_fips_enabled_names[] = {"OFF", "FORCE", nullptr};
+static Sys_var_enum Sys_check_ssl_fips_enabled(
+    "check_ssl_fips_enabled",
+    "Check if OpenSSL FIPS mode is enabled, permitted values are: OFF, FORCE",
+    READ_ONLY GLOBAL_VAR(opt_check_ssl_fips_enabled),
+    CMD_LINE(REQUIRED_ARG), check_ssl_fips_enabled_names,
+    DEFAULT(CHECK_SSL_FIPS_ENABLED_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
+
 static Sys_var_bool Sys_auto_generate_certs(
     "auto_generate_certs",
     "Auto generate SSL certificates at server startup if --ssl is set to "

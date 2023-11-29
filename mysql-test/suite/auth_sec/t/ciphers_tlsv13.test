@@ -7,6 +7,9 @@
 --echo
 --echo # Setup
 --echo
+
+CALL mtr.add_suppression("Value for option .* contains cipher .* that is blocked.");
+
 --connection default
 CREATE USER arthurdent@localhost;
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO arthurdent@localhost;
@@ -47,7 +50,31 @@ INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
                                              "DHE-RSA-AES256-CCM",
                                              "DHE-RSA-AES128-CCM",
                                              "DHE-RSA-CHACHA20-POLY1305"]');
-INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+INSERT INTO cipher_data.blocked VALUES ('["DHE-RSA-AES256-CCM8",
+                                          "DHE-RSA-AES128-CCM8",
+                                          "ECDHE-RSA-AES128-SHA256",
+                                          "ECDHE-RSA-AES256-SHA384",
+                                          "DHE-RSA-AES256-SHA256",
+                                          "DHE-RSA-AES128-SHA256",
+                                          "DHE-RSA-CAMELLIA256-SHA256",
+                                          "DHE-RSA-CAMELLIA128-SHA256",
+                                          "DHE-RSA-AES128-SHA",
+                                          "DHE-RSA-AES256-SHA",
+                                          "DHE-RSA-CAMELLIA256-SHA",
+                                          "DHE-RSA-CAMELLIA128-SHA",
+                                          "AES128-GCM-SHA256",
+                                          "AES128-CCM",
+                                          "AES128-CCM8",
+                                          "AES256-GCM-SHA384",
+                                          "AES256-CCM",
+                                          "AES256-CCM8",
+                                          "AES128-SHA256",
+                                          "AES256-SHA256",
+                                          "AES128-SHA",
+                                          "AES256-SHA",
+                                          "CAMELLIA256-SHA",
+                                          "CAMELLIA128-SHA",
+                                          "AECDH-NULL-SHA",
                                           "ECDHE-RSA-NULL-SHA",
                                           "ECDHE-ECDSA-NULL-SHA",
                                           "GOST94-NULL-GOST94",
@@ -152,7 +179,7 @@ INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
                                           "ECDHE-ECDSA-DES-CBC3-SHA",
                                           "DES-CBC3-SHA"]');
 --let $TLS_VERSION = TLSv1.2
---source suite/auth_sec/include/wl15800_cipher_test.inc
+--source suite/auth_sec/include/ciphers_test.inc
 
 --echo #=======================================================================
 --echo
@@ -165,8 +192,9 @@ INSERT INTO cipher_data.acceptable VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "TLS_AES_256_GCM_SHA384",
                                              "TLS_CHACHA20_POLY1305_SHA256",
                                              "TLS_AES_128_CCM_SHA256"]');
+INSERT INTO cipher_data.blocked VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
 --let $TLS_VERSION = TLSv1.3
---source suite/auth_sec/include/wl15800_cipher_test.inc
+--source suite/auth_sec/include/ciphers_test.inc
 
 --echo
 --echo #=======================================================================
@@ -196,7 +224,13 @@ INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-ECDSA-AES128-GCM-SHA256",
                                              "ECDHE-ECDSA-CHACHA20-POLY1305",
                                              "ECDHE-ECDSA-AES256-CCM",
                                              "ECDHE-ECDSA-AES128-CCM"]');
-INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+INSERT INTO cipher_data.blocked VALUES ('["ECDHE-ECDSA-AES256-CCM8",
+                                          "ECDHE-ECDSA-AES128-CCM8",
+                                          "ECDHE-ECDSA-AES128-SHA256",
+                                          "ECDHE-ECDSA-AES256-SHA384",
+                                          "ECDHE-ECDSA-AES128-SHA",
+                                          "ECDHE-ECDSA-AES256-SHA",
+                                          "AECDH-NULL-SHA",
                                           "ECDHE-RSA-NULL-SHA",
                                           "ECDHE-ECDSA-NULL-SHA",
                                           "GOST94-NULL-GOST94",
@@ -301,7 +335,7 @@ INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
                                           "ECDHE-ECDSA-DES-CBC3-SHA",
                                           "DES-CBC3-SHA"]');
 --let $TLS_VERSION = TLSv1.2
---source suite/auth_sec/include/wl15800_cipher_test.inc
+--source suite/auth_sec/include/ciphers_test.inc
 
 --echo #=======================================================================
 --echo
@@ -314,8 +348,9 @@ INSERT INTO cipher_data.acceptable VALUES ('["TLS_AES_128_GCM_SHA256",
                                              "TLS_AES_256_GCM_SHA384",
                                              "TLS_CHACHA20_POLY1305_SHA256",
                                              "TLS_AES_128_CCM_SHA256"]');
+INSERT INTO cipher_data.blocked VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
 --let $TLS_VERSION = TLSv1.3
---source suite/auth_sec/include/wl15800_cipher_test.inc
+--source suite/auth_sec/include/ciphers_test.inc
 
 --echo
 --echo #=======================================================================

@@ -3,4 +3,4 @@
 # --ssl-cipher=             - we need only this TLSv1.2 cipher
 # --tls-version=            - server accepts only TLSv1.2
 
---ssl-cipher=DHE-RSA-AES256-SHA --tls-ciphersuites= --tls-version=TLSv1.2
+--ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 --tls-ciphersuites= --tls-version=TLSv1.2

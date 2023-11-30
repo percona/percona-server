@@ -301,7 +301,8 @@ this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
 @param[in]	eval_table	mysql table used to evaluate virtual column
 				value, see innobase_get_computed_value().
-@param[in]	prebuilt	compress_heap must be taken from here
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression)
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(

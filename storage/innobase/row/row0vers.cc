@@ -480,7 +480,8 @@ row_vers_non_vc_match(
 @param[in]	clust_index	clustered index
 @param[in]	index		the secondary index
 @param[in]	heap		heap used to build virtual dtuple
-@param[in]	prebuilt	compress_heap must be taken from here */
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression) */
 static
 void
 row_vers_build_clust_v_col(
@@ -816,7 +817,8 @@ func_exit:
 @param[in,out]	heap		heap memory
 @param[in,out]	v_heap		heap memory to keep virtual colum dtuple
 @param[in]	mtr		mtr holding the latch on rec
-@param[in]	prebuilt	compress_heap must be taken from here
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression)
 @return dtuple contains virtual column data */
 static
 const dtuple_t*

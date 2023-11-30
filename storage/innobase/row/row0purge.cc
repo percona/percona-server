@@ -1175,9 +1175,12 @@ row_purge_step(que_thr_t* thr)
 		row_purge_end(thr);
 	}
 
-	if (thr->prebuilt !=0 && thr->prebuilt->compress_heap != 0) {
-		mem_heap_empty(thr->prebuilt->compress_heap);
+	/* We use blob_heap to decompress compressed column. */
+	if (thr->prebuilt !=0 && thr->prebuilt->blob_heap != 0) {
+		mem_heap_empty(thr->prebuilt->blob_heap);
 	}
+	/* compress_heap was not used */
+	ut_ad(thr->prebuilt == 0 || thr->prebuilt->compress_heap == 0);
 
 	return(thr);
 }

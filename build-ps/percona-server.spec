@@ -141,7 +141,6 @@ Source5:        mysql_config.sh
 Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Source999:      call-home.sh
 Patch0:         mysql-5.7-sharedlib-rename.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  gcc
@@ -239,7 +238,6 @@ Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
 Requires:       percona-icu-data-files
-Requires:       curl
 Requires:       openssl
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
@@ -758,10 +756,6 @@ if [ -d /etc/percona-server.conf.d ]; then
         echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
     fi
 fi
-
-cp %SOURCE999 /tmp/ 2>/dev/null ||
-bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
-rm -f /tmp/call-home.sh
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following command to install these functions (fnv_64, fnv1a_64, murmur_hash):"

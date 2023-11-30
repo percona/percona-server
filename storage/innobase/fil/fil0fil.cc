@@ -2190,7 +2190,7 @@ i/o on a tablespace which does not exist */
 static dberr_t fil_read(const page_id_t &page_id, const page_size_t &page_size,
                         ulint byte_offset, ulint len, void *buf) {
   return fil_io(IORequestRead, true, page_id, page_size, byte_offset, len, buf,
-                nullptr);
+                nullptr, nullptr, false);
 }
 
 /** Writes data to a space from a buffer. Remember that the possible incomplete
@@ -2211,7 +2211,7 @@ static dberr_t fil_write(const page_id_t &page_id, const page_size_t &page_size,
   ut_ad(!srv_read_only_mode);
 
   return fil_io(IORequestWrite, true, page_id, page_size, byte_offset, len, buf,
-                nullptr);
+                nullptr, nullptr, false);
 }
 
 /** Look up a tablespace. The caller should hold an InnoDB table lock or
@@ -8053,9 +8053,9 @@ void fil_aio_wait(ulint segment) {
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
-                const page_size_t &page_size, ulint byte_offset, ulint len,
-                void *buf, void *message, trx_t *trx, bool should_buffer) {
+dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
+               const page_size_t &page_size, ulint byte_offset, ulint len,
+               void *buf, void *message, trx_t *trx, bool should_buffer) {
   auto shard = fil_system->shard_by_id(page_id.space());
 #ifdef UNIV_DEBUG
   if (!sync) {

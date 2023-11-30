@@ -85,14 +85,8 @@ MYSQL_ADD_EXECUTABLE(mysqlcheck
 MYSQL_ADD_EXECUTABLE(mysqldump
   mysqldump.cc
   multi_factor_passwordopt-vars.cc
-<<<<<<< HEAD
-  LINK_LIBRARIES perconaserverclient
-||||||| merged common ancestors
-  LINK_LIBRARIES mysqlclient
-=======
   multi_option.cc
-  LINK_LIBRARIES mysqlclient
->>>>>>> mysql-8.2.0
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlimport
   mysqlimport.cc

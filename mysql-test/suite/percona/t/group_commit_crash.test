@@ -46,7 +46,7 @@ while ($numinserts)
 
 while ($numtests)
 {
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   START TRANSACTION;
   insert into t1 select * from t2;

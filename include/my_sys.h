@@ -499,14 +499,8 @@ inline bool my_b_inited(const IO_CACHE *info) {
 constexpr int my_b_EOF = INT_MIN;
 
 inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
-<<<<<<< HEAD
-  if ((size_t)(info->read_end - info->read_pos) >= count) {
-||||||| merged common ancestors
-  if (info->read_pos + count <= info->read_end) {
-=======
   assert(info->type != WRITE_CACHE);
-  if (info->read_pos + count <= info->read_end) {
->>>>>>> mysql-8.2.0
+  if ((size_t)(info->read_end - info->read_pos) >= count) {
     memcpy(buffer, info->read_pos, count);
     info->read_pos += count;
     return 0;
@@ -515,14 +509,8 @@ inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
 }
 
 inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
-<<<<<<< HEAD
-  if ((size_t)(info->write_end - info->write_pos) >= count) {
-||||||| merged common ancestors
-  if (info->write_pos + count <= info->write_end) {
-=======
   assert(info->type != READ_CACHE);
-  if (info->write_pos + count <= info->write_end) {
->>>>>>> mysql-8.2.0
+  if ((size_t)(info->write_end - info->write_pos) >= count) {
     memcpy(info->write_pos, buffer, count);
     info->write_pos += count;
     return 0;

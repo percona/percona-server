@@ -680,7 +680,7 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
       if (unlikely(send_packet())) return 1;
 
       DBUG_EXECUTE_IF("dump_thread_wait_after_send_write_rows", {
-        if (event_type == binary_log::WRITE_ROWS_EVENT) {
+        if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT) {
           thd->get_protocol()->flush();
           static constexpr char act[] =
               "now "
@@ -1271,10 +1271,9 @@ inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
 
   /*
     As we pre-allocate the buffer to store the event at reset_transmit_packet,
-    the buffer should not be changed while calling read_log_event (unless binlog
-    encryption is on), even knowing that it might call functions to replace the
-    buffer by one with the size to fit the event. When encryption is on - the
-    buffer will be replaced with memory allocated for storing decrypted data.
+    the buffer should not be changed while calling read_log_event, even knowing
+    that it might call functions to replace the buffer by one with the size to
+    fit the event.
   */
   assert(reinterpret_cast<char *>(*event_ptr) ==
          (m_packet.ptr() + event_offset));

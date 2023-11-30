@@ -4342,21 +4342,9 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
       rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
     }
     if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_UNKNOWN &&
-<<<<<<< HEAD
-        (type == binary_log::GTID_LOG_EVENT ||
-         type == binary_log::ANONYMOUS_GTID_LOG_EVENT)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps) {
-||||||| merged common ancestors
-        (type == binary_log::GTID_LOG_EVENT ||
-         type == binary_log::ANONYMOUS_GTID_LOG_EVENT)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
-          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
-=======
         (type == mysql::binlog::event::GTID_LOG_EVENT ||
          type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
-          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
->>>>>>> mysql-8.2.0
+      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps) {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_FOUND;
       } else {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
@@ -4382,20 +4370,9 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
         the immediate master does not support commit timestamps
         in Gtid_log_events
       */
-<<<<<<< HEAD
-      if (type != binary_log::ROTATE_EVENT &&
-          type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-          type != binary_log::START_5_7_ENCRYPTION_EVENT) {
-||||||| merged common ancestors
-      if (type != binary_log::ROTATE_EVENT &&
-          type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-=======
       if (type != mysql::binlog::event::ROTATE_EVENT &&
           type != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
           type != mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
->>>>>>> mysql-8.2.0
         // Calculate when we should execute the event.
         sql_delay_end = ev->common_header->when.tv_sec +
                         rli->mi->clock_diff_with_master + sql_delay;
@@ -4756,20 +4733,9 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
     }
 
     if (!error && rli->is_mts_recovery() &&
-<<<<<<< HEAD
-        ev->get_type_code() != binary_log::ROTATE_EVENT &&
-        ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-        ev->get_type_code() != binary_log::START_5_7_ENCRYPTION_EVENT) {
-||||||| merged common ancestors
-        ev->get_type_code() != binary_log::ROTATE_EVENT &&
-        ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-=======
         ev->get_type_code() != mysql::binlog::event::ROTATE_EVENT &&
         ev->get_type_code() != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
         ev->get_type_code() != mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
->>>>>>> mysql-8.2.0
       if (ev->starts_group()) {
         rli->mts_recovery_group_seen_begin = true;
       } else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
@@ -5618,7 +5584,7 @@ extern "C" void *handle_slave_io(void *arg) {
                   static_cast<const uchar *>(mysql->net.read_pos + 1);
               Log_event_type event_type =
                   static_cast<Log_event_type>(event_buf2[EVENT_TYPE_OFFSET]);
-              if (event_type == binary_log::XID_EVENT) {
+              if (event_type == mysql::binlog::event::XID_EVENT) {
                 static constexpr char act[] =
                     "now signal relay_xid_reached wait_for resume";
                 assert(
@@ -5808,24 +5774,15 @@ extern "C" void *handle_slave_io(void *arg) {
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_unknown_event",
-<<<<<<< HEAD
             /*
              * Cast to uchar, because of Percona's events
              * which have values > 128. This causes ENUM_END_EVENT to be > 128
              * but event_buf is char, so comparison does not work.
              */
             if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >=
-                binary_log::ENUM_END_EVENT) thd->killed =
-                THD::KILLED_NO_VALUE;);
-||||||| merged common ancestors
-            if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
-                thd->killed = THD::KILLED_NO_VALUE;);
-=======
-            if (event_buf[EVENT_TYPE_OFFSET] >=
                 mysql::binlog::event::ENUM_END_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
->>>>>>> mysql-8.2.0
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",
                         { thd->killed = THD::KILLED_NO_VALUE; });
         /*
@@ -6454,22 +6411,11 @@ bool mts_recovery_groups(Relay_log_info *rli) {
              (ev = relaylog_file_reader.read_event_object())) {
         assert(ev->is_valid());
 
-<<<<<<< HEAD
-        if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
-            ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
-            ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT) {
-||||||| merged common ancestors
-        if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
-            ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-=======
         if (ev->get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
             ev->get_type_code() ==
                 mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
             ev->get_type_code() ==
                 mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
->>>>>>> mysql-8.2.0
           delete ev;
           ev = nullptr;
           continue;
@@ -7678,42 +7624,16 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
       to the last skipped transaction. Note that,
       we update only the positions and not the file names, as a ROTATE
       EVENT from the master prior to this will update the file name.
+
+      When source binlog is PS 5_7 encrypted it will also send heartbeat
+      event after reading Start_encryption_event from the binlog.
+      As Start_encryption_event is not sent to replica, the source
+      informs the replica to update it's master_log_pos by sending
+      heartbeat event.
     */
-    if ((mi->is_auto_position() == false ||
-         mi->get_master_log_pos() >= position || mi_log_filename.empty()))
+    if (mi->get_master_log_pos() >= position || mi_log_filename.empty())
       return 0;
 
-<<<<<<< HEAD
-    I/O thread receives the heartbeat event and updates mi
-    only if the received heartbeat position is greater than
-    mi->get_master_log_pos(). This event is written to the
-    relay log as an ignored Rotate event. SQL thread reads
-    the rotate event only to update the coordinates corresponding
-    to the last skipped transaction. Note that,
-    we update only the positions and not the file names, as a ROTATE
-    EVENT from the master prior to this will update the file name.
-
-    When master's binlog is PS 5_7 encrypted it will also sent heartbeat
-    event after reading Start_encryption_event from the binlog.
-    As Start_encryption_event is not sent to slave, the master
-    informs the slave to update it's master_log_pos by sending
-    heartbeat event.
-  */
-  if (mi->get_master_log_pos() < position && !mi_log_filename.empty()) {
-||||||| merged common ancestors
-    I/O thread receives the heartbeat event and updates mi
-    only if the received heartbeat position is greater than
-    mi->get_master_log_pos(). This event is written to the
-    relay log as an ignored Rotate event. SQL thread reads
-    the rotate event only to update the coordinates corresponding
-    to the last skipped transaction. Note that,
-    we update only the positions and not the file names, as a ROTATE
-    EVENT from the master prior to this will update the file name.
-  */
-  if (mi->is_auto_position() && mi->get_master_log_pos() < position &&
-      !mi_log_filename.empty()) {
-=======
->>>>>>> mysql-8.2.0
     DBUG_EXECUTE_IF("reached_heart_beat_queue_event",
                     { rpl_replica_debug_point(DBUG_RPL_S_HEARTBEAT_EV); };);
     mi->set_master_log_pos(position);
@@ -7790,17 +7710,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   mysql::binlog::event::Log_event_basic_info log_event_info;
   ulonglong compressed_transaction_bytes = 0;
   ulonglong uncompressed_transaction_bytes = 0;
-<<<<<<< HEAD
-  auto compression_type = binary_log::transaction::compression::type::NONE;
+  auto compression_type = mysql::binlog::event::compression::type::NONE;
   Log_event_type event_type =
       (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
-||||||| merged common ancestors
-  auto compression_type = binary_log::transaction::compression::type::NONE;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
-=======
-  auto compression_type = mysql::binlog::event::compression::type::NONE;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
->>>>>>> mysql-8.2.0
 
   assert(checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF ||
          checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF ||
@@ -7834,14 +7746,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   // Emulate the network corruption
   DBUG_EXECUTE_IF(
       "corrupt_queue_event",
-<<<<<<< HEAD
-      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          event_type != binary_log::START_5_7_ENCRYPTION_EVENT) {
-||||||| merged common ancestors
-      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
-=======
       if (event_type != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
->>>>>>> mysql-8.2.0
         char *debug_event_buf_c = const_cast<char *>(buf);
         int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
         debug_event_buf_c[debug_cor_pos] = ~debug_event_buf_c[debug_cor_pos];
@@ -8240,20 +8145,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   */
   DBUG_EXECUTE_IF(
       "simulate_unknown_ignorable_log_event",
-<<<<<<< HEAD
-      if (event_type == binary_log::WRITE_ROWS_EVENT ||
-          event_type == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-        uchar *event_buf =
-            const_cast<uchar *>(reinterpret_cast<const uchar *>(buf));
-||||||| merged common ancestors
-      if (event_type == binary_log::WRITE_ROWS_EVENT ||
-          event_type == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-        char *event_buf = const_cast<char *>(buf);
-=======
       if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
           event_type == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT) {
-        char *event_buf = const_cast<char *>(buf);
->>>>>>> mysql-8.2.0
+        uchar *event_buf =
+            const_cast<uchar *>(reinterpret_cast<const uchar *>(buf));
         /* Overwrite the log event type with an unknown type. */
         event_buf[EVENT_TYPE_OFFSET] = mysql::binlog::event::ENUM_END_EVENT + 1;
         /* Set LOG_EVENT_IGNORABLE_F for the log event. */

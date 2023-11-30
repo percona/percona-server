@@ -93,7 +93,6 @@ INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
 ##########################################
 INSTALL PLUGIN test_sql_errors SONAME 'TEST_SQL_ERRORS';
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
-<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL	<TIME_MS>	0	0
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id	<TIME_MS>	0	0
@@ -102,33 +101,13 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
-||||||| merged common ancestors
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-=======
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 Warnings:
 <ID>	1287	<HOST_NAME>
->>>>>>> mysql-8.2.0
 ##########################################
 # Stop plugin
 ##########################################
 UNINSTALL PLUGIN test_sql_errors;
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
-<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL	<TIME_MS>	0	0
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id	<TIME_MS>	0	0
@@ -137,27 +116,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
-||||||| merged common ancestors
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-=======
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
-<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
-<ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 Warnings:
 <ID>	1287	<HOST_NAME>
->>>>>>> mysql-8.2.0
 ##########################################
 # Cleanup
 ##########################################

@@ -3091,7 +3091,8 @@ constexpr const decltype(
  */
 #define HTON_SUPPORTS_EXTERNAL_SOURCE (1 << 21)
 
-<<<<<<< HEAD
+constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
+
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3114,12 +3115,6 @@ constexpr const decltype(
 
 /** End of Percona specific HTON_* defines */
 
-
-||||||| merged common ancestors
-=======
-constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
-
->>>>>>> mysql-8.2.0
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 

@@ -3547,15 +3547,7 @@ sub environment_setup {
     ",print_suppressions=0"
     if $opt_sanitize;
 
-<<<<<<< HEAD
-  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
-||||||| merged common ancestors
-  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
-    . ",detect_stack_use_after_return=false"
-=======
   $ENV{'ASAN_OPTIONS'} = "suppressions=\"${glob_mysql_test_dir}/asan.supp\""
-    . ",detect_stack_use_after_return=false"
->>>>>>> mysql-8.2.0
     if $opt_sanitize;
 
 # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.

@@ -1,7 +1,7 @@
 #
 # PS-5181 Assertion when droping temporary and non-temporary table as single DROP statement when Row Based Logging (RBL)
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a int) engine = MyISAM;
 CREATE TEMPORARY TABLE t2 (a int);
 SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:1';

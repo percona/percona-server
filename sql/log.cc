@@ -69,6 +69,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
+#include "my_rnd.h"
 #include "my_time.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"

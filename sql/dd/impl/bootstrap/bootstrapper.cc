@@ -57,12 +57,7 @@
 #include "sql/dd/impl/upgrade/dd.h"             // dd::upgrade::upgrade_tables
 #include "sql/dd/impl/upgrade/server.h"  // dd::upgrade::do_server_upgrade_checks
 #include "sql/dd/impl/utils.h"           // dd::execute_query
-<<<<<<< HEAD
-#include "sql/dd/info_schema/metadata.h"
-||||||| merged common ancestors
-=======
 #include "sql/dd/info_schema/metadata.h"  // IS_DD_VERSION
->>>>>>> mysql-8.2.0
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/object_table.h"             // dd::Object_table

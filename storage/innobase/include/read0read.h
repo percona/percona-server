@@ -116,15 +116,7 @@ class MVCC {
   Get the oldest view in the system. It will also move the delete
   marked read views from the views list to the freed list.
   @return oldest view if found or NULL */
-<<<<<<< HEAD
   ReadView *get_oldest_view() const;
-  ReadView *get_view_created_by_trx_id(trx_id_t trx_id) const;
-||||||| merged common ancestors
-  inline ReadView *get_oldest_view() const;
-  ReadView *get_view_created_by_trx_id(trx_id_t trx_id) const;
-=======
-  inline ReadView *get_oldest_view() const;
->>>>>>> mysql-8.2.0
 
  private:
   // Prevent copying

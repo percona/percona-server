@@ -200,6 +200,8 @@ setup_actors	ROLE	NULL	NULL
 setup_actors	USER	NULL	NULL
 setup_consumers	NAME	NULL	NULL
 setup_instruments	NAME	NULL	NULL
+setup_meters	NAME	NULL	NULL
+setup_metrics	NAME	NULL	NULL
 setup_objects	OBJECT_NAME	NULL	NULL
 setup_objects	OBJECT_SCHEMA	NULL	NULL
 setup_objects	OBJECT_TYPE	NULL	NULL

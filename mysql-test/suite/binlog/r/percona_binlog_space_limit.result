@@ -69,7 +69,7 @@ show binary logs;
 Log_name	File_size	Encrypted
 binary.000011	#	#
 binary.000012	#	#
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 show binary logs;
 Log_name	File_size	Encrypted
 binary.000001	#	#

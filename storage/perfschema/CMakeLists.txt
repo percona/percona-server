@@ -373,13 +373,9 @@ table_plugin_table.cc
 table_replication_applier_filters.cc
 table_replication_applier_global_filters.cc
 table_binary_log_transaction_compression_stats.cc
-<<<<<<< HEAD
+telemetry_pfs_metrics.cc
 table_malloc_stats.cc
 table_malloc_stats.h
-||||||| merged common ancestors
-=======
-telemetry_pfs_metrics.cc
->>>>>>> mysql-8.2.0
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY

@@ -1757,19 +1757,13 @@ void srv_mon_process_existing_counter(
       value = stat.n_pages_read;
       break;
 
-<<<<<<< HEAD
     /* innodb_pages0_read */
     case MONITOR_OVLD_PAGES0_READ:
       value = srv_stats.page0_read;
       break;
 
-    /* innodb_data_reads, the total number of data reads */
-||||||| merged common ancestors
-    /* innodb_data_reads, the total number of data reads */
-=======
     /* innodb_data_read, the amount of data read since the server was started
      * (in bytes) */
->>>>>>> mysql-8.2.0
     case MONITOR_OVLD_BYTE_READ:
       value = srv_stats.data_read;
       break;

@@ -1158,35 +1158,17 @@ dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-    /* Stop the recv_writer thread from issuing any LRU
-    flush batches. */
-    mutex_enter(&recv_sys->writer_mutex);
-
-    /* Wait for any currently run batch to end. */
-    buf_flush_wait_LRU_batch_end();
-
-=======
-    /* Stop the recv_writer thread from issuing any LRU
-    flush batches. */
-    mutex_enter(&recv_sys->writer_mutex);
-
-    /* Wait for any currently run batch to end. Note that BUF_FLUSH_LIST could
-    only be initiated by us in earlier call, but buf_pool_invalidate() waits for
-    all batches to finish, so only BUF_FLUSH_LRU can be running.
-    TBD: why is it important to wait for BUF_FLUSH_LRU to finish here? */
-    buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
-
->>>>>>> mysql-8.2.0
     os_event_reset(recv_sys->flush_end);
 
     os_event_set(recv_sys->flush_start);
 
     os_event_wait(recv_sys->flush_end);
 
-    /* Wait for any currently running batch to end. */
-    buf_flush_wait_LRU_batch_end();
+    /* Wait for any currently run batch to end. Note that BUF_FLUSH_LIST could
+    only be initiated by us in earlier call, but buf_pool_invalidate() waits for
+    all batches to finish, so only BUF_FLUSH_LRU can be running.
+    TBD: why is it important to wait for BUF_FLUSH_LRU to finish here? */
+    buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
 
     buf_pool_invalidate();
 
@@ -3931,21 +3913,11 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Free the resources of the recovery system */
   recv_recovery_on = false;
 
-<<<<<<< HEAD
-  /* Now wait for currently in progress batches to finish. */
-  buf_flush_wait_LRU_batch_end();
-||||||| merged common ancestors
-  /* By acquiring the mutex we ensure that the recv_writer thread
-  won't trigger any more LRU batches. Now wait for currently
-  in progress batches to finish. */
-  buf_flush_wait_LRU_batch_end();
-=======
   /* By acquiring the mutex we ensure that the recv_writer thread won't trigger
   any more LRU batches. Now wait for currently in progress batches to finish.
   Note that BUF_FLUSH_LIST batches are awaited to finish before we get here.
   TBD: Why is it important to wait for BUF_FLUSH_LRU to finish here? */
   buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
->>>>>>> mysql-8.2.0
 
   MetadataRecover *metadata{};
 

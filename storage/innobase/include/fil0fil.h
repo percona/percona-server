@@ -1770,15 +1770,11 @@ number should be zero.
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-[[nodiscard]] dberr_t _fil_io(const IORequest &type, bool sync,
-                              const page_id_t &page_id,
-                              const page_size_t &page_size, ulint byte_offset,
-                              ulint len, void *buf, void *message, trx_t *trx,
-                              bool should_buffer);
-
-#define fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message) \
-  _fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message,      \
-          NULL, false)
+[[nodiscard]] dberr_t fil_io(const IORequest &type, bool sync,
+                             const page_id_t &page_id,
+                             const page_size_t &page_size, ulint byte_offset,
+                             ulint len, void *buf, void *message, trx_t *trx,
+                             bool should_buffer);
 
 /** Waits for an AIO operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -2058,19 +2054,13 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
-<<<<<<< HEAD
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
 @return DB_SUCCESS on success, DB_ERROR on failure */
 MY_NODISCARD
 dberr_t fil_temp_update_encryption(fil_space_t *space);
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-||||||| merged common ancestors
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-=======
 #ifdef UNIV_LINUX
->>>>>>> mysql-8.2.0
 /**
 Try and enable FusionIO atomic writes.
 @param[in] file         OS file handle

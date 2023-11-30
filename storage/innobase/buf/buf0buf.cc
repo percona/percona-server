@@ -56,12 +56,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0buf.h"
 #include "log0chkp.h"
-<<<<<<< HEAD
-#include "scope_guard.h"
-||||||| merged common ancestors
-=======
 #include "page0page.h"
->>>>>>> mysql-8.2.0
+#include "scope_guard.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -4376,16 +4372,8 @@ buf_block_t *Buf_fetch<T>::single_page() {
   }
 #endif /* UNIV_DEBUG */
 
-<<<<<<< HEAD
-  ut_ad(m_mode == Page_fetch::POSSIBLY_FREED ||
-        m_mode == Page_fetch::PEEK_IF_IN_POOL ||
+  ut_ad(is_possibly_freed() || m_mode == Page_fetch::PEEK_IF_IN_POOL ||
         !block->page.file_page_was_freed);
-||||||| merged common ancestors
-  ut_ad(m_mode == Page_fetch::POSSIBLY_FREED ||
-        !block->page.file_page_was_freed);
-=======
-  ut_ad(is_possibly_freed() || !block->page.file_page_was_freed);
->>>>>>> mysql-8.2.0
 
   /* Check if this is the first access to the page */
   const auto access_time = buf_page_is_accessed(&block->page);
@@ -5598,33 +5586,10 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
 
     ut_a(owns_sx_lock || buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE);
 
-<<<<<<< HEAD
-  ut_a(owns_sx_lock || buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE);
-
-  /* Since we aborted a write request. We need to adjust the number of
-  of outstanding write requests. */
-  --buf_pool->n_flush[flush_type];
-
-  if (buf_pool->n_flush[flush_type] == 0 &&
-      buf_pool->init_flush[flush_type] == false) {
-    os_event_set(buf_pool->no_flush[flush_type]);
-  }
-
-  mutex_exit(&buf_pool->flush_state_mutex);
-||||||| merged common ancestors
-  ut_a(owns_sx_lock || buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE);
-
-  /* Since we aborted a write request. We need to adjust the number of
-  of outstanding write requests. */
-  --buf_pool->n_flush[flush_type];
-
-  mutex_exit(&buf_pool->flush_state_mutex);
-=======
     /* Since we aborted a write request. We need to adjust the number of
     outstanding write requests. */
     --buf_pool->n_flush[flush_type];
   });
->>>>>>> mysql-8.2.0
 
   /* Free the page. This can fail, if some other thread start to free this stale
   page during page creation - the buf_page_free_stale will buf fix the page to
@@ -6205,70 +6170,18 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-<<<<<<< HEAD
   os_event_reset(buf_pool->run_lru);
   auto guard = create_scope_guard([&]() { os_event_set(buf_pool->run_lru); });
 
-  mutex_enter(&buf_pool->flush_state_mutex);
-
-||||||| merged common ancestors
-  mutex_enter(&buf_pool->flush_state_mutex);
-
-=======
->>>>>>> mysql-8.2.0
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-<<<<<<< HEAD
     /* Although this function is called during startup and
     during redo application phase during recovery, Percona InnoDB
     might be running several LRU manager threads at this stage.
     Hence, a new write batch can be in initialization stage at this point. */
-||||||| merged common ancestors
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in initialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == false);
-=======
-    /* As this function is called during startup and during redo application
-    phase during recovery, a flush might be requested either by
-    recv_writer thread (which is not started yet, or paused by writer_mutex), or
-    by our own thread (in which case we wait for it to finish initialization).
-    No new write batch can be in initialization stage at this point.
-    This also explains why we don't need flush_state_mutex to assert this. */
-    ut_ad(!buf_pool->init_flush[i]);
->>>>>>> mysql-8.2.0
 
-<<<<<<< HEAD
     /* For buffer pool invalidation to proceed we must ensure there is NO
     write activity happening. */
-    if (buf_pool->n_flush[i] > 0 || buf_pool->init_flush[i]) {
-      buf_flush_t type = static_cast<buf_flush_t>(i);
-
-      mutex_exit(&buf_pool->flush_state_mutex);
-      buf_flush_wait_batch_end(buf_pool, type);
-      mutex_enter(&buf_pool->flush_state_mutex);
-    }
-
-    ut_ad(buf_pool->init_flush[i] == false);
-||||||| merged common ancestors
-    /* However, it is possible that a write batch that has
-    been posted earlier is still not complete. For buffer
-    pool invalidation to proceed we must ensure there is NO
-    write activity happening. */
-    if (buf_pool->n_flush[i] > 0) {
-      buf_flush_t type = static_cast<buf_flush_t>(i);
-
-      mutex_exit(&buf_pool->flush_state_mutex);
-      buf_flush_wait_batch_end(buf_pool, type);
-      mutex_enter(&buf_pool->flush_state_mutex);
-    }
-=======
-    /* However, it is possible that a write batch that has been posted earlier
-    is still not complete. For buffer pool invalidation to proceed we must
-    ensure there is NO write activity happening. */
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
->>>>>>> mysql-8.2.0
   }
 
   ut_d(buf_must_be_all_freed_instance(buf_pool));
@@ -6928,30 +6841,13 @@ static void buf_print_io_instance(
           "\n"
           "Pending reads      " ULINTPF
           "\n"
-<<<<<<< HEAD
-          "Pending writes: LRU " ULINTPF ", flush list " ULINTPF
-          ", single page " ULINTPF "\n",
+          "Pending writes: LRU %zu, flush list %zu, single page %zu\n",
           pool_info->pool_size, pool_info->pool_size_bytes,
           pool_info->free_list_len, pool_info->lru_len, pool_info->old_lru_len,
           pool_info->flush_list_len, pool_info->n_pend_reads,
-          pool_info->n_pending_flush_lru, pool_info->n_pending_flush_list,
-          pool_info->n_pending_flush_single_page);
-||||||| merged common ancestors
-          "Pending writes: LRU " ULINTPF ", flush list " ULINTPF
-          ", single page " ULINTPF "\n",
-          pool_info->pool_size, pool_info->free_list_len, pool_info->lru_len,
-          pool_info->old_lru_len, pool_info->flush_list_len,
-          pool_info->n_pend_reads, pool_info->n_pending_flush_lru,
-          pool_info->n_pending_flush_list,
-          pool_info->n_pending_flush_single_page);
-=======
-          "Pending writes: LRU %zu, flush list %zu, single page %zu\n",
-          pool_info->pool_size, pool_info->free_list_len, pool_info->lru_len,
-          pool_info->old_lru_len, pool_info->flush_list_len,
-          pool_info->n_pend_reads, pool_info->n_pending_flush[BUF_FLUSH_LRU],
+          pool_info->n_pending_flush[BUF_FLUSH_LRU],
           pool_info->n_pending_flush[BUF_FLUSH_LIST],
           pool_info->n_pending_flush[BUF_FLUSH_SINGLE_PAGE]);
->>>>>>> mysql-8.2.0
 
   fprintf(file,
           "Pages made young " ULINTPF ", not young " ULINTPF

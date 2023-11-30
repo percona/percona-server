@@ -3454,16 +3454,8 @@ create_table_stmt:
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           opt_create_table_options_etc
           {
-<<<<<<< HEAD
             $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5,
-                                             NULL,
-||||||| merged common ancestors
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
-                                             NULL,
-=======
-            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
                                              nullptr,
->>>>>>> mysql-8.2.0
                                              $6.opt_create_table_options,
                                              $6.opt_partitioning,
                                              $6.on_duplicate,

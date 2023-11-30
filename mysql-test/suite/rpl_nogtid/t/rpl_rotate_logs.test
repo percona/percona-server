@@ -49,16 +49,8 @@ chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
 start slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 
-<<<<<<< HEAD
-# CHANGE REPLICATION SOURCE will fail because it first parses master.info before changing
-# it (so when master.info is bad, people have to use RESET SLAVE first).
-||||||| merged common ancestors
-# CHANGE MASTER will fail because it first parses master.info before changing
-# it (so when master.info is bad, people have to use RESET SLAVE first).
-=======
 # CHANGE REPLICATION SOURCE will fail because it first parses master.info before changing
 # it (so when source.info is bad, people have to use RESET REPLICA first).
->>>>>>> mysql-8.2.0
 --replace_column 2 ####
 --error ER_CONNECTION_METADATA
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';

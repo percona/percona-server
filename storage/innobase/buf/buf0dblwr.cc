@@ -394,7 +394,7 @@ std::tuple<bool, bool> Pages::is_actual_page_corrupted(fil_space_t *space,
 
   /* Read in the page from the data file to compare. */
   auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
+                    buffer.begin(), nullptr, nullptr, false);
 
   if (err != DB_SUCCESS) {
     ib::warn(ER_IB_MSG_DBLWR_1314)
@@ -1632,8 +1632,8 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
 #endif /* UNIV_DEBUG */
 
   io_request.set_original_size(bpage->size.physical());
-  auto err =
-      fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame, bpage);
+  auto err = fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame,
+                    bpage, nullptr, false);
 
   /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
   return DB_PAGE_IS_STALE or DB_TABLESPACE_DELETED. */
@@ -3075,7 +3075,7 @@ bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
 
   /* Read in the page from the data file to compare. */
   auto err = fil_io(request, true, page_id, page_size, 0, page_size.physical(),
-                    buffer.begin(), nullptr);
+                    buffer.begin(), nullptr, nullptr, false);
 
   if (err != DB_SUCCESS) {
     ib::warn(ER_IB_MSG_DBLWR_1314)
@@ -3153,7 +3153,7 @@ bool dblwr::recv::Pages::dblwr_recover_page(page_no_t dblwr_page_no,
   intended position. */
 
   err = fil_io(write_request, true, page_id, page_size, 0, page_size.physical(),
-               const_cast<byte *>(page), nullptr);
+               const_cast<byte *>(page), nullptr, nullptr, false);
 
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 

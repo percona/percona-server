@@ -22,7 +22,7 @@ eval CREATE DATABASE $DB2; eval USE $DB2; CREATE TABLE t1(f INT);
 eval CREATE DATABASE $DB3; eval USE $DB3; CREATE TABLE t1(f INT);
 eval CREATE DATABASE $DB4; eval USE $DB4; CREATE TABLE t1(f INT);
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let MYSQLD_DATA_DIR=`select @@datadir`
 --let LOAD_DATA_FILE=$MYSQLD_DATA_DIR/table.values
 --let BIN_LOG_FILE_NAME=query_get_value(show master status, File,    1)

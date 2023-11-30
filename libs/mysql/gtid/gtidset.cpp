@@ -20,16 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-<<<<<<< HEAD:libbinlogevents/src/gtids/gtidset.cpp
-#include "libbinlogevents/include/gtids/gtidset.h"
-#include "my_compiler.h"
-||||||| merged common ancestors:libbinlogevents/src/gtids/gtidset.cpp
-#include "libbinlogevents/include/gtids/gtidset.h"
-=======
 #include "mysql/gtid/gtidset.h"
->>>>>>> mysql-8.2.0:libs/mysql/gtid/gtidset.cpp
 #include <map>
 #include <string>
+#include "my_compiler.h"
 
 namespace mysql::gtid {
 

@@ -4,7 +4,7 @@
 
 # MTR test framework can reuse server instance, so current @@GLOBAL.GTID_EXECUTED may be anything.
 # Reset it to the initial state.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

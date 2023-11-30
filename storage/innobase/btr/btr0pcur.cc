@@ -359,21 +359,11 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   auto block = get_block();
 
-<<<<<<< HEAD
   btr_update_scan_stats(page, next_page_no, true /* forward */);
 
-  auto next_block = btr_block_get(
-      page_id_t(block->page.id.space(), next_page_no), block->page.size, mode,
-      UT_LOCATION_HERE, get_btr_cur()->index, mtr);
-||||||| merged common ancestors
-  auto next_block = btr_block_get(
-      page_id_t(block->page.id.space(), next_page_no), block->page.size, mode,
-      UT_LOCATION_HERE, get_btr_cur()->index, mtr);
-=======
   auto next_block =
       btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                     block->page.size, mode, UT_LOCATION_HERE, index, mtr);
->>>>>>> mysql-8.2.0
 
   auto next_page = buf_block_get_frame(next_block);
 

@@ -12,7 +12,7 @@ SELECT @@binlog_format;
 MIXED
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SHOW VARIABLES LIKE 'have_backup_locks';
 Variable_name	Value
 have_backup_locks	YES

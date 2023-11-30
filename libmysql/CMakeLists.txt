@@ -298,19 +298,11 @@ ADD_SUBDIRECTORY(authentication_kerberos)
 # authentication IAM client plug-in
 ADD_SUBDIRECTORY(authentication_oci_client)
 
-<<<<<<< HEAD
-# Merge several convenience libraries into one big perconaserverclient
-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
-||||||| merged common ancestors
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
-=======
 # Fido and Webauthn clients
 ADD_SUBDIRECTORY(fido_client)
 
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
->>>>>>> mysql-8.2.0
+# Merge several convenience libraries into one big perconaserverclient
+MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
   COMPONENT Development
   LINK_LIBRARIES ${LIBS_TO_LINK}
   )

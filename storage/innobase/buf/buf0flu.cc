@@ -2012,49 +2012,15 @@ static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 
 /** End a buffer flush batch for LRU or flush list
 @param[in]      buf_pool        buffer pool instance
-<<<<<<< HEAD
 @param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST
-@param[in]     flushed_page_count      number of dirty pages whose writes have
-been queued by this flush. */
+@param[in]      flushed_page_count  number of dirty pages whose writes have
+                                    been queued by this flush. */
 static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
                           ulint flushed_page_count) {
-  mutex_enter(&buf_pool->flush_state_mutex);
-
-  buf_pool->init_flush[flush_type] = false;
-
-  buf_pool->try_LRU_scan = true;
-
-  if (buf_pool->n_flush[flush_type] == 0) {
-    /* The running flush batch has ended */
-
-    os_event_set(buf_pool->no_flush[flush_type]);
-  }
-
-  mutex_exit(&buf_pool->flush_state_mutex);
-||||||| merged common ancestors
-@param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
-  mutex_enter(&buf_pool->flush_state_mutex);
-
-  buf_pool->init_flush[flush_type] = false;
-
-  buf_pool->try_LRU_scan = true;
-
-  if (buf_pool->n_flush[flush_type] == 0) {
-    /* The running flush batch has ended */
-
-    os_event_set(buf_pool->no_flush[flush_type]);
-  }
-
-  mutex_exit(&buf_pool->flush_state_mutex);
-=======
-@param[in]      flush_type      BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   buf_pool->change_flush_state(flush_type, [&]() {
     buf_pool->try_LRU_scan = true;
     buf_pool->init_flush[flush_type] = false;
   });
->>>>>>> mysql-8.2.0
 
   if (!srv_read_only_mode) {
     if (dblwr::is_enabled()) {
@@ -3522,16 +3488,8 @@ static void buf_flush_page_coordinator_thread() {
   considering end of that batch as a finish of our final
   sweep and we'll come out of the loop leaving behind dirty pages
   in the flush_list */
-<<<<<<< HEAD
-  buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-  ut_ad(buf_flush_active_lru_managers() == 0);
-||||||| merged common ancestors
-  buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-  buf_flush_wait_LRU_batch_end();
-=======
   buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LIST);
-  buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
->>>>>>> mysql-8.2.0
+  ut_ad(buf_flush_active_lru_managers() == 0);
 
   bool success;
   bool are_any_read_ios_still_underway;
@@ -3557,15 +3515,7 @@ static void buf_flush_page_coordinator_thread() {
 
     n_flushed = n_flushed_list;
 
-<<<<<<< HEAD
-    buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-||||||| merged common ancestors
-    buf_flush_wait_batch_end(nullptr, BUF_FLUSH_LIST);
-    buf_flush_wait_LRU_batch_end();
-=======
     buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LIST);
-    buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
->>>>>>> mysql-8.2.0
 
   } while (!success || n_flushed > 0 || are_any_read_ios_still_underway ||
            buf_get_flush_list_len(nullptr) > 0);
@@ -3761,7 +3711,7 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
     lru_n_flushed = buf_flush_LRU_list(buf_pool);
 
-    buf_flush_wait_batch_end(buf_pool, BUF_FLUSH_LRU);
+    buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
 
     if (lru_n_flushed) {
       srv_stats.buf_pool_flushed.add(lru_n_flushed);
@@ -3991,17 +3941,6 @@ void Flush_observer::flush() {
     }
   }
 }
-<<<<<<< HEAD
-
-/** Increase the estimate of dirty pages by this observer
-@param[in]	block		buffer pool block */
-void Flush_observer::inc_estimate(const buf_block_t &block) noexcept {
-  if (block.page.get_oldest_lsn() == 0 || block.page.get_newest_lsn() < m_lsn)
-    m_estimate.fetch_add(1, std::memory_order_relaxed);
-}
-
-||||||| merged common ancestors
-=======
 
 #ifdef UNIV_DEBUG
 [[nodiscard]] bool Flush_observer::validate() const noexcept {
@@ -4024,7 +3963,13 @@ std::ostream &Flush_observer::print(std::ostream &out) const {
   return out;
 }
 
->>>>>>> mysql-8.2.0
+/** Increase the estimate of dirty pages by this observer
+@param[in]	block		buffer pool block */
+void Flush_observer::inc_estimate(const buf_block_t &block) noexcept {
+  if (block.page.get_oldest_lsn() == 0 || block.page.get_newest_lsn() < m_lsn)
+    m_estimate.fetch_add(1, std::memory_order_relaxed);
+}
+
 #else
 
 bool buf_flush_page_cleaner_is_active() { return (false); }

@@ -2041,12 +2041,6 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
                             pfs_os_file_t file, const void *buf,
                             os_offset_t offset, ulint n);
 
-<<<<<<< HEAD
-/** Submit buffered AIO requests on the given segment to the kernel. */
-void os_aio_dispatch_read_array_submit();
-
-||||||| merged common ancestors
-=======
 /** Helper class for doing synchronous file IO. Currently, the objective
 is to hide the OS specific code, so that the higher level functions aren't
 peppered with "#ifdef". Makes the code flow difficult to follow.  */
@@ -2111,7 +2105,9 @@ class SyncFileIO {
   const size_t m_orig_bytes;
 };
 
->>>>>>> mysql-8.2.0
+/** Submit buffered AIO requests on the given segment to the kernel. */
+void os_aio_dispatch_read_array_submit();
+
 #include "os0file.ic"
 #endif /* UNIV_NONINL */
 

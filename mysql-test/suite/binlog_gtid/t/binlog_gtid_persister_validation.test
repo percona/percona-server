@@ -26,7 +26,7 @@
 --let $server_uuid = `SELECT @@GLOBAL.SERVER_UUID`
 
 # Clean the table before starting the test.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # 1. Create an InnoDB table and insert 2 rows.

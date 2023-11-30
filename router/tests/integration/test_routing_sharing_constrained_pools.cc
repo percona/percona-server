@@ -3458,57 +3458,18 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
     // it may take a while until the last connection of the test is closed
     // before this admin connection can be opened to reset the globals again.
-<<<<<<< HEAD
-    auto end_time = std::chrono::steady_clock::now() + 1s;
-
-    while (true) {
-      auto reset_res = reset_globals();
-      if (!reset_res) {
-        auto ec = reset_res.error();
-
-        // wait a bit until all connections are closed.
-        //
-        // 1040 is Too many connections.
-        if (ec.value() == 1040 && std::chrono::steady_clock::now() < end_time) {
-          std::this_thread::sleep_for(20ms);
-          continue;
-        }
-      }
-
-      ASSERT_NO_ERROR(reset_res);
-      break;
-    }
+    ASSERT_NO_ERROR(
+        try_until_connection_available([&]() { return reset_globals(); }));
 
     // close all connections that are currently in the pool to get a stable
     // baseline.
     for (auto &srv : shared_servers()) {
-      srv->close_all_connections();  // reset the router's connection-pool
+      ASSERT_NO_ERROR(try_until_connection_available([&]() {
+        // reset the router's connection-pool
+        return srv->close_all_connections();
+      }));
     }
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
-||||||| merged common ancestors
-    auto end_time = std::chrono::steady_clock::now() + 1s;
-
-    while (true) {
-      auto reset_res = reset_globals();
-      if (!reset_res) {
-        auto ec = reset_res.error();
-
-        // wait a bit until all connections are closed.
-        //
-        // 1040 is Too many connections.
-        if (ec.value() == 1040 && std::chrono::steady_clock::now() < end_time) {
-          std::this_thread::sleep_for(20ms);
-          continue;
-        }
-      }
-
-      ASSERT_NO_ERROR(reset_res);
-      break;
-    }
-=======
-    ASSERT_NO_ERROR(
-        try_until_connection_available([&]() { return reset_globals(); }));
->>>>>>> mysql-8.2.0
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }};
 
   SCOPED_TRACE("// testing");
@@ -3584,27 +3545,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   SCOPED_TRACE("// cleanup");
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  // close all connections that are currently in the pool to get a stable
-  // baseline.
-  for (auto &srv : shared_servers()) {
-    srv->close_all_connections();  // reset the router's connection-pool
-  }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
-
-=======
-  // close all connections that are currently in the pool to get a stable
-  // baseline.
-  for (auto &srv : shared_servers()) {
-    ASSERT_NO_ERROR(try_until_connection_available([&]() {
-      // reset the router's connection-pool
-      return srv->close_all_connections();
-    }));
-  }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
-
->>>>>>> mysql-8.2.0
   // calls Scope_guard
 }
 

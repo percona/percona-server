@@ -33,16 +33,8 @@ namespace mysql::binlog::event::compression {
 std::unique_ptr<Compressor> Factory::build_compressor(
     type t, const Memory_resource_t &memory_resource) {
   switch (t) {
-<<<<<<< HEAD:libbinlogevents/src/compression/factory.cpp
     case ALGORITHM_ZSTD:
-      return std::make_unique<Zstd_comp>();
-||||||| merged common ancestors:libbinlogevents/src/compression/factory.cpp
-    case ZSTD:
-      return std::make_unique<Zstd_comp>();
-=======
-    case ZSTD:
       return std::make_unique<Zstd_comp>(memory_resource);
->>>>>>> mysql-8.2.0:libs/mysql/binlog/event/compression/factory.cpp
     case NONE:
       return std::make_unique<None_comp>();
     default:
@@ -54,16 +46,8 @@ std::unique_ptr<Compressor> Factory::build_compressor(
 std::unique_ptr<Decompressor> Factory::build_decompressor(
     type t, const Memory_resource_t &memory_resource) {
   switch (t) {
-<<<<<<< HEAD:libbinlogevents/src/compression/factory.cpp
     case ALGORITHM_ZSTD:
-      return std::make_unique<Zstd_dec>();
-||||||| merged common ancestors:libbinlogevents/src/compression/factory.cpp
-    case ZSTD:
-      return std::make_unique<Zstd_dec>();
-=======
-    case ZSTD:
       return std::make_unique<Zstd_dec>(memory_resource);
->>>>>>> mysql-8.2.0:libs/mysql/binlog/event/compression/factory.cpp
     case NONE:
       return std::make_unique<None_dec>();
     default:

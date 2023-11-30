@@ -42,13 +42,7 @@ class TransactionPayloadCodecTest : public ::testing::Test {
       unsigned char *payload = new unsigned char[payload_size];
 
       memset(payload, 'a', payload_size);
-<<<<<<< HEAD
-      auto ctype = binary_log::transaction::compression::type::ALGORITHM_ZSTD;
-||||||| merged common ancestors
-      auto ctype = binary_log::transaction::compression::type::ZSTD;
-=======
-      auto ctype = mysql::binlog::event::compression::type::ZSTD;
->>>>>>> mysql-8.2.0
+      auto ctype = mysql::binlog::event::compression::type::ALGORITHM_ZSTD;
       TransactionPayloadCodecTest::codec_idempotency_test(
           codec, payload, payload_size, ctype, payload_size * 2);
 

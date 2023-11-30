@@ -1149,7 +1149,6 @@ bool Log_event::need_checksum() {
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options)
             : mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
 
-<<<<<<< HEAD
   assert(
       !ret ||
       ((common_footer->checksum_alg ==
@@ -1159,93 +1158,29 @@ bool Log_event::need_checksum() {
            preference is set by the caller can be different
            from the server's binlog_checksum_options.
         */
-        get_type_code() == binary_log::STOP_EVENT ||
+        get_type_code() == mysql::binlog::event::STOP_EVENT ||
         /*
            Rotate:s can be checksummed regardless of the server's
            binlog_checksum_options. That applies to both
            the local RL's Rotate and the master's Rotate
            which IO thread instantiates via queue_binlog_ver_3_event.
         */
-        get_type_code() == binary_log::ROTATE_EVENT ||
-        get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT ||
+        get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
         /*
            The previous event has its checksum option defined
            according to the format description event.
         */
-        get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
+        get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
         /* FD is always checksummed */
-        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
+        get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
         /*
            View_change_log_event is queued into relay log by the
            local member, which may have a different checksum algorithm
            than the one of the event source.
         */
-        get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
-       common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
-||||||| merged common ancestors
-  assert(!ret ||
-         ((common_footer->checksum_alg ==
-               static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-           /*
-              Stop event closes the relay-log and its checksum alg
-              preference is set by the caller can be different
-              from the server's binlog_checksum_options.
-           */
-           get_type_code() == binary_log::STOP_EVENT ||
-           /*
-              Rotate:s can be checksummed regardless of the server's
-              binlog_checksum_options. That applies to both
-              the local RL's Rotate and the master's Rotate
-              which IO thread instantiates via queue_binlog_ver_3_event.
-           */
-           get_type_code() == binary_log::ROTATE_EVENT ||
-           /*
-              The previous event has its checksum option defined
-              according to the format description event.
-           */
-           get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
-           /* FD is always checksummed */
-           get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-           /*
-              View_change_log_event is queued into relay log by the
-              local member, which may have a different checksum algorithm
-              than the one of the event source.
-           */
-           get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
-          common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
-=======
-  assert(!ret ||
-         ((common_footer->checksum_alg ==
-               static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-           /*
-              Stop event closes the relay-log and its checksum alg
-              preference is set by the caller can be different
-              from the server's binlog_checksum_options.
-           */
-           get_type_code() == mysql::binlog::event::STOP_EVENT ||
-           /*
-              Rotate:s can be checksummed regardless of the server's
-              binlog_checksum_options. That applies to both
-              the local RL's Rotate and the master's Rotate
-              which IO thread instantiates via queue_binlog_ver_3_event.
-           */
-           get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
-           /*
-              The previous event has its checksum option defined
-              according to the format description event.
-           */
-           get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
-           /* FD is always checksummed */
-           get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
-           /*
-              View_change_log_event is queued into relay log by the
-              local member, which may have a different checksum algorithm
-              than the one of the event source.
-           */
-           get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
-          common_footer->checksum_alg !=
-              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
->>>>>>> mysql-8.2.0
+        get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
+       common_footer->checksum_alg !=
+           mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
 
   assert(common_footer->checksum_alg !=
          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
@@ -8059,8 +7994,8 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
           // A table view for generated columns that need to be updated on the
           // replica, excluding columns for functional indexes
           this->m_table,
-          [is_after_image, this](TABLE const *table,
-                                 size_t column_index) -> bool {
+          [local_cols, is_after_image, this](TABLE const *table,
+                                             size_t column_index) -> bool {
             auto field = table->field[column_index];
             if (field->is_field_for_functional_index())  // Always exclude
                                                          // functional indexes
@@ -8467,12 +8402,11 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
   this->m_key_index = MAX_KEY;
   this->m_key_info = nullptr;
 
-<<<<<<< HEAD
   // row lookup not needed
-  if (event_type == binary_log::WRITE_ROWS_EVENT ||
+  if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
       (delete_update_lookup_condition =
-           ((event_type == binary_log::DELETE_ROWS_EVENT ||
-             event_type == binary_log::UPDATE_ROWS_EVENT) &&
+           ((event_type == mysql::binlog::event::DELETE_ROWS_EVENT ||
+             event_type == mysql::binlog::event::UPDATE_ROWS_EVENT) &&
             get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))) {
     /**
        Only TokuDB and RocksDB engines can satisfy delete/update row lookup
@@ -8491,14 +8425,6 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
     } else
       return;
   }
-||||||| merged common ancestors
-  if (event_type == binary_log::WRITE_ROWS_EVENT)  // row lookup not needed
-    return;
-=======
-  if (event_type ==
-      mysql::binlog::event::WRITE_ROWS_EVENT)  // row lookup not needed
-    return;
->>>>>>> mysql-8.2.0
 
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
     goto TABLE_OR_INDEX_HASH_SCAN;
@@ -10197,16 +10123,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         break;
 
       case ROW_LOOKUP_NOT_NEEDED:
-<<<<<<< HEAD
-        assert(get_general_type_code() == binary_log::WRITE_ROWS_EVENT ||
-               get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
-               get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
-||||||| merged common ancestors
-        assert(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
-=======
-        assert(get_general_type_code() ==
-               mysql::binlog::event::WRITE_ROWS_EVENT);
->>>>>>> mysql-8.2.0
+        assert(get_general_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT ||
+               get_general_type_code() == mysql::binlog::event::DELETE_ROWS_EVENT ||
+               get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT);
 
         /* No need to scan for rows, just apply it */
         do_apply_row_ptr = &Rows_log_event::do_apply_row;

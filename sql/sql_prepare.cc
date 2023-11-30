@@ -2028,12 +2028,8 @@ void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt) {
   DBUG_TRACE;
 
   thd->status_var.com_stmt_reset++;
-<<<<<<< HEAD
-
-||||||| merged common ancestors
-=======
   global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_reset++;
->>>>>>> mysql-8.2.0
+
   stmt->close_cursor();
 
   /*

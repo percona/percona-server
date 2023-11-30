@@ -23,13 +23,7 @@
 */
 
 #include "util/require.h"
-<<<<<<< HEAD
-||||||| merged common ancestors
-#include <NDBT_Test.hpp>
-=======
 #include <ndb_opts.h>
-#include <NDBT_Test.hpp>
->>>>>>> mysql-8.2.0
 #include <NDBT_ReturnCodes.h>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
@@ -2214,37 +2208,21 @@ int errorInjectBufferOverflowOnly(NDBT_Context *ctx, NDBT_Step *step) {
 int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *ndb = GETNDB(step);
   NdbRestarter restarter;
-<<<<<<< HEAD
   const NdbDictionary::Table *pTab = ctx->getTab();
-  NdbEventOperation *pOp = createEventOperation(ndb, *pTab);
-||||||| merged common ancestors
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
-=======
-  const NdbDictionary::Table* pTab = ctx->getTab();
   const bool usePollEvents2 = ((rand() % 2) == 0);
   const char* method = (usePollEvents2?
                         "PollEvents2":
                         "PollEvents");
 
-  NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
->>>>>>> mysql-8.2.0
+  NdbEventOperation *pOp = createEventOperation(ndb, *pTab);
   int result = NDBT_OK;
   int res = 0;
   bool connected = true;
   uint retries = 100;
 
-<<<<<<< HEAD
-  if (pOp == 0) {
-||||||| merged common ancestors
-  if (pOp == 0)
-  {
-=======
   ndbout_c("errorInjectStalling using %s", method);
 
-  if (pOp == 0)
-  {
->>>>>>> mysql-8.2.0
+  if (pOp == 0) {
     g_err << "Failed to createEventOperation" << endl;
     return NDBT_FAILED;
   }
@@ -2255,16 +2233,7 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
     goto cleanup;
   }
 
-<<<<<<< HEAD
   for (int i = 0; (i < 10) && (curr_gci != NDB_FAILURE_GCI); i++) {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
-||||||| merged common ancestors
-  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
-  {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
-=======
-  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
-  {
     if (usePollEvents2)
     {
       res = ndb->pollEvents2(5000, &curr_gci) > 0;
@@ -2273,43 +2242,19 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
     {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
     }
->>>>>>> mysql-8.2.0
 
-<<<<<<< HEAD
-    if (ndb->getNdbError().code != 0) {
-      g_err << "pollEvents failed: \n";
-      g_err << ndb->getNdbError().code << " " << ndb->getNdbError().message
-            << endl;
-||||||| merged common ancestors
-    if (ndb->getNdbError().code != 0)
-    {
-      g_err << "pollEvents failed: \n";
-      g_err << ndb->getNdbError().code << " "
-            << ndb->getNdbError().message << endl;
-=======
     if (ndb->getNdbError().code != 0)
     {
       g_err << method << " failed: \n";
       g_err << ndb->getNdbError().code << " "
             << ndb->getNdbError().message << endl;
->>>>>>> mysql-8.2.0
       result = NDBT_FAILED;
       goto cleanup;
     }
   }
 
-<<<<<<< HEAD
   if (curr_gci != NDB_FAILURE_GCI) {
-    g_err << "pollEvents failed to detect cluster failure: \n";
-||||||| merged common ancestors
-  if (curr_gci != NDB_FAILURE_GCI)
-  {
-    g_err << "pollEvents failed to detect cluster failure: \n";
-=======
-  if (curr_gci != NDB_FAILURE_GCI)
-  {
     g_err << method << " failed to detect cluster failure: \n";
->>>>>>> mysql-8.2.0
     result = NDBT_FAILED;
     goto cleanup;
   }
@@ -2379,16 +2324,7 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   // Check that we receive events again
-<<<<<<< HEAD
   for (int i = 0; (i < 10) && (curr_gci == NDB_FAILURE_GCI); i++) {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
-||||||| merged common ancestors
-  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
-  {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
-=======
-  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
-  {
     if (usePollEvents2)
     {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
@@ -2397,46 +2333,20 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
     {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
     }
->>>>>>> mysql-8.2.0
 
-<<<<<<< HEAD
-    if (ndb->getNdbError().code != 0) {
-      g_err << "pollEvents failed: \n";
-      g_err << ndb->getNdbError().code << " " << ndb->getNdbError().message
-            << endl;
-||||||| merged common ancestors
-    if (ndb->getNdbError().code != 0)
-    {
-      g_err << "pollEvents failed: \n";
-      g_err << ndb->getNdbError().code << " "
-            << ndb->getNdbError().message << endl;
-=======
     if (ndb->getNdbError().code != 0)
     {
       g_err << method << " failed: \n";
       g_err << ndb->getNdbError().code << " "
             << ndb->getNdbError().message << endl;
->>>>>>> mysql-8.2.0
       result = NDBT_FAILED;
       goto cleanup;
     }
   }
-<<<<<<< HEAD
-  if (curr_gci == NDB_FAILURE_GCI) {
-    g_err << "pollEvents after restart failed res " << res << " curr_gci "
-          << curr_gci << endl;
-    result = NDBT_FAILED;
-||||||| merged common ancestors
-  if (curr_gci == NDB_FAILURE_GCI)
-  {
-    g_err << "pollEvents after restart failed res " << res << " curr_gci " << curr_gci << endl;
-    result =  NDBT_FAILED;
-=======
   if (curr_gci == NDB_FAILURE_GCI)
   {
     g_err << method << " after restart failed res " << res << " curr_gci " << curr_gci << endl;
     result =  NDBT_FAILED;
->>>>>>> mysql-8.2.0
   }
 
 cleanup:
@@ -2735,13 +2645,6 @@ int runNFSubscribe(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-int runBug35208_createTable(NDBT_Context *ctx, NDBT_Step *step) {
-||||||| merged common ancestors
-int
-runBug35208_createTable(NDBT_Context* ctx, NDBT_Step* step)
-{
-=======
 /**
  * None of the standard T* test tables has a character primary key.
  * Thus we need to replace the test table with a table we
@@ -3333,10 +3236,7 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
 }
 ///////////////////////////
 
-int
-runBug35208_createTable(NDBT_Context* ctx, NDBT_Step* step)
-{
->>>>>>> mysql-8.2.0
+int runBug35208_createTable(NDBT_Context *ctx, NDBT_Step *step) {
   NdbDictionary::Table tab = *ctx->getTab();
 
   while (tab.getNoOfColumns() < 100) {

@@ -1481,7 +1481,7 @@ loop:
     however, we are not using doublewrite buffer then it is better to
     do our own single page flush instead of waiting for LRU flush to
     end. */
-    buf_flush_wait_batch_end(buf_pool, BUF_FLUSH_LRU);
+    buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
     goto loop;
   }
 

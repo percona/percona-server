@@ -43,23 +43,7 @@
 #include <string>
 
 #include "lex_string.h"
-<<<<<<< HEAD
 #include "my_aes.h"
-#include "libbinlogevents/include/binlog_event.h"
-#include "libbinlogevents/include/control_events.h"
-#include "libbinlogevents/include/load_data_events.h"
-#include "libbinlogevents/include/rows_event.h"
-#include "libbinlogevents/include/statement_events.h"
-#include "libbinlogevents/include/uuid.h"
-||||||| merged common ancestors
-#include "libbinlogevents/include/binlog_event.h"
-#include "libbinlogevents/include/control_events.h"
-#include "libbinlogevents/include/load_data_events.h"
-#include "libbinlogevents/include/rows_event.h"
-#include "libbinlogevents/include/statement_events.h"
-#include "libbinlogevents/include/uuid.h"
-=======
->>>>>>> mysql-8.2.0
 #include "m_string.h"     // native_strncasecmp
 #include "my_bitmap.h"    // MY_BITMAP
 #include "my_checksum.h"  // ha_checksum
@@ -1017,8 +1001,7 @@ class Log_event {
         */
         (get_type_code() == mysql::binlog::event::ROTATE_EVENT &&
          ((server_id == (uint32)::server_id) ||
-          (common_header->log_pos == 0 && mts_in_group))) ||
-        (get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT))
+          (common_header->log_pos == 0 && mts_in_group))))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec())
       return EVENT_EXEC_SYNC;
@@ -2348,17 +2331,14 @@ class Load_query_generator {
 class Unknown_log_event : public mysql::binlog::event::Unknown_event,
                           public Log_event {
  public:
-<<<<<<< HEAD
-  enum class kind { UNKNOWN, ENCRYPTED } what;
-||||||| merged common ancestors
-=======
   // disable copy-move semantics
   Unknown_log_event(Unknown_log_event &&) noexcept = delete;
   Unknown_log_event &operator=(Unknown_log_event &&) noexcept = delete;
   Unknown_log_event(const Unknown_log_event &) = delete;
   Unknown_log_event &operator=(const Unknown_log_event &) = delete;
 
->>>>>>> mysql-8.2.0
+  enum class kind { UNKNOWN, ENCRYPTED } what;
+
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the

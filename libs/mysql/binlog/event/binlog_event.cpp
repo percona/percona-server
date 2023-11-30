@@ -36,16 +36,9 @@ namespace mysql::binlog::event::debug {
 bool debug_query_mts_corrupt_db_names = false;
 bool debug_checksum_test = false;
 bool debug_simulate_invalid_address = false;
-<<<<<<< HEAD:libbinlogevents/src/binlog_event.cpp
 bool debug_expect_unknown_event = false;
-}  // namespace binary_log_debug
-||||||| merged common ancestors:libbinlogevents/src/binlog_event.cpp
-
-}  // namespace binary_log_debug
-=======
 
 }  // namespace mysql::binlog::event::debug
->>>>>>> mysql-8.2.0:libs/mysql/binlog/event/binlog_event.cpp
 
 namespace mysql::binlog::event {
 
@@ -81,7 +74,6 @@ static const std::unordered_map<Log_event_type, const std::string>
                             {XA_PREPARE_LOG_EVENT, "XA_prepare"},
                             {PARTIAL_UPDATE_ROWS_EVENT, "Update_rows_partial"},
                             {TRANSACTION_PAYLOAD_EVENT, "Transaction_payload"},
-                            {START_5_7_ENCRYPTION_EVENT, "Start_5_7_encryption"},
                             {UNKNOWN_EVENT, "Unknown"}};
 
 const std::string &get_event_type_as_string(Log_event_type type) {

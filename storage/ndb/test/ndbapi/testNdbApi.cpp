@@ -7927,12 +7927,6 @@ runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context* ctx,
                                              Uint32 errorCode)
 {
   const NdbDictionary::Table* pTab = ctx->getTab();
-<<<<<<< HEAD
-
-||||||| merged common ancestors
-  
-=======
->>>>>>> mysql-8.2.0
   HugoOperations hugoOps(*pTab);
   Ndb* pNdb = GETNDB(step);
 
@@ -7984,19 +7978,11 @@ runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context* ctx,
   CHECK(restarter.insertErrorInAllNodes(0) == 0);
 
   CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
-<<<<<<< HEAD
          hugoOps);
-
-||||||| merged common ancestors
-         hugoOps);  
-  
-=======
-         hugoOps);  
 
   ndbout_c("Waiting for node to recover");
   CHECK(restarter.waitClusterStarted() == 0);
-  
->>>>>>> mysql-8.2.0
+
   return NDBT_OK;
 }
 
@@ -8063,23 +8049,6 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
         errorCode = 8114;
         break;
       }
-<<<<<<< HEAD
-      ndbout << "Inserting error " << errorCode
-             << " in all nodes." << endl;
-
-      restarter.insertErrorInAllNodes(errorCode);
-
-      int ret = runCheckWriteTransaction(ctx,step);
-
-||||||| merged common ancestors
-      ndbout << "Inserting error " << errorCode 
-             << " in all nodes." << endl;
-      
-      restarter.insertErrorInAllNodes(errorCode);
-        
-      int ret = runCheckWriteTransaction(ctx,step);
-      
-=======
 
       int ret = runCheckWriteTransactionOverOtherNodeFailure(ctx,
                                                              step,
@@ -8087,7 +8056,6 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
                                                              errorCode);
       
       /* In case of some problem */
->>>>>>> mysql-8.2.0
       restarter.insertErrorInAllNodes(0);
 
       if (ret != NDBT_OK)

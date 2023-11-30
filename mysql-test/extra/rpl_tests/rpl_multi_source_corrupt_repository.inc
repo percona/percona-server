@@ -192,37 +192,9 @@ SHOW RELAYLOG EVENTS;
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
-<<<<<<< HEAD
-# Step-3.5: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function without 3rd argument
-#           (channel name argument) when we have multiple channels, should
-#           throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-###############################################################################
-
---echo ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
---error ER_REPLICA_MULTIPLE_CHANNELS_CMD
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-
-###############################################################################
-# Step-3.6: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we
+# Step-3.5: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we
 #           have multiple channels, should throw error
 #           ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-||||||| merged common ancestors
-# Step-3.5: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function without 3rd argument
-#           (channel name argument) when we have multiple channels, should
-#           throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-###############################################################################
-
---echo ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
---error ER_REPLICA_MULTIPLE_CHANNELS_CMD
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-
-###############################################################################
-# Step-3.6: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
-#           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-=======
-# Step-3.5: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
-#           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
->>>>>>> mysql-8.2.0
 ###############################################################################
 
 --echo ===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.

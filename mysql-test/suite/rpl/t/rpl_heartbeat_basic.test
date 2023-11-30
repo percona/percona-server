@@ -250,16 +250,8 @@ RESET BINARY LOGS AND GTIDS;
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=4294968;
 RESET SLAVE;
-<<<<<<< HEAD
-RESET MASTER;
-# Check double size of max allowed value for source_heartbeat_period
-||||||| merged common ancestors
-RESET MASTER;
-# Check double size of max allowed value for master_heartbeat_period
-=======
 RESET BINARY LOGS AND GTIDS;
-# Check double size of max allowed value for master_heartbeat_period
->>>>>>> mysql-8.2.0
+# Check double size of max allowed value for source_heartbeat_period
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 

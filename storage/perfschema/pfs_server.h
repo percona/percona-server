@@ -58,13 +58,7 @@
 #define PFS_MAX_MUTEX_CLASS 350
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-<<<<<<< HEAD
-#define PFS_MAX_RWLOCK_CLASS 70
-||||||| merged common ancestors
-#define PFS_MAX_RWLOCK_CLASS 60
-=======
 #define PFS_MAX_RWLOCK_CLASS 100
->>>>>>> mysql-8.2.0
 #endif
 #ifndef PFS_MAX_COND_CLASS
 #define PFS_MAX_COND_CLASS 150
@@ -88,19 +82,13 @@
 #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
-<<<<<<< HEAD
 #define PFS_MAX_MEMORY_CLASS 530
-||||||| merged common ancestors
-#define PFS_MAX_MEMORY_CLASS 450
-=======
-#define PFS_MAX_MEMORY_CLASS 470
 #endif
 #ifndef PFS_MAX_METER_CLASS
 #define PFS_MAX_METER_CLASS 30
 #endif
 #ifndef PFS_MAX_METRIC_CLASS
 #define PFS_MAX_METRIC_CLASS 600
->>>>>>> mysql-8.2.0
 #endif
 
 #ifndef PFS_MAX_GLOBAL_SERVER_ERRORS

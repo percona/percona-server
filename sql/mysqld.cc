@@ -9064,16 +9064,8 @@ static int init_server_components() {
   if (!opt_bin_log) {
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
-<<<<<<< HEAD
-    if (expire_logs_days_supplied)
-      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
     if (binlog_space_limit)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-space-limit");
-||||||| merged common ancestors
-    if (expire_logs_days_supplied)
-      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
-=======
->>>>>>> mysql-8.2.0
   }
 
   if (opt_myisam_log) (void)mi_log(1);
@@ -9495,18 +9487,6 @@ int mysqld_main(int argc, char **argv)
   // this is to prevent mtr from accidentally printing this log when it runs
   // mysqld with --verbose --help to extract version info and variable values
   // and when mysqld is run with --validate-config option
-<<<<<<< HEAD
-  if (!is_help_or_validate_option())
-    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_START : ER_SRV_START);
-
-  opt_jemalloc_detected = jemalloc_detected();
-  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
-
-||||||| merged common ancestors
-  if (!is_help_or_validate_option())
-    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_START : ER_SRV_START);
-
-=======
   if (!is_help_or_validate_option()) {
     if (opt_initialize) {
       LogErr(SYSTEM_LEVEL, ER_SRV_INIT_START);
@@ -9515,7 +9495,10 @@ int mysqld_main(int argc, char **argv)
       LogErr(SYSTEM_LEVEL, ER_SRV_START);
     }
   }
->>>>>>> mysql-8.2.0
+
+  opt_jemalloc_detected = jemalloc_detected();
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+
   init_sql_statement_names();
   ulong requested_open_files = 0;
   if (!opt_validate_config) adjust_related_options(&requested_open_files);
@@ -11358,12 +11341,12 @@ struct my_option my_long_options[] = {
      nullptr},
     {"replica-enable-event", OPT_REPLICA_ENABLE_EVENT,
      "Tells the replication applier thread to enable the events that match "
-     "the specified wildcard pattern without setting it as SLAVESIDE_DISABLED. "
-     "To specify more than one event, use the directive multiple times, once "
-     "for each event. This will work for cross-database events. Example: "
-     "replica-enable-event=foo%.bar% will enable the events in all "
-     "databases on replica server that start with 'foo' and whose event names "
-     "start with 'bar'. It is recommended to use this feature only for "
+     "the specified wildcard pattern without setting it as "
+     "REPLICA_SIDE_DISABLED. To specify more than one event, use the directive "
+     "multiple times, once for each event. This will work for cross-database "
+     "events. Example: replica-enable-event=foo%.bar% will enable the events "
+     "in all databases on replica server that start with 'foo' and whose event "
+     "names start with 'bar'. It is recommended to use this feature only for "
      "read-only events to avoid data inconsistency.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},

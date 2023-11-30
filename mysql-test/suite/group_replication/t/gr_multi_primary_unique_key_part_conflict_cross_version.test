@@ -121,6 +121,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='RESET';
+
 --echo
 --echo ############################################################
 --echo # Checking the positive case in which there is no conflict.
@@ -205,6 +209,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################

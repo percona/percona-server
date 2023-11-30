@@ -51,15 +51,9 @@
 
 class Table_cache_element;
 
-<<<<<<< HEAD
 extern ulong table_cache_size_per_instance, table_cache_instances,
     table_cache_triggers, table_cache_triggers_per_instance;
-||||||| merged common ancestors
-extern ulong table_cache_size_per_instance, table_cache_instances;
-=======
-extern ulong table_cache_size_per_instance, table_cache_instances;
 extern struct aggregated_stats global_aggregated_stats;
->>>>>>> mysql-8.2.0
 
 /**
   Cache for open TABLE objects.

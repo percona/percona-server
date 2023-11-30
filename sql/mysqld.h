@@ -257,14 +257,8 @@ extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
-<<<<<<< HEAD
-extern ulong expire_logs_days;
 extern ulong max_slowlog_size;
 extern ulong max_slowlog_files;
-||||||| merged common ancestors
-extern ulong expire_logs_days;
-=======
->>>>>>> mysql-8.2.0
 extern ulong binlog_expire_logs_seconds;
 extern ulonglong binlog_space_limit;
 extern bool opt_binlog_expire_logs_auto_purge;

@@ -231,7 +231,6 @@ opt_always_activate_roles_on_login is set to true.
 
  */
 
-<<<<<<< HEAD
 static const char *command_array[] = {"SELECT",
                                       "INSERT",
                                       "UPDATE",
@@ -269,8 +268,6 @@ TYPELIB utility_user_privileges_typelib = {array_elements(command_array) - 1,
                                            "utility_user_privileges_typelib",
                                            command_array, nullptr};
 
-||||||| merged common ancestors
-=======
 bool operator==(const Role_id &a, const std::string &b) {
   std::string tmp;
   a.auth_str(&tmp);
@@ -281,7 +278,6 @@ bool operator==(const std::pair<Role_id, bool> &a, const std::string &b) {
   return a.first == b;
 }
 
->>>>>>> mysql-8.2.0
 /**
   Class to handle sanity checks for GRANT ... AS ... statement
 */
@@ -7690,6 +7686,7 @@ bool check_valid_definer(THD *thd, LEX_USER *definer) {
     if (!(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first ||
           sctx->has_global_grant(STRING_WITH_LEN("SET_ANY_DEFINER")).first)) {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER, SET_USER_ID or SET_ANY_DEFINER");
       return true;
@@ -7703,6 +7700,7 @@ bool check_valid_definer(THD *thd, LEX_USER *definer) {
           sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first ||
           sctx->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
               .first)) {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER");
       return true;

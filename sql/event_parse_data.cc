@@ -529,7 +529,6 @@ void Event_parse_data::check_originator_id(THD *thd) {
   if ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL) ||
       (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) ||
       (thd->system_thread == SYSTEM_THREAD_SLAVE_IO)) {
-<<<<<<< HEAD
     /*
        Check if the event needs to remain enabled as per
        --replica-enable-event option.
@@ -538,22 +537,10 @@ void Event_parse_data::check_originator_id(THD *thd) {
         Rpl_event_ctx::get_instance().event_needs_reenable(to_string(dbname),
                                                            to_string(name));
     if ((status == Event_parse_data::ENABLED && !event_needs_reenable) ||
-||||||| merged common ancestors
-    DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
-    if ((status == Event_parse_data::ENABLED) ||
-=======
-    DBUG_PRINT("info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
-    if ((status == Event_parse_data::ENABLED) ||
->>>>>>> mysql-8.2.0
         (status == Event_parse_data::DISABLED)) {
-<<<<<<< HEAD
-      DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
-      status = Event_parse_data::SLAVESIDE_DISABLED;
-||||||| merged common ancestors
-      status = Event_parse_data::SLAVESIDE_DISABLED;
-=======
+      DBUG_PRINT(
+          "info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
       status = Event_parse_data::REPLICA_SIDE_DISABLED;
->>>>>>> mysql-8.2.0
       status_changed = true;
     }
     originator = thd->server_id;

@@ -66,7 +66,7 @@ disconnect con2;
 disconnect con1;
 
 drop table r1;
-reset master;
+RESET BINARY LOGS AND GTIDS;
 
 set @@global.default_storage_engine=@save_default_storage_engine;
 set @@global.binlog_format=@save_binlog_format;

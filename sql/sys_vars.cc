@@ -2256,46 +2256,12 @@ static Sys_var_enum Sys_event_scheduler(
     NOT_IN_BINLOG, ON_CHECK(event_scheduler_check),
     ON_UPDATE(event_scheduler_update));
 
-<<<<<<< HEAD
-static bool check_expire_logs_days(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_days_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days_value && binlog_expire_logs_seconds) {
-    my_error(ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER, MYF(0));
-    return true;
-  }
-  return false;
-}
-
-static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
-    return true;
-  }
-  return false;
-}
-
 static Sys_var_bool Sys_expand_fast_index_creation(
     "expand_fast_index_creation",
     "Enable/disable improvements to the InnoDB fast index creation "
     "functionality. Has no effect when fast index creation is disabled with "
     "the fast-index-creation option",
     SESSION_VAR(expand_fast_index_creation), CMD_LINE(OPT_ARG), DEFAULT(false));
-
-static Sys_var_ulong Sys_expire_logs_days(
-    "expire_logs_days",
-    "If non-zero, binary logs will be purged after expire_logs_days "
-    "days; If this option alone is set on the command line or in a "
-    "configuration file, it overrides the default value for "
-    "binlog-expire-logs-seconds. If both options are set to nonzero values, "
-    "binlog-expire-logs-seconds takes priority. Possible purges happen at "
-    "startup and at binary log rotation.",
-    GLOBAL_VAR(expire_logs_days), CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS),
-    VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("binlog_expire_logs_seconds"));
 
 static Sys_var_ulonglong Sys_binlog_space_limit(
     "binlog_space_limit",
@@ -2304,42 +2270,6 @@ static Sys_var_ulonglong Sys_binlog_space_limit(
     READ_ONLY GLOBAL_VAR(binlog_space_limit), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-||||||| merged common ancestors
-static bool check_expire_logs_days(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_days_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days_value && binlog_expire_logs_seconds) {
-    my_error(ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER, MYF(0));
-    return true;
-  }
-  return false;
-}
-
-static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
-    return true;
-  }
-  return false;
-}
-
-static Sys_var_ulong Sys_expire_logs_days(
-    "expire_logs_days",
-    "If non-zero, binary logs will be purged after expire_logs_days "
-    "days; If this option alone is set on the command line or in a "
-    "configuration file, it overrides the default value for "
-    "binlog-expire-logs-seconds. If both options are set to nonzero values, "
-    "binlog-expire-logs-seconds takes priority. Possible purges happen at "
-    "startup and at binary log rotation.",
-    GLOBAL_VAR(expire_logs_days), CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS),
-    VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("binlog_expire_logs_seconds"));
-
-=======
->>>>>>> mysql-8.2.0
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     "binlog_expire_logs_seconds",
     "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
@@ -3665,12 +3595,8 @@ static const char *optimizer_switch_names[] = {
     "prefer_ordering_index",
     "hypergraph_optimizer",  // Deliberately not documented below.
     "derived_condition_pushdown",
-<<<<<<< HEAD
-    "favor_range_scan",
-||||||| merged common ancestors
-=======
     "hash_set_operations",
->>>>>>> mysql-8.2.0
+    "favor_range_scan",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3684,13 +3610,8 @@ static Sys_var_flagset Sys_optimizer_switch(
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
     " subquery_to_derived, prefer_ordering_index,"
-<<<<<<< HEAD
-    " derived_condition_pushdown, favor_range_scan} and val is one of "
-||||||| merged common ancestors
-    " derived_condition_pushdown} and val is one of "
-=======
-    " derived_condition_pushdown, hash_set_operations} and val is one of "
->>>>>>> mysql-8.2.0
+    " derived_condition_pushdown, hash_set_operations,"
+    " favor_range_scan} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
@@ -8508,7 +8429,33 @@ static Sys_var_bool Sys_tls_certificates_enforced_validation(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_tls_certificates_enforced_validation),
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
-<<<<<<< HEAD
+
+static Sys_var_ulonglong Sys_set_operations_buffer_size(
+    "set_operations_buffer_size",
+    "The maximum size of the buffer used for hash based set operations ",
+    HINT_UPDATEABLE SESSION_VAR(set_operations_buffer_size),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(16384 /* 16*1024 */, max_mem_sz),
+    DEFAULT(256ULL * 1024), BLOCK_SIZE(128));
+
+#ifndef NDEBUG
+// If this variable is set, it will inject a secondary overflow in spill to
+// disk of in-memory hash table used for INTERSECT, EXCEPT. Three integers must
+// be given to indicate where to inject the overflow:
+//   a) set index, cf. explanation in comments for class SpillState
+//   b) chunk index
+//   c) row number
+// Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
+//         <row_no:integer 1-based>
+// Example:
+//       SET SESSION debug_set_operations_secondary_overflow_at = '1 5 7';
+// If the numbers given are outside range on the high side, they will never
+// trigger any secondary spill.
+static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
+    "debug_set_operations_secondary_overflow_at", "Error injection",
+    HINT_UPDATEABLE SESSION_VAR(debug_set_operations_secondary_overflow_at),
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+#endif
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};
@@ -8540,33 +8487,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| merged common ancestors
-=======
-
-static Sys_var_ulonglong Sys_set_operations_buffer_size(
-    "set_operations_buffer_size",
-    "The maximum size of the buffer used for hash based set operations ",
-    HINT_UPDATEABLE SESSION_VAR(set_operations_buffer_size),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(16384 /* 16*1024 */, max_mem_sz),
-    DEFAULT(256ULL * 1024), BLOCK_SIZE(128));
-
-#ifndef NDEBUG
-// If this variable is set, it will inject a secondary overflow in spill to
-// disk of in-memory hash table used for INTERSECT, EXCEPT. Three integers must
-// be given to indicate where to inject the overflow:
-//   a) set index, cf. explanation in comments for class SpillState
-//   b) chunk index
-//   c) row number
-// Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
-//         <row_no:integer 1-based>
-// Example:
-//       SET SESSION debug_set_operations_secondary_overflow_at = '1 5 7';
-// If the numbers given are outside range on the high side, they will never
-// trigger any secondary spill.
-static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
-    "debug_set_operations_secondary_overflow_at", "Error injection",
-    HINT_UPDATEABLE SESSION_VAR(debug_set_operations_secondary_overflow_at),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
-#endif
->>>>>>> mysql-8.2.0

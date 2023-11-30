@@ -2670,25 +2670,10 @@ bool AIO::linux_dispatch(Slot *slot, bool should_buffer) {
   /* Find out what we are going to work with.
   The iocb struct is directly in the slot.
   The io_context is one per segment. */
-<<<<<<< HEAD
-
-||||||| merged common ancestors
-
-  ulint io_ctx_index;
-=======
->>>>>>> mysql-8.2.0
   struct iocb *iocb = &slot->control;
-<<<<<<< HEAD
-
-  ulint slots_per_segment = m_slots.size() / m_n_segments;
-  ulint io_ctx_index = slot->pos / slots_per_segment;
-||||||| merged common ancestors
-
-  io_ctx_index = (slot->pos * m_n_segments) / m_slots.size();
-=======
-  const ulint io_ctx_index = (slot->pos * m_n_segments) / m_slots.size();
+  const ulint slots_per_segment = m_slots.size() / m_n_segments;
+  const ulint io_ctx_index = slot->pos / slots_per_segment;
   ut_a(io_ctx_index < m_n_segments);
->>>>>>> mysql-8.2.0
 
   if (should_buffer) {
     ut_ad(this == s_reads || this == s_ibuf);

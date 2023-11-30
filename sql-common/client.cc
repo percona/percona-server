@@ -3828,34 +3828,14 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
   X509 *server_cert = nullptr;
-<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
-  char *cn = NULL;
-  int cn_loc = -1;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
-  const unsigned char *ipout = nullptr;
-  size_t iplen = 0;
-||||||| merged common ancestors
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
-  char *cn = NULL;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
-=======
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
   char *cn = nullptr;
+  int cn_loc = -1;
   ASN1_STRING *cn_asn1 = nullptr;
   X509_NAME_ENTRY *cn_entry = nullptr;
   X509_NAME *subject = nullptr;
->>>>>>> mysql-8.2.0
+  const unsigned char *ipout = nullptr;
+  size_t iplen = 0;
 #endif
   ASN1_OCTET_STRING *server_ip_address = nullptr;
   int ret_validation = 1;
@@ -3905,7 +3885,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     ipout = (const unsigned char *)ASN1_STRING_data(server_ip_address);
   }
 
-<<<<<<< HEAD
   ret_validation = ssl_verify_server_cert_san(
       server_cert, iplen != 0 ? (const char *)ipout : server_hostname, iplen,
       errptr);
@@ -3922,44 +3901,13 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       *errptr = "Failed to get CN location in the certificate subject";
       goto error;
     }
-||||||| merged common ancestors
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
-=======
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == nullptr) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
->>>>>>> mysql-8.2.0
 
-<<<<<<< HEAD
     // Get the CN entry for given location
     cn_entry = X509_NAME_get_entry(subject, cn_loc);
     if (cn_entry == nullptr) {
       *errptr = "Failed to get CN entry using CN location";
       goto error;
     }
-||||||| merged common ancestors
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
-=======
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == nullptr) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
->>>>>>> mysql-8.2.0
 
     // Get CN from common name entry
     cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);

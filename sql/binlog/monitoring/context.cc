@@ -245,16 +245,8 @@ void Transaction_compression::init() {
   auto comp_types = std::set<mysql::binlog::event::compression::type>();
   auto log_types = std::set<binlog::monitoring::log_type>();
 
-<<<<<<< HEAD
-  comp_types.insert(binary_log::transaction::compression::type::NONE);
-  comp_types.insert(binary_log::transaction::compression::type::ALGORITHM_ZSTD);
-||||||| merged common ancestors
-  comp_types.insert(binary_log::transaction::compression::type::NONE);
-  comp_types.insert(binary_log::transaction::compression::type::ZSTD);
-=======
   comp_types.insert(mysql::binlog::event::compression::type::NONE);
-  comp_types.insert(mysql::binlog::event::compression::type::ZSTD);
->>>>>>> mysql-8.2.0
+  comp_types.insert(mysql::binlog::event::compression::type::ALGORITHM_ZSTD);
 
   log_types.insert(binlog::monitoring::log_type::BINARY);
   log_types.insert(binlog::monitoring::log_type::RELAY);

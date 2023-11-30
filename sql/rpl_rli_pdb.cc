@@ -1747,7 +1747,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
   ret = ev->do_apply_event_worker(this);
 
   DBUG_EXECUTE_IF("after_executed_write_rows_event", {
-    if (ev->get_type_code() == binary_log::WRITE_ROWS_EVENT) {
+    if (ev->get_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT) {
       static constexpr char act[] = "now signal executed";
       assert(opt_debug_sync_timeout > 0);
       assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));

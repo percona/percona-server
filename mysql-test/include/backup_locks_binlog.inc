@@ -9,7 +9,7 @@
 
 SELECT @@binlog_format;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SHOW VARIABLES LIKE 'have_backup_locks';
 

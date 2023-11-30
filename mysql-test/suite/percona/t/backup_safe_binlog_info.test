@@ -7,7 +7,7 @@
 --source include/have_log_bin.inc
 
 # Deletes all the binary logs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);

@@ -27,16 +27,8 @@ namespace mysql::binlog::event::compression {
 
 std::string type_to_string(type t) {
   switch (t) {
-<<<<<<< HEAD:libbinlogevents/src/compression/base.cpp
-    using binary_log::transaction::compression::type;
-    case ALGORITHM_ZSTD:
-||||||| merged common ancestors:libbinlogevents/src/compression/base.cpp
-    using binary_log::transaction::compression::type;
-    case ZSTD:
-=======
     using mysql::binlog::event::compression::type;
-    case ZSTD:
->>>>>>> mysql-8.2.0:libs/mysql/binlog/event/compression/base.cpp
+    case ALGORITHM_ZSTD:
       return "ZSTD";
     case NONE:
       return "NONE";

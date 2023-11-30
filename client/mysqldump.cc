@@ -147,19 +147,13 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_notspcs = false, opt_drop_trigger = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
-<<<<<<< HEAD
-            opt_show_create_table_skip_secondary_engine = false;
+            opt_show_create_table_skip_secondary_engine = false,
+            opt_ignore_views = false;
 static bool opt_compressed_columns = false,
             opt_compressed_columns_with_dictionaries = false,
             opt_drop_compression_dictionary = true,
             opt_order_by_primary_desc = false, opt_lock_for_backup = false,
             opt_innodb_optimize_keys = false;
-||||||| merged common ancestors
-            opt_show_create_table_skip_secondary_engine = false;
-=======
-            opt_show_create_table_skip_secondary_engine = false,
-            opt_ignore_views = false;
->>>>>>> mysql-8.2.0
 static bool insert_pat_inited = false, debug_info_flag = false,
             debug_check_flag = false;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -170,14 +164,10 @@ static char *current_user = nullptr, *current_host = nullptr, *path = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
-<<<<<<< HEAD
+static Multi_option opt_init_commands;
 #ifndef NDEBUG
 static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
 #endif
-||||||| merged common ancestors
-=======
-static Multi_option opt_init_commands;
->>>>>>> mysql-8.2.0
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static bool ansi_mode = false;  ///< Force the "ANSI" SQL_MODE.
 /* Server supports character_set_results session variable? */
@@ -416,9 +406,8 @@ static struct my_option my_long_options[] = {
      "- don't forget to read about --single-transaction below). In all cases "
      "any action on logs will happen at the exact moment of the dump."
      "Option automatically turns --lock-tables off.",
-<<<<<<< HEAD
-     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+     &opt_replica_data, &opt_replica_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_REPLICA_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"enable-compressed-columns", OPT_ENABLE_COMPRESSED_COLUMNS,
      "Enable compressed columns extensions.", &opt_compressed_columns,
      &opt_compressed_columns, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
@@ -429,13 +418,6 @@ static struct my_option my_long_options[] = {
      &opt_compressed_columns_with_dictionaries,
      &opt_compressed_columns_with_dictionaries, nullptr, GET_BOOL, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr},
-||||||| merged common ancestors
-     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
-=======
-     &opt_replica_data, &opt_replica_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_REPLICA_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
->>>>>>> mysql-8.2.0
     {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED,
      "This option is deprecated and will be removed in a future version. "
      "Use dump-replica instead.",
@@ -1292,7 +1274,6 @@ static int get_options(int *argc, char ***argv) {
     return (EX_USAGE);
   }
 
-<<<<<<< HEAD
   if (opt_lock_for_backup && opt_lock_all_tables) {
     fprintf(stderr,
             "%s: You can't use --lock-for-backup and "
@@ -1310,15 +1291,8 @@ static int get_options(int *argc, char ***argv) {
     opt_lock_for_backup = false;
   }
 
-  /* We don't delete master logs if slave data option */
-  if (opt_slave_data) {
-||||||| merged common ancestors
-  /* We don't delete master logs if slave data option */
-  if (opt_slave_data) {
-=======
   /* We don't delete source logs if replica data option */
   if (opt_replica_data) {
->>>>>>> mysql-8.2.0
     opt_lock_all_tables = !opt_single_transaction;
     opt_source_data = 0;
     opt_delete_source_logs = false;
@@ -5926,13 +5900,12 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   return 0;
 } /* dump_selected_tables */
 
-<<<<<<< HEAD
-static int do_show_master_status(MYSQL *mysql_con,
-                                 const bool consistent_binlog_pos) {
+static int do_show_binary_log_status(MYSQL *mysql_con,
+                                     const bool consistent_binlog_pos) {
   char binlog_pos_file[FN_REFLEN];
   char binlog_pos_offset[LONGLONG_LEN + 1];
   char *file, *offset;
-  std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> master(
+  std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> source(
       nullptr, mysql_free_result);
 
   if (consistent_binlog_pos) {
@@ -5940,77 +5913,22 @@ static int do_show_master_status(MYSQL *mysql_con,
       return true;
     file = binlog_pos_file;
     offset = binlog_pos_offset;
-||||||| merged common ancestors
-static int do_show_master_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *master;
-  const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS")) {
-    return 1;
-=======
-static int do_show_binary_log_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *source;
-  const char *comment_prefix =
-      (opt_source_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(
-          mysql_con, &source,
-          get_compatible_rpl_source_query("SHOW BINARY LOG STATUS").c_str())) {
-    return 1;
->>>>>>> mysql-8.2.0
   } else {
-<<<<<<< HEAD
-    MYSQL_RES *master_ptr;
-    if (mysql_query_with_error_report(mysql_con, &master_ptr,
-                                      "SHOW MASTER STATUS")) {
-||||||| merged common ancestors
-    row = mysql_fetch_row(master);
-    if (row && row[0] && row[1]) {
-      /* SHOW MASTER STATUS reports file and position */
-      print_comment(md_result_file, false,
-                    "\n--\n-- Position to start replication or point-in-time "
-                    "recovery from\n--\n\n");
-      fprintf(md_result_file,
-              "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-              comment_prefix, row[0], row[1]);
-      check_io(md_result_file);
-    } else if (!opt_force) {
-      /* SHOW MASTER STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-      mysql_free_result(master);
-      maybe_exit(EX_MYSQLERR);
-=======
-    row = mysql_fetch_row(source);
-    if (row && row[0] && row[1]) {
-      /* SHOW BINARY LOG STATUS reports file and position */
-      print_comment(md_result_file, false,
-                    "\n--\n-- Position to start replication or point-in-time "
-                    "recovery from\n--\n\n");
-      fprintf(
-          md_result_file, "%s%s %s='%s', %s=%s;\n", comment_prefix,
-          get_compatible_rpl_replica_command("CHANGE REPLICATION SOURCE TO")
-              .c_str(),
-          get_compatible_rpl_replica_command("SOURCE_LOG_FILE").c_str(), row[0],
-          get_compatible_rpl_replica_command("SOURCE_LOG_POS").c_str(), row[1]);
-      check_io(md_result_file);
-    } else if (!opt_force) {
-      /* SHOW BINARY LOG STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-      mysql_free_result(source);
-      maybe_exit(EX_MYSQLERR);
->>>>>>> mysql-8.2.0
+    MYSQL_RES *source_ptr;
+    if (mysql_query_with_error_report(
+            mysql_con, &source_ptr,
+            get_compatible_rpl_source_query("SHOW BINARY LOG STATUS")
+                .c_str())) {
       return 1;
     }
-<<<<<<< HEAD
-    master.reset(master_ptr);
-    MYSQL_ROW row = mysql_fetch_row(master.get());
+    source.reset(source_ptr);
+    MYSQL_ROW row = mysql_fetch_row(source.get());
     if (row && row[0] && row[1]) {
       file = row[0];
       offset = row[1];
     } else {
       if (!opt_force) {
-        /* SHOW MASTER STATUS reports nothing and --force is not enabled */
+        /* SHOW BINARY LOG STATUS reports nothing and --force is not enabled */
         my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
         maybe_exit(EX_MYSQLERR);
         return 1;
@@ -6018,23 +5936,20 @@ static int do_show_binary_log_status(MYSQL *mysql_con) {
         return 0;
       }
     }
-||||||| merged common ancestors
-    mysql_free_result(master);
-=======
-    mysql_free_result(source);
->>>>>>> mysql-8.2.0
   }
 
   const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
+      (opt_source_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
 
-  /* SHOW MASTER STATUS reports file and position */
+  /* SHOW BINARY LOG STATUS reports file and position */
   print_comment(md_result_file, 0,
                 "\n--\n-- Position to start replication or point-in-time "
                 "recovery from\n--\n\n");
-  fprintf(md_result_file,
-          "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-          comment_prefix, file, offset);
+  fprintf(md_result_file, "%s%s %s='%s', %s=%s;\n", comment_prefix,
+          get_compatible_rpl_replica_command("CHANGE REPLICATION SOURCE TO")
+              .c_str(),
+          get_compatible_rpl_replica_command("SOURCE_LOG_FILE").c_str(), file,
+          get_compatible_rpl_replica_command("SOURCE_LOG_POS").c_str(), offset);
   check_io(md_result_file);
 
   return 0;
@@ -6807,36 +6722,6 @@ static bool process_set_gtid_purged(MYSQL *mysql_con, bool is_gtid_enabled,
               "--all-databases --triggers --routines --events. \n");
     }
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-    if (!opt_single_transaction && !opt_lock_all_tables && !opt_master_data) {
-      fprintf(stderr,
-              "Warning: A dump from a server that has GTIDs "
-              "enabled will by default include the GTIDs "
-              "of all transactions, even those that were "
-              "executed during its extraction and might "
-              "not be represented in the dumped data. "
-              "This might result in an inconsistent data dump. \n"
-              "In order to ensure a consistent backup of the "
-              "database, pass --single-transaction or "
-              "--lock-all-tables or --master-data. \n");
-    }
-
-=======
-    if (!opt_single_transaction && !opt_lock_all_tables && !opt_source_data) {
-      fprintf(stderr,
-              "Warning: A dump from a server that has GTIDs "
-              "enabled will by default include the GTIDs "
-              "of all transactions, even those that were "
-              "executed during its extraction and might "
-              "not be represented in the dumped data. "
-              "This might result in an inconsistent data dump. \n"
-              "In order to ensure a consistent backup of the "
-              "database, pass --single-transaction or "
-              "--lock-all-tables or --source-data. \n");
-    }
-
->>>>>>> mysql-8.2.0
     set_session_binlog(false);
     if (add_set_gtid_purged(mysql_con, ftwrl_done)) {
       return true;
@@ -7244,7 +7129,6 @@ int main(int argc, char **argv) {
 
   if (!path) write_header(md_result_file, *argv);
 
-<<<<<<< HEAD
   if (opt_lock_for_backup && !server_supports_backup_locks()) {
     fprintf(stderr,
             "%s: Error: --lock-for-backup was specified with "
@@ -7254,10 +7138,6 @@ int main(int argc, char **argv) {
     goto err;
   }
 
-  if (opt_slave_data && do_stop_slave_sql(mysql)) goto err;
-||||||| merged common ancestors
-  if (opt_slave_data && do_stop_slave_sql(mysql)) goto err;
-=======
   opt_server_version = mysql_get_server_version(mysql);
 
   if (opt_output_as_version_mode == Output_as_version_mode::SERVER) {
@@ -7272,9 +7152,8 @@ int main(int argc, char **argv) {
   }
 
   if (opt_replica_data && do_stop_replica_sql(mysql)) goto err;
->>>>>>> mysql-8.2.0
 
-  if (opt_single_transaction && opt_master_data) {
+  if (opt_single_transaction && opt_source_data) {
     /*
       See if we can avoid FLUSH TABLES WITH READ LOCK with Binlog_snapshot_*
       variables.
@@ -7284,18 +7163,17 @@ int main(int argc, char **argv) {
 
   has_consistent_gtid_executed = consistent_gtid_executed_supported(mysql);
 
-<<<<<<< HEAD
   /*
    NOTE:
    1. --lock-all-tables and --single-transaction are mutually exclusive
    2. has_consistent_binlog_pos == true => opt_single_transaction == true
-   3. --master-data => implicitly adds --lock-all-tables
-   4. --master-data + --single-transaction =>
+   3. --source-data => implicitly adds --lock-all-tables
+   4. --source-data + --single-transaction =>
                    does not add implicit --lock-all-tables
 
    We require FTWRL if any of the following:
    1. explicitly requested by --lock-all-tables
-   2. --master-data requested, but server does not provide consistent
+   2. --source-data requested, but server does not provide consistent
       binlog position (or does not support consistent gtid_executed)
       Having consistent gtid_executed condition is here to be compatible with
       upstream behavior on servers which support consistent binlog position,
@@ -7304,46 +7182,21 @@ int main(int argc, char **argv) {
    3. --single-transaction and --flush-logs
    */
   if (opt_lock_all_tables ||
-      (opt_master_data &&
+      (opt_source_data &&
        (!has_consistent_binlog_pos || !has_consistent_gtid_executed)) ||
       (opt_single_transaction && flush_logs)) {
     if (do_flush_tables_read_lock(mysql)) goto err;
     ftwrl_done = true;
   } else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
-||||||| merged common ancestors
-  if ((opt_lock_all_tables || opt_master_data ||
-       (opt_single_transaction &&
-        (flush_logs || server_with_gtids_and_opt_purge_not_off))) &&
-      do_flush_tables_read_lock(mysql))
-=======
-  if ((opt_lock_all_tables || opt_source_data ||
-       (opt_single_transaction &&
-        (flush_logs || server_with_gtids_and_opt_purge_not_off))) &&
-      do_flush_tables_read_lock(mysql))
->>>>>>> mysql-8.2.0
     goto err;
 
   /*
     Flush logs before starting transaction since
     this causes implicit commit starting mysql-5.5.
   */
-<<<<<<< HEAD
-  if (opt_lock_all_tables || opt_master_data ||
-      (opt_single_transaction && flush_logs) || opt_delete_master_logs) {
-    if (flush_logs || opt_delete_master_logs) {
-||||||| merged common ancestors
-  if (opt_lock_all_tables || opt_master_data ||
-      (opt_single_transaction &&
-       (flush_logs || server_with_gtids_and_opt_purge_not_off)) ||
-      opt_delete_master_logs) {
-    if (flush_logs || opt_delete_master_logs) {
-=======
   if (opt_lock_all_tables || opt_source_data ||
-      (opt_single_transaction &&
-       (flush_logs || server_with_gtids_and_opt_purge_not_off)) ||
-      opt_delete_source_logs) {
+      (opt_single_transaction && flush_logs) || opt_delete_source_logs) {
     if (flush_logs || opt_delete_source_logs) {
->>>>>>> mysql-8.2.0
       if (mysql_refresh(mysql, REFRESH_LOG)) {
         DB_error(mysql, "when doing refresh");
         goto err;
@@ -7371,30 +7224,14 @@ int main(int argc, char **argv) {
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required.
    */
-<<<<<<< HEAD
   server_has_gtid_enabled = get_gtid_mode(mysql);
   if (process_set_gtid_purged(mysql, server_has_gtid_enabled, ftwrl_done))
-||||||| merged common ancestors
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
+    goto err;
 
-  if (opt_master_data && do_show_master_status(mysql)) goto err;
-  if (opt_slave_data && do_show_slave_status(mysql)) goto err;
-  if (opt_single_transaction &&
-      do_unlock_tables(mysql)) /* unlock but no commit! */
-=======
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
-
-  if (opt_source_data && do_show_binary_log_status(mysql)) goto err;
+  if (opt_source_data &&
+      do_show_binary_log_status(mysql, has_consistent_binlog_pos))
+    goto err;
   if (opt_replica_data && do_show_replica_status(mysql)) goto err;
-  if (opt_single_transaction &&
-      do_unlock_tables(mysql)) /* unlock but no commit! */
->>>>>>> mysql-8.2.0
-    goto err;
-
-  if (opt_master_data &&
-      do_show_master_status(mysql, has_consistent_binlog_pos))
-    goto err;
-  if (opt_slave_data && do_show_slave_status(mysql)) goto err;
 
   /**
     Note:
@@ -7404,9 +7241,9 @@ int main(int argc, char **argv) {
     We acquired the lock (FTWRL or LTFB) if
     1. --lock-all-tables => FTWRL + opt_single_transaction == false
     2. --lock-for-backup => LTFB + opt_single_transaction == true
-    3. --master-data => (--lock-all-tables) FTWRL
+    3. --source-data => (--lock-all-tables) FTWRL
                                             + opt_single_transaction == false
-    4. --master-data + --single-transaction =>
+    4. --source-data + --single-transaction =>
          FTWRL if consistent snapshot not supported
          + opt_single_transaction == true
     5. --single-transaction + --flush-logs =>  FTWRL

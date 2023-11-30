@@ -232,16 +232,31 @@ void thd_increment_bytes_sent(size_t length) {
   if (likely(thd != nullptr)) { /* current_thd==NULL when close_connection()
                                 calls net_send_error() */
     thd->status_var.bytes_sent += length;
+<<<<<<< HEAD
     thd->bytes_sent += length;
+||||||| merged common ancestors
+=======
+    global_aggregated_stats.get_shard(thd->thread_id()).bytes_sent += length;
+>>>>>>> mysql-8.2.0
   }
 }
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
+<<<<<<< HEAD
   if (likely(thd != nullptr)) {
     thd->status_var.bytes_received += length;
     thd->bytes_received += length;
   }
+||||||| merged common ancestors
+  if (likely(thd != nullptr)) thd->status_var.bytes_received += length;
+=======
+  if (likely(thd != nullptr)) {
+    thd->status_var.bytes_received += length;
+    global_aggregated_stats.get_shard(thd->thread_id()).bytes_received +=
+        length;
+  }
+>>>>>>> mysql-8.2.0
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }

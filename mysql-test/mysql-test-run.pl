@@ -2844,13 +2844,19 @@ sub executable_setup () {
   if (!$exe_openssl) {
     if (IS_MAC) {
       # We use homebrew, rather than macOS SSL.
-      # TODO(tdidriks) add an option to mysqltest to see whether we are using
-      # openssl@1.1 or openssl@3
+      # Use the openssl symlink, which will point to something like
+      # ../Cellar/openssl@1.1/1.1.1t or ../Cellar/openssl@3/3.0.8
       my $machine_hw_name = `uname -m`;
       if ($machine_hw_name =~ "arm64") {
-	$exe_openssl = "/opt/homebrew/opt/" . "openssl\@1.1" . "/bin/openssl";
+	$exe_openssl =
+	  my_find_bin("/opt/homebrew/opt/",
+		      ["openssl/bin", "openssl\@1.1/bin"], "openssl",
+		      NOT_REQUIRED);
       } else {
-	$exe_openssl = "/usr/local/opt/" . "openssl\@1.1" . "/bin/openssl";
+	$exe_openssl =
+	  my_find_bin("/usr/local/opt/",
+		      ["openssl/bin", "openssl\@1.1/bin"], "openssl",
+		      NOT_REQUIRED);
       }
     } else {
       # We could use File::Which('openssl'),
@@ -3307,6 +3313,7 @@ sub environment_setup {
       ndb_select_all
       ndb_select_count
       ndb_show_tables
+      ndb_sign_keys
       ndb_waiter
       ndbxfrm
       ndb_secretsfile_reader
@@ -3540,7 +3547,15 @@ sub environment_setup {
     ",print_suppressions=0"
     if $opt_sanitize;
 
+<<<<<<< HEAD
   $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+||||||| merged common ancestors
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+    . ",detect_stack_use_after_return=false"
+=======
+  $ENV{'ASAN_OPTIONS'} = "suppressions=\"${glob_mysql_test_dir}/asan.supp\""
+    . ",detect_stack_use_after_return=false"
+>>>>>>> mysql-8.2.0
     if $opt_sanitize;
 
 # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
@@ -3888,7 +3903,7 @@ sub check_ndbcluster_support ($) {
   # Add MySQL Cluster test suites
   $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
   $DEFAULT_SUITES .= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,".
-                     "gcol_ndb,json_ndb,ndb_opt";
+                     "gcol_ndb,json_ndb,ndb_opt,ndb_tls";
   # Increase the suite timeout when running with default ndb suites
   $opt_suite_timeout *= 2;
   return;
@@ -6429,9 +6444,9 @@ sub mysqld_arguments ($$$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
 
-  my @options = ("--no-defaults",   "--defaults-extra-file",
-                 "--defaults-file", "--login-path",
-                 "--print-defaults");
+  my @options = ("--no-defaults",    "--defaults-extra-file",
+                 "--defaults-file",  "--login-path",
+                 "--print-defaults", "--no-login-paths");
 
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 

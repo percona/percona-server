@@ -25,7 +25,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   # the whole harness. utils.cc should be split into a smaller chunks
   # (string, file, ...) to allow to build directly against it.
   #
-  MYSQL_ADD_EXECUTABLE(routerfuzz_router_uri
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_router_uri
     fuzz_router_uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
@@ -34,17 +34,25 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
+<<<<<<< HEAD
     perconaserverclient
     ${SSL_LIBRARIES}
+||||||| merged common ancestors
+    mysqlclient
+    ${SSL_LIBRARIES}
+=======
+    mysqlclient
+    OpenSSL::SSL OpenSSL::Crypto
+>>>>>>> mysql-8.2.0
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri
+  TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_router_uri
     PRIVATE
     $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
     )
-  LIBFUZZER_ADD_TEST(routerfuzz_router_uri
+  LIBFUZZER_ADD_TEST(routertest_fuzz_router_uri
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri
     )
 
@@ -53,7 +61,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   # the whole harness. utils.cc should be split into a smaller chunks
   # (string, file, ...) to allow to build directly against it.
   #
-  MYSQL_ADD_EXECUTABLE(routerfuzz_router_uri_tostring
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_router_uri_tostring
     fuzz_router_uri_tostring.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
@@ -62,17 +70,25 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
+<<<<<<< HEAD
     perconaserverclient
     ${SSL_LIBRARIES}
+||||||| merged common ancestors
+    mysqlclient
+    ${SSL_LIBRARIES}
+=======
+    mysqlclient
+    OpenSSL::SSL OpenSSL::Crypto
+>>>>>>> mysql-8.2.0
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri_tostring
+  TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_router_uri_tostring
     PRIVATE
     $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
     )
-  LIBFUZZER_ADD_TEST(routerfuzz_router_uri_tostring
+  LIBFUZZER_ADD_TEST(routertest_fuzz_router_uri_tostring
     INITIAL_CORPUS_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri_tostring
     )

@@ -93,6 +93,9 @@ description and its property/type and corresponding monitor_id.
 Please note: If you add a monitor here, please add its corresponding
 monitor_id to "enum monitor_id_value" structure in srv0mon.h file. */
 
+// NOTE: please keep the counter descriptions below in sync with the
+// description of the matching metrics in handler/ha_innodb.cc
+
 static monitor_info_t innodb_counter_info[] = {
     /* A dummy item to mark the module start, this is
     to accommodate the default value (0) set for the
@@ -335,7 +338,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES0_READ},
 
     {"buffer_data_reads", "buffer",
-     "Amount of data read in bytes (innodb_data_reads)",
+     "Amount of data read in bytes (innodb_data_read)",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_BYTE_READ},
 
@@ -934,7 +937,8 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WAITS},
 
-    {"log_write_requests", "log", "Number of log write requests",
+    {"log_write_requests", "log",
+     "Number of log write requests (innodb_log_write_requests)",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITE_REQUEST},
 
@@ -1753,12 +1757,19 @@ void srv_mon_process_existing_counter(
       value = stat.n_pages_read;
       break;
 
+<<<<<<< HEAD
     /* innodb_pages0_read */
     case MONITOR_OVLD_PAGES0_READ:
       value = srv_stats.page0_read;
       break;
 
     /* innodb_data_reads, the total number of data reads */
+||||||| merged common ancestors
+    /* innodb_data_reads, the total number of data reads */
+=======
+    /* innodb_data_read, the amount of data read since the server was started
+     * (in bytes) */
+>>>>>>> mysql-8.2.0
     case MONITOR_OVLD_BYTE_READ:
       value = srv_stats.data_read;
       break;

@@ -738,8 +738,19 @@ static inline void buf_block_modify_clock_inc(buf_block_t *block) {
 
   /* No block latch is acquired for internal temporary tables. */
   ut_ad(fsp_is_system_temporary(block->page.id.space()) ||
+<<<<<<< HEAD
         (bpage->buf_fix_count == 0 && block->mutex.is_owned()) ||
         rw_lock_own_flagged(&block->lock, RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
+||||||| merged common ancestors
+        (block->page.buf_fix_count == 0 &&
+         mutex_own(&buf_pool->LRU_list_mutex)) ||
+        rw_lock_own_flagged(&block->lock, RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
+=======
+        (block->page.buf_fix_count == 0 &&
+         mutex_own(&buf_pool->LRU_list_mutex)) ||
+        rw_lock_own_flagged(&block->lock, RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX) ||
+        block->is_memory());
+>>>>>>> mysql-8.2.0
 
   block->modify_clock++;
 }

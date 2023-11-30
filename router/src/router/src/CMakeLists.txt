@@ -62,8 +62,16 @@ TARGET_LINK_LIBRARIES(router_lib
   harness-library
   harness_stdx
   harness_tls
+<<<<<<< HEAD
   perconaserverclient
   ${SSL_LIBRARIES}
+||||||| merged common ancestors
+  mysqlclient
+  ${SSL_LIBRARIES}
+=======
+  mysqlclient
+  OpenSSL::SSL OpenSSL::Crypto
+>>>>>>> mysql-8.2.0
   io_component
   extra::rapidjson
   )
@@ -123,6 +131,7 @@ TARGET_INCLUDE_DIRECTORIES(router_frontend_lib
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
   ${PROJECT_SOURCE_DIR}/src/rest_api/include/
+  ${PROJECT_SOURCE_DIR}/src/connection_pool/include/
 )
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter

@@ -401,6 +401,8 @@ int handle_group_replication_incoming_connection(THD *thd, int fd,
       mysql_provider) {
     mysql_provider->set_new_connection(thd, new_connection);
     error_return = 0;
+  } else {
+    delete new_connection;
   }
 
   return error_return;
@@ -2996,7 +2998,7 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     return 1;
   }
 
-  if (!binary_log::Uuid::is_valid(str, length)) {
+  if (!mysql::gtid::Uuid::is_valid(str, length)) {
     if (!is_var_update) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID, str);
     } else
@@ -5260,7 +5262,7 @@ static int check_view_change_uuid_string(const char *str, bool is_var_update) {
   if (strcmp(str, "AUTOMATIC") == 0) return 0;
 
   size_t length = strlen(str);
-  if (!binary_log::Uuid::is_valid(str, length)) {
+  if (!mysql::gtid::Uuid::is_valid(str, length)) {
     if (!is_var_update) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_INVALID, str);
     } else

@@ -60,7 +60,14 @@ leak:sasl_client_add_plugin
 
 # The GSS API plugin for SASL has leaks.
 leak:gss_acquire_cred_from
+<<<<<<< HEAD
 
 # The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
 # utility on Ubuntu 22.04 Jammy
 leak:re_compile_internal
+||||||| merged common ancestors
+=======
+
+# ndb_sign_keys leaks in some error-exit situations
+leak:ndb_sign_keys
+>>>>>>> mysql-8.2.0

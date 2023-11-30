@@ -67,6 +67,7 @@
 #ifdef _WIN32
 #include "sql/nt_servc.h"
 #endif  // _WIN32
+#include "aggregated_stats.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"  // UUID_LENGTH
 #include "sql_connect.h"
@@ -256,9 +257,14 @@ extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
+<<<<<<< HEAD
 extern ulong expire_logs_days;
 extern ulong max_slowlog_size;
 extern ulong max_slowlog_files;
+||||||| merged common ancestors
+extern ulong expire_logs_days;
+=======
+>>>>>>> mysql-8.2.0
 extern ulong binlog_expire_logs_seconds;
 extern ulonglong binlog_space_limit;
 extern bool opt_binlog_expire_logs_auto_purge;
@@ -387,6 +393,7 @@ extern const char *in_left_expr_name;
 extern SHOW_VAR status_vars[];
 extern struct System_variables max_system_variables;
 extern struct System_status_var global_status_var;
+extern struct aggregated_stats global_aggregated_stats;
 extern struct rand_struct sql_rand;
 
 using user_stats_t = collation_unordered_map<std::string, USER_STATS>;
@@ -407,7 +414,7 @@ extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
 extern const char *load_default_groups[];
 extern struct my_option my_long_early_options[];
-extern bool mysqld_server_started;
+extern "C" MYSQL_PLUGIN_IMPORT bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;

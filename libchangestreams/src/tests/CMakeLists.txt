@@ -37,8 +37,16 @@ SET(TESTS "")
 
 SET(TEST_LINK_LIBRARIES
   changestreams_standalone_static
+<<<<<<< HEAD
   binlogstandalone_static
   perconaserverclient
+||||||| merged common ancestors
+  binlogstandalone_static
+  mysqlclient
+=======
+  mysql_binlog_event_standalone
+  mysqlclient
+>>>>>>> mysql-8.2.0
   ${GTEST_LIBRARIES})
 
 # If we are using the protobuf extensions
@@ -48,7 +56,7 @@ IF (WITH_CS_PROTOBUF)
     cs-test-mysql-proto-reader-mtr)
 
   LIST(APPEND TEST_LINK_LIBRARIES
-    changestreams_pb_static ${PROTOBUF_LITE_LIBRARY})
+    changestreams_pb_static ext::libprotobuf-lite)
 ENDIF()
 
 FOREACH(test ${TESTS})

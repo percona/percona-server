@@ -32,12 +32,14 @@ MSVC_CPPCHECK_DISABLE()
 DISABLE_MISSING_PROFILE_WARNING()
 
 IF(NOT WITHOUT_SERVER)
-  IF(NOT WITH_NDB AND NOT DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
-    IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-      # Do not build ndbcluster plugin by default for 32-bit MySQL Server
-      SET(WITH_NDBCLUSTER_STORAGE_ENGINE 0)
-    ENDIF()
+  IF(WIN32)
+    SET(DEFAULT_TLS_SEARCH_PATH "$HOMEPATH/ndb-tls")
+  ELSE()
+    SET(DEFAULT_TLS_SEARCH_PATH "$HOME/ndb-tls")
   ENDIF()
+  SET(WITH_NDB_TLS_SEARCH_PATH ${DEFAULT_TLS_SEARCH_PATH}
+      CACHE STRING "Search path for TLS keys and certificates")
+
   #
   # Add the ndbcluster plugin
   #
@@ -123,6 +125,10 @@ IF(NOT WITHOUT_SERVER)
     DEFAULT STATIC_ONLY
     LINK_LIBRARIES ndbclient_static extra::rapidjson)
 
+  SET_PROPERTY(SOURCE plugin/ha_ndbcluster.cc
+               PROPERTY COMPILE_DEFINITIONS
+               NDB_TLS_SEARCH_PATH="${WITH_NDB_TLS_SEARCH_PATH}")
+
   # Sanity check that MYSQL_ADD_PLUGIN didn't decide to skip build
   IF (NOT WITH_NDBCLUSTER_STORAGE_ENGINE)
     IF(WITH_NDB)
@@ -161,10 +167,6 @@ FOREACH(warning
     STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
   ENDIF()
 ENDFOREACH()
-
-IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  MESSAGE(WARNING "Only 64-bit build of NDB is supported")
-ENDIF()
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
@@ -340,4 +342,5 @@ IF(WITH_NDBAPI_EXAMPLES)
   ADD_SUBDIRECTORY(ndbapi-examples)
 ENDIF()
 
-ADD_SUBDIRECTORY(wix)
+## WiX support disabled for now
+# ADD_SUBDIRECTORY(wix)

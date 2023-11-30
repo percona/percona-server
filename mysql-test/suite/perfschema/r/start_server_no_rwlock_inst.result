@@ -115,7 +115,13 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_rwlock_classes";
 Variable_name	Value
+<<<<<<< HEAD
 performance_schema_max_rwlock_classes	70
+||||||| merged common ancestors
+performance_schema_max_rwlock_classes	60
+=======
+performance_schema_max_rwlock_classes	100
+>>>>>>> mysql-8.2.0
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/synch/rwlock/%";
 count(*) > 0

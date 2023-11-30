@@ -905,7 +905,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   }
 
   /**
-    When true, enforces unique constraint (by adding a hidden hash_field and
+    When true, enforces unique constraint (by adding a hidden hash field and
     creating a key over this field) when:
     (1) unique key is too long, or
     (2) number of key parts in distinct key is too big, or
@@ -1405,9 +1405,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       share->fields = ++fieldnr;
       param->hidden_field_count++;
       share->field--;
-      table->set_set_counter(
-          set_counter, param->m_operation == Temp_table_param::TTP_EXCEPT);
-      table->set_distinct(param->m_last_operation_is_distinct);
+      table->set_set_op(set_counter,
+                        param->m_operation == Temp_table_param::TTP_EXCEPT,
+                        param->m_last_operation_is_distinct);
+      table->set_hashing(
+          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HASH_SET_OPERATIONS));
     }
 
     Field_longlong *field = new (&share->mem_root)
@@ -1614,7 +1616,14 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     }
   }
 
-  // Create a key over hash_field to enforce unique constraint
+  // For set operations, we may use either a temporary table key strategy or a
+  // hashing strategy.  If a temporary table key strategy is used, it is set up
+  // here.  We create a key over a hash_field to enforce the unique constraint.
+  // If a hashing strategy is used, de-duplicating via a tmp table key is not
+  // used to start with, however it may be used as a fallback for secondary
+  // memory overflow during spill handling, thus most of the set-up is done
+  // here, but share->keys is set to 0 in instantiate_tmp_table until such time
+  //  as we would need the fallback.
   if (unique_constraint_via_hash_field) {
     KEY *hash_key;
     KEY_PART_INFO *hash_kpi;
@@ -2334,7 +2343,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   trace_tmp.add("columns", s->fields)
       .add("row_length", s->reclength)
       .add("key_length", table->s->keys > 0 ? table->key_info->key_length : 0)
-      .add("unique_constraint", table->hash_field ? true : false)
+      .add("unique_constraint",
+           !table->is_union_or_table() || table->hash_field != nullptr)
       .add("makes_grouped_rows", table->group != nullptr)
       .add("cannot_insert_duplicates", s->is_distinct);
 
@@ -2359,7 +2369,6 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   @param  thd             Thread handler
   @param  table           Table object that describes the table to be
                           instantiated
-
   Creates temporary table and opens it.
 
   @returns false if success, true if error
@@ -2371,6 +2380,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
   table->in_use = thd;
 
   TABLE_SHARE *const share = table->s;
+  if (table->uses_hashing()) share->keys = 0;
 
 #ifndef NDEBUG
   for (uint i = 0; i < share->fields; i++)

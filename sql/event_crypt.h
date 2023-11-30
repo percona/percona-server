@@ -3,7 +3,6 @@
 
 #include "binlog_crypt_data.h"
 
-// Decrypt Percona binlog encryption encrypted-event
 bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                    uchar *ebuf, size_t buf_len);
 

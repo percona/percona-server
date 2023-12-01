@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_thd_internal_api.h"  // create_internal_thd
 
+
 /**
   Create THD object and initialize internal variables.
 */

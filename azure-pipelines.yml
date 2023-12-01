@@ -515,6 +515,7 @@ jobs:
             -DWITH_RAPIDJSON=bundled
             -DWITH_ZLIB=bundled
             -DWITH_ZSTD=bundled
+            -DWITH_CURL=bundled
 
             -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
             -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF

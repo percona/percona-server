@@ -10551,7 +10551,7 @@ int ha_rocksdb::write_row(uchar *const buf) {
   // values from INSERT
   m_dup_key_found = false;
 
-  const int rv = update_write_row(nullptr, buf, skip_unique_check());
+  const int rv = update_write_row(nullptr, buf);
 
   if (rv == 0) {
     // Not protected by ddl_manger lock for performance
@@ -10676,14 +10676,13 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_and_lock_unique_pk(const struct update_row_info &row_info,
-                                         bool *const found,
-                                         const bool skip_unique_check) {
+                                         bool *const found) {
   assert(found != nullptr);
 
   assert(row_info.old_pk_slice.size() == 0 ||
          row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0);
 
-  const bool ignore_pk_unique_check = skip_unique_check;
+  const bool ignore_pk_unique_check = row_info.skip_unique_check;
   rocksdb::PinnableSlice value;
   rocksdb::PinnableSlice *pslice =
       m_insert_with_update ? &m_dup_key_retrieved_record : &value;
@@ -10766,8 +10765,7 @@ int ha_rocksdb::acquire_prefix_lock(const Rdb_key_def &kd, Rdb_transaction *tx,
 */
 int ha_rocksdb::check_and_lock_sk(
     const uint key_id, const struct update_row_info &row_info,
-    bool *const found,
-    const bool skip_unique_check MY_ATTRIBUTE((__unused__))) {
+    bool *const found) {
   assert(
       (row_info.old_data == table->record[1] &&
        row_info.new_data == table->record[0]) ||
@@ -10938,8 +10936,7 @@ int ha_rocksdb::check_and_lock_sk(
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_uniqueness_and_lock(
-    const struct update_row_info &row_info, bool pk_changed,
-    bool skip_unique_check) {
+    const struct update_row_info &row_info, bool pk_changed) {
   assert(
       (row_info.old_data == table->record[1] &&
        row_info.new_data == table->record[0]) ||
@@ -10965,11 +10962,11 @@ int ha_rocksdb::check_uniqueness_and_lock(
         found = false;
         rc = HA_EXIT_SUCCESS;
       } else {
-        rc = check_and_lock_unique_pk(row_info, &found, skip_unique_check);
+        rc = check_and_lock_unique_pk(row_info, &found);
         DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_pk_check");
       }
     } else {
-      rc = check_and_lock_sk(key_id, row_info, &found, skip_unique_check);
+      rc = check_and_lock_sk(key_id, row_info, &found);
       DEBUG_SYNC(ha_thd(), "rocksdb.after_unique_sk_check");
     }
     DBUG_EXECUTE_IF("rocksdb_blob_crash",
@@ -11392,8 +11389,7 @@ int ha_rocksdb::update_write_indexes(const struct update_row_info &row_info,
     Other           HA_ERR error code (can be SE-specific)
  */
 int ha_rocksdb::update_write_row(const uchar *const old_data,
-                                 const uchar *const new_data,
-                                 const bool skip_unique_check) {
+                                 const uchar *const new_data) {
   DBUG_ENTER_FUNC();
 
   assert((old_data == table->record[1] && new_data == table->record[0]) ||
@@ -11409,7 +11405,7 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
 
   row_info.old_data = old_data;
   row_info.new_data = new_data;
-  row_info.skip_unique_check = skip_unique_check;
+  row_info.skip_unique_check = skip_unique_check();
   row_info.new_pk_unpack_info = nullptr;
   set_last_rowkey(old_data);
 
@@ -11442,12 +11438,13 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
   // Case: We skip both unique checks and rows locks only when bulk load is
   // enabled or if rocksdb_skip_locks_if_skip_unique_check is ON
   if (!THDVAR(table->in_use, bulk_load) &&
-      (!rocksdb_skip_locks_if_skip_unique_check || !skip_unique_check)) {
+      (!rocksdb_skip_locks_if_skip_unique_check ||
+       !row_info.skip_unique_check)) {
     /*
       Check to see if we are going to have failures because of unique
       keys.  Also lock the appropriate key values.
     */
-    rc = check_uniqueness_and_lock(row_info, pk_changed, skip_unique_check);
+    rc = check_uniqueness_and_lock(row_info, pk_changed);
     if (rc != HA_EXIT_SUCCESS) {
       DBUG_RETURN(rc);
     }
@@ -12126,7 +12123,7 @@ int ha_rocksdb::update_row(const uchar *const old_data, uchar *const new_data) {
   assert(new_data == table->record[0]);
 
   ha_statistic_increment(&System_status_var::ha_update_count);
-  const int rv = update_write_row(old_data, new_data, skip_unique_check());
+  const int rv = update_write_row(old_data, new_data);
 
   if (rv == 0) {
     update_table_stats_if_needed();

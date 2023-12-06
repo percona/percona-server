@@ -321,7 +321,7 @@ ENDIF()
 
 # Avoid 'requires dynamic R_X86_64_PC32 reloc' linker error for dd_sdi-t.cc
 # when built with ASAN
-IF(WITH_ASAN)
+IF(WITH_ASAN OR WITH_VALGRIND)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-fPIC FILES dd_sdi-t.cc)
 ENDIF()
 

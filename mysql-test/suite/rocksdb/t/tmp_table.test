@@ -1,6 +1,9 @@
 --source include/have_rocksdb.inc
 --source include/not_parallel.inc
+
+# Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+
 
 connect (con1,localhost,root,,);
 ####################################################
@@ -235,3 +238,5 @@ create temporary table t1(a int primary key, b int, index (b) COMMENT 'cfname=te
 create database #sqltmp;
 --error 1064
 create table #sql_1 (pk int primary key) engine=rocksdb charset=latin1;
+
+--source include/wait_until_count_sessions.inc

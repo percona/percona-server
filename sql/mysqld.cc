@@ -7339,6 +7339,10 @@ static int init_ssl() {
   if (opt_ssl_fips_mode != SSL_FIPS_MODE_OFF)
     LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT, "--ssl-fips-mode");
 
+  if (get_fips_mode() == 1) {
+    LogErr(INFORMATION_LEVEL, ER_SSL_FIPS_MODE_ENABLED);
+  }
+
   return 0;
 }
 

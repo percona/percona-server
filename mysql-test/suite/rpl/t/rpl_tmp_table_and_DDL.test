@@ -203,4 +203,45 @@ CREATE TABLE t1 LIKE temp_t1;
 --connection master
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
+
+--sync_slave_with_master
+#
+# BUG#112364
+# CREATE TABLE LIKE <TEMP_TABLE> does not write the charset on binary log 
+# when using row based replication
+#
+--connection master
+
+# Define temp_t1 character set and collation
+--let $charset_temp_t1= latin1
+--let $collation_temp_t1= latin1_swedish_ci
+
+# Create the temporary tables
+--eval CREATE TEMPORARY TABLE temp_t1 (c1 INT) DEFAULT CHARSET=$charset_temp_t1
+
+# Create t1 based on temporary tables
+CREATE TABLE t1 LIKE temp_t1;
+--sync_slave_with_master
+
+# On master
+--connection master
+# Assert that t1 have the same character set as temp_t1 
+--let $collation_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Collation, 1)
+--let $assert_cond= "$collation_t1" = "$collation_temp_t1"
+--let $assert_text= "t1 on master and temp_t1 have the same character set"
+--source include/assert.inc
+
+
+# On slave
+--connection slave
+# Assert that t1 have the same character set as temp_t1 
+--let $collation_t1= query_get_value(SHOW TABLE STATUS WHERE Name='t1', Collation, 1)
+--let $assert_cond= "$collation_t1" = "$collation_temp_t1"
+--let $assert_text= "t1 on slave and temp_t1 have the same character set"
+--source include/assert.inc
+
+# Cleanup
+--connection master
+DROP TEMPORARY TABLE temp_t1;
+DROP TABLE t1;
 --source include/rpl/deinit.inc

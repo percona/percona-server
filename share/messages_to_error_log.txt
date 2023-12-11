@@ -12443,6 +12443,9 @@ ER_CONN_CONTROL_DELAYED_CONN_STATS
 ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH
   eng "The --secure-file-path is configured, %s must be set accordingly."
 
+ER_SSL_FIPS_MODE_ENABLED
+  eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

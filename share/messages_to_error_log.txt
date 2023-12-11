@@ -13114,6 +13114,9 @@ ER_AUDIT_UDF_SET_FILTER_FAILURE
 ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE
   eng "Unexpected event type for replace_field action"
 
+ER_SSL_FIPS_MODE_ENABLED
+  eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
+
 #
 # End of Percona Server 8.0 server error log messages
 #

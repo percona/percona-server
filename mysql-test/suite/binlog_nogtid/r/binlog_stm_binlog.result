@@ -425,7 +425,7 @@ binlog.000001	#	Query	#	#	use `test`; create table t1 (a int)
 binlog.000001	#	Query	#	#	use `test`; create table if not exists t2 select * from t1
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int DEFAULT NULL
-) ENGINE=InnoDB
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Query	#	#	use `mysql`; INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111'
 binlog.000001	#	Xid	#	#	COMMIT /* XID */

@@ -1612,6 +1612,16 @@ void close_thread_tables(THD *thd)
       table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
     }
+
+    char tmp_table_name_prefix[] = "#sql-";
+    const size_t prefix_len = 5;
+    /* Check if the table is a temp table owned by a different thread */
+    if (table->query_id != thd->query_id && !memcmp(tmp_table_name_prefix, table->s->table_name.str, prefix_len))
+    {
+      sql_print_information("table: '%s'  owning_query_id: %lu but the query id for this thread is %lu",
+                          table->s->table_name.str, (ulong) table->query_id, (ulong) thd->query_id);
+      reduce_se_share_ref_count(table);
+    }
   }
 
   /*

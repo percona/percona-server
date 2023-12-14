@@ -33,10 +33,10 @@
 
 #include "mysql/harness/stdx/attribute.h"
 
-#ifdef NDEBUG
-#define MYSQLD_BIN "mysqld"
-#else
+#ifdef HAVE_DEBUG_EXTNAME
 #define MYSQLD_BIN "mysqld-debug"
+#else
+#define MYSQLD_BIN "mysqld"
 #endif
 
 #define SKIP_GIT_TESTS(COND)                                       \

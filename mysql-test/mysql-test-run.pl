@@ -296,7 +296,6 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
 
   component_audit_log_filter
-  binlog_57_decryption
   component_encryption_udf
   percona
   percona_innodb

@@ -885,7 +885,8 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in]	mysql_table	NULL, or mysql table object when
 				user thread invokes dml
-@param[in]	prebuilt	compress_heap must be taken from here
+@param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
+                        and compress_heap (used for compression)
 @param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id,if error is not equal to DB_SUCCESS, return NULL */

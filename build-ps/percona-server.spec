@@ -141,6 +141,7 @@ Source5:        mysql_config.sh
 Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+Source999:      call-home.sh
 Patch0:         mysql-5.7-sharedlib-rename.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  gcc
@@ -193,6 +194,7 @@ Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
 Requires:       openssl
+Requires:       curl
 Requires(pre):  Percona-Server-shared%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix}
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
@@ -664,6 +666,11 @@ else
       fi
   fi
 fi
+
+cp %SOURCE999 /tmp/ 2>/dev/null || :
+bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v "5.7.44-48-1" -d "PACKAGE" &>/dev/null || :
+rm -f /tmp/call-home.sh
+
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""

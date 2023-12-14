@@ -292,10 +292,14 @@ trx_purge_sys_close(void)
 	for (que_thr_t* thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		thr != NULL;
 		thr = UT_LIST_GET_NEXT(thrs, thr)) {
+		/* We use blob_heap to decompress compressed column. */
 		if (thr->prebuilt != 0 &&
-			thr->prebuilt->compress_heap != 0) {
-			row_mysql_prebuilt_free_compress_heap(thr->prebuilt);
+			thr->prebuilt->blob_heap != 0) {
+			row_mysql_prebuilt_free_blob_heap(thr->prebuilt);
 		}
+
+		/* compress_heap was not used */
+		ut_ad(thr->prebuilt == 0 || thr->prebuilt->compress_heap == 0);
 	}
 
 	que_graph_free(purge_sys->query);

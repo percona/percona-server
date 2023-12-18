@@ -685,7 +685,10 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
 
     /** ADD COLUMN which can be done instantly, including
     adding stored column only (or along with adding virtual columns) */
-    INSTANT_ADD_COLUMN
+    INSTANT_ADD_COLUMN,
+
+    /** Only reference to an index is being removed. */
+    INSTANT_DROP_INDEX,
   };
 
   [[nodiscard]] int create_table(const std::string &table_name,
@@ -1187,6 +1190,7 @@ extern bool rocksdb_disable_instant_ddl;
 extern bool rocksdb_partial_index_ignore_killed;
 extern bool rocksdb_enable_instant_ddl_for_column_default_changes;
 extern bool rocksdb_enable_instant_ddl_for_table_comment_changes;
+extern bool rocksdb_enable_instant_ddl_for_drop_index_changes;
 
 extern unsigned long long rocksdb_converter_record_cached_length;
 }  // namespace myrocks

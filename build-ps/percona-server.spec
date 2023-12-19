@@ -28,6 +28,9 @@
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
 
+# By default a build will be done in normal mode
+%{?enable_fipsmode: %global enable_fipsmode 1}
+
 %global mysql_version @@MYSQL_VERSION@@
 %global percona_server_version @@PERCONA_VERSION@@
 %global revision @@REVISION@@
@@ -63,8 +66,13 @@
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
+%if 0%{?enable_fipsmode}
+%{!?compilation_comment_release: %global compilation_comment_release Percona Server Pro (GPL), Release %{percona_server_version}, Revision %{revision}}
+%{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server Pro - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
+%else
 %{!?compilation_comment_release: %global compilation_comment_release Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
+%endif$
 %{!?src_base:                    %global src_base percona-server}
 
 %if 0%{?rhel} >= 8
@@ -265,6 +273,7 @@ Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Conflicts:      percona-server-server-pro
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -306,6 +315,7 @@ Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
+Conflicts:      percona-server-client-pro
 
 %description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
@@ -350,6 +360,7 @@ Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
+Conflicts:      percona-server-test-pro
 
 %description -n percona-server-test
 This package contains the Percona Server regression test suite.
@@ -365,6 +376,7 @@ Obsoletes:     mysql-connector-c-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
+Conflicts:      percona-server-devel-pro
 Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
@@ -446,6 +458,7 @@ Group:          Applications/Databases
 Requires:       percona-server-server = %{version}-%{release}
 Requires:       percona-server-shared = %{version}-%{release}
 Requires:       percona-server-client = %{version}-%{release}
+Conflicts:      percona-server-rocksdb-pro
 
 %description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
@@ -457,6 +470,7 @@ Group:         Applications/Databases
 Provides:      percona-mysql-router = %{version}-%{release}
 Obsoletes:     percona-mysql-router < %{version}-%{release}
 Provides:      mysql-router
+Conflicts:     percona-mysql-router-pro
 
 %description -n percona-mysql-router
 The Percona MySQL Router software delivers a fast, multi-threaded way of
@@ -467,6 +481,7 @@ Summary:        Development header files and libraries for Percona MySQL Router
 Group:          Applications/Databases
 Provides:       percona-mysql-router-devel = %{version}-%{release}
 Obsoletes:      mysql-router-devel
+Conflicts:      percona-mysql-router-devel-pro
 
 %description -n percona-mysql-router-devel
 This package contains the development header files and libraries

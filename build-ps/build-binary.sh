@@ -33,6 +33,7 @@ COMMON_FLAGS=''
 TOKUDB_BACKUP_VERSION=''
 # enable asan
 ENABLE_ASAN=0
+FIPSMODE=0
 #
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -41,7 +42,7 @@ TAR=${TAR:-tar}
 if ! getopt --test
 then
     go_out="$(getopt --options=iqdvj:m:t: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-zenfs,with-mecab:,with-ssl:,tag: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-zenfs,enable-fipsmode,with-mecab:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -105,6 +106,12 @@ do
             echo >&2 "Cannot find libssl.a in $WITH_SSL"
             exit 3
         fi
+        ;;
+    --enable-fipsmode )
+        shift
+        FIPSMODE=1
+        WITH_SSL="OFF"
+        BUILD_COMMENT="${BUILD_COMMENT:-}-pro"
         ;;
     --with-zenfs )
         shift
@@ -177,10 +184,19 @@ elif [ -n "$(command -v git)" -a -d "$SOURCEDIR/.git" ];
 then
     REVISION="$(git rev-parse --short HEAD)"
 fi
-PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+if [ x"${FIPSMODE}" == x1 ]; then
+    PRODUCT_FULL="Percona-Server-Pro-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+else
+    PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+fi
 PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}${TARBALL_SUFFIX:-}"
-COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
-COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
+if [ x"${FIPSMODE}" == x1 ]; then
+    COMMENT="Percona Server Pro (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
+    COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
+else
+    COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
+    COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
+fi
 
 # Compilation flags
 export CC=${CC:-gcc}
@@ -310,7 +326,12 @@ fi
 )
 
 (
+if [ x"${FIPSMODE}" == x1 ]; then
+    LIBLIST="libgssapi.so libldap_r-2.4.so.2 libldap.so.2 liblber-2.4.so.2 liblber.so.2 libreadline.so libtinfo.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libplds4.so libncurses.so.5 libtinfo.so.5 component_encryption_udf.so component_keyring_kms.so component_masking_functions.so"
+else
     LIBLIST="libgssapi.so libldap_r-2.4.so.2 libldap.so.2 liblber-2.4.so.2 liblber.so.2 libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libssl3.so libplds4.so libncurses.so.5 libtinfo.so.5 component_encryption_udf.so component_keyring_kms.so component_masking_functions.so"
+fi
+
     DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""

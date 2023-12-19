@@ -5,4 +5,10 @@ Warnings:
 Warning	42000	keyring_vault initialization failure. Please check the server log.
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault2.conf';
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/keyring_vault1.conf';
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "aaaaa");
+SELECT * FROM t1;
+c1	c2
+1	aaaaa
+DROP TABLE t1;
 UNINSTALL PLUGIN keyring_vault;

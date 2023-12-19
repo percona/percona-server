@@ -30,6 +30,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_fipsmode           Build gated PS
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -74,6 +75,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_fipsmode=*) FIPSMODE="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -665,6 +667,25 @@ build_srpm(){
     sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
+    if [[ "x${FIPSMODE}" == "x1" ]]; then
+        sed -i -e "s:percona-server-server$:percona-server-server-pro:g" \
+        -e "s:percona-server-client$:percona-server-client-pro:g" \
+        -e "s:percona-server-devel$:percona-server-devel-pro:g" \
+        -e "s:percona-mysql-router$:percona-mysql-router-pro:g" \
+        -e "s:percona-mysql-router :percona-mysql-router-pro :g" \
+        -e "s:percona-mysql-router-devel$:percona-mysql-router-devel-pro:g" \
+        -e "s:percona-server-rocksdb$:percona-server-rocksdb-pro:g" \
+        -e "s:Conflicts\:      percona-server-server-pro:Conflicts\:      percona-server-server:g" \
+        -e "s:Conflicts\:      percona-server-client-pro:Conflicts\:      percona-server-client:g" \
+        -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \
+        -e "s:Conflicts\:      percona-server-devel-pro:Conflicts\:      percona-server-devel:g" \
+        -e "s:Conflicts\:      percona-server-rocksdb-pro:Conflicts\:      percona-server-rocksdb:g" \
+        -e "s:Conflicts\:     percona-mysql-router-pro:Conflicts\:     percona-mysql-router:g" \
+        -e "s:Conflicts\:      percona-mysql-router-devel-pro:Conflicts\:      percona-mysql-router-devel:g" \
+        -e "s:Name\:           percona-server:Name\:           percona-server-pro:g" \
+        percona-server.spec
+    fi
+    #
     cd ${WORKDIR}/rpmbuild/SOURCES
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
     wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
@@ -819,15 +840,31 @@ build_rpm(){
     fi
     if [ ${ARCH} = x86_64 ]; then
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ "x${FIPSMODE}" == "x1" ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ "x${FIPSMODE}" == "x1" ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         fi
     else
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ "x${FIPSMODE}" == "x1" ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ "x${FIPSMODE}" == "x1" ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         fi
     fi
 
@@ -871,13 +908,79 @@ build_source_deb(){
     TMPREL=$(echo ${TARFILE}| awk -F '-' '{print $4}')
     RELEASE=${TMPREL%.tar.gz}
 
-    NEWTAR=percona-server_${VERSION}-${RELEASE}.orig.tar.gz
+    if [[ "x${FIPSMODE}" == "x1" ]]; then
+        NEWTAR=percona-server-pro_${VERSION}-${RELEASE}.orig.tar.gz
+    else
+        NEWTAR=percona-server_${VERSION}-${RELEASE}.orig.tar.gz
+    fi
     mv ${TARFILE} ${NEWTAR}
 
     tar xzf ${NEWTAR}
     ls -la
     cd percona-server-${VERSION}-${RELEASE}
     cp -ap build-ps/debian/ .
+    if [ x"${FIPSMODE}" == x1 ]; then
+        sed -i "s:FIPSMODE=0:FIPSMODE=1:g" debian/rules
+        sed -i "s:percona-server-server:percona-server-server-pro:g" debian/rules
+        sed -i "s:percona-server-dbg:percona-server-pro-dbg:g" debian/rules
+        sed -i "s:percona-server:percona-server-pro:g" debian/changelog
+        sed -i "s:Source\: percona-server:Source\: percona-server-pro:g" debian/control
+        sed -i "s:percona-server-rocksdb-pro:percona-server-rocksdb:g" debian/control
+        sed -i "s:Package\: percona-server-rocksdb:Package\: percona-server-rocksdb-pro:g" debian/control
+        sed -i "s:Depends\: percona-server-common:Depends\: percona-server-pro-common:g" debian/control
+        sed -i "s:Package\: percona-server-common:Package\: percona-server-pro-common:g" debian/control
+        sed -i "s:, percona-server-pro-common:, percona-server-common:g" debian/control
+        sed -i "s:Conflicts\: percona-server-pro-common:Conflicts\: percona-server-common:g" debian/control
+        sed -i "s:percona-server-client-pro:percona-server-client:g" debian/control
+        sed -i "s:Package\: percona-server-client:Package\: percona-server-client-pro:g" debian/control
+        sed -i "s:percona-server-client (=:percona-server-client-pro (=:g" debian/control
+        sed -i "s:percona-server-server-pro:percona-server-server:g" debian/control
+        sed -i "s:Package\: percona-server-server:Package\: percona-server-server-pro:g" debian/control
+        sed -i "s:percona-server-server (=:percona-server-server-pro (=:g" debian/control
+        sed -i "s:percona-server-test-pro:percona-server-test:g" debian/control
+        sed -i "s:Package\: percona-server-test:Package\: percona-server-test-pro:g" debian/control
+        sed -i "s:Package\: percona-server-source:Package\: percona-server-pro-source:g" debian/control
+        sed -i "s:percona-server-pro-dbg:percona-server-dbg:g" debian/control
+        sed -i "s:Package\: percona-server-dbg:Package\: percona-server-pro-dbg:g" debian/control
+        sed -i "s:percona-mysql-router-pro:percona-mysql-router:g" debian/control
+        sed -i "s:Package\: percona-mysql-router:Package\: percona-mysql-router-pro:g" debian/control
+        cp debian/percona-mysql-router.init debian/percona-mysql-router-pro.init
+        cp debian/percona-mysql-router.install debian/percona-mysql-router-pro.install
+        cp debian/percona-mysql-router.mysqlrouter.init debian/percona-mysql-router-pro.mysqlrouter.init
+        cp debian/percona-mysql-router.mysqlrouter.service debian/percona-mysql-router-pro.mysqlrouter.service
+        cp debian/percona-mysql-router.mysqlrouter.tmpfile debian/percona-mysql-router-pro.mysqlrouter.tmpfile
+        cp debian/percona-mysql-router.postinst debian/percona-mysql-router-pro.postinst
+        cp debian/percona-mysql-router.postrm debian/percona-mysql-router-pro.postrm
+        cp debian/percona-mysql-router.preinst debian/percona-mysql-router-pro.preinst
+        cp debian/percona-mysql-router.prerm debian/percona-mysql-router-pro.prerm
+        cp debian/percona-server-client.install debian/percona-server-client-pro.install
+        cp debian/percona-server-client.links debian/percona-server-client-pro.links
+        cp debian/percona-server-client.lintian-overrides debian/percona-server-client-pro.lintian-overrides
+        cp debian/percona-server-common.install debian/percona-server-pro-common.install
+        cp debian/percona-server-common.postinst debian/percona-server-pro-common.postinst
+        cp debian/percona-server-common.postrm debian/percona-server-pro-common.postrm
+        cp debian/percona-server-rocksdb.install debian/percona-server-rocksdb-pro.install
+        cp debian/percona-server-rocksdb.postinst debian/percona-server-rocksdb-pro.postinst
+        cp debian/percona-server-server.config debian/percona-server-server-pro.config
+        cp debian/percona-server-server.dirs debian/percona-server-server-pro.dirs
+        cp debian/percona-server-server.docs debian/percona-server-server-pro.docs
+        cp debian/percona-server-server.install debian/percona-server-server-pro.install
+        cp debian/percona-server-server.lintian-overrides debian/percona-server-server-pro.lintian-overrides
+        cp debian/percona-server-server.mysql.init debian/percona-server-server-pro.mysql.init
+        cp debian/percona-server-server.mysql.service debian/percona-server-server-pro.mysql.service
+        cp debian/percona-server-server.mysql.tmpfile debian/percona-server-server-pro.mysql.tmpfile
+        cp debian/percona-server-server.mysql@.service debian/percona-server-server-pro.mysql@.service
+        cp debian/percona-server-server.postinst debian/percona-server-server-pro.postinst
+        cp debian/percona-server-server.postrm debian/percona-server-server-pro.postrm
+        cp debian/percona-server-server.preinst debian/percona-server-server-pro.preinst
+        cp debian/percona-server-server.prerm debian/percona-server-server-pro.prerm
+        cp debian/percona-server-server.templates debian/percona-server-server-pro.templates
+        cp debian/percona-server-source.install debian/percona-server-pro-source.install
+        cp debian/percona-server-test.dirs debian/percona-server-test-pro.dirs
+        cp debian/percona-server-test.install debian/percona-server-test-pro.install
+        cp debian/percona-server-test.links debian/percona-server-test-pro.links
+        sed -i "s:percona-server_:percona-server-pro_:g" debian/percona-server-pro-source.install
+    fi
     dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"
     copyright-update -d debian/copyright
     dpkg-buildpackage -S
@@ -920,6 +1023,10 @@ build_deb(){
     DIRNAME=$(echo ${DSC%-${DEB_RELEASE}.dsc} | sed -e 's:_:-:g')
     VERSION=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $3}')
     RELEASE=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $4}')
+    if [[ "x${FIPSMODE}" == "x1" ]]; then
+        VERSION=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $4}')
+        RELEASE=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $5}')
+    fi
     ARCH=$(uname -m)
     export EXTRAVER=${MYSQL_VERSION_EXTRA#-}
     #
@@ -1048,20 +1155,24 @@ build_tarball(){
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     fi
 
+    if [[ "x${FIPSMODE}" == "x1" ]]; then
+        BUILD_PARAMETER="--enable-fipsmode "
+    fi
+
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
         if [[ "${DEBUG}" == 1 ]]; then
-            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug ${BUILD_PARAMETER}--with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         elif [[ ${WITH_ZENFS} == 1 ]]; then
             enable_zenfs tarball
-            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-zenfs --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh ${BUILD_PARAMETER}--with-zenfs --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         else
-            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh ${BUILD_PARAMETER}--with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         fi
     fi

@@ -6,12 +6,18 @@
 export DH_VERBOSE=1
 export CFLAGS=
 export CXXFLAGS=
+export FIPSMODE=0
 
 PACKAGE=percona-server
 PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
 REVISION = '@@REVISION@@'
-COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
-COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
+ifeq ($(FIPSMODE),1)
+	COMPILATION_COMMENT_RELEASE = "Percona Server Pro (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
+	COMPILATION_COMMENT_DEBUG = "Percona Server Pro - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
+else
+	COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"$
+	COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"$
+endif
 TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 
 TMP=$(CURDIR)/debian/tmp/

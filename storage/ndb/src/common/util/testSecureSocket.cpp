@@ -30,19 +30,20 @@
 #include "openssl/x509.h"
 
 #include "debugger/EventLogger.hpp"
-#include "portlib/ndb_sockaddr.h"
 #include "portlib/NdbGetRUsage.h"
 #include "portlib/NdbMutex.h"
 #include "portlib/NdbSleep.h"
 #include "portlib/NdbTCP.h"
 #include "portlib/NdbTick.h"
+#include "portlib/ndb_sockaddr.h"
+#include "scope_guard.h"
 #include "unittest/mytap/tap.h"
-#include "util/ndb_openssl3_compat.h"
-#include "util/ndb_opts.h"
-#include "util/require.h"
 #include "util/NdbSocket.h"
 #include "util/SocketClient.hpp"
 #include "util/SocketServer.hpp"
+#include "util/ndb_openssl3_compat.h"
+#include "util/ndb_opts.h"
+#include "util/require.h"
 
 /* This can be run with no args as a TAP test. It will start echo servers on
    ports 3400 and 3401 and run the first 12 tests.
@@ -980,6 +981,11 @@ int run_client(const char * server_host) {
     new BigWritevTest(tls_socket,   " TLS  big writev", true)
   };
 
+  auto tests_guard = create_scope_guard([&tests, &client]() {
+    for (auto *t : tests) delete t;
+    client.disconnect();
+  });
+
   /* Print list of tests and exit */
   if(opt_list) {
     for(int t = 1 ; t <= (int) tests.size(); t++) {
@@ -1006,9 +1012,6 @@ int run_client(const char * server_host) {
     if(t >= opt_start_test_number && t <= opt_end_test_number)
       rft = tests[t-1]->run(t);
 
-  for(ClientTest * t : tests) delete t;
-
-  client.disconnect();
   return rft;
 }
 

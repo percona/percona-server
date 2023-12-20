@@ -255,21 +255,8 @@ macro (ROCKSDB_SET_BUILD_ARCHITECTURE)
     ROCKSDB_SET_X86_DEFINTIONS()
   ELSE() # aarch64
     IF (NOT ROCKSDB_BUILD_ARCH)
-      IF (ROCKSDB_DISABLE_MARCH_NATIVE)
-        # minimal required platform is armv8.1-a (with "+lse" and "+crc"); support for "+crypto" is checked on runtime
-        SET(ROCKSDB_BUILD_ARCH "armv8.1-a+crypto")
-      ELSE()
-        IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-          IF (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15) # clang-14 or older (doesn't support "-march=native")
-            SET(ROCKSDB_BUILD_ARCH "armv8.1-a+crypto")
-          ELSE()
-            # always compile binary with "+crypto" because support for "+crypto" is checked on runtime
-            SET(ROCKSDB_BUILD_ARCH "native+crypto")
-          ENDIF()
-        ELSE()
-          SET(ROCKSDB_BUILD_ARCH "native")
-        ENDIF()
-      ENDIF()
+      # minimal required platform is armv8.1-a (with "+lse" and "+crc"); support for "+crypto" is checked on runtime
+      SET(ROCKSDB_BUILD_ARCH "armv8.1-a+crypto")
       MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}")
     ELSE()
       MESSAGE(STATUS "MyRocks arm64 build architecture: -march=${ROCKSDB_BUILD_ARCH}. If the enforced processor architecture is newer than the processor architecture of this build machine, the created binary may crash if executed on this machine.")

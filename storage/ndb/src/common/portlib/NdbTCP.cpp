@@ -412,9 +412,12 @@ can_resolve_hostname(const char* name)
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
-  struct addrinfo* ai_list;
+  struct addrinfo *ai_list = nullptr;
   int err = getaddrinfo(name, nullptr, &hints, &ai_list);
-  freeaddrinfo(ai_list);
+
+  if (ai_list != nullptr) {
+    freeaddrinfo(ai_list);
+  }
 
   if (err)
   {

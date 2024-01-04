@@ -31,12 +31,14 @@
   Errors a handler can give you
 */
 
+// clang-format off
+// We do not want to break long lines below,
+// clang Wstring-concatenation may break the build.
 static const char *handler_error_messages[] = {
     "Didn't find key on read or update",
     "Duplicate key on write or update",
     "Internal (unspecified) error in handler",
-    ("Someone has changed the row since it was read (while the table was "
-     "locked to prevent it)"),
+    "Someone has changed the row since it was read (while the table was locked to prevent it)",
     "Wrong index given to function",
     "Transaction has been rolled back",
     "Index file is crashed",
@@ -76,8 +78,7 @@ static const char *handler_error_messages[] = {
     "There's no partition in table for the given value",
     "Row-based binlogging of row failed",
     "Index needed in foreign key constraint",
-    ("Upholding foreign key constraints would lead to a duplicate key error in "
-     "some other table"),
+    "Upholding foreign key constraints would lead to a duplicate key error in some other table",
     "Table needs to be upgraded before it can be used",
     "Table is read only",
     "Failed to get next auto increment value",
@@ -125,6 +126,8 @@ static const char *handler_error_messages[] = {
     "Histogram sampling initialization failed",
     "Too many nested sub-expressions in a full-text search",
     "Destination schema does not exist"};
+
+// clang-format on
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

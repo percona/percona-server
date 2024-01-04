@@ -101,6 +101,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
+Warnings:
+<ID>	1287	<HOST_NAME>
 ##########################################
 # Stop plugin
 ##########################################
@@ -114,6 +116,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN	<TIME_MS>	0	0
+Warnings:
+<ID>	1287	<HOST_NAME>
 ##########################################
 # Cleanup
 ##########################################

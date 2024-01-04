@@ -28,6 +28,9 @@
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
 
+# By default a build will be done in normal mode
+%{?enable_fipsmode: %global enable_fipsmode 1}
+
 %global mysql_version @@MYSQL_VERSION@@
 %global percona_server_version @@PERCONA_VERSION@@
 %global revision @@REVISION@@
@@ -63,9 +66,20 @@
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
+%if 0%{?enable_fipsmode}
+%{!?compilation_comment_release: %global compilation_comment_release Percona Server Pro (GPL), Release %{percona_server_version}, Revision %{revision}}
+%{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server Pro - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
+%else
 %{!?compilation_comment_release: %global compilation_comment_release Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
+%endif$
 %{!?src_base:                    %global src_base percona-server}
+
+%if 0%{?rhel} >= 8
+%global add_fido_plugins 1
+%else
+%global add_fido_plugins 0
+%endif # rhel8 or above
 
 # Setup cmake flags for TokuDB
 %if 0%{?tokudb}
@@ -144,6 +158,7 @@ Source5:        mysql_config.sh
 Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+Source999:      call-home.sh
 Patch0:         mysql-5.7-sharedlib-rename.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  gcc
@@ -241,6 +256,7 @@ Requires:       net-tools
 Requires(pre):  percona-server-shared
 Requires:       percona-server-client
 Requires:       percona-icu-data-files
+Requires:       curl
 Requires:       openssl
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
@@ -257,6 +273,7 @@ Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Conflicts:      percona-server-server-pro
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -298,6 +315,7 @@ Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
+Conflicts:      percona-server-client-pro
 
 %description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
@@ -342,6 +360,7 @@ Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
+Conflicts:      percona-server-test-pro
 
 %description -n percona-server-test
 This package contains the Percona Server regression test suite.
@@ -357,6 +376,7 @@ Obsoletes:     mysql-connector-c-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
+Conflicts:      percona-server-devel-pro
 Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6
 Obsoletes:      mariadb-devel
@@ -438,6 +458,7 @@ Group:          Applications/Databases
 Requires:       percona-server-server = %{version}-%{release}
 Requires:       percona-server-shared = %{version}-%{release}
 Requires:       percona-server-client = %{version}-%{release}
+Conflicts:      percona-server-rocksdb-pro
 
 %description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
@@ -449,6 +470,7 @@ Group:         Applications/Databases
 Provides:      percona-mysql-router = %{version}-%{release}
 Obsoletes:     percona-mysql-router < %{version}-%{release}
 Provides:      mysql-router
+Conflicts:     percona-mysql-router-pro
 
 %description -n percona-mysql-router
 The Percona MySQL Router software delivers a fast, multi-threaded way of
@@ -459,6 +481,7 @@ Summary:        Development header files and libraries for Percona MySQL Router
 Group:          Applications/Databases
 Provides:       percona-mysql-router-devel = %{version}-%{release}
 Obsoletes:      mysql-router-devel
+Conflicts:      percona-mysql-router-devel-pro
 
 %description -n percona-mysql-router-devel
 This package contains the development header files and libraries
@@ -550,7 +573,11 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -605,7 +632,11 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+%if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -675,7 +706,9 @@ install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysco
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # set rpath for plugin to use private/libfido2.so
+%if 0%{?add_fido_plugins}
 patchelf --debug --set-rpath '$ORIGIN/../private' %{buildroot}/%{_libdir}/mysql/plugin/authentication_fido.so
+%endif # add_fido_plugins
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -765,6 +798,10 @@ if [ -d /etc/percona-server.conf.d ]; then
         echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
     fi
 fi
+
+cp %SOURCE999 /tmp/ 2>/dev/null ||
+bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+rm -f /tmp/call-home.sh
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
@@ -973,14 +1010,18 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
+%endif # add_fido_plugins
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1033,7 +1074,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1115,8 +1158,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 

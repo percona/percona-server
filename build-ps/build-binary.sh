@@ -266,6 +266,7 @@ fi
         -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
         -DWITH_INNODB_MEMCACHED=ON \
         -DWITH_ZLIB=bundled \
+        -DWITH_CURL=bundled \
         -DWITH_NUMA=ON \
         -DWITH_LDAP=system \
         -DWITH_PACKAGE_FLAGS=OFF \

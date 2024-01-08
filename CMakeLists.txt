@@ -1001,14 +1001,10 @@ OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
   ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
 
-IF(WITH_INTERNAL)
-  IF(UNIX)
-    SET(WITH_CURL_DEFAULT "system")
-  ELSE()
-    SET(WITH_CURL_DEFAULT "bundled")
-  ENDIF()
+IF(UNIX)
+  SET(WITH_CURL_DEFAULT "system")
 ELSE()
-  SET(WITH_CURL_DEFAULT "none")
+  SET(WITH_CURL_DEFAULT "bundled")
 ENDIF()
 
 OPTION(WITH_LOCK_ORDER

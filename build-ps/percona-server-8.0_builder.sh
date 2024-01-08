@@ -266,7 +266,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled
+    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DWITH_ZLIB=bundled -DWITH_CURL=bundled
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -510,7 +510,8 @@ install_deps() {
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
         else
-            apt-get -y install gcc g++
+            apt-get -y install gcc-10 g++-10 cpp-10
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
@@ -613,8 +614,8 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
-    #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
+    wget --no-check-certificate https://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3

@@ -1,0 +1,5 @@
+--source include/have_ngram.inc
+
+--let $PARSER=WITH PARSER NGRAM
+--let $CHARSET=DEFAULT CHARSET=utf8mb4
+--source suite/innodb_fts/include/percona_ps9048.inc

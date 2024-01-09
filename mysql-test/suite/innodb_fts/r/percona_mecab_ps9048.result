@@ -1,0 +1,11 @@
+INSTALL PLUGIN mecab SONAME 'libpluginmecab.so';
+SHOW STATUS LIKE 'mecab_charset';
+Variable_name	Value
+mecab_charset	ujis
+SET @old_innodb_optimize_fulltext_only = @@innodb_optimize_fulltext_only;
+SET GLOBAL innodb_optimize_fulltext_only = ON;
+CREATE TABLE t1 (c TINYTEXT, FULLTEXT KEY (c) WITH PARSER MECAB) ENGINE=InnoDB DEFAULT CHARSET=ujis;
+INSERT INTO t1 VALUES ('vdf%vdfd%ghdi%opu');
+DROP TABLE t1;
+SET GLOBAL innodb_optimize_fulltext_only = @old_innodb_optimize_fulltext_only;
+UNINSTALL PLUGIN mecab;

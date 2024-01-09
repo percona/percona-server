@@ -1,0 +1,23 @@
+--source include/have_mecab.inc
+
+eval INSTALL PLUGIN mecab SONAME '$MECAB';
+
+let $test_charset=ujis;
+let $mecab_charset=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='mecab_charset'`;
+
+if ($mecab_charset == '') {
+  -- skip Test fail to load mecab parser.
+}
+
+if ($mecab_charset != $test_charset) {
+  UNINSTALL PLUGIN mecab;
+  -- skip Test mecab charset mismatch.
+}
+
+SHOW STATUS LIKE 'mecab_charset';
+
+--let $PARSER=WITH PARSER MECAB
+--let $CHARSET=DEFAULT CHARSET=ujis
+--source suite/innodb_fts/include/percona_ps9048.inc
+
+UNINSTALL PLUGIN mecab;

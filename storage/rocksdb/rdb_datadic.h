@@ -1283,11 +1283,12 @@ class Rdb_tbl_def {
   Rdb_tbl_def(const Rdb_tbl_def &) = delete;
   Rdb_tbl_def &operator=(const Rdb_tbl_def &) = delete;
 
-  explicit Rdb_tbl_def(const std::string &name, Rdb_tbl_def &&other)
-      : m_key_descr_arr(other.m_key_descr_arr),
-        m_hidden_pk_val(0),
-        m_auto_incr_val(0),
-        m_pk_index(other.m_pk_index),
+  Rdb_tbl_def(const std::string &name, Rdb_tbl_def &&other)
+      : m_key_count(other.m_key_count),
+        m_key_descr_arr(std::exchange(other.m_key_descr_arr, nullptr)),
+        m_hidden_pk_val(other.m_hidden_pk_val.load(std::memory_order_relaxed)),
+        m_auto_incr_val(other.m_auto_incr_val.load(std::memory_order_relaxed)),
+        m_pk_index(other.get_pk_index()),
         m_tbl_stats(other.m_tbl_stats),
         m_update_time(0),
         m_mtcache_lock(0),
@@ -1296,15 +1297,10 @@ class Rdb_tbl_def {
         m_mtcache_last_update(0),
         m_create_time(CREATE_TIME_UNKNOWN) {
     set_name(name);
-    m_auto_incr_val = other.m_auto_incr_val.load(std::memory_order_relaxed);
-    m_hidden_pk_val = other.m_hidden_pk_val.load(std::memory_order_relaxed);
-    m_key_count = other.m_key_count;
-
-    // so that it's not free'd when deleting the old rec
-    other.m_key_descr_arr = nullptr;
+    other.m_pk_index = MAX_INDEXES + 1;
   }
 
-  explicit Rdb_tbl_def(const std::string &name)
+  Rdb_tbl_def(const std::string &name)
       : m_key_descr_arr(nullptr),
         m_hidden_pk_val(0),
         m_auto_incr_val(0),

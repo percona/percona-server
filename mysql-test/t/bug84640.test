@@ -46,7 +46,8 @@ SET DEBUG_SYNC="now SIGNAL finish_open";
 
 --connection con1
 
---replace_result $custom_data_directory custom_data_directory
+# $tmpdir is different when the test is run with --mem
+--replace_regex /\/.*\/bug84640/custom_data_directory/
 --error 29
 reap;
 

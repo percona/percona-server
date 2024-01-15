@@ -669,12 +669,16 @@ build_srpm(){
     #
     if [[ "x${FIPSMODE}" == "x1" ]]; then
         sed -i -e "s:percona-server-server$:percona-server-server-pro:g" \
+        -e "s:percona-server-server =:percona-server-server-pro =:g" \
         -e "s:percona-server-client$:percona-server-client-pro:g" \
+        -e "s:percona-server-client =:percona-server-client-pro =:g" \
         -e "s:percona-server-devel$:percona-server-devel-pro:g" \
         -e "s:percona-mysql-router$:percona-mysql-router-pro:g" \
         -e "s:percona-mysql-router :percona-mysql-router-pro :g" \
         -e "s:percona-mysql-router-devel$:percona-mysql-router-devel-pro:g" \
+        -e "s:percona-mysql-router-devel =:percona-mysql-router-devel-pro =:g" \
         -e "s:percona-server-rocksdb$:percona-server-rocksdb-pro:g" \
+        -e "s:percona-server-test$:percona-server-test-pro:g" \
         -e "s:Conflicts\:      percona-server-server-pro:Conflicts\:      percona-server-server:g" \
         -e "s:Conflicts\:      percona-server-client-pro:Conflicts\:      percona-server-client:g" \
         -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \
@@ -682,6 +686,7 @@ build_srpm(){
         -e "s:Conflicts\:      percona-server-rocksdb-pro:Conflicts\:      percona-server-rocksdb:g" \
         -e "s:Conflicts\:     percona-mysql-router-pro:Conflicts\:     percona-mysql-router:g" \
         -e "s:Conflicts\:      percona-mysql-router-devel-pro:Conflicts\:      percona-mysql-router-devel:g" \
+        -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \
         -e "s:Name\:           percona-server:Name\:           percona-server-pro:g" \
         percona-server.spec
     fi

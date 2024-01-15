@@ -1,4 +1,10 @@
 --source include/have_rocksdb.inc
+--source include/parse_rocksdb_fs_uri.inc
+
+if (!$rocksdb_zenfs_disabled)
+{
+  --skip Test doesn't support ZenFS
+}
 
 --let $sst_dir=`SELECT CONCAT(@@datadir, @@rocksdb_datadir)`
 

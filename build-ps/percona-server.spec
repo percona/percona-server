@@ -1039,7 +1039,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_log_filter.so
+%if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_metrics.so
 
 %dir %{_libdir}/mysql/plugin/debug
@@ -1093,7 +1095,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
+%if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_metrics.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab

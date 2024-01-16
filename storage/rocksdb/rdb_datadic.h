@@ -39,6 +39,9 @@
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_utils.h"
 
+/* Server header files */
+#include "sql/dd/object_id.h"
+
 namespace myrocks {
 
 class Rdb_dict_manager;
@@ -290,13 +293,13 @@ class Rdb_key_def {
 
   /* Get the key that is the "infimum" for this index */
   inline void get_infimum_key(uchar *const key, uint *const size) const {
-    rdb_netbuf_store_index(key, m_index_number);
+    rdb_netbuf_store_index(key, get_index_number());
     *size = INDEX_NUMBER_SIZE;
   }
 
   /* Get the key that is a "supremum" for this index */
   inline void get_supremum_key(uchar *const key, uint *const size) const {
-    rdb_netbuf_store_index(key, m_index_number + 1);
+    rdb_netbuf_store_index(key, get_index_number() + 1);
     *size = INDEX_NUMBER_SIZE;
   }
 
@@ -367,10 +370,13 @@ class Rdb_key_def {
 
   uint32 get_keyno() const { return m_keyno; }
 
-  uint32 get_index_number() const { return m_index_number; }
+  uint32 get_index_number() const {
+    assert(m_index_number != INVALID_INDEX_NUMBER);
+    return m_index_number;
+  }
 
   GL_INDEX_ID get_gl_index_id() const {
-    const GL_INDEX_ID gl_index_id = {m_cf_handle->GetID(), m_index_number};
+    const GL_INDEX_ID gl_index_id = {m_cf_handle->GetID(), get_index_number()};
     return gl_index_id;
   }
 
@@ -574,19 +580,20 @@ class Rdb_key_def {
     KEY_MAY_BE_COVERED = 3,
   };
 
-  void setup(const TABLE *const table, const Rdb_tbl_def *const tbl_def);
+  void setup(const TABLE &table, const Rdb_tbl_def &tbl_def);
 
-  static uint extract_ttl_duration(const TABLE *const table_arg,
-                                   const Rdb_tbl_def *const tbl_def_arg,
-                                   uint64 *ttl_duration);
-  static uint extract_ttl_col(const TABLE *const table_arg,
-                              const Rdb_tbl_def *const tbl_def_arg,
-                              std::string *ttl_column, uint *ttl_field_index,
-                              bool skip_checks = false);
+  [[nodiscard]] static uint extract_ttl_duration(const TABLE &table_arg,
+                                                 const Rdb_tbl_def &tbl_def_arg,
+                                                 uint64 &ttl_duration);
+  [[nodiscard]] static uint extract_ttl_col(const TABLE &table_arg,
+                                            const Rdb_tbl_def &tbl_def_arg,
+                                            std::string &ttl_column,
+                                            uint &ttl_field_index,
+                                            bool skip_checks = false);
   inline bool has_ttl() const { return m_ttl_duration > 0; }
 
-  uint extract_partial_index_info(const TABLE *const table_arg,
-                                  const Rdb_tbl_def *const tbl_def_arg);
+  [[nodiscard]] uint extract_partial_index_info(const TABLE &table_arg,
+                                                const Rdb_tbl_def &tbl_def_arg);
   inline bool is_partial_index() const { return m_partial_index_threshold > 0; }
   inline uint partial_index_threshold() const {
     return m_partial_index_threshold;
@@ -605,9 +612,9 @@ class Rdb_key_def {
 
   static const std::string gen_qualifier_for_table(
       const char *const qualifier, const std::string &partition_name = "");
-  static const std::string parse_comment_for_qualifier(
-      const std::string &comment, const TABLE *const table_arg,
-      const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found,
+  [[nodiscard]] static const std::string parse_comment_for_qualifier(
+      const std::string &comment, const TABLE &table_arg,
+      const Rdb_tbl_def &tbl_def_arg, bool &per_part_match_found,
       const char *const qualifier);
 
   rocksdb::ColumnFamilyHandle *get_cf() const { return m_cf_handle.get(); }
@@ -621,7 +628,7 @@ class Rdb_key_def {
   inline bool has_unpack_info(const uint kp) const;
 
   /* Check if given table has a primary key */
-  static bool table_has_hidden_pk(const TABLE *const table);
+  [[nodiscard]] static bool table_has_hidden_pk(const TABLE &table);
 
   void report_checksum_mismatch(const bool is_key, const char *const data,
                                 const size_t data_size) const;
@@ -865,6 +872,9 @@ class Rdb_key_def {
     return (storage_length - offset) >= needed;
   }
 #endif  // NDEBUG
+
+  static constexpr auto INVALID_INDEX_NUMBER =
+      static_cast<std::uint32_t>(dd::INVALID_OBJECT_ID);
 
   /* Global number of this index (used as prefix in StorageFormat) */
   const uint32 m_index_number;
@@ -1428,7 +1438,7 @@ class Rdb_seq_generator {
 };
 
 interface Rdb_tables_scanner {
-  virtual int add_table(Rdb_tbl_def * tdef) = 0;
+  virtual int add_table(Rdb_tbl_def *tdef) = 0;
 };
 
 /*

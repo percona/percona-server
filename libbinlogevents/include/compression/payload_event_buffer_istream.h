@@ -126,16 +126,9 @@ class Payload_event_buffer_istream {
   // Nolint: clang-tidy does not recognize that m_default_buffer_size
   // is initialized, despite it is initialized in the targed
   // constructor.
-  // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init)
-  template <class String_char_t>
-  Payload_event_buffer_istream(
-      const std::basic_string<String_char_t> &compressed_data,
-      type compression_algorithm, Size_t default_buffer_size = 0,
-      const Memory_resource_t &memory_resource = Memory_resource_t())
-      : Payload_event_buffer_istream(
-            compressed_data.data(), compressed_data.size(),
-            compression_algorithm, default_buffer_size, memory_resource) {}
-  // NOLINTEND(cppcoreguidelines-pro-type-member-init)
+  template <class String_char_t> Payload_event_buffer_istream(
+      const std::basic_string<String_char_t> &compressed_data, type compression_algorithm, Size_t default_buffer_size = 0, const Memory_resource_t &memory_resource = Memory_resource_t())
+      : Payload_event_buffer_istream(compressed_data.data(), compressed_data.size(), compression_algorithm, default_buffer_size, memory_resource) {}
 
   /// Construct the stream from a (non-owned) Payload Event.
   ///
@@ -344,7 +337,7 @@ class Payload_event_buffer_istream {
   /// Grow calculator for the Managed_buffer.
   Grow_calculator_t m_grow_calculator;
   /// Default buffer size for the Managed_buffer.
-  Size_t m_default_buffer_size;
+  Size_t  m_default_buffer_size;
   /// Shared pointer to Managed_buffer that holds the output.  This
   /// will be shared with API clients.  Therefore, API clients can use
   /// the returned buffer as long as they like.  The next time this

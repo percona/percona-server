@@ -125,11 +125,7 @@ class Managed_buffer : public buffer::Rw_buffer<Char_tp> {
   // Nolint: clang-tidy does not recognize that m_owns_default_buffer
   // is initialized, despite it is initialized in the targed
   // constructor.
-  // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init)
-  explicit Managed_buffer(
-      const Memory_resource_t &memory_resource = Memory_resource_t())
-      : Managed_buffer(Size_t(0), memory_resource) {}
-  // NOLINTEND(cppcoreguidelines-pro-type-member-init)
+  explicit Managed_buffer(const Memory_resource_t &memory_resource = Memory_resource_t()) : Managed_buffer(Size_t(0), memory_resource) {}
 
   /// Construct a new object that owns a default buffer.
   ///

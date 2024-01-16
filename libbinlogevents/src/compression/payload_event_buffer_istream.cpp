@@ -142,17 +142,12 @@ void Payload_event_buffer_istream::update_buffer() {
 #ifndef NDEBUG
     // "nolint": clang-tidy reports an unnecessary warning since 'if'
     // and 'else' branches may compile to the same. Suppressing that.
-    // NOLINTBEGIN(bugprone-branch-clone)
-    if (m_managed_buffer_ptr.use_count() == 0)
-      BAPI_LOG("info", "Allocating managed buffer for the first time.");
-    else
-      BAPI_LOG("info",
-               "Allocating new managed buffer. "
-               "The previous one cannot be reused since there are "
-                   << m_managed_buffer_ptr.use_count()
-                   << ">1 shared pointer references to "
-                      "it.");
-      // NOLINTEND(bugprone-branch-clone)
+    if (m_managed_buffer_ptr.use_count() == 0) {
+      BAPI_LOG("info", "Allocating managed buffer for the first time. ");
+    }
+    else {
+      BAPI_LOG("info", "Allocating new managed buffer. The previous one cannot be reused since there are " << m_managed_buffer_ptr.use_count() << ">1 shared pointer references to it.");
+    }
 #endif
     try {
       auto allocator = Allocator_t<Managed_buffer_t>(m_memory_resource);

@@ -1608,13 +1608,13 @@ public:
 
     // Creates a copy of the given map. Copy constructor of each entry is used.
     // Not sure why clang-tidy thinks this doesn't handle self assignment, it does
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
-    Table& operator=(Table const& o) {
-        ROBIN_HOOD_TRACE(this)
-        if (&o == this) {
-            // prevent assigning of itself
-            return *this;
-        }
+    Table& operator=(Table const& o)
+    {
+    ROBIN_HOOD_TRACE(this)
+    if (&o == this) {
+       // prevent assigning of itself
+        return *this;
+    }
 
         // we keep using the old allocator and not assign the new one, because we want to keep
         // the memory available. when it is the same size.

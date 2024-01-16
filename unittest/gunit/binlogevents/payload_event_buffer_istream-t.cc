@@ -363,8 +363,7 @@ class PayloadEventBufferStreamTest {
       // "nolint": as a general rule, malloc should not be used, so
       // clang-tidy warns about it. But this is an allocator so it is
       // appropriate to use malloc and therefore we suppress the check.
-      // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
-      return std::malloc(n);
+      return  std::malloc(n);
     };
     Memory_resource_t failing_memory_resource(failing_allocator, std::free);
     auto debug_func = [&] {

@@ -496,7 +496,7 @@ fi
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
-  wget %{compatsrc}
+  wget --no-check-certificate %{compatsrc}
 %if 0%{?rhel} > 6
   rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm | cpio --extract --make-directories --verbose
 %else

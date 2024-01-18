@@ -1312,20 +1312,8 @@ void NdbImportUtil::free_row(Row *row) {
   rows.push_back(row);
   rows.unlock();
 }
-<<<<<<< HEAD
-
-void
-NdbImportUtil::free_rows(RowList& src)
-{
-||||||| 19feac3674e
- 
-void
-NdbImportUtil::free_rows(RowList& src)
-{
-=======
 
 void NdbImportUtil::free_rows(RowList &src) {
->>>>>>> mysql-8.0.36
   RowList blob_freed_rows;
   while (!src.empty()) {
     Row *one_row = src.pop_front();
@@ -1726,23 +1714,9 @@ void NdbImportUtil::add_reject_table() {
   add_error_attrs(table);
   table.add_pseudo_attr("reject", NdbDictionary::Column::Text);
 }
-<<<<<<< HEAD
-
-void
-NdbImportUtil::add_rowmap_table()
-{
-  Table& table = c_rowmap_table;
-||||||| 19feac3674e
- 
-void
-NdbImportUtil::add_rowmap_table()
-{
-  Table& table = c_rowmap_table;
-=======
 
 void NdbImportUtil::add_rowmap_table() {
   Table &table = c_rowmap_table;
->>>>>>> mysql-8.0.36
   table.m_tabid = g_rowmap_tabid;
   require(table.m_recsize == 0);
   table.add_pseudo_attr("runno", NdbDictionary::Column::Unsigned);

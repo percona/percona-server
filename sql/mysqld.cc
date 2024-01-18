@@ -10195,12 +10195,6 @@ static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
   return 0;
 }
 
-<<<<<<< HEAD
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-||||||| 19feac3674e
-=======
 static int show_deprecated_use_i_s_processlist_count(THD *, SHOW_VAR *var,
                                                      char *buf) {
   var->type = SHOW_LONG;
@@ -10219,7 +10213,9 @@ static int show_deprecated_use_i_s_processlist_last_timestamp(THD *,
   return 0;
 }
 
->>>>>>> mysql-8.0.36
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -11889,9 +11885,10 @@ static bool is_secure_path(const std::string &path, const char *opt_base) {
   if (!lower_case_file_system) {
     if (strncmp(opt_base, buff2, opt_base_len)) return false;
   } else {
-    if (files_charset_info->coll->strnncoll(
-            files_charset_info, (uchar *)buff2, strlen(buff2),
-            pointer_cast<const uchar *>(opt_base), opt_base_len, true))
+    assert(opt_base_len < FN_REFLEN);
+    buff2[opt_base_len] = '\0';
+    if (files_charset_info->coll->strcasecmp(files_charset_info, buff2,
+                                             opt_base))
       return false;
   }
   return true;
@@ -12002,35 +11999,28 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
 
   case_insensitive_fs = (test_if_case_insensitive(datadir_buffer) == 1);
 
-  if (!case_insensitive_fs) {
-    if (!strncmp(
-            datadir_buffer, opt_var,
-            opt_datadir_len < opt_var_len ? opt_datadir_len : opt_var_len)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
+  auto check_path_overlap = [&](char *buffer, size_t len, const char *message) {
+    if (!case_insensitive_fs) {
+      if (!strncmp(buffer, opt_var, len < opt_var_len ? len : opt_var_len)) {
+        warn = true;
+        strcpy(whichdir, message);
+      }
+    } else {
+      char *longer_str =
+          opt_datadir_len > opt_var_len ? buffer : const_cast<char *>(opt_var);
+      const size_t smaller_len = std::min(len, opt_var_len);
+      const char restore = longer_str[smaller_len];
+      longer_str[smaller_len] = '\0';
+      if (!files_charset_info->coll->strcasecmp(files_charset_info, buffer,
+                                                opt_var)) {
+        warn = true;
+        strcpy(whichdir, message);
+      }
+      longer_str[smaller_len] = restore;
     }
-  } else {
-<<<<<<< HEAD
-    if (!files_charset_info->coll->strnncoll(
-            files_charset_info, (uchar *)datadir_buffer, opt_datadir_len,
-            pointer_cast<const uchar *>(opt_var), opt_var_len, true)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
-    }
-||||||| 19feac3674e
-    if (files_charset_info->coll->strnncoll(
-            files_charset_info, (uchar *)buff2, strlen(buff2),
-            pointer_cast<const uchar *>(opt_secure_file_priv),
-            opt_secure_file_priv_len, true))
-      return false;
-=======
-    assert(opt_secure_file_priv_len < FN_REFLEN);
-    buff2[opt_secure_file_priv_len] = '\0';
-    if (files_charset_info->coll->strcasecmp(files_charset_info, buff2,
-                                             opt_secure_file_priv))
-      return false;
->>>>>>> mysql-8.0.36
-  }
+  };
+
+  check_path_overlap(datadir_buffer, opt_datadir_len, "Data directory");
 
   /*
     Don't bother comparing --secure-file-priv with --plugin-dir
@@ -12041,21 +12031,7 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
     convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
     opt_plugindir_len = strlen(plugindir_buffer);
 
-    if (!case_insensitive_fs) {
-      if (!strncmp(plugindir_buffer, opt_var,
-                   opt_plugindir_len < opt_var_len ? opt_plugindir_len
-                                                   : opt_var_len)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    } else {
-      if (!files_charset_info->coll->strnncoll(
-              files_charset_info, (uchar *)plugindir_buffer, opt_plugindir_len,
-              pointer_cast<const uchar *>(opt_var), opt_var_len, true)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    }
+    check_path_overlap(plugindir_buffer, opt_plugindir_len, "Plugin directory");
   }
 
   if (warn)
@@ -12103,224 +12079,8 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
 */
 
 static bool check_secure_file_priv_path() {
-<<<<<<< HEAD
   return check_secure_path(opt_secure_file_priv, "secure-file-priv",
                            ER_SEC_FILE_PRIV_NULL);
-||||||| 19feac3674e
-  char datadir_buffer[FN_REFLEN + 1] = {0};
-  char plugindir_buffer[FN_REFLEN + 1] = {0};
-  char whichdir[20] = {0};
-  size_t opt_plugindir_len = 0;
-  size_t opt_datadir_len = 0;
-  size_t opt_secure_file_priv_len = 0;
-  bool warn = false;
-  bool case_insensitive_fs;
-#ifndef _WIN32
-  MY_STAT dir_stat;
-#endif
-
-  if (!opt_secure_file_priv[0]) {
-    if (opt_initialize) {
-      /*
-        Do not impose --secure-file-priv restriction
-        in bootstrap mode
-      */
-      LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_IGNORED);
-    } else {
-      LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_EMPTY);
-    }
-    return true;
-  }
-
-  /*
-    Setting --secure-file-priv to NULL would disable
-    reading/writing from/to file
-  */
-  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL")) {
-    LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_NULL);
-    return true;
-  }
-
-  /*
-    Check if --secure-file-priv can access data directory
-  */
-  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
-
-  /*
-    Adds dir separator at the end.
-    This is required in subsequent comparison
-  */
-  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
-  opt_datadir_len = strlen(datadir_buffer);
-
-  case_insensitive_fs = (test_if_case_insensitive(datadir_buffer) == 1);
-
-  if (!case_insensitive_fs) {
-    if (!strncmp(datadir_buffer, opt_secure_file_priv,
-                 opt_datadir_len < opt_secure_file_priv_len
-                     ? opt_datadir_len
-                     : opt_secure_file_priv_len)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
-    }
-  } else {
-    if (!files_charset_info->coll->strnncoll(
-            files_charset_info, (uchar *)datadir_buffer, opt_datadir_len,
-            pointer_cast<const uchar *>(opt_secure_file_priv),
-            opt_secure_file_priv_len, true)) {
-      warn = true;
-      strcpy(whichdir, "Data directory");
-    }
-  }
-
-  /*
-    Don't bother comparing --secure-file-priv with --plugin-dir
-    if we already have a match against --datdir or
-    --plugin-dir is not pointing to a valid directory.
-  */
-  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0)) {
-    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
-    opt_plugindir_len = strlen(plugindir_buffer);
-
-    if (!case_insensitive_fs) {
-      if (!strncmp(plugindir_buffer, opt_secure_file_priv,
-                   opt_plugindir_len < opt_secure_file_priv_len
-                       ? opt_plugindir_len
-                       : opt_secure_file_priv_len)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    } else {
-      if (!files_charset_info->coll->strnncoll(
-              files_charset_info, (uchar *)plugindir_buffer, opt_plugindir_len,
-              pointer_cast<const uchar *>(opt_secure_file_priv),
-              opt_secure_file_priv_len, true)) {
-        warn = true;
-        strcpy(whichdir, "Plugin directory");
-      }
-    }
-  }
-
-  if (warn)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_INSECURE, whichdir);
-
-#ifndef _WIN32
-  /*
-     Check for --secure-file-priv directory's permission
-  */
-  if (!(my_stat(opt_secure_file_priv, &dir_stat, MYF(0)))) {
-    LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_STAT);
-    return false;
-  }
-
-  if (dir_stat.st_mode & S_IRWXO)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS);
-#endif
-  return true;
-=======
-  char datadir_buffer[FN_REFLEN + 1] = {0};
-  char plugindir_buffer[FN_REFLEN + 1] = {0};
-  char whichdir[20] = {0};
-  size_t opt_plugindir_len = 0;
-  size_t opt_datadir_len = 0;
-  size_t opt_secure_file_priv_len = 0;
-  bool warn = false;
-  bool case_insensitive_fs;
-#ifndef _WIN32
-  MY_STAT dir_stat;
-#endif
-
-  if (!opt_secure_file_priv[0]) {
-    if (opt_initialize) {
-      /*
-        Do not impose --secure-file-priv restriction
-        in bootstrap mode
-      */
-      LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_IGNORED);
-    } else {
-      LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_EMPTY);
-    }
-    return true;
-  }
-
-  /*
-    Setting --secure-file-priv to NULL would disable
-    reading/writing from/to file
-  */
-  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL")) {
-    LogErr(INFORMATION_LEVEL, ER_SEC_FILE_PRIV_NULL);
-    return true;
-  }
-
-  /*
-    Check if --secure-file-priv can access data directory
-  */
-  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
-
-  /*
-    Adds dir separator at the end.
-    This is required in subsequent comparison
-  */
-  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
-  opt_datadir_len = strlen(datadir_buffer);
-
-  case_insensitive_fs = (test_if_case_insensitive(datadir_buffer) == 1);
-
-  auto check_path_overlap = [&](char *buffer, size_t len, const char *message) {
-    if (!case_insensitive_fs) {
-      if (!strncmp(buffer, opt_secure_file_priv,
-                   len < opt_secure_file_priv_len ? len
-                                                  : opt_secure_file_priv_len)) {
-        warn = true;
-        strcpy(whichdir, message);
-      }
-    } else {
-      char *longer_str = opt_datadir_len > opt_secure_file_priv_len
-                             ? buffer
-                             : const_cast<char *>(opt_secure_file_priv);
-      const size_t smaller_len = std::min(len, opt_secure_file_priv_len);
-      const char restore = longer_str[smaller_len];
-      longer_str[smaller_len] = '\0';
-      if (!files_charset_info->coll->strcasecmp(files_charset_info, buffer,
-                                                opt_secure_file_priv)) {
-        warn = true;
-        strcpy(whichdir, message);
-      }
-      longer_str[smaller_len] = restore;
-    }
-  };
-
-  check_path_overlap(datadir_buffer, opt_datadir_len, "Data directory");
-
-  /*
-    Don't bother comparing --secure-file-priv with --plugin-dir
-    if we already have a match against --datdir or
-    --plugin-dir is not pointing to a valid directory.
-  */
-  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0)) {
-    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
-    opt_plugindir_len = strlen(plugindir_buffer);
-
-    check_path_overlap(plugindir_buffer, opt_plugindir_len, "Plugin directory");
-  }
-
-  if (warn)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_INSECURE, whichdir);
-
-#ifndef _WIN32
-  /*
-     Check for --secure-file-priv directory's permission
-  */
-  if (!(my_stat(opt_secure_file_priv, &dir_stat, MYF(0)))) {
-    LogErr(ERROR_LEVEL, ER_SEC_FILE_PRIV_CANT_STAT);
-    return false;
-  }
-
-  if (dir_stat.st_mode & S_IRWXO)
-    LogErr(WARNING_LEVEL, ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS);
-#endif
-  return true;
->>>>>>> mysql-8.0.36
 }
 
 static bool check_secure_log_path() {
@@ -12347,7 +12107,6 @@ static bool check_tmpdir_path_lengths(const MY_TMPDIR &tmpdir_list) {
   return result;
 }
 #endif
-<<<<<<< HEAD
 
 static int fix_secure_path(const char *&opt_path, char *realpath,
                            const char *variable_name) {
@@ -12356,7 +12115,10 @@ static int fix_secure_path(const char *&opt_path, char *realpath,
     Convert the secure-file-priv/secure-log-path option to system format,
     allowing a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_initialize) opt_path = "";
+  bool force_priv_check = false;
+  DBUG_EXECUTE_IF("force_secure_file_priv_check", { force_priv_check = true; });
+
+  if (opt_initialize & !force_priv_check) opt_path = "";
   opt_nonempty = opt_path[0] ? true : false;
 
   if (opt_nonempty && strlen(opt_path) > FN_REFLEN) {
@@ -12393,10 +12155,6 @@ static int fix_secure_path(const char *&opt_path, char *realpath,
   return 0;
 }
 
-||||||| 19feac3674e
-=======
-
->>>>>>> mysql-8.0.36
 static int fix_paths(void) {
   char buff[FN_REFLEN];
   convert_dirname(mysql_home, mysql_home, NullS);
@@ -12453,25 +12211,6 @@ static int fix_paths(void) {
   if (!replica_load_tmpdir) replica_load_tmpdir = mysql_tmpdir;
 
   if (opt_help) return 0;
-<<<<<<< HEAD
-||||||| 19feac3674e
-  /*
-    Convert the secure-file-priv option to system format, allowing
-    a quick strcmp to check if read or write is in an allowed dir
-  */
-  if (opt_initialize) opt_secure_file_priv = "";
-  secure_file_priv_nonempty = opt_secure_file_priv[0] ? true : false;
-=======
-  /*
-    Convert the secure-file-priv option to system format, allowing
-    a quick strcmp to check if read or write is in an allowed dir
-  */
-  bool force_priv_check = false;
-  DBUG_EXECUTE_IF("force_secure_file_priv_check", { force_priv_check = true; });
-
-  if (opt_initialize && !force_priv_check) opt_secure_file_priv = "";
-  secure_file_priv_nonempty = opt_secure_file_priv[0] ? true : false;
->>>>>>> mysql-8.0.36
 
   if (fix_secure_path(opt_secure_file_priv, secure_file_real_path,
                       "secure-file-priv"))

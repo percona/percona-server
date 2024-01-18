@@ -788,12 +788,8 @@ extern mysql_cond_t COND_manager;
 extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_replica;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-<<<<<<< HEAD
-extern mysql_rwlock_t LOCK_consistent_snapshot;
-||||||| 19feac3674e
-=======
 extern mysql_rwlock_t LOCK_server_shutting_down;
->>>>>>> mysql-8.0.36
+extern mysql_rwlock_t LOCK_consistent_snapshot;
 
 extern ulong opt_ssl_fips_mode;
 

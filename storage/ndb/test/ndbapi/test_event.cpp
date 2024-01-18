@@ -2231,19 +2231,8 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
     goto cleanup;
   }
 
-<<<<<<< HEAD
-  for (int i = 0; (i < 10) && (curr_gci != NDB_FAILURE_GCI); i++) {
-    if (usePollEvents2)
-    {
-||||||| 19feac3674e
-  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
-  {
-    if (usePollEvents2)
-    {
-=======
   for (int i = 0; (i < 10) && (curr_gci != NDB_FAILURE_GCI); i++) {
     if (usePollEvents2) {
->>>>>>> mysql-8.0.36
       res = ndb->pollEvents2(5000, &curr_gci) > 0;
     } else {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
@@ -2329,19 +2318,8 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   // Check that we receive events again
-<<<<<<< HEAD
-  for (int i = 0; (i < 10) && (curr_gci == NDB_FAILURE_GCI); i++) {
-    if (usePollEvents2)
-    {
-||||||| 19feac3674e
-  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
-  {
-    if (usePollEvents2)
-    {
-=======
   for (int i = 0; (i < 10) && (curr_gci == NDB_FAILURE_GCI); i++) {
     if (usePollEvents2) {
->>>>>>> mysql-8.0.36
       res = ndb->pollEvents(5000, &curr_gci) > 0;
     } else {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
@@ -4121,19 +4099,8 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-// Waits until the event buffer is filled up to fill_percent
-// or #retries exhaust.
-bool wait_to_fill_buffer(Ndb *ndb, Uint32 fill_percent) {
-||||||| 19feac3674e
-// Waits until the event buffer is filled up to fill_percent
-// or #retries exhaust.
-bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
-{
-=======
 /* Fill buffer to some stable level > 95% full */
 bool wait_to_fill_buffer(Ndb *ndb, int maxSeconds = 180) {
->>>>>>> mysql-8.0.36
   Ndb::EventBufferMemoryUsage mem_usage;
   Uint32 prev_usage_percent = 0;
 
@@ -4147,114 +4114,21 @@ bool wait_to_fill_buffer(Ndb *ndb, int maxSeconds = 180) {
   while (maxSeconds--) {
     NdbSleep_MilliSleep(1000);
 
-<<<<<<< HEAD
-  do {
-||||||| 19feac3674e
-  do
-  {
-=======
->>>>>>> mysql-8.0.36
     ndb->get_event_buffer_memory_usage(mem_usage);
-<<<<<<< HEAD
-    usage_before_wait = mem_usage.usage_percent;
-    if (fill_percent < 100 && usage_before_wait >= fill_percent) {
-||||||| 19feac3674e
-    usage_before_wait = mem_usage.usage_percent;
-    if (fill_percent < 100 && usage_before_wait >= fill_percent)
-    {
-=======
     const Uint32 usage_percent = mem_usage.usage_percent;
 
     ndbout_c("  usage percent : %u", usage_percent);
 
     if (usage_percent > 95 && usage_percent == prev_usage_percent) {
->>>>>>> mysql-8.0.36
       return true;
     }
 
-<<<<<<< HEAD
-    // Assume that latestGCI will increase in this sleep time
-    // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_MilliSleep(1000);
-||||||| 19feac3674e
-    // Assume that latestGCI will increase in this sleep time
-    // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_MilliSleep(1000); 
-=======
     prev_usage_percent = usage_percent;
   };
->>>>>>> mysql-8.0.36
 
   ndbout_c("  Timeout waiting for fill");
 
-<<<<<<< HEAD
-    /* fill_percent == 100 :
-     * It is not enough to test usage_after_wait >= 100 to decide
-     * whether a gap has occurred, because a gap can occur
-     * at a fill_percent < 100, eg at 99%, when there is no space
-     * for a new epoch. Therefore, we have to wait until the
-     * latest_gci (and usage) becomes stable, because epochs are
-     * discarded during a gap.
-     */
-    if (prev_gci == latest_gci) {
-      /* No new epoch is buffered despite waiting with continuous
-       * load generation. A gap must have occurred. Enough waiting.
-       * Check usage is unchanged as well.
-       */
-      ndb->get_event_buffer_memory_usage(mem_usage);
-      const Uint32 usage_after_wait = mem_usage.usage_percent;
-      if (usage_before_wait == usage_after_wait) {
-        return true;
-      }
-      if (retries-- == 0) {
-        g_err << "wait_to_fill_buffer failed : prev_gci " << prev_gci
-              << "latest_gci " << latest_gci << " usage before wait "
-              << usage_before_wait << " usage after wait " << usage_after_wait
-              << endl;
-        return false;
-      }
-    }
-    prev_gci = latest_gci;
-  } while (true);
-
-  assert(false);  // Should not reach here
-||||||| 19feac3674e
-    /* fill_percent == 100 :
-     * It is not enough to test usage_after_wait >= 100 to decide
-     * whether a gap has occurred, because a gap can occur
-     * at a fill_percent < 100, eg at 99%, when there is no space
-     * for a new epoch. Therefore, we have to wait until the
-     * latest_gci (and usage) becomes stable, because epochs are
-     * discarded during a gap.
-     */
-    if (prev_gci == latest_gci)
-    {
-      /* No new epoch is buffered despite waiting with continuous
-       * load generation. A gap must have occurred. Enough waiting.
-       * Check usage is unchanged as well.
-       */
-      ndb->get_event_buffer_memory_usage(mem_usage);
-      const Uint32 usage_after_wait = mem_usage.usage_percent;
-      if (usage_before_wait == usage_after_wait)
-      {
-        return true;
-      }
-      if (retries-- == 0)
-      {
-        g_err << "wait_to_fill_buffer failed : prev_gci "
-              << prev_gci << "latest_gci " << latest_gci
-              << " usage before wait " << usage_before_wait
-              << " usage after wait " <<  usage_after_wait << endl;
-        return false;
-      }
-    }
-    prev_gci = latest_gci;
-  } while (true);
-
-  assert(false); // Should not reach here
-=======
   return false;
->>>>>>> mysql-8.0.36
 }
 
 /*********************************************************
@@ -4279,14 +4153,7 @@ int runPollBCOverflowEB(NDBT_Context *ctx, NDBT_Step *step) {
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
   // Wait until event buffer get filled 100%, to get a gap event
-<<<<<<< HEAD
-  if (!wait_to_fill_buffer(ndb, 100)) return NDBT_FAILED;
-||||||| 19feac3674e
-  if (!wait_to_fill_buffer(ndb, 100))
-    return NDBT_FAILED;
-=======
   if (!wait_to_fill_buffer(ndb)) return NDBT_FAILED;
->>>>>>> mysql-8.0.36
 
   g_err << endl
         << "The test is expected to crash with"
@@ -5157,14 +5024,7 @@ int runTardyEventListener(NDBT_Context *ctx, NDBT_Step *step) {
      *  - First time : to speed up the test,
      *  - then fill (~ free_percent) after resuming buffering
      */
-<<<<<<< HEAD
-    if (!wait_to_fill_buffer(ndb, 100)) {
-||||||| 19feac3674e
-    if (!wait_to_fill_buffer(ndb, 100))
-    {
-=======
     if (!wait_to_fill_buffer(ndb)) {
->>>>>>> mysql-8.0.36
       goto end_test;
     }
 
@@ -5528,14 +5388,7 @@ int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
   NdbSocket my_fd{ndb_socket_create_from_native(
       ndb_mgm_listen_event(mgmd.handle(), filter))};
 
-<<<<<<< HEAD
-  if (!ndb_socket_valid(my_fd)) {
-||||||| 19feac3674e
-  if(!ndb_socket_valid(my_fd))
-  {
-=======
   if (!my_fd.is_valid()) {
->>>>>>> mysql-8.0.36
     ndbout << "FAILED: could not listen to event" << endl;
     return NDBT_FAILED;
   }

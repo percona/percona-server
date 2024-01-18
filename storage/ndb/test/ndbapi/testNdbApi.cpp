@@ -40,21 +40,11 @@
 
 #define MAX_NDB_OBJECTS 32678
 
-<<<<<<< HEAD
-#define CHECK(b) if (!(b)) { \
-  g_err.println("ERR: failed on line %u", __LINE__); \
-  return -1; }
-||||||| 19feac3674e
-#define CHECK(b) if (!(b)) { \
-  g_err.println("ERR: failed on line %u", __LINE__); \
-  return -1; } 
-=======
 #define CHECK(b)                                       \
   if (!(b)) {                                          \
     g_err.println("ERR: failed on line %u", __LINE__); \
     return -1;                                         \
   }
->>>>>>> mysql-8.0.36
 
 #define CHECKE(b, obj)                                                \
   if (!(b)) {                                                         \
@@ -80,67 +70,25 @@ int runTestMaxNdb(NDBT_Context *ctx, NDBT_Step *step) {
   while (l < loops && result == NDBT_OK) {
     ndbout_c("loop %d", l + 1);
     int errors = 0;
-<<<<<<< HEAD
-
-    Vector<Ndb*> ndbVector;
-||||||| 19feac3674e
-    
-    Vector<Ndb*> ndbVector;
-=======
 
     Vector<Ndb *> ndbVector;
->>>>>>> mysql-8.0.36
     int i = 0;
     int init = 0;
-<<<<<<< HEAD
-    do {
-
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;
-	errors++;
-	continue;
-
-||||||| 19feac3674e
-    do {      
-      
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;      
-	errors++;
-	continue;
-	
-=======
     do {
       Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
       if (pNdb == NULL) {
         ndbout << "pNdb == NULL" << endl;
         errors++;
         continue;
->>>>>>> mysql-8.0.36
       }
       i++;
 
       ndbVector.push_back(pNdb);
-<<<<<<< HEAD
-
-      if (pNdb->init()){
-	NDB_ERR(pNdb->getNdbError());
-	errors++;
-	continue;
-||||||| 19feac3674e
-      
-      if (pNdb->init()){
-	NDB_ERR(pNdb->getNdbError());
-	errors++;
-	continue;
-=======
 
       if (pNdb->init()) {
         NDB_ERR(pNdb->getNdbError());
         errors++;
         continue;
->>>>>>> mysql-8.0.36
       }
 
       init++;
@@ -148,34 +96,16 @@ int runTestMaxNdb(NDBT_Context *ctx, NDBT_Step *step) {
     } while (errors == 0);
 
     ndbout << i << " ndb objects created" << endl;
-<<<<<<< HEAD
-
-    if (l > 0 && i != oldi && init != MAX_NDB_OBJECTS){
-||||||| 19feac3674e
-    
-    if (l > 0 && i != oldi && init != MAX_NDB_OBJECTS){
-=======
 
     if (l > 0 && i != oldi && init != MAX_NDB_OBJECTS) {
->>>>>>> mysql-8.0.36
       ndbout << l << ": not as manyNdb objects created" << endl
              << i << " != " << oldi << endl;
       result = NDBT_FAILED;
     }
 
     oldi = i;
-<<<<<<< HEAD
-
-
-    for(unsigned j = 0;  j < ndbVector.size(); j++){
-||||||| 19feac3674e
-      
-    
-    for(unsigned j = 0;  j < ndbVector.size(); j++){
-=======
 
     for (unsigned j = 0; j < ndbVector.size(); j++) {
->>>>>>> mysql-8.0.36
       delete ndbVector[j];
       if (((j + 1) % 250) == 0) {
         ndbout << "Deleted " << (Uint64)j << " ndb objects " << endl;
@@ -195,22 +125,10 @@ int runTestMaxTransaction(NDBT_Context *ctx, NDBT_Step *step) {
   int oldi = 0;
   int result = NDBT_OK;
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -224,60 +142,13 @@ int runTestMaxTransaction(NDBT_Context *ctx, NDBT_Step *step) {
   while (l < loops && result == NDBT_OK) {
     int errors = 0;
     int maxErrors = 5;
-<<<<<<< HEAD
-
-    Vector<NdbConnection*> conVector;
-||||||| 19feac3674e
-    
-    Vector<NdbConnection*> conVector;
-=======
->>>>>>> mysql-8.0.36
 
     Vector<NdbConnection *> conVector;
 
     int i = 0;
-<<<<<<< HEAD
-    do {
-||||||| 19feac3674e
-    do {      
-=======
     do {
       NdbConnection *pCon;
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-      NdbConnection* pCon;
-
-      int type = i%2;
-      switch (type){
-      case 0:
-	pCon = pNdb->startTransaction();
-	break;
-      case 1:
-      {
-	BaseString key;
-	key.appfmt("DATA-%d", i);
-	ndbout_c("%s", key.c_str());
-	pCon = pNdb->startTransaction(pTab,
-				      key.c_str(),
-				      key.length());
-||||||| 19feac3674e
-      NdbConnection* pCon;
-      
-      int type = i%2;
-      switch (type){
-      case 0:
-	pCon = pNdb->startTransaction();
-	break;
-      case 1:
-      {
-	BaseString key;
-	key.appfmt("DATA-%d", i);
-	ndbout_c("%s", key.c_str());
-	pCon = pNdb->startTransaction(pTab,
-				      key.c_str(),
-				      key.length());
-=======
       int type = i % 2;
       switch (type) {
         case 0:
@@ -291,7 +162,6 @@ int runTestMaxTransaction(NDBT_Context *ctx, NDBT_Step *step) {
         } break;
         default:
           abort();
->>>>>>> mysql-8.0.36
       }
 
       if (pCon == NULL) {
@@ -299,25 +169,7 @@ int runTestMaxTransaction(NDBT_Context *ctx, NDBT_Step *step) {
         errors++;
         continue;
       }
-<<<<<<< HEAD
 
-      if (pCon == NULL){
-	NDB_ERR(pNdb->getNdbError());
-	errors++;
-	continue;
-      }
-
-||||||| 19feac3674e
-      
-      if (pCon == NULL){
-	NDB_ERR(pNdb->getNdbError());
-	errors++;
-	continue;
-      }
-	  
-=======
-
->>>>>>> mysql-8.0.36
       conVector.push_back(pCon);
 
       i++;
@@ -332,18 +184,8 @@ int runTestMaxTransaction(NDBT_Context *ctx, NDBT_Step *step) {
     }
 
     oldi = i;
-<<<<<<< HEAD
-
-
-    for(unsigned j = 0; j < conVector.size(); j++){
-||||||| 19feac3674e
-      
-    
-    for(unsigned j = 0; j < conVector.size(); j++){
-=======
 
     for (unsigned j = 0; j < conVector.size(); j++) {
->>>>>>> mysql-8.0.36
       pNdb->closeTransaction(conVector[j]);
     }
     conVector.clear();
@@ -364,22 +206,10 @@ int runTestMaxOperations(NDBT_Context *ctx, NDBT_Step *step) {
   int maxOpsLimit = 1;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -411,18 +241,8 @@ int runTestMaxOperations(NDBT_Context *ctx, NDBT_Step *step) {
       ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    for (int i = 1; !endTest && i <= next_max_ops; i++)
-    {
-||||||| 19feac3674e
-    
-    for (int i = 1; !endTest && i <= next_max_ops; i++)
-    {
-=======
 
     for (int i = 1; !endTest && i <= next_max_ops; i++) {
->>>>>>> mysql-8.0.36
       const int rowNo = (i % 256);
       if (hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK) {
         errors++;
@@ -533,21 +353,9 @@ int runTestMaxOperations(NDBT_Context *ctx, NDBT_Step *step) {
       ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    for (int rowNo = 0; rowNo < 100; rowNo++)
-    {
-      if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
-||||||| 19feac3674e
-    
-    for (int rowNo = 0; rowNo < 100; rowNo++)
-    {
-      if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
-=======
 
     for (int rowNo = 0; rowNo < 100; rowNo++) {
       if (hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK) {
->>>>>>> mysql-8.0.36
         errors++;
         ndbout << "ReadRecord failed at line: " << __LINE__
                << ", row: " << rowNo << endl;
@@ -600,22 +408,10 @@ int runTestGetValue(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -624,86 +420,29 @@ int runTestGetValue(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-
-  for (int m = 1; m < 100; m++){
-||||||| 19feac3674e
-  
-  for (int m = 1; m < 100; m++){
-=======
 
   for (int m = 1; m < 100; m++) {
->>>>>>> mysql-8.0.36
     int errors = 0;
     int maxErrors = 5;
-<<<<<<< HEAD
-
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-||||||| 19feac3674e
-      
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-=======
 
     NdbConnection *pCon = pNdb->startTransaction();
     if (pCon == NULL) {
->>>>>>> mysql-8.0.36
       delete pNdb;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-    if (pOp == NULL){
-||||||| 19feac3674e
-      
-    NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-    if (pOp == NULL){
-=======
 
     NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
     if (pOp == NULL) {
->>>>>>> mysql-8.0.36
       pNdb->closeTransaction(pCon);
       delete pNdb;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    if (pOp->readTuple() != 0){
-||||||| 19feac3674e
-      
-    if (pOp->readTuple() != 0){
-=======
 
     if (pOp->readTuple() != 0) {
->>>>>>> mysql-8.0.36
       pNdb->closeTransaction(pCon);
       delete pNdb;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if (pTab->getColumn(a)->getPrimaryKey() == true){
-	if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	  NDB_ERR(pCon->getNdbError());
-	  pNdb->closeTransaction(pCon);
-	  delete pNdb;
-	  return NDBT_FAILED;
-	}
-||||||| 19feac3674e
-      
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if (pTab->getColumn(a)->getPrimaryKey() == true){
-	if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	  NDB_ERR(pCon->getNdbError());
-	  pNdb->closeTransaction(pCon);
-	  delete pNdb;
-	  return NDBT_FAILED;
-	}
-=======
 
     for (int a = 0; a < pTab->getNoOfColumns(); a++) {
       if (pTab->getColumn(a)->getPrimaryKey() == true) {
@@ -713,45 +452,18 @@ int runTestGetValue(NDBT_Context *ctx, NDBT_Step *step) {
           delete pNdb;
           return NDBT_FAILED;
         }
->>>>>>> mysql-8.0.36
       }
     }
 
     int i = 0;
-<<<<<<< HEAD
-    int maxLimit = 1000*m;
-    do {
-
-||||||| 19feac3674e
-    int maxLimit = 1000*m;
-    do {      
-	
-=======
     int maxLimit = 1000 * m;
     do {
->>>>>>> mysql-8.0.36
       if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
-<<<<<<< HEAD
-	const NdbError err = pCon->getNdbError();
-	NDB_ERR(err);
-	if (err.code == 0)
-	  result = NDBT_FAILED;
-	errors++;
-	continue;
-||||||| 19feac3674e
-	const NdbError err = pCon->getNdbError();
-	NDB_ERR(err);
-	if (err.code == 0)
-	  result = NDBT_FAILED;	
-	errors++;
-	continue;
-=======
         const NdbError err = pCon->getNdbError();
         NDB_ERR(err);
         if (err.code == 0) result = NDBT_FAILED;
         errors++;
         continue;
->>>>>>> mysql-8.0.36
       }
 
       i++;
@@ -760,15 +472,7 @@ int runTestGetValue(NDBT_Context *ctx, NDBT_Step *step) {
 
     ndbout << i << " getValues called" << endl;
 
-<<<<<<< HEAD
-
-    if (pCon->execute(Commit) != 0){
-||||||| 19feac3674e
-      
-    if (pCon->execute(Commit) != 0){
-=======
     if (pCon->execute(Commit) != 0) {
->>>>>>> mysql-8.0.36
       const NdbError err = pCon->getNdbError();
       switch (err.code) {
         case 880:   // TUP - Read too much
@@ -801,22 +505,10 @@ int runTestEqual(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -825,61 +517,18 @@ int runTestEqual(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-
-  while (l < loops){
-    for(int m = 1; m < 10; m++){
-||||||| 19feac3674e
-  
-  while (l < loops){
-    for(int m = 1; m < 10; m++){
-=======
 
   while (l < loops) {
     for (int m = 1; m < 10; m++) {
->>>>>>> mysql-8.0.36
       int errors = 0;
       int maxErrors = 5;
-<<<<<<< HEAD
-
-      NdbConnection* pCon = pNdb->startTransaction();
-      if (pCon == NULL){
-	ndbout << "Could not start transaction" << endl;
-	delete pNdb;
-	return NDBT_FAILED;
-||||||| 19feac3674e
-      
-      NdbConnection* pCon = pNdb->startTransaction();
-      if (pCon == NULL){
-	ndbout << "Could not start transaction" << endl;
-	delete pNdb;
-	return NDBT_FAILED;
-=======
 
       NdbConnection *pCon = pNdb->startTransaction();
       if (pCon == NULL) {
         ndbout << "Could not start transaction" << endl;
         delete pNdb;
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-
-      NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-      if (pOp == NULL){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	delete pNdb;
-	return NDBT_FAILED;
-||||||| 19feac3674e
-      
-      NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-      if (pOp == NULL){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	delete pNdb;
-	return NDBT_FAILED;
-=======
 
       NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
       if (pOp == NULL) {
@@ -887,102 +536,16 @@ int runTestEqual(NDBT_Context *ctx, NDBT_Step *step) {
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-
-      if (pOp->readTuple() != 0){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	delete pNdb;
-	return NDBT_FAILED;
-||||||| 19feac3674e
-      
-      if (pOp->readTuple() != 0){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	delete pNdb;
-	return NDBT_FAILED;
-=======
 
       if (pOp->readTuple() != 0) {
         NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
 
       int i = 0;
-<<<<<<< HEAD
-      int maxLimit = 1000*m;
-      do {
-
-	if ((l%2)!=0){
-	  // Forward
-	  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-	    if (pTab->getColumn(a)->getPrimaryKey() == true){
-	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-		const NdbError err = pCon->getNdbError();
-		NDB_ERR(err);
-		if (err.code == 0)
-		  result = NDBT_FAILED;
-		errors++;
-	      }
-	    }
-	  }
-	} else {
-	  // Backward
-	  for(int a = pTab->getNoOfColumns()-1; a>=0; a--){
-	    if (pTab->getColumn(a)->getPrimaryKey() == true){
-	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-		const NdbError err = pCon->getNdbError();
-		NDB_ERR(err);
-		if (err.code == 0)
-		  result = NDBT_FAILED;
-		errors++;
-	      }
-	    }
-	  }
-	}
-
-	i++;
-
-||||||| 19feac3674e
-      int maxLimit = 1000*m;      
-      do {      
-	
-	if ((l%2)!=0){
-	  // Forward
-	  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-	    if (pTab->getColumn(a)->getPrimaryKey() == true){
-	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-		const NdbError err = pCon->getNdbError();
-		NDB_ERR(err);
-		if (err.code == 0)
-		  result = NDBT_FAILED;
-		errors++;
-	      }
-	    }
-	  }
-	} else {
-	  // Backward
-	  for(int a = pTab->getNoOfColumns()-1; a>=0; a--){
-	    if (pTab->getColumn(a)->getPrimaryKey() == true){
-	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-		const NdbError err = pCon->getNdbError();
-		NDB_ERR(err);
-		if (err.code == 0)
-		  result = NDBT_FAILED;
-		errors++;
-	      }
-	    }
-	  }
-	}
-	
-	i++;      
-	
-=======
       int maxLimit = 1000 * m;
       do {
         if ((l % 2) != 0) {
@@ -1013,7 +576,6 @@ int runTestEqual(NDBT_Context *ctx, NDBT_Step *step) {
 
         i++;
 
->>>>>>> mysql-8.0.36
       } while (errors < maxErrors && i < maxLimit);
 
       if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
@@ -1029,45 +591,19 @@ int runTestEqual(NDBT_Context *ctx, NDBT_Step *step) {
       }
 
       ndbout << i << " equal called" << endl;
-<<<<<<< HEAD
 
-
-||||||| 19feac3674e
-      
-      
-=======
-
->>>>>>> mysql-8.0.36
       int check = pCon->execute(Commit);
       if (check != 0) {
         NDB_ERR(pCon->getNdbError());
       }
 
       pNdb->closeTransaction(pCon);
-<<<<<<< HEAD
-
-    }// m
-||||||| 19feac3674e
-      
-    }// m
-=======
 
     }  // m
->>>>>>> mysql-8.0.36
     l++;
-<<<<<<< HEAD
-
-  }// l
-
-||||||| 19feac3674e
-    
-  }// l
-  
-=======
 
   }  // l
 
->>>>>>> mysql-8.0.36
   delete pNdb;
   return result;
 }
@@ -1081,108 +617,36 @@ int runTestDeleteNdb(NDBT_Context *ctx, NDBT_Step *step) {
   const NdbDictionary::Table *pTab = ctx->getTab();
   HugoTransactions hugoTrans(*pTab);
   int records = ctx->getNumRecords();
-<<<<<<< HEAD
-
-  while (l < loops && result == NDBT_OK){
-
-||||||| 19feac3674e
-  
-  while (l < loops && result == NDBT_OK){
-    
-=======
 
   while (l < loops && result == NDBT_OK) {
->>>>>>> mysql-8.0.36
     // Create 5 ndb objects
-<<<<<<< HEAD
-    for( int i = 0; i < 5; i++){
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;
-	result = NDBT_FAILED;
-	goto end_test;
-||||||| 19feac3674e
-    for( int i = 0; i < 5; i++){
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;      
-	result = NDBT_FAILED;	
-	goto end_test;
-=======
     for (int i = 0; i < 5; i++) {
       Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
       if (pNdb == NULL) {
         ndbout << "pNdb == NULL" << endl;
         result = NDBT_FAILED;
         goto end_test;
->>>>>>> mysql-8.0.36
       }
       ndbVector.push_back(pNdb);
-<<<<<<< HEAD
-
-      if (pNdb->init()){
-	NDB_ERR(pNdb->getNdbError());
-	result = NDBT_FAILED;
-	goto end_test;
-||||||| 19feac3674e
-      
-      if (pNdb->init()){
-	NDB_ERR(pNdb->getNdbError());
-	result = NDBT_FAILED;	
-	goto end_test;
-=======
 
       if (pNdb->init()) {
         NDB_ERR(pNdb->getNdbError());
         result = NDBT_FAILED;
         goto end_test;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-      if (pNdb->waitUntilReady() != 0){
-	NDB_ERR(pNdb->getNdbError());
-	result = NDBT_FAILED;
-	goto end_test;
-||||||| 19feac3674e
-      if (pNdb->waitUntilReady() != 0){
-	NDB_ERR(pNdb->getNdbError());
-	result = NDBT_FAILED;	
-	goto end_test;
-=======
       if (pNdb->waitUntilReady() != 0) {
         NDB_ERR(pNdb->getNdbError());
         result = NDBT_FAILED;
         goto end_test;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-      if (hugoTrans.pkReadRecords(pNdb, records) != 0){
-	result = NDBT_FAILED;
-	goto end_test;
-||||||| 19feac3674e
-      if (hugoTrans.pkReadRecords(pNdb, records) != 0){
-	result = NDBT_FAILED;	
-	goto end_test;
-=======
       if (hugoTrans.pkReadRecords(pNdb, records) != 0) {
         result = NDBT_FAILED;
         goto end_test;
->>>>>>> mysql-8.0.36
       }
     }
-<<<<<<< HEAD
-
-    if ((l % 2) == 0){
-      // Restart random node
-||||||| 19feac3674e
-    
-    if ((l % 2) == 0){
-      // Restart random node 
-=======
 
     if ((l % 2) == 0) {
       // Restart random node
->>>>>>> mysql-8.0.36
       ndbout << "Restart random node " << endl;
       if (restarts.executeRestart(ctx, "RestartRandomNodeAbort", 120) != 0) {
         g_err << "Failed to executeRestart(RestartRandomNode)" << endl;
@@ -1204,26 +668,10 @@ int runTestDeleteNdb(NDBT_Context *ctx, NDBT_Step *step) {
     ndbVector.clear();
     l++;
   }
-<<<<<<< HEAD
-
-
- end_test:
-
-  for(unsigned i = 0;  i < ndbVector.size(); i++)
-    delete ndbVector[i];
-||||||| 19feac3674e
-  
-  
- end_test:
-  
-  for(unsigned i = 0;  i < ndbVector.size(); i++)
-    delete ndbVector[i];
-=======
 
 end_test:
 
   for (unsigned i = 0; i < ndbVector.size(); i++) delete ndbVector[i];
->>>>>>> mysql-8.0.36
   ndbVector.clear();
 
   return result;
@@ -1261,61 +709,25 @@ int runTestWaitUntilReady(NDBT_Context *ctx, NDBT_Step *step) {
   delete pNdb;
 
   NDB_ERR(err);
-<<<<<<< HEAD
-  if (err.code != 4256)
-    return NDBT_FAILED;
-
-||||||| 19feac3674e
-  if (err.code != 4256)
-    return NDBT_FAILED;
-  
-=======
   if (err.code != 4256) return NDBT_FAILED;
 
->>>>>>> mysql-8.0.36
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
 int runGetNdbOperationNoTab(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-||||||| 19feac3674e
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-=======
 
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
->>>>>>> mysql-8.0.36
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -1343,77 +755,25 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  const int CASES= 5;
-||||||| 19feac3674e
-  
-  const int CASES= 5;
-=======
 
   const int CASES = 5;
->>>>>>> mysql-8.0.36
   int i;
 
   for (i = 0; i < CASES; i++) {
     ndbout << "Case " << i << endl;
-<<<<<<< HEAD
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      pNdb->closeTransaction(pCon);
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-
-    /* Cases 0-3 use PK ops, 4 + use scans */
-    NdbOperation* pOp = (i < 4 ? pCon->getNdbOperation(pTab->getName()):
-                         pCon->getNdbScanOperation(pTab->getName()));
-    if (pOp == NULL){
-      NDB_ERR(pCon->getNdbError());
-      pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      pNdb->closeTransaction(pCon);  
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-    
-    /* Cases 0-3 use PK ops, 4 + use scans */ 
-    NdbOperation* pOp = (i < 4 ? pCon->getNdbOperation(pTab->getName()):
-                         pCon->getNdbScanOperation(pTab->getName()));
-    if (pOp == NULL){
-      NDB_ERR(pCon->getNdbError());
-      pNdb->closeTransaction(pCon);  
-=======
     NdbConnection *pCon = pNdb->startTransaction();
     if (pCon == NULL) {
       pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
       delete pNdb;
       return NDBT_FAILED;
     }
@@ -1432,37 +792,6 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
     int expectedError = 0;
     HugoOperations hugoOps(*pTab);
 
-<<<<<<< HEAD
-    switch(i) {
-    case 0:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-
-      // getValue should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->getValue("MOST_IMPROBABLE2") == NULL);
-      break;
-||||||| 19feac3674e
-    switch(i) {
-    case 0:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-      
-      // getValue should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->getValue("MOST_IMPROBABLE2") == NULL);
-      break;
-=======
     switch (i) {
       case 0:
         if (pOp->readTuple() != 0) {
@@ -1471,43 +800,12 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
           delete pNdb;
           return NDBT_FAILED;
         }
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-    case 1:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-
-      // equal should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->equal("MOST_IMPROBABLE2", 0) != 0);
-      break;
-||||||| 19feac3674e
-    case 1:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-      
-      // equal should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->equal("MOST_IMPROBABLE2", 0) != 0);
-      break;
-=======
         // getValue should fail, we check that we get correct errors
         // in expected places.
         expectedError = 4004;
         failed = (pOp->getValue("MOST_IMPROBABLE2") == NULL);
         break;
->>>>>>> mysql-8.0.36
 
       case 1:
         if (pOp->readTuple() != 0) {
@@ -1543,94 +841,13 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
             }
           }
         }
-<<<<<<< HEAD
-      }
 
-      // setValue should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->setValue("MOST_IMPROBABLE2", 0) != 0);
-      break;
-||||||| 19feac3674e
-      }
-      
-      // setValue should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->setValue("MOST_IMPROBABLE2", 0) != 0);
-      break;
-=======
->>>>>>> mysql-8.0.36
-
-<<<<<<< HEAD
-    case 3:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-
-      // getBlobHandle should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->getBlobHandle("MOST_IMPROBABLE2") == NULL);
-      break;
-||||||| 19feac3674e
-    case 3:
-      if (pOp->readTuple() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-      
-      // getBlobHandle should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      failed= (pOp->getBlobHandle("MOST_IMPROBABLE2") == NULL);
-      break;
-=======
         // setValue should fail, we check that we get correct errors
         // in expected places.
         expectedError = 4004;
         failed = (pOp->setValue("MOST_IMPROBABLE2", 0) != 0);
         break;
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-    case 4:
-    {
-      NdbScanOperation* sop= (NdbScanOperation*) pOp;
-      if (sop->readTuples() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-
-      // getBlobHandle should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      ndbout << "About to call getBlobHandle" << endl;
-      failed= (sop->getBlobHandle("MOST_IMPROBABLE2") == NULL);
-||||||| 19feac3674e
-    case 4:
-    {
-      NdbScanOperation* sop= (NdbScanOperation*) pOp;
-      if (sop->readTuples() != 0){
-        NDB_ERR(pCon->getNdbError());
-        pNdb->closeTransaction(pCon);
-        delete pNdb;
-        return NDBT_FAILED;
-      }
-      
-      // getBlobHandle should fail, we check that we get correct errors
-      // in expected places.
-      expectedError= 4004;
-      ndbout << "About to call getBlobHandle" << endl;
-      failed= (sop->getBlobHandle("MOST_IMPROBABLE2") == NULL);
-=======
       case 3:
         if (pOp->readTuple() != 0) {
           NDB_ERR(pCon->getNdbError());
@@ -1638,23 +855,7 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
           delete pNdb;
           return NDBT_FAILED;
         }
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-      sop->close();
-      break;
-    }
-
-    default:
-      break;
-||||||| 19feac3674e
-      sop->close();
-      break;
-    } 
-    
-    default:
-      break;
-=======
         // getBlobHandle should fail, we check that we get correct errors
         // in expected places.
         expectedError = 4004;
@@ -1682,7 +883,6 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
 
       default:
         break;
->>>>>>> mysql-8.0.36
     }
 
     if (failed) {
@@ -1691,34 +891,14 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
       NDB_ERR(opErr);
       NDB_ERR(transErr);
       if (opErr.code != transErr.code) {
-<<<<<<< HEAD
-        ndbout << "Error reporting mismatch, expected "
-               << expectedError << endl;
-||||||| 19feac3674e
-        ndbout << "Error reporting mismatch, expected " 
-               << expectedError << endl;
-=======
         ndbout << "Error reporting mismatch, expected " << expectedError
                << endl;
->>>>>>> mysql-8.0.36
         result = NDBT_FAILED;
       }
-<<<<<<< HEAD
-      if (opErr.code != expectedError){
-        ndbout << "No or bad error detected, expected "
-               << expectedError << endl;
-        result = NDBT_FAILED;
-||||||| 19feac3674e
-      if (opErr.code != expectedError){
-        ndbout << "No or bad error detected, expected " 
-               << expectedError << endl;
-        result = NDBT_FAILED;	
-=======
       if (opErr.code != expectedError) {
         ndbout << "No or bad error detected, expected " << expectedError
                << endl;
         result = NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
     } else {
       ndbout << "Case " << i << " did not fail" << endl;
@@ -1727,21 +907,9 @@ int runBadColNameHandling(NDBT_Context *ctx, NDBT_Step *step) {
 
     pNdb->closeTransaction(pCon);
 
-<<<<<<< HEAD
-    if (result == NDBT_FAILED)
-      break;
-  } // for
-
-||||||| 19feac3674e
-    if (result == NDBT_FAILED)
-      break;
-  } // for
-  
-=======
     if (result == NDBT_FAILED) break;
   }  // for
 
->>>>>>> mysql-8.0.36
   delete pNdb;
 
   return result;
@@ -1751,182 +919,23 @@ int runMissingOperation(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
 
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    NDB_ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-
-  // Forget about calling pOp->insertTuple();
-
-  // Call getValue should not work
-  if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
-    const NdbError err = pCon->getNdbError();
-    NDB_ERR(err);
-    if (err.code == 0){
-      ndbout << "hupp" << endl;
-      result = NDBT_FAILED;
-    }
-  } else {
-      ndbout << "hupp2" << endl;
-    result = NDBT_FAILED;
-  }
-
-  pNdb->closeTransaction(pCon);
-  delete pNdb;
-||||||| 19feac3674e
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-    
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    NDB_ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-  
-  // Forget about calling pOp->insertTuple();
-  
-  // Call getValue should not work
-  if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
-    const NdbError err = pCon->getNdbError();
-    NDB_ERR(err);
-    if (err.code == 0){
-      ndbout << "hupp" << endl;
-      result = NDBT_FAILED;	
-    }
-  } else {
-      ndbout << "hupp2" << endl;
-    result = NDBT_FAILED;
-  }
-      
-  pNdb->closeTransaction(pCon);  
-  delete pNdb;
-=======
->>>>>>> mysql-8.0.36
-
-<<<<<<< HEAD
-  return result;
-}
-
-int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-  }
-  if (pNdb->init()){
-    NDB_ERR(pNdb->getNdbError());
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    NDB_ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-
-  if (pOp->updateTuple() != 0){
-||||||| 19feac3674e
-  return result;
-}
-
-int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-  }
-  if (pNdb->init()){
-    NDB_ERR(pNdb->getNdbError());
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-    
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    NDB_ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    delete pNdb;
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->updateTuple() != 0){
-=======
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
->>>>>>> mysql-8.0.36
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-  
-=======
 
   NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
@@ -1992,22 +1001,13 @@ int runGetValueInUpdate(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
 
->>>>>>> mysql-8.0.36
   // Call getValue should not work
   if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
     // It didn't work
     const NdbError err = pCon->getNdbError();
     NDB_ERR(err);
-<<<<<<< HEAD
-    if (err.code == 0){
-      pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-    if (err.code == 0){
-      pNdb->closeTransaction(pCon);  
-=======
     if (err.code == 0) {
       pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
       delete pNdb;
       return NDBT_FAILED;
     }
@@ -2035,75 +1035,33 @@ int runUpdateWithoutValues(NDBT_Context *ctx, NDBT_Step *step) {
 
   HugoOperations hugoOps(*pTab);
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-=======
 
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
     pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-||||||| 19feac3674e
-    
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-=======
 
   NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
->>>>>>> mysql-8.0.36
     NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  if (pOp->updateTuple() != 0){
-||||||| 19feac3674e
-  
-  if (pOp->updateTuple() != 0){
-=======
 
   if (pOp->updateTuple() != 0) {
->>>>>>> mysql-8.0.36
     pNdb->closeTransaction(pCon);
     NDB_ERR(pOp->getNdbError());
     delete pNdb;
@@ -2142,77 +1100,33 @@ int runUpdateWithoutKeys(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-=======
 
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
     pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-||||||| 19feac3674e
-    
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-=======
 
   NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
->>>>>>> mysql-8.0.36
     NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  if (pOp->updateTuple() != 0){
-||||||| 19feac3674e
-  
-  if (pOp->updateTuple() != 0){
-=======
 
   if (pOp->updateTuple() != 0) {
->>>>>>> mysql-8.0.36
     pNdb->closeTransaction(pCon);
     NDB_ERR(pOp->getNdbError());
     delete pNdb;
@@ -2245,97 +1159,26 @@ int runReadWithoutGetValue(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = GETNDB(step);
   Uint32 lm;
 
-<<<<<<< HEAD
-  for(Uint32 cm= 0; cm < 2; cm++)
-  {
-    for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
-    {
-      NdbConnection* pCon = pNdb->startTransaction();
-      if (pCon == NULL){
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-||||||| 19feac3674e
-  for(Uint32 cm= 0; cm < 2; cm++)
-  {
-    for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
-    {
-      NdbConnection* pCon = pNdb->startTransaction();
-      if (pCon == NULL){
-	pNdb->closeTransaction(pCon);  
-	return NDBT_FAILED;
-=======
   for (Uint32 cm = 0; cm < 2; cm++) {
     for (lm = 0; lm <= NdbOperation::LM_CommittedRead; lm++) {
       NdbConnection *pCon = pNdb->startTransaction();
       if (pCon == NULL) {
         pNdb->closeTransaction(pCon);
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-
-      NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-      if (pOp == NULL){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-||||||| 19feac3674e
-    
-      NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-      if (pOp == NULL){
-	NDB_ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);  
-	return NDBT_FAILED;
-=======
 
       NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
       if (pOp == NULL) {
         NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-
-      if (pOp->readTuple((NdbOperation::LockMode)lm) != 0){
-	pNdb->closeTransaction(pCon);
-	NDB_ERR(pOp->getNdbError());
-	return NDBT_FAILED;
-||||||| 19feac3674e
-  
-      if (pOp->readTuple((NdbOperation::LockMode)lm) != 0){
-	pNdb->closeTransaction(pCon);
-	NDB_ERR(pOp->getNdbError());
-	return NDBT_FAILED;
-=======
 
       if (pOp->readTuple((NdbOperation::LockMode)lm) != 0) {
         pNdb->closeTransaction(pCon);
         NDB_ERR(pOp->getNdbError());
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
-<<<<<<< HEAD
-
-      for(int a = 0; a<pTab->getNoOfColumns(); a++){
-	if (pTab->getColumn(a)->getPrimaryKey() == true){
-	  if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	    NDB_ERR(pCon->getNdbError());
-	    pNdb->closeTransaction(pCon);
-	    return NDBT_FAILED;
-	  }
-	}
-||||||| 19feac3674e
-    
-      for(int a = 0; a<pTab->getNoOfColumns(); a++){
-	if (pTab->getColumn(a)->getPrimaryKey() == true){
-	  if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	    NDB_ERR(pCon->getNdbError());
-	    pNdb->closeTransaction(pCon);
-	    return NDBT_FAILED;
-	  }
-	}
-=======
 
       for (int a = 0; a < pTab->getNoOfColumns(); a++) {
         if (pTab->getColumn(a)->getPrimaryKey() == true) {
@@ -2345,7 +1188,6 @@ int runReadWithoutGetValue(NDBT_Context *ctx, NDBT_Step *step) {
             return NDBT_FAILED;
           }
         }
->>>>>>> mysql-8.0.36
       }
 
       // Don't call any getValues
@@ -2366,66 +1208,26 @@ int runReadWithoutGetValue(NDBT_Context *ctx, NDBT_Step *step) {
   /**
    * Now test scans
    */
-<<<<<<< HEAD
-  for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
-  {
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-  for(lm= 0; lm <= NdbOperation::LM_CommittedRead; lm++)
-  {
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      pNdb->closeTransaction(pCon);  
-=======
   for (lm = 0; lm <= NdbOperation::LM_CommittedRead; lm++) {
     NdbConnection *pCon = pNdb->startTransaction();
     if (pCon == NULL) {
       pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-    if (pOp == NULL){
-||||||| 19feac3674e
-    
-    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-    if (pOp == NULL){
-=======
 
     NdbScanOperation *pOp = pCon->getNdbScanOperation(pTab->getName());
     if (pOp == NULL) {
->>>>>>> mysql-8.0.36
       NDB_ERR(pCon->getNdbError());
       pNdb->closeTransaction(pCon);
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    if ((pOp->readTuples((NdbOperation::LockMode)lm)) != 0){
-||||||| 19feac3674e
-    
-    if ((pOp->readTuples((NdbOperation::LockMode)lm)) != 0){
-=======
 
     if ((pOp->readTuples((NdbOperation::LockMode)lm)) != 0) {
->>>>>>> mysql-8.0.36
       pNdb->closeTransaction(pCon);
       NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
 
-
-||||||| 19feac3674e
-    
-    
-=======
-
->>>>>>> mysql-8.0.36
     // Don't call any getValues
 
     // Execute should work
@@ -2438,25 +1240,11 @@ int runReadWithoutGetValue(NDBT_Context *ctx, NDBT_Step *step) {
     }
 
     int res;
-<<<<<<< HEAD
-    while((res = pOp->nextResult()) == 0);
-    pNdb->closeTransaction(pCon);
-
-    if(res != 1)
-      result = NDBT_FAILED;
-||||||| 19feac3674e
-    while((res = pOp->nextResult()) == 0);
-    pNdb->closeTransaction(pCon);  
-    
-    if(res != 1)
-      result = NDBT_FAILED;
-=======
     while ((res = pOp->nextResult()) == 0)
       ;
     pNdb->closeTransaction(pCon);
 
     if (res != 1) result = NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
 
   return result;
@@ -2466,22 +1254,10 @@ int runCheckGetNdbErrorOperation(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -2490,38 +1266,16 @@ int runCheckGetNdbErrorOperation(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-||||||| 19feac3674e
-  
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-=======
 
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
->>>>>>> mysql-8.0.36
     ndbout << "Could not start transaction" << endl;
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-||||||| 19feac3674e
-  
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-=======
 
   NdbOperation *pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
->>>>>>> mysql-8.0.36
     NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
@@ -2530,30 +1284,6 @@ int runCheckGetNdbErrorOperation(NDBT_Context *ctx, NDBT_Step *step) {
 
   // Dont call readTuple here
   // That's the error!
-<<<<<<< HEAD
-
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	// An error has occurred, check that
-	// it's possible to get the NdbErrorOperation
-	const NdbError err = pCon->getNdbError();
-	NDB_ERR(err);
-	if (err.code == 0)
-	  result = NDBT_FAILED;
-||||||| 19feac3674e
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	// An error has occurred, check that 
-	// it's possible to get the NdbErrorOperation
-	const NdbError err = pCon->getNdbError();
-	NDB_ERR(err);
-	if (err.code == 0)
-	  result = NDBT_FAILED;
-=======
->>>>>>> mysql-8.0.36
 
   for (int a = 0; a < pTab->getNoOfColumns(); a++) {
     if (pTab->getColumn(a)->getPrimaryKey() == true) {
@@ -2713,44 +1443,20 @@ int runScan_4006(NDBT_Context *ctx, NDBT_Step *step) {
   const Uint32 max = 5;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(max)) {
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-  
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-=======
 
   NdbConnection *pCon = pNdb->startTransaction();
   if (pCon == NULL) {
     pNdb->closeTransaction(pCon);
->>>>>>> mysql-8.0.36
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -2765,16 +1471,8 @@ int runScan_4006(NDBT_Context *ctx, NDBT_Step *step) {
       delete pNdb;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    if (pOp->readTuples() != 0){
-||||||| 19feac3674e
-    
-    if (pOp->readTuples() != 0){
-=======
 
     if (pOp->readTuples() != 0) {
->>>>>>> mysql-8.0.36
       pNdb->closeTransaction(pCon);
       NDB_ERR(pOp->getNdbError());
       delete pNdb;
@@ -2792,44 +1490,18 @@ int runScan_4006(NDBT_Context *ctx, NDBT_Step *step) {
   } else {
     NDB_ERR(pCon->getNdbError());
   }
-<<<<<<< HEAD
-
-  for(i= 0; i<scans.size(); i++)
-  {
-    NdbScanOperation* pOp= scans[i];
-    while((check= pOp->nextResult()) == 0);
-    if(check != 1)
-    {
-||||||| 19feac3674e
-  
-  for(i= 0; i<scans.size(); i++)
-  {
-    NdbScanOperation* pOp= scans[i];
-    while((check= pOp->nextResult()) == 0);
-    if(check != 1)
-    {
-=======
 
   for (i = 0; i < scans.size(); i++) {
     NdbScanOperation *pOp = scans[i];
     while ((check = pOp->nextResult()) == 0)
       ;
     if (check != 1) {
->>>>>>> mysql-8.0.36
       NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pCon);
       delete pNdb;
       return NDBT_FAILED;
     }
   }
-<<<<<<< HEAD
-
-  pNdb->closeTransaction(pCon);
-||||||| 19feac3674e
-  
-  pNdb->closeTransaction(pCon);  
-=======
->>>>>>> mysql-8.0.36
 
   pNdb->closeTransaction(pCon);
 
@@ -2841,35 +1513,13 @@ int runScan_4006(NDBT_Context *ctx, NDBT_Step *step) {
     else
       break;
   }
-<<<<<<< HEAD
-
-  for(i= 0; i<cons.size(); i++)
-  {
-||||||| 19feac3674e
-  
-  for(i= 0; i<cons.size(); i++)
-  {
-=======
 
   for (i = 0; i < cons.size(); i++) {
->>>>>>> mysql-8.0.36
     cons[i]->close();
   }
-<<<<<<< HEAD
-
-  if(cons.size() != max)
-  {
-    result= NDBT_FAILED;
-||||||| 19feac3674e
-  
-  if(cons.size() != max)
-  {
-    result= NDBT_FAILED;
-=======
 
   if (cons.size() != max) {
     result = NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
 
   delete pNdb;
@@ -2929,15 +1579,7 @@ int createPkIndex_Drop(NDBT_Context *ctx, NDBT_Step *step) {
 
   // Drop index
   ndbout << "Dropping index " << pkIdxName << " ";
-<<<<<<< HEAD
-  if (pNdb->getDictionary()->dropIndex(pkIdxName,
-				       pTab->getName()) != 0){
-||||||| 19feac3674e
-  if (pNdb->getDictionary()->dropIndex(pkIdxName, 
-				       pTab->getName()) != 0){
-=======
   if (pNdb->getDictionary()->dropIndex(pkIdxName, pTab->getName()) != 0) {
->>>>>>> mysql-8.0.36
     ndbout << "FAILED!" << endl;
     NDB_ERR(pNdb->getDictionary()->getNdbError());
     return NDBT_FAILED;
@@ -2948,125 +1590,6 @@ int createPkIndex_Drop(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-static
-int
-op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
-       const NdbDictionary::Table* pTab, int op, int row)
-{
-  NdbOperation * pOp = 0;
-  switch(op){
-  case 0:
-  case 1:
-  case 2:
-  case 3:
-  case 4:
-  case 5:
-  case 12:
-    pOp = pTrans->getNdbOperation(pTab->getName());
-    break;
-  case 9:
-    return 0;
-  case 6:
-  case 7:
-  case 8:
-  case 10:
-  case 11:
-    pOp = pTrans->getNdbIndexOperation(pkIdxName, pTab->getName());
-  default:
-    break;
-  }
-
-  switch(op){
-  case 0:
-  case 6:
-    pOp->readTuple();
-    break;
-  case 1:
-  case 7:
-    pOp->committedRead();
-    break;
-  case 2:
-  case 8:
-    pOp->readTupleExclusive();
-    break;
-  case 3:
-  case 9:
-    pOp->insertTuple();
-    break;
-  case 4:
-  case 10:
-    pOp->updateTuple();
-    break;
-  case 5:
-  case 11:
-    pOp->deleteTuple();
-    break;
-  case 12:
-    CHECK(!pOp->simpleRead());
-    break;
-  default:
-    abort();
-||||||| 19feac3674e
-static
-int
-op_row(NdbTransaction* pTrans, HugoOperations& hugoOps,
-       const NdbDictionary::Table* pTab, int op, int row)
-{
-  NdbOperation * pOp = 0;
-  switch(op){
-  case 0:
-  case 1:
-  case 2:
-  case 3:
-  case 4:
-  case 5:
-  case 12:
-    pOp = pTrans->getNdbOperation(pTab->getName());
-    break;
-  case 9:
-    return 0;
-  case 6:
-  case 7:
-  case 8:
-  case 10:
-  case 11:
-    pOp = pTrans->getNdbIndexOperation(pkIdxName, pTab->getName());
-  default:
-    break;
-  }
-  
-  switch(op){
-  case 0:
-  case 6:
-    pOp->readTuple();
-    break;
-  case 1:
-  case 7:
-    pOp->committedRead();
-    break;
-  case 2:
-  case 8:
-    pOp->readTupleExclusive();
-    break;
-  case 3:
-  case 9:
-    pOp->insertTuple();
-    break;
-  case 4:
-  case 10:
-    pOp->updateTuple();
-    break;
-  case 5:
-  case 11:
-    pOp->deleteTuple();
-    break;
-  case 12:
-    CHECK(!pOp->simpleRead());
-    break;
-  default:
-    abort();
-=======
 static int op_row(NdbTransaction *pTrans, HugoOperations &hugoOps,
                   const NdbDictionary::Table *pTab, int op, int row) {
   NdbOperation *pOp = 0;
@@ -3090,7 +1613,6 @@ static int op_row(NdbTransaction *pTrans, HugoOperations &hugoOps,
       pOp = pTrans->getNdbIndexOperation(pkIdxName, pTab->getName());
     default:
       break;
->>>>>>> mysql-8.0.36
   }
 
   switch (op) {
@@ -3133,49 +1655,6 @@ static int op_row(NdbTransaction *pTrans, HugoOperations &hugoOps,
     }
   }
 
-<<<<<<< HEAD
-  switch(op){
-  case 0:
-  case 1:
-  case 2:
-  case 6:
-  case 7:
-  case 8:
-  case 12:
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      CHECK(pOp->getValue(a));
-    }
-    break;
-  case 3:
-  case 4:
-  case 10:
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if (pTab->getColumn(a)->getPrimaryKey() == false){
-	if(hugoOps.setValueForAttr(pOp, a, row, 2) != 0){
-	  return NDBT_FAILED;
-	}
-||||||| 19feac3674e
-  switch(op){
-  case 0:
-  case 1:
-  case 2:
-  case 6:
-  case 7:
-  case 8:
-  case 12:
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      CHECK(pOp->getValue(a));
-    }
-    break;
-  case 3: 
-  case 4:
-  case 10:
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if (pTab->getColumn(a)->getPrimaryKey() == false){
-	if(hugoOps.setValueForAttr(pOp, a, row, 2) != 0){
-	  return NDBT_FAILED;
-	}
-=======
   switch (op) {
     case 0:
     case 1:
@@ -3186,7 +1665,6 @@ static int op_row(NdbTransaction *pTrans, HugoOperations &hugoOps,
     case 12:
       for (int a = 0; a < pTab->getNoOfColumns(); a++) {
         CHECK(pOp->getValue(a));
->>>>>>> mysql-8.0.36
       }
       break;
     case 3:
@@ -3286,104 +1764,13 @@ int runTestIgnoreError(NDBT_Context *ctx, NDBT_Step *step) {
     // NOTE : I get a node crash if the following loop starts from 0!
     for (Uint32 op2 = op1; op2 < 13; op2++) {
       int ret;
-<<<<<<< HEAD
-      NdbTransaction* pTrans = 0;
-
-      for (Uint32 i = 0; i<4; i++, tno++)
-      {
-	if (loops != 1000 && loops != tno)
-	  continue;
-	ExecType et = tests[i].et;
-	AbortOption ao = tests[i].ao;
-
-	printf("%.3d : ", tno);
-	print(op1);
-	print(op2);
-	switch(et){
-	case Commit: printf("c    "); break;
-	case NoCommit: printf("nc   "); break;
-        default: printf("bad exectype : %d\n", et); return NDBT_FAILED;
-	}
-	switch(ao){
-	case AbortOnError: printf("aoe  "); break;
-	case AO_IgnoreError: printf("ie   "); break;
-        default: printf("bad abortoption : %d\n", ao); return NDBT_FAILED;
-	}
-	printf(": ");
-
-||||||| 19feac3674e
-      NdbTransaction* pTrans = 0;
-      
-      for (Uint32 i = 0; i<4; i++, tno++)
-      {
-	if (loops != 1000 && loops != tno)
-	  continue;
-	ExecType et = tests[i].et;
-	AbortOption ao = tests[i].ao;
-	
-	printf("%.3d : ", tno);
-	print(op1);
-	print(op2);
-	switch(et){
-	case Commit: printf("c    "); break;
-	case NoCommit: printf("nc   "); break;
-        default: printf("bad exectype : %d\n", et); return NDBT_FAILED;
-	}
-	switch(ao){
-	case AbortOnError: printf("aoe  "); break;
-	case AO_IgnoreError: printf("ie   "); break;
-        default: printf("bad abortoption : %d\n", ao); return NDBT_FAILED;
-	}
-	printf(": ");
-	
-=======
       NdbTransaction *pTrans = 0;
->>>>>>> mysql-8.0.36
 
       for (Uint32 i = 0; i < 4; i++, tno++) {
         if (loops != 1000 && loops != tno) continue;
         ExecType et = tests[i].et;
         AbortOption ao = tests[i].ao;
 
-<<<<<<< HEAD
-	hugoTrans.loadTable(pNdb, 1);
-	CHECK(pTrans = pNdb->startTransaction());
-	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 1));
-	ret = pTrans->execute(et, ao);
-	pTrans->close();
-	printf("%d ", ret);
-	hugoTrans.clearTable(pNdb);
-
-	hugoTrans.loadTable(pNdb, 1);
-	CHECK(pTrans = pNdb->startTransaction());
-	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 0));
-	CHECK(!op_row(pTrans, hugoOps, pTab, op2, 1));
-	ret = pTrans->execute(et, ao);
-	pTrans->close();
-	printf("%d\n", ret);
-	hugoTrans.clearTable(pNdb);
-
-	hugoTrans.clearTable(pNdb);
-||||||| 19feac3674e
-	hugoTrans.loadTable(pNdb, 1);
-	CHECK(pTrans = pNdb->startTransaction());
-	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 1));
-	ret = pTrans->execute(et, ao);
-	pTrans->close();
-	printf("%d ", ret);
-	hugoTrans.clearTable(pNdb);
-      
-	hugoTrans.loadTable(pNdb, 1);
-	CHECK(pTrans = pNdb->startTransaction());
-	CHECK(!op_row(pTrans, hugoOps, pTab, op1, 0));
-	CHECK(!op_row(pTrans, hugoOps, pTab, op2, 1));
-	ret = pTrans->execute(et, ao);
-	pTrans->close();
-	printf("%d\n", ret);
-	hugoTrans.clearTable(pNdb);
-	
-	hugoTrans.clearTable(pNdb);
-=======
         printf("%.3d : ", tno);
         print(op1);
         print(op2);
@@ -3437,7 +1824,6 @@ int runTestIgnoreError(NDBT_Context *ctx, NDBT_Step *step) {
         hugoTrans.clearTable(pNdb);
 
         hugoTrans.clearTable(pNdb);
->>>>>>> mysql-8.0.36
       }
     }
   }
@@ -3453,63 +1839,25 @@ static Uint32 do_cnt(Ndb_cluster_connection *con) {
   return cnt;
 }
 
-<<<<<<< HEAD
-int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb_cluster_connection* con = &ctx->m_cluster_connection;
-
-||||||| 19feac3674e
-int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb_cluster_connection* con = &ctx->m_cluster_connection;
-  
-=======
 int runCheckNdbObjectList(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb_cluster_connection *con = &ctx->m_cluster_connection;
 
->>>>>>> mysql-8.0.36
   Uint32 cnt1 = do_cnt(con);
   Vector<Ndb *> objs;
   for (Uint32 i = 0; i < 100; i++) {
     Uint32 add = 1 + (rand() % 5);
-<<<<<<< HEAD
-    for (Uint32 j = 0; j<add; j++)
-    {
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;
-	return NDBT_FAILED;
-||||||| 19feac3674e
-    for (Uint32 j = 0; j<add; j++)
-    {
-      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-      if (pNdb == NULL){
-	ndbout << "pNdb == NULL" << endl;      
-	return NDBT_FAILED;  
-=======
     for (Uint32 j = 0; j < add; j++) {
       Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
       if (pNdb == NULL) {
         ndbout << "pNdb == NULL" << endl;
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
       objs.push_back(pNdb);
     }
     if (do_cnt(con) != (cnt1 + objs.size())) return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  for (Uint32 i = 0; i<100 && objs.size(); i++)
-  {
-||||||| 19feac3674e
-  
-  for (Uint32 i = 0; i<100 && objs.size(); i++)
-  {
-=======
 
   for (Uint32 i = 0; i < 100 && objs.size(); i++) {
->>>>>>> mysql-8.0.36
     Uint32 sub = 1 + rand() % objs.size();
     for (Uint32 j = 0; j < sub && objs.size(); j++) {
       Uint32 idx = rand() % objs.size();
@@ -3518,21 +1866,9 @@ int runCheckNdbObjectList(NDBT_Context *ctx, NDBT_Step *step) {
     }
     if (do_cnt(con) != (cnt1 + objs.size())) return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  for (Uint32 i = 0; i<objs.size(); i++)
-    delete objs[i];
-
-||||||| 19feac3674e
-  
-  for (Uint32 i = 0; i<objs.size(); i++)
-    delete objs[i];
-  
-=======
 
   for (Uint32 i = 0; i < objs.size(); i++) delete objs[i];
 
->>>>>>> mysql-8.0.36
   return (cnt1 == do_cnt(con)) ? NDBT_OK : NDBT_FAILED;
 }
 
@@ -3658,25 +1994,7 @@ static void testExecuteAsynchCallback(int res, NdbTransaction *con,
                                       void *data_ptr) {
   int *res_ptr = (int *)data_ptr;
 
-<<<<<<< HEAD
-
-static void
-testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
-{
-  int *res_ptr= (int *)data_ptr;
-
-  *res_ptr= res;
-||||||| 19feac3674e
-  
-static void
-testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
-{
-  int *res_ptr= (int *)data_ptr;
-
-  *res_ptr= res;
-=======
   *res_ptr = res;
->>>>>>> mysql-8.0.36
 }
 
 int runTestExecuteAsynch(NDBT_Context *ctx, NDBT_Step *step) {
@@ -3684,22 +2002,10 @@ int runTestExecuteAsynch(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   const NdbDictionary::Table *pTab = ctx->getTab();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init(2048)) {
     NDB_ERR(pNdb->getNdbError());
@@ -3754,17 +2060,7 @@ int runTestExecuteAsynch(NDBT_Context *ctx, NDBT_Step *step) {
 
 template class Vector<NdbScanOperation *>;
 
-<<<<<<< HEAD
-int
-runBug28443(NDBT_Context* ctx, NDBT_Step* step)
-{
-||||||| 19feac3674e
-int 
-runBug28443(NDBT_Context* ctx, NDBT_Step* step)
-{
-=======
 int runBug28443(NDBT_Context *ctx, NDBT_Step *step) {
->>>>>>> mysql-8.0.36
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
 
@@ -3790,17 +2086,7 @@ done:
   return result;
 }
 
-<<<<<<< HEAD
-int
-runBug37158(NDBT_Context* ctx, NDBT_Step* step)
-{
-||||||| 19feac3674e
-int 
-runBug37158(NDBT_Context* ctx, NDBT_Step* step)
-{
-=======
 int runBug37158(NDBT_Context *ctx, NDBT_Step *step) {
->>>>>>> mysql-8.0.36
   int result = NDBT_OK;
   Ndb *pNdb = GETNDB(step);
 
@@ -3811,59 +2097,23 @@ int runBug37158(NDBT_Context *ctx, NDBT_Step *step) {
       result = NDBT_FAILED;
       goto done;
     }
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-    
-=======
->>>>>>> mysql-8.0.36
 
     if (hugoOps.pkWritePartialRecord(pNdb, 1) != 0) {
       result = NDBT_FAILED;
       goto done;
     }
-<<<<<<< HEAD
-
-    if (hugoOps.pkWriteRecord(pNdb, 2) != 0)
-    {
-||||||| 19feac3674e
-    
-    if (hugoOps.pkWriteRecord(pNdb, 2) != 0)
-    {
-=======
 
     if (hugoOps.pkWriteRecord(pNdb, 2) != 0) {
->>>>>>> mysql-8.0.36
       result = NDBT_FAILED;
       goto done;
     }
-<<<<<<< HEAD
-
-    if (hugoOps.pkUpdateRecord(pNdb, 0) != 0)
-    {
-||||||| 19feac3674e
-    
-    if (hugoOps.pkUpdateRecord(pNdb, 0) != 0)
-    {
-=======
 
     if (hugoOps.pkUpdateRecord(pNdb, 0) != 0) {
->>>>>>> mysql-8.0.36
       result = NDBT_FAILED;
       goto done;
     }
-<<<<<<< HEAD
-
-    if (hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 4011)
-    {
-||||||| 19feac3674e
-    
-    if (hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 4011)
-    {
-=======
 
     if (hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 4011) {
->>>>>>> mysql-8.0.36
       result = NDBT_FAILED;
       goto done;
     }
@@ -3893,19 +2143,9 @@ int simpleReadAbortOnError(NDBT_Context *ctx, NDBT_Step *step) {
   CHECK(!hugoOps.pkWriteRecord(pNdb, 0));
   CHECK(!hugoOps.execute_Commit(pNdb, AbortOnError));
 
-<<<<<<< HEAD
-  NdbTransaction* trans;
-
-  CHECK(trans= pNdb->startTransaction());
-||||||| 19feac3674e
-  NdbTransaction* trans;
-  
-  CHECK(trans= pNdb->startTransaction());
-=======
   NdbTransaction *trans;
 
   CHECK(trans = pNdb->startTransaction());
->>>>>>> mysql-8.0.36
 
   /* Insert error 5047 which causes next LQHKEYREQ to fail due
    * to 'transporter overload'
@@ -3921,25 +2161,11 @@ int simpleReadAbortOnError(NDBT_Context *ctx, NDBT_Step *step) {
 
   CHECK(!op->simpleRead());
 
-<<<<<<< HEAD
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(op, a, 0) != 0){
-        restarter.insertErrorInAllNodes(0);
-	return NDBT_FAILED;
-||||||| 19feac3674e
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(op, a, 0) != 0){
-        restarter.insertErrorInAllNodes(0);  
-	return NDBT_FAILED;
-=======
   for (int a = 0; a < pTab->getNoOfColumns(); a++) {
     if (pTab->getColumn(a)->getPrimaryKey() == true) {
       if (hugoOps.equalForAttr(op, a, 0) != 0) {
         restarter.insertErrorInAllNodes(0);
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
     }
   }
@@ -3955,39 +2181,17 @@ int simpleReadAbortOnError(NDBT_Context *ctx, NDBT_Step *step) {
 
   CHECK(!op2->readTuple());
 
-<<<<<<< HEAD
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(op2, a, 0) != 0){
-        restarter.insertErrorInAllNodes(0);
-	return NDBT_FAILED;
-||||||| 19feac3674e
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(op2, a, 0) != 0){
-        restarter.insertErrorInAllNodes(0);  
-	return NDBT_FAILED;
-=======
   for (int a = 0; a < pTab->getNoOfColumns(); a++) {
     if (pTab->getColumn(a)->getPrimaryKey() == true) {
       if (hugoOps.equalForAttr(op2, a, 0) != 0) {
         restarter.insertErrorInAllNodes(0);
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
     }
   }
   for (int a = 0; a < pTab->getNoOfColumns(); a++) {
     CHECK(op2->getValue(a));
   }
-<<<<<<< HEAD
-
-  CHECK(!op2->setAbortOption(NdbOperation::AbortOnError));
-||||||| 19feac3674e
-  
-  CHECK(!op2->setAbortOption(NdbOperation::AbortOnError));
-=======
->>>>>>> mysql-8.0.36
 
   CHECK(!op2->setAbortOption(NdbOperation::AbortOnError));
 
@@ -3998,12 +2202,6 @@ int simpleReadAbortOnError(NDBT_Context *ctx, NDBT_Step *step) {
   restarter.insertErrorInAllNodes(0);
 
   return NDBT_OK;
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-  
-=======
->>>>>>> mysql-8.0.36
 }
 
 int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
@@ -4038,16 +2236,8 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
       for (int col = 0; col < pTab->getNoOfColumns(); col++) {
         char *valPtr = NdbDictionary::getValuePtr(tabRec, keyRowBuf, col);
         CHECK(valPtr != NULL);
-<<<<<<< HEAD
-
-        int len= pTab->getColumn(col)->getSizeInBytes();
-||||||| 19feac3674e
-        
-        int len= pTab->getColumn(col)->getSizeInBytes();
-=======
 
         int len = pTab->getColumn(col)->getSizeInBytes();
->>>>>>> mysql-8.0.36
         Uint32 real_len;
         bool isNull = (calc.calcValue(record, col, updates, valPtr, len,
                                       &real_len) == NULL);
@@ -4058,39 +2248,17 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
 
       /* Now copy the values to the Attr record */
       memcpy(attrRowBuf, keyRowBuf, sizeOfTabRec);
-<<<<<<< HEAD
-
-      Uint32 mippleAttempts= 3;
-
-      while (memcmp(keyRowBuf, attrRowBuf, sizeOfTabRec) == 0)
-      {
-||||||| 19feac3674e
-      
-      Uint32 mippleAttempts= 3;
-      
-      while (memcmp(keyRowBuf, attrRowBuf, sizeOfTabRec) == 0)
-      {
-=======
 
       Uint32 mippleAttempts = 3;
 
       while (memcmp(keyRowBuf, attrRowBuf, sizeOfTabRec) == 0) {
->>>>>>> mysql-8.0.36
         /* Now doctor the PK values in the Attr record */
         for (int col = 0; col < pTab->getNoOfColumns(); col++) {
           if (pTab->getColumn(col)->getPrimaryKey()) {
             char *valPtr = NdbDictionary::getValuePtr(tabRec, attrRowBuf, col);
             CHECK(valPtr != NULL);
-<<<<<<< HEAD
-
-            int len= pTab->getColumn(col)->getSizeInBytes();
-||||||| 19feac3674e
-            
-            int len= pTab->getColumn(col)->getSizeInBytes();
-=======
 
             int len = pTab->getColumn(col)->getSizeInBytes();
->>>>>>> mysql-8.0.36
             Uint32 real_len;
             /* We use the PK value for some other record */
             int badRecord = record + (rand() % 1000);
@@ -4109,21 +2277,9 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
        */
       NdbTransaction *trans = pNdb->startTransaction();
       CHECK(trans != 0);
-<<<<<<< HEAD
-
-      const NdbOperation* op= NULL;
-      if (optype == 0)
-      {
-||||||| 19feac3674e
-      
-      const NdbOperation* op= NULL;
-      if (optype == 0)
-      {
-=======
 
       const NdbOperation *op = NULL;
       if (optype == 0) {
->>>>>>> mysql-8.0.36
         // ndbout << "Using insertTuple" << endl;
         op = trans->insertTuple(tabRec, keyRowBuf, tabRec, attrRowBuf);
       } else {
@@ -4137,23 +2293,9 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
 
       /* Now read back */
       std::memset(attrRowBuf, 0, sizeOfTabRec);
-<<<<<<< HEAD
-
-      Uint32 pkVal= 0;
-      memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
-                                                keyRowBuf,
-                                                0),
-||||||| 19feac3674e
-      
-      Uint32 pkVal= 0;
-      memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
-                                                keyRowBuf,
-                                                0),
-=======
 
       Uint32 pkVal = 0;
       memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec, keyRowBuf, 0),
->>>>>>> mysql-8.0.36
              sizeof(pkVal));
 
       trans = pNdb->startTransaction();
@@ -4168,75 +2310,25 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
         const char *valPtr =
             NdbDictionary::getValuePtr(tabRec, attrRowBuf, col);
         CHECK(valPtr != NULL);
-<<<<<<< HEAD
-
-        char calcBuff[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-        int len= pTab->getColumn(col)->getSizeInBytes();
-||||||| 19feac3674e
-        
-        char calcBuff[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-        int len= pTab->getColumn(col)->getSizeInBytes();
-=======
 
         char calcBuff[NDB_MAX_TUPLE_SIZE_IN_WORDS << 2];
         int len = pTab->getColumn(col)->getSizeInBytes();
->>>>>>> mysql-8.0.36
         Uint32 real_len;
         bool isNull = (calc.calcValue(record, col, updates, calcBuff, len,
                                       &real_len) == NULL);
         bool colIsNullable = pTab->getColumn(col)->getNullable();
         if (isNull) {
           CHECK(colIsNullable);
-<<<<<<< HEAD
-          if (!NdbDictionary::isNull(tabRec,
-                                     attrRowBuf,
-                                     col))
-          {
-            ndbout << "Error, col " << col
-                   << " (pk=" <<  pTab->getColumn(col)->getPrimaryKey()
-||||||| 19feac3674e
-          if (!NdbDictionary::isNull(tabRec,
-                                     attrRowBuf,
-                                     col))
-          {
-            ndbout << "Error, col " << col 
-                   << " (pk=" <<  pTab->getColumn(col)->getPrimaryKey()
-=======
           if (!NdbDictionary::isNull(tabRec, attrRowBuf, col)) {
             ndbout << "Error, col " << col
                    << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
->>>>>>> mysql-8.0.36
                    << ") should be Null, but is not" << endl;
             return NDBT_FAILED;
           }
-<<<<<<< HEAD
-        }
-        else
-        {
-          if (colIsNullable)
-          {
-            if (NdbDictionary::isNull(tabRec,
-                                      attrRowBuf,
-                                      col))
-            {
-              ndbout << "Error, col " << col
-||||||| 19feac3674e
-        }
-        else
-        {
-          if (colIsNullable)
-          {
-            if (NdbDictionary::isNull(tabRec,
-                                      attrRowBuf,
-                                      col))
-            {
-              ndbout << "Error, col " << col 
-=======
         } else {
           if (colIsNullable) {
             if (NdbDictionary::isNull(tabRec, attrRowBuf, col)) {
               ndbout << "Error, col " << col
->>>>>>> mysql-8.0.36
                      << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
                      << ") should be non-Null but is null" << endl;
               return NDBT_FAILED;
@@ -4244,18 +2336,8 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
           }
 
           /* Compare actual data read back */
-<<<<<<< HEAD
-          if( memcmp(calcBuff, valPtr, real_len) != 0 )
-          {
-            ndbout << "Error, col " << col
-||||||| 19feac3674e
-          if( memcmp(calcBuff, valPtr, real_len) != 0 )
-          {
-            ndbout << "Error, col " << col 
-=======
           if (memcmp(calcBuff, valPtr, real_len) != 0) {
             ndbout << "Error, col " << col
->>>>>>> mysql-8.0.36
                    << " (pk=" << pTab->getColumn(col)->getPrimaryKey()
                    << ") should be equal, but isn't for record " << record
                    << endl;
@@ -4285,12 +2367,6 @@ int testNdbRecordPkAmbiguity(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   return NDBT_OK;
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-  
-=======
->>>>>>> mysql-8.0.36
 }
 
 int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
@@ -4319,44 +2395,14 @@ int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
     for (int col = 0; col < pTab->getNoOfColumns(); col++) {
       char *valPtr = NdbDictionary::getValuePtr(tabRec, rowBuf, col);
       CHECK(valPtr != NULL);
-<<<<<<< HEAD
-
-      int len= pTab->getColumn(col)->getSizeInBytes();
-||||||| 19feac3674e
-      
-      int len= pTab->getColumn(col)->getSizeInBytes();
-=======
 
       int len = pTab->getColumn(col)->getSizeInBytes();
->>>>>>> mysql-8.0.36
       Uint32 real_len;
-<<<<<<< HEAD
-      bool isNull= (calc.calcValue(record, col, updates, valPtr,
-                                   len, &real_len) == NULL);
-      if (pTab->getColumn(col)->getNullable())
-      {
-        NdbDictionary::setNull(tabRec,
-                               rowBuf,
-                               col,
-                               isNull);
-      }
-||||||| 19feac3674e
-      bool isNull= (calc.calcValue(record, col, updates, valPtr,
-                                   len, &real_len) == NULL);
-      if (pTab->getColumn(col)->getNullable())
-      {
-        NdbDictionary::setNull(tabRec,
-                               rowBuf,
-                               col,
-                               isNull);
-      }      
-=======
       bool isNull = (calc.calcValue(record, col, updates, valPtr, len,
                                     &real_len) == NULL);
       if (pTab->getColumn(col)->getNullable()) {
         NdbDictionary::setNull(tabRec, rowBuf, col, isNull);
       }
->>>>>>> mysql-8.0.36
     }
 
     /* Create similar row, but with different id col (different
@@ -4373,18 +2419,8 @@ int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
 
     NdbTransaction *trans = pNdb->startTransaction();
     CHECK(trans != 0);
-<<<<<<< HEAD
-
-    const NdbOperation* op= trans->insertTuple(tabRec,
-                                               rowBuf);
-||||||| 19feac3674e
-    
-    const NdbOperation* op= trans->insertTuple(tabRec,
-                                               rowBuf);
-=======
 
     const NdbOperation *op = trans->insertTuple(tabRec, rowBuf);
->>>>>>> mysql-8.0.36
     CHECK(op != 0);
 
     CHECK(trans->execute(Commit) == 0);
@@ -4410,20 +2446,8 @@ int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
     /* Now update PK with lock takeover op */
     const char *rowPtr;
     CHECK(scanOp->nextResult(&rowPtr, true, true) == 0);
-<<<<<<< HEAD
-
-    op= scanOp->updateCurrentTuple(trans,
-                                   tabRec,
-                                   rowBuf);
-||||||| 19feac3674e
-    
-    op= scanOp->updateCurrentTuple(trans,
-                                   tabRec,
-                                   rowBuf);
-=======
 
     op = scanOp->updateCurrentTuple(trans, tabRec, rowBuf);
->>>>>>> mysql-8.0.36
     CHECK(op != NULL);
 
     CHECK(trans->execute(Commit) == 0);
@@ -4450,20 +2474,8 @@ int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
 
     /* Now update PK with lock takeover op */
     CHECK(scanOp->nextResult(&rowPtr, true, true) == 0);
-<<<<<<< HEAD
-
-    op= scanOp->updateCurrentTuple(trans,
-                                   tabRec,
-                                   badKeyRowBuf);
-||||||| 19feac3674e
-    
-    op= scanOp->updateCurrentTuple(trans,
-                                   tabRec,
-                                   badKeyRowBuf);
-=======
 
     op = scanOp->updateCurrentTuple(trans, tabRec, badKeyRowBuf);
->>>>>>> mysql-8.0.36
     CHECK(op != NULL);
 
     CHECK(trans->execute(Commit) == -1);
@@ -4481,52 +2493,18 @@ int testNdbRecordPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   return NDBT_OK;
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-  
-=======
->>>>>>> mysql-8.0.36
 }
 
-<<<<<<< HEAD
-static
-BaseString getKeyVal(int record, bool upper)
-{
-||||||| 19feac3674e
-static 
-BaseString getKeyVal(int record, bool upper)
-{
-=======
 static BaseString getKeyVal(int record, bool upper) {
->>>>>>> mysql-8.0.36
   /* Create VARCHAR format key with upper or
    * lower case leading char
    */
   BaseString keyData;
-<<<<<<< HEAD
-  char c= 'a' + (record % ('z' - 'a'));
-
-||||||| 19feac3674e
-  char c= 'a' + (record % ('z' - 'a'));
-  
-=======
   char c = 'a' + (record % ('z' - 'a'));
 
->>>>>>> mysql-8.0.36
   keyData.appfmt("%cblahblah%d", c, record);
-<<<<<<< HEAD
-
-  if (upper)
-    keyData.ndb_toupper();
-||||||| 19feac3674e
-  
-  if (upper)
-    keyData.ndb_toupper();
-=======
 
   if (upper) keyData.ndb_toupper();
->>>>>>> mysql-8.0.36
 
   BaseString varCharKey;
   varCharKey.appfmt("%c%s", keyData.length(), keyData.c_str());
@@ -4538,40 +2516,9 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
   /* Test a change to a CHAR primary key with a case insensitive
    * collation.
    */
-<<<<<<< HEAD
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-
-  /* Run as a 'T1' testcase - do nothing for other tables */
-  if (strcmp(pTab->getName(), "T1") != 0)
-    return NDBT_OK;
-||||||| 19feac3674e
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-  
-  /* Run as a 'T1' testcase - do nothing for other tables */
-  if (strcmp(pTab->getName(), "T1") != 0)
-    return NDBT_OK;
-=======
   Ndb *pNdb = GETNDB(step);
   const NdbDictionary::Table *pTab = ctx->getTab();
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-  CHARSET_INFO* charset= NULL;
-  const char* csname="latin1_general_ci";
-  charset= get_charset_by_name(csname, MYF(0));
-
-  if (charset == NULL)
-  {
-||||||| 19feac3674e
-  CHARSET_INFO* charset= NULL;
-  const char* csname="latin1_general_ci";
-  charset= get_charset_by_name(csname, MYF(0));
-  
-  if (charset == NULL)
-  {
-=======
   /* Run as a 'T1' testcase - do nothing for other tables */
   if (strcmp(pTab->getName(), "T1") != 0) return NDBT_OK;
 
@@ -4580,7 +2527,6 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
   charset = get_charset_by_name(csname, MYF(0));
 
   if (charset == NULL) {
->>>>>>> mysql-8.0.36
     ndbout << "Couldn't get charset " << csname << endl;
     return NDBT_FAILED;
   }
@@ -4612,78 +2558,10 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
            << pNdb->getDictionary()->getNdbError().message << endl;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
 
-  ndbout << (NDBT_Table&)tab << endl;
-||||||| 19feac3674e
-  
-  ndbout << (NDBT_Table&)tab << endl;
-=======
->>>>>>> mysql-8.0.36
-
-<<<<<<< HEAD
-  pTab= pNdb->getDictionary()->getTable(tab.getName());
-
-  const NdbRecord* tabRec= pTab->getDefaultRecord();
-  const Uint32 rowLen= NDB_MAX_TUPLE_SIZE_IN_WORDS << 2;
-  char ucRowBuf[ rowLen ];
-  char lcRowBuf[ rowLen ];
-  char readBuf[ rowLen ];
-  char* ucPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                            ucRowBuf,
-                                            0);
-  Uint32* ucDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                          ucRowBuf,
-                                                          1);
-  char* lcPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                            lcRowBuf,
-                                            0);
-  Uint32* lcDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                          lcRowBuf,
-                                                          1);
-||||||| 19feac3674e
-  pTab= pNdb->getDictionary()->getTable(tab.getName());
-  
-  const NdbRecord* tabRec= pTab->getDefaultRecord();
-  const Uint32 rowLen= NDB_MAX_TUPLE_SIZE_IN_WORDS << 2;
-  char ucRowBuf[ rowLen ];
-  char lcRowBuf[ rowLen ];
-  char readBuf[ rowLen ];
-  char* ucPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                            ucRowBuf,
-                                            0);
-  Uint32* ucDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                          ucRowBuf,
-                                                          1);
-  char* lcPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                            lcRowBuf,
-                                            0);
-  Uint32* lcDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                          lcRowBuf,
-                                                          1);
-=======
   ndbout << (NDBT_Table &)tab << endl;
->>>>>>> mysql-8.0.36
 
-<<<<<<< HEAD
-  char* readPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                              readBuf,
-                                              0);
-  Uint32* readDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                            readBuf,
-                                                            1);
-
-||||||| 19feac3674e
-  char* readPkPtr= NdbDictionary::getValuePtr(tabRec,
-                                              readBuf,
-                                              0);
-  Uint32* readDataPtr= (Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                            readBuf,
-                                                            1);
-    
-=======
   pTab = pNdb->getDictionary()->getTable(tab.getName());
->>>>>>> mysql-8.0.36
 
   const NdbRecord *tabRec = pTab->getDefaultRecord();
   const Uint32 rowLen = NDB_MAX_TUPLE_SIZE_IN_WORDS << 2;
@@ -4715,34 +2593,12 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
     /* Insert with upper case */
     NdbTransaction *trans = pNdb->startTransaction();
     CHECK(trans != 0);
-<<<<<<< HEAD
-
-    const NdbOperation* op= trans->insertTuple(tabRec,
-                                               ucRowBuf);
-||||||| 19feac3674e
-    
-    const NdbOperation* op= trans->insertTuple(tabRec,
-                                               ucRowBuf);
-=======
 
     const NdbOperation *op = trans->insertTuple(tabRec, ucRowBuf);
->>>>>>> mysql-8.0.36
     CHECK(op != 0);
-<<<<<<< HEAD
-
-    int rc= trans->execute(Commit);
-    if (rc != 0)
-      ndbout << "Error " << trans->getNdbError().message << endl;
-||||||| 19feac3674e
-    
-    int rc= trans->execute(Commit);
-    if (rc != 0)
-      ndbout << "Error " << trans->getNdbError().message << endl;
-=======
 
     int rc = trans->execute(Commit);
     if (rc != 0) ndbout << "Error " << trans->getNdbError().message << endl;
->>>>>>> mysql-8.0.36
     CHECK(rc == 0);
     trans->close();
 
@@ -4786,16 +2642,8 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
 
     /* Now check that we can read with the upper case key */
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-<<<<<<< HEAD
-
-    trans=pNdb->startTransaction();
-||||||| 19feac3674e
-    
-    trans=pNdb->startTransaction();
-=======
 
     trans = pNdb->startTransaction();
->>>>>>> mysql-8.0.36
     CHECK(trans != 0);
     op = trans->readTuple(tabRec, ucRowBuf, tabRec, readBuf);
     CHECK(op != 0);
@@ -4808,16 +2656,8 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
 
     /* Now check that we can read with the lower case key */
     std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
-<<<<<<< HEAD
-
-    trans=pNdb->startTransaction();
-||||||| 19feac3674e
-    
-    trans=pNdb->startTransaction();
-=======
 
     trans = pNdb->startTransaction();
->>>>>>> mysql-8.0.36
     CHECK(trans != 0);
     op = trans->readTuple(tabRec, lcRowBuf, tabRec, readBuf);
     CHECK(op != 0);
@@ -4829,32 +2669,12 @@ int testNdbRecordCICharPKUpdate(NDBT_Context *ctx, NDBT_Step *step) {
     CHECK(memcmp(lcDataPtr, readDataPtr, sizeof(int)) == 0);
 
     /* Now delete the tuple */
-<<<<<<< HEAD
-    trans= pNdb->startTransaction();
-    op= trans->deleteTuple(tabRec,
-                           ucRowBuf,
-                           tabRec);
-     CHECK(op != 0);
-     CHECK(trans->execute(Commit) == 0);
-
-     trans->close();
-||||||| 19feac3674e
-    trans= pNdb->startTransaction();
-    op= trans->deleteTuple(tabRec,
-                           ucRowBuf,
-                           tabRec);
-     CHECK(op != 0);
-     CHECK(trans->execute(Commit) == 0);
-   
-     trans->close();
-=======
     trans = pNdb->startTransaction();
     op = trans->deleteTuple(tabRec, ucRowBuf, tabRec);
     CHECK(op != 0);
     CHECK(trans->execute(Commit) == 0);
 
     trans->close();
->>>>>>> mysql-8.0.36
   }
 
   pNdb->getDictionary()->dropTable(tab.getName());
@@ -4880,18 +2700,9 @@ int testPKUpdateWithSetValue(NDBT_Context *ctx, NDBT_Step *step) {
    * by returning error 4202 for any PK value assignments. (Even identical
    * NOOP value updates)
    */
-<<<<<<< HEAD
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-||||||| 19feac3674e
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-  
-=======
   Ndb *pNdb = GETNDB(step);
   const NdbDictionary::Table *pTab = ctx->getTab();
 
->>>>>>> mysql-8.0.36
   /* Run as a 'T1' testcase - do nothing for other tables */
   if (strcmp(pTab->getName(), "T1") != 0) return NDBT_OK;
 
@@ -5226,41 +3037,6 @@ int testNdbRecordRowLength(NDBT_Context *ctx, NDBT_Step *step) {
    */
   NdbDictionary::RecordSpecification rsArray[NDB_MAX_ATTRIBUTES_IN_TABLE];
 
-<<<<<<< HEAD
-  bool hasNullable= false;
-  Uint32 highestUsed= 9000;
-  for (int attrId=0; attrId< numCols; attrId++)
-  {
-    NdbDictionary::RecordSpecification& rs= rsArray[attrId];
-
-    rs.column= pTab->getColumn(attrId);
-    CHECK(NdbDictionary::getOffset(defaultRecord,
-                                   attrId,
-                                   rs.offset));
-    CHECK(NdbDictionary::getNullBitOffset(defaultRecord,
-                                          attrId,
-                                          rs.nullbit_byte_offset,
-                                          rs.nullbit_bit_in_byte));
-    if (rs.column->getNullable())
-    {
-||||||| 19feac3674e
-  bool hasNullable= false;
-  Uint32 highestUsed= 9000;
-  for (int attrId=0; attrId< numCols; attrId++)
-  {
-    NdbDictionary::RecordSpecification& rs= rsArray[attrId];
-    
-    rs.column= pTab->getColumn(attrId);
-    CHECK(NdbDictionary::getOffset(defaultRecord,
-                                   attrId,
-                                   rs.offset));
-    CHECK(NdbDictionary::getNullBitOffset(defaultRecord,
-                                          attrId,
-                                          rs.nullbit_byte_offset,
-                                          rs.nullbit_bit_in_byte));
-    if (rs.column->getNullable())
-    {
-=======
   bool hasNullable = false;
   Uint32 highestUsed = 9000;
   for (int attrId = 0; attrId < numCols; attrId++) {
@@ -5271,25 +3047,14 @@ int testNdbRecordRowLength(NDBT_Context *ctx, NDBT_Step *step) {
     CHECK(NdbDictionary::getNullBitOffset(
         defaultRecord, attrId, rs.nullbit_byte_offset, rs.nullbit_bit_in_byte));
     if (rs.column->getNullable()) {
->>>>>>> mysql-8.0.36
       /* Shift null bit(s) to bytes beyond the end of the record */
       hasNullable = true;
       rs.nullbit_byte_offset = highestUsed++;
       rs.nullbit_bit_in_byte = 0;
     }
   }
-<<<<<<< HEAD
-
-  if (hasNullable)
-  {
-||||||| 19feac3674e
-  
-  if (hasNullable)
-  {
-=======
 
   if (hasNullable) {
->>>>>>> mysql-8.0.36
     printf("Testing");
     const NdbRecord *myRecord = pNdb->getDictionary()->createRecord(
         pTab, rsArray, numCols, sizeof(NdbDictionary::RecordSpecification));
@@ -5316,23 +3081,6 @@ int runBug44015(NDBT_Context *ctx, NDBT_Step *step) {
    *         ndbassert(src_len >= (dynstart - src_data));
    * resulting in node failure
    */
-<<<<<<< HEAD
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-
-  int numIterations= 100;
-  int numRecords= 1024;
-
-  NdbTransaction* trans;
-||||||| 19feac3674e
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-  
-  int numIterations= 100;
-  int numRecords= 1024;
-  
-  NdbTransaction* trans;
-=======
   Ndb *pNdb = GETNDB(step);
   const NdbDictionary::Table *pTab = ctx->getTab();
 
@@ -5340,64 +3088,19 @@ int runBug44015(NDBT_Context *ctx, NDBT_Step *step) {
   int numRecords = 1024;
 
   NdbTransaction *trans;
->>>>>>> mysql-8.0.36
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-
-  for (int iter=0; iter < numIterations; iter++)
-  {
-||||||| 19feac3674e
-  
-  for (int iter=0; iter < numIterations; iter++)
-  {
-=======
 
   for (int iter = 0; iter < numIterations; iter++) {
->>>>>>> mysql-8.0.36
     ndbout << "Iter : " << iter << endl;
-<<<<<<< HEAD
-    CHECK((trans= pNdb->startTransaction()) != 0);
-
-||||||| 19feac3674e
-    CHECK((trans= pNdb->startTransaction()) != 0);
-    
-=======
     CHECK((trans = pNdb->startTransaction()) != 0);
 
->>>>>>> mysql-8.0.36
     CHECK(hugoOps.setTransaction(trans) == 0);
-<<<<<<< HEAD
-
-    CHECK(hugoOps.pkInsertRecord(pNdb,
-                                 0,
-                                 numRecords) == 0);
-
-||||||| 19feac3674e
-    
-    CHECK(hugoOps.pkInsertRecord(pNdb,
-                                 0,
-                                 numRecords) == 0);
-    
-=======
 
     CHECK(hugoOps.pkInsertRecord(pNdb, 0, numRecords) == 0);
 
->>>>>>> mysql-8.0.36
     /* Now execute the transaction */
-<<<<<<< HEAD
-    if ((trans->execute(NdbTransaction::NoCommit) != 0))
-    {
-      ndbout << "Execute failed, error is "
-             << trans->getNdbError().code << " "
-||||||| 19feac3674e
-    if ((trans->execute(NdbTransaction::NoCommit) != 0))
-    {
-      ndbout << "Execute failed, error is " 
-             << trans->getNdbError().code << " "
-=======
     if ((trans->execute(NdbTransaction::NoCommit) != 0)) {
       ndbout << "Execute failed, error is " << trans->getNdbError().code << " "
->>>>>>> mysql-8.0.36
              << trans->getNdbError().message << endl;
       CHECK(0);
     }
@@ -5407,20 +3110,8 @@ int runBug44015(NDBT_Context *ctx, NDBT_Step *step) {
     /* Now delete the records in the same transaction
      * Need to do this manually as Hugo doesn't support it
      */
-<<<<<<< HEAD
-    CHECK(hugoOps.pkDeleteRecord(pNdb,
-                                 0,
-                                 numRecords) == 0);
-
-||||||| 19feac3674e
-    CHECK(hugoOps.pkDeleteRecord(pNdb,
-                                 0,
-                                 numRecords) == 0);
-    
-=======
     CHECK(hugoOps.pkDeleteRecord(pNdb, 0, numRecords) == 0);
 
->>>>>>> mysql-8.0.36
     CHECK(trans->execute(NdbTransaction::NoCommit) == 0);
     CHECK(trans->getNdbError().code == 0);
 
@@ -5440,18 +3131,8 @@ int runScanReadUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
   int i = 0;
   int scan_flags = NdbScanOperation::SF_TupScan;
-<<<<<<< HEAD
-  NdbOperation::LockMode lm =
-    (NdbOperation::LockMode)
-    ctx->getProperty("ReadLockMode", (Uint32)NdbOperation::LM_CommittedRead);
-||||||| 19feac3674e
-  NdbOperation::LockMode lm = 
-    (NdbOperation::LockMode)
-    ctx->getProperty("ReadLockMode", (Uint32)NdbOperation::LM_CommittedRead);
-=======
   NdbOperation::LockMode lm = (NdbOperation::LockMode)ctx->getProperty(
       "ReadLockMode", (Uint32)NdbOperation::LM_CommittedRead);
->>>>>>> mysql-8.0.36
 
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
@@ -5470,31 +3151,6 @@ int runBug44065_org(NDBT_Context *ctx, NDBT_Step *step) {
    *   ndbassert(ptr->m_header_bits & Tuple_header::FREE);
    * Results in node failure
    */
-<<<<<<< HEAD
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-
-  int numOuterIterations= 50;
-  int numInnerIterations= 20;
-  int numRecords= 200;
-
-  NdbTransaction* trans;
-
-  for (int outerIter=0; outerIter < numOuterIterations; outerIter++)
-  {
-||||||| 19feac3674e
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab= ctx->getTab();
-  
-  int numOuterIterations= 50;
-  int numInnerIterations= 20;
-  int numRecords= 200;
-  
-  NdbTransaction* trans;
-  
-  for (int outerIter=0; outerIter < numOuterIterations; outerIter++)
-  {
-=======
   Ndb *pNdb = GETNDB(step);
   const NdbDictionary::Table *pTab = ctx->getTab();
 
@@ -5505,91 +3161,34 @@ int runBug44065_org(NDBT_Context *ctx, NDBT_Step *step) {
   NdbTransaction *trans;
 
   for (int outerIter = 0; outerIter < numOuterIterations; outerIter++) {
->>>>>>> mysql-8.0.36
     HugoOperations hugoOps(*pTab);
 
-<<<<<<< HEAD
-    int offset= (outerIter * numRecords);
-    ndbout << "Outer Iter : " << outerIter
-           << " " << offset << "-" << (offset + numRecords - 1) << endl;
-||||||| 19feac3674e
-    int offset= (outerIter * numRecords);
-    ndbout << "Outer Iter : " << outerIter 
-           << " " << offset << "-" << (offset + numRecords - 1) << endl;
-=======
     int offset = (outerIter * numRecords);
     ndbout << "Outer Iter : " << outerIter << " " << offset << "-"
            << (offset + numRecords - 1) << endl;
->>>>>>> mysql-8.0.36
 
     {
       HugoTransactions trans(*pTab);
       CHECK(trans.loadTableStartFrom(pNdb, offset, numRecords) == 0);
     }
 
-<<<<<<< HEAD
-    for (int iter=0; iter < numInnerIterations; iter++)
-    {
-      //ndbout << "Inner Iter : " << iter << endl;
-      CHECK((trans= pNdb->startTransaction()) != 0);
-
-||||||| 19feac3674e
-    for (int iter=0; iter < numInnerIterations; iter++)
-    {
-      //ndbout << "Inner Iter : " << iter << endl;
-      CHECK((trans= pNdb->startTransaction()) != 0);
-      
-=======
     for (int iter = 0; iter < numInnerIterations; iter++) {
       // ndbout << "Inner Iter : " << iter << endl;
       CHECK((trans = pNdb->startTransaction()) != 0);
 
->>>>>>> mysql-8.0.36
       CHECK(hugoOps.setTransaction(trans) == 0);
 
       /* Delete the records */
-<<<<<<< HEAD
-      CHECK(hugoOps.pkDeleteRecord(pNdb,
-                                   offset,
-                                   numRecords) == 0);
-
-||||||| 19feac3674e
-      CHECK(hugoOps.pkDeleteRecord(pNdb,
-                                   offset,
-                                   numRecords) == 0);
-      
-=======
       CHECK(hugoOps.pkDeleteRecord(pNdb, offset, numRecords) == 0);
 
->>>>>>> mysql-8.0.36
       /* Re-insert them */
-<<<<<<< HEAD
-      CHECK(hugoOps.pkInsertRecord(pNdb,
-                                   offset,
-                                   numRecords) == 0);
-
-||||||| 19feac3674e
-      CHECK(hugoOps.pkInsertRecord(pNdb,
-                                   offset,
-                                   numRecords) == 0);
-      
-=======
       CHECK(hugoOps.pkInsertRecord(pNdb, offset, numRecords) == 0);
 
->>>>>>> mysql-8.0.36
       /* Now execute the transaction, with IgnoreError */
       if ((trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError) != 0)) {
         NdbError err = trans->getNdbError();
-<<<<<<< HEAD
-        ndbout << "Execute failed, error is "
-               << err.code << " " << endl;
-||||||| 19feac3674e
-        ndbout << "Execute failed, error is " 
-               << err.code << " " << endl;
-=======
         ndbout << "Execute failed, error is " << err.code << " " << endl;
->>>>>>> mysql-8.0.36
         CHECK((err.classification == NdbError::TemporaryResourceError ||
                err.classification == NdbError::OverloadError ||
                err.classification == NdbError::TimeoutExpired));
@@ -5629,16 +3228,8 @@ int runBug44065(NDBT_Context *ctx, NDBT_Step *step) {
   pNdb2->init();
   pNdb2->waitUntilReady();
 
-<<<<<<< HEAD
-  const NdbDictionary::Table* pTab= ctx->getTab();
-
-||||||| 19feac3674e
-  const NdbDictionary::Table* pTab= ctx->getTab();
-  
-=======
   const NdbDictionary::Table *pTab = ctx->getTab();
 
->>>>>>> mysql-8.0.36
   HugoOperations hugoOps1(*pTab);
   CHECK(hugoOps1.startTransaction(pNdb) == 0);
   CHECK(hugoOps1.pkInsertRecord(pNdb, rowno) == 0);
@@ -5650,16 +3241,8 @@ int runBug44065(NDBT_Context *ctx, NDBT_Step *step) {
 
     CHECK(hugoOps2.pkDeleteRecord(pNdb2, rowno) == 0);
     CHECK(hugoOps2.pkInsertRecord(pNdb2, rowno) == 0);
-<<<<<<< HEAD
-
-    NdbTransaction* trans = hugoOps2.getTransaction();
-||||||| 19feac3674e
-    
-    NdbTransaction* trans = hugoOps2.getTransaction();
-=======
 
     NdbTransaction *trans = hugoOps2.getTransaction();
->>>>>>> mysql-8.0.36
     aValue = 0;
 
     trans->executeAsynch(NdbTransaction::NoCommit, a_callback, 0);
@@ -5692,45 +3275,17 @@ int testApiFailReqImpl(NDBT_Context *ctx, NDBT_Step *step) {
   char connectString[256];
   ctx->m_cluster_connection.get_connectstring(connectString,
                                               sizeof(connectString));
-<<<<<<< HEAD
-
-  otherConnection= new Ndb_cluster_connection(connectString);
-
-  if (otherConnection == NULL)
-  {
-||||||| 19feac3674e
-  
-  otherConnection= new Ndb_cluster_connection(connectString);
-  
-  if (otherConnection == NULL)
-  {
-=======
 
   otherConnection = new Ndb_cluster_connection(connectString);
 
   if (otherConnection == NULL) {
->>>>>>> mysql-8.0.36
     ndbout << "Connection is null" << endl;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  int rc= otherConnection->connect();
-
-  if (rc!= 0)
-  {
-||||||| 19feac3674e
-  
-  int rc= otherConnection->connect();
-  
-  if (rc!= 0)
-  {
-=======
 
   int rc = otherConnection->connect();
 
   if (rc != 0) {
->>>>>>> mysql-8.0.36
     ndbout << "Connect failed with rc " << rc << endl;
     return NDBT_FAILED;
   }
@@ -5742,49 +3297,19 @@ int testApiFailReqImpl(NDBT_Context *ctx, NDBT_Step *step) {
     ndbout << "Cluster connection was not ready" << endl;
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  for (int i=0; i < MAX_STEPS; i++)
-  {
-    /* We must create the Ndb objects here as we
-||||||| 19feac3674e
-  
-  for (int i=0; i < MAX_STEPS; i++)
-  {
-    /* We must create the Ndb objects here as we 
-=======
 
   for (int i = 0; i < MAX_STEPS; i++) {
     /* We must create the Ndb objects here as we
->>>>>>> mysql-8.0.36
      * are still single threaded
      */
     stepNdbs[i] = new Ndb(otherConnection, "TEST_DB");
     stepNdbs[i]->init();
-<<<<<<< HEAD
-    int rc= stepNdbs[i]->waitUntilReady(10);
-
-    if (rc != 0)
-    {
-||||||| 19feac3674e
-    int rc= stepNdbs[i]->waitUntilReady(10);
-    
-    if (rc != 0)
-    {
-=======
     int rc = stepNdbs[i]->waitUntilReady(10);
 
     if (rc != 0) {
->>>>>>> mysql-8.0.36
       ndbout << "Ndb " << i << " was not ready" << endl;
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-    
-=======
->>>>>>> mysql-8.0.36
   }
 
   /* Now signal the 'worker' threads to start sending Pk
@@ -5829,37 +3354,13 @@ int testApiFailReqImpl(NDBT_Context *ctx, NDBT_Step *step) {
    * an assertion failure in TC
    */
   int otherNodeId = otherConnection->node_id();
-<<<<<<< HEAD
-
-  ndbout << "Forcing disconnect of node "
-         << otherNodeId << endl;
-
-||||||| 19feac3674e
-  
-  ndbout << "Forcing disconnect of node " 
-         << otherNodeId << endl;
-  
-=======
 
   ndbout << "Forcing disconnect of node " << otherNodeId << endl;
 
->>>>>>> mysql-8.0.36
   /* All dump 900 <nodeId> */
-<<<<<<< HEAD
-  int args[2]= {900, otherNodeId};
-
-  restarter.dumpStateAllNodes( args, 2 );
-
-||||||| 19feac3674e
-  int args[2]= {900, otherNodeId};
-  
-  restarter.dumpStateAllNodes( args, 2 );
-  
-=======
   int args[2] = {900, otherNodeId};
 
   restarter.dumpStateAllNodes(args, 2);
->>>>>>> mysql-8.0.36
 
   /* Now wait for all workers to finish
    * (Running worker count to get down to zero
@@ -5880,30 +3381,12 @@ int testApiFailReqImpl(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   delete otherConnection;
-<<<<<<< HEAD
-  otherConnection= NULL;
-
-||||||| 19feac3674e
-  otherConnection= NULL;
-  
-=======
   otherConnection = NULL;
 
->>>>>>> mysql-8.0.36
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-
-int testApiFailReq(NDBT_Context* ctx, NDBT_Step* step)
-{
-||||||| 19feac3674e
-
-int testApiFailReq(NDBT_Context* ctx, NDBT_Step* step)
-{  
-=======
 int testApiFailReq(NDBT_Context *ctx, NDBT_Step *step) {
->>>>>>> mysql-8.0.36
   /* Perform a number of iterations, connecting,
    * sending lots of PK updates, inserting error
    * and then causing node failure
@@ -5911,38 +3394,14 @@ int testApiFailReq(NDBT_Context *ctx, NDBT_Step *step) {
   Uint32 iterations = 10;
   int rc = NDBT_OK;
 
-<<<<<<< HEAD
-  while (iterations --)
-  {
-    rc= testApiFailReqImpl(ctx, step);
-
-    if (rc == NDBT_FAILED)
-    {
-||||||| 19feac3674e
-  while (iterations --)
-  {
-    rc= testApiFailReqImpl(ctx, step);
-    
-    if (rc == NDBT_FAILED)
-    {
-=======
   while (iterations--) {
     rc = testApiFailReqImpl(ctx, step);
 
     if (rc == NDBT_FAILED) {
->>>>>>> mysql-8.0.36
       break;
     }
-<<<<<<< HEAD
-  } // while(iterations --)
-
-||||||| 19feac3674e
-  } // while(iterations --)
-    
-=======
   }  // while(iterations --)
 
->>>>>>> mysql-8.0.36
   /* Avoid PkRead worker threads getting stuck */
   ctx->setProperty(ApiFailTestComplete, (Uint32)1);
 
@@ -5966,45 +3425,10 @@ int runBulkPkReads(NDBT_Context *ctx, NDBT_Step *step) {
     }
     /* Indicate that we're underway */
     ctx->incProperty(ApiFailTestsRunning);
-<<<<<<< HEAD
-
-    Ndb* otherNdb = stepNdbs[step->getStepNo()];
-||||||| 19feac3674e
-      
-    Ndb* otherNdb = stepNdbs[step->getStepNo()];
-=======
 
     Ndb *otherNdb = stepNdbs[step->getStepNo()];
->>>>>>> mysql-8.0.36
     HugoOperations hugoOps(*ctx->getTab());
     Uint32 numRecords = ctx->getNumRecords();
-<<<<<<< HEAD
-    Uint32 batchSize = (1000 < numRecords)? 1000 : numRecords;
-
-    ndbout << "Step number " << step->getStepNo()
-           << " reading batches of " << batchSize
-           << " rows " << endl;
-
-    while(true)
-    {
-      if (hugoOps.startTransaction(otherNdb) != 0)
-      {
-        if (otherNdb->getNdbError().code == 4009)
-        {
-||||||| 19feac3674e
-    Uint32 batchSize = (1000 < numRecords)? 1000 : numRecords;
-    
-    ndbout << "Step number " << step->getStepNo()
-           << " reading batches of " << batchSize 
-           << " rows " << endl;
-    
-    while(true)
-    {
-      if (hugoOps.startTransaction(otherNdb) != 0)
-      {
-        if (otherNdb->getNdbError().code == 4009) 
-        {
-=======
     Uint32 batchSize = (1000 < numRecords) ? 1000 : numRecords;
 
     ndbout << "Step number " << step->getStepNo() << " reading batches of "
@@ -6013,7 +3437,6 @@ int runBulkPkReads(NDBT_Context *ctx, NDBT_Step *step) {
     while (true) {
       if (hugoOps.startTransaction(otherNdb) != 0) {
         if (otherNdb->getNdbError().code == 4009) {
->>>>>>> mysql-8.0.36
           /* Api disconnect sometimes manifests as Cluster failure
            * from API's point of view as it cannot seize() a
            * transaction from any Ndbd node
@@ -6026,86 +3449,26 @@ int runBulkPkReads(NDBT_Context *ctx, NDBT_Step *step) {
                << otherNdb->getNdbError().message << endl;
         return NDBT_FAILED;
       }
-<<<<<<< HEAD
-
-      for (Uint32 op = 0; op < batchSize; op++)
-      {
-        if (hugoOps.pkReadRecord(otherNdb,
-                                 op) != 0)
-        {
-||||||| 19feac3674e
-      
-      for (Uint32 op = 0; op < batchSize; op++)
-      {
-        if (hugoOps.pkReadRecord(otherNdb,
-                                 op) != 0)
-        {
-=======
 
       for (Uint32 op = 0; op < batchSize; op++) {
         if (hugoOps.pkReadRecord(otherNdb, op) != 0) {
->>>>>>> mysql-8.0.36
           ndbout << "Failed to define read of record number " << op << endl;
-<<<<<<< HEAD
-          ndbout << "Error : " << hugoOps.getTransaction()->getNdbError().message
-                 << endl;
-||||||| 19feac3674e
-          ndbout << "Error : " << hugoOps.getTransaction()->getNdbError().message 
-                 << endl;
-=======
           ndbout << "Error : "
                  << hugoOps.getTransaction()->getNdbError().message << endl;
->>>>>>> mysql-8.0.36
           return NDBT_FAILED;
         }
       }
-<<<<<<< HEAD
-
-      if (hugoOps.execute_Commit(otherNdb) != 0)
-      {
-||||||| 19feac3674e
-      
-      if (hugoOps.execute_Commit(otherNdb) != 0)
-      {
-=======
 
       if (hugoOps.execute_Commit(otherNdb) != 0) {
->>>>>>> mysql-8.0.36
         NdbError err = hugoOps.getTransaction()->getNdbError();
-<<<<<<< HEAD
-        ndbout << "Execute failed with Error : "
-               << err.message
-               << endl;
-
-||||||| 19feac3674e
-        ndbout << "Execute failed with Error : " 
-               << err.message
-               << endl;
-        
-=======
         ndbout << "Execute failed with Error : " << err.message << endl;
 
->>>>>>> mysql-8.0.36
         hugoOps.closeTransaction(otherNdb);
-<<<<<<< HEAD
-
-        if ((err.code == 4002) || // send failed
-            (err.code == 4010) || // Node failure
-            (err.code == 4025) || // Node failure
-            (err.code == 1218))   // Send buffer overload (reading larger tables)
-||||||| 19feac3674e
-        
-        if ((err.code == 4002) || // send failed
-            (err.code == 4010) || // Node failure
-            (err.code == 4025) || // Node failure
-            (err.code == 1218))   // Send buffer overload (reading larger tables)
-=======
 
         if ((err.code == 4002) ||  // send failed
             (err.code == 4010) ||  // Node failure
             (err.code == 4025) ||  // Node failure
             (err.code == 1218))  // Send buffer overload (reading larger tables)
->>>>>>> mysql-8.0.36
         {
           /* Expected scenario due to injected Api disconnect
            * If there was a node failure due to assertion failure
@@ -6126,14 +3489,6 @@ int runBulkPkReads(NDBT_Context *ctx, NDBT_Step *step) {
 
   return NDBT_OK;
 }
-<<<<<<< HEAD
-
-int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
-||||||| 19feac3674e
-  
-int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
-=======
->>>>>>> mysql-8.0.36
 
 int runReadColumnDuplicates(NDBT_Context *ctx, NDBT_Step *step) {
   int result = NDBT_OK;
@@ -6141,22 +3496,10 @@ int runReadColumnDuplicates(NDBT_Context *ctx, NDBT_Step *step) {
   HugoCalculator hc(*pTab);
   Uint32 numRecords = ctx->getNumRecords();
 
-<<<<<<< HEAD
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;
-    return NDBT_FAILED;
-||||||| 19feac3674e
-  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-  if (pNdb == NULL){
-    ndbout << "pNdb == NULL" << endl;      
-    return NDBT_FAILED;  
-=======
   Ndb *pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL) {
     ndbout << "pNdb == NULL" << endl;
     return NDBT_FAILED;
->>>>>>> mysql-8.0.36
   }
   if (pNdb->init()) {
     NDB_ERR(pNdb->getNdbError());
@@ -6165,56 +3508,6 @@ int runReadColumnDuplicates(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-
-  for (int m = 1; m < 100; m++){
-    Uint32 record = (100 - m) % numRecords;
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-
-    NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-    if (pOp == NULL){
-      pNdb->closeTransaction(pCon);
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-
-    if (pOp->readTuple() != 0){
-      pNdb->closeTransaction(pCon);
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-
-    int numCols= pTab->getNoOfColumns();
-||||||| 19feac3674e
-  
-  for (int m = 1; m < 100; m++){
-    Uint32 record = (100 - m) % numRecords;
-    NdbConnection* pCon = pNdb->startTransaction();
-    if (pCon == NULL){
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-      
-    NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-    if (pOp == NULL){
-      pNdb->closeTransaction(pCon);
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-      
-    if (pOp->readTuple() != 0){
-      pNdb->closeTransaction(pCon);
-      delete pNdb;
-      return NDBT_FAILED;
-    }
-    
-    int numCols= pTab->getNoOfColumns();
-=======
->>>>>>> mysql-8.0.36
 
   for (int m = 1; m < 100; m++) {
     Uint32 record = (100 - m) % numRecords;
@@ -6252,61 +3545,21 @@ int runReadColumnDuplicates(NDBT_Context *ctx, NDBT_Step *step) {
 
     int dupColNum = m % numCols;
     int numReads = m + 1;
-<<<<<<< HEAD
-
-    NdbRecAttr* first = NULL;
-    ndbout << "Reading record "
-           << record << " Column "
-           << dupColNum << " " << numReads
-           << " times" << endl;
-    while (numReads--)
-    {
-      NdbRecAttr* recAttr = pOp->getValue(dupColNum);
-||||||| 19feac3674e
-    
-    NdbRecAttr* first = NULL;
-    ndbout << "Reading record " 
-           << record << " Column "
-           << dupColNum << " " << numReads
-           << " times" << endl;
-    while (numReads--)
-    {
-      NdbRecAttr* recAttr = pOp->getValue(dupColNum);
-=======
 
     NdbRecAttr *first = NULL;
     ndbout << "Reading record " << record << " Column " << dupColNum << " "
            << numReads << " times" << endl;
     while (numReads--) {
       NdbRecAttr *recAttr = pOp->getValue(dupColNum);
->>>>>>> mysql-8.0.36
       if (recAttr == NULL) {
         const NdbError err = pCon->getNdbError();
         NDB_ERR(err);
         result = NDBT_FAILED;
-<<<<<<< HEAD
-        pNdb->closeTransaction(pCon);
-	break;
-||||||| 19feac3674e
-        pNdb->closeTransaction(pCon);	
-	break;
-=======
         pNdb->closeTransaction(pCon);
         break;
->>>>>>> mysql-8.0.36
       }
       first = (first == NULL) ? recAttr : first;
     };
-<<<<<<< HEAD
-
-    if (result == NDBT_FAILED)
-      break;
-||||||| 19feac3674e
-    
-    if (result == NDBT_FAILED)
-      break;
-=======
->>>>>>> mysql-8.0.36
 
     if (result == NDBT_FAILED) break;
 
@@ -6338,15 +3591,7 @@ int runReadColumnDuplicates(NDBT_Context *ctx, NDBT_Step *step) {
 
     /* Let's check the results */
 
-<<<<<<< HEAD
-
-    const NdbRecAttr* curr = first;
-||||||| 19feac3674e
-    
-    const NdbRecAttr* curr = first;
-=======
     const NdbRecAttr *curr = first;
->>>>>>> mysql-8.0.36
 
     for (int c = 0; c < (m + 1); c++) {
       if (hc.verifyRecAttr(record, 0, curr)) {
@@ -6416,31 +3661,13 @@ int runBug51775(NDBT_Context *ctx, NDBT_Step *step) {
       NDB_ERR(pTrans1->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    if (pOp->insertTuple() != 0)
-    {
-||||||| 19feac3674e
-    
-    if (pOp->insertTuple() != 0)
-    {
-=======
 
     if (pOp->insertTuple() != 0) {
->>>>>>> mysql-8.0.36
       NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    HugoOperations hugoOps(* ctx->getTab());
-||||||| 19feac3674e
-    
-    HugoOperations hugoOps(* ctx->getTab());
-=======
 
     HugoOperations hugoOps(*ctx->getTab());
->>>>>>> mysql-8.0.36
     hugoOps.setValues(pOp, 0, 0);
   }
 
@@ -6450,31 +3677,13 @@ int runBug51775(NDBT_Context *ctx, NDBT_Step *step) {
       NDB_ERR(pTrans2->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    if (pOp->readTuple() != 0)
-    {
-||||||| 19feac3674e
-    
-    if (pOp->readTuple() != 0)
-    {
-=======
 
     if (pOp->readTuple() != 0) {
->>>>>>> mysql-8.0.36
       NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-    HugoOperations hugoOps(* ctx->getTab());
-||||||| 19feac3674e
-    
-    HugoOperations hugoOps(* ctx->getTab());
-=======
 
     HugoOperations hugoOps(*ctx->getTab());
->>>>>>> mysql-8.0.36
     hugoOps.equalForRow(pOp, 0);
     pOp->getValue(NdbDictionary::Column::FRAGMENT);
   }
@@ -6509,45 +3718,17 @@ int setupOtherConnection(NDBT_Context *ctx, NDBT_Step *step) {
   char connectString[256];
   ctx->m_cluster_connection.get_connectstring(connectString,
                                               sizeof(connectString));
-<<<<<<< HEAD
-
-  otherConnection= new Ndb_cluster_connection(connectString);
-
-  if (otherConnection == NULL)
-  {
-||||||| 19feac3674e
-  
-  otherConnection= new Ndb_cluster_connection(connectString);
-  
-  if (otherConnection == NULL)
-  {
-=======
 
   otherConnection = new Ndb_cluster_connection(connectString);
 
   if (otherConnection == NULL) {
->>>>>>> mysql-8.0.36
     g_err.println("otherConnection is null");
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  int rc= otherConnection->connect();
-
-  if (rc!= 0)
-  {
-||||||| 19feac3674e
-  
-  int rc= otherConnection->connect();
-  
-  if (rc!= 0)
-  {
-=======
 
   int rc = otherConnection->connect();
 
   if (rc != 0) {
->>>>>>> mysql-8.0.36
     g_err.println("Connect failed with rc %d", rc);
     return NDBT_FAILED;
   }
@@ -6581,49 +3762,19 @@ int testFragmentedApiFailImpl(NDBT_Context *ctx, NDBT_Step *step) {
   if (setupOtherConnection(ctx, step) != NDBT_OK) {
     return NDBT_FAILED;
   }
-<<<<<<< HEAD
-
-  for (int i=0; i < MAX_STEPS; i++)
-  {
-    /* We must create the Ndb objects here as we
-||||||| 19feac3674e
-  
-  for (int i=0; i < MAX_STEPS; i++)
-  {
-    /* We must create the Ndb objects here as we 
-=======
 
   for (int i = 0; i < MAX_STEPS; i++) {
     /* We must create the Ndb objects here as we
->>>>>>> mysql-8.0.36
      * are still single threaded
      */
     stepNdbs[i] = new Ndb(otherConnection, "TEST_DB");
     stepNdbs[i]->init();
-<<<<<<< HEAD
-    int rc= stepNdbs[i]->waitUntilReady(10);
-
-    if (rc != 0)
-    {
-||||||| 19feac3674e
-    int rc= stepNdbs[i]->waitUntilReady(10);
-    
-    if (rc != 0)
-    {
-=======
     int rc = stepNdbs[i]->waitUntilReady(10);
 
     if (rc != 0) {
->>>>>>> mysql-8.0.36
       g_err.println("FragApiFail : Ndb %d was not ready", i);
       return NDBT_FAILED;
     }
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-    
-=======
->>>>>>> mysql-8.0.36
   }
 
   /* Now signal the 'worker' threads to start sending Pk
@@ -6657,27 +3808,11 @@ int testFragmentedApiFailImpl(NDBT_Context *ctx, NDBT_Step *step) {
   g_info.println("FragApiFail : Forcing disconnect of node %u", otherNodeId);
 
   /* All dump 900 <nodeId> */
-<<<<<<< HEAD
-  int args[2]= {900, otherNodeId};
-
-||||||| 19feac3674e
-  int args[2]= {900, otherNodeId};
-  
-=======
   int args[2] = {900, otherNodeId};
 
->>>>>>> mysql-8.0.36
   NdbRestarter restarter;
-<<<<<<< HEAD
-  restarter.dumpStateAllNodes( args, 2 );
-
-||||||| 19feac3674e
-  restarter.dumpStateAllNodes( args, 2 );
-  
-=======
   restarter.dumpStateAllNodes(args, 2);
 
->>>>>>> mysql-8.0.36
   /* Now wait for all workers to finish
    * (Running worker count to get down to zero
    */
@@ -6698,15 +3833,7 @@ int testFragmentedApiFailImpl(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-int testFragmentedApiFail(NDBT_Context* ctx, NDBT_Step* step)
-{
-||||||| 19feac3674e
-int testFragmentedApiFail(NDBT_Context* ctx, NDBT_Step* step)
-{  
-=======
 int testFragmentedApiFail(NDBT_Context *ctx, NDBT_Step *step) {
->>>>>>> mysql-8.0.36
   /* Perform a number of iterations, connecting,
    * sending lots of PK updates, inserting error
    * and then causing node failure
@@ -6714,38 +3841,14 @@ int testFragmentedApiFail(NDBT_Context *ctx, NDBT_Step *step) {
   Uint32 iterations = 10;
   int rc = NDBT_OK;
 
-<<<<<<< HEAD
-  while (iterations --)
-  {
-    rc= testFragmentedApiFailImpl(ctx, step);
-
-    if (rc == NDBT_FAILED)
-    {
-||||||| 19feac3674e
-  while (iterations --)
-  {
-    rc= testFragmentedApiFailImpl(ctx, step);
-    
-    if (rc == NDBT_FAILED)
-    {
-=======
   while (iterations--) {
     rc = testFragmentedApiFailImpl(ctx, step);
 
     if (rc == NDBT_FAILED) {
->>>>>>> mysql-8.0.36
       break;
     }
-<<<<<<< HEAD
-  } // while(iterations --)
-
-||||||| 19feac3674e
-  } // while(iterations --)
-    
-=======
   }  // while(iterations --)
 
->>>>>>> mysql-8.0.36
   /* Avoid scan worker threads getting stuck */
   ctx->setProperty(ApiFailTestComplete, (Uint32)1);
 
@@ -6766,16 +3869,8 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
    * However, as this is generally > 64kB, it's too much AttrInfo for
    * a ScanTabReq, so the 'success' case returns error 874
    */
-<<<<<<< HEAD
-  const Uint32 PROG_WORDS= 16500;
-
-||||||| 19feac3674e
-  const Uint32 PROG_WORDS= 16500; 
-  
-=======
   const Uint32 PROG_WORDS = 16500;
 
->>>>>>> mysql-8.0.36
   /* Use heap rather than stack as stack is too small in
    * STEP thread
    */
@@ -6800,21 +3895,9 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
     /* Indicate that we're underway */
     ctx->incProperty(ApiFailTestsRunning);
 
-<<<<<<< HEAD
-    Ndb* otherNdb = stepNdbs[stepNo];
-
-    while (true)
-    {
-||||||| 19feac3674e
-    Ndb* otherNdb = stepNdbs[stepNo];
-    
-    while (true)
-    {
-=======
     Ndb *otherNdb = stepNdbs[stepNo];
 
     while (true) {
->>>>>>> mysql-8.0.36
       /* Start a transaction */
       NdbTransaction *trans = otherNdb->startTransaction();
       if (!trans) {
@@ -6839,24 +3922,10 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
         delete[] buff;
         return NDBT_FAILED;
       }
-<<<<<<< HEAD
-
-      NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
-
-      if (scan == NULL)
-      {
-||||||| 19feac3674e
-      
-      NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
-      
-      if (scan == NULL)
-      {
-=======
 
       NdbScanOperation *scan = trans->getNdbScanOperation(ctx->getTab());
 
       if (scan == NULL) {
->>>>>>> mysql-8.0.36
         /* getNdbScanOperation can fail in same way as startTransaction
          * since it starts a buddy transaction for scan operations.
          */
@@ -6880,21 +3949,9 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
       CHECK(0 == scan->readTuples());
 
       /* Create a large program, to give a large SCANTABREQ */
-<<<<<<< HEAD
-      NdbInterpretedCode prog(ctx->getTab(),
-                              buff, PROG_WORDS + 10);
-
-      for (Uint32 w=0; w < PROG_WORDS; w++)
-||||||| 19feac3674e
-      NdbInterpretedCode prog(ctx->getTab(), 
-                              buff, PROG_WORDS + 10);
-      
-      for (Uint32 w=0; w < PROG_WORDS; w++)
-=======
       NdbInterpretedCode prog(ctx->getTab(), buff, PROG_WORDS + 10);
 
       for (Uint32 w = 0; w < PROG_WORDS; w++)
->>>>>>> mysql-8.0.36
         CHECK(0 == prog.load_const_null(1));
 
       CHECK(0 == prog.interpret_exit_ok());
@@ -6939,19 +3996,9 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
 
       /* nextResult will always fail */
       CHECK(-1 == scan->nextResult());
-<<<<<<< HEAD
-
-      NdbError scanError= scan->getNdbError();
-
-||||||| 19feac3674e
-      
-      NdbError scanError= scan->getNdbError();
-      
-=======
 
       NdbError scanError = scan->getNdbError();
 
->>>>>>> mysql-8.0.36
       /* 'Success case' is 874 for too much AttrInfo */
       if (scanError.code != 874) {
         /* When disconnected, we get should get a node failure related error */
@@ -6975,16 +4022,8 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
       scan->close();
 
       trans->close();
-<<<<<<< HEAD
-    } // while (true)
-
-||||||| 19feac3674e
-    } // while (true)
-    
-=======
     }  // while (true)
 
->>>>>>> mysql-8.0.36
     /* Node failure case - as expected */
     g_info.println("%u: Scan thread finished iteration", stepNo);
 
@@ -6995,43 +4034,6 @@ int runFragmentedScanOtherApi(NDBT_Context *ctx, NDBT_Step *step) {
   delete[] buff;
   return NDBT_OK;
 }
-<<<<<<< HEAD
-
-void outputLockMode(NdbOperation::LockMode lm)
-{
-  switch(lm)
-  {
-  case NdbOperation::LM_Exclusive:
-    ndbout << "LM_Exclusive";
-    break;
-  case NdbOperation::LM_Read:
-    ndbout << "LM_Read";
-    break;
-  case NdbOperation::LM_SimpleRead:
-    ndbout << "LM_SimpleRead";
-    break;
-  case NdbOperation::LM_CommittedRead:
-    ndbout << "LM_CommittedRead";
-    break;
-||||||| 19feac3674e
-  
-void outputLockMode(NdbOperation::LockMode lm)
-{
-  switch(lm)
-  {
-  case NdbOperation::LM_Exclusive:
-    ndbout << "LM_Exclusive";
-    break;
-  case NdbOperation::LM_Read:
-    ndbout << "LM_Read";
-    break;
-  case NdbOperation::LM_SimpleRead:
-    ndbout << "LM_SimpleRead";
-    break;
-  case NdbOperation::LM_CommittedRead:
-    ndbout << "LM_CommittedRead";
-    break;
-=======
 
 void outputLockMode(NdbOperation::LockMode lm) {
   switch (lm) {
@@ -7047,24 +4049,13 @@ void outputLockMode(NdbOperation::LockMode lm) {
     case NdbOperation::LM_CommittedRead:
       ndbout << "LM_CommittedRead";
       break;
->>>>>>> mysql-8.0.36
   }
 }
 
 NdbOperation::LockMode chooseLockMode(bool onlyRealLocks = false) {
   Uint32 choice;
-<<<<<<< HEAD
-
-  if (onlyRealLocks)
-  {
-||||||| 19feac3674e
-  
-  if (onlyRealLocks)
-  {
-=======
 
   if (onlyRealLocks) {
->>>>>>> mysql-8.0.36
     choice = rand() % 2;
   } else {
     choice = rand() % 4;
@@ -7097,26 +4088,10 @@ NdbOperation::LockMode chooseLockMode(bool onlyRealLocks = false) {
 NdbOperation::LockMode chooseConflictingLockMode(NdbOperation::LockMode lm) {
   NdbOperation::LockMode conflicting = NdbOperation::LM_Exclusive;
 
-<<<<<<< HEAD
-  switch (lm)
-  {
-  case NdbOperation::LM_Exclusive:
-    conflicting = (((rand() % 2) == 0) ?
-                   NdbOperation::LM_Exclusive :
-                   NdbOperation::LM_Read);
-||||||| 19feac3674e
-  switch (lm) 
-  {
-  case NdbOperation::LM_Exclusive:
-    conflicting = (((rand() % 2) == 0) ? 
-                   NdbOperation::LM_Exclusive :
-                   NdbOperation::LM_Read);
-=======
   switch (lm) {
     case NdbOperation::LM_Exclusive:
       conflicting = (((rand() % 2) == 0) ? NdbOperation::LM_Exclusive
                                          : NdbOperation::LM_Read);
->>>>>>> mysql-8.0.36
 
       break;
     case NdbOperation::LM_Read:
@@ -7153,23 +4128,9 @@ NdbOperation *defineReadAllColsOp(HugoOperations *hugoOps,
   CHECKN(op->readTuple(lm) == 0, op, NULL);
 
   hugoOps->equalForRow(op, rowNum);
-<<<<<<< HEAD
-
-  for(int c = 0; c < pTab->getNoOfColumns(); c++)
-  {
-    if(!pTab->getColumn(c)->getPrimaryKey())
-    {
-||||||| 19feac3674e
-  
-  for(int c = 0; c < pTab->getNoOfColumns(); c++)
-  {
-    if(!pTab->getColumn(c)->getPrimaryKey())
-    {
-=======
 
   for (int c = 0; c < pTab->getNoOfColumns(); c++) {
     if (!pTab->getColumn(c)->getPrimaryKey()) {
->>>>>>> mysql-8.0.36
       CHECKN(op->getValue(pTab->getColumn(c)->getName()) != NULL, op, NULL);
     }
   }
@@ -7182,39 +4143,13 @@ bool checkReadRc(HugoOperations *hugoOps, Ndb *ndb,
                  Uint32 rowNum, int expectedRc) {
   NdbTransaction *trans = ndb->startTransaction();
   CHECKN(trans != NULL, ndb, false);
-<<<<<<< HEAD
-
-  NdbOperation* readOp = defineReadAllColsOp(hugoOps,
-                                             trans,
-                                             pTab,
-                                             lm,
-                                             rowNum);
-||||||| 19feac3674e
-  
-  NdbOperation* readOp = defineReadAllColsOp(hugoOps,
-                                             trans,
-                                             pTab,
-                                             lm,
-                                             rowNum);
-=======
 
   NdbOperation *readOp = defineReadAllColsOp(hugoOps, trans, pTab, lm, rowNum);
->>>>>>> mysql-8.0.36
   CHECKN(readOp != NULL, trans, false);
 
   int execRc = trans->execute(Commit);
-<<<<<<< HEAD
-
-  if (expectedRc)
-  {
-||||||| 19feac3674e
-  
-  if (expectedRc)
-  {
-=======
 
   if (expectedRc) {
->>>>>>> mysql-8.0.36
     /* Here we assume that the error is on the transaction
      * which may not be the case for some errors
      */
@@ -7252,16 +4187,8 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
    * readLockInfo for non Exclusive / Shared lock modes
    * and that double-release of the lockhandle is caught
    */
-<<<<<<< HEAD
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-||||||| 19feac3674e
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  
-=======
   const NdbDictionary::Table *pTab = ctx->getTab();
 
->>>>>>> mysql-8.0.36
   HugoOperations hugoOps(*pTab);
 
   const Uint32 iterations = 200;
@@ -7277,18 +4204,8 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
 
     NdbOperation *op = defineReadAllColsOp(&hugoOps, trans, pTab, lm, rowNum);
     CHECKN(op != NULL, trans, NDBT_FAILED);
-<<<<<<< HEAD
-
-    if (op->getLockHandle() == NULL)
-    {
-||||||| 19feac3674e
-    
-    if (op->getLockHandle() == NULL)
-    {
-=======
 
     if (op->getLockHandle() == NULL) {
->>>>>>> mysql-8.0.36
       if ((lm == NdbOperation::LM_CommittedRead) ||
           (lm == NdbOperation::LM_SimpleRead)) {
         if (op->getNdbError().code == 4549) {
@@ -7305,16 +4222,8 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
     }
 
     CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
-<<<<<<< HEAD
-
-    const NdbLockHandle* lh = op->getLockHandle();
-||||||| 19feac3674e
-    
-    const NdbLockHandle* lh = op->getLockHandle();
-=======
 
     const NdbLockHandle *lh = op->getLockHandle();
->>>>>>> mysql-8.0.36
     CHECKN(lh != NULL, op, NDBT_FAILED);
 
     /* Ok, let's use another transaction to try and get a
@@ -7343,25 +4252,9 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
      */
     bool unknownCase = ((lm == NdbOperation::LM_Exclusive) &&
                         (lm2 == NdbOperation::LM_SimpleRead));
-<<<<<<< HEAD
-
-    if (trans2->execute(NoCommit) != 0)
-    {
-      if (expectOk ||
-          (trans2->getNdbError().code != 266))
-      {
-||||||| 19feac3674e
-    
-    if (trans2->execute(NoCommit) != 0)
-    {
-      if (expectOk ||
-          (trans2->getNdbError().code != 266))
-      {
-=======
 
     if (trans2->execute(NoCommit) != 0) {
       if (expectOk || (trans2->getNdbError().code != 266)) {
->>>>>>> mysql-8.0.36
         ndbout << trans2->getNdbError() << endl;
         ndbout << " at " << __FILE__ << ":" << __LINE__ << endl;
         return NDBT_FAILED;
@@ -7377,16 +4270,8 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
     /* Now let's try to create an unlockRow operation, and
      * execute it
      */
-<<<<<<< HEAD
-    const NdbOperation* unlockOp = trans->unlock(lh);
-
-||||||| 19feac3674e
-    const NdbOperation* unlockOp = trans->unlock(lh);
-    
-=======
     const NdbOperation *unlockOp = trans->unlock(lh);
 
->>>>>>> mysql-8.0.36
     CHECKN(unlockOp != NULL, trans, NDBT_FAILED);
 
     CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
@@ -7401,69 +4286,6 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
            << endl;
 
     Uint32 choice = rand() % 3;
-<<<<<<< HEAD
-    switch(choice)
-    {
-    case 0:
-      ndbout << "Closing transaction" << endl;
-      trans->close();
-      break;
-    case 1:
-      ndbout << "Releasing handle and closing transaction" << endl;
-      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
-      trans->close();
-      break;
-    case 2:
-      ndbout << "Attempting to release the handle twice" << endl;
-      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
-
-      if ((trans->releaseLockHandle(lh) != -1) ||
-          (trans->getNdbError().code != 4551))
-      {
-        ndbout << "Expected 4551, but got no error " << endl;
-        ndbout << " at "<<__FILE__ << ":" <<__LINE__ << endl;
-        return NDBT_FAILED;
-      }
-
-      trans->close();
-      break;
-    default:
-      abort();
-      break;
-    }
-  } // for (Uint32 iter
-||||||| 19feac3674e
-    switch(choice)
-    {
-    case 0:
-      ndbout << "Closing transaction" << endl;
-      trans->close();
-      break;
-    case 1:
-      ndbout << "Releasing handle and closing transaction" << endl;
-      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
-      trans->close();
-      break;
-    case 2:
-      ndbout << "Attempting to release the handle twice" << endl;
-      CHECKN(trans->releaseLockHandle(lh) == 0, trans, NDBT_FAILED);
-      
-      if ((trans->releaseLockHandle(lh) != -1) ||
-          (trans->getNdbError().code != 4551))
-      {
-        ndbout << "Expected 4551, but got no error " << endl;
-        ndbout << " at "<<__FILE__ << ":" <<__LINE__ << endl;
-        return NDBT_FAILED;
-      }
-      
-      trans->close();
-      break;
-    default:
-      abort();
-      break;
-    } 
-  } // for (Uint32 iter
-=======
     switch (choice) {
       case 0:
         ndbout << "Closing transaction" << endl;
@@ -7492,7 +4314,6 @@ int runTestUnlockBasic(NDBT_Context *ctx, NDBT_Step *step) {
         break;
     }
   }  // for (Uint32 iter
->>>>>>> mysql-8.0.36
 
   return NDBT_OK;
 }
@@ -7506,16 +4327,8 @@ int runTestUnlockRepeat(NDBT_Context *ctx, NDBT_Step *step) {
    * is never unlocked!
    */
 
-<<<<<<< HEAD
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-||||||| 19feac3674e
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  
-=======
   const NdbDictionary::Table *pTab = ctx->getTab();
 
->>>>>>> mysql-8.0.36
   HugoOperations hugoOps(*pTab);
 
   const Uint32 outerLoops = 2;
@@ -7528,21 +4341,9 @@ int runTestUnlockRepeat(NDBT_Context *ctx, NDBT_Step *step) {
    * RowNum will be locked and unlocked each iteration
    */
   Uint32 otherRowNum = ctx->getNumRecords() - 1;
-<<<<<<< HEAD
-
-  for (Uint32 outerLoop = 0; outerLoop < outerLoops; outerLoop ++)
-  {
-    NdbTransaction* transA = ndb->startTransaction();
-||||||| 19feac3674e
-  
-  for (Uint32 outerLoop = 0; outerLoop < outerLoops; outerLoop ++)
-  {
-    NdbTransaction* transA = ndb->startTransaction();
-=======
 
   for (Uint32 outerLoop = 0; outerLoop < outerLoops; outerLoop++) {
     NdbTransaction *transA = ndb->startTransaction();
->>>>>>> mysql-8.0.36
     CHECKN(transA != NULL, ndb, NDBT_FAILED);
 
     NdbOperation::LockMode lockAOtherMode;
@@ -7558,25 +4359,9 @@ int runTestUnlockRepeat(NDBT_Context *ctx, NDBT_Step *step) {
         lockAOtherMode = NdbOperation::LM_Read;
         break;
     }
-<<<<<<< HEAD
-
-    NdbOperation* lockAOtherRowNum = defineReadAllColsOp(&hugoOps,
-                                                         transA,
-                                                         pTab,
-                                                         lockAOtherMode,
-                                                         otherRowNum);
-||||||| 19feac3674e
-  
-    NdbOperation* lockAOtherRowNum = defineReadAllColsOp(&hugoOps,
-                                                         transA,
-                                                         pTab,
-                                                         lockAOtherMode,
-                                                         otherRowNum);
-=======
 
     NdbOperation *lockAOtherRowNum = defineReadAllColsOp(
         &hugoOps, transA, pTab, lockAOtherMode, otherRowNum);
->>>>>>> mysql-8.0.36
     CHECKN(lockAOtherRowNum != NULL, transA, NDBT_FAILED);
 
     CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
@@ -7587,31 +4372,15 @@ int runTestUnlockRepeat(NDBT_Context *ctx, NDBT_Step *step) {
       Uint32 rowNum = iter % (ctx->getNumRecords() - 1);
 
       ndbout << "  TransA : Try to lock rowNum with mode ";
-<<<<<<< HEAD
-      NdbOperation::LockMode lockAMode = chooseLockMode(true); // Exclusive or LM_Read
-
-||||||| 19feac3674e
-      NdbOperation::LockMode lockAMode = chooseLockMode(true); // Exclusive or LM_Read
-  
-=======
       NdbOperation::LockMode lockAMode =
           chooseLockMode(true);  // Exclusive or LM_Read
 
->>>>>>> mysql-8.0.36
       /* Transaction A takes a lock on rowNum */
       NdbOperation *lockARowNum =
           defineReadAllColsOp(&hugoOps, transA, pTab, lockAMode, rowNum);
       CHECKN(lockARowNum != NULL, transA, NDBT_FAILED);
-<<<<<<< HEAD
-
-      const NdbLockHandle* lockAHandle = lockARowNum->getLockHandle();
-||||||| 19feac3674e
-    
-      const NdbLockHandle* lockAHandle = lockARowNum->getLockHandle();
-=======
 
       const NdbLockHandle *lockAHandle = lockARowNum->getLockHandle();
->>>>>>> mysql-8.0.36
       CHECKN(lockAHandle != NULL, lockARowNum, NDBT_FAILED);
 
       CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
@@ -7663,22 +4432,10 @@ int runTestUnlockRepeat(NDBT_Context *ctx, NDBT_Step *step) {
       CHECKN(tryLockBOtherRowNum != NULL, transB, NDBT_FAILED);
 
       CHECKN(transB->execute(NoCommit) == -1, transB, NDBT_FAILED);
-<<<<<<< HEAD
-
-      if (transB->getNdbError().code != 266)
-      {
-        ndbout << "Error was expecting 266, but got " << transB->getNdbError() << endl;
-||||||| 19feac3674e
-    
-      if (transB->getNdbError().code != 266)
-      {
-        ndbout << "Error was expecting 266, but got " << transB->getNdbError() << endl;
-=======
 
       if (transB->getNdbError().code != 266) {
         ndbout << "Error was expecting 266, but got " << transB->getNdbError()
                << endl;
->>>>>>> mysql-8.0.36
         ndbout << "At line " << __LINE__ << endl;
         return NDBT_FAILED;
       }
@@ -7729,31 +4486,7 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
       (numLocksInTransA > MinLocks) ? numLocksInTransA : MinLocks;
   bool useExclusiveInA = ((rand() % 2) == 0);
 
-<<<<<<< HEAD
-  Uint32 numLocksInTransB = useExclusiveInA ? 0 :
-    (rand() % MaxLocksPerTrans);
-
-  Uint32 maxLocks = (numLocksInTransA > numLocksInTransB) ?
-    numLocksInTransA : numLocksInTransB;
-
-  ndbout << "NumLocksInTransA " << numLocksInTransA
-         << " NumLocksInTransB " << numLocksInTransB
-         << " useExclusiveInA " << useExclusiveInA
-         << endl;
-||||||| 19feac3674e
-  Uint32 numLocksInTransB = useExclusiveInA ? 0 :
-    (rand() % MaxLocksPerTrans);
-  
-  Uint32 maxLocks = (numLocksInTransA > numLocksInTransB) ?
-    numLocksInTransA : numLocksInTransB;
-  
-  ndbout << "NumLocksInTransA " << numLocksInTransA 
-         << " NumLocksInTransB " << numLocksInTransB
-         << " useExclusiveInA " << useExclusiveInA
-         << endl;
-=======
   Uint32 numLocksInTransB = useExclusiveInA ? 0 : (rand() % MaxLocksPerTrans);
->>>>>>> mysql-8.0.36
 
   Uint32 maxLocks = (numLocksInTransA > numLocksInTransB) ? numLocksInTransA
                                                           : numLocksInTransB;
@@ -7773,16 +4506,8 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
 
   NdbTransaction *transA = ndb->startTransaction();
   CHECKN(transA != NULL, ndb, NDBT_FAILED);
-<<<<<<< HEAD
-
-  NdbTransaction* transB = ndb->startTransaction();
-||||||| 19feac3674e
-  
-  NdbTransaction* transB = ndb->startTransaction();
-=======
 
   NdbTransaction *transB = ndb->startTransaction();
->>>>>>> mysql-8.0.36
   CHECKN(transB != NULL, ndb, NDBT_FAILED);
 
   ndbout << "Locking phase" << endl << endl;
@@ -7801,48 +4526,14 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
       } else {
         lmA = chooseLockMode(true);  // LM_Exclusive or LM_Read;
       }
-<<<<<<< HEAD
-      else
-      {
-        lmA = chooseLockMode(true); // LM_Exclusive or LM_Read;
-      }
-
-      NdbOperation* lockA = defineReadAllColsOp(&hugoOps,
-                                                transA,
-                                                pTab,
-                                                lmA,
-                                                rowNum);
-||||||| 19feac3674e
-      else
-      {
-        lmA = chooseLockMode(true); // LM_Exclusive or LM_Read;
-      }
-      
-      NdbOperation* lockA = defineReadAllColsOp(&hugoOps,
-                                                transA,
-                                                pTab,
-                                                lmA,
-                                                rowNum);
-=======
 
       NdbOperation *lockA =
           defineReadAllColsOp(&hugoOps, transA, pTab, lmA, rowNum);
->>>>>>> mysql-8.0.36
       CHECKN(lockA != NULL, transA, NDBT_FAILED);
       CHECKN(lockA->getLockHandle() != NULL, lockA, NDBT_FAILED);
-<<<<<<< HEAD
-
-      transAOps[ depth ] = lockA;
-
-||||||| 19feac3674e
-      
-      transAOps[ depth ] = lockA;
-      
-=======
 
       transAOps[depth] = lockA;
 
->>>>>>> mysql-8.0.36
       CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
       ndbout << "  TransA : Succeeded" << endl;
     }
@@ -7850,40 +4541,14 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
     /* TransB */
     if (depth < numLocksInTransB) {
       ndbout << "  TransB : Locking with mode LM_Read" << endl;
-<<<<<<< HEAD
-
-      NdbOperation* lockB = defineReadAllColsOp(&hugoOps,
-                                                transB,
-                                                pTab,
-                                                NdbOperation::LM_Read,
-                                                rowNum);
-||||||| 19feac3674e
-      
-      NdbOperation* lockB = defineReadAllColsOp(&hugoOps,
-                                                transB,
-                                                pTab,
-                                                NdbOperation::LM_Read,
-                                                rowNum);
-=======
 
       NdbOperation *lockB = defineReadAllColsOp(&hugoOps, transB, pTab,
                                                 NdbOperation::LM_Read, rowNum);
->>>>>>> mysql-8.0.36
       CHECKN(lockB != NULL, transB, NDBT_FAILED);
       CHECKN(lockB->getLockHandle() != NULL, lockB, NDBT_FAILED);
-<<<<<<< HEAD
-
-      transBOps[ depth ] = lockB;
-
-||||||| 19feac3674e
-      
-      transBOps[ depth ] = lockB;
-      
-=======
 
       transBOps[depth] = lockB;
 
->>>>>>> mysql-8.0.36
       CHECKN(transB->execute(NoCommit) == 0, transB, NDBT_FAILED);
       ndbout << "  TransB : Succeeded" << endl;
     }
@@ -7920,27 +4585,11 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
       ndbout << "  TransB unlock succeeded" << endl;
     }
 
-<<<<<<< HEAD
-    if (level < numLocksInTransA)
-    {
-      const NdbLockHandle* lockHandleA = transAOps[ level ]->getLockHandle();
-      CHECKN(lockHandleA != NULL, transAOps[ level ], NDBT_FAILED);
-
-      const NdbOperation* unlockA = transA->unlock(lockHandleA);
-||||||| 19feac3674e
-    if (level < numLocksInTransA)
-    {
-      const NdbLockHandle* lockHandleA = transAOps[ level ]->getLockHandle();
-      CHECKN(lockHandleA != NULL, transAOps[ level ], NDBT_FAILED);
-      
-      const NdbOperation* unlockA = transA->unlock(lockHandleA);
-=======
     if (level < numLocksInTransA) {
       const NdbLockHandle *lockHandleA = transAOps[level]->getLockHandle();
       CHECKN(lockHandleA != NULL, transAOps[level], NDBT_FAILED);
 
       const NdbOperation *unlockA = transA->unlock(lockHandleA);
->>>>>>> mysql-8.0.36
       CHECKN(unlockA != NULL, transA, NDBT_FAILED);
 
       CHECKN(transA->execute(NoCommit) == 0, transA, NDBT_FAILED);
@@ -7961,40 +4610,16 @@ int runTestUnlockMulti(NDBT_Context *ctx, NDBT_Step *step) {
 
   return NDBT_OK;
 }
-<<<<<<< HEAD
 
-||||||| 19feac3674e
-                    
-=======
->>>>>>> mysql-8.0.36
-
-<<<<<<< HEAD
-int runTestUnlockScan(NDBT_Context* ctx, NDBT_Step* step)
-{
-  /* Performs a table scan with LM_Read or LM_Exclusive
-||||||| 19feac3674e
-int runTestUnlockScan(NDBT_Context* ctx, NDBT_Step* step)
-{
-  /* Performs a table scan with LM_Read or LM_Exclusive 
-=======
 int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
   /* Performs a table scan with LM_Read or LM_Exclusive
->>>>>>> mysql-8.0.36
    * and lock takeovers for a number of the rows returned
    * Validates that some of the taken-over locks are held
    * before unlocking them and validating that they
    * are released.
    */
-<<<<<<< HEAD
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-||||||| 19feac3674e
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  
-=======
   const NdbDictionary::Table *pTab = ctx->getTab();
 
->>>>>>> mysql-8.0.36
   HugoCalculator calc(*pTab);
   HugoOperations hugoOps(*pTab);
 
@@ -8004,32 +4629,14 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
      3) Unlock the rows
      4) Check that they are unlocked
   */
-<<<<<<< HEAD
-  Ndb* ndb = GETNDB(step);
-
-||||||| 19feac3674e
-  Ndb* ndb = GETNDB(step);
-  
-=======
   Ndb *ndb = GETNDB(step);
 
->>>>>>> mysql-8.0.36
   const int iterations = 2;
 
   const int maxNumTakeovers = 15;
-<<<<<<< HEAD
-  NdbOperation* takeoverOps[ maxNumTakeovers ];
-  Uint32 takeoverColIds[ maxNumTakeovers ];
-
-||||||| 19feac3674e
-  NdbOperation* takeoverOps[ maxNumTakeovers ];
-  Uint32 takeoverColIds[ maxNumTakeovers ];
-  
-=======
   NdbOperation *takeoverOps[maxNumTakeovers];
   Uint32 takeoverColIds[maxNumTakeovers];
 
->>>>>>> mysql-8.0.36
   int numTakeovers = MIN(maxNumTakeovers, ctx->getNumRecords());
   int takeoverMod = ctx->getNumRecords() / numTakeovers;
 
@@ -8068,101 +4675,28 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
 
     int rowsRead = 0;
     int rowsTakenover = 0;
-<<<<<<< HEAD
-    while (scan->nextResult(true) == 0)
-    {
-||||||| 19feac3674e
-    while (scan->nextResult(true) == 0)
-    {      
-=======
     while (scan->nextResult(true) == 0) {
->>>>>>> mysql-8.0.36
       if ((rowsTakenover < maxNumTakeovers) &&
-<<<<<<< HEAD
-          (0 == (rowsRead % takeoverMod)))
-      {
-        /* We're going to take the lock for this row into
-||||||| 19feac3674e
-          (0 == (rowsRead % takeoverMod)))
-      {
-        /* We're going to take the lock for this row into 
-=======
           (0 == (rowsRead % takeoverMod))) {
         /* We're going to take the lock for this row into
->>>>>>> mysql-8.0.36
          * a separate operation
          */
         Uint32 rowId = idColRecAttr->u_32_value();
-<<<<<<< HEAD
-        ndbout << "  Taking over lock on result num " << rowsRead
-               << " row (" << rowId << ")" << endl;
-        NdbOperation* readTakeoverOp = scan->lockCurrentTuple();
-||||||| 19feac3674e
-        ndbout << "  Taking over lock on result num " << rowsRead 
-               << " row (" << rowId << ")" << endl;
-        NdbOperation* readTakeoverOp = scan->lockCurrentTuple();
-=======
         ndbout << "  Taking over lock on result num " << rowsRead << " row ("
                << rowId << ")" << endl;
         NdbOperation *readTakeoverOp = scan->lockCurrentTuple();
->>>>>>> mysql-8.0.36
         CHECKN(readTakeoverOp != NULL, scan, NDBT_FAILED);
-<<<<<<< HEAD
-
-        CHECKN(readTakeoverOp->getLockHandle() != NULL, readTakeoverOp, NDBT_FAILED);
-        takeoverOps[ rowsTakenover ] = readTakeoverOp;
-        takeoverColIds[ rowsTakenover ] = rowId;
-||||||| 19feac3674e
-        
-        CHECKN(readTakeoverOp->getLockHandle() != NULL, readTakeoverOp, NDBT_FAILED);
-        takeoverOps[ rowsTakenover ] = readTakeoverOp;
-        takeoverColIds[ rowsTakenover ] = rowId;
-=======
 
         CHECKN(readTakeoverOp->getLockHandle() != NULL, readTakeoverOp,
                NDBT_FAILED);
         takeoverOps[rowsTakenover] = readTakeoverOp;
         takeoverColIds[rowsTakenover] = rowId;
->>>>>>> mysql-8.0.36
 
         CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
 
         CHECKN(readTakeoverOp->getNdbError().code == 0, readTakeoverOp,
                NDBT_FAILED);
 
-<<<<<<< HEAD
-// // Uncomment to check that takeover keeps lock.
-//         if (0 == (rowsTakenover % 7))
-//         {
-//           ndbout << "  Validating taken-over lock holds on rowid "
-//                  << takeoverColIds[ rowsTakenover ]
-//                  << " by ";
-//           /* Occasionally validate the lock held by the scan */
-//           CHECK(checkReadDeadlocks(&hugoOps,
-//                                    ndb,
-//                                    pTab,
-//                                    chooseConflictingLockMode(lmScan),
-//                                    takeoverColIds[ rowsTakenover ]));
-//         }
-
-        rowsTakenover ++;
-||||||| 19feac3674e
-// // Uncomment to check that takeover keeps lock.
-//         if (0 == (rowsTakenover % 7))
-//         {
-//           ndbout << "  Validating taken-over lock holds on rowid "
-//                  << takeoverColIds[ rowsTakenover ] 
-//                  << " by ";
-//           /* Occasionally validate the lock held by the scan */
-//           CHECK(checkReadDeadlocks(&hugoOps,
-//                                    ndb,
-//                                    pTab,
-//                                    chooseConflictingLockMode(lmScan),
-//                                    takeoverColIds[ rowsTakenover ]));
-//         }
-        
-        rowsTakenover ++;
-=======
         // // Uncomment to check that takeover keeps lock.
         //         if (0 == (rowsTakenover % 7))
         //         {
@@ -8176,7 +4710,6 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
         //                                    chooseConflictingLockMode(lmScan),
         //                                    takeoverColIds[ rowsTakenover ]));
         //         }
->>>>>>> mysql-8.0.36
 
         rowsTakenover++;
       }
@@ -8212,25 +4745,9 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
       CHECKN(trans->execute(NoCommit) == 0, trans, NDBT_FAILED);
 
       /* Now check that the row's unlocked */
-<<<<<<< HEAD
-      CHECK(checkReadSucceeds(&hugoOps,
-                              ndb,
-                              pTab,
-                              NdbOperation::LM_Exclusive,
-                              takeoverColIds[ lockedRows ]));
-      ndbout << "  Row " << takeoverColIds[ lockedRows ]
-||||||| 19feac3674e
-      CHECK(checkReadSucceeds(&hugoOps,
-                              ndb,
-                              pTab,
-                              NdbOperation::LM_Exclusive,
-                              takeoverColIds[ lockedRows ]));
-      ndbout << "  Row " << takeoverColIds[ lockedRows ] 
-=======
       CHECK(checkReadSucceeds(&hugoOps, ndb, pTab, NdbOperation::LM_Exclusive,
                               takeoverColIds[lockedRows]));
       ndbout << "  Row " << takeoverColIds[lockedRows]
->>>>>>> mysql-8.0.36
              << " unlocked successfully" << endl;
     }
 
@@ -8254,18 +4771,6 @@ int runTestUnlockScan(NDBT_Context *ctx, NDBT_Step *step) {
     }
 
     CHECKN(otherTrans->execute(NoCommit) == 0, trans, NDBT_FAILED);
-<<<<<<< HEAD
-
-    int nextRc = 0;
-    while (0 == (nextRc = otherScan->nextResult(true)))
-    {};
-||||||| 19feac3674e
-    
-    int nextRc = 0;
-    while (0 == (nextRc = otherScan->nextResult(true)))
-    {};
-=======
->>>>>>> mysql-8.0.36
 
     int nextRc = 0;
     while (0 == (nextRc = otherScan->nextResult(true))) {
@@ -8733,18 +5238,8 @@ class BasicSectionStore : public SectionStore {
       delete[] existingBuff;
     }
 
-<<<<<<< HEAD
-    if (!newBuff)
-      return -1;
-
-||||||| 19feac3674e
-    if (!newBuff)
-      return -1;
-    
-=======
     if (!newBuff) return -1;
 
->>>>>>> mysql-8.0.36
     memcpy(newBuff + existingSz, ptr.p, ptr.sz * 4);
 
     ptrs[secId].p = newBuff;
@@ -8801,41 +5296,6 @@ class FragmentAssembler {
   int handleSignal(const SignalHeader *sigHead, const Uint32 *sigBody,
                    LinearSectionPtr *sections) {
     Uint32 sigLen = sigHead->theLength;
-<<<<<<< HEAD
-
-    if (fragId == 0)
-    {
-      switch (sigHead->m_fragmentInfo)
-      {
-      case 0:
-      {
-        /* Not fragmented, pass through */
-        sh = *sigHead;
-        memcpy(signalBody, sigBody, sigLen * 4);
-        Uint32 numSecs = sigHead->m_noOfSections;
-        for (Uint32 i=0; i<numSecs; i++)
-        {
-          if (secStore->appendToSection(i, sections[i]) != 0)
-          {
-            error = SectionAppend;
-||||||| 19feac3674e
-    
-    if (fragId == 0)
-    {
-      switch (sigHead->m_fragmentInfo)
-      {
-      case 0:
-      {
-        /* Not fragmented, pass through */
-        sh = *sigHead;
-        memcpy(signalBody, sigBody, sigLen * 4);
-        Uint32 numSecs = sigHead->m_noOfSections;
-        for (Uint32 i=0; i<numSecs; i++)
-        {
-          if (secStore->appendToSection(i, sections[i]) != 0)
-          {
-            error = SectionAppend;
-=======
 
     if (fragId == 0) {
       switch (sigHead->m_fragmentInfo) {
@@ -8907,127 +5367,8 @@ class FragmentAssembler {
           }
           if (incomingFragId != fragId) {
             error = FragmentIdentity;
->>>>>>> mysql-8.0.36
             return -1;
           }
-<<<<<<< HEAD
-        }
-        complete = true;
-        break;
-      }
-      case 1:
-      {
-        /* Start of fragmented signal */
-        Uint32 incomingFragId;
-        Uint32 incomingSourceNode;
-        Uint32 numSecsInFragment;
-
-        if (handleFragmentSections(sigHead, sigBody, sections,
-                                   &incomingFragId, &incomingSourceNode,
-                                   &numSecsInFragment) != 0)
-          return -1;
-
-        require(incomingFragId != 0);
-        fragId = incomingFragId;
-        sourceNode = incomingSourceNode;
-        require(numSecsInFragment > 0);
-
-        break;
-      }
-      default:
-      {
-        /* Error, out of sequence fragment */
-        error = FragmentSequence;
-        return -1;
-        break;
-      }
-      }
-    }
-    else
-    {
-      /* FragId != 0 */
-      switch (sigHead->m_fragmentInfo)
-      {
-      case 0:
-      case 1:
-      {
-        /* Error, out of sequence fragment */
-        error = FragmentSequence;
-        return -1;
-      }
-      case 2:
-        [[fallthrough]];
-      case 3:
-      {
-        /* Body fragment */
-        Uint32 incomingFragId;
-        Uint32 incomingSourceNode;
-        Uint32 numSecsInFragment;
-
-        if (handleFragmentSections(sigHead, sigBody, sections,
-                                   &incomingFragId, &incomingSourceNode,
-                                   &numSecsInFragment) != 0)
-          return -1;
-||||||| 19feac3674e
-        }
-        complete = true;
-        break;
-      }
-      case 1:
-      {
-        /* Start of fragmented signal */
-        Uint32 incomingFragId;
-        Uint32 incomingSourceNode;
-        Uint32 numSecsInFragment;
-        
-        if (handleFragmentSections(sigHead, sigBody, sections,
-                                   &incomingFragId, &incomingSourceNode,
-                                   &numSecsInFragment) != 0)
-          return -1;
-        
-        require(incomingFragId != 0);
-        fragId = incomingFragId;
-        sourceNode = incomingSourceNode;
-        require(numSecsInFragment > 0);
-        
-        break;
-      }
-      default:
-      {
-        /* Error, out of sequence fragment */
-        error = FragmentSequence;
-        return -1;
-        break;
-      }
-      }
-    }
-    else
-    {
-      /* FragId != 0 */
-      switch (sigHead->m_fragmentInfo)
-      {
-      case 0:
-      case 1:
-      {
-        /* Error, out of sequence fragment */
-        error = FragmentSequence;
-        return -1;
-      }
-      case 2:
-        [[fallthrough]];
-      case 3:
-      {
-        /* Body fragment */
-        Uint32 incomingFragId;
-        Uint32 incomingSourceNode;
-        Uint32 numSecsInFragment;
-        
-        if (handleFragmentSections(sigHead, sigBody, sections,
-                                   &incomingFragId, &incomingSourceNode,
-                                   &numSecsInFragment) != 0)
-          return -1;
-=======
->>>>>>> mysql-8.0.36
 
           if (sigHead->m_fragmentInfo == 3) {
             /* Final fragment, contains actual signal body */
@@ -9048,70 +5389,6 @@ class FragmentAssembler {
           error = FragmentSequence;
           return -1;
         }
-<<<<<<< HEAD
-        if (incomingFragId != fragId)
-        {
-          error = FragmentIdentity;
-          return -1;
-        }
-
-        if (sigHead->m_fragmentInfo == 3)
-        {
-          /* Final fragment, contains actual signal body */
-          memcpy(signalBody,
-                 sigBody,
-                 sigLen * 4);
-          sh = *sigHead;
-          sh.theLength = sigLen - (numSecsInFragment + 1);
-          sh.m_noOfSections =
-            ((secsReceived & 4)? 1 : 0) +
-            ((secsReceived & 2)? 1 : 0) +
-            ((secsReceived & 1)? 1 : 0);
-          sh.m_fragmentInfo = 0;
-
-          complete=true;
-        }
-        break;
-      }
-      default:
-      {
-        /* Bad fragmentinfo field */
-        error = FragmentSequence;
-        return -1;
-      }
-||||||| 19feac3674e
-        if (incomingFragId != fragId)
-        {
-          error = FragmentIdentity;
-          return -1;
-        }
-        
-        if (sigHead->m_fragmentInfo == 3)
-        {
-          /* Final fragment, contains actual signal body */
-          memcpy(signalBody,
-                 sigBody,
-                 sigLen * 4);
-          sh = *sigHead;
-          sh.theLength = sigLen - (numSecsInFragment + 1);
-          sh.m_noOfSections = 
-            ((secsReceived & 4)? 1 : 0) +
-            ((secsReceived & 2)? 1 : 0) +
-            ((secsReceived & 1)? 1 : 0);
-          sh.m_fragmentInfo = 0;
-          
-          complete=true;
-        }
-        break;
-      }
-      default:
-      {
-        /* Bad fragmentinfo field */
-        error = FragmentSequence;
-        return -1;
-      }
-=======
->>>>>>> mysql-8.0.36
       }
     }
 
@@ -9125,31 +5402,7 @@ class FragmentAssembler {
   bool isComplete() { return complete; }
 
   /* Valid if isComplete() */
-<<<<<<< HEAD
-  SignalHeader getSignalHeader()
-  {
-    return sh;
-  }
-
-  /* Valid if isComplete() */
-  Uint32* getSignalBody()
-  {
-    return signalBody;
-  }
-||||||| 19feac3674e
-  SignalHeader getSignalHeader()
-  {
-    return sh;
-  }
-  
-  /* Valid if isComplete() */
-  Uint32* getSignalBody()
-  {
-    return signalBody;
-  }
-=======
   SignalHeader getSignalHeader() { return sh; }
->>>>>>> mysql-8.0.36
 
   /* Valid if isComplete() */
   Uint32 *getSignalBody() { return signalBody; }
@@ -9157,35 +5410,6 @@ class FragmentAssembler {
   /* Valid if isComplete() */
   Uint32 getSourceNode() { return sourceNode; }
 
-<<<<<<< HEAD
-  AssemblyError getError() const
-  {
-    return error;
-  }
-
-private:
-  int handleFragmentSections(const SignalHeader* sigHead,
-                             const Uint32* sigBody,
-                             LinearSectionPtr* sections,
-                             Uint32* incomingFragId,
-                             Uint32* incomingSourceNode,
-                             Uint32* numSecsInFragment)
-  {
-||||||| 19feac3674e
-  AssemblyError getError() const
-  {
-    return error;
-  }
-  
-private:
-  int handleFragmentSections(const SignalHeader* sigHead,
-                             const Uint32* sigBody,
-                             LinearSectionPtr* sections,
-                             Uint32* incomingFragId,
-                             Uint32* incomingSourceNode,
-                             Uint32* numSecsInFragment)
-  {
-=======
   SectionStore *getSectionStore() { return secStore; }
 
   AssemblyError getError() const { return error; }
@@ -9195,7 +5419,6 @@ private:
                              LinearSectionPtr *sections, Uint32 *incomingFragId,
                              Uint32 *incomingSourceNode,
                              Uint32 *numSecsInFragment) {
->>>>>>> mysql-8.0.36
     Uint32 sigLen = sigHead->theLength;
 
     *numSecsInFragment = sigHead->m_noOfSections;
@@ -9203,34 +5426,12 @@ private:
 
     *incomingFragId = sigBody[sigLen - 1];
     *incomingSourceNode = refToNode(sigHead->theSendersBlockRef);
-<<<<<<< HEAD
-    const Uint32* secIds = &sigBody[sigLen - (*numSecsInFragment) - 1];
-
-    for (Uint32 i=0; i < *numSecsInFragment; i++)
-    {
-||||||| 19feac3674e
-    const Uint32* secIds = &sigBody[sigLen - (*numSecsInFragment) - 1];
-    
-    for (Uint32 i=0; i < *numSecsInFragment; i++)
-    {
-=======
     const Uint32 *secIds = &sigBody[sigLen - (*numSecsInFragment) - 1];
 
     for (Uint32 i = 0; i < *numSecsInFragment; i++) {
->>>>>>> mysql-8.0.36
       secsReceived |= (1 < secIds[i]);
-<<<<<<< HEAD
-
-      if (secStore->appendToSection(secIds[i], sections[i]) != 0)
-      {
-||||||| 19feac3674e
-      
-      if (secStore->appendToSection(secIds[i], sections[i]) != 0)
-      {
-=======
 
       if (secStore->appendToSection(secIds[i], sections[i]) != 0) {
->>>>>>> mysql-8.0.36
         error = SectionAppend;
         return -1;
       }
@@ -9266,41 +5467,6 @@ static const Uint32 MEDIUM_SIZE = 5000;
  * of the max amount sent - MAX_WORDS_PER_SEND, so we define interesting
  * sizes so that we test behavior around these boundaries
  */
-<<<<<<< HEAD
-static Uint32 interestingSizes[] =
-{
-  0,
-  1,
-  MEDIUM_SIZE,
-  THIRD_MAX_WORDS_PER_SEND -1,
-  THIRD_MAX_WORDS_PER_SEND,
-  THIRD_MAX_WORDS_PER_SEND +1,
-  HALF_MAX_WORDS_PER_SEND -1,
-  HALF_MAX_WORDS_PER_SEND,
-  HALF_MAX_WORDS_PER_SEND + 1,
-  MAX_WORDS_PER_SEND -1,
-  MAX_WORDS_PER_SEND,
-  MAX_WORDS_PER_SEND + 1,
-  (2* MAX_SEND_WORDS) + 1,
-  1234 /* Random */
-||||||| 19feac3674e
-static Uint32 interestingSizes[] = 
-{
-  0,
-  1, 
-  MEDIUM_SIZE,
-  THIRD_MAX_WORDS_PER_SEND -1,
-  THIRD_MAX_WORDS_PER_SEND,
-  THIRD_MAX_WORDS_PER_SEND +1,
-  HALF_MAX_WORDS_PER_SEND -1,
-  HALF_MAX_WORDS_PER_SEND,
-  HALF_MAX_WORDS_PER_SEND + 1,
-  MAX_WORDS_PER_SEND -1, 
-  MAX_WORDS_PER_SEND, 
-  MAX_WORDS_PER_SEND + 1,
-  (2* MAX_SEND_WORDS) + 1,
-  1234 /* Random */
-=======
 static Uint32 interestingSizes[] = {
     0,
     1,
@@ -9316,18 +5482,9 @@ static Uint32 interestingSizes[] = {
     MAX_WORDS_PER_SEND + 1,
     (2 * MAX_SEND_WORDS) + 1,
     1234 /* Random */
->>>>>>> mysql-8.0.36
 };
 
-<<<<<<< HEAD
-
 /*
-||||||| 19feac3674e
-
-/* 
-=======
-/*
->>>>>>> mysql-8.0.36
    FragSignalChecker
 
    Class for testing fragmented signal send + receive
@@ -9369,18 +5526,8 @@ class FragSignalChecker {
   static Uint32 getSecSz(Uint32 secNum, Uint32 iter) {
     require(secNum < 3);
     Uint32 numSizes = getNumInterestingSizes();
-<<<<<<< HEAD
-    Uint32 divisor = (secNum == 0 ? 1 :
-                      secNum == 1 ? numSizes :
-                      numSizes * numSizes);
-||||||| 19feac3674e
-    Uint32 divisor = (secNum == 0 ? 1 : 
-                      secNum == 1 ? numSizes :
-                      numSizes * numSizes);
-=======
     Uint32 divisor =
         (secNum == 0 ? 1 : secNum == 1 ? numSizes : numSizes * numSizes);
->>>>>>> mysql-8.0.36
     /* offset ensures only end sections are 0 length */
     Uint32 index = (iter / divisor) % numSizes;
     if ((index == 0) && (iter >= (divisor * numSizes)))
@@ -9398,20 +5545,8 @@ class FragSignalChecker {
     return MaxTotalSectionsWords * 4;
   }
 
-<<<<<<< HEAD
-  int sendRequest(SignalSender* ss,
-                  Uint32* sizes)
-  {
-    /*
-||||||| 19feac3674e
-  int sendRequest(SignalSender* ss, 
-                  Uint32* sizes)
-  {
-    /* 
-=======
   int sendRequest(SignalSender *ss, Uint32 *sizes) {
     /*
->>>>>>> mysql-8.0.36
      * We want to try out various interactions between the
      * 3 sections and the length of the data sent
      * - All fit in one 'chunk'
@@ -9426,38 +5561,16 @@ class FragSignalChecker {
      */
     g_err << "Sending " << sizes[0] << " " << sizes[1] << " " << sizes[2]
           << endl;
-<<<<<<< HEAD
-
-    const Uint32 numSections =
-      (sizes[0] ? 1 : 0) +
-      (sizes[1] ? 1 : 0) +
-      (sizes[2] ? 1 : 0);
-||||||| 19feac3674e
-    
-    const Uint32 numSections = 
-      (sizes[0] ? 1 : 0) + 
-      (sizes[1] ? 1 : 0) + 
-      (sizes[2] ? 1 : 0);
-=======
 
     const Uint32 numSections =
         (sizes[0] ? 1 : 0) + (sizes[1] ? 1 : 0) + (sizes[2] ? 1 : 0);
->>>>>>> mysql-8.0.36
     const Uint32 testType = 40;
     const Uint32 fragmentLength = 1;
     const Uint32 print = 0;
     const Uint32 len = 5 + numSections;
     SimpleSignal request(false);
-<<<<<<< HEAD
-
-    Uint32* signalBody = request.getDataPtrSend();
-||||||| 19feac3674e
-    
-    Uint32* signalBody = request.getDataPtrSend();
-=======
 
     Uint32 *signalBody = request.getDataPtrSend();
->>>>>>> mysql-8.0.36
     signalBody[0] = ss->getOwnRef();
     signalBody[1] = testType;
     signalBody[2] = fragmentLength;
@@ -9466,51 +5579,23 @@ class FragSignalChecker {
     signalBody[5] = sizes[0];
     signalBody[6] = sizes[1];
     signalBody[7] = sizes[2];
-<<<<<<< HEAD
 
-
-||||||| 19feac3674e
-    
-    
-=======
-
->>>>>>> mysql-8.0.36
     request.ptr[0].sz = sizes[0];
     request.ptr[0].p = &buffer[0];
     request.ptr[1].sz = sizes[1];
     request.ptr[1].p = &buffer[sizes[0]];
     request.ptr[2].sz = sizes[2];
     request.ptr[2].p = &buffer[sizes[0] + sizes[1]];
-<<<<<<< HEAD
-
-    request.header.m_noOfSections= numSections;
-
-||||||| 19feac3674e
-    
-    request.header.m_noOfSections= numSections;
-    
-=======
 
     request.header.m_noOfSections = numSections;
 
->>>>>>> mysql-8.0.36
     int rc = 0;
     ss->lock();
     rc = ss->sendFragmentedSignal(ss->get_an_alive_node(), request, CMVMI,
                                   GSN_TESTSIG, len);
     ss->unlock();
-<<<<<<< HEAD
-
-    if (rc != 0)
-    {
-||||||| 19feac3674e
-    
-    if (rc != 0)
-    {
-=======
 
     if (rc != 0) {
->>>>>>> mysql-8.0.36
       g_err << "Error sending signal" << endl;
       return rc;
     }
@@ -9525,80 +5610,28 @@ class FragSignalChecker {
      */
     BasicSectionStore bss;
     FragmentAssembler fa(&bss);
-<<<<<<< HEAD
-
-    while(true)
-    {
-||||||| 19feac3674e
-    
-    while(true)
-    {
-=======
 
     while (true) {
->>>>>>> mysql-8.0.36
       ss->lock();
       SimpleSignal *response = ss->waitFor(10000);
       ss->unlock();
-<<<<<<< HEAD
-
-      if (!response)
-      {
-||||||| 19feac3674e
-      
-      if (!response)
-      {
-=======
 
       if (!response) {
->>>>>>> mysql-8.0.36
         g_err << "Timed out waiting for response" << endl;
         return -1;
       }
-<<<<<<< HEAD
-
-      //response->print();
-
-      if (response->header.theVerId_signalNumber == GSN_TESTSIG)
-      {
-        if (fa.handleSignal(&response->header,
-                            response->getDataPtr(),
-                            response->ptr) != 0)
-        {
-||||||| 19feac3674e
-      
-      //response->print();
-      
-      if (response->header.theVerId_signalNumber == GSN_TESTSIG)
-      {
-        if (fa.handleSignal(&response->header,
-                            response->getDataPtr(),
-                            response->ptr) != 0)
-        {
-=======
 
       // response->print();
 
       if (response->header.theVerId_signalNumber == GSN_TESTSIG) {
         if (fa.handleSignal(&response->header, response->getDataPtr(),
                             response->ptr) != 0) {
->>>>>>> mysql-8.0.36
           g_err << "Error assembling fragmented signal."
                 << "  Error is " << (Uint32)fa.getError() << endl;
           return -1;
         }
-<<<<<<< HEAD
-
-        if (fa.isComplete())
-        {
-||||||| 19feac3674e
-        
-        if (fa.isComplete())
-        {
-=======
 
         if (fa.isComplete()) {
->>>>>>> mysql-8.0.36
           Uint32 expectedWord = 0;
           for (Uint32 i = 0; i < 3; i++) {
             if (bss.ptrs[i].sz != expectedSz[i]) {
@@ -9607,44 +5640,12 @@ class FragSignalChecker {
                     << endl;
               return -1;
             }
-<<<<<<< HEAD
-
-            for (Uint32 d=0; d < expectedSz[i]; d++)
-            {
-              if (bss.ptrs[i].p[d] != expectedWord)
-              {
-                g_err << "Bad data in section "
-                      << i
-                      << " at word number "
-                      << d
-                      << ".  Expected "
-                      << expectedWord
-                      << " but found "
-                      << bss.ptrs[i].p[d]
-                      << endl;
-||||||| 19feac3674e
-            
-            for (Uint32 d=0; d < expectedSz[i]; d++)
-            {
-              if (bss.ptrs[i].p[d] != expectedWord)
-              {
-                g_err << "Bad data in section "
-                      << i
-                      << " at word number "
-                      << d
-                      << ".  Expected "
-                      << expectedWord
-                      << " but found "
-                      << bss.ptrs[i].p[d]
-                      << endl;
-=======
 
             for (Uint32 d = 0; d < expectedSz[i]; d++) {
               if (bss.ptrs[i].p[d] != expectedWord) {
                 g_err << "Bad data in section " << i << " at word number " << d
                       << ".  Expected " << expectedWord << " but found "
                       << bss.ptrs[i].p[d] << endl;
->>>>>>> mysql-8.0.36
                 return -1;
               }
               expectedWord++;
@@ -9653,38 +5654,14 @@ class FragSignalChecker {
 
           break;
         }
-<<<<<<< HEAD
-
-||||||| 19feac3674e
-        
-=======
->>>>>>> mysql-8.0.36
       }
     }
 
     return 0;
   }
-<<<<<<< HEAD
-
-  int runTest(SignalSender* ss)
-  {
-    for (Uint32 iter=0;
-         iter < getNumIterationsRequired();
-         iter++)
-    {
-||||||| 19feac3674e
-  
-  int runTest(SignalSender* ss)
-  {
-    for (Uint32 iter=0; 
-         iter < getNumIterationsRequired(); 
-         iter++)
-    {
-=======
 
   int runTest(SignalSender *ss) {
     for (Uint32 iter = 0; iter < getNumIterationsRequired(); iter++) {
->>>>>>> mysql-8.0.36
       int rc;
       Uint32 sizes[3];
       sizes[0] = getSecSz(0, iter);
@@ -9693,21 +5670,9 @@ class FragSignalChecker {
 
       /* Build request, including sections */
       rc = sendRequest(ss, sizes);
-<<<<<<< HEAD
-      if (rc != 0)
-      {
-        g_err << "Failed sending request on iteration " << iter
-              << " with rc " << rc << endl;
-||||||| 19feac3674e
-      if (rc != 0)
-      {
-        g_err << "Failed sending request on iteration " << iter 
-              << " with rc " << rc << endl;
-=======
       if (rc != 0) {
         g_err << "Failed sending request on iteration " << iter << " with rc "
               << rc << endl;
->>>>>>> mysql-8.0.36
         return NDBT_FAILED;
       }
 
@@ -9775,42 +5740,18 @@ static int runReceiveTRANSIDAIAfterRollback(NDBT_Context *ctx,
 
     // start primary key read with shared lock
     HugoOperations hugoOps(*ctx->getTab());
-<<<<<<< HEAD
-    if(hugoOps.startTransaction(ndb)) {
-      g_err << "hugoOps.startTransaction() gave unexpected error : "
-||||||| 19feac3674e
-    if(hugoOps.startTransaction(ndb)) {
-      g_err << "hugoOps.startTransaction() gave unexpected error : " 
-=======
     if (hugoOps.startTransaction(ndb)) {
       g_err << "hugoOps.startTransaction() gave unexpected error : "
->>>>>>> mysql-8.0.36
             << hugoOps.getTransaction()->getNdbError() << endl;
       break;
     }
-<<<<<<< HEAD
-    if(hugoOps.pkReadRecord(ndb, 1, 1, NdbOperation::LM_Read)) {
-      g_err << "hugoOps.pkReadRecord() gave unexpected error : "
-||||||| 19feac3674e
-    if(hugoOps.pkReadRecord(ndb, 1, 1, NdbOperation::LM_Read)) {
-      g_err << "hugoOps.pkReadRecord() gave unexpected error : " 
-=======
     if (hugoOps.pkReadRecord(ndb, 1, 1, NdbOperation::LM_Read)) {
       g_err << "hugoOps.pkReadRecord() gave unexpected error : "
->>>>>>> mysql-8.0.36
             << hugoOps.getTransaction()->getNdbError() << endl;
       break;
     }
-<<<<<<< HEAD
-    if(hugoOps.execute_Commit(ndb) != 0) {
-      g_err << "hugoOps.execute_Commit() gave unexpected error : "
-||||||| 19feac3674e
-    if(hugoOps.execute_Commit(ndb) != 0) {
-      g_err << "hugoOps.execute_Commit() gave unexpected error : " 
-=======
     if (hugoOps.execute_Commit(ndb) != 0) {
       g_err << "hugoOps.execute_Commit() gave unexpected error : "
->>>>>>> mysql-8.0.36
             << hugoOps.getTransaction()->getNdbError() << endl;
       break;
     }
@@ -10064,17 +6005,9 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
       result = NDBT_FAILED;
       break;
     }
-<<<<<<< HEAD
-
-    ndbout << "Enabling schema object ownership check on ctx connection" << endl;
-||||||| 19feac3674e
-  
-    ndbout << "Enabling schema object ownership check on ctx connection" << endl;
-=======
 
     ndbout << "Enabling schema object ownership check on ctx connection"
            << endl;
->>>>>>> mysql-8.0.36
     trans->setSchemaObjOwnerChecks(true);
 
     ndbout << "Attempting to acquire Ndb*Operations on schema objects ";
@@ -10094,17 +6027,9 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
              << endl;
       result = NDBT_FAILED;
       break;
-<<<<<<< HEAD
-    }
-    NdbIndexScanOperation *idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
-||||||| 19feac3674e
-    } 
-    NdbIndexScanOperation *idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
-=======
     }
     NdbIndexScanOperation *idxscanop =
         trans->getNdbIndexScanOperation(otherIndex, otherTable);
->>>>>>> mysql-8.0.36
     const NdbError err3 = trans->getNdbError();
     if (err3.code != 1231) {
       ndbout << "Failed to detect Table/Index with wrong owner for "
@@ -10120,23 +6045,11 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
              << endl;
       result = NDBT_FAILED;
       break;
-<<<<<<< HEAD
-    }
-    ndbout << "Success: ownership check detected wrong owner" << endl;
-
-    ndbout << "Disabling schema object ownership check on valid connection" << endl;
-||||||| 19feac3674e
-    } 
-    ndbout << "Success: ownership check detected wrong owner" << endl;   
- 
-    ndbout << "Disabling schema object ownership check on valid connection" << endl;
-=======
     }
     ndbout << "Success: ownership check detected wrong owner" << endl;
 
     ndbout << "Disabling schema object ownership check on valid connection"
            << endl;
->>>>>>> mysql-8.0.36
     trans->setSchemaObjOwnerChecks(false);
 
     ndbout << "Attempting to acquire Ndb*Operations ";
@@ -10145,17 +6058,9 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
     scanop = trans->getNdbScanOperation(otherTable);
     idxscanop = trans->getNdbIndexScanOperation(otherIndex, otherTable);
     idxop = trans->getNdbIndexOperation(otherIndex);
-<<<<<<< HEAD
-
-    if(!op || !scanop || !idxscanop || !idxop)  // failure to acquire at least one op
-||||||| 19feac3674e
-    
-    if(!op || !scanop || !idxscanop || !idxop)  // failure to acquire at least one op
-=======
 
     if (!op || !scanop || !idxscanop ||
         !idxop)  // failure to acquire at least one op
->>>>>>> mysql-8.0.36
     {
       ndbout << "Failed to acquire ";
       if (!op) ndbout << "NdbOperation, ";
@@ -10166,14 +6071,8 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
       result = NDBT_FAILED;
       break;
     }
-<<<<<<< HEAD
-    ndbout << "Success: ownership check skipped, wrong owner not detected" << endl;
-||||||| 19feac3674e
-    ndbout << "Success: ownership check skipped, wrong owner not detected" << endl;   
-=======
     ndbout << "Success: ownership check skipped, wrong owner not detected"
            << endl;
->>>>>>> mysql-8.0.36
 
     ndbout << "Enabling schema object ownership check on valid connection"
            << endl;
@@ -10216,42 +6115,18 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
       result = NDBT_FAILED;
       break;
     }
-<<<<<<< HEAD
-    ndbout << "Success: acquired Ndb*Operations on owned schema objects" << endl;
-  } while(false);
-||||||| 19feac3674e
-    ndbout << "Success: acquired Ndb*Operations on owned schema objects" << endl;   
-  } while(false);
-=======
     ndbout << "Success: acquired Ndb*Operations on owned schema objects"
            << endl;
   } while (false);
->>>>>>> mysql-8.0.36
 
   ndbout << "Cleanup" << endl;
   ndb->setDatabaseName("TEST_DB");
-<<<<<<< HEAD
-  if (dict->dropIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab") == -1)
-  {
-||||||| 19feac3674e
-  if (dict->dropIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab") == -1) 
-  {
-=======
   if (dict->dropIndex("SchemaObjOwnerCheck_idx", "SchemaObjOwnerCheck_tab") ==
       -1) {
->>>>>>> mysql-8.0.36
     g_err << "Failed to drop SchemaObjOwnerCheck_idx index." << endl;
     result = NDBT_FAILED;
   }
-<<<<<<< HEAD
-  if (dict->dropTable("SchemaObjOwnerCheck_tab") == -1)
-  {
-||||||| 19feac3674e
-  if (dict->dropTable("SchemaObjOwnerCheck_tab") == -1) 
-  {
-=======
   if (dict->dropTable("SchemaObjOwnerCheck_tab") == -1) {
->>>>>>> mysql-8.0.36
     g_err << "Failed to drop SchemaObjOwnerCheck_tab table." << endl;
     result = NDBT_FAILED;
   }
@@ -10270,17 +6145,7 @@ int testSchemaObjectOwnerCheck(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
-<<<<<<< HEAD
-int
-testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
-{
-||||||| 19feac3674e
-int 
-testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
-{
-=======
 int testMgmdSendBufferExhaust(NDBT_Context *ctx, NDBT_Step *step) {
->>>>>>> mysql-8.0.36
   /* 1 : Get MGMD node id
    * 2 : Get a data node node id
    * 3 : Consume most SB in MGMD
@@ -10648,19 +6513,9 @@ int runTestNoExecute(NDBT_Context *ctx, NDBT_Step *step) {
   for (int i = 0; i < 1000; i++) {
     if (pNdb == NULL) {
       pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
-<<<<<<< HEAD
-      if (pNdb == NULL){
-        ndbout << "pNdb == NULL" << endl;
-        return NDBT_FAILED;
-||||||| 19feac3674e
-      if (pNdb == NULL){
-        ndbout << "pNdb == NULL" << endl;      
-        return NDBT_FAILED;  
-=======
       if (pNdb == NULL) {
         ndbout << "pNdb == NULL" << endl;
         return NDBT_FAILED;
->>>>>>> mysql-8.0.36
       }
       if (pNdb->init()) {
         NDB_ERR(pNdb->getNdbError());
@@ -10779,14 +6634,6 @@ int runCheckTransId(NDBT_Context *ctx, NDBT_Step *step) {
    * Ndb(), Ndb->init(), and ~Ndb(), which might be expected
    * to occur in any multithreaded environment.
    */
-<<<<<<< HEAD
-
-  Ndb* ndb1 = new Ndb(ncc); // Init transid from connection
-||||||| 19feac3674e
-  
-  Ndb* ndb1 = new Ndb(ncc); // Init transid from connection
-=======
->>>>>>> mysql-8.0.36
 
   Ndb *ndb1 = new Ndb(ncc);  // Init transid from connection
 
@@ -10811,18 +6658,8 @@ int runCheckTransId(NDBT_Context *ctx, NDBT_Step *step) {
   ndbout << "Transid2 : " << transId2 << endl;
 
   delete ndb2;
-<<<<<<< HEAD
-
-  if (transId1 == transId2)
-  {
-||||||| 19feac3674e
-  
-  if (transId1 == transId2)
-  {
-=======
 
   if (transId1 == transId2) {
->>>>>>> mysql-8.0.36
     return NDBT_FAILED;
   }
 
@@ -10846,55 +6683,19 @@ int runInitCheckTransIdMt(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-int
-runCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb* stepNdb = GETNDB(step);
-  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
-
-||||||| 19feac3674e
-int
-runCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb* stepNdb = GETNDB(step);
-  Ndb_cluster_connection* ncc = &stepNdb->get_ndb_cluster_connection();
-  
-=======
 int runCheckTransIdMt(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *stepNdb = GETNDB(step);
   Ndb_cluster_connection *ncc = &stepNdb->get_ndb_cluster_connection();
 
->>>>>>> mysql-8.0.36
   Uint32 stepIdx = step->getStepNo() - 1;
-<<<<<<< HEAD
-  Uint64* myIds = g_checkTransIdArrays + (stepIdx * CheckTransIdIterations);
-
-  for (Uint32 i=0; i<CheckTransIdIterations; i++)
-  {
-||||||| 19feac3674e
-  Uint64* myIds = g_checkTransIdArrays + (stepIdx * CheckTransIdIterations);
-  
-  for (Uint32 i=0; i<CheckTransIdIterations; i++)
-  {
-=======
   Uint64 *myIds = g_checkTransIdArrays + (stepIdx * CheckTransIdIterations);
 
   for (Uint32 i = 0; i < CheckTransIdIterations; i++) {
->>>>>>> mysql-8.0.36
     /* New Ndb, create a transaction, get id, close it, delete Ndb */
     Ndb newNdb(ncc);
     newNdb.init();
-<<<<<<< HEAD
-
-    NdbTransaction* newTrans = newNdb.startTransaction();
-||||||| 19feac3674e
-    
-    NdbTransaction* newTrans = newNdb.startTransaction();
-=======
 
     NdbTransaction *newTrans = newNdb.startTransaction();
->>>>>>> mysql-8.0.36
     myIds[i] = newTrans->getTransactionId();
     newTrans->close();
   }
@@ -10902,31 +6703,9 @@ int runCheckTransIdMt(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-int cmpUint64(const void* a, const void* b)
-{
-  Uint64 va = *((const Uint64*)a);
-  Uint64 vb = *((const Uint64*)b);
-
-  return ((va > vb)? 1 :
-          (vb > va)? -1 :
-          0);
-}
-||||||| 19feac3674e
-int cmpUint64(const void* a, const void* b)
-{
-  Uint64 va = *((const Uint64*)a);
-  Uint64 vb = *((const Uint64*)b);
-  
-  return ((va > vb)? 1 :
-          (vb > va)? -1 :
-          0);
-} 
-=======
 int cmpUint64(const void *a, const void *b) {
   Uint64 va = *((const Uint64 *)a);
   Uint64 vb = *((const Uint64 *)b);
->>>>>>> mysql-8.0.36
 
   return ((va > vb) ? 1 : (vb > va) ? -1 : 0);
 }
@@ -10986,16 +6765,6 @@ int runFinaliseCheckTransIdMt(NDBT_Context *ctx, NDBT_Step *step) {
 
 int runTestColumnNameLookupPerf(NDBT_Context *ctx, NDBT_Step *step) {
   const NdbDictionary::Table *tab = ctx->getTab();
-<<<<<<< HEAD
-
-  ndbout_c("Table lookups on columns in table %s",
-           tab->getName());
-||||||| 19feac3674e
-  
-  ndbout_c("Table lookups on columns in table %s",
-           tab->getName());
-=======
->>>>>>> mysql-8.0.36
 
   ndbout_c("Table lookups on columns in table %s", tab->getName());
 
@@ -11069,21 +6838,7 @@ int runMaybeRestartMaster(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-<<<<<<< HEAD
-void
-asyncCallback(int res, NdbTransaction* trans, void* obj)
-{
-
-}
-||||||| 19feac3674e
-void
-asyncCallback(int res, NdbTransaction* trans, void* obj)
-{
-  
-}
-=======
 void asyncCallback(int res, NdbTransaction *trans, void *obj) {}
->>>>>>> mysql-8.0.36
 
 int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = GETNDB(step);
@@ -11112,25 +6867,9 @@ int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
     NdbScanOperation *scanOp = trans->getNdbScanOperation(tab);
     CHECK(scanOp != NULL);
 
-<<<<<<< HEAD
-    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
-                             0,
-                             16) == 0);
-
-    for(int a = 0; a<tab->getNoOfColumns(); a++)
-    {
-||||||| 19feac3674e
-    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
-                             0,
-                             16) == 0);
-    
-    for(int a = 0; a<tab->getNoOfColumns(); a++)
-    {
-=======
     CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 16) == 0);
 
     for (int a = 0; a < tab->getNoOfColumns(); a++) {
->>>>>>> mysql-8.0.36
       CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
     }
 
@@ -11157,27 +6896,11 @@ int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
      * Now attempt nextResult
      */
     int nextRes = scanOp->nextResult();
-<<<<<<< HEAD
-
-    ndbout_c("Next result : %d\n"
-             "ScanError : %u %s",
-             nextRes,
-             scanOp->getNdbError().code,
-             scanOp->getNdbError().message);
-||||||| 19feac3674e
-    
-    ndbout_c("Next result : %d\n"
-             "ScanError : %u %s",
-             nextRes,
-             scanOp->getNdbError().code,
-             scanOp->getNdbError().message);
-=======
 
     ndbout_c(
         "Next result : %d\n"
         "ScanError : %u %s",
         nextRes, scanOp->getNdbError().code, scanOp->getNdbError().message);
->>>>>>> mysql-8.0.36
     CHECK(nextRes == -1);
     CHECK(scanOp->getNdbError().code ==
           4342); /* Scan defined but not prepared */
@@ -11198,25 +6921,9 @@ int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
     NdbScanOperation *scanOp = trans->getNdbScanOperation(tab);
     CHECK(scanOp != NULL);
 
-<<<<<<< HEAD
-    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
-                             0,
-                             16) == 0);
-
-    for(int a = 0; a<tab->getNoOfColumns(); a++)
-    {
-||||||| 19feac3674e
-    CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead,
-                             0,
-                             16) == 0);
-    
-    for(int a = 0; a<tab->getNoOfColumns(); a++)
-    {
-=======
     CHECK(scanOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 16) == 0);
 
     for (int a = 0; a < tab->getNoOfColumns(); a++) {
->>>>>>> mysql-8.0.36
       CHECK(scanOp->getValue(tab->getColumn(a)) != 0);
     }
 
@@ -11235,29 +6942,6 @@ int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
 
     NdbError scanError2 = scanOp->getNdbError();
 
-<<<<<<< HEAD
-    ndbout_c("execRes : %d\n"
-             "transError : %u %s\n"
-             "scanError : %u %s\n"
-             "nextRes + scanError : %d %u %s",
-             execRes,
-             transError.code, transError.message,
-             scanError1.code, scanError1.message,
-             nextRes,
-             scanError2.code, scanError2.message);
-
-||||||| 19feac3674e
-    ndbout_c("execRes : %d\n"
-             "transError : %u %s\n"
-             "scanError : %u %s\n"
-             "nextRes + scanError : %d %u %s",
-             execRes, 
-             transError.code, transError.message,
-             scanError1.code, scanError1.message,
-             nextRes,
-             scanError2.code, scanError2.message);
-    
-=======
     ndbout_c(
         "execRes : %d\n"
         "transError : %u %s\n"
@@ -11266,7 +6950,6 @@ int runTestOldApiScanFinalise(NDBT_Context *ctx, NDBT_Step *step) {
         execRes, transError.code, transError.message, scanError1.code,
         scanError1.message, nextRes, scanError2.code, scanError2.message);
 
->>>>>>> mysql-8.0.36
     CHECK(execRes == 0);
     CHECK(transError.code == 4000);
     CHECK(scanError1.code == 4000);
@@ -11285,32 +6968,6 @@ static int reCreateTableHook(Ndb *ndb, NdbDictionary::Table &table, int when,
   if (when == 0) {
     NDBT_Context *ctx = (NDBT_Context *)arg;
 
-<<<<<<< HEAD
-
-
-static int reCreateTableHook(Ndb* ndb,
-                             NdbDictionary::Table & table,
-                             int when,
-                             void* arg)
-{
-  if (when == 0)
-  {
-    NDBT_Context* ctx = (NDBT_Context*) arg;
-
-||||||| 19feac3674e
-
-
-static int reCreateTableHook(Ndb* ndb,
-                             NdbDictionary::Table & table,
-                             int when,
-                             void* arg)
-{
-  if (when == 0)
-  {
-    NDBT_Context* ctx = (NDBT_Context*) arg;
-    
-=======
->>>>>>> mysql-8.0.36
     bool readBackup = (ctx->getProperty("CreateRB", Uint32(0)) != 0);
     bool fullyReplicated = (ctx->getProperty("CreateFR", Uint32(0)) != 0);
 
@@ -11334,19 +6991,9 @@ int runReCreateTable(NDBT_Context *ctx, NDBT_Step *step) {
   Ndb *pNdb = GETNDB(step);
 
   /* Drop table by name if it exists */
-<<<<<<< HEAD
-  NdbDictionary::Table tab = * ctx->getTab();
-  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
-
-||||||| 19feac3674e
-  NdbDictionary::Table tab = * ctx->getTab();
-  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
-  
-=======
   NdbDictionary::Table tab = *ctx->getTab();
   NdbDictionary::Dictionary *pDict = GETNDB(step)->getDictionary();
 
->>>>>>> mysql-8.0.36
   BaseString tabName(tab.getName());
 
   ndbout << "Dropping table " << tabName << endl;
@@ -11388,31 +7035,13 @@ int runCheckLateDisconnect(NDBT_Context *ctx, NDBT_Step *step) {
   const NdbDictionary::Table *tab = ctx->getTab();
   HugoTransactions hugoTrans(*tab);
   NdbRestarter restarter;
-<<<<<<< HEAD
-  //Ndb* pNdb = GETNDB(step);
-
-||||||| 19feac3674e
-  //Ndb* pNdb = GETNDB(step);
-  
-=======
   // Ndb* pNdb = GETNDB(step);
 
->>>>>>> mysql-8.0.36
   Ndb otherNdb(otherConnection, "TEST_DB");
   otherNdb.init();
   int rc = otherNdb.waitUntilReady(10);
-<<<<<<< HEAD
-
-  if (rc != 0)
-  {
-||||||| 19feac3674e
-  
-  if (rc != 0)
-  {
-=======
 
   if (rc != 0) {
->>>>>>> mysql-8.0.36
     ndbout << "Ndb was not ready" << endl;
 
     return NDBT_FAILED;
@@ -11432,38 +7061,16 @@ int runCheckLateDisconnect(NDBT_Context *ctx, NDBT_Step *step) {
   /* TC error insert causing API disconnection
    * at some point
    */
-<<<<<<< HEAD
-
-  if (restarter.insertErrorInAllNodes(code) != 0)
-  {
-||||||| 19feac3674e
-  
-  if (restarter.insertErrorInAllNodes(code) != 0)
-  {
-=======
 
   if (restarter.insertErrorInAllNodes(code) != 0) {
->>>>>>> mysql-8.0.36
     ndbout << "Failed to insert error" << endl;
   }
 
   ndbout << "Updating data, expect disconnection" << endl;
   /* Perform a bulk update */
   /* We expect to be disconnected at the end of this... */
-<<<<<<< HEAD
-  rc = hugoTrans.pkUpdateRecords(&otherNdb,
-                                 1024);
-
-
-||||||| 19feac3674e
-  rc = hugoTrans.pkUpdateRecords(&otherNdb,
-                                 1024);
-  
-  
-=======
   rc = hugoTrans.pkUpdateRecords(&otherNdb, 1024);
 
->>>>>>> mysql-8.0.36
   restarter.insertErrorInAllNodes(0);
 
   /* We rely on the test framework to detect a problem
@@ -11479,25 +7086,6 @@ int runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context *ctx,
                                                  Uint32 errorCode) {
   const NdbDictionary::Table *pTab = ctx->getTab();
   HugoOperations hugoOps(*pTab);
-<<<<<<< HEAD
-  Ndb* pNdb = GETNDB(step);
-
-  CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK),
-         hugoOps);
-
-  CHECKE((hugoOps.pkWriteRecord(pNdb,
-                                0) == NDBT_OK),
-         hugoOps);
-||||||| 19feac3674e
-  Ndb* pNdb = GETNDB(step);
-  
-  CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK),
-         hugoOps);
-  
-  CHECKE((hugoOps.pkWriteRecord(pNdb,
-                                0) == NDBT_OK),
-         hugoOps);
-=======
   Ndb *pNdb = GETNDB(step);
 
   /**
@@ -11524,7 +7112,6 @@ int runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context *ctx,
   CHECKE((hugoOps.startTransaction(pNdb) == NDBT_OK), hugoOps);
 
   CHECKE((hugoOps.pkWriteRecord(pNdb, 0) == NDBT_OK), hugoOps);
->>>>>>> mysql-8.0.36
   CHECKE((hugoOps.execute_NoCommit(pNdb) == NDBT_OK), hugoOps);
 
   const int tcNodeId = hugoOps.getTransaction()->getConnectedNodeId();
@@ -11575,15 +7162,7 @@ int runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context *ctx,
 
   CHECK(restarter.insertErrorInAllNodes(0) == 0);
 
-<<<<<<< HEAD
-  CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
-         hugoOps);
-||||||| 19feac3674e
-  CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
-         hugoOps);  
-=======
   CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK), hugoOps);
->>>>>>> mysql-8.0.36
 
   ndbout_c("Waiting for node to recover");
   CHECK(restarter.waitClusterStarted() == 0);
@@ -11608,118 +7187,14 @@ int runCheckSlowCommit(NDBT_Context *ctx, NDBT_Step *step) {
    * In this case, the slow commit protocol should result
    * in the waiting api receiving an ack in all cases.
    */
-<<<<<<< HEAD
-  for (int table_type = 0; table_type < 3; table_type++)
-  {
-    switch (table_type)
-    {
-    case 0:
-    {
-      ndbout << "Normal table" << endl;
-      ctx->setProperty("CreateRB", Uint32(0));
-      ctx->setProperty("CreateFR", Uint32(0));
-      break;
-    }
-    case 1:
-    {
-      ndbout << "ReadBackup table" << endl;
-      ctx->setProperty("CreateRB", Uint32(1));
-      ctx->setProperty("CreateFR", Uint32(0));
-      break;
-    }
-    case 2:
-    {
-      ndbout << "FullyReplicated" << endl;
-      /* Need RB set, as can create !RB FR table... */
-      ctx->setProperty("CreateRB", Uint32(1));
-      ctx->setProperty("CreateFR", Uint32(1));
-      break;
-    }
-    }
-
-    if (runReCreateTable(ctx, step) != NDBT_OK)
-    {
-      return NDBT_FAILED;
-    }
-
-    for (int test_type=0; test_type < 3; test_type++)
-    {
-      Uint32 errorCode = 0;
-      switch (test_type)
-      {
-      case 0:
-        /* As normal */
-        break;
-      case 1:
-        /* Timeout during commit phase */
-        errorCode = 8113;
-        break;
-      case 2:
-        /* Timeout during complete phase */
-        errorCode = 8114;
-||||||| 19feac3674e
-  for (int table_type = 0; table_type < 3; table_type++)
-  {
-    switch (table_type)
-    {
-    case 0:
-    {
-      ndbout << "Normal table" << endl;
-      ctx->setProperty("CreateRB", Uint32(0));
-      ctx->setProperty("CreateFR", Uint32(0));
-      break;
-    }
-    case 1:
-    {
-      ndbout << "ReadBackup table" << endl;
-      ctx->setProperty("CreateRB", Uint32(1));
-      ctx->setProperty("CreateFR", Uint32(0));
-      break;
-    }
-    case 2:
-    {
-      ndbout << "FullyReplicated" << endl;
-      /* Need RB set, as can create !RB FR table... */
-      ctx->setProperty("CreateRB", Uint32(1));
-      ctx->setProperty("CreateFR", Uint32(1));
-      break;
-    }
-    }
-    
-    if (runReCreateTable(ctx, step) != NDBT_OK)
-    {
-      return NDBT_FAILED;
-    }
-    
-    for (int test_type=0; test_type < 3; test_type++)
-    {
-      Uint32 errorCode = 0;
-      switch (test_type)
-      {
-      case 0:
-        /* As normal */
-        break;
-      case 1:
-        /* Timeout during commit phase */
-        errorCode = 8113; 
-        break;
-      case 2:
-        /* Timeout during complete phase */
-        errorCode = 8114;
-=======
   for (int table_type = 0; table_type < 3; table_type++) {
     switch (table_type) {
       case 0: {
         ndbout << "Normal table" << endl;
         ctx->setProperty("CreateRB", Uint32(0));
         ctx->setProperty("CreateFR", Uint32(0));
->>>>>>> mysql-8.0.36
         break;
       }
-<<<<<<< HEAD
-      ndbout << "Inserting error " << errorCode
-||||||| 19feac3674e
-=======
       case 1: {
         ndbout << "ReadBackup table" << endl;
         ctx->setProperty("CreateRB", Uint32(1));
@@ -11754,10 +7229,10 @@ int runCheckSlowCommit(NDBT_Context *ctx, NDBT_Step *step) {
           errorCode = 8114;
           break;
       }
+      ndbout << "Inserting error " << errorCode;
 
       int ret = runCheckWriteTransactionOverOtherNodeFailure(
           ctx, step, restarter, errorCode);
->>>>>>> mysql-8.0.36
 
       /* In case of some problem */
       restarter.insertErrorInAllNodes(0);
@@ -11981,108 +7456,40 @@ int testSlowConnectEnable(NDBT_Context *ctx, NDBT_Step *step) {
 }
 
 NDBT_TESTSUITE(testNdbApi);
-<<<<<<< HEAD
-TESTCASE("MaxNdb",
-	 "Create Ndb objects until no more can be created\n"){
-||||||| 19feac3674e
-TESTCASE("MaxNdb", 
-	 "Create Ndb objects until no more can be created\n"){ 
-=======
 TESTCASE("MaxNdb", "Create Ndb objects until no more can be created\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestMaxNdb);
 }
-<<<<<<< HEAD
-TESTCASE("MaxTransactions",
-	 "Start transactions until no more can be created\n"){
-||||||| 19feac3674e
-TESTCASE("MaxTransactions", 
-	 "Start transactions until no more can be created\n"){ 
-=======
 TESTCASE("MaxTransactions",
          "Start transactions until no more can be created\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestMaxTransaction);
 }
-<<<<<<< HEAD
-TESTCASE("MaxOperations",
-	"Get operations until no more can be created\n"){
-||||||| 19feac3674e
-TESTCASE("MaxOperations", 
-	"Get operations until no more can be created\n"){ 
-=======
 TESTCASE("MaxOperations", "Get operations until no more can be created\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestMaxOperations);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("MaxGetValue",
-	"Call getValue loads of time\n"){
-||||||| 19feac3674e
-TESTCASE("MaxGetValue", 
-	"Call getValue loads of time\n"){ 
-=======
 TESTCASE("MaxGetValue", "Call getValue loads of time\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestGetValue);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("MaxEqual",
-	"Call equal loads of time\n"){
-||||||| 19feac3674e
-TESTCASE("MaxEqual", 
-	"Call equal loads of time\n"){ 
-=======
 TESTCASE("MaxEqual", "Call equal loads of time\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestEqual);
 }
-<<<<<<< HEAD
-TESTCASE("DeleteNdb",
-	"Make sure that a deleted Ndb object is properly deleted\n"
-	"and removed from transporter\n"){
-||||||| 19feac3674e
-TESTCASE("DeleteNdb", 
-	"Make sure that a deleted Ndb object is properly deleted\n"
-	"and removed from transporter\n"){ 
-=======
 TESTCASE("DeleteNdb",
          "Make sure that a deleted Ndb object is properly deleted\n"
          "and removed from transporter\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestDeleteNdb);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("WaitUntilReady",
-	"Make sure you get an error message when calling waitUntilReady\n"
-	"without an init'ed Ndb\n"){
-||||||| 19feac3674e
-TESTCASE("WaitUntilReady", 
-	"Make sure you get an error message when calling waitUntilReady\n"
-	"without an init'ed Ndb\n"){ 
-=======
 TESTCASE("WaitUntilReady",
          "Make sure you get an error message when calling waitUntilReady\n"
          "without an init'ed Ndb\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestWaitUntilReady);
 }
-<<<<<<< HEAD
-TESTCASE("GetOperationNoTab",
-	"Call getNdbOperation on a table that does not exist\n"){
-||||||| 19feac3674e
-TESTCASE("GetOperationNoTab", 
-	"Call getNdbOperation on a table that does not exist\n"){ 
-=======
 TESTCASE("GetOperationNoTab",
          "Call getNdbOperation on a table that does not exist\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runGetNdbOperationNoTab);
 }
 TESTCASE(
@@ -12090,121 +7497,47 @@ TESTCASE(
     "Call methods with an invalid column name and check error handling\n") {
   INITIALIZER(runBadColNameHandling);
 }
-<<<<<<< HEAD
-TESTCASE("MissingOperation",
-	"Missing operation request(insertTuple) should give an error code\n"){
-||||||| 19feac3674e
-TESTCASE("MissingOperation", 
-	"Missing operation request(insertTuple) should give an error code\n"){ 
-=======
 TESTCASE("MissingOperation",
          "Missing operation request(insertTuple) should give an error code\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runMissingOperation);
 }
-<<<<<<< HEAD
-TESTCASE("GetValueInUpdate",
-	"Test that it's not possible to perform getValue in an update\n"){
-||||||| 19feac3674e
-TESTCASE("GetValueInUpdate", 
-	"Test that it's not possible to perform getValue in an update\n"){ 
-=======
 TESTCASE("GetValueInUpdate",
          "Test that it's not possible to perform getValue in an update\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runGetValueInUpdate);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("UpdateWithoutKeys",
-	"Test that it's not possible to perform update without setting\n"
-	 "PKs"){
-||||||| 19feac3674e
-TESTCASE("UpdateWithoutKeys", 
-	"Test that it's not possible to perform update without setting\n"
-	 "PKs"){ 
-=======
 TESTCASE("UpdateWithoutKeys",
          "Test that it's not possible to perform update without setting\n"
          "PKs") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runUpdateWithoutKeys);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("UpdateWithoutValues",
-	"Test that it's not possible to perform update without setValues\n"){
-||||||| 19feac3674e
-TESTCASE("UpdateWithoutValues", 
-	"Test that it's not possible to perform update without setValues\n"){ 
-=======
 TESTCASE("UpdateWithoutValues",
          "Test that it's not possible to perform update without setValues\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runUpdateWithoutValues);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("NdbErrorOperation",
-	 "Test that NdbErrorOperation is properly set"){
-||||||| 19feac3674e
-TESTCASE("NdbErrorOperation", 
-	 "Test that NdbErrorOperation is properly set"){
-=======
 TESTCASE("NdbErrorOperation", "Test that NdbErrorOperation is properly set") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runCheckGetNdbErrorOperation);
 }
-<<<<<<< HEAD
-TESTCASE("ReadWithoutGetValue",
-	 "Test that it's possible to perform read wo/ getvalue's\n"){
-||||||| 19feac3674e
-TESTCASE("ReadWithoutGetValue", 
-	 "Test that it's possible to perform read wo/ getvalue's\n"){ 
-=======
 TESTCASE("ReadWithoutGetValue",
          "Test that it's possible to perform read wo/ getvalue's\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runReadWithoutGetValue);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("Bug_11133",
-	 "Test ReadEx-Delete-Write\n"){
-||||||| 19feac3674e
-TESTCASE("Bug_11133", 
-	 "Test ReadEx-Delete-Write\n"){ 
-=======
 TESTCASE("Bug_11133", "Test ReadEx-Delete-Write\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runBug_11133);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("Bug_WritePartialIgnoreError",
-	 "Test WritePartialIgnoreError\n"){
-||||||| 19feac3674e
-TESTCASE("Bug_WritePartialIgnoreError", 
-	 "Test WritePartialIgnoreError\n"){ 
-=======
 TESTCASE("Bug_WritePartialIgnoreError", "Test WritePartialIgnoreError\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runBug_WritePartialIgnoreError);
   FINALIZER(runClearTable);
 }
-<<<<<<< HEAD
-TESTCASE("Scan_4006",
-	 "Check that getNdbScanOperation does not get 4006\n"){
-||||||| 19feac3674e
-TESTCASE("Scan_4006", 
-	 "Check that getNdbScanOperation does not get 4006\n"){ 
-=======
 TESTCASE("Scan_4006", "Check that getNdbScanOperation does not get 4006\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runLoadTable);
   INITIALIZER(runScan_4006);
   FINALIZER(runClearTable);
@@ -12215,58 +7548,18 @@ TESTCASE("IgnoreError", "") {
   FINALIZER(runClearTable);
   FINALIZER(createPkIndex_Drop);
 }
-<<<<<<< HEAD
-TESTCASE("CheckNdbObjectList",
-	 ""){
-  INITIALIZER(runCheckNdbObjectList);
-}
-||||||| 19feac3674e
-TESTCASE("CheckNdbObjectList", 
-	 ""){ 
-  INITIALIZER(runCheckNdbObjectList);
-}
-=======
 TESTCASE("CheckNdbObjectList", "") { INITIALIZER(runCheckNdbObjectList); }
->>>>>>> mysql-8.0.36
 TESTCASE("DeleteClusterConnectionWhileUsed",
          "Make sure that deleting of Ndb_cluster_connection will"
          "not return until all it's Ndb objects has been deleted.") {
   STEP(runNdbClusterConnectionDelete_connection_owner)
   STEP(runNdbClusterConnectionDelete_connection_user);
 }
-<<<<<<< HEAD
-TESTCASE("ExecuteAsynch",
-	 "Check that executeAsync() works (BUG#27495)\n"){
-||||||| 19feac3674e
-TESTCASE("ExecuteAsynch", 
-	 "Check that executeAsync() works (BUG#27495)\n"){ 
-=======
 TESTCASE("ExecuteAsynch", "Check that executeAsync() works (BUG#27495)\n") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestExecuteAsynch);
 }
-<<<<<<< HEAD
-TESTCASE("Bug28443",
-	 ""){
-  INITIALIZER(runBug28443);
-}
-TESTCASE("Bug37158",
-	 ""){
-  INITIALIZER(runBug37158);
-}
-||||||| 19feac3674e
-TESTCASE("Bug28443", 
-	 ""){ 
-  INITIALIZER(runBug28443);
-}
-TESTCASE("Bug37158", 
-	 ""){ 
-  INITIALIZER(runBug37158);
-}
-=======
 TESTCASE("Bug28443", "") { INITIALIZER(runBug28443); }
 TESTCASE("Bug37158", "") { INITIALIZER(runBug37158); }
->>>>>>> mysql-8.0.36
 TESTCASE("SimpleReadAbortOnError",
          "Test behaviour of Simple reads with Abort On Error") {
   INITIALIZER(simpleReadAbortOnError);
@@ -12482,19 +7775,9 @@ TESTCASE("GetNdbIndexOperationParallelDroppingTest",
   VERIFIER(runCheckAllNodesStarted);
   FINALIZER(runClearTable)
 }
-<<<<<<< HEAD
-TESTCASE("CloseBeforeExecute",
-	 "Check that objects allocated within a Ndb/NdbTransaction " \
-         "is released even if Txn is not executed"){
-||||||| 19feac3674e
-TESTCASE("CloseBeforeExecute", 
-	 "Check that objects allocated within a Ndb/NdbTransaction " \
-         "is released even if Txn is not executed"){ 
-=======
 TESTCASE("CloseBeforeExecute",
          "Check that objects allocated within a Ndb/NdbTransaction "
          "is released even if Txn is not executed") {
->>>>>>> mysql-8.0.36
   INITIALIZER(runTestNoExecute);
 }
 TESTCASE("CheckTransId",

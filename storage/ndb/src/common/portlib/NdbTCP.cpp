@@ -340,13 +340,7 @@ static bool can_resolve_hostname(const char *name) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
-<<<<<<< HEAD
   struct addrinfo *ai_list = nullptr;
-||||||| 19feac3674e
-  struct addrinfo* ai_list;
-=======
-  struct addrinfo *ai_list;
->>>>>>> mysql-8.0.36
   int err = getaddrinfo(name, nullptr, &hints, &ai_list);
 
   if (ai_list != nullptr) {

@@ -75,6 +75,7 @@
 #include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils_sqlstring.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_config.h"
@@ -140,10 +141,6 @@ using namespace std::string_literals;
 
 namespace {
 struct password_too_weak : public std::runtime_error {
-  using std::runtime_error::runtime_error;
-};
-
-struct plugin_not_loaded : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 struct account_exists : public std::runtime_error {
@@ -1043,22 +1040,6 @@ unsigned get_password_retries(
       it->second, "--password-retries", 1, kMaxPasswordRetries);
 }
 
-std::string compute_password_hash(const std::string &password) {
-  uint8_t hash_stage1[SHA1_HASH_SIZE];
-  compute_sha1_hash(hash_stage1, password.c_str(), password.length());
-  uint8_t hash_stage2[SHA1_HASH_SIZE];
-  compute_sha1_hash(hash_stage2, (const char *)hash_stage1, SHA1_HASH_SIZE);
-
-  std::stringstream ss;
-  ss << "*";
-  ss << std::hex << std::setfill('0') << std::uppercase;
-  for (unsigned i = 0; i < SHA1_HASH_SIZE; ++i) {
-    ss << std::setw(2) << (int)hash_stage2[i];
-  }
-
-  return ss.str();
-}
-
 inline std::string str(
     const mysqlrouter::ConfigGenerator::Options::Endpoint &ep) {
   if (ep.port > 0)
@@ -1749,6 +1730,142 @@ static std::string get_target_cluster_value(
   return "primary";
 }
 
+namespace {
+class ChangeRouterAccountPlugin {
+ public:
+  ChangeRouterAccountPlugin(MySQLSession &mysql, std::ostream &out_stream,
+                            std::ostream &err_stream)
+      : mysql_(mysql), out_stream_(out_stream), err_stream_(err_stream) {}
+
+  /* If the existing Router account is using mysql_native_password
+   * authentication plugin we attempt to change it to the Cluster's default
+   * authentication plugin. We only try that if there is a single user/host
+   * entry in the mysql.users table for our Router user. If there is more, we
+   * only give a warning advising the user to upgrade the account manually.*/
+  void execute(const std::string &username, const std::string &password) {
+    sqlstring query = "select host, plugin from mysql.user where user = ?";
+    query << username << sqlstring::end;
+    std::vector<std::pair<std::string, std::string>> accounts;
+
+    auto result_processor = [&accounts](const MySQLSession::Row &row) -> bool {
+      assert(row.size() == 2);
+      accounts.emplace_back(to_string(row[0]), to_string(row[1]));
+
+      return true;
+    };
+
+    try {
+      mysql_.query(query, result_processor);
+    } catch (const std::exception &e) {
+      log_error_msg(
+          "Failed checking the Router account authentication plugin: "s +
+          e.what());
+      return;
+    }
+
+    if (accounts.size() == 0) {
+      return;
+    }
+
+    if (accounts.size() > 1) {
+      for (const auto &account : accounts) {
+        const std::string &hostname = account.first;
+        const std::string &auth_plugin_name = account.second;
+        if (auth_plugin_name == "mysql_native_password") {
+          log_error_msg(
+              "Account '" + username + "'@" + hostname +
+              " is using depracated 'mysql_native_password' authentication "
+              "plugin. Change the authentication plugin using 'alter user' SQL "
+              "statement.");
+        }
+      }
+      return;
+    }
+
+    const std::string &hostname = accounts[0].first;
+    const std::string &auth_plugin_name = accounts[0].second;
+    if (auth_plugin_name != "mysql_native_password") {
+      // nothing to fix
+      return;
+    }
+
+    const auto result = get_default_auth_plugin();
+    if (!result) {
+      log_error_msg(
+          "Failed getting default authentication plugin while changing "
+          "the authentication plugin for account '" +
+          username + "'@'" + hostname +
+          "': " + result.get_unexpected().value());
+      return;
+    }
+
+    const std::string default_auth_plugin = result.value();
+    if (default_auth_plugin == "mysql_native_password") {
+      log_error_msg("Failed changing the authentication plugin for account '" +
+                    username + "'@'" + hostname + "': " +
+                    " mysql_native_password which is deprecated is the default "
+                    "authentication plugin on this server.");
+      return;
+    }
+
+    log_info_msg("Existing account '" + username + "'@" + hostname +
+                 " is using authentication plugin 'mysql_native_password'. "
+                 "Changing the authentication plugin to '" +
+                 default_auth_plugin + "'");
+
+    sqlstring alter_user_sql = "alter user ?@? identified with ! by ?";
+    alter_user_sql << username << hostname << default_auth_plugin << password
+                   << sqlstring::end;
+
+    try {
+      mysql_.execute(alter_user_sql);
+    } catch (const std::exception &e) {
+      log_error_msg("Failed changing the authentication plugin for account '" +
+                    username + "'@'" + hostname + "': " + e.what());
+      return;
+    }
+
+    log_info_msg("Successfully changed the authentication plugin for '" +
+                 username + "'@" + hostname +
+                 " from mysql_native_password to " + default_auth_plugin);
+  }
+
+ private:
+  stdx::expected<std::string, std::string> get_default_auth_plugin() {
+    const std::string query = "select @@default_authentication_plugin";
+    try {
+      std::unique_ptr<MySQLSession::ResultRow> result(mysql_.query_one(query));
+
+      if (result && result->size() == 1) {
+        return (*result)[0];
+      }
+    } catch (const std::exception &e) {
+      return stdx::make_unexpected(e.what());
+    }
+
+    return stdx::make_unexpected("unexpected resultset");
+  }
+
+  std::string as_string(const char *input_str) {
+    return {input_str == nullptr ? "" : input_str};
+  }
+
+  void log_error_msg(const std::string &msg) {
+    err_stream_ << Vt100::foreground(Vt100::Color::Yellow);
+    err_stream_ << msg;
+    err_stream_ << Vt100::render(Vt100::Render::ForegroundDefault) << "\n";
+  }
+
+  void log_info_msg(const std::string &msg) {
+    out_stream_ << "- " << msg << "\n";
+  }
+
+  MySQLSession &mysql_;
+  std::ostream &out_stream_;
+  std::ostream &err_stream_;
+};
+}  // namespace
+
 std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
     uint32_t &router_id, std::string &username, std::string &password,
     const std::string &router_name, const ClusterInfo &cluster_info,
@@ -1796,6 +1913,11 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
   bool password_change_ok = !user_options.count("account");
   password = create_router_accounts(user_options, hostnames_cmd, username,
                                     password, password_change_ok);
+
+  // Check if our user is not using deprecated mysql_native_password
+  // authentication plugin and try to change it.
+  ChangeRouterAccountPlugin(*mysql_.get(), out_stream_, err_stream_)
+      .execute(username, password);
 
   const std::string rw_endpoint = str(options.rw_endpoint);
   const std::string ro_endpoint = str(options.ro_endpoint);
@@ -2699,49 +2821,26 @@ std::string ConfigGenerator::create_accounts_with_compliant_password(
   using RandomGen = mysql_harness::RandomGeneratorInterface;
   RandomGen &rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
-  const bool force_password_validation =
-      user_options.find("force-password-validation") != user_options.end();
-  std::string password_candidate;
-  unsigned retries =
+  auto retries =
       get_password_retries(user_options);  // throws std::invalid_argument
-  if (!force_password_validation) {
-    // 1) Try to create an account using mysql_native_password with the hashed
-    // password to avoid validate_password verification (hashing is done inside
-    // create_accounts())
-    password_candidate =
-        password.empty() && password_change_ok
-            ? rg.generate_strong_password(kMetadataServerPasswordLength)
-            : password;
-    try {
-      // create_accounts() throws many things, see its description
-      create_accounts(username, hostnames, password_candidate,
-                      true /*hash password*/, if_not_exists);
-      return password_candidate;
-    } catch (const plugin_not_loaded &) {
-      // fallback to 2)
-    }
-  }
 
-  // 2) If 1) failed because of the missing mysql_native_password plugin,
-  //    or "-force-password-validation" parameter has being used
-  //    try to create an account using the password directly
+  // try to create an account using the password directly
   while (true) {
-    password_candidate =
+    const std::string password_candidate =
         password.empty() && password_change_ok
             ? rg.generate_strong_password(kMetadataServerPasswordLength)
             : password;
 
     try {
       // create_accounts() throws many things, see its description
-      create_accounts(username, hostnames, password_candidate,
-                      false /*hash password*/, if_not_exists);
+      create_accounts(username, hostnames, password_candidate, if_not_exists);
       return password_candidate;
     } catch (const password_too_weak &e) {
       if (--retries == 0          // retries used up
           || !password.empty()    // \_ retrying is pointless b/c the password
           || !password_change_ok  // /  will be the same every time
       ) {
-        // 3) If 2) failed issue an error suggesting the change to
+        // If this failed issue an error suggesting the change to
         // validate_password rules
         std::stringstream err_msg;
         err_msg << "Error creating user account: " << e.what() << std::endl
@@ -2820,18 +2919,13 @@ void ConfigGenerator::throw_account_exists(const MySQLSession::Error &e,
 void ConfigGenerator::create_users(const std::string &username,
                                    const std::set<std::string> &hostnames,
                                    const std::string &password,
-                                   bool hash_password /*=false*/,
                                    bool if_not_exists /*=false*/) {
   harness_assert(hostnames.size());
 
   // build string containing account/auth list
   std::string accounts_with_auth;
   {
-    const std::string auth_part =
-        " IDENTIFIED "s +
-        (hash_password ? "WITH mysql_native_password AS " : "BY ") +
-        mysql_->quote(hash_password ? compute_password_hash(password)
-                                    : password);
+    const std::string auth_part = " IDENTIFIED BY "s + mysql_->quote(password);
 
     const std::string quoted_username = mysql_->quote(username);
     bool is_first{true};
@@ -2864,9 +2958,6 @@ void ConfigGenerator::create_users(const std::string &username,
     if (e.code() == ER_NOT_VALID_PASSWORD) {  // password does not satisfy the
                                               // current policy requirements
       throw password_too_weak(err_msg);
-    }
-    if (e.code() == ER_PLUGIN_IS_NOT_LOADED) {  // auth plugin not loaded
-      throw plugin_not_loaded(err_msg);
     }
     if (e.code() == ER_CANNOT_USER) {  // user already exists
       // // this should only happen when running with --account-create always,
@@ -3045,7 +3136,6 @@ std::string ConfigGenerator::make_account_list(
 void ConfigGenerator::create_accounts(const std::string &username,
                                       const std::set<std::string> &hostnames,
                                       const std::string &password,
-                                      bool hash_password /*=false*/,
                                       bool if_not_exists /*=false*/) {
   harness_assert(hostnames.size());
   harness_assert(undo_create_account_list_.type ==
@@ -3057,7 +3147,7 @@ void ConfigGenerator::create_accounts(const std::string &username,
 
   // when this throws, it may trigger failover (depends on what exception it
   // throws)
-  create_users(username, hostnames, password, hash_password, if_not_exists);
+  create_users(username, hostnames, password, if_not_exists);
 
   // Now that we created users, we can no longer fail-over on subsequent
   // errors, because that write operation may automatically get propagated to

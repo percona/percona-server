@@ -810,7 +810,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // path instead of being computed here? We do make the same checks in
         // the cost model, so perhaps it should set the flag as well.
         uint64_t *hash_table_generation =
-            (thd->lex->using_hypergraph_optimizer &&
+            (thd->lex->using_hypergraph_optimizer() &&
              path->parameter_tables == 0)
                 ? &join->hash_table_generation
                 : nullptr;
@@ -951,7 +951,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             path->materialize().table_path->type == AccessPath::CONST_TABLE ||
             path->materialize().table_path->type == AccessPath::INDEX_SCAN ||
             path->materialize().table_path->type ==
-                AccessPath::INDEX_RANGE_SCAN);
+                AccessPath::INDEX_RANGE_SCAN ||
+            path->materialize().table_path->type ==
+                AccessPath::DYNAMIC_INDEX_RANGE_SCAN);
 
         MaterializePathParameters *param = path->materialize().param;
         if (job.children.is_null()) {

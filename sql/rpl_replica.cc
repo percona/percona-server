@@ -5060,6 +5060,16 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
         return 1;
     }
 
+    DBUG_EXECUTE_IF("wait_on_exec_relay_log_event", {
+      if (ev->get_type_code() == binary_log::WRITE_ROWS_EVENT) {
+        const char act[] =
+            "now SIGNAL signal.waiting_on_event_execution "
+            "WAIT_FOR signal.can_continue_execution";
+        assert(opt_debug_sync_timeout > 0);
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    };);
+
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
     exec_res = apply_event_and_update_pos(ptr_ev, thd, rli);
     /*
@@ -5864,6 +5874,7 @@ extern "C" void *handle_slave_io(void *arg) {
             thd->clear_active_vio();
             mysql_close(mysql);
             mi->mysql = nullptr;
+            mysql = nullptr;
           }
           goto connect_init;
         }
@@ -5899,6 +5910,7 @@ extern "C" void *handle_slave_io(void *arg) {
       thd->clear_active_vio();
       mysql_close(mysql);
       mi->mysql = nullptr;
+      mysql = nullptr;
     }
     write_ignored_events_info_to_relay_log(thd, mi);
     THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);

@@ -23,71 +23,50 @@
 */
 
 #include <ndb_global.h>
-#include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
-SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
-  if (username)
-    m_username= strdup(username);
-  else
-    m_username= nullptr;
-  if (passwd)
-    m_passwd= strdup(passwd);
-  else
-    m_passwd= nullptr;
+#include <SocketAuthenticator.hpp>
+
+const char *SocketAuthenticator::error(int result) {
+  return (result < AuthOk) ? "Socket Auth failure" : "Success";
 }
 
-SocketAuthSimple::~SocketAuthSimple()
-{
-  if (m_passwd)
-    free(m_passwd);
-  if (m_username)
-    free(m_username);
-}
-
-bool SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
-{
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+int SocketAuthSimple::client_authenticate(const NdbSocket &sockfd) {
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream s_input(sockfd);
 
   // Write username and password
-  s_output.println("%s", m_username ? m_username : "");
-  s_output.println("%s", m_passwd ? m_passwd : "");
+  s_output.println("ndbd");
+  s_output.println("ndbd passwd");
 
   char buf[16];
 
   // Read authentication result
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return -1;
+  buf[sizeof(buf) - 1] = 0;
 
   // Verify authentication result
-  if (strncmp("ok", buf, 2) == 0)
-    return true;
+  if (strncmp("ok", buf, 2) == 0) return 0;
 
-  return false;
+  return -1;
 }
 
-bool SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
-{
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+int SocketAuthSimple::server_authenticate(const NdbSocket &sockfd) {
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream s_input(sockfd);
 
   char buf[256];
 
   // Read username
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return -1;
+  buf[sizeof(buf) - 1] = 0;
 
   // Read password
-  if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
-  buf[sizeof(buf)-1]= 0;
+  if (s_input.gets(buf, sizeof(buf)) == nullptr) return -1;
+  buf[sizeof(buf) - 1] = 0;
 
   // Write authentication result
   s_output.println("ok");
 
-  return true;
+  return AuthOk;
 }
-

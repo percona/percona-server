@@ -2998,6 +2998,7 @@ class Sys_var_binlog_encryption : public Sys_var_bool {
   bool global_update(THD *thd, set_var *var) override;
 };
 
+<<<<<<< HEAD
 class Sys_var_errors_set : public sys_var {
  public:
   Sys_var_errors_set(
@@ -3106,4 +3107,10 @@ class Sys_var_enum_default_table_encryption : public Sys_var_enum {
   bool global_update(THD *thd, set_var *var) override;
 };
 
+||||||| 19feac3674e
+=======
+void update_parser_max_mem_size();
+void update_optimizer_switch();
+
+>>>>>>> mysql-8.0.36
 #endif /* SYS_VARS_H_INCLUDED */

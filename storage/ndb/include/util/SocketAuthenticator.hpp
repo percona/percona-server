@@ -27,26 +27,28 @@
 
 #include "util/NdbSocket.h"
 
-class SocketAuthenticator
-{
-public:
+/* client_authenticate() and server_authenticate() return a value
+   less than AuthOk on failure. They return a value greater than or
+   equal to AuthOk on success.
+*/
+
+class SocketAuthenticator {
+ public:
   SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {}
-  virtual bool client_authenticate(NdbSocket &) = 0;
-  virtual bool server_authenticate(NdbSocket &) = 0;
+  virtual int client_authenticate(const NdbSocket &) = 0;
+  virtual int server_authenticate(const NdbSocket &) = 0;
+
+  static constexpr int AuthOk = 0;
+  static const char *error(int);  // returns error message for code
 };
 
-
-class SocketAuthSimple : public SocketAuthenticator
-{
-  char *m_passwd;
-  char *m_username;
-public:
-  SocketAuthSimple(const char *username, const char *passwd);
-  ~SocketAuthSimple() override;
-  bool client_authenticate(NdbSocket &) override;
-  bool server_authenticate(NdbSocket &) override;
+class SocketAuthSimple : public SocketAuthenticator {
+ public:
+  SocketAuthSimple() {}
+  ~SocketAuthSimple() override {}
+  int client_authenticate(const NdbSocket &) override;
+  int server_authenticate(const NdbSocket &) override;
 };
 
-
-#endif // SOCKET_AUTHENTICATOR_HPP
+#endif  // SOCKET_AUTHENTICATOR_HPP

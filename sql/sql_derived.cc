@@ -365,6 +365,17 @@ bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
         if (sl->parent()->term_type() != QT_UNION) {
           my_error(ER_CTE_RECURSIVE_NOT_UNION, MYF(0));
           return true;
+        } else if (sl->parent()->parent() != nullptr) {
+          /*
+            Right-nested UNIONs with recursive query blocks are not allowed. It
+            is expected that all possible flattening of UNION blocks is done
+            beforehand. Any nested UNION indicates a mixing of UNION DISTINCT
+            and UNION ALL, which cannot be flattened further.
+          */
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "right nested recursive query blocks, in "
+                   "Common Table Expression");
+          return true;
         }
         if (sl->is_ordered() || sl->has_limit() || sl->is_distinct()) {
           /*
@@ -1589,7 +1600,7 @@ bool Table_ref::optimize_derived(THD *thd) {
   // doesn't care about const tables, though, so it prefers to do this
   // at execution time (in fact, it will get confused and crash if it has
   // already been materialized).
-  if (!thd->lex->using_hypergraph_optimizer) {
+  if (!thd->lex->using_hypergraph_optimizer()) {
     if (materializable_is_const() &&
         (create_materialized_table(thd) || materialize_derived(thd)))
       return true;

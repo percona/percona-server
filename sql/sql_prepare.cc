@@ -2743,6 +2743,7 @@ bool Prepared_statement::check_parameter_types() {
     }
 
     switch (item->data_type()) {
+      case MYSQL_TYPE_NULL:
       case MYSQL_TYPE_BOOL:
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:

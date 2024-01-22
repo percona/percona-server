@@ -1,0 +1,19 @@
+#
+# 1. Create a table in encrypted tablespace => table will be encrypted.
+# 2. Then alter the tablespace and remove its encryption => table will be rebuilt
+#    without encryption.
+# 3. Alter the table using INPLACE algorithm. It is expected that the query will
+#    succeed, as the encryption option is not affected by it. 
+
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+CREATE TABLESPACE tab_enc ADD DATAFILE 'tab_enc.ibd' ENCRYPTION='Y';
+CREATE TABLE t1 (i INT primary key) ENCRYPTION='Y' TABLESPACE=tab_enc;
+ALTER TABLESPACE tab_enc ENCRYPTION 'N';
+ALTER TABLE t1 RENAME COLUMN i TO i_rename, ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+DROP TABLESPACE tab_enc;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

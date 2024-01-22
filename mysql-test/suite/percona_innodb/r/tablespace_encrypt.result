@@ -1,0 +1,19 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+CREATE TABLESPACE tab_enc ADD DATAFILE 'tab_enc.ibd' ENCRYPTION='Y';
+CREATE TABLE t1 (i INT primary key) ENCRYPTION='Y' TABLESPACE=tab_enc;
+ALTER TABLESPACE tab_enc ENCRYPTION 'N';
+ALTER TABLE t1 RENAME COLUMN i TO i_rename, ALGORITHM=INPLACE;
+DROP TABLE t1;
+DROP TABLESPACE tab_enc;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

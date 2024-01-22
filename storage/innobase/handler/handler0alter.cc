@@ -989,11 +989,11 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   }
 
   /* We don't support change encryption attribute with inplace algorithm. */
-  const bool currently_encrypted =
-      m_prebuilt->table->flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE;
+  char *old_encryption = this->table->s->encrypt_type.str;
   char *new_encryption = altered_table->s->encrypt_type.str;
 
-  if (currently_encrypted == Encryption::is_none(new_encryption)) {
+  if (Encryption::is_none(old_encryption) !=
+      Encryption::is_none(new_encryption)) {
     ha_alter_info->unsupported_reason =
         innobase_get_err_msg(ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE);
     return HA_ALTER_INPLACE_NOT_SUPPORTED;

@@ -49,7 +49,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Depends: percona-server-common (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20
+Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20, libperconaserverproclient21
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -63,7 +63,8 @@ Architecture: any
 Section: libdevel
 Depends: libperconaserverclient21 (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
-Breaks: libperconaserverclient20-dev,
+Breaks: libperconaserverproclient21-dev,
+        libperconaserverclient20-dev,
         libperconaserverclient18.1-dev,
         libperconaserverclient18-dev,
         libperconaserverclient16-dev,
@@ -75,7 +76,8 @@ Breaks: libperconaserverclient20-dev,
         libmysqlclient18-dev,
         libmysqlclient20-dev,
         libmariadbclient-dev
-Replaces: libperconaserverclient20-dev,
+Replaces: libperconaserverproclient21-dev,
+          libperconaserverclient20-dev,
           libperconaserverclient18.1-dev,
           libperconaserverclient18-dev,
           libperconaserverclient16-dev,
@@ -161,7 +163,7 @@ Replaces: mysql-client-5.0,
            virtual-mysql-client,
            virtual-mysql-client-core,
            percona-server-client-pro
-Conflicts: percona-server-client (< 8.0.12), percona-server-client-pro
+Conflicts: percona-server-client (<= 8.0.12), percona-server-client-pro
 Description: Percona Server database client binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
@@ -226,7 +228,7 @@ Replaces: mysql-server-5.0,
           virtual-mysql-server,
           virtual-mysql-server-core,
           percona-server-server-pro
-Conflicts: percona-server-server (< 8.0.12),
+Conflicts: percona-server-server (<= 8.0.12),
            percona-server-tokudb,
            percona-server-server-pro
 Description: Percona Server database server binaries

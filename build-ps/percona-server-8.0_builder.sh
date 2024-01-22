@@ -944,11 +944,16 @@ build_source_deb(){
         sed -i "s:percona-server-server (=:percona-server-server-pro (=:g" debian/control
         sed -i "s:percona-server-test-pro:percona-server-test:g" debian/control
         sed -i "s:Package\: percona-server-test:Package\: percona-server-test-pro:g" debian/control
+        sed -i "s:Replaces\: percona-server-server, percona-server-client:Replaces\: percona-server-server-pro, percona-server-client-pro:g" debian/control
         sed -i "s:Package\: percona-server-source:Package\: percona-server-pro-source:g" debian/control
         sed -i "s:percona-server-pro-dbg:percona-server-dbg:g" debian/control
         sed -i "s:Package\: percona-server-dbg:Package\: percona-server-pro-dbg:g" debian/control
         sed -i "s:percona-mysql-router-pro:percona-mysql-router:g" debian/control
         sed -i "s:Package\: percona-mysql-router:Package\: percona-mysql-router-pro:g" debian/control
+        sed -i "s:libperconaserverproclient:libperconaserverclient:g" debian/control
+        sed -i "s:Package\: libperconaserverclient:Package\: libperconaserverproclient:g" debian/control
+        sed -i "s/\(libpercona\)server\(client.. (=\)/\1serverpro\2/g" debian/control
+        sed -i "s/\(libpercona\)server\(client..-dev (=\)/\1serverpro\2/g" debian/control
         cp debian/percona-mysql-router.init debian/percona-mysql-router-pro.init
         cp debian/percona-mysql-router.install debian/percona-mysql-router-pro.install
         cp debian/percona-mysql-router.mysqlrouter.init debian/percona-mysql-router-pro.mysqlrouter.init
@@ -984,6 +989,10 @@ build_source_deb(){
         cp debian/percona-server-test.dirs debian/percona-server-test-pro.dirs
         cp debian/percona-server-test.install debian/percona-server-test-pro.install
         cp debian/percona-server-test.links debian/percona-server-test-pro.links
+        cp debian/libperconaserverclient21-dev.dirs debian/libperconaserverproclient21-dev.dirs
+        cp debian/libperconaserverclient21-dev.install debian/libperconaserverproclient21-dev.install
+        cp debian/libperconaserverclient21.install debian/libperconaserverproclient21.install
+        cp debian/libperconaserverclient21.lintian-overrides debian/libperconaserverproclient21.lintian-overrides
         sed -i "s:percona-server_:percona-server-pro_:g" debian/percona-server-pro-source.install
     fi
     dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"

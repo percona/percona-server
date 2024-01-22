@@ -1,5 +1,6 @@
 --source include/have_debug_sync.inc
 --source include/have_rocksdb.inc
+--source include/elide_costs.inc
 
 # Install auxiliary 'test_hint' SP used in the test
 --source include/percona_set_var_extension_test_hint.inc
@@ -291,10 +292,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (0), (1), (2), (3);
 SELECT /*+ SET_VAR(rocksdb_records_in_range=0) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
---let $query_cost_1=query_get_value(SHOW STATUS LIKE 'Last_Query_Cost', Value, 1)
+--replace_regex $elide_costs_and_time_and_row_estimate
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(rocksdb_records_in_range=0) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
 SELECT /*+ SET_VAR(rocksdb_records_in_range=10000000) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
---let $query_cost_2=query_get_value(SHOW STATUS LIKE 'Last_Query_Cost', Value, 1)
---assert($query_cost_1 != $query_cost_2)
+--replace_regex $elide_costs_and_time_and_row_estimate
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(rocksdb_records_in_range=10000000) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
 DROP TABLE t1;
 
 

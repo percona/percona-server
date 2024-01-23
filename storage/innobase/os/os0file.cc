@@ -732,7 +732,7 @@ class AIO {
   /** Submit buffered AIO requests on the array to the kernel.
   (low level function).
   @param[in] acquire_mutex specifies whether to lock array mutex
-  @param[in] array for which to submit IO */
+  @param[in] arr for which to submit IO */
   static void os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex
                                                               [[maybe_unused]],
                                                               const AIO *arr);
@@ -2591,7 +2591,7 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex
 /** Submit buffered AIO requests on the array to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex
-@param[in] array for which to submit IO */
+@param[in] arr for which to submit IO */
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex
                                                           [[maybe_unused]],
                                                           const AIO *arr) {
@@ -3633,7 +3633,7 @@ bool os_file_close_func(os_file_t file) {
 
 /** Announces an intention to access file data in a specific pattern in the
 future.
-@param[in, own]	file	handle to a file
+@param[in,out]	file	handle to a file
 @param[in]	offset	file region offset
 @param[in]	len	file region length
 @param[in]	advice	advice for access pattern

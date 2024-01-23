@@ -106,7 +106,7 @@ class LogWriterBase {
   /**
    * @brief Rotate log file.
    *
-   * @param record File rotation result
+   * @param result File rotation result
    */
   virtual void rotate(FileRotationResult *result [[maybe_unused]]) noexcept {}
 

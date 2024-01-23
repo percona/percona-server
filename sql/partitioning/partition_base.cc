@@ -772,7 +772,7 @@ ha_checksum Partition_base::checksum() const {
   @param thd          Thread object
   @param check_opt    Check/analyze/repair/optimize options
 
-  @return
+  @return Operation status
     @retval >0        Error
     @retval 0         Success
 */
@@ -789,7 +789,7 @@ int Partition_base::assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) {
   @param thd          Thread object
   @param check_opt    Check/analyze/repair/optimize options
 
-  @return
+  @return Operation status
     @retval >0        Error
     @retval 0         Success
 */
@@ -1013,10 +1013,8 @@ bool Partition_base::is_crashed() const {
 /**
   Prepare for creating new partitions during ALTER TABLE ... PARTITION.
 
+  @param  mem_root            Allocate memory through this.
   @param  num_partitions            Number of new partitions to be created.
-  @param  only_create               True if only creating the partition
-                                    (no open/lock is needed).
-  @param  disable_non_uniq_indexes  True if non unique indexes are disabled.
 
   @return Operation status.
     @retval    0  Success.
@@ -2508,7 +2506,7 @@ static int key_and_ref_cmp(KEY **key_info, uchar *a, uchar *b) {
   Initialize partition before start of index scan.
 
   @param part    Partition to initialize the index in.
-  @param inx     Index number.
+  @param keynr   Index number.
   @param sorted  Is rows to be returned in sorted order.
 
   @return Operation status
@@ -2671,7 +2669,7 @@ int Partition_base::index_next_in_part(uint part, uchar *buf) {
   @param[in]     part    Partition to read from.
   @param[in,out] buf     Read row in MySQL Row Format.
   @param[in]     key     Key.
-  @param[in]     keylen  Length of key.
+  @param[in]     length  Length of key.
 
   @return Operation status.
     @retval    0  Success
@@ -3078,7 +3076,6 @@ void Partition_base::get_dynamic_partition_info(ha_statistics *stat_info,
     @retval     >0              error code
 
   @detail
-
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.
 

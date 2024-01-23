@@ -178,14 +178,13 @@ static unsigned jemalloc_profile_counter = 0;
   Wrapper over jemalloc mallctl
 
   @param  name      The period-separated name argument specifies a location in a
-  tree-structured namespace
+                    tree-structured namespace
   @param  oldp      To read a value, pass a pointer via oldp to adequate space
-  to contain the value, and a pointer to its length via oldlenp; otherwise pass
-  nullptr and nullptr.
-  @param  oldlenp
-  @param  newp      To write a value, pass a pointer to the value via newp, and
-  its length via newlen; otherwise pass nullptr and 0.
-  @param  newlen
+                    to contain the value; otherwise pass nullptr.
+  @param  oldlenp   A pointer to oldp allocated memory size or nullptr if empty.
+  @param  newp      To write a value, pass a pointer to the value via newp;
+                    otherwise pass nullptr.
+  @param  newlen    Size of the memory allocated to newp or 0.
 
   @return Result of mallctl, mallctl returns 0 on success, or 1 if mallctl is
   not available.

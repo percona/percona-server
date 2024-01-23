@@ -110,7 +110,8 @@ void row_mysql_prebuilt_free_compress_heap(row_prebuilt_t *prebuilt) noexcept;
 @param[in,out]	len	in: data length, out: length of decomprssed data
 @param[in]	dict_data	optional dictionary data used for decompression
 @param[in]	dict_data_len	optional dictionary data length
-@param[in]	compress_heap
+@param[in]	compress_heap   memory heap used to compress/decompress
+                                blob column
 @return pointer to the uncompressed data */
 MY_NODISCARD
 const byte *row_decompress_column(const byte *data, ulint *len,
@@ -123,7 +124,8 @@ const byte *row_decompress_column(const byte *data, ulint *len,
 @param[in]	lenlen	bytes used to store the length of data
 @param[in]	dict_data	optional dictionary data used for compression
 @param[in]	dict_data_len	optional dictionary data length
-@param[in]	compress_heap
+@param[in]	compress_heap   memory heap used to compress/decompress
+                                blob column
 @return pointer to the compressed data */
 MY_NODISCARD
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
@@ -159,7 +161,9 @@ remember also to set the null bit in the mysql record header!
 @param[in] need_decompression If the data need to be compressed
 @param[in] dict_data Optional compression dictionary
 @param[in] dict_data_len Optional compression dictionary data
-@param[in] compress_heap */
+@param[in] compress_heap Memory heap used to compress/decompress
+                         blob column
+*/
 void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
                               ulint len, bool need_decompression,
                               const byte *dict_data, ulint dict_data_len,
@@ -172,7 +176,8 @@ void row_mysql_store_blob_ref(byte *dest, ulint col_len, const void *data,
 @param[in] need_compression     if the data need to be compressed
 @param[in] dict_data            optional compression dictionary data
 @param[in] dict_data_len        optional compression dictionary data length
-@param[in] compress_heap
+@param[in] compress_heap        memory heap used to compress/decompress
+                                blob column
 @return pointer to BLOB data */
 const byte *row_mysql_read_blob_ref(ulint *len, const byte *ref, ulint col_len,
                                     bool need_compression,

@@ -82,7 +82,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   /**
    * @brief Rotate log file.
    *
-   * @param record File rotation result
+   * @param result File rotation result
    */
   void rotate(FileRotationResult *result) noexcept override;
 
@@ -112,7 +112,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   /**
    * @brief Implement actual file rotation logic.
    *
-   * @param record File rotation result
+   * @param result File rotation result
    */
   void do_rotate(FileRotationResult *result) noexcept;
 

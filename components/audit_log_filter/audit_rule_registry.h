@@ -43,7 +43,7 @@ class AuditRuleRegistry {
   /**
    * @brief Get filtering rule by name.
    *
-   * @param [in] rule_name Rule name
+   * @param [in] filter_name Filtering rule name
    * @return Filtering rule
    */
   [[nodiscard]] std::shared_ptr<AuditRule> get_rule(

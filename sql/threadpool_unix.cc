@@ -751,7 +751,7 @@ static connection_t *listener(thread_group_t *thread_group) {
   Adjust thread counters in group or global
   whenever thread is created or is about to exit
 
-  @param thread_group
+  @param thread_group Thread group
   @param count -  1, when new thread is created
                  -1, when thread is about to exit
 */

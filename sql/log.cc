@@ -1756,7 +1756,6 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
    themselves.
 
    @param thd              thread handle
-   @param cur_utime        current relative time in microseconds
 
    @return                 time in microseconds
 */

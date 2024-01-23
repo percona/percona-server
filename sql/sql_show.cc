@@ -4461,18 +4461,6 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
   DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
-/**
-  @brief          Fill I_S tables with global temporary tables
-
-  @param[in]      thd                      thread handler
-  @param[in]      tables                   I_S table
-  @param[in]      cond                     'WHERE' condition
-
-  @return         Operation status
-    @retval       0                        success
-    @retval       1                        error
-*/
-
 class Fill_global_temporary_tables final : public Do_THD_Impl {
  private:
   THD *const m_client_thd;
@@ -4531,6 +4519,16 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
   bool failed() const noexcept { return m_failed; }
 };
 
+/**
+  @brief          Fill I_S tables with global temporary tables
+
+    @param[in]      thd                    thread handler
+    @param[in]      tables                 I_S table
+    @param[in]      cond                   'WHERE' condition
+    @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
 static int fill_global_temporary_tables(THD *thd, Table_ref *tables,
                                         Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_global_temporary_tables");

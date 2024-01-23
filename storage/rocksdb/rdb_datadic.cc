@@ -1506,7 +1506,6 @@ uint Rdb_key_def::pack_record(const TABLE *const tbl, uchar *const pack_buffer,
   Pack the hidden primary key into mem-comparable form.
 
   @param
-    tbl                   Table we're working on
     hidden_pk_id     IN   New value to be packed into key
     packed_tuple     OUT  Key in the mem-comparable form
 

@@ -1031,10 +1031,7 @@ class Bloom_filter final {
   /**
      Check whether key is maybe a member of a set
 
-     @param[in, out]    mem_root        MEM_ROOT to allocate the bit set in, if
-      not allocated already
-     @param[in]         key             key whose presence to check
-
+     @param[in] key key whose presence to check
      @return if true, the key might be a member of the set. If false, the key
      is definitely not a member of the set.
   */

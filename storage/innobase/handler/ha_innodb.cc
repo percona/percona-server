@@ -25069,7 +25069,9 @@ dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
                                 or NULL.
 @param[in]      parent_update   update vector for the parent row
 @param[in]      foreign         foreign key information
-@param[in]      compress_heap
+@param[in]      compress_heap   memory heap used to compress/decompress
+                                blob column
+
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t *innobase_get_computed_value(

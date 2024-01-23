@@ -2123,8 +2123,9 @@ using fix_tablespaces_empty_uuid_t = bool (*)(void);
  This is used by encryption threads. It updates innodb's copy of
  default_table_encryption variable according to the parameter.
  @param value for innodb's copy of default_table_encryption
+ @param is_starting True if the server is starting
 */
-using fix_default_table_encryption_t = bool (*)(ulong, bool);
+using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
 
 using compression_dict_data_vec_t =
     std::vector<std::pair<std::string, std::string>>;
@@ -6781,8 +6782,12 @@ class handler {
     @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
     handler::ha_update_row(...) does not accept conditions.
   */
-  MY_NODISCARD virtual int fast_update(THD *, mem_root_deque<Item *> &,
-                                       mem_root_deque<Item *> &, Item *) {
+  MY_NODISCARD virtual int fast_update(THD *thd [[maybe_unused]],
+                                       mem_root_deque<Item *> &update_fields
+                                       [[maybe_unused]],
+                                       mem_root_deque<Item *> &update_values
+                                       [[maybe_unused]],
+                                       Item *conds [[maybe_unused]]) {
     return ENOTSUP;
   }
 
@@ -6802,8 +6807,11 @@ class handler {
 
     @return an error if the insert should be terminated.
   */
-  MY_NODISCARD virtual int upsert(THD *, mem_root_deque<Item *> &,
-                                  mem_root_deque<Item *> &) {
+  MY_NODISCARD virtual int upsert(THD *thd [[maybe_unused]],
+                                  mem_root_deque<Item *> &update_fields
+                                  [[maybe_unused]],
+                                  mem_root_deque<Item *> &update_values
+                                  [[maybe_unused]]) {
     return ENOTSUP;
   }
 
@@ -7323,7 +7331,10 @@ class handler {
     @param    part_name    Full table name (including partition part).
                            Optional.
   */
-  virtual void upgrade_update_field_with_zip_dict_info(THD *, const char *) {}
+  virtual void upgrade_update_field_with_zip_dict_info(THD *thd
+                                                       [[maybe_unused]],
+                                                       const char *part_name
+                                                       [[maybe_unused]]) {}
 
  public:
   /* Read-free replication interface */

@@ -529,7 +529,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key) {
    Returns a BLOB length stored in the specified number of bytes at the
    specified location.
 
-   @param length       the number of bytes used to store length
+   @param bytes        the number of bytes used to store length
    @param pos          pointer to length bytes
 
    @return  Length of BLOB data.

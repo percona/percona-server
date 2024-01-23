@@ -161,7 +161,7 @@ class AuditRuleParser {
    * @brief Parse function arguments in a filtering rule represented
    *        by a JSON string.
    *
-   * @param function_args_json JSON object representing function arguments
+   * @param function_args_obj JSON object representing function arguments
    * @param args Container to store parsed arguments in
    * @return true in case of success, false otherwise
    */

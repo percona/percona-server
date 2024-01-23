@@ -43,9 +43,6 @@ class FileWriterBuffering final : public FileWriterDecoratorBase {
   /**
    * @brief Init file write buffer.
    *
-   * @param size Buffer size in bytes
-   * @param drop_if_full Indicates if message should be dropped in case
-   *                     buffer is full
    * @return true in case of success, false otherwise
    */
   bool init() noexcept override;
@@ -67,7 +64,7 @@ class FileWriterBuffering final : public FileWriterDecoratorBase {
    * @brief Write file.
    *
    * @param record Log record
-   * @param record Log record size
+   * @param size Log record size
    */
   void write(const char *record, size_t size) noexcept override;
 

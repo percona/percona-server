@@ -3623,7 +3623,7 @@ void buf_flush_sync_all_buf_pools() {
 
 /** Make a LRU manager thread sleep until the passed target time, if it's not
 already in the past.
-@param[in]	next_loop_timm	desired wake up time */
+@param[in]	next_loop_time	desired wake up time */
 static void buf_lru_manager_sleep_if_needed(
     std::chrono::steady_clock::time_point next_loop_time) {
   /* If this is the server shutdown buffer pool flushing phase, skip the
@@ -3674,8 +3674,8 @@ static void buf_lru_manager_adapt_sleep_time(
 }
 /** LRU manager thread for performing LRU flushed and evictions for buffer pool
 free list refill. One thread is created for each buffer pool instace.
-@param[in]	arg	buffer pool instance number for this thread
-@return a dummy value */
+@param[in] buf_pool_instance buffer pool instance number for this thread
+*/
 static void buf_lru_manager_thread(size_t buf_pool_instance) {
 #ifdef UNIV_LINUX
   /* linux might be able to set different setting for each thread

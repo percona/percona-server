@@ -2734,7 +2734,7 @@ void recv_recover_page_func(
 @param[in]      end_ptr         end of the buffer
 @param[out]     space_id        tablespace identifier
 @param[out]     page_no         page number
-@param[in]      online_log      do we process DDL online log
+@param[in]      apply           do we process DDL online log
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,

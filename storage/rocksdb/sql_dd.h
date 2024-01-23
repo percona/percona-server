@@ -82,7 +82,6 @@ void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table);
 /** Copy the engine-private parts of a table or partition definition
 when the change does not affect InnoDB. This mainly copies the common
 private data between dd::Table and dd::Partition
-@tparam		Table		dd::Table or dd::Partition
 @param[in,out]	new_table	Copy of old table or partition definition
 @param[in]	old_table	Old table or partition definition */
 void dd_copy_private(dd::Table &new_table, const dd::Table &old_table);

@@ -810,7 +810,7 @@ bool os_file_set_nocache(int fd, const char *file_name,
 /** Tries to disable OS caching on an opened file file.
 @param[in]	file		file to alter
 @param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
 message
 @return true if operation is success and false */
 static inline bool os_file_set_nocache(pfs_os_file_t file,
@@ -1512,7 +1512,7 @@ to original un-instrumented file I/O APIs */
 
 /** Announces an intention to access file data in a specific pattern in the
 future.
-@param[in, own]	file	handle to a file
+@param[in,out]	file	handle to a file
 @param[in]	offset	file region offset
 @param[in]	len	file region length
 @param[in]	advice	advice for access pattern

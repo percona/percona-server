@@ -13,7 +13,6 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
-SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
 
 # Create an empty helper file which will be later used to load to the server.
 --let $LOAD_FILE= $MYSQLTEST_VARDIR/tmp/query_map.dat
@@ -171,6 +170,4 @@ SET SQL_LOG_BIN=1;
 --remove_file $LOAD_FILE
 
 --source include/rpl_connection_slave.inc
-SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-
 --source include/rpl_end.inc

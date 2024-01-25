@@ -515,7 +515,7 @@ fi
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
-  wget %{compatsrc}
+  wget --no-check-certificate %{compatsrc}
 %if 0%{?rhel} > 6
   rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm | cpio --extract --make-directories --verbose
 %else
@@ -837,11 +837,6 @@ fi
 %postun -n percona-server-server
 %if 0%{?systemd}
   %systemd_postun_with_restart mysqld.service
-  if [ -f /usr/lib/systemd/system/mysqld.service ]; then
-    if [ ! -e /etc/systemd/system/mysql.service ]; then
-      ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
-    fi
-  fi
 %else
   if [ $1 -ge 1 ]; then
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
@@ -858,6 +853,15 @@ fi
 
 if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
+fi
+
+if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+  if [ ! -e /etc/systemd/system/mysql.service ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+  fi
+  if [ ! -e /etc/systemd/system/multi-user.target.wants/mysqld.service ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/multi-user.target.wants/mysqld.service
+  fi
 fi
 
 %post -n percona-server-shared -p /sbin/ldconfig

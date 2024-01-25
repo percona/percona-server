@@ -783,6 +783,11 @@ fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
   %systemd_post mysqld.service
+  if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+    if [ ! -e /etc/systemd/system/mysql.service ]; then
+      ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+    fi
+  fi
   if [ $1 == 1 ]; then
       /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
   fi
@@ -832,6 +837,11 @@ fi
 %postun -n percona-server-server
 %if 0%{?systemd}
   %systemd_postun_with_restart mysqld.service
+  if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+    if [ ! -e /etc/systemd/system/mysql.service ]; then
+      ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+    fi
+  fi
 %else
   if [ $1 -ge 1 ]; then
     /sbin/service mysql condrestart >/dev/null 2>&1 || :

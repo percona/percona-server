@@ -783,11 +783,11 @@ fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
   %systemd_post mysqld.service
-  if [ -f /usr/lib/systemd/system/mysqld.service ]; then
-    if [ ! -e /etc/systemd/system/mysql.service ]; then
-      ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
-    fi
-  fi
+  #if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+  #  if [ ! -e /etc/systemd/system/mysql.service ]; then
+  #    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+  #  fi
+  #fi
   if [ $1 == 1 ]; then
       /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
   fi
@@ -855,14 +855,16 @@ if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
 
+%if 0%{?rhel} >= 9
 if [ -f /usr/lib/systemd/system/mysqld.service ]; then
-  if [ ! -e /etc/systemd/system/mysql.service ]; then
+  if [ ! -e /etc/systemd/system/mysql.service ] && [ -d /etc/systemd/system ]; then
     ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
   fi
-  if [ ! -e /etc/systemd/system/multi-user.target.wants/mysqld.service ]; then
+  if [ ! -e /etc/systemd/system/multi-user.target.wants/mysqld.service ] && [ -d /etc/systemd/system/multi-user.target.wants ]; then
     ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/multi-user.target.wants/mysqld.service
   fi
 fi
+%endif
 
 %post -n percona-server-shared -p /sbin/ldconfig
 

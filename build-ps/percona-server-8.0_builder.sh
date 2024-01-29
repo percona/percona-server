@@ -1059,15 +1059,19 @@ build_deb(){
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
+    postfix=""
+    if [ x"${FIPSMODE}" == x1 ]; then
+        postfix="-pro"
+    fi
     cd debian/
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
-    sed -i 's:exit 0::' percona-server-server.postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server.postinst
-    cat call-home.sh >> percona-server-server.postinst
-    echo "CALLHOME" >> percona-server-server.postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server.postinst
-    echo "exit 0" >> percona-server-server.postinst
+    sed -i 's:exit 0::' percona-server-server"${postfix}".postinst
+    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    cat call-home.sh >> percona-server-server"${postfix}".postinst
+    echo "CALLHOME" >> percona-server-server"${postfix}".postinst
+    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../
 

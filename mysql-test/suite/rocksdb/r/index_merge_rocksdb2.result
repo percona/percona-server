@@ -24,6 +24,18 @@ INDEX i6(key6),
 INDEX i7(key7),
 INDEX i8(key8)
 );
+create procedure populate_t0()
+begin
+declare d int default 2;
+insert into t0 values (1,1,1,1,1,1,1,1023),(2,2,2,2,2,2,2,1022);
+while d<=POW(2,9) do
+insert into t0 select key1+d, key2+d, key3+d, key4+d, key5+d,
+key6+d, key7+d, key8-d from t0;
+set d = d*2;
+end while;
+end|
+call populate_t0();
+drop procedure populate_t0;
 set global rocksdb_force_flush_memtable_now=1;
 analyze table t0;
 Table	Op	Msg_type	Msg_text
@@ -595,27 +607,27 @@ max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.ke
 update t0 set key1=1;
 explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
     -> Inner hash join (no condition)  (rows=16)
-        -> Filter: ((b.key1 = 1) or (b.key2 = 1))  (rows=4)
+        -> Filter: ((b.key1 = 2) or (b.key2 = 2))  (rows=4)
             -> Deduplicate rows sorted by row ID  (rows=4)
-                -> Index range scan on b using i1 over (key1 = 1)  (rows=2)
-                -> Index range scan on b using i2 over (key2 = 1)  (rows=2)
+                -> Index range scan on b using i1 over (key1 = 2)  (rows=2)
+                -> Index range scan on b using i2 over (key2 = 2)  (rows=2)
         -> Hash
-            -> Filter: ((a.key1 = 1) or (a.key2 = 1))  (rows=4)
+            -> Filter: ((a.key1 = 2) or (a.key2 = 2))  (rows=4)
                 -> Deduplicate rows sorted by row ID  (rows=4)
-                    -> Index range scan on a using i1 over (key1 = 1)  (rows=2)
-                    -> Index range scan on a using i2 over (key2 = 1)  (rows=2)
+                    -> Index range scan on a using i1 over (key1 = 2)  (rows=2)
+                    -> Index range scan on a using i2 over (key2 = 2)  (rows=2)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
-8194
+NULL
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 # The next query will not use index i7 in intersection if the OS doesn't

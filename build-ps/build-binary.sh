@@ -269,12 +269,10 @@ fi
         -DWITH_CURL=bundled \
         -DWITH_NUMA=ON \
         -DWITH_LDAP=system \
-        -DDOWNLOAD_BOOST=1 \
         -DWITH_PACKAGE_FLAGS=OFF \
         -DFORCE_INSOURCE_BUILD=1 \
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
-        -DWITH_BOOST="$WORKDIR_ABS/libboost" \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
@@ -453,5 +451,4 @@ fi
 
 # Clean up
 rm -rf "$INSTALLDIR"
-rm -rf "$WORKDIR_ABS/libboost"
 rm -rf "$WORKDIR_ABS/bld"

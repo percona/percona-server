@@ -680,7 +680,7 @@ build_srpm(){
         -e "s:percona-server-rocksdb$:percona-server-rocksdb-pro:g" \
         -e "s:percona-server-test$:percona-server-test-pro:g" \
         -e "s:percona-server-shared$:percona-server-shared-pro:g" \
-        -e "s:percona-server-shared =:percona-server-shared-pro =:g" \
+        -e "s:percona-server-shared :percona-server-shared-pro :g" \
         -e "s:Conflicts\:      percona-server-server-pro:Conflicts\:      percona-server-server:g" \
         -e "s:Conflicts\:      percona-server-client-pro:Conflicts\:      percona-server-client:g" \
         -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \

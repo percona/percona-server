@@ -27,7 +27,7 @@ case "$1" in
     set -e
 
     if [ -x /etc/init.d/mysqlrouter ]; then
-      invoke-rc.d mysqlrouter stop || exit $?
+      invoke-rc.d --skip-systemd-native mysqlrouter stop || exit $?
     fi
 
     addgroup --quiet --system mysqlrouter

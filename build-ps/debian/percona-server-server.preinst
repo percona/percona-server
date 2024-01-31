@@ -1,7 +1,7 @@
 #!/bin/bash
 
 get_pcount () {
-	PSCOUNT=$(ps -C mysqld --no-headers | wc -l)
+	PSCOUNT=$(ps -o cmd --no-headers --ppid 1 | grep "mysqld" | wc -l)
 	echo "${PSCOUNT}"
 }
 

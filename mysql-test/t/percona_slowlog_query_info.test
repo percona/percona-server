@@ -3,8 +3,6 @@
 #
 --source include/log_prepare.inc
 
-SET @saved_slow_query_log = @@GLOBAL.slow_query_log;
-
 SET SESSION log_slow_verbosity = 'query_info';
 SET GLOBAL slow_query_log = 1;
 SET long_query_time = 0;
@@ -48,8 +46,23 @@ WITH table1 (a1, b1) AS (SELECT a, b FROM t1) SELECT a1, b1 FROM table1;
 --let log_expected_matches = 1
 --source include/log_grep.inc
 
-DROP TABLE t1, t2;
+--echo #
+--echo # PS-9083: Server crash when slow query log is on with additional
+--echo #          variables.
+--echo #
+--enable_connect_log
+--source include/log_start.inc
 
-SET GLOBAL slow_query_log = @saved_slow_query_log;
+WITH table1 (a1, b1) AS (SELECT a, b FROM t1) SELECT a1, b1 FROM table1;
+
+--echo # Attempt to write to slow log table list for COM_QUIT command has
+--echo # caused crash before the fix.
+--disconnect default
+--connect (default,localhost,root,,test)
+
+--source include/log_stop.inc
+--disable_connect_log
+
+DROP TABLE t1, t2;
 
 --source include/log_cleanup.inc

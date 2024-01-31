@@ -396,6 +396,7 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      mariadb-libs
 Obsoletes:      mysql-connector-c-shared < 6.2
 Obsoletes:      mysql-libs < %{version}-%{release}
+Conflicts:      percona-server-shared-pro
 Provides:       mysql-shared
 %ifarch x86_64
 %if 0%{?rhel} < 9

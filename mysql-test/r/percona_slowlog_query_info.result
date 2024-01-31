@@ -1,4 +1,3 @@
-SET @saved_slow_query_log = @@GLOBAL.slow_query_log;
 SET SESSION log_slow_verbosity = 'query_info';
 SET GLOBAL slow_query_log = 1;
 SET long_query_time = 0;
@@ -54,5 +53,19 @@ a1	b1
 [log_stop.inc] percona.slow_log.query_tables
 [log_grep.inc] file: percona.slow_log.query_tables pattern: ^# Query_tables: table1,t1 Query_digest: [\d\w]{64} expected_matches: 1
 [log_grep.inc] found expected match count: 1
+#
+# PS-9083: Server crash when slow query log is on with additional
+#          variables.
+#
+[log_start.inc] percona.slow_log.query_tables
+WITH table1 (a1, b1) AS (SELECT a, b FROM t1) SELECT a1, b1 FROM table1;
+a1	b1
+1	1
+2	2
+3	3
+# Attempt to write to slow log table list for COM_QUIT command has
+# caused crash before the fix.
+disconnect default;
+connect  default,localhost,root,,test;
+[log_stop.inc] percona.slow_log.query_tables
 DROP TABLE t1, t2;
-SET GLOBAL slow_query_log = @saved_slow_query_log;

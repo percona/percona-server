@@ -64,12 +64,10 @@ lsn_t recv_calc_lsn_on_data_add(
 @param[in]	end_ptr		end of the buffer
 @param[out]	space_id	tablespace identifier
 @param[out]	page_no		page number
-@param[in]	apply		whether to apply the record
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no, bool apply,
-                         byte **body);
+                         space_id_t *space_id, page_no_t *page_no, byte **body);
 
 #ifdef UNIV_HOTBACKUP
 
@@ -542,11 +540,19 @@ struct recv_sys_t {
   state field in each recv_addr struct */
   ib_mutex_t mutex;
 
+  /** mutex coordinating flushing between recv_writer_thread and
+  the recovery thread. */
+  ib_mutex_t writer_mutex;
+
   /** event to activate page cleaner threads */
   os_event_t flush_start;
 
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
+
+  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
+  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
+  buf_flush_t flush_type;
 
 #else  /* !UNIV_HOTBACKUP */
   bool apply_file_operations;

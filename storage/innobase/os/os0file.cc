@@ -6595,8 +6595,7 @@ static void io_handler_thread(ulint segment) {
                << actual_priority;
 
   while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
-         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free() ||
-         buf_flush_active_lru_managers() > 0) {
+         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
     fil_aio_wait(segment);
   }
 }

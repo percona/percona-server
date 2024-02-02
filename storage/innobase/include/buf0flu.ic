@@ -80,7 +80,6 @@ static inline void buf_flush_note_modification(
 
   if (end_lsn != 0) {
     ut_ad(block->page.get_newest_lsn() <= end_lsn);
-    if (observer != nullptr) observer->inc_estimate(*block);
     block->page.set_newest_lsn(end_lsn);
   } else {
     /* Do nothing. This is the case with no-redo mtr and it

@@ -771,6 +771,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -879,7 +880,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_flush_notifier_thread, "ib_log_fl_notif",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(buf_lru_manager_thread, "ib_buf_lru", 0, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err", PSI_FLAG_SINGLETON,
                    0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_lock_timeout_thread, "ib_srv_lock_to",
@@ -23585,20 +23587,6 @@ static MYSQL_SYSVAR_BOOL(
 
 #endif /* UNIV_LINUX */
 
-// TODO: the option is here, but currently a no-op
-static MYSQL_SYSVAR_ULONG(
-    cleaner_max_lru_time, srv_cleaner_max_lru_time, PLUGIN_VAR_RQCMDARG,
-    "The maximum time limit for a single LRU tail flush iteration by the page "
-    "cleaner thread in miliseconds",
-    NULL, NULL, 1000, 0, ~0UL, 0);
-
-// TODO: the option is here, but currently a no-op
-static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
-                          PLUGIN_VAR_RQCMDARG,
-                          "The maximum time limit for a single flush list "
-                          "flush iteration by the page "
-                          "cleaner thread in miliseconds",
-                          NULL, NULL, 1000, 0, ~0UL, 0);
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(
@@ -24736,8 +24724,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(priority_purge),
     MYSQL_SYSVAR(priority_master),
 #endif /* UNIV_LINUX */
-    MYSQL_SYSVAR(cleaner_max_lru_time),
-    MYSQL_SYSVAR(cleaner_max_flush_time),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(validate_tablespace_paths),
     MYSQL_SYSVAR(use_fdatasync),

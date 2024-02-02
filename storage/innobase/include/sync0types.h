@@ -323,6 +323,8 @@ enum latch_level_t {
 
   SYNC_TRX_I_S_RWLOCK,
 
+  SYNC_RECV_WRITER,
+
   /** Level is varying. Only used with buffer pool page locks, which
   do not have a fixed level, but instead have their level set after
   the page is locked; see e.g.  ibuf_bitmap_get_map_page(). */
@@ -1128,7 +1130,8 @@ struct dict_sync_check : public sync_check_functor_t {
     if (!m_dict_mutex_allowed ||
         (level != SYNC_DICT && level != SYNC_UNDO_SPACES &&
          level != SYNC_FTS_CACHE && level != SYNC_DICT_OPERATION &&
-         level != SYNC_NO_ORDER_CHECK)) {
+         /* This only happens in recv_apply_hashed_log_recs. */
+         level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
 #ifdef UNIV_NO_ERR_MSGS
       ib::error()

@@ -2941,9 +2941,7 @@ static void srv_shutdown_page_cleaners() {
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
 
-  for (uint32_t count = 0; buf_flush_page_cleaner_is_active() ||
-                           buf_flush_active_lru_managers() > 0;
-       ++count) {
+  for (uint32_t count = 0; buf_flush_page_cleaner_is_active(); ++count) {
     if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1251);
       count = 0;
@@ -2952,8 +2950,6 @@ static void srv_shutdown_page_cleaners() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
-
-  ut_ad(buf_flush_active_lru_managers() == 0);
 
   ut_ad(buf_pool_pending_io_reads_count() == 0);
   ut_ad(buf_pool_pending_io_writes_count() == 0);

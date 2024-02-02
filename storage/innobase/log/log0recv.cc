@@ -198,6 +198,17 @@ is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 static lsn_t recv_max_page_lsn;
 
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_PFS_THREAD
+mysql_pfs_key_t recv_writer_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+static bool recv_writer_is_active() {
+  return srv_thread_is_active(srv_threads.m_recv_writer);
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
@@ -326,6 +337,7 @@ void recv_sys_create() {
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
   ut_a(recv_sys->last_block_first_mtr_boundary == 0);
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+  mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
   recv_sys->spaces = nullptr;
 }
@@ -413,6 +425,7 @@ void recv_sys_close() {
   if (recv_sys->flush_end != nullptr) {
     os_event_destroy(recv_sys->flush_end);
   }
+
 #endif /* !UNIV_HOTBACKUP */
 
   ut::delete_(recv_sys->dblwr);
@@ -422,6 +435,11 @@ void recv_sys_close() {
   call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
+
+#ifndef UNIV_HOTBACKUP
+  ut_ad(!recv_writer_is_active());
+#endif /* !UNIV_HOTBACKUP */
+  mutex_free(&recv_sys->writer_mutex);
 
   ut::free(recv_sys);
   recv_sys = nullptr;
@@ -692,6 +710,58 @@ void MetadataRecover::store() {
   mutex_exit(&dict_persist->mutex);
 }
 
+/** recv_writer thread tasked with flushing dirty pages from the buffer
+pools. */
+static void recv_writer_thread() {
+  ut_ad(!srv_read_only_mode);
+
+  /* The code flow is as follows:
+  Step 1: In recv_recovery_from_checkpoint_start().
+  Step 2: This recv_writer thread is started.
+  Step 3: In recv_recovery_from_checkpoint_finish().
+  Step 4: Wait for recv_writer thread to complete.
+  Step 5: Assert that recv_writer thread is not active anymore.
+
+  It is possible that the thread that is started in step 2,
+  becomes active only after step 4 and hence the assert in
+  step 5 fails.  So mark this thread active only if necessary. */
+  mutex_enter(&recv_sys->writer_mutex);
+
+  if (!recv_recovery_on) {
+    mutex_exit(&recv_sys->writer_mutex);
+    return;
+  }
+  mutex_exit(&recv_sys->writer_mutex);
+
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    ut_a(srv_shutdown_state_matches([](auto state) {
+      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
+    }));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    mutex_enter(&recv_sys->writer_mutex);
+
+    if (!recv_recovery_on) {
+      mutex_exit(&recv_sys->writer_mutex);
+      break;
+    }
+
+    if (log_test != nullptr) {
+      mutex_exit(&recv_sys->writer_mutex);
+      continue;
+    }
+
+    /* Flush pages from end of LRU if required */
+    os_event_reset(recv_sys->flush_end);
+    recv_sys->flush_type = BUF_FLUSH_LRU;
+    os_event_set(recv_sys->flush_start);
+    os_event_wait(recv_sys->flush_end);
+
+    mutex_exit(&recv_sys->writer_mutex);
+  }
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Frees the recovery system. */
@@ -706,6 +776,7 @@ void recv_sys_free() {
   /* wake page cleaner up to progress */
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
+    ut_ad(!recv_writer_is_active());
     if (buf_flush_event != nullptr) {
       os_event_reset(buf_flush_event);
     }
@@ -1153,11 +1224,9 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-    os_event_reset(recv_sys->flush_end);
-
-    os_event_set(recv_sys->flush_start);
-
-    os_event_wait(recv_sys->flush_end);
+    /* Stop the recv_writer thread from issuing any LRU
+    flush batches. */
+    mutex_enter(&recv_sys->writer_mutex);
 
     /* Wait for any currently run batch to end. Note that BUF_FLUSH_LIST could
     only be initiated by us in earlier call, but buf_pool_invalidate() waits for
@@ -1165,7 +1234,18 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
     TBD: why is it important to wait for BUF_FLUSH_LRU to finish here? */
     buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
 
+    os_event_reset(recv_sys->flush_end);
+
+    recv_sys->flush_type = BUF_FLUSH_LIST;
+
+    os_event_set(recv_sys->flush_start);
+
+    os_event_wait(recv_sys->flush_end);
+
     buf_pool_invalidate();
+
+    /* Allow batches from recv_writer thread. */
+    mutex_exit(&recv_sys->writer_mutex);
 
     ut_d(log.disable_redo_writes = false);
 
@@ -2730,11 +2810,10 @@ void recv_recover_page_func(
 @param[in]      end_ptr         end of the buffer
 @param[out]     space_id        tablespace identifier
 @param[out]     page_no         page number
-@param[in]      apply           do we process DDL online log
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
 ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no, bool apply,
+                         space_id_t *space_id, page_no_t *page_no,
                          byte **body) {
   byte *new_ptr;
 
@@ -2891,7 +2970,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
   space_id_t space_id;
 
   ulint len =
-      recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, true, &body);
+      recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
 
   if (recv_sys->found_corrupt_log) {
     recv_report_corrupt_log(ptr, type, space_id, page_no);
@@ -3000,8 +3079,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
     page_no_t page_no = 0;
     space_id_t space_id = 0;
 
-    ulint len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no,
-                                   true, &body);
+    ulint len =
+        recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
 
     if (recv_sys->found_corrupt_log) {
       recv_report_corrupt_log(ptr, type, space_id, page_no);
@@ -3077,8 +3156,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     /* Avoid parsing if we have the record saved already. */
     if (!recv_sys->get_saved_rec(i, space_id, page_no, type, body, len)) {
-      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, false,
-                               &body);
+      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
     }
 
     if (recv_sys->found_corrupt_log &&
@@ -3679,6 +3757,16 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_727);
 
   recv_sys->dblwr->recover();
+
+  if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+    /* Spawn the background thread to flush dirty pages
+    from the buffer pools. */
+
+    srv_threads.m_recv_writer =
+        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
+
+    srv_threads.m_recv_writer.start();
+  }
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3895,6 +3983,12 @@ static void verify_page_type(page_id_t page_id, page_type_t type) {
 }
 
 MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
+  /* Make sure that the recv_writer thread is done. This is
+  required because it grabs various mutexes and we want to
+  ensure that when we enable sync_order_checks there is no
+  mutex currently held by any thread. */
+  mutex_enter(&recv_sys->writer_mutex);
+
   /* Restore state. */
   if (recv_sys->is_meb_db) dblwr::g_mode = recv_sys->dblwr_state;
 
@@ -3906,6 +4000,21 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   Note that BUF_FLUSH_LIST batches are awaited to finish before we get here.
   TBD: Why is it important to wait for BUF_FLUSH_LRU to finish here? */
   buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
+
+  mutex_exit(&recv_sys->writer_mutex);
+
+  uint32_t count = 0;
+
+  while (recv_writer_is_active()) {
+    ++count;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    if (count >= 600) {
+      ib::info(ER_IB_MSG_738);
+      count = 0;
+    }
+  }
 
   MetadataRecover *metadata{};
 

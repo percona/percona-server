@@ -68,7 +68,7 @@ DROP TABLE universal_seq;
 #
 SET SESSION tmp_table_size=1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 CREATE TABLE t1(a TEXT,b TEXT);
 INSERT INTO t1 VALUES(7553,'7553');
 INSERT INTO t1 VALUES(662,'aaaaaaaaaaaaaaaaaaaa');

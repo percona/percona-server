@@ -1,5 +1,6 @@
 call mtr.add_suppression("Failed to set O_DIRECT on file");
 call mtr.add_suppression("O_DIRECT is known to result in");
+CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to create check sector file*");
 DROP TABLE IF EXISTS t1;
 RESET CHANGED_PAGE_BITMAPS;
 CREATE TABLE t1 (a INT, b BLOB) ENGINE=InnoDB;

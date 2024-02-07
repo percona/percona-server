@@ -1,6 +1,9 @@
 SET @userstat_old= @@userstat;
 SET GLOBAL userstat=ON;
 
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+
 # concurrent connections count tracked only if resource limits enabled globally
 # or just for specific users
 CREATE USER mysqltest_1@localhost;
@@ -198,5 +201,8 @@ let $count_sessions= 1;
 
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
+
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
 
 SET GLOBAL userstat= @userstat_old;

@@ -2,7 +2,6 @@
 # Bug #45702: Impossible to specify myisam_sort_buffer > 4GB on 64 bit machines
 ###############################################################################
 
---source include/have_64bit.inc
 --source include/have_myisam.inc
 
 # Check that having data larger than MIN_SORT_BUFFER bytes can be handled by

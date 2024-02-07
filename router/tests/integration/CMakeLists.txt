@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+IF(DEBUG_EXTNAME)
+  ADD_COMPILE_DEFINITIONS(HAVE_DEBUG_EXTNAME)
+ENDIF()
+
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
@@ -28,6 +32,7 @@ FOREACH(test_file
     test_routing_sharing.cc
     test_routing_sharing_constrained_pools.cc
     test_routing_sharing_restart.cc
+    test_routing_splitting.cc
     test_routing_tracing.cc
     )
 ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
@@ -38,6 +43,6 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   mysqlxclient
   mysqlxmessages
   mysql_protocol
-  ${PROTOBUF_LIBRARY}
+  ext::libprotobuf
   )
 ENDFOREACH()

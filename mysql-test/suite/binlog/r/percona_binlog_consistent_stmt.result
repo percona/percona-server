@@ -1,8 +1,8 @@
 CALL mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Connection default
 CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000001	394			
 SHOW STATUS LIKE 'binlog_snapshot_%';
@@ -46,7 +46,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000001
 Binlog_snapshot_position	897
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000001	1195			
 SELECT * FROM t2 ORDER BY a;
@@ -69,7 +69,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000001
 Binlog_snapshot_position	897
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	157			
 COMMIT;
@@ -78,7 +78,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	157
 Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	157			
 # Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
@@ -89,7 +89,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	440
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	440			
 INSERT INTO t1 VALUES (1, "first");
@@ -106,7 +106,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	743
 Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	743			
 # Connection con2
@@ -118,7 +118,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	743
 Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	743			
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
@@ -130,7 +130,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	440
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000002	743			
 # Connection con3
@@ -140,7 +140,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000003
 Binlog_snapshot_position	157
 Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000003	157			
 # Connection con2
@@ -149,7 +149,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	440
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000003	157			
 COMMIT;
@@ -159,7 +159,7 @@ Variable_name	Value
 Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	440
 Binlog_snapshot_gtid_executed	
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 binlog.000003	157			
 COMMIT;

@@ -74,7 +74,8 @@ SET(KEYRING_KMIP_SOURCE
 
 SET(KEYRING_KMIP_LIBRARIES
   keyring_common
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL
+  OpenSSL::Crypto
   kmippp
 )
 

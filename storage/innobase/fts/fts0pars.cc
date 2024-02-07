@@ -107,8 +107,8 @@ typedef int     (*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef int     (*fts_scanner)();
 
 struct fts_lexer_t {
-	fts_scanner_alt scanner;
-	void*           yyscanner;
+  fts_scanner_alt scanner;
+  void *yyscanner;
 };
 
 
@@ -1954,11 +1954,11 @@ fts_lexer_free(
 /*===========*/
         fts_lexer_t*    fts_lexer)
 {
-	if (fts_lexer->scanner == fts_blexer) {
-		fts0blex_destroy(fts_lexer->yyscanner);
-	} else {
-		fts0tlex_destroy(fts_lexer->yyscanner);
-	}
+  if (fts_lexer->scanner == fts_blexer) {
+    fts0blex_destroy(fts_lexer->yyscanner);
+  } else {
+    fts0tlex_destroy(fts_lexer->yyscanner);
+  }
 
         ut::free(fts_lexer);
 }

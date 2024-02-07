@@ -59,12 +59,12 @@ INSERT INTO test.t1(time) VALUES(NOW());
 END |
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Assert that there are 3 events in ENABLED state.]
-include/assert.inc [Assert that there are 2 events in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
-include/assert.inc [Assert that the event 'test.tev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test1.tev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
 
 ################################################################################
 # TR-2: When an event is created as DISABLED it shall remain DISABLED on
@@ -80,7 +80,7 @@ SET SQL_LOG_BIN = 0;
 SELECT 1;
 END |
 CREATE EVENT test2.ev2 ON SCHEDULE EVERY 10 SECOND
-DISABLE ON SLAVE
+DISABLE ON REPLICA
 DO
 BEGIN
 SET SQL_LOG_BIN = 0;
@@ -94,9 +94,9 @@ SET SQL_LOG_BIN = 0;
 SELECT 1;
 END |
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Assert that the event 'test2.ev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test2.ev2' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test2.tev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test2.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test2.ev2' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test2.tev1' is in REPLICA_SIDE_DISABLED state.]
 [connection master]
 DROP DATABASE test2;
 include/sync_slave_sql_with_master.inc
@@ -115,13 +115,13 @@ include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
 [connection master]
 ALTER EVENT test.ev1 DISABLE;
-ALTER EVENT test.ev2 DISABLE ON SLAVE;
+ALTER EVENT test.ev2 DISABLE ON REPLICA;
 include/assert.inc [Assert that the event 'test.ev1' is in DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
 
 ################################################################################
@@ -144,29 +144,29 @@ include/assert.inc [Assert that the only one running event is 'test1.ev1']
 ################################################################################
 [connection master]
 include/assert.inc [Assert that the event 'test.ev1' is in DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 [connection slave]
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 [connection master]
-ALTER EVENT test.ev1 DISABLE ON SLAVE;
+ALTER EVENT test.ev1 DISABLE ON REPLICA;
 ALTER EVENT test.ev2 DISABLE;
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test.ev2' is in DISABLED state.]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 
 ################################################################################
 # TR-6: If an event in DISABLED state is ALTERed to ENABLED state on the
 #       source server, then it shall become ENABLED on replica as well.
 ################################################################################
 [connection master]
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test.ev2' is in DISABLED state.]
 [connection slave]
-include/assert.inc [Assert that the event 'test.ev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test.ev2' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.ev2' is in REPLICA_SIDE_DISABLED state.]
 [connection master]
 ALTER EVENT test.ev1 ENABLE;
 ALTER EVENT test.ev2 ENABLE;
@@ -183,12 +183,12 @@ include/assert.inc [Assert that there are 5 events.]
 include/assert.inc [Assert that all 5 events are in ENABLED state.]
 [connection slave]
 include/assert.inc [Assert that there are 3 events in ENABLED state.]
-include/assert.inc [Assert that there are 2 events in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
-include/assert.inc [Assert that the event 'test.tev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test1.tev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
 include/rpl_restart_server.inc [server_number=2]
 SHOW GLOBAL VARIABLES LIKE 'replica_enable_event';
 Variable_name	Value
@@ -197,12 +197,12 @@ SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NA
 VARIABLE_VALUE
 
 include/assert.inc [Assert that there are 3 events in ENABLED state.]
-include/assert.inc [Assert that there are 2 events in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that there are 2 events in REPLICA_SIDE_DISABLED state.]
 include/assert.inc [Assert that the event 'test.ev1' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test.ev2' is in ENABLED state.]
 include/assert.inc [Assert that the event 'test1.ev1' is in ENABLED state.]
-include/assert.inc [Assert that the event 'test.tev1' is in SLAVESIDE_DISABLED state.]
-include/assert.inc [Assert that the event 'test1.tev1' is in SLAVESIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test.tev1' is in REPLICA_SIDE_DISABLED state.]
+include/assert.inc [Assert that the event 'test1.tev1' is in REPLICA_SIDE_DISABLED state.]
 include/start_slave.inc
 [connection master]
 DROP DATABASE test1;

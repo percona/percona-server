@@ -7,7 +7,7 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 SET SESSION binlog_format='STATEMENT';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-reset master;
+RESET BINARY LOGS AND GTIDS;
 create table t1 (word varchar(20));
 insert into t1 values ("abirvalg");
 flush logs;

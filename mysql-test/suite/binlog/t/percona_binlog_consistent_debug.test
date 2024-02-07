@@ -5,7 +5,7 @@
 --echo # Debug build tests for consistent binlog snapshot
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Bug 1646100: Server becomes unresponsive during flushing after loading

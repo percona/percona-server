@@ -26,7 +26,7 @@
 --let $server_uuid = `SELECT @@GLOBAL.SERVER_UUID`
 
 # Clean the table before starting the test.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Test setup for clone test.
 --source ../include/clone_connection_begin.inc

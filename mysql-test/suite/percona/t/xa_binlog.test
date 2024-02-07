@@ -5,7 +5,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 # Fix binlog format (otherwise SHOW BINLOG EVENTS will fluctuate).
 SET binlog_format= mixed;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 XA START 'xatest';
 INSERT INTO t1 VALUES (1);

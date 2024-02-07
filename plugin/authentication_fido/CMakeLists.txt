@@ -31,7 +31,8 @@ IF(WITH_PERCONA_AUTHENTICATION_FIDO)
 
   MYSQL_ADD_PLUGIN(auth_fido ${AUTH_FIDO_SOURCES}
     LINK_LIBRARIES
-    ${OPENSSL_LIBRARIES}
+    OpenSSL::SSL
+    OpenSSL::Crypto
     ext::fido
     MODULE_ONLY MODULE_OUTPUT_NAME "authentication_fido"
     )

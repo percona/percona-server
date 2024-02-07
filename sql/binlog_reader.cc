@@ -22,8 +22,11 @@
 
 #include "sql/binlog_reader.h"
 #include "my_byteorder.h"
-#include "sql/event_crypt.h"
 #include "sql/log_event.h"
+
+using mysql::binlog::event::enum_binlog_checksum_alg;
+using mysql::binlog::event::Format_description_event;
+using mysql::binlog::event::Log_event_footer;
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {
   DBUG_EXECUTE_IF("simulate_allocate_failure", return nullptr;);
@@ -47,11 +50,10 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
   */
   DBUG_EXECUTE_IF(
       "corrupt_read_log_event", unsigned char type = buffer[EVENT_TYPE_OFFSET];
-      if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-          type != binary_log::GTID_LOG_EVENT &&
-          type != binary_log::ANONYMOUS_GTID_LOG_EVENT &&
-          type != binary_log::START_5_7_ENCRYPTION_EVENT) {
+      if (type != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT &&
+          type != mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT &&
+          type != mysql::binlog::event::GTID_LOG_EVENT &&
+          type != mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT) {
         int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
                                 LOG_EVENT_MINIMAL_HEADER_LEN) +
                       LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -60,20 +62,6 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       });
 }
 #endif  // ifdef NDEBUG
-
-bool Binlog_event_data_istream::start_decryption(
-    binary_log::Start_encryption_event *see) {
-  assert(!crypto_data.is_enabled());
-
-  Start_encryption_log_event *sele =
-      down_cast<Start_encryption_log_event *>(see);
-  if (!sele->is_valid() ||
-      crypto_data.init(see->crypto_scheme, see->key_version, see->nonce)) {
-    m_error->set_type(Binlog_read_error::DECRYPT_PRE_8_0_14_INIT_FAILURE);
-    return true;
-  }
-  return false;
-}
 
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
@@ -85,54 +73,6 @@ bool Binlog_event_data_istream::read_event_header() {
       m_header, LOG_EVENT_MINIMAL_HEADER_LEN);
 }
 
-Binlog_event_data_istream::Decryption_buffer::~Decryption_buffer() {
-  resize(0);
-}
-
-bool Binlog_event_data_istream::Decryption_buffer::resize(size_t new_size) {
-  memset_s(m_buffer, m_size, 0, m_size);
-  delete[] m_buffer;
-  m_size = 0;
-  m_buffer = nullptr;
-  if (new_size == 0) {
-    return false;
-  }
-  m_buffer = new (std::nothrow) uchar[new_size];
-  if (m_buffer == nullptr) {
-    return true;
-  }
-  m_size = new_size;
-  return false;
-}
-
-bool Binlog_event_data_istream::Decryption_buffer::set_size(
-    size_t size_to_set) {
-  if (size_to_set == m_size) {
-    return false;
-  }
-  if (size_to_set > m_size) {
-    return resize(size_to_set);
-  }
-  assert(size_to_set < m_size);
-
-  if (size_to_set < (m_size / 2)) {
-    if (++m_number_of_events_with_half_the_size == 100) {
-      // There were already 101 events in a row, which size was a half of
-      // currently allocated size. This is strong indication that we had occured
-      // an event which was unusually big. Shrink the buffer to half the size.
-      if (resize(m_size / 2)) {
-        return true;
-      }
-      m_number_of_events_with_half_the_size = 0;
-    }
-  } else {
-    m_number_of_events_with_half_the_size = 0;
-  }
-  return false;
-}
-
-uchar *Binlog_event_data_istream::Decryption_buffer::data() { return m_buffer; }
-
 bool Binlog_event_data_istream::fill_event_data(
     unsigned char *event_data, bool verify_checksum,
     enum_binlog_checksum_alg checksum_alg) {
@@ -143,39 +83,20 @@ bool Binlog_event_data_istream::fill_event_data(
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
 
-  if (crypto_data.is_enabled()) {
-    // crypto only works on binlog files
-    Basic_binlog_ifile *binlog_file =
-        down_cast<Basic_binlog_ifile *>(m_istream);
-
-    // if file position is larger than 4 bytes we still care only about
-    // least significant 4 bytes
-    if (m_decryption_buffer.set_size(m_event_length) ||
-        decrypt_event(
-            static_cast<uint32_t>((binlog_file->position() - m_event_length)),
-            crypto_data, event_data, m_decryption_buffer.data(),
-            m_event_length)) {
-      return m_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE);
-    }
-
-    memcpy(event_data, m_decryption_buffer.data(), m_event_length);
-  }
-
 #ifndef NDEBUG
   debug_corrupt_event(event_data, m_event_length);
 #endif
 
   if (verify_checksum) {
-    if (event_data[EVENT_TYPE_OFFSET] == binary_log::FORMAT_DESCRIPTION_EVENT)
+    if (event_data[EVENT_TYPE_OFFSET] ==
+        mysql::binlog::event::FORMAT_DESCRIPTION_EVENT)
       checksum_alg = Log_event_footer::get_checksum_alg(
           reinterpret_cast<char *>(event_data), m_event_length);
 
     if (Log_event_footer::event_checksum_test(event_data, m_event_length,
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-      return m_error->set_type(crypto_data.is_enabled()
-                                   ? Binlog_read_error::ERROR_DECRYPTING_FILE
-                                   : Binlog_read_error::CHECKSUM_FAILURE);
+      return m_error->set_type(Binlog_read_error::CHECKSUM_FAILURE);
     }
   }
   return false;
@@ -219,24 +140,24 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   if (event_len != uint4korr(buf + EVENT_LEN_OFFSET)) {
-    DBUG_PRINT("error",
-               ("event_len=%u EVENT_LEN_OFFSET=%d "
-                "buf[EVENT_TYPE_OFFSET]=%d ENUM_END_EVENT=%d "
-                "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
-                event_len, EVENT_LEN_OFFSET, buf[EVENT_TYPE_OFFSET],
-                binary_log::ENUM_END_EVENT, uint4korr(buf + EVENT_LEN_OFFSET)));
+    DBUG_PRINT("error", ("event_len=%u EVENT_LEN_OFFSET=%d "
+                         "buf[EVENT_TYPE_OFFSET]=%d ENUM_END_EVENT=%d "
+                         "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
+                         event_len, EVENT_LEN_OFFSET, buf[EVENT_TYPE_OFFSET],
+                         mysql::binlog::event::ENUM_END_EVENT,
+                         uint4korr(buf + EVENT_LEN_OFFSET)));
     return event_len > uint4korr(buf + EVENT_LEN_OFFSET)
                ? Binlog_read_error::BOGUS
                : Binlog_read_error::TRUNC_EVENT;
   }
 
-  uchar event_type = buf[EVENT_TYPE_OFFSET];
+  uint event_type = buf[EVENT_TYPE_OFFSET];
 
   /*
     Sanity check for Format description event. This is needed because
     get_checksum_alg will assume that Format_description_event is well-formed
   */
-  if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT) {
+  if (event_type == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
     if (event_len <= LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET)
       return Binlog_read_error::TRUNC_FD_EVENT;
 
@@ -252,12 +173,12 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
     Notice, a pre-checksum FD version forces alg := BINLOG_CHECKSUM_ALG_UNDEF.
   */
-  alg = (event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
+  alg = (event_type != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT)
             ? fde->footer()->checksum_alg
             : Log_event_footer::get_checksum_alg(buf, event_len);
 
 #ifndef NDEBUG
-  binary_log_debug::debug_checksum_test =
+  mysql::binlog::event::debug::debug_checksum_test =
       DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
 
@@ -270,7 +191,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   if (event_type > fde->number_of_event_types &&
-      event_type != binary_log::START_5_7_ENCRYPTION_EVENT &&
       /*
         Skip the event type check when simulating an unknown ignorable event.
       */
@@ -281,113 +201,110 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     */
     DBUG_PRINT("error", ("event type %d found, but the current "
                          "Format_description_event supports only %d event "
-                         "types, plus Start Encryption Event",
+                         "types",
                          event_type, fde->number_of_event_types));
     return Binlog_read_error::INVALID_EVENT;
   }
 
   /* Remove checksum length from event_len */
-  if (alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
-      (event_type == binary_log::FORMAT_DESCRIPTION_EVENT ||
-       alg != binary_log::BINLOG_CHECKSUM_ALG_OFF))
+  if (alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF &&
+      (event_type == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
+       alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF))
     event_len = event_len - BINLOG_CHECKSUM_LEN;
 
   switch (event_type) {
-    case binary_log::QUERY_EVENT:
+    case mysql::binlog::event::QUERY_EVENT:
 #ifndef NDEBUG
-      binary_log_debug::debug_query_mts_corrupt_db_names =
+      mysql::binlog::event::debug::debug_query_mts_corrupt_db_names =
           DBUG_EVALUATE_IF("query_log_event_mta_corrupt_db_names", true, false);
 #endif
-      ev = new Query_log_event(buf, fde, binary_log::QUERY_EVENT);
+      ev = new Query_log_event(buf, fde, mysql::binlog::event::QUERY_EVENT);
       break;
-    case binary_log::ROTATE_EVENT:
+    case mysql::binlog::event::ROTATE_EVENT:
       ev = new Rotate_log_event(buf, fde);
       break;
-    case binary_log::APPEND_BLOCK_EVENT:
+    case mysql::binlog::event::APPEND_BLOCK_EVENT:
       ev = new Append_block_log_event(buf, fde);
       break;
-    case binary_log::DELETE_FILE_EVENT:
+    case mysql::binlog::event::DELETE_FILE_EVENT:
       ev = new Delete_file_log_event(buf, fde);
       break;
-    case binary_log::STOP_EVENT:
+    case mysql::binlog::event::STOP_EVENT:
       ev = new Stop_log_event(buf, fde);
       break;
-    case binary_log::INTVAR_EVENT:
+    case mysql::binlog::event::INTVAR_EVENT:
       ev = new Intvar_log_event(buf, fde);
       break;
-    case binary_log::XID_EVENT:
+    case mysql::binlog::event::XID_EVENT:
       ev = new Xid_log_event(buf, fde);
       break;
-    case binary_log::RAND_EVENT:
+    case mysql::binlog::event::RAND_EVENT:
       ev = new Rand_log_event(buf, fde);
       break;
-    case binary_log::USER_VAR_EVENT:
+    case mysql::binlog::event::USER_VAR_EVENT:
       ev = new User_var_log_event(buf, fde);
       break;
-    case binary_log::FORMAT_DESCRIPTION_EVENT:
+    case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
       ev = new Format_description_log_event(buf, fde);
       break;
-    case binary_log::WRITE_ROWS_EVENT_V1:
+    case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
         ev = new Write_rows_log_event(buf, fde);
       break;
-    case binary_log::UPDATE_ROWS_EVENT_V1:
+    case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
         ev = new Update_rows_log_event(buf, fde);
       break;
-    case binary_log::DELETE_ROWS_EVENT_V1:
+    case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
       if (!(fde->post_header_len.empty()))
         ev = new Delete_rows_log_event(buf, fde);
       break;
-    case binary_log::TABLE_MAP_EVENT:
+    case mysql::binlog::event::TABLE_MAP_EVENT:
       if (!(fde->post_header_len.empty()))
         ev = new Table_map_log_event(buf, fde);
       break;
-    case binary_log::BEGIN_LOAD_QUERY_EVENT:
+    case mysql::binlog::event::BEGIN_LOAD_QUERY_EVENT:
       ev = new Begin_load_query_log_event(buf, fde);
       break;
-    case binary_log::EXECUTE_LOAD_QUERY_EVENT:
+    case mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT:
       ev = new Execute_load_query_log_event(buf, fde);
       break;
-    case binary_log::INCIDENT_EVENT:
+    case mysql::binlog::event::INCIDENT_EVENT:
       ev = new Incident_log_event(buf, fde);
       break;
-    case binary_log::ROWS_QUERY_LOG_EVENT:
+    case mysql::binlog::event::ROWS_QUERY_LOG_EVENT:
       ev = new Rows_query_log_event(buf, fde);
       break;
-    case binary_log::GTID_LOG_EVENT:
-    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
       ev = new Gtid_log_event(buf, fde);
       break;
-    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
+    case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT:
       ev = new Previous_gtids_log_event(buf, fde);
       break;
-    case binary_log::WRITE_ROWS_EVENT:
+    case mysql::binlog::event::WRITE_ROWS_EVENT:
       ev = new Write_rows_log_event(buf, fde);
       break;
-    case binary_log::UPDATE_ROWS_EVENT:
+    case mysql::binlog::event::UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
-    case binary_log::DELETE_ROWS_EVENT:
+    case mysql::binlog::event::DELETE_ROWS_EVENT:
       ev = new Delete_rows_log_event(buf, fde);
       break;
-    case binary_log::TRANSACTION_CONTEXT_EVENT:
+    case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
       ev = new Transaction_context_log_event(buf, fde);
       break;
-    case binary_log::VIEW_CHANGE_EVENT:
+    case mysql::binlog::event::VIEW_CHANGE_EVENT:
       ev = new View_change_log_event(buf, fde);
       break;
-    case binary_log::XA_PREPARE_LOG_EVENT:
+    case mysql::binlog::event::XA_PREPARE_LOG_EVENT:
       ev = new XA_prepare_log_event(buf, fde);
       break;
-    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
+    case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
-    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+    case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT:
       ev = new Transaction_payload_log_event(buf, fde);
-      break;
-    case binary_log::START_5_7_ENCRYPTION_EVENT:
-      ev = new Start_encryption_log_event(buf, fde);
       break;
     default:
       /*
@@ -420,8 +337,10 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   ev->common_footer->checksum_alg = alg;
-  if (ev->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-      ev->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
+  if (ev->common_footer->checksum_alg !=
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
+      ev->common_footer->checksum_alg !=
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF)
     ev->crc = uint4korr(buf + event_len);
 
   DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",

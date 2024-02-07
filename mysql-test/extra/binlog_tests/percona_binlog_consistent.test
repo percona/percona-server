@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Test that we get the correct binlog position from START TRANSACTION WITH
 # CONSISTENT SNAPSHOT even when other transactions are active.
@@ -14,7 +14,7 @@ connection default;
 --echo # Connection default
 
 CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 SHOW STATUS LIKE 'binlog_snapshot_%';
 BEGIN;
 INSERT INTO t1 VALUES (0, "");
@@ -55,7 +55,7 @@ connection default;
 --echo # Connection default
 SELECT * FROM t1 ORDER BY a,b;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 SELECT * FROM t2 ORDER BY a;
 
 connection con1;
@@ -75,10 +75,10 @@ connection default;
 --echo # Connection default
 SELECT * FROM t1 ORDER BY a,b;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 COMMIT;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 --echo # Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
 
@@ -88,7 +88,7 @@ DELETE FROM t1;
 
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 INSERT INTO t1 VALUES (1, "first");
 SELECT * FROM t1;
@@ -98,14 +98,14 @@ SELECT * FROM t1;
 INSERT INTO t1 VALUES (3, "third");
 SELECT * FROM t1;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 --connection con2
 --echo # Connection con2
 SELECT * FROM t1;
 
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 --disable_query_log
 --eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
@@ -114,25 +114,25 @@ SHOW MASTER STATUS;
 SELECT * FROM t1;
 
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 --connection con3
 --echo # Connection con3
 FLUSH LOGS;
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 --connection con2
 --echo # Connection con2
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 COMMIT;
 
 --connection default
 --echo # Connection default
 SHOW STATUS LIKE 'binlog_snapshot_%';
-SHOW MASTER STATUS;
+SHOW BINARY LOG STATUS;
 
 COMMIT;
 

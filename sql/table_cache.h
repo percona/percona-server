@@ -40,6 +40,7 @@
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "sql/aggregated_stats.h"
 #include "sql/handler.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -52,6 +53,7 @@ class Table_cache_element;
 
 extern ulong table_cache_size_per_instance, table_cache_instances,
     table_cache_triggers, table_cache_triggers_per_instance;
+extern struct aggregated_stats global_aggregated_stats;
 
 /**
   Cache for open TABLE objects.
@@ -384,6 +386,8 @@ void Table_cache::free_unused_tables_if_necessary(THD *thd) {
       remove_table(table_to_free);
       intern_close_table(table_to_free);
       thd->status_var.table_open_cache_overflows++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .table_open_cache_overflows++;
     }
     while (m_table_triggers_count > table_cache_triggers_per_instance &&
            !m_unused_triggers_lru.is_empty()) {

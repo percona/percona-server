@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 1. Create InnoDB and MyISAM tables and insert 2 rows.
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64)) ENGINE = INNODB;

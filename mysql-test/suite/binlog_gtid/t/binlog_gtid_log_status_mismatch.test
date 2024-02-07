@@ -8,7 +8,7 @@
 --connect (con2,localhost,root,,)
 --echo # Connection default
 --connection default
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 CREATE TABLE t1(c1 INT);
 INSERT INTO t1 VALUES(1);

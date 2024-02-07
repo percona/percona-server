@@ -41,6 +41,7 @@ leak:/usr/bin/zip
 leak:/usr/bin/python3.8
 leak:/usr/bin/python3.9
 leak:/usr/bin/python3.10
+leak:/usr/bin/python3.11
 leak:/usr/bin/grep
 leak:/usr/bin/ps
 leak:/usr/bin/*g++-*
@@ -60,6 +61,9 @@ leak:sasl_client_add_plugin
 
 # The GSS API plugin for SASL has leaks.
 leak:gss_acquire_cred_from
+
+# ndb_sign_keys leaks in some error-exit situations
+leak:ndb_sign_keys
 
 # The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
 # utility on Ubuntu 22.04 Jammy

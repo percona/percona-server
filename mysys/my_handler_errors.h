@@ -31,6 +31,9 @@
   Errors a handler can give you
 */
 
+// clang-format off
+// We do not want to break long lines below,
+// clang Wstring-concatenation may break the build.
 static const char *handler_error_messages[] = {
     "Didn't find key on read or update",
     "Duplicate key on write or update",
@@ -125,6 +128,8 @@ static const char *handler_error_messages[] = {
     "Histogram sampling initialization failed",
     "Too many nested sub-expressions in a full-text search",
     "Destination schema does not exist"};
+
+// clang-format on
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

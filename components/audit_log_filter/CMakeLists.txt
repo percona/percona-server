@@ -80,7 +80,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
   )
 
   MYSQL_ADD_COMPONENT(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
-                      LINK_LIBRARIES ${SSL_LIBRARIES} library_mysys extra::rapidjson ext::zlib
+                      LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto library_mysys extra::rapidjson ext::zlib
                       MODULE_ONLY)
 
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)

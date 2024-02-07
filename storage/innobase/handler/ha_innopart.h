@@ -593,10 +593,15 @@ class ha_innopart : public ha_innobase,
                                       if we exhaust the max cap of number of
                                       parallel read threads that can be
                                       spawned at a time
+  @param[in]    max_desired_threads   Maximum number of desired read threads;
+                                      passing 0 has no effect, it is ignored;
+                                      upper-limited by the current value of
+                                      innodb_parallel_read_threads.
   @return error code
   @return 0 on success */
   int parallel_scan_init(void *&scan_ctx, size_t *num_threads,
-                         bool use_reserved_threads) override;
+                         bool use_reserved_threads,
+                         size_t max_desired_threads) override;
 
   using Reader = Parallel_reader_adapter;
 
@@ -632,6 +637,9 @@ class ha_innopart : public ha_innobase,
 
     /** saved m_prebuilt->blob_heap */
     mem_heap_t *m_blob_heap;
+
+    /** saved prebuilt->compress_heap  */
+    mem_heap_t *m_compress_heap;
 
     /** saved m_prebuilt->trx_id (which in turn reflects table->def_trx_id) */
     trx_id_t m_trx_id;
@@ -684,6 +692,9 @@ class ha_innopart : public ha_innobase,
 
   /** Clear the blob heaps for all partitions */
   void clear_blob_heaps();
+
+  /** Clear the compress heaps for all partitions */
+  void clear_compress_heaps();
 
   /** Reset state of file to after 'open'. This function is called
   after every statement for all tables used by that statement. */

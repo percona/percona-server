@@ -1377,7 +1377,7 @@ DROP TABLE t1;
 SET binlog_format= mixed;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
@@ -1429,7 +1429,6 @@ binlog.000001	1051	Query	1	1162	use `test`; INSERT INTO t2 VALUES (1,0), (2,0)
 binlog.000001	1162	Xid	1	1193	COMMIT /* XID */
 binlog.000001	1193	Anonymous_Gtid	1	1272	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 binlog.000001	1272	Query	1	1356	BEGIN
--- CHANGE MASTER TO MASTER_LOG_FILE='binlog.000001', MASTER_LOG_POS=1193;
 SELECT * FROM t1 ORDER BY a;
 a
 1

@@ -353,6 +353,7 @@ Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_enable_unique_key_check	OFF
 rocksdb_bulk_load_fail_if_not_bottommost_level	OFF
 rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
@@ -362,6 +363,7 @@ Variable_name	Value
 rocksdb_bulk_load	ON
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_enable_unique_key_check	OFF
 rocksdb_bulk_load_fail_if_not_bottommost_level	OFF
 rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
@@ -409,6 +411,7 @@ Variable_name	Value
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
+rocksdb_bulk_load_enable_unique_key_check	OFF
 rocksdb_bulk_load_fail_if_not_bottommost_level	OFF
 rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000

@@ -347,6 +347,8 @@ class Rdb_key_def {
            m_index_type == INDEX_TYPE_HIDDEN_PRIMARY;
   }
 
+  inline bool is_unique_sk() const { return m_is_unique_sk; }
+
   inline bool supports_index_only_collation_scans() const {
     return (m_index_type == INDEX_TYPE_SECONDARY &&
             m_kv_format_version >= SECONDARY_FORMAT_VERSION_COLL) ||
@@ -388,8 +390,8 @@ class Rdb_key_def {
                              const rocksdb::Slice *const key,
                              uchar *const pk_buffer) const;
 
-  uint get_memcmp_sk_parts(const TABLE *table, const rocksdb::Slice &key,
-                           uchar *sk_buffer, uint *n_null_fields) const;
+  uint get_memcmp_sk_parts(const rocksdb::Slice &key, uchar *sk_buffer,
+                           uint *n_null_fields) const;
 
   /* Return max length of mem-comparable form */
   uint max_storage_fmt_length() const { return m_maxlength; }
@@ -985,6 +987,12 @@ class Rdb_key_def {
     many elements are in the m_pack_info array.
   */
   uint m_key_parts;
+
+  /* Whether the key is a unique secondary key */
+  bool m_is_unique_sk;
+
+  /* Number of key parts in the secondary key*/
+  uint m_user_defined_sk_parts;
 
   /*
     If TTL column is part of the PK, offset of the column within pk.

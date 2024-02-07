@@ -146,8 +146,8 @@ Threads_cached	0
 Threads_connected	2
 Threads_created	2
 Threads_running	2
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 SELECT * FROM performance_schema.users WHERE USER="frank";
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS	MAX_SESSION_CONTROLLED_MEMORY	MAX_SESSION_TOTAL_MEMORY
 SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";

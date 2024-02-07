@@ -266,8 +266,6 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 
   trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
 
-  purge_sys->view_active = true;
-
   purge_sys->rseg_iter = ut::new_withkey<TrxUndoRsegsIterator>(
       UT_NEW_THIS_FILE_PSI_KEY, purge_sys);
 }
@@ -277,11 +275,16 @@ Frees the global purge system control structure. */
 void trx_purge_sys_close() {
   if (!purge_sys) return;
 
+  /* Most probably this is not needed at all, because purge for virtual columns
+   is disabled in 8.0 (see #ifdef INNODB_DD_VC_SUPPORT) */
   for (que_thr_t *thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
        thr != nullptr; thr = UT_LIST_GET_NEXT(thrs, thr)) {
-    if (thr->prebuilt != nullptr && thr->prebuilt->compress_heap != nullptr) {
-      row_mysql_prebuilt_free_compress_heap(thr->prebuilt);
+    if (thr->prebuilt != nullptr && thr->prebuilt->blob_heap != nullptr) {
+      row_mysql_prebuilt_free_blob_heap(thr->prebuilt);
     }
+
+    /* compress_heap was not used */
+    ut_ad(thr->prebuilt == 0 || thr->prebuilt->compress_heap == 0);
   }
 
   que_graph_free(purge_sys->query);
@@ -2435,11 +2438,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 
   rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
-  purge_sys->view_active = false;
-
   trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
-
-  purge_sys->view_active = true;
 
   rw_lock_x_unlock(&purge_sys->latch);
 

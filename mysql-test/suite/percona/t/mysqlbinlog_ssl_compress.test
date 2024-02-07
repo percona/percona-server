@@ -10,7 +10,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 --enable_query_log
 
 # Deletes all the binary logs
-reset master;
+RESET BINARY LOGS AND GTIDS;
 
 create table t1 (word varchar(20));
 

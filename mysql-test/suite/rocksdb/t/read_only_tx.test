@@ -63,4 +63,4 @@ disconnect con1;
 disconnect con2;
 OPTIMIZE TABLE t1;
 DROP TABLE t1;
-reset master;
+RESET BINARY LOGS AND GTIDS;

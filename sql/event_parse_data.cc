@@ -517,8 +517,9 @@ void Event_parse_data::init_definer(THD *thd) {
 
 /**
   Set the originator id of the event to the server_id if executing on
-  the master or set to the server_id of the master if executing on
-  the slave. If executing on slave, also set status to SLAVESIDE_DISABLED.
+  the source or set to the server_id of the source if executing on
+  the replica. If executing on replica, also set status to
+  REPLICA_SIDE_DISABLED.
 
   SYNOPSIS
     Event_parse_data::check_originator_id()
@@ -537,8 +538,9 @@ void Event_parse_data::check_originator_id(THD *thd) {
                                                            to_string(name));
     if ((status == Event_parse_data::ENABLED && !event_needs_reenable) ||
         (status == Event_parse_data::DISABLED)) {
-      DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));
-      status = Event_parse_data::SLAVESIDE_DISABLED;
+      DBUG_PRINT(
+          "info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
+      status = Event_parse_data::REPLICA_SIDE_DISABLED;
       status_changed = true;
     }
     originator = thd->server_id;

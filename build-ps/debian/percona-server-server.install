@@ -83,6 +83,8 @@ usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/component_keyring_file.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/component_mysqlbackup.so
+usr/lib/mysql/plugin/authentication_webauthn_client.so
+usr/lib/mysql/plugin/component_test_server_telemetry_metrics.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
@@ -116,6 +118,8 @@ usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/authentication_fido_client.so
+usr/lib/mysql/plugin/debug/authentication_webauthn_client.so
+usr/lib/mysql/plugin/debug/component_test_server_telemetry_metrics.so
 
 # Percona plugins
 usr/lib/mysql/plugin/auth_pam.so

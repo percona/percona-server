@@ -30,7 +30,7 @@ INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 insert into t1 select * from t2;
 call setcrash(5);
@@ -41,7 +41,7 @@ a	b	c	d	id
 SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 insert into t1 select * from t2;
 call setcrash(4);
@@ -52,7 +52,7 @@ a	b	c	d	id
 SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 insert into t1 select * from t2;
 call setcrash(3);
@@ -63,7 +63,7 @@ a	b	c	d	id
 SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 insert into t1 select * from t2;
 call setcrash(2);
@@ -74,7 +74,7 @@ a	b	c	d	id
 SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START TRANSACTION;
 insert into t1 select * from t2;
 call setcrash(1);

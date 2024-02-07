@@ -82,7 +82,6 @@
 #include "mysql/service_thread_scheduler.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
-#include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
@@ -635,7 +634,7 @@ class Open_tables_state {
  public:
   Reprepare_observer *get_reprepare_observer() const {
     return m_reprepare_observers.size() > 0 ? m_reprepare_observers.back()
-                                            : NULL;
+                                            : nullptr;
   }
 
   void push_reprepare_observer(Reprepare_observer *o) {
@@ -4733,6 +4732,7 @@ class THD : public MDL_context_owner,
     Optimizer cost model for server operations.
   */
   Cost_model_server m_cost_model;
+  Cost_model_server m_cost_model_hypergraph;
 
  public:
   /**
@@ -4740,12 +4740,12 @@ class THD : public MDL_context_owner,
 
     This function should be called each time a new query is started.
   */
-  void init_cost_model() { m_cost_model.init(); }
+  void init_cost_model();
 
   /**
     Retrieve the optimizer cost model for this connection.
   */
-  const Cost_model_server *cost_model() const { return &m_cost_model; }
+  const Cost_model_server *cost_model() const;
 
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
@@ -4976,6 +4976,13 @@ class THD : public MDL_context_owner,
   */
   bool is_secondary_storage_engine_eligible() const;
 
+  /// Indicate whether secondary storage engine is forced for this execution
+  void set_secondary_engine_forced(bool forced) {
+    m_secondary_engine_forced = forced;
+  }
+
+  bool is_secondary_engine_forced() const { return m_secondary_engine_forced; }
+
  private:
   /**
     This flag tells if a secondary storage engine can be used to
@@ -4983,6 +4990,13 @@ class THD : public MDL_context_owner,
   */
   Secondary_engine_optimization m_secondary_engine_optimization =
       Secondary_engine_optimization::PRIMARY_ONLY;
+
+  /**
+    Flag that tells whether secondary storage engine is forced for execution.
+    Notice that use_secondary_engine is not reliable because it may be restored
+    early.
+  */
+  bool m_secondary_engine_forced{false};
 
   void cleanup_after_parse_error();
   /**

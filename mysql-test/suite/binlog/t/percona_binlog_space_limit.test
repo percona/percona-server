@@ -47,7 +47,7 @@ INSERT INTO t1 VALUES (3,3);
 # binary.000010 should be deleted now
 source include/show_binary_logs.inc;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 source include/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (4,4);

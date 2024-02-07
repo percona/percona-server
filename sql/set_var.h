@@ -32,6 +32,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <optional>
@@ -69,7 +70,7 @@ struct LEX_USER;
 template <class Key, class Value>
 class collation_unordered_map;
 
-typedef ulonglong sql_mode_t;
+using sql_mode_t = uint64_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;
 template <class T>

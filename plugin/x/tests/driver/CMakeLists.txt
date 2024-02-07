@@ -44,7 +44,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
   perconaserverclient
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${PROTOBUF_LIBRARY}
+  ext::libprotobuf
   ext::lz4
   extra::rapidjson
 )

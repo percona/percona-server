@@ -1,7 +1,7 @@
 #
 # Debug build tests for consistent binlog snapshot
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Bug 1646100: Server becomes unresponsive during flushing after loading
 # big files through LOAD DATA INFILE

@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 1. Create an InnoDB table and insert 2 rows.
 #    Wait till each entry appears individually in the table.

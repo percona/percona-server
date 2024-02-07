@@ -29,12 +29,13 @@
 #include <atomic>
 #include <utility>
 
-#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/binlog_event.h"  // enum_binlog_checksum_alg
+#include "mysql/binlog/event/trx_boundary_parser.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_cond_bits.h"
@@ -43,7 +44,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"  // Item_result
+#include "mysql_com.h"          // Item_result
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
@@ -82,7 +83,7 @@ typedef int64 query_id_t;
 
 /*
   Maximum allowed unique log filename extension for
-  RESET MASTER TO command - 2 Billion
+  RESET BINARY LOGS AND GTIDS command - 2 Billion
  */
 #define MAX_ALLOWED_FN_EXT_RESET_MASTER 2000000000
 
@@ -299,7 +300,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
-#if defined(MYSQL_SERVER)
   /**
    * Read binary log stream header and Format_desc event from
    * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
@@ -309,7 +309,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
    *                 while reading log events
    */
   bool read_binlog_in_use_flag(Binlog_file_reader &binlog_file_reader);
-#endif /* defined(MYSQL_SERVER) */
 
  protected:
   /**
@@ -359,7 +358,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     (A)    - checksum algorithm descriptor value
     FD.(A) - the value of (A) in FD
   */
-  binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
+  mysql::binlog::event::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period, bool relay_log = false);
   ~MYSQL_BIN_LOG() override;
@@ -441,9 +440,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
     of all lost GTIDs in the binary log, and stores each set in
     respective argument.
 
-    @param gtid_set Will be filled with all GTIDs in this binary/relay
+    @param all_gtids Will be filled with all GTIDs in this binary/relay
     log.
-    @param lost_groups Will be filled with all GTIDs in the
+    @param lost_gtids Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event. This is requested to binary logs but not
     to relay logs.
@@ -461,11 +460,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
-  bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum, bool need_lock,
-                      Transaction_boundary_parser *trx_parser,
-                      Gtid_monitoring_info *partial_trx,
-                      bool is_server_starting = false);
+  bool init_gtid_sets(
+      Gtid_set *all_gtids, Gtid_set *lost_gtids, bool verify_checksum,
+      bool need_lock,
+      mysql::binlog::event::Transaction_boundary_parser *trx_parser,
+      Gtid_monitoring_info *partial_trx, bool is_server_starting = false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param) {
     assert(is_relay_log);
@@ -782,7 +781,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     thread while creating a new relay log file. This should be NULL for
     binary log files.
     @param new_index_number The binary log file index number to start from
-    after the RESET MASTER TO command is called.
+    after the RESET BINARY LOGS AND GTIDS command is called.
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,
@@ -839,7 +838,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool write_buffer(uchar *buf, uint len, Master_info *mi);
+  bool write_buffer(const char *buf, uint len, Master_info *mi);
   bool write_event(Log_event *ev, Master_info *mi);
 
   /**

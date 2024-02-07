@@ -68,6 +68,7 @@
 #include "nulls.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql-common/json_path.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_getroot
 #include "sql/auth/sql_security_ctx.h"
@@ -93,7 +94,6 @@
 #include "sql/json_diff.h"  // Json_diff_vector
 #include "sql/key.h"        // find_ref_key
 #include "sql/log.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // reg_ext key_file_frm ...
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // opt_trace_disable_if_no_security_...
@@ -3376,7 +3376,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
   /* Increment the opened_tables counter, only when open flags set. */
-  if (db_stat) thd->status_var.opened_tables++;
+  if (db_stat) {
+    thd->status_var.opened_tables++;
+    global_aggregated_stats.get_shard(thd->thread_id()).opened_tables++;
+  }
 
   return 0;
 
@@ -7441,10 +7444,11 @@ void TABLE::column_bitmaps_set(MY_BITMAP *read_set_arg,
 }
 
 handler *TABLE::get_primary_handler() const {
-  if (s->is_primary_engine()) {
+  if (s != nullptr && s->is_primary_engine()) {
     return file;
   }
-  return file->ha_get_primary_handler();
+
+  return (file != nullptr) ? file->ha_get_primary_handler() : nullptr;
 }
 
 bool Table_ref::set_recursive_reference() {
@@ -7471,6 +7475,7 @@ bool Table_ref::is_external() const {
     return primary_handler != nullptr &&
            Overlaps(primary_handler->ht->flags,
                     HTON_SUPPORTS_EXTERNAL_SOURCE) &&
+           primary_handler->get_table_share() != nullptr &&
            primary_handler->get_table_share()->has_secondary_engine();
   }
   return false;
@@ -7880,7 +7885,7 @@ void TABLE::add_logical_diff(const Field_json *field,
     value_str.set_ascii("<none>", 6);
   else {
     if (new_value->to_string(&value_str, false, "add_logical_diff",
-                             JsonDocumentDefaultDepthHandler))
+                             JsonDepthErrorHandler))
       value_str.length(0); /* purecov: inspected */
   }
   DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",

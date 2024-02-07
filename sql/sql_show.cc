@@ -572,12 +572,12 @@ bool Sql_cmd_show_grants::execute_inner(THD *thd) {
                            have_using_clause, effective_grants);
 }
 
-bool Sql_cmd_show_master_status::check_privileges(THD *thd) {
+bool Sql_cmd_show_binary_log_status::check_privileges(THD *thd) {
   return check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL);
 }
 
-bool Sql_cmd_show_master_status::execute_inner(THD *thd) {
-  return show_master_status(thd);
+bool Sql_cmd_show_binary_log_status::execute_inner(THD *thd) {
+  return show_binary_log_status(thd);
 }
 
 bool Sql_cmd_show_profiles::execute_inner(THD *thd [[maybe_unused]]) {
@@ -1290,19 +1290,14 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   strcpy(orig_dbname, dbname);
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
-
   if (sctx->check_access(DB_OP_ACLS, orig_dbname))
     db_access = DB_OP_ACLS;
-  else {
-    if (sctx->get_active_roles()->size() > 0 && dbname != nullptr) {
-      db_access = (sctx->db_acl({dbname, strlen(dbname)}) |
-                   sctx->master_access(dbname ? dbname : ""));
-    } else {
-      db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
-                           sctx->priv_user().str, dbname, false) |
-                   sctx->master_access(dbname ? dbname : ""));
-    }
-  }
+  else
+    db_access =
+        (Security_context::check_db_level_access(
+             thd, dbname ? sctx : nullptr, sctx->host().str, sctx->ip().str,
+             sctx->priv_user().str, dbname, strlen(dbname)) |
+         sctx->master_access(dbname ? dbname : ""));
   if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
     thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
@@ -2864,7 +2859,10 @@ class List_process_list : public Do_THD_Impl {
       : m_user(user_value),
         m_thread_infos(thread_infos),
         m_client_thd(thd_value),
-        m_max_query_length(max_query_length) {}
+        m_max_query_length(max_query_length) {
+    push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
+                         "performance_schema.processlist");
+  }
 
   void operator()(THD *inspect_thd) override {
     DBUG_TRACE;
@@ -3126,7 +3124,10 @@ class Fill_process_list : public Do_THD_Impl {
 
  public:
   Fill_process_list(THD *thd_value, Table_ref *tables_value)
-      : m_client_thd(thd_value), m_tables(tables_value) {}
+      : m_client_thd(thd_value), m_tables(tables_value) {
+    push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
+                         "performance_schema.processlist");
+  }
 
   ~Fill_process_list() override {
     DBUG_EXECUTE_IF("test_fill_proc_with_x_root",
@@ -3970,58 +3971,28 @@ static int fill_schema_table_stats(THD *thd, Table_ref *tables,
                                    Item *cond [[maybe_unused]]) {
   DBUG_ENTER("fill_schema_table_stats");
 
-  TABLE *const table = tables->table;
+  // Create copy of global table stats on current memory root,
+  // to be able safely check table privileges later, outside of
+  // LOCK_global_table_stats mutex scope.
+  using Table_stats_rec = std::tuple<const char *, const char *, TABLE_STATS>;
+  Mem_root_array<Table_stats_rec> table_stats_array(thd->mem_root);
 
   mysql_mutex_lock(&LOCK_global_table_stats);
   DEBUG_SYNC(thd, "fill_schema_table_stats");
-
+  table_stats_array.reserve(global_table_stats->size());
   for (const auto &it : *global_table_stats) {
-    restore_record(table, s->default_values);
-
     char *table_full_name = thd->mem_strdup(it.first.c_str());
     const char *const table_schema = strsep(&table_full_name, ".");
-    const TABLE_STATS *const table_stats = &it.second;
-
-    Table_ref tmp_table;
-    memset(reinterpret_cast<char *>(&tmp_table), 0, sizeof(tmp_table));
-    tmp_table.table_name = table_full_name;
-    tmp_table.db = table_schema;
-    tmp_table.grant.privilege = 0;
-    if (check_access(thd, SELECT_ACL, tmp_table.db, &tmp_table.grant.privilege,
-                     0, 0, is_infoschema_db(table_schema)) ||
-        check_grant(thd, SELECT_ACL, &tmp_table, 1, UINT_MAX, 1))
-      continue;
-
-    table->field[0]->store(table_schema, strlen(table_schema),
-                           system_charset_info);
-    table->field[1]->store(table_full_name, strlen(table_full_name),
-                           system_charset_info);
-    table->field[2]->store(table_stats->rows_read, true);
-    table->field[3]->store(table_stats->rows_changed, true);
-    table->field[4]->store(table_stats->rows_changed_x_indexes, true);
-
-    if (schema_table_store_record(thd, table)) {
-      mysql_mutex_unlock(&LOCK_global_table_stats);
-      DBUG_RETURN(1);
-    }
+    table_stats_array.emplace_back(table_schema, table_full_name, it.second);
   }
   mysql_mutex_unlock(&LOCK_global_table_stats);
-  DBUG_RETURN(0);
-}
 
-// Sends the global index stats back to the client.
-static int fill_schema_index_stats(THD *thd, Table_ref *tables,
-                                   Item *cond [[maybe_unused]]) {
   TABLE *const table = tables->table;
-  DBUG_ENTER("fill_schema_index_stats");
 
-  mysql_mutex_lock(&LOCK_global_index_stats);
-  for (const auto &it : *global_index_stats) {
-    restore_record(table, s->default_values);
-
-    char *index_full_name = thd->mem_strdup(it.first.c_str());
-    const char *const table_schema = strsep(&index_full_name, ".");
-    const char *const table_name = strsep(&index_full_name, ".");
+  for (const auto &rec : table_stats_array) {
+    const char *const table_schema = std::get<0>(rec);
+    const char *const table_name = std::get<1>(rec);
+    const TABLE_STATS *const table_stats = &std::get<2>(rec);
 
     Table_ref tmp_table;
     memset(reinterpret_cast<char *>(&tmp_table), 0, sizeof(tmp_table));
@@ -4033,19 +4004,73 @@ static int fill_schema_index_stats(THD *thd, Table_ref *tables,
         check_grant(thd, SELECT_ACL, &tmp_table, 1, UINT_MAX, 1))
       continue;
 
+    restore_record(table, s->default_values);
+
     table->field[0]->store(table_schema, strlen(table_schema),
                            system_charset_info);
     table->field[1]->store(table_name, strlen(table_name), system_charset_info);
-    table->field[2]->store(index_full_name, strlen(index_full_name),
-                           system_charset_info);
-    table->field[3]->store(it.second, true);  // rows_read
+    table->field[2]->store(table_stats->rows_read, true);
+    table->field[3]->store(table_stats->rows_changed, true);
+    table->field[4]->store(table_stats->rows_changed_x_indexes, true);
 
     if (schema_table_store_record(thd, table)) {
-      mysql_mutex_unlock(&LOCK_global_index_stats);
       DBUG_RETURN(1);
     }
   }
+  DBUG_RETURN(0);
+}
+
+// Sends the global index stats back to the client.
+static int fill_schema_index_stats(THD *thd, Table_ref *tables,
+                                   Item *cond [[maybe_unused]]) {
+  DBUG_ENTER("fill_schema_index_stats");
+
+  // Create copy of global index stats on current memory root,
+  // to be able safely check table privileges later, outside of
+  // LOCK_global_index_stats mutex scope.
+  using Index_stats_rec =
+      std::tuple<const char *, const char *, const char *, ulonglong>;
+  Mem_root_array<Index_stats_rec> index_stats_array(thd->mem_root);
+
+  mysql_mutex_lock(&LOCK_global_index_stats);
+  index_stats_array.reserve(global_index_stats->size());
+  for (const auto &it : *global_index_stats) {
+    char *index_full_name = thd->mem_strdup(it.first.c_str());
+    const char *const table_schema = strsep(&index_full_name, ".");
+    const char *const table_name = strsep(&index_full_name, ".");
+    index_stats_array.emplace_back(table_schema, table_name, index_full_name,
+                                   it.second);
+  }
   mysql_mutex_unlock(&LOCK_global_index_stats);
+
+  TABLE *const table = tables->table;
+
+  for (const auto &rec : index_stats_array) {
+    const char *const table_schema = std::get<0>(rec);
+    const char *const table_name = std::get<1>(rec);
+    const char *const index_name = std::get<2>(rec);
+
+    Table_ref tmp_table;
+    memset(reinterpret_cast<char *>(&tmp_table), 0, sizeof(tmp_table));
+    tmp_table.table_name = table_name;
+    tmp_table.db = table_schema;
+    tmp_table.grant.privilege = 0;
+    if (check_access(thd, SELECT_ACL, tmp_table.db, &tmp_table.grant.privilege,
+                     0, 0, is_infoschema_db(table_schema)) ||
+        check_grant(thd, SELECT_ACL, &tmp_table, 1, UINT_MAX, 1))
+      continue;
+
+    restore_record(table, s->default_values);
+    table->field[0]->store(table_schema, strlen(table_schema),
+                           system_charset_info);
+    table->field[1]->store(table_name, strlen(table_name), system_charset_info);
+    table->field[2]->store(index_name, strlen(index_name), system_charset_info);
+    table->field[3]->store(std::get<3>(rec), true);  // rows_read
+
+    if (schema_table_store_record(thd, table)) {
+      DBUG_RETURN(1);
+    }
+  }
   DBUG_RETURN(0);
 }
 

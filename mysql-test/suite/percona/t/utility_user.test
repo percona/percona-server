@@ -222,7 +222,7 @@ SHOW GLOBAL STATUS LIKE "Connections";
 # Other Thread_ counters are fine.
 SHOW GLOBAL STATUS LIKE "Threads%";
 
-SHOW PROCESSLIST;
+SELECT * FROM performance_schema.processlist;
 
 SELECT * FROM performance_schema.users WHERE USER="frank";
 

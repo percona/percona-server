@@ -186,6 +186,18 @@ int Rdb_convert_to_record_key_decoder::skip(
   if (fpi->m_skip_func == &Rdb_key_def::skip_variable_space_pad &&
       !fpi->m_unpack_info_stores_value && !covered_bitmap_format_enabled) {
     unp_reader->read(fpi->m_unpack_info_uses_two_bytes ? 2 : 1);
+  } else if (fpi->m_covered == Rdb_key_def::KEY_MAY_BE_COVERED &&
+             fpi->m_field_real_type == MYSQL_TYPE_BLOB) {
+    const uint len_bytes = fpi->m_varlength_bytes;
+
+    assert(len_bytes > 0);
+    assert(unp_reader != nullptr);
+
+    const uchar *ptr = nullptr;
+    if ((ptr = (uchar *)unp_reader->read(len_bytes))) {
+      uint len = Field_blob::get_length(ptr, fpi->m_varlength_bytes);
+      (void)unp_reader->read(len);
+    }
   }
   return HA_EXIT_SUCCESS;
 }

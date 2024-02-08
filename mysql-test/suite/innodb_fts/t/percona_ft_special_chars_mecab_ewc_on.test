@@ -1,0 +1,14 @@
+#
+# PS-9048: Debug assertion with OPTIMIZE table and fulltext indexes in InnoDB
+# https://perconadev.atlassian.net/browse/PS-9048
+#
+--source include/have_mecab.inc
+
+--source suite/innodb_fts/include/percona_install_mecab_plugin.inc
+
+SET ft_query_extra_word_chars = ON;
+
+--let $fts_parser = mecab
+--source suite/innodb_fts/include/percona_ft_special_chars.inc
+
+--source suite/innodb_fts/include/percona_uninstall_mecab_plugin.inc

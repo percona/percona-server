@@ -1,0 +1,238 @@
+SET ft_query_extra_word_chars = ON;
+*** saving global system variables
+SET @old_innodb_optimize_fulltext_only = @@global.innodb_optimize_fulltext_only;
+SET GLOBAL innodb_optimize_fulltext_only = ON;
+SET @old_innodb_ft_aux_table = @@global.innodb_ft_aux_table;
+
+*** creating a simple table with a full text index
+SET innodb_ft_enable_stopword = OFF;
+CREATE TABLE t1 (c TINYTEXT, FULLTEXT KEY (c) WITH PARSER ngram) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SET GLOBAL innodb_ft_aux_table = 'test/t1';
+
+***************************************
+*** Part I: original crash scenario ***
+***************************************
+
+*** inserting a record containing the '%' character
+SET @special_string = 'vdf%vdfd%ghdi%opu';
+INSERT INTO t1 VALUES (@special_string);
+include/assert.inc [number of records in the index cache after inserting 'vdf%vdfd%ghdi%opu' is expected to be 16]
+SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+WORD
+%g
+%o
+%v
+d%
+df
+df
+di
+f%
+fd
+gh
+hd
+i%
+op
+pu
+vd
+vd
+include/assert.inc [number of records in the index table after inserting 'vdf%vdfd%ghdi%opu' is expected to be zero]
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+
+*** updating the table with another record also containing the '%' character
+SET @special_string = 'sd%he%ff';
+UPDATE t1 SET c = @special_string;
+include/assert.inc [number of records in the index cache after updating to 'sd%he%ff' is expected to be 7]
+SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY WORD;
+WORD
+%f
+%h
+d%
+e%
+ff
+he
+sd
+include/assert.inc [number of records in the index table after updating to 'sd%he%ff' is expected to be 16]
+SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE ORDER BY WORD;
+WORD
+%g
+%o
+%v
+d%
+df
+df
+di
+f%
+fd
+gh
+hd
+i%
+op
+pu
+vd
+vd
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+include/assert.inc [number of records in the index cache after updating to 'sd%he%ff' and optimizing is expected to be zero]
+include/assert.inc [number of records in the index table after updating to 'sd%he%ff' and optimizing is expected to be 7]
+SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE ORDER BY WORD;
+WORD
+%f
+%h
+d%
+e%
+ff
+he
+sd
+
+*** deleting the record
+DELETE FROM t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+
+**************************************************
+*** Part II: indexing other special characters ***
+**************************************************
+
+*** creating a list of all printable characters (ASCII 33..126)
+*** (whitespace and control characters are excluded)
+SELECT GROUP_CONCAT(CHAR(value + 33 USING utf8mb4) SEPARATOR '') INTO @special_characters FROM SEQUENCE_TABLE(127 - 33) AS tt;
+SELECT @special_characters;
+@special_characters
+!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+*** for each character from the set we create a string containing this character
+*** and perform SELECTs with various MATCH() ... AGAINST() clauses (both in
+*** NATURAL LANGUAGE and BOOLEAN modes)
+
+*** please note that it is totally OK that some of these checks do not return
+*** the result we call "expected" - a number of characters have special meaning
+*** (especially in BOOLEAN mode) - our goal here is to test for crashes
+
+*** also we expect the number of mismatches to be much lower when
+*** 'ft_query_extra_word_chars' is set to 'ON'
+
+include/assert.inc [number of records for the special string containing '!' is expected to be 6]
+include/assert.inc [number of records for the special string containing '"' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "c"", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: ""d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "c"d", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '#' is expected to be 6]
+include/assert.inc [number of records for the special string containing '$' is expected to be 6]
+include/assert.inc [number of records for the special string containing '%' is expected to be 6]
+*** mode: "NATURAL LANGUAGE", pattern: "c%", expected result: 1, result: 0
+*** mode: "NATURAL LANGUAGE", pattern: "%d", expected result: 1, result: 0
+*** mode: "NATURAL LANGUAGE", pattern: "c%d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "c%", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "%d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "c%d", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '&' is expected to be 6]
+include/assert.inc [number of records for the special string containing ''' is expected to be 6]
+include/assert.inc [number of records for the special string containing '(' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "(d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "(de", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing ')' is expected to be 6]
+*** mode: "BOOLEAN", pattern: ")d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: ")de", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '*' is expected to be 6]
+include/assert.inc [number of records for the special string containing '+' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "+d", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing ',' is expected to be 6]
+include/assert.inc [number of records for the special string containing '-' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "-d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "-de", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '.' is expected to be 6]
+include/assert.inc [number of records for the special string containing '/' is expected to be 6]
+include/assert.inc [number of records for the special string containing '0' is expected to be 6]
+include/assert.inc [number of records for the special string containing '1' is expected to be 6]
+include/assert.inc [number of records for the special string containing '2' is expected to be 6]
+include/assert.inc [number of records for the special string containing '3' is expected to be 6]
+include/assert.inc [number of records for the special string containing '4' is expected to be 6]
+include/assert.inc [number of records for the special string containing '5' is expected to be 6]
+include/assert.inc [number of records for the special string containing '6' is expected to be 6]
+include/assert.inc [number of records for the special string containing '7' is expected to be 6]
+include/assert.inc [number of records for the special string containing '8' is expected to be 6]
+include/assert.inc [number of records for the special string containing '9' is expected to be 6]
+include/assert.inc [number of records for the special string containing ':' is expected to be 6]
+include/assert.inc [number of records for the special string containing ';' is expected to be 6]
+include/assert.inc [number of records for the special string containing '<' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "<d", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '=' is expected to be 6]
+include/assert.inc [number of records for the special string containing '>' is expected to be 6]
+*** mode: "BOOLEAN", pattern: ">d", expected result: 1, result: 0
+include/assert.inc [number of records for the special string containing '?' is expected to be 6]
+include/assert.inc [number of records for the special string containing '@' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'A' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'B' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'C' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'D' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'E' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'F' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'G' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'H' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'I' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'J' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'K' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'L' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'M' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'N' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'O' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'P' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'Q' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'R' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'S' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'T' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'U' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'V' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'W' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'X' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'Y' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'Z' is expected to be 6]
+include/assert.inc [number of records for the special string containing '[' is expected to be 6]
+include/assert.inc [number of records for the special string containing '\' is expected to be 6]
+include/assert.inc [number of records for the special string containing ']' is expected to be 6]
+include/assert.inc [number of records for the special string containing '^' is expected to be 6]
+include/assert.inc [number of records for the special string containing '_' is expected to be 6]
+include/assert.inc [number of records for the special string containing '`' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'a' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'b' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'c' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'd' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'e' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'f' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'g' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'h' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'i' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'j' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'k' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'l' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'm' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'n' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'o' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'p' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'q' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'r' is expected to be 6]
+include/assert.inc [number of records for the special string containing 's' is expected to be 6]
+include/assert.inc [number of records for the special string containing 't' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'u' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'v' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'w' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'x' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'y' is expected to be 6]
+include/assert.inc [number of records for the special string containing 'z' is expected to be 6]
+include/assert.inc [number of records for the special string containing '{' is expected to be 6]
+include/assert.inc [number of records for the special string containing '|' is expected to be 6]
+include/assert.inc [number of records for the special string containing '}' is expected to be 6]
+include/assert.inc [number of records for the special string containing '~' is expected to be 6]
+*** mode: "BOOLEAN", pattern: "~d", expected result: 1, result: 0
+*** mode: "BOOLEAN", pattern: "~de", expected result: 1, result: 0
+
+*** dropping the table
+DROP TABLE t1;
+
+*** restoring global system variables
+SET GLOBAL innodb_ft_aux_table = @old_innodb_ft_aux_table;
+SET GLOBAL innodb_optimize_fulltext_only = @old_innodb_optimize_fulltext_only;

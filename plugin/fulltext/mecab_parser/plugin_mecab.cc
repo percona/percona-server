@@ -235,9 +235,12 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
       bool_info->position = position;
       position += node->rlength;
 
-      param->mysql_add_word(param, const_cast<char *>(node->surface),
+      ret = param->mysql_add_word(param, const_cast<char *>(node->surface),
                             node->length,
                             term_converted ? &token_info : bool_info);
+      if (ret != 0) {
+        break;
+      }
     }
   }
 

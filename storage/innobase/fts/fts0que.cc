@@ -1069,7 +1069,7 @@ static ulint fts_cache_find_wildcard(
     fetch.read_record = fts_query_index_fetch_nodes;
 
     error = fts_index_fetch_nodes(trx, &graph, &query->fts_index_table, token,
-                                  &fetch);
+                                  &fetch, false);
 
     /* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
     ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -1189,7 +1189,7 @@ static ulint fts_cache_find_wildcard(
     fetch.read_record = fts_query_index_fetch_nodes;
 
     error = fts_index_fetch_nodes(trx, &graph, &query->fts_index_table, token,
-                                  &fetch);
+                                  &fetch, false);
 
     /* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
     ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -1300,7 +1300,7 @@ static dberr_t fts_query_cache(
 
   /* Read the nodes from disk. */
   error = fts_index_fetch_nodes(trx, &graph, &query->fts_index_table, token,
-                                &fetch);
+                                &fetch, false);
 
   /* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
   ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -2560,7 +2560,7 @@ static void fts_query_phrase_split(fts_query_t *query,
       }
 
       error = fts_index_fetch_nodes(trx, &graph, &query->fts_index_table, token,
-                                    &fetch);
+                                    &fetch, false);
 
       /* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
       ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));

@@ -239,7 +239,8 @@ dberr_t fts_index_fetch_nodes(
     que_t **graph,            /*!< in: prepared statement */
     fts_table_t *fts_table,   /*!< in: FTS aux table */
     const fts_string_t *word, /*!< in: the word to fetch */
-    fts_fetch_t *fetch);      /*!< in: fetch callback.*/
+    fts_fetch_t *fetch,       /*!< in: fetch callback.*/
+    bool exact_match);        /*!< in: exact match.*/
 
 /** Compare two fts_trx_table_t instances, we actually compare the
 table id's here.

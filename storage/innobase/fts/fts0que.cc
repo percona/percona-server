@@ -1209,7 +1209,8 @@ fts_query_difference(
 		fetch.read_record = fts_query_index_fetch_nodes;
 
 		error = fts_index_fetch_nodes(
-			trx, &graph, &query->fts_index_table, token, &fetch);
+			trx, &graph, &query->fts_index_table, token, &fetch,
+			 false);
 
 		/* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
 		ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -1334,7 +1335,8 @@ fts_query_intersect(
 		fetch.read_record = fts_query_index_fetch_nodes;
 
 		error = fts_index_fetch_nodes(
-			trx, &graph, &query->fts_index_table, token, &fetch);
+			trx, &graph, &query->fts_index_table, token, &fetch,
+			false);
 
 		/* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
 		ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -1456,7 +1458,7 @@ fts_query_union(
 
 	/* Read the nodes from disk. */
 	error = fts_index_fetch_nodes(
-		trx, &graph, &query->fts_index_table, token, &fetch);
+		trx, &graph, &query->fts_index_table, token, &fetch, false);
 
 	/* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
 	ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));
@@ -2850,7 +2852,7 @@ fts_query_phrase_search(
 
 			error = fts_index_fetch_nodes(
 				trx, &graph, &query->fts_index_table,
-				token, &fetch);
+				token, &fetch, false);
 
 			/* DB_FTS_EXCEED_RESULT_CACHE_LIMIT passed by 'query->error' */
 			ut_ad(!(query->error != DB_SUCCESS && error != DB_SUCCESS));

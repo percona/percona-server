@@ -310,7 +310,8 @@ fts_index_fetch_nodes(
 	fts_table_t*	fts_table,	/*!< in: FTS aux table */
 	const fts_string_t*
 			word,		/*!< in: the word to fetch */
-	fts_fetch_t*	fetch);		/*!< in: fetch callback.*/
+	fts_fetch_t*	fetch,		/*!< in: fetch callback.*/
+	bool		exact_match);	/*!< in: exact match.*/
 
 /******************************************************************//**
 Create a fts_optimizer_word_t instance.

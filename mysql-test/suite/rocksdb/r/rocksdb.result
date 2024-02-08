@@ -902,6 +902,7 @@ rocksdb_allow_unsafe_alter	OFF
 rocksdb_alter_column_default_inplace	ON
 rocksdb_alter_table_comment_inplace	OFF
 rocksdb_blind_delete_primary_key	OFF
+rocksdb_block_cache_numshardbits	-1
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
 rocksdb_block_size	16384
@@ -920,17 +921,19 @@ rocksdb_cache_index_and_filter_blocks	ON
 rocksdb_cache_index_and_filter_with_high_priority	ON
 rocksdb_cancel_manual_compactions	OFF
 rocksdb_charge_memory	OFF
+rocksdb_check_iterate_bounds	ON
 rocksdb_checksums_pct	100
 rocksdb_collect_sst_properties	ON
 rocksdb_column_default_value_as_expression	ON
 rocksdb_commit_in_the_middle	OFF
 rocksdb_commit_time_batch_for_recovery	OFF
 rocksdb_compact_cf	
+rocksdb_compact_lzero_now	OFF
 rocksdb_compaction_readahead_size	0
-rocksdb_compaction_sequential_deletes	0
-rocksdb_compaction_sequential_deletes_count_sd	OFF
+rocksdb_compaction_sequential_deletes	149999
+rocksdb_compaction_sequential_deletes_count_sd	ON
 rocksdb_compaction_sequential_deletes_file_size	0
-rocksdb_compaction_sequential_deletes_window	0
+rocksdb_compaction_sequential_deletes_window	150000
 rocksdb_concurrent_prepare	ON
 rocksdb_converter_record_cached_length	0
 rocksdb_corrupt_data_action	ERROR
@@ -969,11 +972,12 @@ rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
 rocksdb_error_on_suboptimal_collation	OFF
 rocksdb_fault_injection_options	
+rocksdb_file_checksums	OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_force_compute_memtable_stats	ON
 rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
-rocksdb_force_flush_memtable_now	ON
+rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
 rocksdb_ignore_unknown_options	ON
 rocksdb_index_type	kBinarySearch
@@ -994,6 +998,7 @@ rocksdb_max_background_flushes	-1
 rocksdb_max_background_jobs	2
 rocksdb_max_bottom_pri_background_compactions	0
 rocksdb_max_compaction_history	64
+rocksdb_max_file_opening_threads	16
 rocksdb_max_latest_deadlocks	5
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	1073741824
@@ -1009,6 +1014,7 @@ rocksdb_no_create_column_family	OFF
 rocksdb_override_cf_options	
 rocksdb_paranoid_checks	ON
 rocksdb_partial_index_blind_delete	ON
+rocksdb_partial_index_ignore_killed	ON
 rocksdb_partial_index_sort_max_mem	0
 rocksdb_pause_background_work	ON
 rocksdb_perf_context_level	0
@@ -1627,6 +1633,11 @@ rocksdb_get_hit_l1	#
 rocksdb_get_hit_l2_and_up	#
 rocksdb_get_updates_since_calls	#
 rocksdb_iter_bytes_read	#
+rocksdb_last_level_seek_data	#
+rocksdb_last_level_seek_data_useful_filter_match	#
+rocksdb_last_level_seek_data_useful_no_filter	#
+rocksdb_last_level_seek_filter_match	#
+rocksdb_last_level_seek_filtered	#
 rocksdb_manual_compactions_cancelled	#
 rocksdb_manual_compactions_pending	#
 rocksdb_manual_compactions_processed	#
@@ -1635,6 +1646,11 @@ rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_errors	#
 rocksdb_no_file_opens	#
+rocksdb_non_last_level_seek_data	#
+rocksdb_non_last_level_seek_data_useful_filter_match	#
+rocksdb_non_last_level_seek_data_useful_no_filter	#
+rocksdb_non_last_level_seek_filter_match	#
+rocksdb_non_last_level_seek_filtered	#
 rocksdb_number_block_not_compressed	#
 rocksdb_number_db_next	#
 rocksdb_number_db_next_found	#
@@ -1741,6 +1757,11 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_last_level_seek_data
+rocksdb_last_level_seek_data_useful_filter_match
+rocksdb_last_level_seek_data_useful_no_filter
+rocksdb_last_level_seek_filter_match
+rocksdb_last_level_seek_filtered
 rocksdb_manual_compactions_cancelled
 rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
@@ -1749,6 +1770,11 @@ rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_errors
 rocksdb_no_file_opens
+rocksdb_non_last_level_seek_data
+rocksdb_non_last_level_seek_data_useful_filter_match
+rocksdb_non_last_level_seek_data_useful_no_filter
+rocksdb_non_last_level_seek_filter_match
+rocksdb_non_last_level_seek_filtered
 rocksdb_number_block_not_compressed
 rocksdb_number_db_next
 rocksdb_number_db_next_found
@@ -1857,6 +1883,11 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_last_level_seek_data
+rocksdb_last_level_seek_data_useful_filter_match
+rocksdb_last_level_seek_data_useful_no_filter
+rocksdb_last_level_seek_filter_match
+rocksdb_last_level_seek_filtered
 rocksdb_manual_compactions_cancelled
 rocksdb_manual_compactions_pending
 rocksdb_manual_compactions_processed
@@ -1865,6 +1896,11 @@ rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_errors
 rocksdb_no_file_opens
+rocksdb_non_last_level_seek_data
+rocksdb_non_last_level_seek_data_useful_filter_match
+rocksdb_non_last_level_seek_data_useful_no_filter
+rocksdb_non_last_level_seek_filter_match
+rocksdb_non_last_level_seek_filtered
 rocksdb_number_block_not_compressed
 rocksdb_number_db_next
 rocksdb_number_db_next_found
@@ -2454,17 +2490,10 @@ id
 select * from t1 where id=9 for update;
 id
 drop table t1;
-#Index on blob column
-SET @old_mode = @@sql_mode;
-SET sql_mode = 'strict_all_tables';
-Warnings:
-Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+# Index on blob column
 create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
-set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
-set @@global.rocksdb_large_prefix=1;
 create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
-set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
 a	b	c
@@ -2488,9 +2517,6 @@ a	b	c
 2	12345	2abcde
 3	3abcde	3abcde
 drop table t1;
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-ERROR 42000: Specified key was too long; max key length is 3072 bytes
-SET sql_mode = @old_mode;
 drop table t0;
 #
 # Fix assertion failure (attempt to overrun the key buffer) for prefix indexes

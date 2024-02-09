@@ -277,24 +277,14 @@ bool Gtid_set::is_empty() const { return m_gtid_set.empty(); }
 std::size_t Gtid_set::count() const {
   std::size_t count{0};
 
-<<<<<<< HEAD
   MY_COMPILER_DIAGNOSTIC_PUSH()
   MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
-  for (auto const &[uuid, intervals] : m_gtid_set) {
-    MY_COMPILER_DIAGNOSTIC_POP()
-    for (auto &interval : intervals) {
-      count += interval.count();
-||||||| merged common ancestors
-  for (auto const &[uuid, intervals] : m_gtid_set) {
-    for (auto &interval : intervals) {
-      count += interval.count();
-=======
   for (auto const &[uuid, tag_map] : m_gtid_set) {
     for (auto const &[tag, intervals] : tag_map) {
+      MY_COMPILER_DIAGNOSTIC_POP()
       for (auto &interval : intervals) {
         count += interval.count();
       }
->>>>>>> mysql-8.3.0
     }
   }
 
@@ -304,8 +294,11 @@ std::size_t Gtid_set::count() const {
 void Gtid_set::reset() { m_gtid_set.clear(); }
 
 Gtid_format Gtid_set::get_gtid_set_format() const {
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wunused-variable")
   for (auto const &[uuid, tag_map] : m_gtid_set) {
     for (auto const &[tag, intervals] : tag_map) {
+      MY_COMPILER_DIAGNOSTIC_POP()
       if (tag.is_defined()) {
         return Gtid_format::tagged;
       }

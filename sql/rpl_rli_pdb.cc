@@ -651,16 +651,8 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
     after a rotation.
   */
   if (ptr_g->group_master_log_name != nullptr) {
-<<<<<<< HEAD
-    set_group_master_log_name(ptr_g->group_master_log_name);
-||||||| merged common ancestors
-    strmake(group_master_log_name, ptr_g->group_master_log_name,
-            sizeof(group_master_log_name) - 1);
-=======
     my_claim(ptr_g->group_master_log_name, /*claim=*/true);
-    strmake(group_master_log_name, ptr_g->group_master_log_name,
-            sizeof(group_master_log_name) - 1);
->>>>>>> mysql-8.3.0
+    set_group_master_log_name(ptr_g->group_master_log_name);
     my_free(ptr_g->group_master_log_name);
     ptr_g->group_master_log_name = nullptr;
     strmake(checkpoint_master_log_name, get_group_master_log_name(),

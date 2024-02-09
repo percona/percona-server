@@ -47,33 +47,17 @@
   Kindahl.
 */
 
-<<<<<<< HEAD
-#include <assert.h>
-||||||| merged common ancestors
-=======
 #include "my_bitmap.h"
 
->>>>>>> mysql-8.3.0
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
-<<<<<<< HEAD
-||||||| merged common ancestors
-#include <algorithm>
-=======
-#include <algorithm>
 #include <bit>
->>>>>>> mysql-8.3.0
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-<<<<<<< HEAD
-#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-||||||| merged common ancestors
-#include "my_macros.h"
-=======
->>>>>>> mysql-8.3.0
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"

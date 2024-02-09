@@ -613,7 +613,6 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
 
   if (err != HA_ERR_END_OF_FILE && err != 0)
     ret = -1;
-<<<<<<< HEAD
   else if (find_first_consecutive_gtids) {
     DBUG_EXECUTE_IF("print_gtid_compression_info", {
       sql_print_information(
@@ -622,24 +621,12 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
           gno_end);
     };);
 
-||||||| merged common ancestors
-  else if (find_first_consecutive_gtids)
-=======
-  else if (find_first_consecutive_gtids) {
->>>>>>> mysql-8.3.0
     /*
       Update the gno_end of the first consecutive gtid with the gno_end of
       the last consecutive gtid for the first consecutive range of gtids.
     */
-<<<<<<< HEAD
-    ret = update_row(table, sid.c_str(), gno_start, gno_end);
-  }
-||||||| merged common ancestors
-    ret = update_row(table, sid.c_str(), gno_start, gno_end);
-=======
     ret = update_row(table, sid.c_str(), tag.c_str(), gno_start, gno_end);
   }
->>>>>>> mysql-8.3.0
 
   return ret;
 }

@@ -42,7 +42,6 @@
 #include <vector>
 
 /* MySQL includes */
-#include "my_bit.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
 #include "mysql/thread_pool_priv.h"
@@ -7577,7 +7576,7 @@ static handler *rocksdb_create_handler(my_core::handlerton *const hton,
   if (partitioned) {
     ha_rockspart *file = new (mem_root) ha_rockspart(hton, table_arg);
     if (file && file->init_partitioning(mem_root)) {
-      destroy(file);
+      destroy_at(file);
       return (nullptr);
     }
     return (file);

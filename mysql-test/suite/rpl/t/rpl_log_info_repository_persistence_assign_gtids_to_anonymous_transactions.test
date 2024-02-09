@@ -191,16 +191,8 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_tra
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
 
 --let $rpl_server_number = 2
-<<<<<<< HEAD
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_parameters = --skip_replica_start --upgrade=FORCE
 --let $explicit_default_wait_counter= 15000
-||||||| merged common ancestors
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
---let $explicit_default_counter = 15000
-=======
---let $rpl_server_parameters = --skip_replica_start  --upgrade=FORCE
---let $explicit_default_counter = 15000
->>>>>>> mysql-8.3.0
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'OFF'`
@@ -250,16 +242,8 @@ RESET REPLICA;
 --source include/assert.inc
 
 --let $rpl_server_number = 2
-<<<<<<< HEAD
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
---let $explicit_default_wait_counter= 15000
-||||||| merged common ancestors
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
---let $explicit_default_counter = 15000
-=======
 --let $rpl_server_parameters = --skip_replica_start
---let $explicit_default_counter = 15000
->>>>>>> mysql-8.3.0
+--let $explicit_default_wait_counter= 15000
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'LOCAL' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = '$server_local_uuid'`
@@ -300,16 +284,8 @@ RESET REPLICA;
 --source include/assert.inc
 
 --let $rpl_server_number = 2
-<<<<<<< HEAD
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
---let $explicit_default_wait_counter= 15000
-||||||| merged common ancestors
---let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE
---let $explicit_default_counter = 15000
-=======
 --let $rpl_server_parameters = --skip_replica_start
---let $explicit_default_counter = 15000
->>>>>>> mysql-8.3.0
+--let $explicit_default_wait_counter= 15000
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID' AND  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`

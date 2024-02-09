@@ -59,8 +59,6 @@
   } while (0)
 #endif
 
-extern sigset_t mysqld_signal_mask;
-
 namespace ngs {
 
 class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
@@ -96,18 +94,10 @@ class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
                                is_tcpip ? VIO_TYPE_TCPIP : VIO_TYPE_SOCKET, 0);
     if (!vio) throw std::bad_alloc();
 
-<<<<<<< HEAD
-#ifdef USE_PPOLL_IN_VIO
-    vio->signal_mask = mysqld_signal_mask;
-#endif
-
-||||||| merged common ancestors
-=======
 #ifdef USE_PPOLL_IN_VIO
     vio->signal_mask = mysqld::get_mysqld_signal_mask();
 #endif
 
->>>>>>> mysql-8.3.0
     // enable TCP_NODELAY
     vio_fastsend(vio);
     vio_keepalive(vio, true);

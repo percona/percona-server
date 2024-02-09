@@ -20,36 +20,13 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-<<<<<<< HEAD
 */
 
 #ifndef NDB_PORTLIB_SSL_APPLINK_H
 #define NDB_PORTLIB_SSL_APPLINK_H
-||||||| merged common ancestors
--->
 
-</Include>
-=======
-*/
->>>>>>> mysql-8.3.0
-
-<<<<<<< HEAD
 #ifdef _WIN32
 #include "openssl/applink.c"
 #endif
-||||||| merged common ancestors
-=======
-#ifndef NDB_PORTLIB_SSL_APPLINK_H
-#define NDB_PORTLIB_SSL_APPLINK_H
->>>>>>> mysql-8.3.0
-
-<<<<<<< HEAD
-#endif
-||||||| merged common ancestors
-=======
-#ifdef _WIN32
-#include "openssl/applink.c"
-#endif
->>>>>>> mysql-8.3.0
 
 #endif

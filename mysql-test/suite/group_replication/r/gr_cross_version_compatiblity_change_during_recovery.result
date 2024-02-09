@@ -47,9 +47,9 @@ SET @@GLOBAL.group_replication_allow_local_lower_version_join=1;
 
 # 5. Verify M3 is ONLINE and writable since its new lowest version.
 
-include/assert.inc [The super_read_only mode should be 0 on server1.]
+include/assert.inc [The super_read_only mode should be 0 on server3.]
 [connection server2]
-include/assert.inc [The super_read_only mode should be 1 on server3.]
+include/assert.inc [The super_read_only mode should be 1 on server2.]
 
 # 6. Cleanup.
 

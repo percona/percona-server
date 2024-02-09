@@ -252,14 +252,8 @@ void lock_wait_request_check_for_cycles() { lock_set_timeout_event(); }
 void lock_wait_suspend_thread(que_thr_t *thr) {
   srv_slot_t *slot;
   trx_t *trx;
-<<<<<<< HEAD
-  std::chrono::steady_clock::time_point start_time;
   blocking_trx_info blocking[MAX_BLOCKING_TRX_IN_REPORT];
   size_t blocking_count = 0;
-||||||| merged common ancestors
-  std::chrono::steady_clock::time_point start_time;
-=======
->>>>>>> mysql-8.3.0
 
   trx = thr_get_trx(thr);
 

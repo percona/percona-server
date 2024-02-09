@@ -643,22 +643,12 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
     }
   }
 
-  if (zip->status == Z_OK || zip->status == Z_STREAM_END) {
+  if ((zip->status == Z_OK || zip->status == Z_STREAM_END) && read_something) {
     ut_ad(word->f_len == strlen((char *)ptr));
     return true;
   } else {
     return false;
   }
-<<<<<<< HEAD
-
-  return ((zip->status == Z_OK || zip->status == Z_STREAM_END) && read_something
-              ? ptr
-              : nullptr);
-||||||| merged common ancestors
-
-  return (zip->status == Z_OK || zip->status == Z_STREAM_END ? ptr : nullptr);
-=======
->>>>>>> mysql-8.3.0
 }
 
 /** Callback function to fetch and compress the word in an FTS

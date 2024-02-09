@@ -35,13 +35,8 @@
 #include "portlib/NdbSleep.h"
 #include "portlib/NdbTCP.h"
 #include "portlib/NdbTick.h"
-<<<<<<< HEAD
 #include "portlib/ndb_sockaddr.h"
 #include "scope_guard.h"
-||||||| merged common ancestors
-=======
-#include "portlib/ndb_sockaddr.h"
->>>>>>> mysql-8.3.0
 #include "unittest/mytap/tap.h"
 #include "util/NdbSocket.h"
 #include "util/SocketClient.hpp"
@@ -992,16 +987,6 @@ int run_client(const char *server_host) {
     if (t >= opt_start_test_number && t <= opt_end_test_number)
       rft = tests[t - 1]->run(t);
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  for(ClientTest * t : tests) delete t;
-
-  client.disconnect();
-=======
-  for (ClientTest *t : tests) delete t;
-
-  client.disconnect();
->>>>>>> mysql-8.3.0
   return rft;
 }
 

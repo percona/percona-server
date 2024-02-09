@@ -72,62 +72,14 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-<<<<<<< HEAD
-%{!?with_systemd:                %global systemd 0}
-%{?el7:                          %global systemd 1}
-%{?el8:                          %global systemd 1}
-%{?el9:                          %global systemd 1}
-
-%if 0%{?rhel} == 6
-# Telemetry requires CURL >= 7.28.0
-# On EL6: CURL_VERSION (system) is 7.19
-%global telemetry 0
-%else
-%global telemetry 1
-%endif
-
-||||||| merged common ancestors
-%{!?with_systemd:                %global systemd 0}
-%{?el7:                          %global systemd 1}
-%{?el8:                          %global systemd 1}
-%{?el9:                          %global systemd 1}
-
-<<<<<<<<< Temporary merge branch 1
-%if 0%{?rhel} == 6
-# Telemetry requires CURL >= 7.28.0
-# On EL6: CURL_VERSION (system) is 7.19
-%global telemetry 0
-%else
-%global telemetry 1
-%endif
-
-=======
->>>>>>> mysql-8.3.0
 %if 0%{?rhel} >= 8
 %global add_fido_plugins 1
 %else
 %global add_fido_plugins 0
 %endif # rhel8 or above
 
-<<<<<<< HEAD
-# Two workarounds on el6 and el7
-%if 0%{?rhel} == 6 || 0%{?rhel} == 7
-||||||| merged common ancestors
-||||||||| merged common ancestors
-=========
-%if 0%{?rhel} >= 8
-%global add_fido_plugins 1
-%else
-%global add_fido_plugins 0
-%endif # rhel8 or above
-
->>>>>>>>> Temporary merge branch 2
-# Two workarounds on el6 and el7
-%if 0%{?rhel} == 6 || 0%{?rhel} == 7
-=======
 # Two workarounds on el7
 %if 0%{?rhel} == 7
->>>>>>> mysql-8.3.0
 # - Avoid compiling Python 3 code with Python 2
 %global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
 # - Ship debuginfo for community
@@ -1256,14 +1208,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
 %endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
-<<<<<<< HEAD
-%endif # telemetry
-||||||| merged common ancestors
-%endif # telemetry
-%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
-=======
-%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
->>>>>>> mysql-8.3.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
@@ -1353,14 +1297,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_oci.so
 %endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
-<<<<<<< HEAD
-%endif # telemetry
-||||||| merged common ancestors
-%endif # telemetry
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
-=======
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
->>>>>>> mysql-8.3.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
 

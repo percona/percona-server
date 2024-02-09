@@ -4339,20 +4339,8 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
       rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
     }
     if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_UNKNOWN &&
-<<<<<<< HEAD
-        (type == mysql::binlog::event::GTID_LOG_EVENT ||
-         type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps) {
-||||||| merged common ancestors
-        (type == mysql::binlog::event::GTID_LOG_EVENT ||
-         type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
-          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
-=======
         Log_event_type_helper::is_any_gtid_event(type)) {
-      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
-          DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
->>>>>>> mysql-8.3.0
+      if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps) {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_FOUND;
       } else {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_NOT_FOUND;
@@ -5794,20 +5782,13 @@ extern "C" void *handle_slave_io(void *arg) {
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_unknown_event",
-<<<<<<< HEAD
             /*
              * Cast to uchar, because of Percona's events
              * which have values > 128. This causes ENUM_END_EVENT to be > 128
              * but event_buf is char, so comparison does not work.
              */
-            if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >=
+            if (static_cast<uchar>(ev_type) >=
                 mysql::binlog::event::ENUM_END_EVENT) {
-||||||| merged common ancestors
-            if (event_buf[EVENT_TYPE_OFFSET] >=
-                mysql::binlog::event::ENUM_END_EVENT) {
-=======
-            if (ev_type >= mysql::binlog::event::ENUM_END_EVENT) {
->>>>>>> mysql-8.3.0
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",

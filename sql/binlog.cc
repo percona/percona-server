@@ -5921,14 +5921,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
 err:
   if (name == nullptr)
     name = const_cast<char *>(save_name);  // restore old file-name
-<<<<<<< HEAD
-  sid_lock->unlock();
-  count_binlog_space(false);
-||||||| merged common ancestors
-  sid_lock->unlock();
-=======
   tsid_lock->unlock();
->>>>>>> mysql-8.3.0
+  count_binlog_space(false);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   return error;

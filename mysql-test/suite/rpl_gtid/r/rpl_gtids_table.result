@@ -113,17 +113,9 @@ include/assert.inc [committed gtids MASTER_UUID:1-11]
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-<<<<<<< HEAD
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
-SET DEBUG_SYNC= 'RESET';
-||||||| merged common ancestors
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
-=======
 source_uuid	interval_start	interval_end	gtid_tag
 MASTER_UUID	1	11	
->>>>>>> mysql-8.3.0
+SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= @debug_save;
 include/sync_slave_sql_with_master.inc
 #

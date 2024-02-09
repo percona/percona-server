@@ -3895,38 +3895,7 @@ static bool tdc_open_view(THD *thd, Table_ref *table_list,
    content was emptied implicitly.
 */
 
-<<<<<<< HEAD
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry) {
-||||||| merged common ancestors
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry) {
-  if (table != nullptr && table->has_trigger()) {
-    Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(entry);
-
-    if (!d || d->check_n_load(thd, *table)) {
-      destroy(d);
-      return true;
-    }
-
-    entry->triggers = d;
-  }
-
-=======
-static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
-                                  const dd::Table *table, TABLE *entry) {
-  if (table != nullptr && table->has_trigger()) {
-    Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(entry);
-
-    if (d == nullptr) return true;
-    if (d->check_n_load(thd, *table)) {
-      ::destroy_at(d);
-      return true;
-    }
-
-    entry->triggers = d;
-  }
-
->>>>>>> mysql-8.3.0
   /*
     If we are here, there was no fatal error (but error may be still
     uninitialized).

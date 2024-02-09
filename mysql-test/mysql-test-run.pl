@@ -177,15 +177,11 @@ my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
-<<<<<<< HEAD
+my $opt_accept_fail        = 0;
 my $opt_mtr_term_args      = env_or_val(MTR_TERM => "xterm -title %title% -e");
 my $opt_lldb_cmd           = env_or_val(MTR_LLDB => "lldb");
 our $opt_junit_output      = undef;
 our $opt_junit_package     = undef;
-||||||| merged common ancestors
-=======
-my $opt_accept_fail        = 0;
->>>>>>> mysql-8.3.0
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -1016,13 +1012,7 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-<<<<<<< HEAD
-  report_stats("Completed", $completed);
-||||||| merged common ancestors
-  mtr_report_stats("Completed", $completed);
-=======
-  mtr_report_stats("Completed", $completed, $opt_accept_fail);
->>>>>>> mysql-8.3.0
+  report_stats("Completed", $completed, $opt_accept_fail);
 
   remove_vardir_subs() if $opt_clean_vardir;
 
@@ -7520,21 +7510,13 @@ sub start_mysqltest ($) {
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
-<<<<<<< HEAD
-  # Number of lines of resut to include in failure report
-  mtr_add_arg($args, "--tail-lines=500");
-||||||| merged common ancestors
-  # Number of lines of resut to include in failure report
-  mtr_add_arg($args, "--tail-lines=20");
-=======
-  my $tail_lines = 20;
+  my $tail_lines = 500;
   if ($tinfo->{'full_result_diff'}) {
     # Use 1G as an approximation for infinite output.
     $tail_lines = 1000000000;
   }
   # Number of lines of result to include in failure report
   mtr_add_arg($args, "--tail-lines=${tail_lines}");
->>>>>>> mysql-8.3.0
 
   if (defined $tinfo->{'result_file'}) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});

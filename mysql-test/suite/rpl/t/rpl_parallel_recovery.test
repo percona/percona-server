@@ -19,13 +19,7 @@
 # Row format is chosen to ease the logged transaction size control
 --source include/have_binlog_format_row.inc
 --source include/not_group_replication_plugin.inc
-<<<<<<< HEAD
-||||||| merged common ancestors
---source include/have_replica_parallel_type_logical_clock.inc
-=======
---source include/have_replica_parallel_type_logical_clock.inc
 --source include/only_mts_replica_parallel_workers.inc
->>>>>>> mysql-8.3.0
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

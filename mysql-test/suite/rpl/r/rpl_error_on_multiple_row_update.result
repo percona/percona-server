@@ -25,19 +25,7 @@ include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-<<<<<<< HEAD
 Replica_rows_last_search_algorithm_used	HASH_SCAN
-SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-||||||| merged common ancestors
-Slave_rows_last_search_algorithm_used	HASH_SCAN
-SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-=======
-Slave_rows_last_search_algorithm_used	HASH_SCAN
->>>>>>> mysql-8.3.0
 [connection master]
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;

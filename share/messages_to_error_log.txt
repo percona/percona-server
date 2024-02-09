@@ -12430,45 +12430,6 @@ ER_IB_WRONG_PAGEID_AFTER_SYNC_READ
 ER_IB_SYNC_READ_FAILED
   eng "Sync read to fix wrong page_id failed: buf_block_t[space_id=%zu, page_no=%zu], file=%s, err=%zu, retry=%zu"
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-||||||||| merged common ancestors
-=========
-ER_SERVER_DOWNGRADE_FROM_VERSION
-  eng "MySQL server downgrading from version '%u' to '%u'."
-
-ER_BEYOND_SERVER_DOWNGRADE_THRESHOLD
-  eng "Invalid MySQL server downgrade: Cannot downgrade from %u to %u. Target MySQL server version is lower than the server downgrade threshold %u."
-
-ER_BEYOND_SERVER_UPGRADE_THRESHOLD
-  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version is lower than the server upgrade threshold %u."
-
-ER_INVALID_SERVER_UPGRADE_NOT_LTS
-  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Upgrade to next major version is only allowed from the last LTS release, which version %u is not."
-
-ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH
-  eng "Invalid MySQL server downgrade: Cannot downgrade from %u to %u. Downgrade is only permitted between patch releases."
-
-ER_FAILED_GET_DD_PROPERTY
-  eng "Failed to get the data dictionary property %s."
-
-ER_FAILED_SET_DD_PROPERTY
-  eng "Failed to set the data dictionary property %s."
-
-ER_SERVER_DOWNGRADE_STATUS
-  eng "Server downgrade from '%d' to '%d' %s."
-
-ER_INFORMATION_SCHEMA_VERSION_CHANGE
-  eng "%s information schema from version %u to %u."
-
-ER_PERFORMANCE_SCHEMA_VERSION_CHANGE
-  eng "%s performance schema from version %u to %u."
-
-ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
-   eng "Value for option '%s' contains cipher '%s' that is either blocked or deprecated (and will be removed in a future release). Please refer to the documentation for more details."
-
->>>>>>>>> Temporary merge branch 2
-=======
 ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION_LOG
   eng "Cannot start replication channel '%s' because %s."
 
@@ -12631,7 +12592,6 @@ ER_GRP_RPL_MSG_DECODING_FAILED
 ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED
   eng "The Applier process of Group Replication found an error and was requested to stop: %s"
 
->>>>>>> mysql-8.3.0
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -12671,10 +12631,10 @@ ER_XB_UNUSED_2
   eng "%s"
 
 ER_XB_MSG_4
-  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?";
+  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?"
 
 ER_XB_MSG_5
-  eng "Tablespace id %u in file %s is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring.";
+  eng "Tablespace id %u in file %s is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring."
 
 ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
   eng "Waiting for keyring encryption threads to exit"
@@ -12728,7 +12688,7 @@ ER_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
   eng "Tablespace id %u in file %s is encrypted. Although server managed to find all needed versions of key_id=%u in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue reading table. Please provide the correct keyring."
 
 ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY
-  eng "Tablespace id %u is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring.";
+  eng "Tablespace id %u is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring."
 
 ER_REDO_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
   eng "Tablespace id %u is encrypted. Although server managed to find key_id=%u in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue reading table. Please provide the correct keyring."

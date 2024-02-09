@@ -10326,8 +10326,6 @@ ER_LH_PARQUET_CANT_OPEN_FILE
 #  Do NOT add messages intended for the error log above!
 #
 
-<<<<<<< HEAD
-
 #
 # Start of Percona Server 8.0 error messages to be sent to client
 #
@@ -10381,7 +10379,7 @@ ER_DA_UNDO_NO_KEYRING
   eng "Undo log can't be encrypted if the keyring is not loaded."
 
 ER_DA_ENCRYPTION_TABLE_CHECK_FAILED
-  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?";
+  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?"
 
 ER_EXCLUDE_ENCRYPTION_TABLE_ENCRYPTED
   eng "Tablespace %s is fully or partially encrypted by encryption threads and thus cannot be excluded from encryption threads. Please first finish off encryption/decryption and try again."
@@ -10512,10 +10510,6 @@ ER_CANT_DROP_CF
 #
 
 
-||||||| merged common ancestors
-
-=======
->>>>>>> mysql-8.3.0
 ################################################################################
 # DO NOT add messages for the error-log to this file;
 # they go in messages_to_error_log.txt in the same

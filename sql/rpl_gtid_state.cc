@@ -158,12 +158,12 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
 
 void Gtid_state::get_snapshot_gtid_executed(
     std::string &snapshot_gtid_executed) {
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   size_t size = executed_gtids.get_string_length() + 1;
   std::vector<char> buf(size);
   executed_gtids.to_string(buf.data());
   snapshot_gtid_executed = buf.data();
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 }
 
 void Gtid_state::update_commit_group(THD *first_thd) {

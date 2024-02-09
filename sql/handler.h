@@ -3131,7 +3131,10 @@ constexpr const decltype(
 
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
 
-<<<<<<< HEAD
+/** Engine supports index distance scan. */
+inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
+    1 << 23};
+
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3154,13 +3157,6 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
 
 /** End of Percona specific HTON_* defines */
 
-||||||| merged common ancestors
-=======
-/** Engine supports index distance scan. */
-inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
-    1 << 23};
-
->>>>>>> mysql-8.3.0
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 

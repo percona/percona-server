@@ -90,18 +90,10 @@ enum THD_wait_type : int {
   THD_WAIT_BINLOG = 8,
   THD_WAIT_GROUP_COMMIT = 9,
   THD_WAIT_SYNC = 10,
-<<<<<<< HEAD
-  THD_WAIT_NET = 11,
-  THD_WAIT_LAST = 12
-} thd_wait_type;
-||||||| merged common ancestors
-  THD_WAIT_LAST = 11
-} thd_wait_type;
-=======
   THD_WAIT_TRX_DELAY = 11,
-  THD_WAIT_LAST = 12
+  THD_WAIT_NET = 12,
+  THD_WAIT_LAST = 13
 };
->>>>>>> mysql-8.3.0
 
 inline const char *THD_wait_type_str(THD_wait_type twt) {
   switch (twt) {
@@ -140,6 +132,9 @@ inline const char *THD_wait_type_str(THD_wait_type twt) {
 
     case THD_WAIT_TRX_DELAY:
       return "Waiting for transaction delay";
+
+    case THD_WAIT_NET:
+      return "Waiting for socket";
 
     case THD_WAIT_LAST:
       return "<Unused LAST marker value>";

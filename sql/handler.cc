@@ -2749,7 +2749,6 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     thd->pop_internal_handler();
   }
 
-<<<<<<< HEAD
   if (error == 0) {
     bool failure = compression_dict::cols_table_delete(thd, *table_def);
     if (failure) {
@@ -2762,12 +2761,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     }
   }
 
-  destroy(file);
-||||||| merged common ancestors
-  destroy(file);
-=======
   ::destroy_at(file);
->>>>>>> mysql-8.3.0
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0)) {

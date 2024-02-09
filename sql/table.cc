@@ -2359,15 +2359,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
-<<<<<<< HEAD
   share->fields = 0;
   share->field = 0;
-  destroy(handler_file);
-||||||| merged common ancestors
-  destroy(handler_file);
-=======
   if (handler_file != nullptr) ::destroy_at(handler_file);
->>>>>>> mysql-8.3.0
 
   open_table_error(thd, share, error, my_errno());
   return error;

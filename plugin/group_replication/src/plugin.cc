@@ -1011,15 +1011,9 @@ int configure_group_member_manager() {
                   { local_version = 0x080015; };);
   DBUG_EXECUTE_IF("group_replication_version_8_0_28",
                   { local_version = 0x080028; };);
-<<<<<<< HEAD
-||||||| merged common ancestors
-  DBUG_EXECUTE_IF("group_replication_version_8_0_35",
-                  { local_version = 0x080035; };);
-=======
   DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
     local_version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
   };);
->>>>>>> mysql-8.3.0
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -1157,18 +1151,10 @@ int configure_compatibility_manager() {
     Member_version higher_version(0x080015);
     compatibility_mgr->set_local_version(higher_version);
   };);
-<<<<<<< HEAD
-||||||| merged common ancestors
-  DBUG_EXECUTE_IF("group_replication_version_8_0_35", {
-    Member_version version(0x080035);
-    compatibility_mgr->set_local_version(version);
-  };);
-=======
   DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
     Member_version version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
     compatibility_mgr->set_local_version(version);
   };);
->>>>>>> mysql-8.3.0
 
   return 0;
 }
@@ -5504,25 +5490,6 @@ static SYS_VAR *group_replication_system_vars[] = {
     nullptr,
 };
 
-<<<<<<< HEAD
-static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_CHAR;
-  var->value = nullptr;
-
-  if (group_member_mgr && ov.single_primary_mode_var &&
-      plugin_is_group_replication_running()) {
-    string primary_member_uuid;
-    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
-
-    strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
-    buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
-
-    var->value = buff;
-  }
-
-  return 0;
-}
-
 #define DEF_GR_FC_STATUS_VAR_PTR(name, ptr, option) \
   { name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
 
@@ -5552,39 +5519,10 @@ static void show_flow_control_status_vars(THD *thd, SHOW_VAR *var, char *buff) {
   var->value = reinterpret_cast<char *>(&gr_flow_control_status_variables);
 }
 
-||||||| merged common ancestors
-static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_CHAR;
-  var->value = nullptr;
-
-  if (group_member_mgr && ov.single_primary_mode_var &&
-      plugin_is_group_replication_running()) {
-    string primary_member_uuid;
-    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
-
-    strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
-    buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
-
-    var->value = buff;
-  }
-
-  return 0;
-}
-
-=======
->>>>>>> mysql-8.3.0
 static SHOW_VAR group_replication_status_vars[] = {
-<<<<<<< HEAD
-    {"group_replication_primary_member", (char *)&show_primary_member,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"group_replication_flow_control",
      reinterpret_cast<char *>(&show_flow_control_status_vars), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-||||||| merged common ancestors
-    {"group_replication_primary_member", (char *)&show_primary_member,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-=======
->>>>>>> mysql-8.3.0
     {"Gr_control_messages_sent_count",
      (char *)&Plugin_status_variables::get_control_messages_sent_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},

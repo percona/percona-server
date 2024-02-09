@@ -43,11 +43,17 @@ AND variable_name NOT LIKE 'debug_%'
 AND variable_name NOT LIKE '%telemetry%'
 ORDER BY variable_name;
 
-include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer ]
+include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer]
 
 # Test SET PERSIST
 
+<<<<<<< HEAD
 include/assert.inc [Expect 498 persisted variables in the table.]
+||||||| merged common ancestors
+include/assert.inc [Expect 448 persisted variables in the table.]
+=======
+include/assert.inc [Expect 445 persisted variables in the table.]
+>>>>>>> mysql-8.3.0
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -55,9 +61,19 @@ include/assert.inc [Expect 498 persisted variables in the table.]
 ************************************************************
 # restart
 
+<<<<<<< HEAD
 include/assert.inc [Expect 498 persisted variables in persisted_variables table.]
 include/assert.inc [Expect 498 persisted variables shown as PERSISTED in variables_info table.]
 include/assert.inc [Expect 498 persisted variables with matching peristed and global values.]
+||||||| merged common ancestors
+include/assert.inc [Expect 448 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 448 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 448 persisted variables with matching peristed and global values.]
+=======
+include/assert.inc [Expect 445 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 445 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 445 persisted variables with matching peristed and global values.]
+>>>>>>> mysql-8.3.0
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

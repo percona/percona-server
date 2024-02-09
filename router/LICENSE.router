@@ -1,6 +1,18 @@
 Licensing Information User Manual
 
+<<<<<<< HEAD
 MySQL Router 8.2.0 Community
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+MySQL Router 8.2.0 Community
+||||||||| merged common ancestors
+MySQL Router 8.0
+=========
+MySQL Router 8.0.35 Community
+>>>>>>>>> Temporary merge branch 2
+=======
+MySQL Router 8.3.0 Community
+>>>>>>> mysql-8.3.0
      __________________________________________________________________
 
 Introduction
@@ -8,18 +20,44 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
+<<<<<<< HEAD
    MySQL Router 8.2.0 Community.
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+   MySQL Router 8.2.0 Community.
+||||||||| merged common ancestors
+   MySQL Router 8.0.
+=========
+   MySQL Router 8.0.35 Community.
+>>>>>>>>> Temporary merge branch 2
+=======
+   MySQL Router 8.3.0 Community.
+>>>>>>> mysql-8.3.0
 
-   Last updated: August 2023
+   Last updated: November 2023
 
 Licensing Information
 
+<<<<<<< HEAD
    This release of MySQL Router 8.2.0 Community is brought to you by the
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+   This release of MySQL Router 8.2.0 Community is brought to you by the
+=======
+   This release of MySQL Router 8.3.0 Community is brought to you by the
+>>>>>>> mysql-8.3.0
    MySQL team at Oracle. This software is released under version 2 of the
    GNU General Public License (GPLv2), as set forth below, with the
    following additional permissions:
 
+<<<<<<< HEAD
    This distribution of MySQL Router 8.2.0 Community is distributed with
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+   This distribution of MySQL Router 8.2.0 Community is distributed with
+=======
+   This distribution of MySQL Router 8.3.0 Community is distributed with
+>>>>>>> mysql-8.3.0
    certain software (including but not limited to OpenSSL) that is
    licensed under separate terms, as designated in a particular file or
    component or in the license documentation. Without limiting your rights

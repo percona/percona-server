@@ -47,17 +47,33 @@
   Kindahl.
 */
 
+<<<<<<< HEAD
 #include <assert.h>
+||||||| merged common ancestors
+=======
+#include "my_bitmap.h"
+
+>>>>>>> mysql-8.3.0
 #include <string.h>
 #include <sys/types.h>
+<<<<<<< HEAD
+||||||| merged common ancestors
+#include <algorithm>
+=======
+#include <algorithm>
+#include <bit>
+>>>>>>> mysql-8.3.0
 
-#include "my_bit.h"
-#include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+<<<<<<< HEAD
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+||||||| merged common ancestors
+#include "my_macros.h"
+=======
+>>>>>>> mysql-8.3.0
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -503,10 +519,10 @@ uint bitmap_bits_set(const MY_BITMAP *map) {
   assert(map->bitmap);
   assert(map->n_bits > 0);
 
-  for (; data_ptr < end; data_ptr++) res += my_count_bits_uint32(*data_ptr);
+  for (; data_ptr < end; data_ptr++) res += std::popcount(*data_ptr);
 
   /*Reset last bits to zero*/
-  res += my_count_bits_uint32(*map->last_word_ptr & ~map->last_word_mask);
+  res += std::popcount(*map->last_word_ptr & ~map->last_word_mask);
   return res;
 }
 

@@ -93,7 +93,13 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
 
 # Total number of GR variables.
+<<<<<<< HEAD
 --let $total_gr_vars= 66
+||||||| merged common ancestors
+--let $total_gr_vars= 61
+=======
+--let $total_gr_vars= 60
+>>>>>>> mysql-8.3.0
 
 --echo #
 --echo # Test Unit#1

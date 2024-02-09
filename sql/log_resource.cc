@@ -101,24 +101,42 @@ bool Log_resource_binlog_wrapper::collect_info() {
   return error;
 }
 
+<<<<<<< HEAD
 void Log_resource_gtid_state_wrapper::lock() {
   DEBUG_SYNC(current_thd, "log_resource_gtid_lock");
   mysql_mutex_lock(binlog->get_sync_lock());
   mysql_mutex_lock(binlog->get_commit_lock());
   global_sid_lock->wrlock();
 }
+||||||| merged common ancestors
+void Log_resource_gtid_state_wrapper::lock() { global_sid_lock->wrlock(); }
+=======
+void Log_resource_gtid_state_wrapper::lock() { global_tsid_lock->wrlock(); }
+>>>>>>> mysql-8.3.0
 
+<<<<<<< HEAD
 void Log_resource_gtid_state_wrapper::unlock() {
   global_sid_lock->unlock();
   mysql_mutex_unlock(binlog->get_commit_lock());
   mysql_mutex_unlock(binlog->get_sync_lock());
 }
+||||||| merged common ancestors
+void Log_resource_gtid_state_wrapper::unlock() { global_sid_lock->unlock(); }
+=======
+void Log_resource_gtid_state_wrapper::unlock() { global_tsid_lock->unlock(); }
+>>>>>>> mysql-8.3.0
 
 bool Log_resource_gtid_state_wrapper::collect_info() {
   bool error = false;
+<<<<<<< HEAD
   mysql_mutex_assert_owner(binlog->get_sync_lock());
   mysql_mutex_assert_owner(binlog->get_commit_lock());
   global_sid_lock->assert_some_wrlock();
+||||||| merged common ancestors
+  global_sid_lock->assert_some_wrlock();
+=======
+  global_tsid_lock->assert_some_wrlock();
+>>>>>>> mysql-8.3.0
 
   char *gtid_executed_string;
   Json_object *json_local = static_cast<Json_object *>(get_json());

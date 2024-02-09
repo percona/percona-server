@@ -1,6 +1,24 @@
 Licensing Information User Manual
 
+<<<<<<< HEAD
 MySQL 8.2.0 Community
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+<<<<<<<<< Temporary merge branch 1
+MySQL 5.7.44 Community
+||||||||| 59adda2a9d5
+MySQL 5.7.28 (and later)
+=========
+MySQL 8.2.0 Community
+>>>>>>>>> Temporary merge branch 2
+||||||||| merged common ancestors
+MySQL 8.0
+=========
+MySQL 8.0.35 Community
+>>>>>>>>> Temporary merge branch 2
+=======
+MySQL 8.3.0 Community
+>>>>>>> mysql-8.3.0
      __________________________________________________________________
 
 Introduction
@@ -8,17 +26,63 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
+<<<<<<< HEAD
    MySQL 8.2.0 Community.
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+<<<<<<<<< Temporary merge branch 1
+   MySQL 5.7.44 Community.
+||||||||| 59adda2a9d5
+   MySQL 5.7.28 (and later).
+=========
+   MySQL 8.2.0 Community.
+>>>>>>>>> Temporary merge branch 2
+||||||||| merged common ancestors
+   MySQL 8.0.
+=========
+   MySQL 8.0.35 Community.
+>>>>>>>>> Temporary merge branch 2
+=======
+   MySQL 8.3.0 Community.
+>>>>>>> mysql-8.3.0
 
-   Last updated: August 2023
+   Last updated: November 2023
 
 Licensing Information
 
+<<<<<<< HEAD
    This release of MySQL 8.2.0 Community is brought to you by the MySQL
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+<<<<<<<<< Temporary merge branch 1
+   This release of MySQL 5.7.44 Community is brought to you by the MySQL
+   team at Oracle. This software is released under version 2 of the GNU
+   General Public License (GPLv2), as set forth below, with the following
+||||||||| merged common ancestors
+   This is a release of MySQL 8.0, brought to you by the MySQL team at
+   Oracle. This software is released under version 2 of the GNU General
+   Public License (GPLv2), as set forth below, with the following
+=========
+   This release of MySQL 8.0.35 Community is brought to you by the MySQL
+   team at Oracle. This software is released under version 2 of the GNU
+   General Public License (GPLv2), as set forth below, with the following
+>>>>>>>>> Temporary merge branch 2
+   additional permissions:
+||||||||| 59adda2a9d5
+   This is a release of MySQL 5.7.28 (and later), brought to you by the
+   MySQL team at Oracle. This software is released under version 2 of the
+   GNU General Public License (GPLv2), as set forth below, with the
+   following additional permissions:
+=========
+   This release of MySQL 8.2.0 Community is brought to you by the MySQL
+=======
+   This release of MySQL 8.3.0 Community is brought to you by the MySQL
+>>>>>>> mysql-8.3.0
    team at Oracle. This software is released under version 2 of the GNU
    General Public License (GPLv2), as set forth below, with the following
    additional permissions:
 
+<<<<<<< HEAD
    This distribution of MySQL 8.2.0 Community is distributed with certain
    software (including but not limited to OpenSSL) that is licensed under
    separate terms, as designated in a particular file or component or in
@@ -26,6 +90,59 @@ Licensing Information
    GPLv2, the authors of MySQL hereby grant you an additional permission
    to link the program and your derivative works with the separately
    licensed software that they have included with the program.
+||||||| merged common ancestors
+<<<<<<<<< Temporary merge branch 1
+<<<<<<<<< Temporary merge branch 1
+   This distribution of MySQL 5.7.44 Community is distributed with certain
+   software (including but not limited to OpenSSL) that is licensed under
+   separate terms, as designated in a particular file or component or in
+   the license documentation. Without limiting your rights under the
+   GPLv2, the authors of MySQL hereby grant you an additional permission
+   to link the program and your derivative works with the separately
+   licensed software that they have included with the program.
+||||||||| 59adda2a9d5
+   This distribution of MySQL 5.7.28 (and later) is distributed with
+   certain software (including but not limited to OpenSSL) that is
+   licensed under separate terms, as designated in a particular file or
+   component or in the license documentation. Without limiting your rights
+   under the GPLv2, the authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with the program.
+=========
+   This distribution of MySQL 8.2.0 Community is distributed with certain
+   software (including but not limited to OpenSSL) that is licensed under
+   separate terms, as designated in a particular file or component or in
+   the license documentation. Without limiting your rights under the
+   GPLv2, the authors of MySQL hereby grant you an additional permission
+   to link the program and your derivative works with the separately
+   licensed software that they have included with the program.
+>>>>>>>>> Temporary merge branch 2
+||||||||| merged common ancestors
+   This distribution of MySQL 8.0 is distributed with certain software
+   (including but not limited to OpenSSL) that is licensed under separate
+   terms, as designated in a particular file or component or in the
+   license documentation. Without limiting your rights under the GPLv2,
+   the authors of MySQL hereby grant you an additional permission to link
+   the program and your derivative works with the separately licensed
+   software that they have included with the program.
+=========
+   This distribution of MySQL 8.0.35 Community is distributed with certain
+   software (including but not limited to OpenSSL) that is licensed under
+   separate terms, as designated in a particular file or component or in
+   the license documentation. Without limiting your rights under the
+   GPLv2, the authors of MySQL hereby grant you an additional permission
+   to link the program and your derivative works with the separately
+   licensed software that they have included with the program.
+>>>>>>>>> Temporary merge branch 2
+=======
+   This distribution of MySQL 8.3.0 Community is distributed with certain
+   software (including but not limited to OpenSSL) that is licensed under
+   separate terms, as designated in a particular file or component or in
+   the license documentation. Without limiting your rights under the
+   GPLv2, the authors of MySQL hereby grant you an additional permission
+   to link the program and your derivative works with the separately
+   licensed software that they have included with the program.
+>>>>>>> mysql-8.3.0
 
    This distribution includes the MySQL C API client library
    (libmysqlclient) otherwise known as MySQL Connector/C. Without limiting

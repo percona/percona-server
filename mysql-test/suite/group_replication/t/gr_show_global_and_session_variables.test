@@ -30,8 +30,14 @@
 --source include/start_and_bootstrap_group_replication.inc
 --source include/stop_group_replication.inc
 
+<<<<<<< HEAD
 --let $gr_var_count= 66
 
+||||||| merged common ancestors
+--let $gr_var_count= 61
+=======
+--let $gr_var_count= 60
+>>>>>>> mysql-8.3.0
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 

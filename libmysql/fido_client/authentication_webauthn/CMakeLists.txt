@@ -54,8 +54,14 @@ MYSQL_ADD_PLUGIN(authentication_webauthn_client
   LINK_LIBRARIES
   fido_client_common
   ext::fido
+<<<<<<< HEAD
   OpenSSL::SSL  # Needs RAND_bytes from libcrypto.
   OpenSSL::Crypto
+||||||| merged common ancestors
+  ${SSL_LIBRARIES}   # Needs RAND_bytes from libcrypto.
+=======
+  OpenSSL::Crypto  # Needs RAND_bytes from libcrypto.
+>>>>>>> mysql-8.3.0
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_webauthn_client")

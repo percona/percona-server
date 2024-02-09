@@ -261,7 +261,7 @@ pages.
                                 no new log records can be generated during
                                 the application; the caller must in this case
                                 own the log mutex */
-dberr_t recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
+void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
 bool is_mysql_ibd_page_0_in_redo();
 

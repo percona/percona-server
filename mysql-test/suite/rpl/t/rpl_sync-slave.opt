@@ -1,2 +1,9 @@
 --sync-relay-log-info=1 --relay-log-recovery=1 --default-storage-engine=MyISAM --innodb-file-per-table=0
+<<<<<<< HEAD
 --master-info-repository=FILE
+||||||| merged common ancestors
+--skip-core-file
+--master-info-repository=FILE
+=======
+--skip-core-file
+>>>>>>> mysql-8.3.0

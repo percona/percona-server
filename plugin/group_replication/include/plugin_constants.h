@@ -87,4 +87,18 @@
 */
 #define MEMBER_VERSION_INTRODUCING_RUNNING_TRANSACTION_TIMEOUT 0x080029
 
+<<<<<<< HEAD
+||||||| merged common ancestors
+/*
+  Starting on 8.0.35, inclusive, all 8.0 patch versions are compatible.
+*/
+#define MEMBER_8_0_LTS_VERSION 0x080035
+
+=======
+/*
+  Version from which VCLE was removed.
+*/
+#define MEMBER_VERSION_REMOVING_VCLE 0x080300
+
+>>>>>>> mysql-8.3.0
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

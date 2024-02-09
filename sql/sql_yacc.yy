@@ -270,6 +270,37 @@ int my_sql_parser_lex(void *yylval, void *yythd);
       MYSQL_YYABORT;                                   \
   } while(0)
 
+/**
+  Many commands have a dedicated sub-class of Sql_cmd that
+  has an execute() method that contains their code.
+  Other commands' code is in sql_parse.cc's mysql_execute_command().
+  For this last type of command, we can still create a
+  dummy Sql_cmd object that won't have its execute(),
+  well, executed, but may provide other valuable information
+  such as their sql_cmd_type().
+*/
+#define MAKE_CMD_DCL_DUMMY()                           \
+  do                                                   \
+  {                                                    \
+    assert(Lex->m_sql_cmd == nullptr);                 \
+    Lex->m_sql_cmd= NEW_PTN Sql_cmd_dcl_dummy();       \
+    if (!Lex->m_sql_cmd)                               \
+      MYSQL_YYABORT;                                   \
+    ((Sql_cmd_dcl_dummy *) Lex->m_sql_cmd)             \
+      ->set_sql_command_code(Lex->sql_command);        \
+  } while(0)
+
+#define MAKE_CMD_DDL_DUMMY()                           \
+  do                                                   \
+  {                                                    \
+    assert(Lex->m_sql_cmd == nullptr);                 \
+    Lex->m_sql_cmd= NEW_PTN Sql_cmd_ddl_dummy();       \
+    if (!Lex->m_sql_cmd)                               \
+      MYSQL_YYABORT;                                   \
+    ((Sql_cmd_ddl_dummy *) Lex->m_sql_cmd)             \
+      ->set_sql_command_code(Lex->sql_command);        \
+  } while(0)
+
 
 #ifndef NDEBUG
 #define YYDEBUG 1
@@ -685,7 +716,7 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> CPU_SYM 353
 %token  CREATE 354                        /* SQL-2003-R */
 %token  CROSS 355                         /* SQL-2003-R */
-%token  CUBE_SYM 356                      /* SQL-2003-R */
+%token<lexer.keyword> CUBE_SYM 356        /* SQL-2003-R */
 %token  CURDATE 357                       /* MYSQL-FUNC */
 %token<lexer.keyword> CURRENT_SYM 358           /* SQL-2003-R */
 %token  CURRENT_USER 359                  /* SQL-2003-R */
@@ -1415,7 +1446,7 @@ void warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
 %token<lexer.keyword> S3_SYM             1209      /* MYSQL */
-
+%token<lexer.keyword> QUALIFY_SYM        1210      /* MYSQL */
 /*
    Tokens from Percona Server 5.7 and older
 */
@@ -1615,6 +1646,7 @@ void warn_on_deprecated_user_defined_collation(
         opt_where_clause
         where_clause
         opt_having_clause
+        opt_qualify_clause
         opt_simple_limit
         null_as_literal
         literal_or_null
@@ -3522,6 +3554,7 @@ create:
             if (Lex->create_info == nullptr)
               MYSQL_YYABORT; // OOM
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+            MAKE_CMD_DCL_DUMMY();
           }
         | CREATE LOGFILE_SYM GROUP_SYM ident ADD lg_undofile
           opt_logfile_group_options
@@ -3784,6 +3817,7 @@ event_tail:
 
             lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
+            MAKE_CMD_DDL_DUMMY();
           }
           ON_SYM SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -3796,6 +3830,8 @@ event_tail:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_CREATE_EVENT;
+            assert(Lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DDL);
+            assert(Lex->m_sql_cmd->sql_command_code() == SQLCOM_CREATE_EVENT);
           }
         ;
 
@@ -8319,6 +8355,7 @@ alter_procedure_stmt:
 
             lex->sql_command= SQLCOM_ALTER_PROCEDURE;
             lex->spname= $3;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -8340,6 +8377,7 @@ alter_function_stmt:
 
             lex->sql_command= SQLCOM_ALTER_FUNCTION;
             lex->spname= $3;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -8356,7 +8394,9 @@ alter_view_stmt:
             lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
-          {}
+          {
+            MAKE_CMD_DDL_DUMMY();
+          }
         | ALTER definer_opt
           /*
             We have two separate rules for ALTER VIEW rather that
@@ -8375,7 +8415,9 @@ alter_view_stmt:
             lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
-          {}
+          {
+            MAKE_CMD_DDL_DUMMY();
+          }
         ;
 
 alter_event_stmt:
@@ -8394,6 +8436,7 @@ alter_event_stmt:
             Lex->event_parse_data->identifier= $4;
 
             Lex->sql_command= SQLCOM_ALTER_EVENT;
+            MAKE_CMD_DDL_DUMMY();
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -8411,6 +8454,13 @@ alter_event_stmt:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
+
+            /*
+              assert that even if sql_command was overwritten,
+              m_sql_cmd was not changed to a different command-type.
+            */
+            assert(Lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DDL);
+            assert(Lex->m_sql_cmd->sql_command_code() == SQLCOM_ALTER_EVENT);
           }
         ;
 
@@ -8643,6 +8693,7 @@ alter_user_command:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_ALTER_USER;
             lex->drop_if_exists= $3;
+            MAKE_CMD_DCL_DUMMY();
           }
         ;
 
@@ -10153,6 +10204,7 @@ query_specification:
           opt_group_clause
           opt_having_clause
           opt_window_clause
+          opt_qualify_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       @$,
@@ -10165,6 +10217,7 @@ query_specification:
                                       $7,  // group
                                       $8,  // having
                                       $9,  // windows
+                                      $10, // qualify
                                       @5.raw.is_empty()); // implicit FROM
           }
         | SELECT_SYM
@@ -10175,6 +10228,7 @@ query_specification:
           opt_group_clause
           opt_having_clause
           opt_window_clause
+          opt_qualify_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       @$,
@@ -10187,6 +10241,7 @@ query_specification:
                                       $6,  // group
                                       $7,  // having
                                       $8,  // windows
+                                      $9,  // qualify
                                       @4.raw.is_empty()); // implicit FROM
           }
         ;
@@ -12607,6 +12662,14 @@ opt_having_clause:
           }
         ;
 
+opt_qualify_clause:
+           %empty { $$= nullptr; }
+        | QUALIFY_SYM expr
+          {
+            $$= new PTI_qualify(@$, $2);
+          }
+        ;
+
 with_clause:
           WITH with_list
           {
@@ -12727,6 +12790,14 @@ opt_group_clause:
         | GROUP_SYM BY group_list olap_opt
           {
             $$= NEW_PTN PT_group(@$, $3, $4);
+          }
+        | GROUP_SYM BY ROLLUP_SYM '(' group_list ')'
+          {
+            $$= NEW_PTN PT_group(@$, $5, ROLLUP_TYPE);
+          }
+        | GROUP_SYM BY CUBE_SYM '(' group_list ')'
+          {
+            $$= NEW_PTN PT_group(@$, $5, CUBE_TYPE);
           }
         ;
 
@@ -13028,6 +13099,7 @@ drop_database_stmt:
             lex->sql_command= SQLCOM_DROP_DB;
             lex->drop_if_exists=$3;
             lex->name= $4;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -13054,6 +13126,7 @@ drop_function_stmt:
               MYSQL_YYABORT;
             spname->init_qname(thd);
             lex->spname= spname;
+            MAKE_CMD_DDL_DUMMY();
           }
         | DROP FUNCTION_SYM if_exists ident
           {
@@ -13086,6 +13159,7 @@ drop_function_stmt:
               MYSQL_YYABORT;
             spname->init_qname(thd);
             lex->spname= spname;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -13108,6 +13182,7 @@ drop_procedure_stmt:
             lex->sql_command = SQLCOM_DROP_PROCEDURE;
             lex->drop_if_exists= $3;
             lex->spname= $4;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -13118,6 +13193,7 @@ drop_user_stmt:
              lex->sql_command= SQLCOM_DROP_USER;
              lex->drop_if_exists= $3;
              lex->users_list= *$4;
+             MAKE_CMD_DCL_DUMMY();
           }
         ;
 
@@ -13133,6 +13209,7 @@ drop_view_stmt:
             if (Select->add_tables(YYTHD, $4, TL_OPTION_UPDATING,
                                    YYPS->m_lock_type, YYPS->m_mdl_type))
               MYSQL_YYABORT;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -13142,6 +13219,7 @@ drop_event_stmt:
             Lex->drop_if_exists= $3;
             Lex->spname= $4;
             Lex->sql_command = SQLCOM_DROP_EVENT;
+            MAKE_CMD_DDL_DUMMY();
           }
         ;
 
@@ -14518,8 +14596,6 @@ flush_option:
             if (Lex->set_channel_name($3))
               MYSQL_YYABORT;  // OOM
           }
-        | HOSTS_SYM
-          { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
           { Lex->type|= REFRESH_GRANT; }
         | LOGS_SYM
@@ -16808,6 +16884,7 @@ revoke:
             }
             lex->type= static_cast<ulong>($5);
             lex->users_list= *$8;
+            MAKE_CMD_DCL_DUMMY();
           }
         | REVOKE if_exists ALL opt_privileges
           {
@@ -16829,6 +16906,7 @@ revoke:
             lex->type= static_cast<ulong>($7);
             lex->users_list= *$10;
             lex->ignore_unknown_user = $11;
+            MAKE_CMD_DCL_DUMMY();
           }
         | REVOKE if_exists ALL opt_privileges ',' GRANT OPTION FROM user_list opt_ignore_unknown_user
           {
@@ -16836,6 +16914,7 @@ revoke:
             Lex->ignore_unknown_user = $10;
             Lex->sql_command = SQLCOM_REVOKE_ALL;
             Lex->users_list= *$9;
+            MAKE_CMD_DCL_DUMMY();
           }
         | REVOKE if_exists PROXY_SYM ON_SYM user FROM user_list opt_ignore_unknown_user
           {
@@ -16846,6 +16925,7 @@ revoke:
             lex->users_list= *$7;
             lex->users_list.push_front ($5);
             lex->type= TYPE_ENUM_PROXY;
+            MAKE_CMD_DCL_DUMMY();
           }
         ;
 
@@ -16870,6 +16950,7 @@ grant:
             }
             lex->type= static_cast<ulong>($4);
             lex->users_list= *$7;
+            MAKE_CMD_DCL_DUMMY();
           }
         | GRANT ALL opt_privileges
           {
@@ -16887,6 +16968,7 @@ grant:
             }
             lex->type= static_cast<ulong>($6);
             lex->users_list= *$9;
+            MAKE_CMD_DCL_DUMMY();
           }
         | GRANT PROXY_SYM ON_SYM user TO_SYM user_list opt_grant_option
           {
@@ -16897,6 +16979,7 @@ grant:
             lex->users_list= *$6;
             lex->users_list.push_front ($4);
             lex->type= TYPE_ENUM_PROXY;
+            MAKE_CMD_DCL_DUMMY();
           }
         ;
 

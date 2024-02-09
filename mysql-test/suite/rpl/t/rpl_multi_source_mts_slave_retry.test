@@ -13,8 +13,16 @@
 #
 
 --source include/not_group_replication_plugin.inc
+<<<<<<< HEAD
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+||||||| merged common ancestors
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/only_mts_replica_parallel_workers.inc
+=======
+--source include/only_mts_replica_parallel_workers.inc
+>>>>>>> mysql-8.3.0
 
 --echo # Create channel_1 to server_1 from server_2(slave)
 --let $rpl_topology= 1->2

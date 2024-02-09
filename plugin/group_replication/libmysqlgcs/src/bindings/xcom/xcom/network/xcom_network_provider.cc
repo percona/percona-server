@@ -384,13 +384,6 @@ end:
   return cd;
 }
 
-/**
- * @brief
- *
- * @return true
- * @return false
- */
-
 bool Xcom_network_provider::wait_for_provider_ready() {
   std::unique_lock<std::mutex> lck(m_init_lock);
 

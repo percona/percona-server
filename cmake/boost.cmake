@@ -41,8 +41,7 @@
 SET(BOOST_PACKAGE_NAME "boost_1_77_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.bz2")
 SET(BOOST_DOWNLOAD_URL
- # "https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/${BOOST_TARBALL}"
-   "http://jenkins.percona.com/downloads/boost/${BOOST_TARBALL}"
+  "https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -197,7 +196,7 @@ ENDIF()
 # There is a similar option in unittest/gunit.
 # But the boost tarball is much bigger, so we have a separate option.
 OPTION(DOWNLOAD_BOOST "Download boost from sourceforge." OFF)
-SET(DOWNLOAD_BOOST_TIMEOUT 1800 CACHE STRING
+SET(DOWNLOAD_BOOST_TIMEOUT 600 CACHE STRING
   "Timeout in seconds when downloading boost.")
 
 # If we could not find it, then maybe download it.

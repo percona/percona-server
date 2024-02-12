@@ -2548,9 +2548,6 @@ static int binlog_set_prepared_in_tc(handlerton *, THD *) { return 0; }
    it was disconnected and resumed (recovered), or executed by a slave applier.
 
    @param thd         THD handle
-   @param xid         a pointer to XID object
-   @param commit      when @c true XA-COMMIT is logged, otherwise XA-ROLLBACK
-
    @return error code, 0 success
 */
 int MYSQL_BIN_LOG::write_xa_to_cache(THD *thd) {

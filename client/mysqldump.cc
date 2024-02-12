@@ -3420,7 +3420,7 @@ static inline bool innodb_stats_tables(const char *db, const char *table) {
    Checks if --add-drop-table option is enabled and prints
    "DROP TABLE IF EXISTS ..." if the specified table is not a log table.
 
-   @param sq_file            output file
+   @param sql_file           output file
    @param db                 db name
    @param table              table name
    @param opt_quoted_table   optionally quoted table name

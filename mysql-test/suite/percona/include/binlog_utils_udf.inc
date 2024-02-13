@@ -1,5 +1,3 @@
---source include/have_udf.inc
---source include/have_grep.inc
 #
 # Create functions from binlog_utils_udf
 #

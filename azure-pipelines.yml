@@ -80,12 +80,10 @@ jobs:
         Compiler: clang
         BuildType: RelWithDebInfo
 
-      # skip for a pull request if branch name doesn't contain "fullci"
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        macOS 13 Debug:
-          imageName: 'macOS-13'
-          Compiler: clang
-          BuildType: Debug
+      macOS 13 Debug:
+        imageName: 'macOS-13'
+        Compiler: clang
+        BuildType: Debug
 
       # clang-12 and newer compilers
       clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:

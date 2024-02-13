@@ -242,7 +242,8 @@ log_event_ptr find_last_gtid_event(std::string_view binlog_name) {
     if (reader.has_fatal_error())
       throw std::runtime_error(reader.get_error_str());
     auto ev_row = ev.get();
-    if (ev_row->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT)
+    if (ev_row->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT ||
+        ev_row->get_type_code() == mysql::binlog::event::GTID_TAGGED_LOG_EVENT)
       last_gtid_ev = std::move(ev);
     if (ev_row->common_header->log_pos >= end_pos) break;
   }
@@ -257,7 +258,8 @@ bool extract_last_gtid(std::string_view binlog_name, Tsid_map &tsid_map,
   auto ev = find_last_gtid_event(binlog_name);
   if (!ev) return false;
 
-  assert(ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT);
+  assert(ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT ||
+         ev->get_type_code() == mysql::binlog::event::GTID_TAGGED_LOG_EVENT);
   auto *casted_ev = static_cast<Gtid_log_event *>(ev.get());
   rpl_sidno sidno = casted_ev->get_sidno(&tsid_map);
   if (sidno < 0) throw std::runtime_error("Invalid GTID event encountered");

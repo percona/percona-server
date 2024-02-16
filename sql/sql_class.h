@@ -3348,6 +3348,7 @@ class THD : public MDL_context_owner,
 
   /**
     Restore locations set by calls to nocheck_register_item_tree_change().
+    Note that this needs to happen before Item::cleanup is called.
   */
   void rollback_item_tree_changes();
 

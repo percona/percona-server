@@ -349,6 +349,10 @@ get_sources(){
     if [ "x${RHEL}" = "x6" ]; then
         sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
     fi
+    #if [[ "x${FIPSMODE}" == "xYES" ]]; then
+    #    sed -i "s:Alias=mysql:Alias=mysqlpro:g" scripts/systemd/mysqld.service.in
+    #fi
+
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 

@@ -239,7 +239,7 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
     my_safe_printf_stderr("\n");
   };
   cookie_t cookie{.index = 0};
-  stacktrace::full(1, print_callback, error_callback, &cookie);
+  stacktrace::full(0, print_callback, error_callback, &cookie);
 }
 #elif defined(HAVE_BACKTRACE)
 

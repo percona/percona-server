@@ -1,0 +1,80 @@
+# Workflow with limited permissions that performs the checks and provides analysis results through an artifact
+name: Static_analysis
+run-name: GitHub actions for clang-tidy checks
+
+on:
+  pull_request:
+    branches:
+      - 5.7
+      - 8.0
+      - trunk
+      - release-*
+
+env:
+  UBUNTU_CODE_NAME: "jammy"
+  COMPILER_VERSION: "17"
+  BOOST_VERSION: "1_59_0"
+  BOOST_DIR: "/home/runner/my_boost"
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Fetch base branch
+        run: |
+          git remote add target "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
+          git fetch --no-tags --no-recurse-submodules target "${{ github.event.pull_request.base.ref }}"
+
+      - name: Install dependencies and clang-tidy
+        run: |
+          curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
+          echo "deb http://apt.llvm.org/${UBUNTU_CODE_NAME}/ llvm-toolchain-${UBUNTU_CODE_NAME}-${COMPILER_VERSION} main" | sudo tee -a /etc/apt/sources.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev \
+          libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libfido2-dev libldap2-dev libsasl2-dev libsasl2-modules
+
+      - name: Cache boost
+        id: cache-boost
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.BOOST_DIR }}
+          key: ${{ runner.os }}-boost-${{ env.BOOST_VERSION }}
+
+      - name: Download boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          wget --progress=dot:giga -P ${BOOST_DIR} --no-check-certificate "https://sourceforge.net/projects/boost/files/boost/${BOOST_VERSION//_/.}/boost_${BOOST_VERSION}.tar.gz"
+          tar -xzf "${BOOST_DIR}/boost_${BOOST_VERSION}.tar.gz" -C "${BOOST_DIR}"
+
+      - name: Prepare compile_commands.json
+        run: |
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DWITH_BOOST=${BOOST_DIR} -DWITH_SSL=system \
+          -DWITH_AUTHENTICATION_LDAP=ON -DWITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON ${{ github.workspace }}
+
+      - name: Create results directory
+        run: |
+          mkdir clang-tidy-result
+
+      - name: Analyze
+        # Don't disable push/merge option in the PR even if there are unfixed warnings.
+        continue-on-error: true
+        run: |
+          git diff -U0 "$(git merge-base HEAD "target/${{ github.event.pull_request.base.ref }}")" | clang-tidy-diff-${COMPILER_VERSION}.py -p1 -path ../debug-build -export-fixes clang-tidy-result/fixes.yml
+
+      - name: Save PR metadata
+        run: |
+          echo "${{ github.event.number }}" > clang-tidy-result/pr-id.txt
+          echo "${{ github.event.pull_request.head.repo.full_name }}" > clang-tidy-result/pr-head-repo.txt
+          echo "${{ github.event.pull_request.head.sha }}" > clang-tidy-result/pr-head-sha.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-result
+          path: clang-tidy-result/

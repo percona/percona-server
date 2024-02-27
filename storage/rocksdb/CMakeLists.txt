@@ -148,11 +148,7 @@ ENDIF()
 
 INCLUDE(compiler_features)
 ROCKSDB_SET_BUILD_ARCHITECTURE()  # sets "-march=" using ROCKSDB_BUILD_ARCH or ROCKSDB_DISABLE_MARCH_NATIVE
-ROCKSDB_SET_DEFINTIONS()          # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW
-
-IF (HAVE_URING AND ROCKSDB_USE_IO_URING)
-  SET(rocksdb_static_libs ${rocksdb_static_libs} ${URING_LIBRARY})
-ENDIF()
+ROCKSDB_SET_DEFINTIONS()          # sets HAVE_MEMKIND, HAVE_ALIGNED_NEW
 
 IF (HAVE_MEMKIND AND ROCKSDB_USE_MEMKIND)
   SET(rocksdb_static_libs ${rocksdb_static_libs} ${MEMKIND_LIBRARY})
@@ -280,6 +276,17 @@ ENDIF()
 
 IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
+ENDIF()
+
+SET(WITH_LIBURING "OFF" CACHE STRING "By default don't use bundled liburing.")
+IF (WITH_LIBURING)
+  FIND_LIBRARY(URING_LIBRARY
+    NAMES liburing${PIC_EXT}.a uring
+    HINTS ${WITH_LIBURING}/lib)
+  SET(rocksdb_static_libs ${rocksdb_static_libs}
+    ${URING_LIBRARY})
+  ADD_DEFINITIONS(-DROCKSDB_USE_IO_URING=1)
+  ADD_DEFINITIONS(-DROCKSDB_IOURING_PRESENT)
 ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} ${LZ4_LIBRARY} "-ldl")

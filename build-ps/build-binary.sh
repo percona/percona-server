@@ -175,7 +175,7 @@ else
     REVISION=""
 fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${GLIBC_VER:-}${TARBALL_SUFFIX:-}"
+PRODUCT_FULL="$PRODUCT_FULL-$TAG$(uname -s)${DIST_NAME:-}.$TARGET${OS_NAME:-}${TARBALL_SUFFIX:-}"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -220,8 +220,9 @@ if [ -n "$(which rpm)" ]; then
   if test "x$CMAKE_BUILD_TYPE" = "xDebug"
   then
     COMMON_FLAGS=`echo " ${COMMON_FLAGS} " | \
-              sed -e 's/ -O[0-9]* / /' \
-                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+              sed -e 's/-Wall/-Wall -Wno-error=cpp -Wno-error=odr -Wno-error=maybe-uninitialized -Wno-error=stringop-truncation -Wno-error=stringop-overread -Wno-error=stringop-overflow=/' \
+                # -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2//' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
@@ -304,7 +305,8 @@ fi
 
 # Patch needed libraries
 (
-    LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libncurses.so"
+    #LIBLIST="libcrypto.so libssl.so libreadline.so libtinfo.so libsasl2.so libssl3.so libsmime3.so libnss3.so libnssutil3.so libplds4.so libplc4.so libnspr4.so libncurses.so"
+    LIBLIST=""
     DIRLIST="bin lib lib/private lib/mysql/plugin"
 
     LIBPATH=""

@@ -26,7 +26,6 @@
 #include <deque>
 #include <map>
 #include <regex>
-#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -35,20 +34,13 @@
 /* MySQL header files */
 #include "ib_ut0counter.h"
 #include "my_icp.h"
-#include "mysql/psi/mysql_rwlock.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/sql_bitmap.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
-#include "rocksdb/cache.h"
 #include "rocksdb/merge_operator.h"
-#include "rocksdb/perf_context.h"
-#include "rocksdb/sst_file_manager.h"
-#include "rocksdb/statistics.h"
-#include "rocksdb/utilities/options_util.h"
-#include "rocksdb/utilities/transaction_db.h"
 #include "rocksdb/utilities/write_batch_with_index.h"
 
 /* MyRocks header files */

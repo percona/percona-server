@@ -19,7 +19,6 @@
 #pragma once
 
 /* C++ standard header files */
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -28,8 +27,8 @@
 #endif
 
 /* MySQL header files */
-#include "sql/handler.h" /* handler */
-#include "sql_string.h"
+#include "my_base.h"
+#include "my_inttypes.h"
 
 /* MyRocks header files */
 #include "./ib_ut0counter.h"

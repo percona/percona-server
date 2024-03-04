@@ -25,10 +25,9 @@
 #include <string>
 
 /* RocksDB header files */
-#include "rocksdb/utilities/convenience.h"
+#include "rocksdb/utilities/options_util.h"
 
 /* MyRocks header files */
-#include "./ha_rocksdb.h"
 #include "./rdb_cf_manager.h"
 #include "./rdb_compact_filter.h"
 #include "./rdb_sst_partitioner_factory.h"

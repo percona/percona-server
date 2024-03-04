@@ -18,19 +18,11 @@
 #include "./rdb_mutex_wrapper.h"
 
 /* MySQL header files */
-#include "my_systime.h"
 #include "sql/current_thd.h"
+#include "sql/replication.h"
 
 /* MyRocks header files */
-#include "./ha_rocksdb.h"
 #include "./rdb_utils.h"
-
-// Internal MySQL APIs not exposed in any header.
-extern "C" {
-void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage);
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage);
-}
 
 namespace myrocks {
 
@@ -91,8 +83,8 @@ rocksdb::Status Rdb_cond_var::WaitFor(
   mysql_mutex_assert_owner(mutex_ptr);
 
   if (current_thd && mutex_obj->m_old_stage_info.count(current_thd) == 0) {
-    my_core::thd_enter_cond(current_thd, &m_cond, mutex_ptr,
-                            &stage_waiting_on_row_lock2, &old_stage);
+    THD_ENTER_COND(current_thd, &m_cond, mutex_ptr, &stage_waiting_on_row_lock2,
+                   &old_stage);
     /*
       After the mysql_cond_timedwait we need make this call
 
@@ -212,7 +204,7 @@ void Rdb_mutex::UnLock() {
     /* The following will call mysql_mutex_unlock */
     /* GOL - not in 5.7, see commentary in sql_class.h */
     mysql_mutex_unlock(&m_mutex);
-    my_core::thd_exit_cond(current_thd, old_stage.get());
+    THD_EXIT_COND(current_thd, old_stage.get());
     return;
   }
 #endif

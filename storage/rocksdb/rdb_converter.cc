@@ -19,14 +19,13 @@
 
 /* Standard C++ header files */
 #include <algorithm>
-#include <map>
 #include <string>
 #include <vector>
 
 /* MySQL header files */
-#include "my_stacktrace.h"
+#include "my_checksum.h"
 #include "sql/debug_sync.h"
-#include "sql/sql_array.h"
+#include "sql/field.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"

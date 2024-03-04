@@ -22,7 +22,6 @@
 #include <array>
 #include <atomic>
 #include <map>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -36,11 +35,23 @@
 #include "./ha_rocksdb.h"
 #include "./properties_collector.h"
 #include "./rdb_buff.h"
+#include "./rdb_global.h"
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_utils.h"
 
 /* Server header files */
 #include "sql/dd/object_id.h"
+
+// Forward declarations
+#ifdef ROCKSDB_CUSTOM_NAMESPACE
+namespace ROCKSDB_CUSTOM_NAMESPACE {
+#else
+namespace rocksdb {
+#endif
+
+class TransactionDB;
+
+}  // namespace ROCKSDB_CUSTOM_NAMESPACE / rocksdb
 
 namespace myrocks {
 

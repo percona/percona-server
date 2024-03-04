@@ -22,7 +22,6 @@
 #include <map>
 #include <string>
 #include <unordered_set>
-#include <utility>
 
 /* MySQL includes */
 #include "include/mysql/psi/mysql_thread.h"
@@ -31,7 +30,6 @@
 #include "sql/sql_class.h"
 
 /* MyRocks header files */
-#include "./rdb_global.h"
 #include "./rdb_utils.h"
 #include "rocksdb/db.h"
 

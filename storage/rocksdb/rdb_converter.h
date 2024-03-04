@@ -17,7 +17,6 @@
 #pragma once
 
 // C++ standard header files
-#include <string>
 #include <vector>
 
 // MySQL header files
@@ -27,7 +26,6 @@
 // MyRocks header files
 #include "./ha_rocksdb.h"
 #include "./rdb_datadic.h"
-#include "ib_ut0counter.h"
 
 namespace myrocks {
 class Rdb_field_encoder;

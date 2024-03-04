@@ -29,7 +29,6 @@
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"
-#include "rocksdb/status.h"
 
 #ifdef OS_MACOSX
 

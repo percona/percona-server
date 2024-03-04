@@ -29,6 +29,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <string.h>
 #include "my_dbug.h"
+#include <cassert>
+#include <cstdint>
 
 /** CPU cache line size */
 #define INNOBASE_CACHE_LINE_SIZE 64

@@ -122,3 +122,9 @@ SET GLOBAL innodb_interpreter = null;
 ERROR 42000: Variable 'innodb_interpreter' can't be set to the value of 'NULL'
 SET GLOBAL innodb_interpreter = 0;
 ERROR 42000: Incorrect argument type to variable 'innodb_interpreter'
+#
+# PS-9117: Check server doesn't crash upon an attempt to set innodb_interpreter_output
+#
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter_output = '';
+ERROR HY000: Variable 'innodb_interpreter_output' is a read only variable

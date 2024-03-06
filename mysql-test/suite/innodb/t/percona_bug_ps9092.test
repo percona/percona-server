@@ -1,0 +1,124 @@
+--echo #
+--echo # PS-9092: Data inconsistencies when high rate of pages split/merge
+--echo #
+CREATE TABLE testTable (`key` INT UNSIGNED, version BIGINT UNSIGNED, rowmarker CHAR(3) NOT NULL DEFAULT 'aaa', value MEDIUMBLOB, PRIMARY KEY (`key`, version)) ENGINE=InnoDB;
+CREATE TABLE stopper (i INT);
+INSERT INTO stopper VALUES (1);
+
+DELIMITER |;
+
+CREATE PROCEDURE lft() BEGIN
+  DECLARE rnd VARBINARY(1024);
+  SET rnd = RANDOM_BYTES(1024);
+  INSERT INTO testTable (`key`, version, value) VALUES (0, 18446744073709551615, LEFT(rnd, 1));
+  WHILE (SELECT COUNT(*) FROM stopper) DO
+    UPDATE testTable SET value = LEFT(rnd, RAND()*1023+1) WHERE `key` = 0;
+  END WHILE;
+END |
+
+CREATE PROCEDURE rght() BEGIN
+  DECLARE rnd VARBINARY(1024);
+  SET rnd = RANDOM_BYTES(1024);
+  INSERT INTO testTable (`key`, version, value) VALUES (2, 18446744073709551615, LEFT(rnd, 1));
+  WHILE (SELECT COUNT(*) FROM stopper) DO
+    UPDATE testTable SET value = LEFT(rnd, RAND()*1023+1) WHERE `key` = 2;
+  END WHILE;
+END |
+
+CREATE PROCEDURE mdl() BEGIN
+  DECLARE rnd VARBINARY(1024);
+  DECLARE v BIGINT UNSIGNED DEFAULT 0;
+  SET rnd = RANDOM_BYTES(1024);
+
+  WHILE (SELECT COUNT(*) FROM stopper) DO
+    SET v = v + 1;
+    INSERT INTO testTable (`key`, version, value) VALUES (1, 18446744073709551615 - v, LEFT(rnd, RAND()*1023+1));
+
+    IF RAND() <= 0.05 THEN
+      DELETE from testTable WHERE `key`=1 AND version > 18446744073709551615 - v;
+    END IF;
+  END WHILE;
+END|
+
+CREATE PROCEDURE ck() BEGIN
+  DECLARE global_max_seen BIGINT UNSIGNED DEFAULT 0;
+  
+  foo: WHILE global_max_seen < 5000 DO
+    BEGIN
+      DECLARE done INT DEFAULT 0;
+      DECLARE local_max_seen BIGINT UNSIGNED DEFAULT 0;
+      DECLARE k INT;
+      DECLARE u BIGINT UNSIGNED;
+      DECLARE v BIGINT UNSIGNED;
+      DECLARE c1 CURSOR FOR select `key`, version FROM testTable WHERE `key` >= 1  AND `key` <= 1 ORDER BY `key` DESC; 
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+ 
+      OPEN c1;
+
+      REPEAT
+        FETCH c1 INTO k, v;
+        SET u = 18446744073709551615 - v;
+        IF u > local_max_seen THEN
+          SET local_max_seen = u;
+        END IF;
+      UNTIL done END REPEAT;
+      CLOSE c1;
+
+      IF local_max_seen < global_max_seen THEN
+        SELECT "ERROR! local_max_seen < global_max_seen!" AS msg, local_max_seen, global_max_seen;
+        LEAVE foo;
+      END IF;
+      SET global_max_seen = local_max_seen;
+    END;
+  END WHILE;
+END|
+DELIMITER ;|
+
+--enable_connect_log
+
+--connect (con1,localhost,root,,)
+--send CALL lft()
+
+--connect (con2,localhost,root,,)
+--send CALL mdl()
+
+--connect (con3,localhost,root,,)
+--send CALL rght()
+
+--connect (con4,localhost,root,,)
+--echo #
+--echo # Check procedure is not supposed to return ERROR.
+CALL ck();
+
+--echo #
+--echo # Stop activity in other connections
+DELETE FROM stopper;
+
+--disconnect con4
+--source include/wait_until_disconnected.inc
+
+--connection con1
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--reap
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection con3
+--reap
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+--disable_connect_log
+
+DROP TABLE stopper;
+DROP TABLE testTable;
+DROP PROCEDURE lft;
+DROP PROCEDURE mdl;
+DROP PROCEDURE rght;
+DROP PROCEDURE ck;

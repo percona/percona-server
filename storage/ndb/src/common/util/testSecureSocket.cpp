@@ -747,6 +747,7 @@ int ReadLineTest::testRecv() {
                         nullptr);
     if (elapsed_time >= m_timeout) break;
     if (r == -1) continue;  // buffer full, no line found
+    if (r == 0) continue;   // timeout
     assert(r > 0);
     assert(m_recv_buffer[r] == '\0');
     assert(m_recv_buffer[r - 1] == '\n');

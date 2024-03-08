@@ -140,6 +140,7 @@ std::size_t Gtid_specification::automatic_to_string(char *buf) const {
     pos += sep_len;
     pos += automatic_tag.to_string(buf + pos);
   }
+  buf[pos] = '\0';
   return pos;
 }
 

@@ -4981,7 +4981,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
             GLOBAL.GTID_PURGED should be empty in the case.
           */
           if (binlog_gtid_simple_recovery && is_server_starting &&
-              !is_relay_log)
+              !is_relay_log && reached_first_file)
           {
             assert(all_gtids->is_empty());
             assert(lost_gtids->is_empty());

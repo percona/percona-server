@@ -772,7 +772,7 @@ build_deb(){
         echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server-5.7.postinst
         cat call-home.sh >> percona-server-server-5.7.postinst 
         echo "CALLHOME" >> percona-server-server-5.7.postinst
-        echo 'bash -x /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v "5.7.44-48-1" -d "PACKAGE" &>/dev/null || :' >> percona-server-server-5.7.postinst
+        echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server-5.7.postinst
         echo "rm -rf /tmp/call-home.sh" >> percona-server-server-5.7.postinst
         echo "exit 0" >> percona-server-server-5.7.postinst
         rm -f call-home.sh

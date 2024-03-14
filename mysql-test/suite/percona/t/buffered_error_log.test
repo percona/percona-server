@@ -1,5 +1,6 @@
 call mtr.add_suppression("Attempting backtrace. You can use the following information to");
 
+--source include/not_asan.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

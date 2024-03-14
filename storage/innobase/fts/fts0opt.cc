@@ -463,7 +463,8 @@ dberr_t fts_index_fetch_nodes(
     que_t **graph,            /*!< in: prepared statement */
     fts_table_t *fts_table,   /*!< in: table of the FTS INDEX */
     const fts_string_t *word, /*!< in: the word to fetch */
-    fts_fetch_t *fetch)       /*!< in: fetch callback.*/
+    fts_fetch_t *fetch,       /*!< in: fetch callback.*/
+    bool exact_match)         /*!< in: exact match.*/
 {
   pars_info_t *info;
   dberr_t error;
@@ -493,24 +494,27 @@ dberr_t fts_index_fetch_nodes(
   pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
   if (!*graph) {
-    *graph = fts_parse_sql(fts_table, info,
-                           "DECLARE FUNCTION my_func;\n"
-                           "DECLARE CURSOR c IS"
-                           " SELECT word, doc_count, first_doc_id, last_doc_id,"
-                           " ilist\n"
-                           " FROM $table_name\n"
-                           " WHERE word LIKE :word\n"
-                           " ORDER BY first_doc_id;\n"
-                           "BEGIN\n"
-                           "\n"
-                           "OPEN c;\n"
-                           "WHILE 1 = 1 LOOP\n"
-                           "  FETCH c INTO my_func();\n"
-                           "  IF c % NOTFOUND THEN\n"
-                           "    EXIT;\n"
-                           "  END IF;\n"
-                           "END LOOP;\n"
-                           "CLOSE c;");
+    *graph = fts_parse_sql(
+        fts_table, info,
+        mem_heap_printf(info->heap,
+                        "DECLARE FUNCTION my_func;\n"
+                        "DECLARE CURSOR c IS"
+                        " SELECT word, doc_count, first_doc_id, last_doc_id,"
+                        " ilist\n"
+                        " FROM $table_name\n"
+                        " WHERE word %s :word\n"
+                        " ORDER BY first_doc_id;\n"
+                        "BEGIN\n"
+                        "\n"
+                        "OPEN c;\n"
+                        "WHILE 1 = 1 LOOP\n"
+                        "  FETCH c INTO my_func();\n"
+                        "  IF c %% NOTFOUND THEN\n"
+                        "    EXIT;\n"
+                        "  END IF;\n"
+                        "END LOOP;\n"
+                        "CLOSE c;",
+                        (exact_match ? "=" : "LIKE")));
   }
 
   for (;;) {
@@ -1642,7 +1646,7 @@ static void fts_optimize_words(
     /* Read the index records to optimize. */
     fetch.total_memory = 0;
     error = fts_index_fetch_nodes(trx, &graph, &optim->fts_index_table, word,
-                                  &fetch);
+                                  &fetch, true);
     ut_ad(fetch.total_memory < fts_result_cache_limit);
 
     if (error == DB_SUCCESS) {

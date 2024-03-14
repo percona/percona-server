@@ -506,9 +506,12 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
 
       if (ec == TlsErrc::kWantRead) return Result::RecvFromClient;
 
-      log_fatal_error_code("tls-accept failed", ec);
+      log_info("accepting TLS connection from %s failed: %s",
+               connection()->get_client_address().c_str(),
+               ec.message().c_str());
 
-      return recv_client_failed(ec);
+      stage(Stage::Error);
+      return Result::Again;
     }
   }
 
@@ -759,15 +762,6 @@ ClientGreetor::authenticated() {
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("greeting::error"));
-    }
-
-    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-      // RouterRoutingTest.RoutingTooManyServerConnections expects this
-      // message.
-      log_debug(
-          "Error from the server while waiting for greetings message: "
-          "%u, '%s'",
-          connect_err_.error_code(), connect_err_.message().c_str());
     }
 
     stage(Stage::Error);

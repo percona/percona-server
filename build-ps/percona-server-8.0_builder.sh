@@ -438,7 +438,7 @@ install_deps() {
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
             if [ "${RHEL}" -lt 9 ]; then
-                add_percona_yum_repo
+                # add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
                 percona-release enable tools experimental
@@ -679,6 +679,8 @@ build_srpm(){
         -e "s:percona-mysql-router-devel =:percona-mysql-router-devel-pro =:g" \
         -e "s:percona-server-rocksdb$:percona-server-rocksdb-pro:g" \
         -e "s:percona-server-test$:percona-server-test-pro:g" \
+        -e "s:percona-server-shared$:percona-server-shared-pro:g" \
+        -e "s:percona-server-shared :percona-server-shared-pro :g" \
         -e "s:Conflicts\:      percona-server-server-pro:Conflicts\:      percona-server-server:g" \
         -e "s:Conflicts\:      percona-server-client-pro:Conflicts\:      percona-server-client:g" \
         -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \
@@ -687,6 +689,7 @@ build_srpm(){
         -e "s:Conflicts\:     percona-mysql-router-pro:Conflicts\:     percona-mysql-router:g" \
         -e "s:Conflicts\:      percona-mysql-router-devel-pro:Conflicts\:      percona-mysql-router-devel:g" \
         -e "s:Conflicts\:      percona-server-test-pro:Conflicts\:      percona-server-test:g" \
+        -e "s:Conflicts\:      percona-server-shared-pro:Conflicts\:      percona-server-shared:g" \
         -e "s:Name\:           percona-server:Name\:           percona-server-pro:g" \
         percona-server.spec
     fi
@@ -728,7 +731,8 @@ build_srpm(){
 build_mecab_lib(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
-    MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -759,7 +763,8 @@ build_mecab_lib(){
 build_mecab_dict(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
-    MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    #MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
@@ -1059,15 +1064,19 @@ build_deb(){
     fi
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
+    postfix=""
+    if [ x"${FIPSMODE}" == x1 ]; then
+        postfix="-pro"
+    fi
     cd debian/
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
-    sed -i 's:exit 0::' percona-server-server.postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server.postinst
-    cat call-home.sh >> percona-server-server.postinst
-    echo "CALLHOME" >> percona-server-server.postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server.postinst
-    echo "exit 0" >> percona-server-server.postinst
+    sed -i 's:exit 0::' percona-server-server"${postfix}".postinst
+    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    cat call-home.sh >> percona-server-server"${postfix}".postinst
+    echo "CALLHOME" >> percona-server-server"${postfix}".postinst
+    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../
 
@@ -1131,6 +1140,9 @@ build_tarball(){
       fi
       if [ "x${RHEL}" = "x8" ]; then
           source /opt/rh/gcc-toolset-10/enable
+      fi
+      if [ "x${RHEL}" = "x9" ]; then
+          . /opt/rh/gcc-toolset-12/enable
       fi
     fi
     #

@@ -70,11 +70,13 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   parse_mask.cpp
   random.cpp
   require.cpp
-  ssl_socket_table.cpp
   socket_io.cpp
   version.cpp
   LINK_LIBRARIES ndbtrace ndbportlib ext::zlib mysys
 )
+
+# Exclude ndbgeneral_objlib from PGO on Windows to avoid linker error LNK1248
+EXCLUDE_FROM_MSVC_PGO(ndbgeneral_objlib)
 
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)

@@ -524,6 +524,12 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
 
   if (ctx->is_stopped(this)) return false;
 
+  if (reference_count() > 1) {
+    (void)decrement_ref_count();
+    ctx->stop_at(this);
+    return false;
+  }
+
   // Remove item on upward traversal, not downward:
   if (marker == MARKER_NONE) {
     marker = MARKER_TRAVERSAL;
@@ -4773,7 +4779,7 @@ void Item_rank::update_after_wf_arguments_changed(THD *thd) {
     // on them. This is called only during resolving with ROLLUP in case
     // of old optimizer.
     Item **item_to_be_changed;
-    if (!thd->lex->using_hypergraph_optimizer) {
+    if (!thd->lex->using_hypergraph_optimizer()) {
       Item_ref *item_ref = down_cast<Item_ref *>(m_previous[i]->get_item());
       item_to_be_changed = item_ref->ref_pointer();
     } else {

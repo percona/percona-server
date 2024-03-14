@@ -396,6 +396,7 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      mariadb-libs
 Obsoletes:      mysql-connector-c-shared < 6.2
 Obsoletes:      mysql-libs < %{version}-%{release}
+Conflicts:      percona-server-shared-pro
 Provides:       mysql-shared
 %ifarch x86_64
 %if 0%{?rhel} < 9
@@ -515,7 +516,7 @@ fi
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
-  wget %{compatsrc}
+  wget --no-check-certificate %{compatsrc}
 %if 0%{?rhel} > 6
   rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm | cpio --extract --make-directories --verbose
 %else
@@ -849,6 +850,17 @@ fi
 if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
+
+%if 0%{?rhel} >= 9
+if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+  if [ ! -e /etc/systemd/system/mysql.service ] && [ -d /etc/systemd/system ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+  fi
+  if [ ! -e /etc/systemd/system/multi-user.target.wants/mysqld.service ] && [ -d /etc/systemd/system/multi-user.target.wants ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/multi-user.target.wants/mysqld.service
+  fi
+fi
+%endif
 
 %post -n percona-server-shared -p /sbin/ldconfig
 

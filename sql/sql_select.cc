@@ -551,8 +551,8 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   if (sql_command_code() == SQLCOM_SELECT) DEBUG_SYNC(thd, "after_table_open");
 #endif
 
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  lex->set_using_hypergraph_optimizer(
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err; /* purecov: inspected */
@@ -1893,7 +1893,7 @@ void JOIN::destroy() {
       }
       qep_tab[i].cleanup();
     }
-  } else if (thd->lex->using_hypergraph_optimizer) {
+  } else if (thd->lex->using_hypergraph_optimizer()) {
     // Same, for hypergraph queries.
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
@@ -1955,13 +1955,6 @@ void JOIN::destroy() {
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx]);
     }
   }
-
-  /*
-    If current optimization detected any const tables, expressions may have
-    been updated without used tables information from those const tables, so
-    make sure to restore used tables information as from resolving.
-  */
-  if (const_tables > 0) query_block->update_used_tables();
 
   destroy_sj_tmp_tables(this);
 
@@ -3719,7 +3712,7 @@ void JOIN::cleanup() {
       if (!table) continue;
       cleanup_table(table);
     }
-  } else if (thd->lex->using_hypergraph_optimizer) {
+  } else if (thd->lex->using_hypergraph_optimizer()) {
     for (Table_ref *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       cleanup_table(tl->table);
     }

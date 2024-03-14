@@ -2037,9 +2037,10 @@ class Query_block : public Query_term {
   */
   uint select_n_where_fields{0};
   /**
-    number of items in select_list and HAVING clause used to get number
-    bigger then can be number of entries that will be added to all item
-    list during split_sum_func
+    Number of items in the select list, HAVING clause and ORDER BY clause. It is
+    used to reserve space in the base_ref_items array so that it is big enough
+    to hold hidden items for any of the expressions or sub-expressions in those
+    clauses.
   */
   uint select_n_having_items{0};
   /// Number of arguments of and/or/xor in where/having/on
@@ -3747,6 +3748,7 @@ struct LEX : public Query_tables_list {
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
   bool is_explain_analyze = false;
+
   /**
     Whether the currently-running query should be (attempted) executed in
     the hypergraph optimizer. This will not change after the query is
@@ -3754,7 +3756,18 @@ struct LEX : public Query_tables_list {
     whether to inhibit some transformation that the hypergraph optimizer
     does not properly understand yet.
    */
-  bool using_hypergraph_optimizer = false;
+  bool using_hypergraph_optimizer() const {
+    return m_using_hypergraph_optimizer;
+  }
+
+  void set_using_hypergraph_optimizer(bool use_hypergraph) {
+    m_using_hypergraph_optimizer = use_hypergraph;
+  }
+
+ private:
+  bool m_using_hypergraph_optimizer{false};
+
+ public:
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */

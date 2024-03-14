@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(DEBUG_EXTNAME)
+IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND DEBUG_EXTNAME)
   ADD_COMPILE_DEFINITIONS(HAVE_DEBUG_EXTNAME)
 ENDIF()
 

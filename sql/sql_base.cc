@@ -128,9 +128,10 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
-#include "sql/sql_db.h"       // check_schema_readonly
-#include "sql/sql_error.h"    // Sql_condition
-#include "sql/sql_handler.h"  // mysql_ha_flush_tables
+#include "sql/sql_db.h"        // check_schema_readonly
+#include "sql/sql_error.h"     // Sql_condition
+#include "sql/sql_executor.h"  // unwrap_rollup_group
+#include "sql/sql_handler.h"   // mysql_ha_flush_tables
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"    // is_update_query
@@ -8208,6 +8209,11 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       find->type() == Item::FIELD_ITEM || find->type() == Item::REF_ITEM
           ? down_cast<Item_ident *>(find)
           : nullptr;
+  /*
+    Some items, such as Item_aggregate_ref, do not have a name and hence
+    can never be found.
+  */
+  assert(find_ident == nullptr || find_ident->field_name != nullptr);
 
   int i = 0;
   for (auto it = VisibleFields(*items).begin();
@@ -8296,12 +8302,12 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
           unaliased_counter = i;
         }
       }
-    } else if (find_ident == nullptr || find_ident->table_name == nullptr) {
-      if (item->type() == Item::FUNC_ITEM &&
-          down_cast<const Item_func *>(item)->functype() ==
-              Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-        item = down_cast<Item_rollup_group_item *>(item)->inner_item();
-      }
+    } else if (find_ident == nullptr || find_ident->table_name == nullptr ||
+               is_rollup_group_wrapper(item)) {
+      // Unwrap rollup wrappers, if any
+      item = unwrap_rollup_group(item);
+      find = unwrap_rollup_group(find);
+
       if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
         *found = &*it;
         *counter = i;
@@ -8340,15 +8346,6 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
-        break;
-      }
-    } else if (item->type() == Item::FUNC_ITEM &&
-               down_cast<const Item_func *>(item)->functype() ==
-                   Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-      if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
-        *found = &*it;
-        *counter = i;
-        *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       }
     }
@@ -10403,7 +10400,7 @@ bool init_ftfuncs(THD *thd, Query_block *query_block) {
   DBUG_PRINT("info", ("Performing FULLTEXT search"));
   THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
-  if (thd->lex->using_hypergraph_optimizer) {
+  if (thd->lex->using_hypergraph_optimizer()) {
     // Set the no_ranking hint if ranking of the results is not required. The
     // old optimizer does this when it determines which scan to use. The
     // hypergraph optimizer doesn't know until the full plan is built, so do it

@@ -27,7 +27,7 @@ var defaults = {
   bootstrap_report_host_pattern: ".*",
   account_host_pattern: ".*",
   account_user_pattern: "mysql_router1_[0-9a-z]{12}",
-  account_pass_pattern: "\\*[0-9A-Z]{40}",
+  account_pass_pattern: ".*",
   create_user_warning_count: 0,
   create_user_show_warnings_results: [],
 
@@ -93,6 +93,7 @@ var defaults = {
 
   gr_member_state: "ONLINE",
   gr_members_all: 3,
+  gr_members_recovering: 0,
   gr_members_online: 3,
 };
 
@@ -400,13 +401,17 @@ function get_response(stmt_key, options) {
     case "router_select_members_count":
       return {
         "stmt":
-            "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members",
+            "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, SUM(IF(member_state = 'RECOVERING', 1, 0)) as num_recovering, COUNT(*) as num_total FROM performance_schema.replication_group_members",
         "result": {
           "columns": [
             {"type": "LONGLONG", "name": "num_onlines"},
+            {"type": "LONGLONG", "name": "num_recovering"},
             {"type": "LONGLONG", "name": "num_total"}
           ],
-          "rows": [[options.gr_members_online, options.gr_members_all]]
+          "rows": [[
+            options.gr_members_online, , options.gr_members_recovering,
+            options.gr_members_all
+          ]]
         }
       };
     case "router_select_replication_group_name":
@@ -501,9 +506,19 @@ function get_response(stmt_key, options) {
     case "router_create_user":
       return {
         "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@" +
-            options.user_host_pattern +
-            " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
+            options.user_host_pattern + " IDENTIFIED BY '.*'",
         "ok": {}
+      };
+    case "router_check_auth_plugin":
+      return {
+        "stmt_regex": "^select host, plugin from mysql.user where user = .*",
+        "result": {
+          "columns": [
+            {"type": "STRING", "name": "host"},
+            {"type": "STRING", "name": "plugin"}
+          ],
+          "rows": [["localhost", "caching_sha2_password"]],
+        }
       };
     case "router_grant_on_metadata_db":
       return {
@@ -783,8 +798,7 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex": "^CREATE USER IF NOT EXISTS '" +
             options.account_user_pattern + "'@'" +
-            options.account_host_pattern +
-            "' IDENTIFIED WITH mysql_native_password AS '" +
+            options.account_host_pattern + "' IDENTIFIED BY '" +
             options.account_pass_pattern + "'",
         "ok": {warning_count: options.create_user_warning_count}
       };
@@ -793,8 +807,7 @@ function get_response(stmt_key, options) {
         // CREATE USER (without IF NOT EXISTS) is triggered by
         // --account-create always
         "stmt_regex": "^CREATE USER '" + options.account_user_pattern + "'@'" +
-            options.account_host_pattern +
-            "' IDENTIFIED WITH mysql_native_password AS '" +
+            options.account_host_pattern + "' IDENTIFIED BY '" +
             options.account_pass_pattern + "'",
         "ok": {}
       };

@@ -1,3 +1,4 @@
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t1 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
@@ -11,6 +12,7 @@ true
 select case when variable_value-@d < 10 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 case when variable_value-@d < 10 then 'true' else 'false' end
 true
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t2 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=ROCKSDB;
 INSERT INTO t2 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
@@ -24,6 +26,7 @@ true
 select case when variable_value-@d > 9000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 case when variable_value-@d > 9000 then 'true' else 'false' end
 true
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t3 (id INT, value int, PRIMARY KEY (id)) ENGINE=ROCKSDB;
 INSERT INTO t3 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
@@ -37,6 +40,7 @@ true
 select case when variable_value-@d > 9000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 case when variable_value-@d > 9000 then 'true' else 'false' end
 true
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t4 (id INT, PRIMARY KEY (id)) ENGINE=ROCKSDB;
 INSERT INTO t4 VALUES (1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
@@ -50,6 +54,7 @@ true
 select case when variable_value-@d < 10 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 case when variable_value-@d < 10 then 'true' else 'false' end
 true
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t5 (id1 INT, id2 INT, PRIMARY KEY (id1, id2), INDEX(id2)) ENGINE=ROCKSDB;
 INSERT INTO t5 VALUES (1, 1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
@@ -63,6 +68,7 @@ true
 select case when variable_value-@d < 10 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 case when variable_value-@d < 10 then 'true' else 'false' end
 true
+set global rocksdb_compact_cf='__system__';
 CREATE TABLE t6 (
 pk VARCHAR(64) COLLATE latin1_swedish_ci PRIMARY KEY
 ) ENGINE=RocksDB;

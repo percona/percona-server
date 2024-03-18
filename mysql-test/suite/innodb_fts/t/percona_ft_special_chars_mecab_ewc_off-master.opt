@@ -1,0 +1,2 @@
+$MECAB_OPT
+--innodb-ft-min-token-size=2

@@ -306,7 +306,11 @@ get_system(){
         GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        OS_NAME="el$RHEL"
+        if [ "x$RHEL" = "x9" ]; then
+            OS_NAME="ol$RHEL"
+        else
+            OS_NAME="el$RHEL"
+        fi
         OS="rpm"
     else
         GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
@@ -315,6 +319,7 @@ get_system(){
         OS="deb"
     fi
     export GLIBC_VER=".glibc${GLIBC_VER_TMP}"
+    export OS_NAME=".${OS_NAME}"
     return
 }
 
@@ -335,13 +340,17 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         if [ "${RHEL}" -lt 9 ]; then
-            add_percona_yum_repo
+            #add_percona_yum_repo
             yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
             percona-release enable tools testing
         else
             yum -y install yum-utils
             yum-config-manager --enable ol9_codeready_builder
-            yum -y install zlib-devel
+            curl -O https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/zlib-1.2.13-4.fc39.x86_64.rpm
+            curl -O https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/zlib-devel-1.2.13-4.fc39.x86_64.rpm
+            yum -y --allowerasing install ./zlib-1.2.13-4.fc39.x86_64.rpm
+            yum -y --allowerasing install ./zlib-devel-1.2.13-4.fc39.x86_64.rpm
+            yum -y install openssl-devel
             yum -y install epel-release
         fi
         yum -y install patchelf
@@ -380,6 +389,13 @@ install_deps() {
         fi
         if [ "x$RHEL" = "x8" ]; then
             yum -y install jemalloc jemalloc-devel
+            wget --no-check-certificate https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/zlib-1.2.13-4.fc39.x86_64.rpm
+            wget --no-check-certificate https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/zlib-devel-1.2.13-4.fc39.x86_64.rpm
+            wget --no-check-certificate https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/rpcgen-1.4-1.fc29.x86_64.rpm
+            yum -y --allowerasing install ./zlib-1.2.13-4.fc39.x86_64.rpm
+            yum -y --allowerasing install ./zlib-devel-1.2.13-4.fc39.x86_64.rpm
+            yum -y install ./rpcgen-1.4-1.fc29.x86_64.rpm
+            yum -y install openssl-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -491,7 +507,8 @@ build_srpm(){
     cd ${WORKDIR}/rpmbuild/SOURCES
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget --no-check-certificate http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget --no-check-certificate http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget --no-check-certificate https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -528,7 +545,8 @@ build_srpm(){
 
 build_mecab_lib(){
     MECAB_TARBAL="mecab-0.996.tar.gz"
-    MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -552,7 +570,8 @@ build_mecab_lib(){
 
 build_mecab_dict(){
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
-    MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    #MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
@@ -753,7 +772,7 @@ build_deb(){
         echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server-5.7.postinst
         cat call-home.sh >> percona-server-server-5.7.postinst 
         echo "CALLHOME" >> percona-server-server-5.7.postinst
-        echo 'bash -x /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v "5.7.44-48-1" -d "PACKAGE" &>/dev/null || :' >> percona-server-server-5.7.postinst
+        echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server-5.7.postinst
         echo "rm -rf /tmp/call-home.sh" >> percona-server-server-5.7.postinst
         echo "exit 0" >> percona-server-server-5.7.postinst
         rm -f call-home.sh

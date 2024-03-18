@@ -138,7 +138,7 @@ Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Source4:        my_config.h
 Source5:        mysql_config.sh
-Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
+Source10:       http://downloads.percona.com/downloads/TESTING/issue-CUSTO83/boost/@@BOOST_PACKAGE_NAME@@.tar.gz
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Source999:      call-home.sh
@@ -376,7 +376,7 @@ fi
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
-  wget %{compatsrc}
+  wget --no-check-certificate %{compatsrc}
   rpm2cpio Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm | cpio --extract --make-directories --verbose
   popd
 )

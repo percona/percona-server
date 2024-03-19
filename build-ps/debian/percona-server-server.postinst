@@ -183,7 +183,7 @@ EOF
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 	fi
-
+	chmod +x /etc/init.d/mysql || true
 	;;
 
 	abort-upgrade|abort-remove|abort-configure)

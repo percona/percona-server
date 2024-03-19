@@ -86,7 +86,7 @@ TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
   rpl
   rpl_source
   rpl_replica
-  ${CURL_LIBRARY}
+  ext::curl
   ${SSL_LIBRARIES}
   ${ICU_LIBRARIES})
 
@@ -121,6 +121,6 @@ FOREACH(test ${TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     ${ICU_LIBRARIES}
-    ${CURL_LIBRARY}
+    ext::curl
     ${SSL_LIBRARIES})
 ENDFOREACH()

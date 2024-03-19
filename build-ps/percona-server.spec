@@ -475,7 +475,7 @@ Summary:        MySQL packaging of ICU data files
 This package contains ICU data files needer by MySQL regular expressions.
 
 %prep
-%setup -q -T -a 0 -a 10 -c -n %{src_dir}
+%setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p0
 

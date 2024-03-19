@@ -57,8 +57,6 @@ usr/lib/mysql/private/icudt73l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
-usr/lib/mysql/plugin/innodb_engine.so
-usr/lib/mysql/plugin/libmemcached.so
 usr/lib/mysql/plugin/libpluginmecab.so
 usr/lib/mysql/plugin/locking_service.so
 usr/lib/mysql/plugin/mypluglib.so
@@ -90,8 +88,6 @@ usr/lib/mysql/plugin/debug/component_mysqlbackup.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
-usr/lib/mysql/plugin/debug/innodb_engine.so
-usr/lib/mysql/plugin/debug/libmemcached.so
 usr/lib/mysql/plugin/debug/libpluginmecab.so
 usr/lib/mysql/plugin/debug/locking_service.so
 usr/lib/mysql/plugin/debug/mypluglib.so

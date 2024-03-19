@@ -321,15 +321,15 @@
  ENDIF()
 --- unittest/gunit/group_replication/CMakeLists.txt
 +++ unittest/gunit/group_replication/CMakeLists.txt
-@@ -47,7 +47,7 @@
+@@ -49,7 +49,7 @@
      gr_unit_test_resource
      gunit_large
      server_unittest_library
 -    perconaserverclient
 +    mysqlclient
      mysqlgcs
+     mysql_gtid
      )
- ENDFOREACH()
 --- unittest/gunit/xplugin/xcl/CMakeLists.txt
 +++ unittest/gunit/xplugin/xcl/CMakeLists.txt
 @@ -68,7 +68,7 @@

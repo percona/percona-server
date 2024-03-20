@@ -108,9 +108,6 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # to encrypt the tablespace before crash.
 CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';
 # connection con3
-SELECT connection_id();
-connection_id()
-11
 # Run a DDL with this connection con3
 ALTER TABLESPACE temp_ts ENCRYPTION='Y';
 set global innodb_buf_flush_list_now = 1;

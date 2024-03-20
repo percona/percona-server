@@ -2223,6 +2223,8 @@ IF(WITH_ENCRYPTION_UDF)
   ADD_SUBDIRECTORY(extra/opensslpp)
 ENDIF()
 
+option(WITH_PERCONA_TELEMETRY "Build Percona Telemetry component" OFF)
+
 option(WITH_PERCONA_PROBUILD "Build Percona Server Pro variant" OFF)
 option(PROBUILD "Build Percona Server Pro variant (an alias for WITH_PERCONA_PROBUILD)" OFF)
 

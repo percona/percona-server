@@ -1,0 +1,6 @@
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.history_keep_interval=80 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
+Server should still be alive
+CALL mtr.add_suppression("Component percona_telemetry reported: 'Problem during telemetry file write: filesystem error: directory iterator cannot open directory: No such file or directory");
+include/assert_grep.inc [Percona Telemetry Component warns about nonexistent directory]
+Telemetry root dir should contain 1 file
+1

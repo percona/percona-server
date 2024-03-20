@@ -1,1 +1,1 @@
-$PFS_EXAMPLE_OPT
+--loose-percona-telemetry-disable=ON $PFS_EXAMPLE_OPT

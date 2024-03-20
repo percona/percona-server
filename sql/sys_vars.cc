@@ -2423,6 +2423,14 @@ static Sys_var_bool Sys_log_bin("log_bin", "Whether the binary log is enabled",
                                 READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log),
                                 NO_CMD_LINE, DEFAULT(true));
 
+#ifdef HAVE_PERCONA_TELEMETRY
+static Sys_var_bool Sys_percona_telemetry_disable(
+    "percona_telemetry_disable",
+    "Whether Percona Telemetry component should be disabled after server start",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_percona_telemetry_disable),
+    CMD_LINE(OPT_ARG), DEFAULT(false));
+#endif
+
 static Sys_var_ulong Sys_rpl_stop_replica_timeout(
     "rpl_stop_replica_timeout",
     "Timeout in seconds to wait for replication threads to stop, before "

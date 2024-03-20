@@ -1,0 +1,40 @@
+# Test that obsolete files from another servers are removed,
+# but files with names not conforming to expected pattern are not.
+
+--source include/have_percona_telemetry.inc
+--source include/force_restart.inc
+
+CALL mtr.add_suppression("Component percona_telemetry reported: 'Skipping file deletion this_file_should_not_be_removed'");
+
+--let $telemetry_root_dir = $MYSQL_TMP_DIR/telemetry_dir
+--let $grace_interval = 30
+--let $scrape_interval = 30
+--let $history_keep_interval = 80
+
+--let $obsolete_file_name = 313671600-1af5d44c-81f9-4083-807d-e71ca7914f92.json
+--let $untouchable_file_name = this_file_should_not_be_removed.json
+--let $untouchable_file = $telemetry_root_dir/$untouchable_file_name
+--let $obsolete_file = $telemetry_root_dir/$obsolete_file_name
+
+--mkdir $telemetry_root_dir
+--exec touch $untouchable_file
+--exec touch $obsolete_file
+
+# restart the server with custom telemetry file path and timeouts
+--let $restart_parameters = "restart:--percona_telemetry.grace_interval=$grace_interval --percona_telemetry.scrape_interval=$scrape_interval --percona_telemetry.history_keep_interval=$history_keep_interval --percona_telemetry.telemetry_root_dir=$telemetry_root_dir"
+--replace_regex /telemetry_root_dir=.*telemetry_dir/telemetry_root_dir=<telemetry_root_dir>/
+--source include/restart_mysqld.inc
+
+# Wait for percona_telemetry.grace_interval to pass (+10sec)
+--let $timeout = `select $grace_interval + 10`
+--sleep $timeout
+
+--echo File with the name not conforming to the pattern still should be there
+--file_exists $untouchable_file
+--exec ls -1 $telemetry_root_dir | grep $untouchable_file_name | wc -l
+
+--echo Obsolete file should be removed
+--exec ls -1 $telemetry_root_dir | grep $obsolete_file_name | wc -l
+
+# cleanup
+--force-rmdir $telemetry_root_dir

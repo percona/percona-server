@@ -2382,6 +2382,8 @@ ELSE()
   SET(WITH_SHOW_PARSE_TREE_DEFAULT "default")
 ENDIF()
 
+option(WITH_PERCONA_TELEMETRY "Build Percona Telemetry component" OFF)
+
 # We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
 # To generate entries for header files in compile_commands.json:
 # make clang_tidy_prerequisites, see below.

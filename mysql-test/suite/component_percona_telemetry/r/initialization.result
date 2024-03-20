@@ -1,0 +1,8 @@
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+### Shutdown
+### Start with invalid option
+# restart_abort: --authentication-policy=mysql_native_password --mysql_native_password=OFF
+### Waiting for the error message to occur
+include/wait_for_pattern_in_file.inc [authentication-policy is set to an invalid value]
+### Start again
+# restart:

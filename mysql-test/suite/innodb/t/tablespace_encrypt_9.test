@@ -149,7 +149,6 @@ CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';
 --echo # connection con3
 connect (con3,localhost,root,,);
 connection con3;
-SELECT connection_id();
 --echo # Run a DDL with this connection con3
 ALTER TABLESPACE temp_ts ENCRYPTION='Y';
 

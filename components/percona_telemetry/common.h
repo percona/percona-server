@@ -1,0 +1,9 @@
+#ifndef PERCONA_TELEMETRY_COMMON_H
+#define PERCONA_TELEMETRY_COMMON_H
+
+#include <boost/preprocessor/stringize.hpp>
+
+#define CURRENT_COMPONENT_NAME percona_telemetry
+#define CURRENT_COMPONENT_NAME_STR BOOST_PP_STRINGIZE(CURRENT_COMPONENT_NAME)
+
+#endif /* PERCONA_TELEMETRY_COMMON_H */

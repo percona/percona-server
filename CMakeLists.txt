@@ -2298,6 +2298,8 @@ OPTION(WITH_SHOW_PARSE_TREE
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
 
+option(WITH_PERCONA_TELEMETRY "Build Percona Telemetry component" OFF)
+
 option(WITH_PERCONA_PROBUILD "Build Percona Server Pro variant" OFF)
 option(PROBUILD "Build Percona Server Pro variant (an alias for WITH_PERCONA_PROBUILD)" OFF)
 

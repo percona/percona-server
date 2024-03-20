@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <debug_sync.h>
 #include "my_dbug.h"
+#include "scope_guard.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 bool srv_ibuf_disable_background_merge;

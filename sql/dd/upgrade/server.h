@@ -71,6 +71,10 @@ namespace upgrade {
 */
 bool upgrade_system_schemas(THD *thd);
 
+#ifdef HAVE_PERCONA_TELEMETRY
+bool setup_percona_telemetry(THD *thd);
+#endif
+
 bool no_server_upgrade_required();
 
 bool I_S_upgrade_required();

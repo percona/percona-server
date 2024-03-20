@@ -2517,6 +2517,14 @@ static Sys_var_bool Sys_log_bin("log_bin", "Whether the binary log is enabled",
                                 READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log),
                                 NO_CMD_LINE, DEFAULT(true));
 
+#ifdef HAVE_PERCONA_TELEMETRY
+static Sys_var_bool Sys_percona_telemetry_disable(
+    "percona_telemetry_disable",
+    "Whether Percona Telemetry component should be disabled after server start",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_percona_telemetry_disable),
+    CMD_LINE(OPT_ARG), DEFAULT(false));
+#endif
+
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;
   // Can't change the algorithm when group replication is enabled.

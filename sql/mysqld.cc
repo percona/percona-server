@@ -1221,6 +1221,10 @@ bool opt_persist_sensitive_variables_in_plaintext{true};
 int argc_cached;
 char **argv_cached;
 
+#ifdef HAVE_PERCONA_TELEMETRY
+bool opt_percona_telemetry_disable = false;
+#endif
+
 #if defined(_WIN32)
 /*
   Thread handle of shutdown event handler thread.
@@ -7025,6 +7029,19 @@ static int init_server_components() {
       }
     }
   }
+
+#ifdef HAVE_PERCONA_TELEMETRY
+  if (!is_help_or_validate_option() && !opt_initialize) {
+    init_optimizer_cost_module(true);
+    if (bootstrap::run_bootstrap_thread(nullptr, nullptr,
+                                        &dd::upgrade::setup_percona_telemetry,
+                                        SYSTEM_THREAD_SERVER_UPGRADE)) {
+      LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_FAILED);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+    delete_optimizer_cost_module();
+  }
+#endif
 
   /*
     Re-create non DD based system views after a) if we upgraded system

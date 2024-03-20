@@ -66,6 +66,10 @@
 #include "sql/trigger.h"  // Trigger
 #include "sql/trigger_def.h"
 
+#ifdef HAVE_PERCONA_TELEMETRY
+#include "sql/dd/dd_utility.h"  // check_if_server_ddse_readonly
+#endif
+
 typedef ulonglong sql_mode_t;
 extern const char *mysql_sys_schema[];
 extern const char *fill_help_tables[];
@@ -950,6 +954,81 @@ bool upgrade_system_schemas(THD *thd) {
 
   return dd::end_transaction(thd, err);
 }
+
+#ifdef HAVE_PERCONA_TELEMETRY
+/* 1. We INSERT INTO, because prepared statements do not support
+      INSTALL COMPONENT
+   2. We use stored procedure to be able to do conditional action.
+*/
+static const char *percona_telemetry_install[] = {
+    "USE mysql;\n",
+    "SET @have_percona_telemetry= (SELECT COUNT(*) FROM mysql.component WHERE "
+    "component_urn='file://component_percona_telemetry');\n",
+    "SET @cmd= 'INSERT INTO mysql.component(component_group_id, component_urn) "
+    "VALUES (1, \"file://component_percona_telemetry\");';\n",
+    "SET @str = IF(@have_percona_telemetry = 0, @cmd, 'SET @dummy = 0');\n",
+    "PREPARE stmt FROM @str;\n",
+    "EXECUTE stmt;\n",
+    "DROP PREPARE stmt;\n",
+    "SET @group_id= (SELECT LAST_INSERT_ID());\n",
+    "SET @cmd= 'UPDATE mysql.component SET component_group_id=@group_id WHERE "
+    "component_id=@group_id;';\n",
+    "SET @str = IF(@have_percona_telemetry = 0, @cmd, 'SET @dummy = 0');\n",
+    "PREPARE stmt FROM @str;\n",
+    "EXECUTE stmt;\n",
+    "DROP PREPARE stmt;\n",
+    NULL};
+
+static const char *percona_telemetry_uninstall[] = {
+    "USE mysql;\n",
+    "DELETE FROM mysql.component WHERE "
+    "component_urn=\"file://component_percona_telemetry\"\n;",
+    NULL};
+
+bool setup_percona_telemetry(THD *thd [[maybe_unused]]) {
+  if (dd::check_if_server_ddse_readonly(thd, MYSQL_SCHEMA_NAME.str)) {
+    return false;
+  }
+
+  Disable_autocommit_guard autocommit_guard(thd);
+  Bootstrap_error_handler bootstrap_error_handler;
+
+  Server_option_guard<bool> acl_guard(&opt_noacl, true);
+  Server_option_guard<bool> general_log_guard(&opt_general_log, false);
+  Server_option_guard<bool> slow_log_guard(&opt_slow_log, false);
+  Disable_binlog_guard disable_binlog(thd);
+  Disable_sql_log_bin_guard disable_sql_log_bin(thd);
+
+  bool err = false;
+
+  bootstrap_error_handler.set_log_error(false);
+
+  const char **query_ptr = opt_percona_telemetry_disable
+                               ? &percona_telemetry_uninstall[0]
+                               : &percona_telemetry_install[0];
+  for (; *query_ptr != nullptr; query_ptr++)
+    if (ignore_error_and_execute(thd, *query_ptr)) {
+      LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+             "Failed during setup Percona Telemetry component. Ignoring.");
+      break;
+    };
+
+  bootstrap_error_handler.set_log_error(true);
+
+  // TODO: needed?
+  close_thread_tables(thd);
+  close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
+
+  if (dd::end_transaction(thd, err)) {
+    LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+           "Failed to setup Percona Telemetry component. Ignoring.");
+  }
+
+  // Always return success, regardless of Percona Telemetry Component setup
+  // status.
+  return false;
+}
+#endif /* HAVE_PERCONA_TELEMETRY */
 
 bool no_server_upgrade_required() {
   return !(

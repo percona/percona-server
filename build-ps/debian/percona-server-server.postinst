@@ -175,7 +175,6 @@ EOF
 		set +e
 
 	else
-		chmod +x /etc/init.d/mysql || true
 		# If the existing config file is a proper file, we back it up
 		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
 			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
@@ -184,7 +183,7 @@ EOF
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 	fi
-
+	chmod +x /etc/init.d/mysql || true
 	;;
 
 	abort-upgrade|abort-remove|abort-configure)

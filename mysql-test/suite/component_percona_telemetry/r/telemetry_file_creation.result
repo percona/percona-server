@@ -1,0 +1,11 @@
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.history_keep_interval=80 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
+Time passed: 10.0000. Still in grace_interval. Telemetry root dir should contain 0 files
+0
+Time passed: 40.0000. Time after grace_interval: 10.0000. Telemetry root dir should contain 1 file
+1
+Time passed: 70.0000. Time after grace_interval: 40.0000. Telemetry root dir should contain 2 files
+2
+Time passed: 100.0000. Time after grace_interval: 70.0000. Telemetry root dir should contain 3 files
+3
+Time passed: 130.0000. Time after grace_interval: 100.0000. Telemetry root dir should still contain 3 files
+3

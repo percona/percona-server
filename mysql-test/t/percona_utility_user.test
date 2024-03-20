@@ -209,13 +209,15 @@ SHOW CREATE USER 'frank'@'localhost';
 # Restart to reset the global counters
 --source include/restart_mysqld.inc
 
-SHOW GLOBAL STATUS LIKE "Connections";
+--let $connections_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Connections', Value, 1)
 SHOW GLOBAL STATUS LIKE "Threads%";
 
 connect (frank,localhost,frank,password,mysql);
 
 # Invisibility issue: this is the thread_id, will increase with each connection
-SHOW GLOBAL STATUS LIKE "Connections";
+--let $connections_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Connections', Value, 1)
+--dec $connections_after
+--assert($connections_before == $connections_after)
 # Invisibility issue: Threads_connected includes the utility user too
 # This is kept as is because this counter is used for logic within thread pool handling
 # E.g. fixing this would cause issues in threadpool_unix
@@ -242,8 +244,11 @@ SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 
 connection default;
 
+--disable_query_log
+--replace_regex /thread [0-9]+/thread X/
 --error ER_KILL_DENIED_ERROR
 --eval KILL $conn_id
+--enable_query_log
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
 
 # PS-5955: Must not be possible to grant or revoke a role to/from utility user

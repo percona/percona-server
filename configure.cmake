@@ -552,6 +552,10 @@ IF(WITH_VALGRIND)
   ENDIF()
 ENDIF()
 
+IF(WITH_PERCONA_TELEMETRY)
+  SET(HAVE_PERCONA_TELEMETRY 1)
+ENDIF()
+
 # Check for gettid() system call
 CHECK_C_SOURCE_COMPILES("
 #include <sys/types.h>

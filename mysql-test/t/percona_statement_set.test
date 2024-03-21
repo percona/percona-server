@@ -839,18 +839,18 @@ DROP PROCEDURE p5;
 ####################################################################
 
 # tmpdir is different when the test is run with --mem
---replace_regex /\/.*\/tmp\/mysqld\..*/TMPDIR/
+--replace_regex /\/.*\/tmp.*\/mysqld\..*/TMPDIR/
 --eval SET STATEMENT innodb_tmpdir=@@global.tmpdir FOR SELECT @@innodb_tmpdir
 SET SESSION innodb_tmpdir = @@global.tmpdir;
---replace_regex /\/.*\/tmp\/mysqld\..*/TMPDIR/
+--replace_regex /\/.*\/tmp.*\/mysqld\..*/TMPDIR/
 SELECT @@innodb_tmpdir;
---replace_regex /\/.*\/tmp\/mysqld\..*/TMPDIR/
+--replace_regex /\/.*\/tmp.*\/mysqld\..*/TMPDIR/
 SET STATEMENT sql_mode='' FOR SELECT @@innodb_tmpdir;
---replace_regex /\/.*\/tmp\/mysqld\..*/TMPDIR/
+--replace_regex /\/.*\/tmp.*\/mysqld\..*/TMPDIR/
 SELECT @@innodb_tmpdir;
 --replace_result $MYSQL_TEST_DIR TESTDIR
 --eval SET STATEMENT innodb_tmpdir='$MYSQL_TEST_DIR' FOR SELECT @@innodb_tmpdir
---replace_regex /\/.*\/tmp\/mysqld\..*/TMPDIR/
+--replace_regex /\/.*\/tmp.*\/mysqld\..*/TMPDIR/
 SELECT @@innodb_tmpdir;
 
 --echo #

@@ -1247,7 +1247,7 @@ fi
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.22*
+%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.23*
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
 %attr(755, root, root) /usr/lib/libcoredumper.a

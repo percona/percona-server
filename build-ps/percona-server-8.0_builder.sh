@@ -386,7 +386,7 @@ install_deps() {
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
             if [ "${RHEL}" -lt 9 ]; then
-                add_percona_yum_repo
+              #  add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
                 percona-release enable tools experimental
@@ -675,7 +675,7 @@ build_mecab_lib(){
 build_mecab_dict(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
-    MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/packaging/mecab/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}

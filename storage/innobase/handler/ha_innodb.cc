@@ -3856,7 +3856,8 @@ trx_is_strict(
 /*==========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode));
+	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode) &&
+		(!thd_slave_thread(trx->mysql_thd)));
 }
 
 /**************************************************************//**

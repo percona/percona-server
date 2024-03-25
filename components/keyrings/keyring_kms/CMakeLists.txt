@@ -69,7 +69,7 @@ SET(KEYRING_KMS_SOURCE
 #Component callbacks
         component_callbacks.cc)
 
-SET(KEYRING_KMS_LIBRARIES keyring_common ${CURL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
+SET(KEYRING_KMS_LIBRARIES keyring_common ext::curl OpenSSL::SSL OpenSSL::Crypto)
 
 MYSQL_ADD_COMPONENT(keyring_kms ${KEYRING_KMS_SOURCE} LINK_LIBRARIES ${KEYRING_KMS_LIBRARIES} MODULE_ONLY)
 

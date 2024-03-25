@@ -113,8 +113,6 @@ set(
 )
 list_transform_prepend(SOURCE_LIST "${SRC_DIR_EX}/")
 
-find_package(OpenSSL REQUIRED)
-
 add_library(${PROJECT_NAME} STATIC ${SOURCE_LIST} ${PUBLIC_HEADER_LIST} ${PRIVATE_HEADER_LIST})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 

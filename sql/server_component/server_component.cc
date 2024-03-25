@@ -724,6 +724,11 @@ mysql_stored_program_runtime_argument_string_imp::get,
     mysql_stored_program_runtime_argument_string_imp::set
     END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(
+    mysql_server, mysql_stored_program_runtime_argument_string_charset)
+mysql_stored_program_runtime_argument_string_charset_imp::set
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_runtime_argument_int)
 mysql_stored_program_runtime_argument_int_imp::get,
@@ -771,6 +776,11 @@ mysql_stored_program_return_value_null_imp::set, END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_return_value_string)
 mysql_stored_program_return_value_string_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_string_charset)
+mysql_stored_program_return_value_string_charset_imp::set
+END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_return_value_int)
@@ -1054,6 +1064,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_null),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_runtime_argument_string),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_string_charset),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_int),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_runtime_argument_unsigned_int),
@@ -1065,6 +1077,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_timestamp),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_null),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_string),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_return_value_string_charset),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_int),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_return_value_unsigned_int),

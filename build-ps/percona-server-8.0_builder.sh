@@ -745,7 +745,7 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-10/enable
+        source /opt/rh/gcc-toolset-12/enable
     fi
     build_mecab_lib
     build_mecab_dict
@@ -937,7 +937,7 @@ build_tarball(){
           source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-10/enable
+          source /opt/rh/gcc-toolset-12/enable
       fi
     fi
     #

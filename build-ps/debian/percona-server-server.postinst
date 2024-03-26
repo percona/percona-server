@@ -175,7 +175,7 @@ EOF
 		set +e
 
 	fi
-
+	chmod +x /etc/init.d/mysql || true
 	;;
 
 	abort-upgrade|abort-remove|abort-configure)

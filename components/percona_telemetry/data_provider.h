@@ -31,6 +31,8 @@ using Row = std::vector<std::string>;
 using QueryResult = std::vector<Row>;
 
 class Logger;
+class DbReplicationIdSolver;
+
 class DataProvider {
  public:
   DataProvider(
@@ -68,7 +70,9 @@ class DataProvider {
   bool collect_se_usage_info(rapidjson::Document *document);
   bool collect_group_replication_info(rapidjson::Document *document);
   bool collect_async_replication_info(rapidjson::Document *document);
+  bool collect_db_replication_id(rapidjson::Document *document);
   bool collect_metrics(rapidjson::Document *document);
+
 
   const std::string &get_database_instance_id();
 
@@ -81,6 +85,7 @@ class DataProvider {
   SERVICE_TYPE(mysql_command_thread) & command_thread_service_;
 
   Logger &logger_;
+  std::shared_ptr<DbReplicationIdSolver> db_replication_id_solver_;
 
   std::string database_instance_id_cache_;
   std::string version_cache_;

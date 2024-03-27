@@ -16,11 +16,13 @@
 #ifndef MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 #define MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 
 #include "masking_functions/command_service_tuple_fwd.hpp"
+#include "masking_functions/dictionary_container.hpp"
 
 namespace masking_functions {
 
@@ -30,8 +32,6 @@ namespace masking_functions {
 // construction.
 class sql_context {
  public:
-  using optional_string = std::optional<std::string>;
-
   explicit sql_context(const command_service_tuple &services);
 
   sql_context(sql_context const &) = delete;
@@ -46,9 +46,7 @@ class sql_context {
     return *impl_.get_deleter().services;
   }
 
-  // Executes a query where we either expect a single result (one row one
-  // column), or nothing
-  optional_string query_single_value(std::string_view query);
+  optional_dictionary_container query_list(std::string_view query);
 
   bool execute(std::string_view query);
 

@@ -7,13 +7,26 @@
 --echo # * masking_dictionary_term_add
 --echo # * masking_dictionary_term_remove
 --echo # * masking_dictionary_remove
+--echo # * masking_dictionaries_flush
 --echo #
 
 --source include/count_sessions.inc
 
 INSTALL COMPONENT 'file://component_masking_functions';
 
---echo # arity checks
+--echo #
+--echo # Create users with and without MASKING_DICTIONARIES_ADMIN privilege
+CREATE USER udftest_unpriv@localhost;
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+--connect(con_unpriv,localhost,udftest_unpriv,,)
+--connect(con_priv,localhost,udftest_priv,,)
+--connection default
+
+--echo #
+--echo # arity checks, run for privileged user
+--connection con_priv
+
 --error ER_CANT_INITIALIZE_UDF
 SELECT gen_dictionary();
 --error ER_CANT_INITIALIZE_UDF
@@ -47,8 +60,12 @@ SELECT masking_dictionary_remove();
 --error ER_CANT_INITIALIZE_UDF
 SELECT masking_dictionary_remove('', '');
 
+--error ER_CANT_INITIALIZE_UDF
+SELECT masking_dictionaries_flush('');
 
+--echo #
 --echo # argument nullness checks for functions not requiring MASKING_DICTIONARIES_ADMIN
+--connection con_unpriv
 --error ER_UDF_ERROR
 SELECT gen_dictionary(NULL);
 
@@ -58,6 +75,7 @@ SELECT gen_blocklist('Berlin', NULL, 'us_cities');
 SELECT gen_blocklist('Berlin', 'de_cities', NULL);
 
 
+--echo #
 --echo # checking the case when there is no mysql.masking_dictionaries table
 --error ER_COMMAND_SERVICE_BACKEND_FAILED
 SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
@@ -66,17 +84,21 @@ SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
 SELECT gen_dictionary('us_cities');
 
 
+--echo #
 --echo # NULL for NULL checks
 --let $assert_cond = gen_blocklist(NULL, "de_cities", "us_cities") IS NULL
 --let $assert_text = gen_blocklist() for the NULL primary argument should return NULL
 --source include/assert.inc
 
 
+--echo #
 --echo # checking the case when mysql.masking_dictionaries has invalid structure
+--connection default
 CREATE TABLE mysql.masking_dictionaries(
     Dictionary VARCHAR(256) NOT NULL,
     UNIQUE INDEX dictionary_term_idx (Dictionary)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+--connection con_unpriv
 
 --error ER_COMMAND_SERVICE_BACKEND_FAILED
 SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
@@ -84,13 +106,12 @@ SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
 --error ER_COMMAND_SERVICE_BACKEND_FAILED
 SELECT gen_dictionary('us_cities');
 
+--connection default
 DROP TABLE mysql.masking_dictionaries;
 
-
+--echo #
 --echo # checks for an unprivileged user
-CREATE USER udftest;
---connect(con1,localhost,udftest,,)
---connection con1
+--connection con_unpriv
 
 --error ER_CANT_INITIALIZE_UDF
 SELECT masking_dictionary_term_add('single_dict', 'entry');
@@ -101,15 +122,16 @@ SELECT masking_dictionary_term_remove('single_dict', 'entry');
 --error ER_CANT_INITIALIZE_UDF
 SELECT masking_dictionary_remove('single_dict');
 
---connection default
+--echo #
 --echo # checking the case when mysql.masking_dictionaries is empty
+--connection default
 CREATE TABLE mysql.masking_dictionaries(
     Dictionary VARCHAR(256) NOT NULL,
     Term VARCHAR(256) NOT NULL,
     UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+--connection con_unpriv
 
---connection con1
 --let $assert_cond = gen_dictionary("us_cities") IS NULL
 --let $assert_text = gen_dictionary on an empty table must return NULL
 --source include/assert.inc
@@ -130,7 +152,10 @@ INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто1');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
 
---connection con1
+--connection con_priv
+SELECT masking_dictionaries_flush();
+--connection con_unpriv
+
 --let $assert_cond = gen_dictionary("de_cities") IS NULL
 --let $assert_text = gen_dictionary on a non-existing dictionary must return NULL
 --source include/assert.inc
@@ -182,15 +207,11 @@ INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2'
 --source include/assert.inc
 
 --connection default
---disconnect con1
-
 DELETE FROM mysql.masking_dictionaries;
+--connection con_priv
+SELECT masking_dictionaries_flush();
 
-GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest;
-
---connect(con1,localhost,udftest,,)
---connection con1
-
+--echo #
 --echo # argument nullness checks for functions requiring MASKING_DICTIONARIES_ADMIN
 --error ER_UDF_ERROR
 SELECT masking_dictionary_term_add(NULL, 'entry');
@@ -206,6 +227,7 @@ SELECT masking_dictionary_term_remove('single_dict', NULL);
 SELECT masking_dictionary_remove(NULL);
 
 
+--echo #
 --echo # checks for a user with MASKING_DICTIONARIES_ADMIN privilege using various character sets / collations
 --let $dollar = `SELECT _utf8mb4 0x24`
 
@@ -269,7 +291,7 @@ while($i < $number_of_charsets) {
   --source include/assert.inc
 
 
-  --connection con1
+  --connection con_priv
   --let $expected_charset = utf8mb4
   --let $iteration = 0
   while ($iteration < $number_of_iterations) {
@@ -338,7 +360,7 @@ while($i < $number_of_charsets) {
   --source include/assert.inc
 
 
-  --connection con1
+  --connection con_priv
   --echo masking_dictionary_remove checks
   --let $dictionary = dictionary
   --let $expression = masking_dictionary_remove('$dictionary')
@@ -356,7 +378,7 @@ while($i < $number_of_charsets) {
   --let $assert_text = mysql.masking_dictionaries must have 3 records
   --source include/assert.inc
 
-  --connection con1
+  --connection con_priv
   --let $dictionary = словник
   --let $expression = masking_dictionary_remove('$dictionary')
   --let $regexp =
@@ -369,16 +391,18 @@ while($i < $number_of_charsets) {
   --let $assert_text = mysql.masking_dictionaries must have 0 records
   --source include/assert.inc
 
-  --connection con1
+  --connection con_priv
   --echo ################################
 
   --inc $i
 }
 
 --connection default
---disconnect con1
+--disconnect con_priv
+--disconnect con_unpriv
 
-DROP USER udftest;
+DROP USER udftest_unpriv@localhost;
+DROP USER udftest_priv@localhost;
 
 UNINSTALL COMPONENT 'file://component_masking_functions';
 

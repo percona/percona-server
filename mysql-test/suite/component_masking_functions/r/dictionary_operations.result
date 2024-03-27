@@ -5,9 +5,16 @@
 # * masking_dictionary_term_add
 # * masking_dictionary_term_remove
 # * masking_dictionary_remove
+# * masking_dictionaries_flush
 #
 INSTALL COMPONENT 'file://component_masking_functions';
-# arity checks
+#
+# Create users with and without MASKING_DICTIONARIES_ADMIN privilege
+CREATE USER udftest_unpriv@localhost;
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+#
+# arity checks, run for privileged user
 SELECT gen_dictionary();
 ERROR HY000: Can't initialize function 'gen_dictionary'; Wrong argument list: gen_dictionary(string)
 SELECT gen_dictionary('', '');
@@ -21,21 +28,24 @@ ERROR HY000: Can't initialize function 'gen_blocklist'; Wrong argument list: gen
 SELECT gen_blocklist('', '', '', '');
 ERROR HY000: Can't initialize function 'gen_blocklist'; Wrong argument list: gen_blocklist(string, string, string)
 SELECT masking_dictionary_term_add();
-ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Wrong argument list: masking_dictionary_term_add(string, string)
 SELECT masking_dictionary_term_add('');
-ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Wrong argument list: masking_dictionary_term_add(string, string)
 SELECT masking_dictionary_term_add('', '', '');
-ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Wrong argument list: masking_dictionary_term_add(string, string)
 SELECT masking_dictionary_term_remove();
-ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Wrong argument list: masking_dictionary_term_remove(string, string)
 SELECT masking_dictionary_term_remove('');
-ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Wrong argument list: masking_dictionary_term_remove(string, string)
 SELECT masking_dictionary_term_remove('', '', '');
-ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Wrong argument list: masking_dictionary_term_remove(string, string)
 SELECT masking_dictionary_remove();
-ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Wrong argument list: masking_dictionary_remove(string)
 SELECT masking_dictionary_remove('', '');
-ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Wrong argument list: masking_dictionary_remove(string)
+SELECT masking_dictionaries_flush('');
+ERROR HY000: Can't initialize function 'masking_dictionaries_flush'; Wrong argument list: masking_dictionaries_flush()
+#
 # argument nullness checks for functions not requiring MASKING_DICTIONARIES_ADMIN
 SELECT gen_dictionary(NULL);
 ERROR HY000: gen_dictionary<string> UDF failed; argument 1 cannot be null
@@ -43,13 +53,16 @@ SELECT gen_blocklist('Berlin', NULL, 'us_cities');
 ERROR HY000: gen_blocklist<string> UDF failed; argument 2 cannot be null
 SELECT gen_blocklist('Berlin', 'de_cities', NULL);
 ERROR HY000: gen_blocklist<string> UDF failed; argument 3 cannot be null
+#
 # checking the case when there is no mysql.masking_dictionaries table
 SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
 ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
 SELECT gen_dictionary('us_cities');
 ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
+#
 # NULL for NULL checks
 include/assert.inc [gen_blocklist() for the NULL primary argument should return NULL]
+#
 # checking the case when mysql.masking_dictionaries has invalid structure
 CREATE TABLE mysql.masking_dictionaries(
 Dictionary VARCHAR(256) NOT NULL,
@@ -60,14 +73,15 @@ ERROR HY000: Error in command service backend interface, because of : "Unknown c
 SELECT gen_dictionary('us_cities');
 ERROR HY000: Error in command service backend interface, because of : "Unknown column 'Term' in 'field list'"
 DROP TABLE mysql.masking_dictionaries;
+#
 # checks for an unprivileged user
-CREATE USER udftest;
 SELECT masking_dictionary_term_add('single_dict', 'entry');
 ERROR HY000: Can't initialize function 'masking_dictionary_term_add'; Function requires MASKING_DICTIONARIES_ADMIN privilege
 SELECT masking_dictionary_term_remove('single_dict', 'entry');
 ERROR HY000: Can't initialize function 'masking_dictionary_term_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
 SELECT masking_dictionary_remove('single_dict');
 ERROR HY000: Can't initialize function 'masking_dictionary_remove'; Function requires MASKING_DICTIONARIES_ADMIN privilege
+#
 # checking the case when mysql.masking_dictionaries is empty
 CREATE TABLE mysql.masking_dictionaries(
 Dictionary VARCHAR(256) NOT NULL,
@@ -86,6 +100,9 @@ INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city3');
 INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто1');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
+SELECT masking_dictionaries_flush();
+masking_dictionaries_flush()
+1
 include/assert.inc [gen_dictionary on a non-existing dictionary must return NULL]
 SET @check_expression_result = gen_dictionary('us_cities');
 include/assert.inc [the result of evaluating 'gen_dictionary('us_cities')' must match the 'city[[:digit:]]{1}' pattern]
@@ -117,7 +134,10 @@ include/assert.inc [charset of the result of evaluating 'gen_blocklist('city1', 
 include/assert.inc [collation of the result of evaluating 'gen_blocklist('city1', 'us_cities', 'укр_міста')' must be 'utf8mb4_0900_ai_ci']
 include/assert.inc [gen_blocklist when to_dictionary does not exist must return NULL]
 DELETE FROM mysql.masking_dictionaries;
-GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest;
+SELECT masking_dictionaries_flush();
+masking_dictionaries_flush()
+1
+#
 # argument nullness checks for functions requiring MASKING_DICTIONARIES_ADMIN
 SELECT masking_dictionary_term_add(NULL, 'entry');
 ERROR HY000: masking_dictionary_term_add<string> UDF failed; argument 1 cannot be null
@@ -129,6 +149,7 @@ SELECT masking_dictionary_term_remove('single_dict', NULL);
 ERROR HY000: masking_dictionary_term_remove<string> UDF failed; argument 2 cannot be null
 SELECT masking_dictionary_remove(NULL);
 ERROR HY000: masking_dictionary_remove<string> UDF failed; argument 1 cannot be null
+#
 # checks for a user with MASKING_DICTIONARIES_ADMIN privilege using various character sets / collations
 SET @regular_charset_list = '[ "utf8mb4", "utf8mb3", "utf16", "utf16le", "utf32", "ucs2", "koi8u"]';
 SET @special_charset_list = '[ "latin2", "ascii", "binary"]';
@@ -4993,6 +5014,7 @@ include/assert.inc [charset of the result of evaluating 'masking_dictionary_remo
 include/assert.inc [collation of the result of evaluating 'masking_dictionary_remove('словник')' must be 'utf8mb4_0900_ai_ci']
 include/assert.inc [mysql.masking_dictionaries must have 0 records]
 ################################
-DROP USER udftest;
+DROP USER udftest_unpriv@localhost;
+DROP USER udftest_priv@localhost;
 UNINSTALL COMPONENT 'file://component_masking_functions';
 DROP TABLE mysql.masking_dictionaries;

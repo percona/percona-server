@@ -82,8 +82,7 @@ sql_context::sql_context(const command_service_tuple &services)
   }
 }
 
-sql_context::optional_string sql_context::query_single_value(
-    std::string_view query) {
+optional_dictionary_container sql_context::query_list(std::string_view query) {
   if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
                                      query.length()) != 0) {
     throw std::runtime_error{"Error while executing SQL query"};
@@ -116,19 +115,22 @@ sql_context::optional_string sql_context::query_single_value(
                                              &row_count) != 0)
     throw std::runtime_error{"Couldn't query row count"};
 
-  if (row_count == 0) return std::nullopt;
+  optional_dictionary_container result{std::in_place, dictionary_container{}};
 
-  if (row_count > 1) throw std::runtime_error{"Query returned more than 1 row"};
+  for (auto i = row_count; i > 0; --i) {
+    MYSQL_ROW_H row = nullptr;
+    ulong *length = nullptr;
 
-  MYSQL_ROW_H row = nullptr;
-  if ((*get_services().query_result->fetch_row)(mysql_res, &row) != 0)
-    throw std::runtime_error{"Couldn't fetch row"};
+    if ((*get_services().query_result->fetch_row)(mysql_res, &row) != 0)
+      throw std::runtime_error{"Couldn't fetch length"};
+    if ((*get_services().query_result->fetch_lengths)(mysql_res, &length) != 0)
+      throw std::runtime_error{"Couldn't fetch length"};
 
-  ulong *length = nullptr;
-  if ((*get_services().query_result->fetch_lengths)(mysql_res, &length) != 0)
-    throw std::runtime_error{"Couldn't fetch lenghts"};
+    result->insert(std::string{row[0], length[0]},
+                   std::string{row[1], length[1]});
+  }
 
-  return optional_string{std::in_place, row[0], length[0]};
+  return result;
 }
 
 bool sql_context::execute(std::string_view query) {

@@ -37,9 +37,9 @@
 #include "masking_functions/charset_string_operations.hpp"
 #include "masking_functions/command_service_tuple.hpp"
 #include "masking_functions/primitive_singleton.hpp"
-#include "masking_functions/query_builder.hpp"
+#include "masking_functions/query_cache.hpp"
 #include "masking_functions/random_string_generators.hpp"
-#include "masking_functions/sql_context.hpp"
+#include "masking_functions/sql_escape_functions.hpp"
 #include "masking_functions/string_service_tuple.hpp"
 
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
@@ -55,10 +55,8 @@ namespace {
 
 using global_string_services = masking_functions::primitive_singleton<
     masking_functions::string_service_tuple>;
-using global_command_services = masking_functions::primitive_singleton<
-    masking_functions::command_service_tuple>;
-using global_query_builder =
-    masking_functions::primitive_singleton<masking_functions::query_builder>;
+using global_query_cache =
+    masking_functions::primitive_singleton<masking_functions::query_cache>;
 
 constexpr std::string_view masking_dictionaries_privilege_name =
     "MASKING_DICTIONARIES_ADMIN";
@@ -960,31 +958,24 @@ class gen_blocklist_impl {
     if (ctx.is_arg_null(0)) return std::nullopt;
 
     const auto cs_term = make_charset_string_from_arg(ctx, 0);
-    const auto cs_dict_a = make_charset_string_from_arg(ctx, 1);
-    const auto cs_dict_b = make_charset_string_from_arg(ctx, 2);
+    const auto cs_term_escaped = escape_string(cs_term);
+    const auto cs_dict_a_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 1));
+    const auto cs_dict_b_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 2));
 
     {
-      masking_functions::sql_context sql_ctx{
-          global_command_services::instance()};
-
-      auto query =
-          global_query_builder::instance().check_term_presence_in_dictionary(
-              cs_dict_a, cs_term);
-      auto sresult = sql_ctx.query_single_value(query);
+      auto sresult = global_query_cache::instance().contains(cs_dict_a_escaped,
+                                                             cs_term_escaped);
 
       if (!sresult) {
-        return {std::string{cs_term.get_buffer()}};
+        return cs_term_escaped;
       }
     }
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
+    auto sresult = global_query_cache::instance().get(cs_dict_b_escaped);
 
-    auto query =
-        global_query_builder::instance().select_random_term_for_dictionary(
-            cs_dict_b);
-    auto sresult = sql_ctx.query_single_value(query);
-
-    if (sresult && sresult->size() > 0) {
+    if (sresult && !sresult->empty()) {
       masking_functions::charset_string utf8_result{
           global_string_services::instance(), *sresult,
           masking_functions::charset_string::utf8mb4_collation_name};
@@ -992,9 +983,9 @@ class gen_blocklist_impl {
       const auto &cs_result = masking_functions::smart_convert_to_collation(
           utf8_result, cs_term.get_collation(), conversion_buffer);
       return {std::string{cs_result.get_buffer()}};
-    } else {
-      return std::nullopt;
     }
+
+    return std::nullopt;
   }
 };
 
@@ -1025,20 +1016,54 @@ class gen_dictionary_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
-    const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
+    const auto cs_dictionary_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 0));
+    auto sresult = global_query_cache::instance().get(cs_dictionary_escaped);
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().select_random_term_for_dictionary(
-            cs_dictionary);
-    auto sresult = sql_ctx.query_single_value(query);
-
-    if (sresult && sresult->size() > 0) {
+    if (sresult && !sresult->empty()) {
       return *sresult;
-    } else {
+    }
+
+    return std::nullopt;
+  }
+};
+
+//
+// masking_dictionaries_flush()
+//
+// Flush the data from the masking dictionaries table to the memory cache.
+class masking_dictionaries_flush_impl {
+ public:
+  explicit masking_dictionaries_flush_impl(mysqlpp::udf_context &ctx) {
+    if (!have_masking_admin_privilege()) {
+      throw std::invalid_argument{
+          "Function requires " +
+          std::string(masking_dictionaries_privilege_name) + " privilege"};
+    }
+
+    if (ctx.get_number_of_args() > 0)
+      throw std::invalid_argument{
+          "Wrong argument list: masking_dictionaries_flush()"};
+
+    ctx.mark_result_nullable(true);
+    // Calling this UDF two or more times has exactly the same effect as just
+    // calling it once. So, we mark the result as 'const' here so that the
+    // optimizer could use this info to eliminate unnecessary calls.
+    ctx.mark_result_const(true);
+
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+    charset_ext.set_return_value_collation(
+        ctx, masking_functions::charset_string::default_collation_name);
+  }
+
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &ctx
+                                                 [[maybe_unused]]) {
+    if (!global_query_cache::instance().load_cache()) {
       return std::nullopt;
     }
+
+    return "1";
   }
 };
 
@@ -1078,17 +1103,14 @@ class masking_dictionary_remove_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
-    const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
+    const auto cs_dictionary_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 0));
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().delete_for_dictionary(cs_dictionary);
-    if (!sql_ctx.execute(query)) {
+    if (!global_query_cache::instance().remove(cs_dictionary_escaped)) {
       return std::nullopt;
-    } else {
-      return "1";
     }
+
+    return "1";
   }
 };
 
@@ -1133,19 +1155,17 @@ class masking_dictionary_term_add_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
-    const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
-    const auto cs_term = make_charset_string_from_arg(ctx, 1);
+    const auto cs_dictionary_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 0));
+    const auto cs_term_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 1));
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query = global_query_builder::instance().insert_ignore_record(
-        cs_dictionary, cs_term);
-
-    if (!sql_ctx.execute(query)) {
+    if (!global_query_cache::instance().insert(cs_dictionary_escaped,
+                                               cs_term_escaped)) {
       return std::nullopt;
-    } else {
-      return "1";
     }
+
+    return "1";
   }
 };
 
@@ -1190,19 +1210,17 @@ class masking_dictionary_term_remove_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
-    const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
-    const auto cs_term = make_charset_string_from_arg(ctx, 1);
+    const auto cs_dictionary_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 0));
+    const auto cs_term_escaped =
+        escape_string(make_charset_string_from_arg(ctx, 1));
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().delete_for_dictionary_and_term(
-            cs_dictionary, cs_term);
-    if (!sql_ctx.execute(query)) {
+    if (!global_query_cache::instance().remove(cs_dictionary_escaped,
+                                               cs_term_escaped)) {
       return std::nullopt;
-    } else {
-      return "1";
     }
+
+    return "1";
   }
 };
 
@@ -1229,6 +1247,7 @@ DECLARE_STRING_UDF_AUTO(mask_uk_nin)
 DECLARE_STRING_UDF_AUTO(mask_uuid)
 DECLARE_STRING_UDF_AUTO(gen_blocklist)
 DECLARE_STRING_UDF_AUTO(gen_dictionary)
+DECLARE_STRING_UDF_AUTO(masking_dictionaries_flush)
 DECLARE_STRING_UDF_AUTO(masking_dictionary_remove)
 DECLARE_STRING_UDF_AUTO(masking_dictionary_term_add)
 DECLARE_STRING_UDF_AUTO(masking_dictionary_term_remove)
@@ -1256,6 +1275,7 @@ std::array known_udfs{DECLARE_UDF_INFO_AUTO(gen_range),
                       DECLARE_UDF_INFO_AUTO(mask_uuid),
                       DECLARE_UDF_INFO_AUTO(gen_blocklist),
                       DECLARE_UDF_INFO_AUTO(gen_dictionary),
+                      DECLARE_UDF_INFO_AUTO(masking_dictionaries_flush),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_remove),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_term_add),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_term_remove)};

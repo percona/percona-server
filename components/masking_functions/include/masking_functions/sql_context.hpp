@@ -16,6 +16,8 @@
 #ifndef MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 #define MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -30,6 +32,8 @@ namespace masking_functions {
 // construction.
 class sql_context {
  public:
+  using dict_container_type = std::multimap<std::string, std::string>;
+  using optional_dict_container = std::optional<dict_container_type>;
   using optional_string = std::optional<std::string>;
 
   explicit sql_context(const command_service_tuple &services);
@@ -46,9 +50,7 @@ class sql_context {
     return *impl_.get_deleter().services;
   }
 
-  // Executes a query where we either expect a single result (one row one
-  // column), or nothing
-  optional_string query_single_value(std::string_view query);
+  optional_dict_container query_list(std::string_view query);
 
   bool execute(std::string_view query);
 

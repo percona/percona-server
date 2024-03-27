@@ -128,18 +128,12 @@ SET @@global.offline_mode = @global_saved_tmp;
 SHOW CREATE USER 'frank'@'localhost';
 ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost'
 # restart
-SHOW GLOBAL STATUS LIKE "Connections";
-Variable_name	Value
-Connections	8
 SHOW GLOBAL STATUS LIKE "Threads%";
 Variable_name	Value
 Threads_cached	0
 Threads_connected	1
 Threads_created	1
 Threads_running	2
-SHOW GLOBAL STATUS LIKE "Connections";
-Variable_name	Value
-Connections	9
 SHOW GLOBAL STATUS LIKE "Threads%";
 Variable_name	Value
 Threads_cached	0
@@ -168,8 +162,7 @@ COUNT(DISTINCT PROCESSLIST_ID)
 SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 COUNT(*)
 3
-KILL 9;
-ERROR HY000: You are not owner of thread 9
+ERROR HY000: You are not owner of thread 10
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
 CREATE ROLE r1;
 GRANT r1 TO frank@'%';

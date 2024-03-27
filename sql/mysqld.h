@@ -914,5 +914,9 @@ extern Deployed_components *g_deployed_components;
 
 extern bool opt_persist_sensitive_variables_in_plaintext;
 
+#ifdef HAVE_PERCONA_TELEMETRY
+extern bool opt_percona_telemetry_disable;
+#endif
+
 void persisted_variables_refresh_keyring_support();
 #endif /* MYSQLD_INCLUDED */

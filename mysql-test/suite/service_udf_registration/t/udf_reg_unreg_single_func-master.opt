@@ -1,1 +1,1 @@
-$UDF_REG_ONLY_3_FUNC_OPT
+--loose-percona-telemetry-disable=ON $UDF_REG_ONLY_3_FUNC_OPT

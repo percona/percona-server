@@ -67,6 +67,47 @@ const char *replication_info = "replication_info";
 }  // namespace JSONKey
 }  // namespace
 
+/* We need to provide db_replication_id key at the top level of the JSON
+structure. Its value can potentially originate from different sources, so we
+have to decide which one to use. This class solves the problem if there is
+more than one source of the ID. */
+class DbReplicationIdSolver {
+public:
+   DbReplicationIdSolver() = default;
+   ~DbReplicationIdSolver() = default;
+  DbReplicationIdSolver( const DbReplicationIdSolver&) = delete;
+  DbReplicationIdSolver( const DbReplicationIdSolver&&) = delete;
+  DbReplicationIdSolver& operator=(const DbReplicationIdSolver&) = delete;
+  DbReplicationIdSolver& operator=(const DbReplicationIdSolver&&) = delete;
+
+  /* Voters in the order of their priorities. Lower number, lower priority. */
+  enum Voter {
+    NONE,
+    GROUP_REPLICATION
+  };
+
+  void vote(const std::string& id, Voter voter) {
+    if (voter > id_voter_) {
+      db_replication_id_ = id;
+      id_voter_ = voter;
+    }
+  }
+
+  const std::string& get_db_replication_id() const {
+    return db_replication_id_;
+  }
+
+  void reset() {
+    db_replication_id_.clear();
+    id_voter_ = Voter::NONE;
+  }
+
+private:
+  std::string db_replication_id_;
+  Voter id_voter_ {Voter::NONE};
+};
+
+
 DataProvider::DataProvider(
     SERVICE_TYPE(mysql_command_factory) & command_factory_service,
     SERVICE_TYPE(mysql_command_options) & command_options_service,
@@ -82,7 +123,8 @@ DataProvider::DataProvider(
       command_field_info_service_(command_field_info_service),
       command_error_info_service_(command_error_info_service),
       command_thread_service_(command_thread_service),
-      logger_(logger) {}
+      logger_(logger),
+      db_replication_id_solver_(std::make_shared<DbReplicationIdSolver>()) {}
 
 void DataProvider::thread_access_begin() { command_thread_service_.init(); }
 
@@ -383,10 +425,7 @@ bool DataProvider::collect_group_replication_info(
     role.SetString(result[0][0].c_str(), allocator);
     gr_json.AddMember(rapidjson::StringRef(JSONKey::role), role, allocator);
 
-    rapidjson::Value replication_group_id;
-    replication_group_id.SetString(result[0][1].c_str(), allocator);
-    gr_json.AddMember(rapidjson::StringRef(JSONKey::db_replication_id),
-                      replication_group_id, allocator);
+    db_replication_id_solver_->vote(result[0][1], DbReplicationIdSolver::Voter::GROUP_REPLICATION);
 
     rapidjson::Value single_primary_mode;
     single_primary_mode.SetString(result[0][2].c_str(), allocator);
@@ -488,7 +527,25 @@ bool DataProvider::collect_async_replication_info(
   return false;
 }
 
+bool DataProvider::collect_db_replication_id(rapidjson::Document *document) {
+
+  const std::string& id = db_replication_id_solver_->get_db_replication_id();
+  if (id.length() > 0) {
+    rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+    rapidjson::Value replication_group_id;
+    replication_group_id.SetString(id.c_str(), allocator);
+    document->AddMember(rapidjson::StringRef(JSONKey::db_replication_id),
+                      replication_group_id, allocator);
+  }
+
+  return false;
+}
+
 bool DataProvider::collect_metrics(rapidjson::Document *document) {
+  /* The configuration of this instance might have changed, so we need to colect
+     it every time. */
+  db_replication_id_solver_->reset();
+
   bool res = collect_db_instance_id_info(document);
 
   // If db_instance_id cannot be collected all other metrics are meaningless
@@ -508,6 +565,12 @@ bool DataProvider::collect_metrics(rapidjson::Document *document) {
   res |= collect_se_usage_info(document);
   res |= collect_group_replication_info(document);
   res |= collect_async_replication_info(document);
+
+  /* The requirement is to have db_replication_id key at the top of JSON
+  structure. But it may originate from the different places. The above
+  collect_* methods may set their proposals to db_replication_id_solver_
+  and it is up to db_replication_id_solver_ to decide which one to use. */
+  res |= collect_db_replication_id(document);
   return res;
 }
 

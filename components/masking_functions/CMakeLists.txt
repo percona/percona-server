@@ -29,6 +29,7 @@ set(DATAMASKING_SOURCES
   src/masking_functions/charset_string.cpp
   src/masking_functions/charset_string_operations.cpp
   src/masking_functions/query_builder.cpp
+  src/masking_functions/query_cache.cpp
   src/masking_functions/random_string_generators.cpp
   src/masking_functions/registration_routines.cpp
   src/masking_functions/sql_context.cpp
@@ -41,6 +42,7 @@ set(DATAMASKING_SOURCES
   include/masking_functions/command_service_tuple.hpp
   include/masking_functions/primitive_singleton.hpp
   include/masking_functions/query_builder.hpp
+  include/masking_functions/query_cache.hpp
   include/masking_functions/random_string_generators.hpp
   include/masking_functions/registration_routines.hpp
   include/masking_functions/sql_context.hpp

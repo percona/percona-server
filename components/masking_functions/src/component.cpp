@@ -18,6 +18,7 @@
 
 #include <mysql/components/component_implementation.h>
 
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_command_services.h>
@@ -36,6 +37,7 @@
 #include "masking_functions/primitive_singleton.hpp"
 #include "masking_functions/registration_routines.hpp"
 #include "masking_functions/string_service_tuple.hpp"
+#include "masking_functions/sys_vars.hpp"
 
 // defined as a macro because needed both raw and stringized
 #define CURRENT_COMPONENT_NAME masking_functions
@@ -65,6 +67,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
@@ -125,6 +129,14 @@ static mysql_service_status_t component_init() {
     return 1;
   }
 
+  if (!masking_functions::sys_vars::register_sys_vars() ||
+      !masking_functions::sys_vars::validate()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot register system variables");
+    component_deinit();
+    return 1;
+  }
+
   if (!masking_functions::register_udfs()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot register UDFs");
     component_deinit();
@@ -146,6 +158,12 @@ static mysql_service_status_t component_deinit() {
   if (!masking_functions::unregister_dynamic_privileges()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot unregister dynamic privilege");
+    result = 1;
+  }
+
+  if (!masking_functions::sys_vars::unregister_sys_vars()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot unregister system variables");
     result = 1;
   }
 
@@ -187,6 +205,8 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_current_thread_reader),
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(global_grants_check),
+  REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(component_sys_variable_unregister),
 
   REQUIRES_SERVICE(log_builtins),
   REQUIRES_SERVICE(log_builtins_string),

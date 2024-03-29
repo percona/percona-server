@@ -16,6 +16,8 @@
 #ifndef MASKING_FUNCTIONS_QUERY_BUILDER_HPP
 #define MASKING_FUNCTIONS_QUERY_BUILDER_HPP
 
+#include "masking_functions/sys_vars.hpp"
+
 #include <string>
 #include <string_view>
 
@@ -27,14 +29,13 @@ class query_builder {
  public:
   static constexpr std::string_view default_result_character_set = "utf8mb4";
 
-  static constexpr std::string_view default_database_name = "mysql";
   static constexpr std::string_view default_table_name = "masking_dictionaries";
   static constexpr std::string_view default_dictionary_field_name =
       "Dictionary";
   static constexpr std::string_view default_term_field_name = "Term";
 
-  query_builder(
-      std::string_view database_name = default_database_name,
+  explicit query_builder(
+      std::string_view database_name = sys_vars::get_dict_database_name(),
       std::string_view table_name = default_table_name,
       std::string_view dictionary_field_name = default_dictionary_field_name,
       std::string_view term_field_name = default_term_field_name)

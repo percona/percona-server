@@ -35,6 +35,7 @@ set(DATAMASKING_SOURCES
   src/masking_functions/registration_routines.cpp
   src/masking_functions/sql_context.cpp
   src/masking_functions/sql_escape_functions.cpp
+  src/masking_functions/sys_vars.cpp
 
   include/masking_functions/charset_string_fwd.hpp
   include/masking_functions/charset_string.hpp
@@ -51,6 +52,7 @@ set(DATAMASKING_SOURCES
   include/masking_functions/sql_escape_functions.hpp
   include/masking_functions/string_service_tuple_fwd.hpp
   include/masking_functions/string_service_tuple.hpp
+  include/masking_functions/sys_vars.hpp
 )
 
 ### Configuration ###

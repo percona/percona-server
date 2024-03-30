@@ -844,7 +844,12 @@ bool rocksdb_column_default_value_as_expression = true;
 bool rocksdb_enable_tmp_table = false;
 bool rocksdb_enable_delete_range_for_drop_index = false;
 unsigned long long rocksdb_converter_record_cached_length = 0;
-static bool rocksdb_file_checksums = false;
+enum file_checksums_type {
+  CHECKSUMS_OFF = 0,
+  CHECKSUMS_WRITE_ONLY,
+  CHECKSUMS_WRITE_AND_VERIFY
+};
+static ulong rocksdb_file_checksums = file_checksums_type::CHECKSUMS_OFF;
 
 static std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 static std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -1063,6 +1068,16 @@ static const char *read_free_rpl_names[] = {"OFF", "PK_ONLY", "PK_SK", NullS};
 static TYPELIB read_free_rpl_typelib = {array_elements(read_free_rpl_names) - 1,
                                         "read_free_rpl_typelib",
                                         read_free_rpl_names, nullptr};
+
+/* This array needs to be kept up to date with
+ * myrocks::rocksdb_file_checksum_type */
+static const char *file_checksums_names[] = {
+    "CHECKSUMS_OFF", "CHECKSUMS_WRITE_ONLY", "CHECKSUMS_WRITE_AND_VERIFY",
+    NullS};
+
+static TYPELIB file_checksums_typelib = {
+    array_elements(file_checksums_names) - 1, "file_checksums_typelib",
+    file_checksums_names, nullptr};
 
 /* This enum needs to be kept up to date with rocksdb::InfoLogLevel */
 static const char *info_log_level_names[] = {"debug_level", "info_level",
@@ -2621,11 +2636,15 @@ static MYSQL_SYSVAR_ULONGLONG(
     nullptr, nullptr, /* default */ rocksdb_converter_record_cached_length,
     /* min */ 0, /* max */ UINT64_MAX, 0);
 
-static MYSQL_SYSVAR_BOOL(
+static MYSQL_SYSVAR_ENUM(
     file_checksums, rocksdb_file_checksums,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Whether to write and check RocksDB file-level checksums", nullptr, nullptr,
-    false);
+    "Whether to write and check RocksDB file-level checksums. "
+    "CHECKSUMS_OFF: nothing, CHECKSUMS_WRITE_ONLY: write checksums but "
+    "skips verification, CHECKSUMS_WRITE_AND_VERIFY: "
+    "write checksums, and verify on DB::open",
+    nullptr, nullptr, file_checksums_type::CHECKSUMS_OFF,
+    &file_checksums_typelib);
 
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
@@ -6585,7 +6604,7 @@ static int rocksdb_init_internal(void *const p) {
       rocksdb_db_options->env, myrocks_logger, trash_dir,
       rocksdb_sst_mgr_rate_bytes_per_sec, true /* delete_existing_trash */));
 
-  if (rocksdb_file_checksums) {
+  if (rocksdb_file_checksums >= file_checksums_type::CHECKSUMS_WRITE_ONLY) {
     rocksdb_db_options->file_checksum_gen_factory =
         rocksdb::GetFileChecksumGenCrc32cFactory();
   }
@@ -6855,7 +6874,8 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  if (rocksdb_file_checksums) {
+  if (rocksdb_file_checksums >=
+      file_checksums_type::CHECKSUMS_WRITE_AND_VERIFY) {
     LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Verifying file checksums...");
     rocksdb::ReadOptions checksum_read_options;

@@ -1,1 +1,1 @@
---loose-rocksdb-file-checksums
+--loose-rocksdb-file-checksums=checksums_write_only --loose-rocksdb_default_cf_options=disable_auto_compactions=true

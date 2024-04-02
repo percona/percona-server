@@ -7467,7 +7467,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
 
   assert(!m_key_descr_arr[active_index_pos()]->is_partial_index());
   std::unique_ptr<Rdb_iterator> save_iterator(new Rdb_iterator_base(
-      ha_thd(), m_key_descr_arr[active_index_pos()], m_pk_descr, m_tbl_def));
+      ha_thd(), *m_key_descr_arr[active_index_pos()], *m_pk_descr, m_tbl_def));
   std::swap(m_iterator, save_iterator);
 
   ulonglong last_val = 0;
@@ -7567,7 +7567,7 @@ int ha_rocksdb::load_hidden_pk_value() {
   active_index = MAX_KEY;
 
   std::unique_ptr<Rdb_iterator> save_iterator(new Rdb_iterator_base(
-      ha_thd(), m_key_descr_arr[active_index_pos()], m_pk_descr, m_tbl_def));
+      ha_thd(), *m_key_descr_arr[active_index_pos()], *m_pk_descr, m_tbl_def));
   std::swap(m_iterator, save_iterator);
 
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
@@ -7904,7 +7904,7 @@ int ha_rocksdb::convert_record_from_storage_format(
   assert(key != nullptr);
   assert(buf != nullptr);
 
-  int rc = m_converter->decode(m_pk_descr, buf, key, value);
+  auto rc = m_converter->decode(*m_pk_descr, buf, key, value);
 
   DBUG_EXECUTE_IF("simulate_corrupt_data_read",
                   { rc = HA_ERR_ROCKSDB_CORRUPT_DATA; });
@@ -10366,7 +10366,7 @@ int ha_rocksdb::index_next_with_direction_intern(uchar *const buf,
 Rdb_iterator_base *ha_rocksdb::get_pk_iterator() {
   if (!m_pk_iterator) {
     m_pk_iterator.reset(
-        new Rdb_iterator_base(ha_thd(), m_pk_descr, m_pk_descr, m_tbl_def));
+        new Rdb_iterator_base(ha_thd(), *m_pk_descr, *m_pk_descr, m_tbl_def));
   }
   return m_pk_iterator.get();
 }
@@ -11012,8 +11012,8 @@ int ha_rocksdb::check_and_lock_sk(
     The bloom filter may need to be disabled for this lookup.
   */
   assert(!m_key_descr_arr[key_id]->is_partial_index());
-  Rdb_iterator_base iter(ha_thd(), m_key_descr_arr[key_id], m_pk_descr,
-                         m_tbl_def);
+  Rdb_iterator_base iter(ha_thd(), *m_key_descr_arr[key_id],
+                         *m_pk_descr, m_tbl_def);
 
   /*
     If all_parts_used is true, then PK uniqueness check/lock would already
@@ -11265,7 +11265,7 @@ int ha_rocksdb::update_write_pk(const Rdb_key_def &kd,
   rocksdb::Slice value_slice;
   /* Prepare the new record to be written into RocksDB */
   if ((rc = m_converter->encode_value_slice(
-           m_pk_descr, row_info.new_pk_slice, row_info.new_pk_unpack_info,
+           *m_pk_descr, row_info.new_pk_slice, row_info.new_pk_unpack_info,
            !row_info.old_pk_slice.empty(), should_store_row_debug_checksums(),
            m_ttl_bytes, &m_ttl_bytes_updated, &value_slice))) {
     return rc;
@@ -11750,11 +11750,12 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
       DBUG_RETURN(HA_ERR_ROCKSDB_INVALID_TABLE);
     }
     m_iterator.reset(
-        new Rdb_iterator_partial(thd, m_key_descr_arr[active_index_pos()],
-                                 m_pk_descr, m_tbl_def, table, dd_table));
+        new Rdb_iterator_partial(thd, *m_key_descr_arr[active_index_pos()],
+                                 *m_pk_descr, m_tbl_def, table, dd_table));
   } else {
-    m_iterator.reset(new Rdb_iterator_base(
-        thd, m_key_descr_arr[active_index_pos()], m_pk_descr, m_tbl_def));
+    m_iterator.reset(new Rdb_iterator_base(thd,
+                                           *m_key_descr_arr[active_index_pos()],
+                                           *m_pk_descr, m_tbl_def));
   }
 
   // If m_lock_rows is not RDB_LOCK_NONE then we will be doing a get_for_update
@@ -13429,8 +13430,8 @@ static int read_stats_from_ssts(
   }
 
   for (const auto &it : props) {
-    std::vector<Rdb_index_stats> sst_stats;
-    Rdb_tbl_prop_coll::read_stats_from_tbl_props(it.second, &sst_stats);
+    const auto sst_stats =
+        Rdb_tbl_prop_coll::read_stats_from_tbl_props(*it.second);
     /*
       sst_stats is a list of index statistics for indexes that have entries
       in the current SST file.

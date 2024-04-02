@@ -112,8 +112,7 @@ void Rdb_event_listener::OnBackgroundError(
   rdb_log_status_error(*status, "Error detected in background");
   LogPluginErrMsg(ERROR_LEVEL, 0, "BackgroundErrorReason: %d", (int)reason);
   if (status->IsCorruption()) {
-    rdb_persist_corruption_marker();
-    abort();
+    rdb_handle_io_error(*status, RDB_IO_ERROR_BG_THREAD);
   }
 }
 }  // namespace myrocks

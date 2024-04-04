@@ -12951,6 +12951,9 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
   }
   // avoid dangling pointer
   m_tbl_def = nullptr;
+  m_iterator = nullptr;
+  m_pk_iterator = nullptr;
+  inited = NONE;
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 

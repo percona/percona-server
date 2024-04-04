@@ -1692,9 +1692,6 @@ The following options may be given as the first argument:
  BEFORE_8_0_26 as default for the session option, and in
  addition the thread commands that were in use until
  8.0.25 are written to the slow query log.
- --tf-sequence-table-max-upper-bound=# 
- Maximum number of records SEQUENCE_TABLE() table function
- is allowed to generate.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -2215,7 +2212,6 @@ temptable-max-mmap 1073741824
 temptable-max-ram 1073741824
 temptable-use-mmap TRUE
 terminology-use-previous NONE
-tf-sequence-table-max-upper-bound 1048576
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 1048576

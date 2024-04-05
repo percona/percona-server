@@ -436,7 +436,7 @@ install_deps() {
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
             if [ "${RHEL}" -lt 9 ]; then
-                add_percona_yum_repo
+            #    add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
                 percona-release enable tools experimental
@@ -666,8 +666,8 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
-    #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
+    wget https://downloads.percona.com/downloads/packaging/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -690,7 +690,7 @@ build_srpm(){
 build_mecab_lib(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
-    MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/packaging/mecab/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -721,7 +721,7 @@ build_mecab_lib(){
 build_mecab_dict(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
-    MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/packaging/mecab/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}

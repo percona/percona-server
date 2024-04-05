@@ -5679,7 +5679,7 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
                            : "NOT FOUND; CF_ID: " + std::to_string(txn.m_cf_id);
 
     txn_data.waiting_key =
-        rdb_hexdump(txn.m_waiting_key.c_str(), txn.m_waiting_key.length());
+        rdb_hexdump(txn.m_waiting_key.data(), txn.m_waiting_key.length(), 0);
 
     txn_data.exclusive_lock = txn.m_exclusive;
 
@@ -9901,18 +9901,15 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
 
       print_and_error : {
         std::string buf;
-        buf = rdb_hexdump(rowkey_copy.ptr(), rowkey_copy.length(),
-                          RDB_MAX_HEXDUMP_LEN);
+        buf = rdb_hexdump(rowkey_copy.ptr(), rowkey_copy.length());
         LogPluginErrMsg(ERROR_LEVEL, 0, "CHECKTABLE %s:   rowkey: %s",
                         table_name, buf.c_str());
 
-        buf = rdb_hexdump(m_retrieved_record.data(), m_retrieved_record.size(),
-                          RDB_MAX_HEXDUMP_LEN);
+        buf = rdb_hexdump(m_retrieved_record.data(), m_retrieved_record.size());
         LogPluginErrMsg(ERROR_LEVEL, 0, "CHECKTABLE %s:   record: %s",
                         table_name, buf.c_str());
 
-        buf = rdb_hexdump(sec_key_copy.ptr(), sec_key_copy.length(),
-                          RDB_MAX_HEXDUMP_LEN);
+        buf = rdb_hexdump(sec_key_copy.ptr(), sec_key_copy.length());
         LogPluginErrMsg(ERROR_LEVEL, 0, "CHECKTABLE %s:   index: %s",
                         table_name, buf.c_str());
 

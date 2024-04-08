@@ -16,8 +16,15 @@
 #ifndef MASKING_FUNCTIONS_QUERY_CACHE_HPP
 #define MASKING_FUNCTIONS_QUERY_CACHE_HPP
 
+#include <atomic>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+
+#include <my_inttypes.h>
+#include <mysql/components/services/psi_thread.h>
 
 #include "masking_functions/dictionary_container.hpp"
 
@@ -26,6 +33,11 @@ namespace masking_functions {
 class query_cache {
  public:
   query_cache();
+  query_cache(query_cache &other) = delete;
+  query_cache(query_cache &&other) = delete;
+  query_cache &operator=(query_cache &other) = delete;
+  query_cache &operator=(query_cache &&other) = delete;
+  ~query_cache();
 
   bool contains(const std::string &dictionary_name,
                 const std::string &term) const;
@@ -35,9 +47,23 @@ class query_cache {
   bool insert(const std::string &dictionary_name, const std::string &term);
   bool load_cache();
 
+  void init_thd() noexcept;
+  void release_thd() noexcept;
+  void dict_flusher() noexcept;
+
  private:
   mutable std::shared_mutex m_dict_mut;
   dictionary_container m_dict_cache;
+
+  ulonglong m_flusher_interval_seconds;
+  std::atomic<bool> m_is_flusher_stopped;
+  std::mutex m_flusher_mutex;
+  std::condition_variable m_flusher_condition_var;
+
+  PSI_thread_key m_psi_flusher_thread_key;
+  my_thread_handle m_flusher_thread;
+  my_thread_attr_t m_flusher_thread_attr;
+  std::unique_ptr<THD> m_flusher_thd;
 };
 
 }  // namespace masking_functions

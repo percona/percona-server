@@ -25,6 +25,7 @@
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/mysql_string.h>
+#include <mysql/components/services/psi_thread.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
@@ -58,6 +59,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query_result);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_factory);
+
+REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
@@ -191,6 +194,8 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_string_reset),
   REQUIRES_SERVICE(mysql_string_substr),
   REQUIRES_SERVICE(mysql_string_compare),
+
+  REQUIRES_PSI_THREAD_SERVICE,
 
   REQUIRES_SERVICE(mysql_command_query),
   REQUIRES_SERVICE(mysql_command_query_result),

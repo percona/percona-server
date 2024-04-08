@@ -16,11 +16,14 @@
 #ifndef MASKING_FUNCTIONS_SYS_VARS_HPP
 #define MASKING_FUNCTIONS_SYS_VARS_HPP
 
+#include "my_inttypes.h"
+
 #include <string_view>
 
 namespace masking_functions::sys_vars {
 
 std::string_view get_dict_database_name() noexcept;
+ulonglong get_flush_interval_seconds() noexcept;
 
 bool register_sys_vars();
 bool unregister_sys_vars();

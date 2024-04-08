@@ -21,6 +21,7 @@
 
 #include <mysqld_error.h>
 
+#include <climits>
 #include <cstring>
 #include <string>
 
@@ -32,19 +33,29 @@ namespace masking_functions::sys_vars {
 namespace {
 
 using str_arg_check_type = STR_CHECK_ARG(str);
+using ulonglong_arg_check_type = INTEGRAL_CHECK_ARG(ulonglong);
 
 constexpr std::string_view component_name{"masking_functions"};
 constexpr std::string_view masking_database_var_name{"masking_database"};
+constexpr std::string_view flush_interval_var_name{
+    "dictionaries_flush_interval_seconds"};
 
 std::string default_database_name{"mysql"};
+const ulonglong default_flush_interval_seconds = 0;
 
 bool is_database_name_initialised = false;
+bool is_flush_interval_initialised = false;
 
 char *database_name;
+ulonglong flush_interval_seconds = 0;
 
 }  // namespace
 
 std::string_view get_dict_database_name() noexcept { return database_name; }
+
+ulonglong get_flush_interval_seconds() noexcept {
+  return flush_interval_seconds;
+}
 
 bool register_sys_vars() {
   str_arg_check_type check_db_name{default_database_name.data()};
@@ -61,6 +72,23 @@ bool register_sys_vars() {
   }
   is_database_name_initialised = true;
 
+  ulonglong_arg_check_type check_flush_interval{default_flush_interval_seconds,
+                                                0, ULLONG_MAX, 1};
+
+  if (mysql_service_component_sys_variable_register->register_variable(
+          component_name.data(), flush_interval_var_name.data(),
+          PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG |
+              PLUGIN_VAR_READONLY,
+          "Sets the interval, in seconds, to wait before attempting to "
+          "schedule another flush of the data masking dictionaries table to "
+          "the memory data masking dictionaries cache following a restart or "
+          "previous execution.",
+          nullptr, nullptr, static_cast<void *>(&check_flush_interval),
+          static_cast<void *>(&flush_interval_seconds)) != 0) {
+    return false;
+  }
+  is_flush_interval_initialised = true;
+
   return true;
 }
 
@@ -70,6 +98,12 @@ bool unregister_sys_vars() {
   if (is_database_name_initialised &&
       mysql_service_component_sys_variable_unregister->unregister_variable(
           component_name.data(), masking_database_var_name.data()) != 0) {
+    is_success = false;
+  }
+
+  if (is_flush_interval_initialised &&
+      mysql_service_component_sys_variable_unregister->unregister_variable(
+          component_name.data(), flush_interval_var_name.data()) != 0) {
     is_success = false;
   }
 

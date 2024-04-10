@@ -3040,7 +3040,7 @@ String *Item_func_bit::val_str(String *str) {
 
 // Shift-functions, same as << and >> in C/C++
 
-/**
+/*
   Template function that evaluates the bitwise shift operation over integer
   arguments.
   @tparam to_left True if left-shift, false if right-shift
@@ -3066,7 +3066,7 @@ longlong Item_func_shift::eval_int_op() {
 template longlong Item_func_shift::eval_int_op<true>();
 template longlong Item_func_shift::eval_int_op<false>();
 
-/**
+/*
   Template function that evaluates the bitwise shift operation over binary
   string arguments.
   @tparam to_left True if left-shift, false if right-shift

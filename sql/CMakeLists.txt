@@ -978,6 +978,11 @@ TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
 TARGET_LINK_LIBRARIES(sql_gis extra::boost)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
+# Suppress warnings for clang-18 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
+  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -Wno-enum-constexpr-conversion)
+ENDIF()
+
 # This typically saves a few hundred megabytes of disk space.
 IF(COMPRESS_DEBUG_SECTIONS)
   MY_CHECK_CXX_COMPILER_FLAG("-gz" HAVE_COMPRESS_GZ_OPTION)

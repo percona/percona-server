@@ -84,8 +84,10 @@ usr/lib/mysql/plugin/component_keyring_file.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/data_masking.*
 usr/lib/mysql/plugin/component_mysqlbackup.so
+usr/lib/mysql/plugin/component_percona_telemetry.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
+usr/lib/mysql/plugin/debug/component_percona_telemetry.so
 usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so

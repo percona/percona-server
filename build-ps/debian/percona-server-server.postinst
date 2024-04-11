@@ -3,6 +3,15 @@
 . /usr/share/debconf/confmodule
 . /usr/share/mysql/mysql-helpers
 
+# Create directory for telemetry
+if [ -d /usr/local/percona/telemetry ]; then
+    mkdir -p /usr/local/percona/telemetry/ps
+    chown mysql:percona-telemetry /usr/local/percona/telemetry/ps
+    chmod 775 /usr/local/percona/telemetry/ps
+    chmod g+s /usr/local/percona/telemetry/ps
+    chmod u+s /usr/local/percona/telemetry/ps
+fi
+
 MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
@@ -126,12 +135,14 @@ case "$1" in
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
 			db_input high percona-server-server/existing_profile_file || true
 			db_go
-			db_get percona-server-server/existing_config_file && PROFILE_ACTION=${RET}
+			db_get percona-server-server/existing_profile_file && PROFILE_ACTION=${RET}
 		fi
 		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
 			DATE=`date +%Y-%m-%d-%H:%m:%S`
-			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+			mkdir -p /etc/apparmor.d/mysqld_apparmor_backup
+			mkdir -p /etc/apparmor.d/local/mysqld_apparmor_backup
+			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
 
 			mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
 			mv -f /etc/apparmor.d/local/usr.sbin.mysqld.in /etc/apparmor.d/local/usr.sbin.mysqld
@@ -182,6 +193,24 @@ EOF
 			echo "Please use etc/mysql/mysql.conf.d for any custom configuration settings"
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
+
+		# If it's a updated version of apparmor profile, install the new one and take a backup of the old profile
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld.in" -o -f "/etc/apparmor.d/usr.sbin.mysqld.in.dpkg-dist" ]; then
+			DATE=`date +%Y-%m-%d-%H:%m:%S`
+			mkdir -p /etc/apparmor.d/mysqld_apparmor_backup
+			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
+                        echo "WARNING: /etc/apparmor.d/usr.sbin.mysqld moved to /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak"
+                        echo "Updated version will be installed in /etc/apparmor.d/usr.sbin.mysqld"
+                        echo "Please use /etc/apparmor.d/local/usr.sbin.mysqld for any custom configuration settings"
+			if [ -f "etc/apparmor.d/usr.sbin.mysqld.in" ]; then
+				mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
+			else
+				mv -f /etc/apparmor.d/usr.sbin.mysqld.in.dpkg-dist /etc/apparmor.d/usr.sbin.mysqld
+			fi
+			if aa-status --enabled 2>/dev/null; then
+				apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
+			fi
+		fi
 	fi
 	chmod +x /etc/init.d/mysql || true
 	;;

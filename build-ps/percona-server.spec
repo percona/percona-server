@@ -130,6 +130,7 @@
 
 %ifarch x86_64
 %global __isa_bits            64
+%global ps_telemetry          /usr/local/percona/telemetry/ps
 %endif
 
 %global src_dir               %{src_base}-%{mysql_version}-%{percona_server_version}
@@ -258,6 +259,9 @@ Requires:       percona-server-client
 Requires:       percona-icu-data-files
 Requires:       curl
 Requires:       openssl
+%ifarch x86_64
+Requires:  percona-telemetry-agent
+%endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
 Obsoletes:     mariadb-connector-c-config
@@ -574,6 +578,7 @@ mkdir debug
            -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+           -DWITH_PERCONA_TELEMETRY=ON \
 %if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
 %else
@@ -633,6 +638,7 @@ mkdir release
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_ZSTD=bundled \
+           -DWITH_PERCONA_TELEMETRY=ON \
 %if 0%{?add_fido_plugins}
            -DWITH_FIDO=bundled \
 %else
@@ -792,7 +798,15 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
-
+%ifarch x86_64
+mkdir -p %{ps_telemetry}
+chown mysql:percona-telemetry /usr/local/percona/telemetry/ps
+chmod 775 /usr/local/percona/telemetry/ps
+chmod g+s /usr/local/percona/telemetry/ps
+chmod u+s /usr/local/percona/telemetry/ps
+/usr/sbin/semanage fcontext -a -e /var/lib/mysql %{ps_telemetry}
+restorecon -RvF %{ps_telemetry}
+%endif
 if [ -d /etc/percona-server.conf.d ]; then
     CONF_EXISTS=$(grep "percona-server.conf.d" /etc/my.cnf | wc -l)
     if [ ${CONF_EXISTS} = 0 ]; then
@@ -800,8 +814,11 @@ if [ -d /etc/percona-server.conf.d ]; then
     fi
 fi
 
+
 cp %SOURCE999 /tmp/ 2>/dev/null ||
 bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+chgrp percona-telemetry /usr/local/percona/telemetry_uuid
+chmod 664 /usr/local/percona/telemetry_uuid
 rm -f /tmp/call-home.sh
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -838,6 +855,10 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
+%ifarch x86_64
+rm -rf %{ps_telemetry}
+%endif
+
 
 %posttrans -n percona-server-server
 if [ -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
@@ -1042,6 +1063,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
+%ifarch x86_64
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_telemetry.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -1097,6 +1121,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
+%ifarch x86_64
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_telemetry.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so

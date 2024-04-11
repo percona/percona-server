@@ -178,6 +178,7 @@ Pre-Depends: adduser,
              debconf (>= 0.2.17)
 Depends: percona-server-common (= ${binary:Version}),
          percona-server-client (= ${binary:Version}),
+         percona-telemetry-agent,
          ${shlibs:Depends}, ${misc:Depends},
          psmisc,
          curl,

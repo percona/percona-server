@@ -1614,7 +1614,7 @@ count(*)
 1000
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	1021
+Handler_write	1011
 set @@max_heap_table_size= @save_heap_size;
 set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;
 SET @@optimizer_switch= @optimizer_switch_saved;
@@ -2308,7 +2308,7 @@ explain SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -4821,3 +4821,20 @@ ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
 ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 DROP TABLE t;
+#
+# PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
+# Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
+#
+# Re-execution of statements involving MIN/MAX optimization and
+# derived/CTE table caused assertion failures.
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET optimizer_switch="derived_merge=off";
+PREPARE stmt1 FROM "WITH cte AS (VALUES ROW(1), ROW(5), ROW(3)) SELECT column_0 FROM cte WHERE cte.column_0 = (SELECT max(column_0) FROM cte WHERE column_0 < 5)";
+EXECUTE stmt1;
+column_0
+3
+EXECUTE stmt1;
+column_0
+3
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch= @optimizer_switch_saved;

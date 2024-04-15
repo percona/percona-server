@@ -842,6 +842,7 @@ struct TABLE_SHARE {
   uint fields{0};            /* Number of fields */
   uint rec_buff_length{0};   /* Size of table->record[] buffer */
   uint keys{0};              /* Number of keys defined for the table*/
+  uint temp_table_key_id{0}; /* Serves the unique number for <auto_keyN> */
   uint key_parts{0};         /* Number of key parts of all keys
                              defined for the table
                           */

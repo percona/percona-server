@@ -4465,7 +4465,7 @@ explain SELECT *
 FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	#	#	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	#	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary

@@ -71,7 +71,7 @@ jobs:
     CCACHE_MAXSIZE: 2G
     OS_NAME: $(Agent.OS)
     PARENT_BRANCH: trunk
-    INVERTED: OFF
+    BUILD_PARAMS_TYPE: normal
 
   strategy:
     matrix:
@@ -88,21 +88,45 @@ jobs:
           BuildType: Debug
 
       # clang-12 and newer compilers
-      clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+      clang-18 RelWithDebInfo [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
         UBUNTU_CODE_NAME: jammy
         Compiler: clang
-        CompilerVer: 17
+        CompilerVer: 18
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-17 RelWithDebInfo INVERTED=ON [Ubuntu 22.04 Jammy]:
+        clang-18 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 18
+          BuildType: RelWithDebInfo
+          BUILD_PARAMS_TYPE: inverted
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-18 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          UBUNTU_CODE_NAME: jammy
+          Compiler: clang
+          CompilerVer: 18
+          BuildType: Debug
+
+      clang-18 Debug INVERTED [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 18
+        BuildType: Debug
+        BUILD_PARAMS_TYPE: inverted
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
           UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 17
           BuildType: RelWithDebInfo
-          INVERTED: ON
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-17 Debug [Ubuntu 22.04 Jammy]:
@@ -112,14 +136,6 @@ jobs:
           CompilerVer: 17
           BuildType: Debug
 
-      clang-17 Debug INVERTED=ON [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
-        Compiler: clang
-        CompilerVer: 17
-        BuildType: Debug
-        INVERTED: ON
-
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
@@ -128,13 +144,12 @@ jobs:
           CompilerVer: 16
           BuildType: RelWithDebInfo
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-16 Debug [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
-          Compiler: clang
-          CompilerVer: 16
-          BuildType: Debug
+      clang-16 Debug [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        UBUNTU_CODE_NAME: jammy
+        Compiler: clang
+        CompilerVer: 16
+        BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-15 RelWithDebInfo [Ubuntu 22.04 Jammy]:
@@ -266,7 +281,7 @@ jobs:
         SELECTED_CXX=clang++
       fi
 
-      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX BuildType=$(BuildType) BUILD_PARAMS_TYPE=$(BUILD_PARAMS_TYPE) imageName=$(imageName) OS_NAME=$OS_NAME
       echo --- Configure required LLVM and Ubuntu Toolchain repositories
       if [[ "$OS_NAME" == "Linux" ]] && [[ "$SELECTED_CC" == "clang"* ]]; then
         PACKAGES="llvm-$(CompilerVer)-dev $PACKAGES"
@@ -281,7 +296,7 @@ jobs:
 
         sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         `# SYSTEM_LIBRARIES = CURL EDITLINE ICU LIBEVENT LZ4 PROTOBUF SSL ZSTD FIDO (Ubuntu 21.04+)`
-        if [[ "$(INVERTED)" != "ON" ]]; then
+        if [[ "$(BUILD_PARAMS_TYPE)" != "inverted" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libicu-dev libevent-dev liblz4-dev zlib1g-dev protobuf-compiler libprotobuf-dev libprotoc-dev libzstd-dev libfido2-dev || exit 1;
         else
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libgflags-dev || exit 1;
@@ -311,8 +326,8 @@ jobs:
   - task: Cache@2
     continueOnError: true
     inputs:
-      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "INVERTED=$(INVERTED)" | "$(Build.SourceVersion)"'
-      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "INVERTED=$(INVERTED)"'
+      key: '"ccache"| "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "BUILD_PARAMS_TYPE=$(BUILD_PARAMS_TYPE)" | "$(Build.SourceVersion)"'
+      restoreKeys: '"ccache" | "$(PARENT_BRANCH)" | "$(imageName)-$(Compiler)-$(REAL_COMPILER_VER)-$(BuildType)" | "BUILD_PARAMS_TYPE=$(BUILD_PARAMS_TYPE)"'
       path: $(CCACHE_DIR)
     displayName: '*** Download/upload ccached files'
 
@@ -340,7 +355,7 @@ jobs:
     displayName: '*** System and compiler info'
 
   - script: |
-      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX REAL_COMPILER_VER=$REAL_COMPILER_VER BuildType=$(BuildType) INVERTED=$(INVERTED) imageName=$(imageName) OS_NAME=$OS_NAME
+      echo SELECTED_CC=$SELECTED_CC SELECTED_CXX=$SELECTED_CXX REAL_COMPILER_VER=$REAL_COMPILER_VER BuildType=$(BuildType) BUILD_PARAMS_TYPE=$(BUILD_PARAMS_TYPE) imageName=$(imageName) OS_NAME=$OS_NAME
       echo --- Set cmake parameters
       COMPILE_OPT+=(
         -DCMAKE_C_FLAGS_DEBUG=-g1
@@ -376,7 +391,7 @@ jobs:
         CMAKE_OPT+="
           -DMYSQL_MAINTAINER_MODE=ON
         "
-        if [[ "$(INVERTED)" != "ON" ]]; then
+        if [[ "$(BUILD_PARAMS_TYPE)" != "inverted" ]]; then
           CMAKE_OPT+="
             -DWITH_MECAB=system
             -DWITH_NUMA=ON

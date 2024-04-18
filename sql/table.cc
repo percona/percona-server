@@ -6059,7 +6059,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, bool invisible,
     s->max_key_length = std::max(s->max_key_length, key_len);
     s->key_parts += key_part_count;
     assert(s->keys < s->max_tmp_keys);
-    sprintf(s->key_names[s->keys].name, "<auto_key%d>", s->keys);
+    sprintf(s->key_names[s->keys].name, "<auto_key%d>", s->temp_table_key_id++);
     s->keys++;
   }
 

@@ -72,6 +72,7 @@ idle	YES
 memory/performance_schema/accounts	NULL
 memory/performance_schema/cond_class	NULL
 memory/performance_schema/cond_instances	NULL
+memory/performance_schema/data_container	NULL
 memory/performance_schema/events_errors_summary_by_account_by_error	NULL
 memory/performance_schema/events_errors_summary_by_host_by_error	NULL
 memory/performance_schema/events_errors_summary_by_thread_by_error	NULL
@@ -218,7 +219,6 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
-innodb/buf_lru_manager_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
@@ -270,7 +270,6 @@ statements_digest
 thread_instrumentation
 enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
-innodb/buf_lru_manager_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
@@ -300,6 +299,7 @@ idle	YES
 memory/performance_schema/accounts	NULL
 memory/performance_schema/cond_class	NULL
 memory/performance_schema/cond_instances	NULL
+memory/performance_schema/data_container	NULL
 memory/performance_schema/events_errors_summary_by_account_by_error	NULL
 memory/performance_schema/events_errors_summary_by_host_by_error	NULL
 memory/performance_schema/events_errors_summary_by_thread_by_error	NULL

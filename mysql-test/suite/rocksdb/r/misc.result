@@ -114,6 +114,7 @@ global_grants	PRIV	NULL	NULL
 global_grants	USER	NULL	NULL
 global_status	VARIABLE_NAME	NULL	NULL
 global_variables	VARIABLE_NAME	NULL	NULL
+gtid_executed	gtid_tag	NULL	NULL
 gtid_executed	interval_start	NULL	NULL
 gtid_executed	source_uuid	NULL	NULL
 help_category	help_category_id	NULL	NULL

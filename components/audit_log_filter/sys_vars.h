@@ -388,7 +388,7 @@ class SysVars {
   /**
    * @brief Store ID of currently active encryption options
    *
-   * @param password_id Encryption options ID
+   * @param options_id Encryption options ID
    */
   static void set_encryption_options_id(const std::string &options_id) noexcept;
 

@@ -22,21 +22,21 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
-#include <ndb_opts.h>
 #include <NDBT_ReturnCodes.h>
 #include <NdbEnv.h>
+#include <NdbSleep.h>
+#include <ndb_opts.h>
 #include <Bitmask.hpp>
 #include <HugoTransactions.hpp>
 #include <NDBT_Test.hpp>
 #include <NdbAutoPtr.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
-#include <NdbSleep.h>
 #include <TestNdbEventOperation.hpp>
 #include <UtilTransactions.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include "../src/kernel/ndbd.hpp"
+#include "util/require.h"
 
 #define CHK(b, e)                                                         \
   if (!(b)) {                                                             \
@@ -2210,9 +2210,7 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   const NdbDictionary::Table *pTab = ctx->getTab();
   const bool usePollEvents2 = ((rand() % 2) == 0);
-  const char* method = (usePollEvents2?
-                        "PollEvents2":
-                        "PollEvents");
+  const char *method = (usePollEvents2 ? "PollEvents2" : "PollEvents");
 
   NdbEventOperation *pOp = createEventOperation(ndb, *pTab);
   int result = NDBT_OK;
@@ -2234,20 +2232,16 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   for (int i = 0; (i < 10) && (curr_gci != NDB_FAILURE_GCI); i++) {
-    if (usePollEvents2)
-    {
+    if (usePollEvents2) {
       res = ndb->pollEvents2(5000, &curr_gci) > 0;
-    }
-    else
-    {
+    } else {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
     }
 
-    if (ndb->getNdbError().code != 0)
-    {
+    if (ndb->getNdbError().code != 0) {
       g_err << method << " failed: \n";
-      g_err << ndb->getNdbError().code << " "
-            << ndb->getNdbError().message << endl;
+      g_err << ndb->getNdbError().code << " " << ndb->getNdbError().message
+            << endl;
       result = NDBT_FAILED;
       goto cleanup;
     }
@@ -2325,28 +2319,24 @@ int errorInjectStalling(NDBT_Context *ctx, NDBT_Step *step) {
 
   // Check that we receive events again
   for (int i = 0; (i < 10) && (curr_gci == NDB_FAILURE_GCI); i++) {
-    if (usePollEvents2)
-    {
+    if (usePollEvents2) {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
-    }
-    else
-    {
+    } else {
       res = ndb->pollEvents(5000, &curr_gci) > 0;
     }
 
-    if (ndb->getNdbError().code != 0)
-    {
+    if (ndb->getNdbError().code != 0) {
       g_err << method << " failed: \n";
-      g_err << ndb->getNdbError().code << " "
-            << ndb->getNdbError().message << endl;
+      g_err << ndb->getNdbError().code << " " << ndb->getNdbError().message
+            << endl;
       result = NDBT_FAILED;
       goto cleanup;
     }
   }
-  if (curr_gci == NDB_FAILURE_GCI)
-  {
-    g_err << method << " after restart failed res " << res << " curr_gci " << curr_gci << endl;
-    result =  NDBT_FAILED;
+  if (curr_gci == NDB_FAILURE_GCI) {
+    g_err << method << " after restart failed res " << res << " curr_gci "
+          << curr_gci << endl;
+    result = NDBT_FAILED;
   }
 
 cleanup:
@@ -2415,6 +2405,7 @@ int runBug33793(NDBT_Context *ctx, NDBT_Step *step) {
 
 static int cc(Ndb_cluster_connection **ctx, Ndb **ndb) {
   Ndb_cluster_connection *xncc = new Ndb_cluster_connection;
+  xncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
   int ret;
   if ((ret = xncc->connect(30, 1, 0)) != 0) {
     delete xncc;
@@ -2650,11 +2641,9 @@ int runNFSubscribe(NDBT_Context *ctx, NDBT_Step *step) {
  * Thus we need to replace the test table with a table we
  * create ourself for this test case:
  */
-int
-createCharPKTable(NDBT_Context* ctx, NDBT_Step* step)
-{
+int createCharPKTable(NDBT_Context *ctx, NDBT_Step *step) {
   const BaseString tabName(ctx->getTab()->getName());
-  NdbDictionary::Dictionary* dict = GETNDB(step)->getDictionary();
+  NdbDictionary::Dictionary *dict = GETNDB(step)->getDictionary();
   dict->dropTable(tabName.c_str());
 
   NdbDictionary::Table newTab;
@@ -2675,11 +2664,10 @@ createCharPKTable(NDBT_Context* ctx, NDBT_Step* step)
   newTab.addColumn(pk);
 
   // Add columns COL_1 & COL_2
-  for (int i=1; i<=2; i++)
-  {
+  for (int i = 1; i <= 2; i++) {
     BaseString name;
     NdbDictionary::Column col;
-    name.assfmt("COL_%d",i);
+    name.assfmt("COL_%d", i);
     col.setName(name.c_str());
     col.setType(NdbDictionary::Column::Unsigned);
     col.setLength(1);
@@ -2693,60 +2681,51 @@ createCharPKTable(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int
-dropCharPKTable(NDBT_Context* ctx, NDBT_Step* step)
-{
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  NdbDictionary::Dictionary* dict = GETNDB(step)->getDictionary();
+int dropCharPKTable(NDBT_Context *ctx, NDBT_Step *step) {
+  const NdbDictionary::Table *pTab = ctx->getTab();
+  NdbDictionary::Dictionary *dict = GETNDB(step)->getDictionary();
   dict->dropTable(pTab->getName());
   return NDBT_OK;
 }
 
-static const char*
-getEventName(NdbDictionary::Event::TableEvent type)
-{
-  return (type == NdbDictionary::Event::TE_INSERT) ? "INSERT"
-       : (type == NdbDictionary::Event::TE_DELETE) ? "DELETE"
-       : (type == NdbDictionary::Event::TE_UPDATE) ? "UPDATE"
-       : "<unknown>";
+static const char *getEventName(NdbDictionary::Event::TableEvent type) {
+  return (type == NdbDictionary::Event::TE_INSERT)
+             ? "INSERT"
+             : (type == NdbDictionary::Event::TE_DELETE)
+                   ? "DELETE"
+                   : (type == NdbDictionary::Event::TE_UPDATE) ? "UPDATE"
+                                                               : "<unknown>";
 }
 
-static NdbDictionary::Event::TableEvent
-getAnEventType(Ndb* ndb)
-{
+static NdbDictionary::Event::TableEvent getAnEventType(Ndb *ndb) {
   int retries = 5;
-  while (retries-- > 0)
-  {
-    if (ndb->pollEvents2(100) > 0)
-    {
+  while (retries-- > 0) {
+    if (ndb->pollEvents2(100) > 0) {
       NdbEventOperation *pOp;
-      if ((pOp= ndb->nextEvent2()) != NULL)
-      {
-	return pOp->getEventType2();
+      if ((pOp = ndb->nextEvent2()) != NULL) {
+        return pOp->getEventType2();
       }
     }
   }
   return NdbDictionary::Event::TE_EMPTY;
 }
 
-static int
-verifyEventType(Ndb* ndb,
-                NdbDictionary::Event::TableEvent expect_type)
-{
+static int verifyEventType(Ndb *ndb,
+                           NdbDictionary::Event::TableEvent expect_type) {
   const NdbDictionary::Event::TableEvent type = getAnEventType(ndb);
   if (type == NdbDictionary::Event::TE_EMPTY) {
-    ndbout_c("Received no events, expected %s-event", getEventName(expect_type));
+    ndbout_c("Received no events, expected %s-event",
+             getEventName(expect_type));
     return NDBT_FAILED;
   } else if (type != expect_type) {
-    ndbout_c("Received %s-event, expected %s-event",
-	     getEventName(type), getEventName(expect_type));
+    ndbout_c("Received %s-event, expected %s-event", getEventName(type),
+             getEventName(expect_type));
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
-static int verifyNoEvents(Ndb* ndb)
-{
+static int verifyNoEvents(Ndb *ndb) {
   const NdbDictionary::Event::TableEvent type = getAnEventType(ndb);
   if (type != NdbDictionary::Event::TE_EMPTY) {
     ndbout_c("Received %s-event, none expected", getEventName(type));
@@ -2755,14 +2734,14 @@ static int verifyNoEvents(Ndb* ndb)
   return NDBT_OK;
 }
 
-static int setTestValues(Ndb* ndb, const NdbDictionary::Table* table,
-			 NdbDictionary::Event::TableEvent expect_type
-			    = NdbDictionary::Event::TE_UPDATE)
-{
+static int setTestValues(Ndb *ndb, const NdbDictionary::Table *table,
+                         NdbDictionary::Event::TableEvent expect_type =
+                             NdbDictionary::Event::TE_UPDATE) {
   // Set original ['xyz', 1, 2] value, or reset after a test case changed it
   NdbTransaction *pTrans = ndb->startTransaction();
   NdbOperation *pOp = pTrans->getNdbOperation(table->getName());
-  CHK(pOp != NULL && pOp->writeTuple() == 0, "Failed to create update operation")
+  CHK(pOp != NULL && pOp->writeTuple() == 0,
+      "Failed to create update operation")
   pOp->equal("Key", "xyz");
   CHK(pOp->setValue("Key", "xyz") == 0, "Failed to setValue('xyz') for PK");
   CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
@@ -2804,24 +2783,24 @@ static int setTestValues(Ndb* ndb, const NdbDictionary::Table* table,
  * value assigned to should be included in BEFORE/AFTER, even if the
  * values are identical.
  */
-int
-testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
-{
+int testPKUpdates(NDBT_Context *ctx, NDBT_Step *step) {
   class exitGuard {
-  public:
-    exitGuard(Ndb *ndb, NdbEventOperation *event) : m_ndb(ndb), m_event(event){}
+   public:
+    exitGuard(Ndb *ndb, NdbEventOperation *event)
+        : m_ndb(ndb), m_event(event) {}
     ~exitGuard() { release(); }
     void release() {
       if (m_event) m_ndb->dropEventOperation(m_event);
       m_event = NULL;
     }
-  private:
+
+   private:
     Ndb *const m_ndb;
     NdbEventOperation *m_event;
   };
 
-  Ndb* ndb = GETNDB(step);
-  const NdbDictionary::Table* table = ctx->getTab();
+  Ndb *ndb = GETNDB(step);
+  const NdbDictionary::Table *table = ctx->getTab();
 
   // Insert a single row used to test UPDATE-events below
   NdbTransaction *pTrans;
@@ -2830,8 +2809,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
   // Initial insert of test row used throughout test
   setTestValues(ndb, table, NdbDictionary::Event::TE_EMPTY);
 
-  for (int eventType=0; eventType < 2; eventType++) {
-    const bool allowEmptyUpdate = (eventType==0);
+  for (int eventType = 0; eventType < 2; eventType++) {
+    const bool allowEmptyUpdate = (eventType == 0);
 
     // Create the event for monitoring table changes.
     char buf[1024];
@@ -2843,11 +2822,11 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     // Automagically drop the event at return if some CHK's NDBT_FAILED
     exitGuard dropAtReturnGuard(ndb, pEvent);
 
-    NdbRecAttr* recAttr[3];
-    NdbRecAttr* recAttrPre[3];
+    NdbRecAttr *recAttr[3];
+    NdbRecAttr *recAttrPre[3];
     int n_columns = 3;
     for (int i = 0; i < n_columns; i++) {
-      recAttr[i]    = pEvent->getValue(table->getColumn(i)->getName());
+      recAttr[i] = pEvent->getValue(table->getColumn(i)->getName());
       CHK(recAttr[i] != NULL, "Event operation getValue() failed");
       recAttrPre[i] = pEvent->getPreValue(table->getColumn(i)->getName());
       CHK(recAttrPre[i] != NULL, "Event operation getPreValue() failed");
@@ -2856,7 +2835,7 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
 
     // Test using both writeTuple() and updateTuple().
     // Both expected to behave the same (as an update)
-    for (int opType=0; opType<2; opType++) {
+    for (int opType = 0; opType < 2; opType++) {
       const bool writeTuple = (opType == 0);
       if (writeTuple) {
         ndbout << "Test using writeTuple";
@@ -2908,7 +2887,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
       CHK(pOp->setValue("Key", "XXX") == 0,
           "Failed to set a changed PK value - not fail until execute");
-      CHK(pTrans->execute(Commit) != 0, "PK value changed, Execute expected to fail");
+      CHK(pTrans->execute(Commit) != 0,
+          "PK value changed, Execute expected to fail");
       CHK(pTrans->getNdbError().code == 897, "Unexpected error code");
       pTrans->close();
       CHK(verifyNoEvents(ndb) == NDBT_OK, "Didn't expect any events");
@@ -2925,7 +2905,7 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       }
       CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
       CHK(pOp->setValue("Key", "XYZ") == 0,
-	  "Update of PK column to an 'equal' value failed");
+          "Update of PK column to an 'equal' value failed");
       CHK(pTrans->execute(Commit) == 0, "Failed to execute");
       pTrans->close();
       CHK(verifyEventType(ndb, NdbDictionary::Event::TE_UPDATE) == NDBT_OK,
@@ -2948,10 +2928,11 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       CHK(pTrans->execute(Commit) == 0, "Failed to execute");
       pTrans->close();
       CHK(verifyEventType(ndb, NdbDictionary::Event::TE_UPDATE) == NDBT_OK,
-        "Didn't receive the expected UPDATE-event");
+          "Didn't receive the expected UPDATE-event");
 
       // Verify PK1 value received and both BEFORE and AFTER being 'xyz'.
-      CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+      CHK(recAttrPre[0]->isNULL() == 0 &&
+              !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
           "Before PK-value was not 'xyz'");
       CHK(recAttr[0]->isNULL() == 0 && !memcmp(recAttr[0]->aRef(), "xyz", 3),
           "After PK-value was not 'xyz'");
@@ -2959,11 +2940,12 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       // Only COL_1 value of non-PK's in before/after-values
       // ... COL_2 didn't change and should be undefined!
       CHK(recAttrPre[1]->isNULL() == 0 && recAttrPre[1]->int32_value() == 1 &&
-          recAttr[1]->isNULL() == 0  && recAttr[1]->int32_value() == 0,
+              recAttr[1]->isNULL() == 0 && recAttr[1]->int32_value() == 0,
           "COL_1-value update '1->0' not reflected by UPDATE-event");
       CHK(recAttrPre[2]->isNULL() == -1 && recAttr[2]->isNULL() == -1,
           "COL_2-value should be 'UNDEFINED'");
-      CHK(verifyNoEvents(ndb) == NDBT_OK, "Expected only a single UPDATE-event");
+      CHK(verifyNoEvents(ndb) == NDBT_OK,
+          "Expected only a single UPDATE-event");
 
       //////////////
       // Update PK to the equal value 'XYZ', and COL_1 1->0 as above.
@@ -2979,7 +2961,7 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       }
       CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
       CHK(pOp->setValue("Key", "XYZ") == 0,
-	  "Update of PK column to an 'equal' value failed");
+          "Update of PK column to an 'equal' value failed");
       CHK(pOp->setValue("COL_1", 0) == 0, "Failed to setValue() for COL_1");
       CHK(pTrans->execute(Commit) == 0, "Failed to execute");
       pTrans->close();
@@ -2987,7 +2969,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
           "Didn't receive the expected UPDATE-event");
 
       // Verify PK value received and updated 'xyz' -> 'XYZ'
-      CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+      CHK(recAttrPre[0]->isNULL() == 0 &&
+              !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
           "Before PK-value was not 'xyz'");
       CHK(recAttr[0]->isNULL() == 0 && !memcmp(recAttr[0]->aRef(), "XYZ", 3),
           "After PK-value was not 'XYZ'");
@@ -2995,12 +2978,13 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
       // Only COL_1 value of non-PK's in before/after-values
       // ... COL_2 didn't change and should be undefined!
       CHK(recAttrPre[1]->isNULL() == 0 && recAttrPre[1]->int32_value() == 1 &&
-          recAttr[1]->isNULL() == 0  && recAttr[1]->int32_value() == 0,
+              recAttr[1]->isNULL() == 0 && recAttr[1]->int32_value() == 0,
           "COL_1-value update '1->0' not reflected by UPDATE-event");
       CHK(recAttrPre[2]->isNULL() == -1 && recAttr[2]->isNULL() == -1,
           "COL_2-value should be 'UNDEFINED'");
-      CHK(verifyNoEvents(ndb) == NDBT_OK, "Expected only a single UPDATE-event");
-    } // for updateTuple and writeTuple()
+      CHK(verifyNoEvents(ndb) == NDBT_OK,
+          "Expected only a single UPDATE-event");
+    }  // for updateTuple and writeTuple()
 
     ////////////////////////////////////
     // Updates to PK values may also be executed as DELETE+INSERT
@@ -3023,11 +3007,13 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     CHK(setTestValues(ndb, table) == NDBT_OK, "Failed to set test values");
     CHK(pTrans = ndb->startTransaction(), "Failed to startTransaction()");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->deleteTuple() == 0, "Failed to create delete operation")
+    CHK(pOp != NULL && pOp->deleteTuple() == 0,
+        "Failed to create delete operation")
     CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->insertTuple() == 0, "Failed to create re-insert operation")
-    CHK(pOp->setValue("Key","XYZ") == 0, "Failed to INSERT('XYZ')");
+    CHK(pOp != NULL && pOp->insertTuple() == 0,
+        "Failed to create re-insert operation")
+    CHK(pOp->setValue("Key", "XYZ") == 0, "Failed to INSERT('XYZ')");
     CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
     CHK(pOp->setValue("COL_2", 2) == 0, "Failed to setValue() for COL_2");
     CHK(pTrans->execute(Commit) == 0, "Failed to execute");
@@ -3041,7 +3027,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
         "Didn't receive the expected UPDATE-event");
 
     // Verify that key change 'xyz' -> 'XYZ' is reflected
-    CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+    CHK(recAttrPre[0]->isNULL() == 0 &&
+            !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
         "Before PK-value was not 'xyz'");
     CHK(recAttr[0]->isNULL() == 0 && !memcmp(recAttr[0]->aRef(), "XYZ", 3),
         "After PK-value was not 'XYZ'");
@@ -3059,9 +3046,10 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
         "Too many events, expected only an UPDATE");
 
     ///////////////////////////////////////////////////
-    // A DELETE+INSERT 'PK-NOOP-update'-> the same 'xyz' PK-value is re-inserted.
-    // As both the PK and all COL_* values are assigned to, we expect to
-    // still see all attributes in the returned values, even if being identical.
+    // A DELETE+INSERT 'PK-NOOP-update'-> the same 'xyz' PK-value is
+    // re-inserted. As both the PK and all COL_* values are assigned to, we
+    // expect to still see all attributes in the returned values, even if being
+    // identical.
     CHK(setTestValues(ndb, table) == NDBT_OK, "Failed to set test values");
     CHK(pTrans = ndb->startTransaction(), "Failed to startTransaction()");
     pOp = pTrans->getNdbOperation(table->getName());
@@ -3071,7 +3059,7 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     pOp = pTrans->getNdbOperation(table->getName());
     CHK(pOp != NULL && pOp->insertTuple() == 0,
         "Failed to create re-insert operation")
-    CHK(pOp->setValue("Key","xyz") == 0, "Failed to re-INSERT('xyz')");
+    CHK(pOp->setValue("Key", "xyz") == 0, "Failed to re-INSERT('xyz')");
     CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
     CHK(pOp->setValue("COL_2", 2) == 0, "Failed to setValue() for COL_2");
     CHK(pTrans->execute(Commit) == 0, "Failed to execute");
@@ -3082,7 +3070,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
         "Didn't receive the expected UPDATE-event");
 
     // PK is always received, but shouldn't update:
-    CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+    CHK(recAttrPre[0]->isNULL() == 0 &&
+            !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
         "Before PK-value was not 'xyz'");
     CHK(recAttr[0]->isNULL() == 0 && !memcmp(recAttr[0]->aRef(), "xyz", 3),
         "After PK-value was not 'xyz'");
@@ -3110,11 +3099,13 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     CHK(setTestValues(ndb, table) == NDBT_OK, "Failed to set test values");
     CHK(pTrans = ndb->startTransaction(), "Failed to startTransaction()");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->deleteTuple() == 0, "Failed to create delete operation")
+    CHK(pOp != NULL && pOp->deleteTuple() == 0,
+        "Failed to create delete operation")
     CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->insertTuple() == 0, "Failed to create re-insert operation")
-    CHK(pOp->setValue("Key","XXX") == 0, "Failed to INSERT('XXX')");
+    CHK(pOp != NULL && pOp->insertTuple() == 0,
+        "Failed to create re-insert operation")
+    CHK(pOp->setValue("Key", "XXX") == 0, "Failed to INSERT('XXX')");
     CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
     CHK(pOp->setValue("COL_2", 2) == 0, "Failed to setValue() for COL_2");
     CHK(pTrans->execute(Commit) == 0, "Failed to execute");
@@ -3125,7 +3116,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     // from the same data node.
     NdbDictionary::Event::TableEvent type = getAnEventType(ndb);
     if (type == NdbDictionary::Event::TE_DELETE) {
-      CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+      CHK(recAttrPre[0]->isNULL() == 0 &&
+              !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
           "Deleted before PK-value was not 'xyz'");
       CHK(recAttrPre[1]->isNULL() == 0 && recAttrPre[1]->int32_value() == 1,
           "Before COL_1-value was not '1'");
@@ -3150,7 +3142,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
 
       CHK(verifyEventType(ndb, NdbDictionary::Event::TE_DELETE) == NDBT_OK,
           "Didn't receive the expected INSERT+DELETE-events");
-      CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+      CHK(recAttrPre[0]->isNULL() == 0 &&
+              !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
           "Deleted before PK-value was not 'xyz'");
       CHK(recAttrPre[1]->isNULL() == 0 && recAttrPre[1]->int32_value() == 1,
           "Before COL_1-value was not '1'");
@@ -3166,7 +3159,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     // Not a part of the test case as such.
     CHK(pTrans = ndb->startTransaction(), "Failed to startTransaction()");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->deleteTuple() == 0, "Failed to create delete operation")
+    CHK(pOp != NULL && pOp->deleteTuple() == 0,
+        "Failed to create delete operation")
     CHK(pOp->equal("Key", "XXX") == 0, "Failed to specify 'Key'");
     CHK(pTrans->execute(Commit) == 0, "Failed to execute");
     pTrans->close();
@@ -3188,21 +3182,25 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
     CHK(pTrans = ndb->startTransaction(), "Failed to startTransaction()");
     // 1'th update of PK value(xyz -> XXX) as above
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->deleteTuple() == 0, "Failed to create delete operation")
+    CHK(pOp != NULL && pOp->deleteTuple() == 0,
+        "Failed to create delete operation")
     CHK(pOp->equal("Key", "xyz") == 0, "Failed to specify 'Key'");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->insertTuple() == 0, "Failed to create re-insert operation")
-    CHK(pOp->setValue("Key","XXX") == 0, "Failed to INSERT('XXX')");
+    CHK(pOp != NULL && pOp->insertTuple() == 0,
+        "Failed to create re-insert operation")
+    CHK(pOp->setValue("Key", "XXX") == 0, "Failed to INSERT('XXX')");
     CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
     CHK(pOp->setValue("COL_2", 2) == 0, "Failed to setValue() for COL_2");
 
     // 2'nd update of PK-value(XXX -> xyz) back to original values
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->deleteTuple() == 0, "Failed to create delete operation")
+    CHK(pOp != NULL && pOp->deleteTuple() == 0,
+        "Failed to create delete operation")
     CHK(pOp->equal("Key", "XXX") == 0, "Failed to specify 'Key'");
     pOp = pTrans->getNdbOperation(table->getName());
-    CHK(pOp != NULL && pOp->insertTuple() == 0, "Failed to create re-insert operation")
-    CHK(pOp->setValue("Key","xyz") == 0, "Failed to re-INSERT('xyz')");
+    CHK(pOp != NULL && pOp->insertTuple() == 0,
+        "Failed to create re-insert operation")
+    CHK(pOp->setValue("Key", "xyz") == 0, "Failed to re-INSERT('xyz')");
     CHK(pOp->setValue("COL_1", 1) == 0, "Failed to setValue() for COL_1");
     CHK(pOp->setValue("COL_2", 2) == 0, "Failed to setValue() for COL_2");
     CHK(pTrans->execute(Commit) == 0, "Failed to execute");
@@ -3212,7 +3210,8 @@ testPKUpdates(NDBT_Context* ctx, NDBT_Step* step)
         "Didn't receive the expected UPDATE-event");
 
     // PK is always received, no PK-values should have changed:
-    CHK(recAttrPre[0]->isNULL() == 0 && !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
+    CHK(recAttrPre[0]->isNULL() == 0 &&
+            !memcmp(recAttrPre[0]->aRef(), "xyz", 3),
         "Before PK-value was not 'xyz'");
     CHK(recAttr[0]->isNULL() == 0 && !memcmp(recAttr[0]->aRef(), "xyz", 3),
         "After PK-value was not 'xyz'");
@@ -4064,11 +4063,9 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
     g_err << "Attempting to get the event, expect "
           << ((odd ? "success" : "failure")) << endl;
     NdbDictionary::Event_ptr ev(myDict->getEvent(eventName));
-    
-    if (odd)
-    {
-      if (ev == NULL)
-      {
+
+    if (odd) {
+      if (ev == NULL) {
         g_err << "Failed to get event on odd cycle with error "
               << myDict->getNdbError().code << " "
               << myDict->getNdbError().message << endl;
@@ -4103,57 +4100,36 @@ int runTryGetEvent(NDBT_Context *ctx, NDBT_Step *step) {
   return NDBT_OK;
 }
 
-// Waits until the event buffer is filled up to fill_percent
-// or #retries exhaust.
-bool wait_to_fill_buffer(Ndb *ndb, Uint32 fill_percent) {
+/* Fill buffer to some stable level > 95% full */
+bool wait_to_fill_buffer(Ndb *ndb, int maxSeconds = 180) {
   Ndb::EventBufferMemoryUsage mem_usage;
-  Uint32 usage_before_wait = 0;
-  Uint64 prev_gci = 0;
-  Uint32 retries = 10;
+  Uint32 prev_usage_percent = 0;
 
-  do {
+  ndbout_c("wait_to_fill_buffer to >= 95 percent");
+
+  ndb->get_event_buffer_memory_usage(mem_usage);
+  prev_usage_percent = mem_usage.usage_percent;
+
+  ndbout_c("  start percent : %u", prev_usage_percent);
+
+  while (maxSeconds--) {
+    NdbSleep_MilliSleep(1000);
+
     ndb->get_event_buffer_memory_usage(mem_usage);
-    usage_before_wait = mem_usage.usage_percent;
-    if (fill_percent < 100 && usage_before_wait >= fill_percent) {
+    const Uint32 usage_percent = mem_usage.usage_percent;
+
+    ndbout_c("  usage percent : %u", usage_percent);
+
+    if (usage_percent > 95 && usage_percent == prev_usage_percent) {
       return true;
     }
 
-    // Assume that latestGCI will increase in this sleep time
-    // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_MilliSleep(1000);
+    prev_usage_percent = usage_percent;
+  };
 
-    const Uint64 latest_gci = ndb->getLatestGCI();
+  ndbout_c("  Timeout waiting for fill");
 
-    /* fill_percent == 100 :
-     * It is not enough to test usage_after_wait >= 100 to decide
-     * whether a gap has occurred, because a gap can occur
-     * at a fill_percent < 100, eg at 99%, when there is no space
-     * for a new epoch. Therefore, we have to wait until the
-     * latest_gci (and usage) becomes stable, because epochs are
-     * discarded during a gap.
-     */
-    if (prev_gci == latest_gci) {
-      /* No new epoch is buffered despite waiting with continuous
-       * load generation. A gap must have occurred. Enough waiting.
-       * Check usage is unchanged as well.
-       */
-      ndb->get_event_buffer_memory_usage(mem_usage);
-      const Uint32 usage_after_wait = mem_usage.usage_percent;
-      if (usage_before_wait == usage_after_wait) {
-        return true;
-      }
-      if (retries-- == 0) {
-        g_err << "wait_to_fill_buffer failed : prev_gci " << prev_gci
-              << "latest_gci " << latest_gci << " usage before wait "
-              << usage_before_wait << " usage after wait " << usage_after_wait
-              << endl;
-        return false;
-      }
-    }
-    prev_gci = latest_gci;
-  } while (true);
-
-  assert(false);  // Should not reach here
+  return false;
 }
 
 /*********************************************************
@@ -4178,7 +4154,7 @@ int runPollBCOverflowEB(NDBT_Context *ctx, NDBT_Step *step) {
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
   // Wait until event buffer get filled 100%, to get a gap event
-  if (!wait_to_fill_buffer(ndb, 100)) return NDBT_FAILED;
+  if (!wait_to_fill_buffer(ndb)) return NDBT_FAILED;
 
   g_err << endl
         << "The test is expected to crash with"
@@ -5049,7 +5025,7 @@ int runTardyEventListener(NDBT_Context *ctx, NDBT_Step *step) {
      *  - First time : to speed up the test,
      *  - then fill (~ free_percent) after resuming buffering
      */
-    if (!wait_to_fill_buffer(ndb, 100)) {
+    if (!wait_to_fill_buffer(ndb)) {
       goto end_test;
     }
 
@@ -5313,104 +5289,86 @@ int runGetLogEventParsable(NDBT_Context *ctx, NDBT_Step *step) {
   struct ndb_logevent le_event;
   int statusMsges = 0, statusMsges2 = 0;
 
-   while (!ctx->isTestStopped())
-   {
-     int r = ndb_logevent_get_next2(le_handle,
-                                   &le_event,
-                                   2000);
-     if(r>0)
-     {
-       switch(le_event.type)
-       {
-       case NDB_LE_EventBufferStatus:
-         {
-           statusMsges++;
-           Uint32 alloc = le_event.EventBufferStatus.alloc;
-           Uint32 max = le_event.EventBufferStatus.max;
-           Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = max ? (Uint32)((((Uint64)used) * 100) / max) : 0;
+  while (!ctx->isTestStopped()) {
+    int r = ndb_logevent_get_next2(le_handle, &le_event, 2000);
+    if (r > 0) {
+      switch (le_event.type) {
+        case NDB_LE_EventBufferStatus: {
+          statusMsges++;
+          Uint32 alloc = le_event.EventBufferStatus.alloc;
+          Uint32 max = le_event.EventBufferStatus.max;
+          Uint32 used = le_event.EventBufferStatus.usage;
+          Uint32 used_pct = max ? (Uint32)((((Uint64)used) * 100) / max) : 0;
 
-           g_err << "Parsable str: Event buffer status: "
-                 << "max=" << max << " bytes"
-                 << " used=" << le_event.EventBufferStatus.usage << " bytes";
-           if (max != 0) g_err << "(" << used_pct << "% of max)";
-           g_err << " alloc=" << alloc << " bytes"
-                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_h
-                 << "/" << le_event.EventBufferStatus.apply_gci_l
-                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_h
-                 << "/" << le_event.EventBufferStatus.latest_gci_l << endl;
-         }
-         break;
-       case NDB_LE_EventBufferStatus2:
-         {
-           Uint32 alloc = le_event.EventBufferStatus2.alloc;
-           Uint32 max = le_event.EventBufferStatus2.max;
-           Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = max ? (Uint32)((((Uint64)used)*100)/max) : 0;
+          g_err << "Parsable str: Event buffer status: "
+                << "max=" << max << " bytes"
+                << " used=" << le_event.EventBufferStatus.usage << " bytes";
+          if (max != 0) g_err << "(" << used_pct << "% of max)";
+          g_err << " alloc=" << alloc << " bytes"
+                << " apply_gci " << le_event.EventBufferStatus.apply_gci_h
+                << "/" << le_event.EventBufferStatus.apply_gci_l
+                << " latest_gci " << le_event.EventBufferStatus.latest_gci_h
+                << "/" << le_event.EventBufferStatus.latest_gci_l << endl;
+        } break;
+        case NDB_LE_EventBufferStatus2: {
+          Uint32 alloc = le_event.EventBufferStatus2.alloc;
+          Uint32 max = le_event.EventBufferStatus2.max;
+          Uint32 used = le_event.EventBufferStatus2.usage;
+          Uint32 used_pct = max ? (Uint32)((((Uint64)used) * 100) / max) : 0;
 
-           Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
-           Uint32 reason = le_event.EventBufferStatus2.report_reason;
-           if (tardy_ndb_ref == ndb_ref && reason != 0)
-             statusMsges2++;
+          Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
+          Uint32 reason = le_event.EventBufferStatus2.report_reason;
+          if (tardy_ndb_ref == ndb_ref && reason != 0) statusMsges2++;
 
-           g_err << "Parsable str: Event buffer status2 "
-                 << "(" << hex << ndb_ref << "): " << dec
-                 << "max=" << max << " bytes"
-                 << " used=" << used << " bytes";
-           if (max != 0) g_err << "(" << used_pct << "% of max)";
-           g_err << " alloc=" << alloc << " bytes"
-                 << " latest_consumed_epoch "
-                 << le_event.EventBufferStatus2.latest_consumed_epoch_h << "/"
-                 << le_event.EventBufferStatus2.latest_consumed_epoch_l
-                 << " latest_buffered_epoch "
-                 << le_event.EventBufferStatus2.latest_buffered_epoch_h << "/"
-                 << le_event.EventBufferStatus2.latest_buffered_epoch_l
-                 << " reason " << reason << endl;
-         }
-         break;
-       case NDB_LE_EventBufferStatus3:
-         {
-           Uint64 usage = (Uint64)le_event.EventBufferStatus3.usage_h << 32;
-           usage |= le_event.EventBufferStatus3.usage_l;
-           Uint64 alloc = (Uint64)le_event.EventBufferStatus3.alloc_h << 32;
-           alloc |= le_event.EventBufferStatus3.alloc_l;
-           Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
-           max |= le_event.EventBufferStatus3.max_l;
-           Uint32 used_pct = max ? (Uint32)((usage*100)/max) : 0;
+          g_err << "Parsable str: Event buffer status2 "
+                << "(" << hex << ndb_ref << "): " << dec << "max=" << max
+                << " bytes"
+                << " used=" << used << " bytes";
+          if (max != 0) g_err << "(" << used_pct << "% of max)";
+          g_err << " alloc=" << alloc << " bytes"
+                << " latest_consumed_epoch "
+                << le_event.EventBufferStatus2.latest_consumed_epoch_h << "/"
+                << le_event.EventBufferStatus2.latest_consumed_epoch_l
+                << " latest_buffered_epoch "
+                << le_event.EventBufferStatus2.latest_buffered_epoch_h << "/"
+                << le_event.EventBufferStatus2.latest_buffered_epoch_l
+                << " reason " << reason << endl;
+        } break;
+        case NDB_LE_EventBufferStatus3: {
+          Uint64 usage = (Uint64)le_event.EventBufferStatus3.usage_h << 32;
+          usage |= le_event.EventBufferStatus3.usage_l;
+          Uint64 alloc = (Uint64)le_event.EventBufferStatus3.alloc_h << 32;
+          alloc |= le_event.EventBufferStatus3.alloc_l;
+          Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
+          max |= le_event.EventBufferStatus3.max_l;
+          Uint32 used_pct = max ? (Uint32)((usage * 100) / max) : 0;
 
-           Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
-           Uint32 reason = le_event.EventBufferStatus3.report_reason;
-           if (tardy_ndb_ref == ndb_ref && reason != 0)
-             statusMsges2++;
+          Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
+          Uint32 reason = le_event.EventBufferStatus3.report_reason;
+          if (tardy_ndb_ref == ndb_ref && reason != 0) statusMsges2++;
 
-           g_err << "Parsable str: Event buffer status3 "
-                 << "(" << hex << ndb_ref << "): " << dec
-                 << "max=" << max << " bytes"
-                 << " used=" << usage << " bytes";
-           if (max != 0) g_err << "(" << used_pct << "% of max)";
-           g_err << " alloc=" << alloc << " bytes"
-                 << " latest_consumed_epoch "
-                 << le_event.EventBufferStatus3.latest_consumed_epoch_h << "/"
-                 << le_event.EventBufferStatus3.latest_consumed_epoch_l
-                 << " latest_buffered_epoch "
-                 << le_event.EventBufferStatus3.latest_buffered_epoch_h << "/"
-                 << le_event.EventBufferStatus3.latest_buffered_epoch_l
-                 << " reason " << reason << endl;
-         }
-         break;
-       default:
-         break;
-       }
-     }
-     else if (r<0)
-     {
-       g_err << "ERROR: ndb_logevent_get_next returned error: "
-             << r << endl;
-     }
-     else
-     {
-       g_info << "ndb_logevent_get_next returned timeout" << endl;
-     }
+          g_err << "Parsable str: Event buffer status3 "
+                << "(" << hex << ndb_ref << "): " << dec << "max=" << max
+                << " bytes"
+                << " used=" << usage << " bytes";
+          if (max != 0) g_err << "(" << used_pct << "% of max)";
+          g_err << " alloc=" << alloc << " bytes"
+                << " latest_consumed_epoch "
+                << le_event.EventBufferStatus3.latest_consumed_epoch_h << "/"
+                << le_event.EventBufferStatus3.latest_consumed_epoch_l
+                << " latest_buffered_epoch "
+                << le_event.EventBufferStatus3.latest_buffered_epoch_h << "/"
+                << le_event.EventBufferStatus3.latest_buffered_epoch_l
+                << " reason " << reason << endl;
+        } break;
+        default:
+          break;
+      }
+    } else if (r < 0) {
+      g_err << "ERROR: ndb_logevent_get_next returned error: " << r << endl;
+    } else {
+      g_info << "ndb_logevent_get_next returned timeout" << endl;
+    }
   }
   ndb_mgm_destroy_logevent_handle(&le_handle);
 
@@ -5428,10 +5386,10 @@ int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
   if (!mgmd.connect()) return NDBT_FAILED;
 
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
-  socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
-  ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
+  NdbSocket my_fd =
+      ndb_mgm_listen_event_internal(mgmd.handle(), filter, 0, true);
 
-  if (!ndb_socket_valid(my_fd)) {
+  if (!my_fd.is_valid()) {
     ndbout << "FAILED: could not listen to event" << endl;
     return NDBT_FAILED;
   }
@@ -5461,6 +5419,7 @@ int runGetLogEventPretty(NDBT_Context *ctx, NDBT_Step *step) {
       }
     }
   }
+  my_fd.close();
 
   if (ctx->getProperty("BufferUsage2") && prettyStatusMsges2 > 0)
     return NDBT_OK;
@@ -5582,48 +5541,41 @@ int clearEmptySafeCounterPool(NDBT_Context *ctx, NDBT_Step *step) {
   return setEmptySafeCounterPool(false);
 }
 
-int setErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
-{
+int setErrorInsertEBUsage(NDBT_Context *ctx, NDBT_Step *step) {
   DBUG_SET_INITIAL("+d,ndb_eventbuffer_high_usage");
   return NDBT_OK;
 }
 
-int clearErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
-{
+int clearErrorInsertEBUsage(NDBT_Context *ctx, NDBT_Step *step) {
   DBUG_SET_INITIAL("-d,ndb_eventbuffer_high_usage");
   return NDBT_OK;
 }
 
-static
-int
-runCreateDropConsume(NDBT_Context* ctx, NDBT_Step* step)
-{
+static int runCreateDropConsume(NDBT_Context *ctx, NDBT_Step *step) {
   constexpr Uint32 NumOperations = 10;
-  NdbEventOperation* ops[NumOperations];
-  Ndb* ndb = GETNDB(step);
+  NdbEventOperation *ops[NumOperations];
+  Ndb *ndb = GETNDB(step);
 
   g_err << "Creating " << NumOperations << " eventOperations." << endl;
-  for (Uint32 i=0; i< NumOperations; i++)
-  {
+  for (Uint32 i = 0; i < NumOperations; i++) {
     g_err << "Creating EventOperation " << i << endl;
 
-    if ((ops[i] = createEventOperation(ndb, *ctx->getTab())) == nullptr)
-    {
+    if ((ops[i] = createEventOperation(ndb, *ctx->getTab())) == nullptr) {
       g_err << "runCreateDropConsume failed to create eventOperation " << endl;
       return NDBT_FAILED;
     }
-    ops[i]->setCustomData((void*) Uint64(i));
+    ops[i]->setCustomData((void *)Uint64(i));
   }
 
-  g_err << "Dropping all but one (" << NumOperations - 1 << ") "
-    "eventOperations with a delay." << endl;
+  g_err << "Dropping all but one (" << NumOperations - 1
+        << ") "
+           "eventOperations with a delay."
+        << endl;
 
-  for (Uint32 i=1; i< NumOperations; i++)
-  {
+  for (Uint32 i = 1; i < NumOperations; i++) {
     g_err << "Dropping EventOperation " << i << endl;
     int res = ndb->dropEventOperation(ops[i]);
-    if (res != 0)
-    {
+    if (res != 0) {
       g_err << "Drop failed " << ndb->getNdbError() << endl;
       return NDBT_FAILED;
     }
@@ -5637,49 +5589,38 @@ runCreateDropConsume(NDBT_Context* ctx, NDBT_Step* step)
   Uint64 latest_epoch = 0;
   Uint32 observedEpochs = 0;
   int res = NDBT_OK;
-  while (ndb->pollEvents(1000) > 0)
-  {
-    NdbEventOperation* op;
-    while ((op = ndb->nextEvent()) != nullptr)
-    {
+  while (ndb->pollEvents(1000) > 0) {
+    NdbEventOperation *op;
+    while ((op = ndb->nextEvent()) != nullptr) {
       Uint64 epoch = op->getEpoch();
-      if (op != ops[0])
-      {
+      if (op != ops[0]) {
         fprintf(stderr,
                 "Error : epoch data contains dropped EventOperation"
-                "%p %llu\n", op, (Uint64) op->getCustomData());
+                "%p %llu\n",
+                op, (Uint64)op->getCustomData());
         res = NDBT_FAILED;
       }
-      if (epoch != latest_epoch)
-      {
+      if (epoch != latest_epoch) {
         observedEpochs++;
         latest_epoch = epoch;
         fprintf(stderr, "Epoch boundary : %llu\n", latest_epoch);
         /* Iterate over gci ops */
-        const NdbEventOperation* gciOp=NULL;
+        const NdbEventOperation *gciOp = NULL;
         Uint32 iter = 0;
         Uint32 et = 0;
-        while((gciOp = ndb->getGCIEventOperations(&iter, &et)) 
-               != nullptr)
-        {
-          fprintf(stderr,
-                  "Epoch %llu EventOperations contains op %p (%p)\n",
-                  latest_epoch,
-                  gciOp,
-                  gciOp->getCustomData());
-          if (gciOp != ops[0])
-          {
+        while ((gciOp = ndb->getGCIEventOperations(&iter, &et)) != nullptr) {
+          fprintf(stderr, "Epoch %llu EventOperations contains op %p (%p)\n",
+                  latest_epoch, gciOp, gciOp->getCustomData());
+          if (gciOp != ops[0]) {
             fprintf(stderr,
                     "Error : epoch EventOperations contains dropped"
                     "EventOperation %p %llu\n",
-                    gciOp,
-                    (Uint64) gciOp->getCustomData());
+                    gciOp, (Uint64)gciOp->getCustomData());
             res = NDBT_FAILED;
           }
         }
         /* Stop accumulating changes after a while */
-        if (observedEpochs == 40)
-        {
+        if (observedEpochs == 40) {
           ndb->dropEventOperation(ops[0]);
         }
       }
@@ -5688,6 +5629,232 @@ runCreateDropConsume(NDBT_Context* ctx, NDBT_Step* step)
 
   ctx->stopTest();
   return res;
+}
+
+int runSubscriptionChecker(NDBT_Context *ctx, NDBT_Step *step, Ndb *pNdb,
+                           const NdbDictionary::Table *table,
+                           const char *name) {
+  NdbEventOperation *evOp = createEventOperation(pNdb, *table);
+  if (evOp == NULL) {
+    return NDBT_FAILED;
+  }
+
+  NodeBitmask subscriberViews[MAX_NDB_NODES];
+  for (Uint32 n = 0; n < MAX_NDB_NODES; n++) {
+    subscriberViews[n].clear();
+  }
+
+  bool error = false;
+  Uint32 maxSubscribers = 0;
+
+  while (!ctx->isTestStopped() && !error) {
+    int res = pNdb->pollEvents(1000);
+
+    if (res > 0) {
+      NdbEventOperation *nextEvent;
+      while ((nextEvent = pNdb->nextEvent()) != NULL) {
+        switch (evOp->getEventType()) {
+          case NdbDictionary::Event::TE_SUBSCRIBE: {
+            const Uint32 subscriber = evOp->getReqNodeId();
+            const Uint32 reporter = evOp->getNdbdNodeId();
+            const Uint64 epoch = evOp->getEpoch();
+            NodeBitmask &view = subscriberViews[reporter];
+            ndbout_c(
+                "%s : Reporter %u reports subscribe from node %u in epoch "
+                "%llu/%llu",
+                name, reporter, subscriber, epoch >> 32, epoch & 0xffffffff);
+            if (view.get(subscriber)) {
+              ndbout_c("%s : Error, %u already subscribed", name, subscriber);
+              /* Note that nothing stops there being > 1 subscriber per API
+               * nodeid */
+              error = true;
+              continue;
+            }
+            view.set(subscriber);
+            break;
+          }
+          case NdbDictionary::Event::TE_UNSUBSCRIBE: {
+            const Uint32 subscriber = evOp->getReqNodeId();
+            const Uint32 reporter = evOp->getNdbdNodeId();
+            const Uint64 epoch = evOp->getEpoch();
+            NodeBitmask &view = subscriberViews[reporter];
+            ndbout_c(
+                "%s : Reporter %u reports unsubscribe from node %u in epoch "
+                "%llu/%llu",
+                name, reporter, subscriber, epoch >> 32, epoch & 0xffffffff);
+            if (!view.get(subscriber)) {
+              /* Note that nothing stops there being > 1 subscriber per API
+               * nodeid */
+              ndbout_c("%s : Error, %u not subscribed", name, subscriber);
+              error = true;
+            }
+            view.clear(subscriber);
+            break;
+          }
+          case NdbDictionary::Event::TE_NODE_FAILURE: {
+            const Uint32 failedNode = evOp->getNdbdNodeId();
+            const Uint64 epoch = evOp->getEpoch();
+            ndbout_c("%s : Node failure report for node %u in epoch %llu/%llu",
+                     name, failedNode, epoch >> 32, epoch & 0xffffffff);
+            NodeBitmask &view = subscriberViews[failedNode];
+            ndbout_c("%s : Clearing subscribers in my node %u view : %s", name,
+                     failedNode, BaseString::getPrettyText(view).c_str());
+            view.clear();
+            break;
+          }
+          case NdbDictionary::Event::TE_CLUSTER_FAILURE: {
+            // Unexpected
+            const Uint64 epoch = evOp->getEpoch();
+            ndbout_c("%s : Cluster failure in epoch %llu/%llu", name,
+                     epoch >> 32, epoch & 0xffffffff);
+            if ((ctx->getProperty("IgnoreDisconnect", (Uint32)0)) != 0) {
+              ndbout_c("%s : Ignoring cluster failure", name);
+              pNdb->dropEventOperation(evOp);
+              return NDBT_OK;
+            }
+
+            error = true;
+            break;
+          }
+          default:
+            ndbout_c("%s : Ignoring event of type %u", name,
+                     evOp->getEventType());
+            break;
+        }
+      }
+    }
+
+    Uint32 reporters = 0;
+    NodeBitmask unionView;
+    unionView.clear();
+    // maxSubscribers = 0;
+
+    for (Uint32 n = 0; n < MAX_NDB_NODES; n++) {
+      NodeBitmask &nodeView = subscriberViews[n];
+
+      if (!nodeView.isclear()) {
+        if (!unionView.isclear() && !unionView.equal(nodeView)) {
+          ndbout_c(
+              "%s : Reporter %u view different to existing union view : %s",
+              name, n, BaseString::getPrettyText(nodeView).c_str());
+        }
+        reporters++;
+        unionView.bitOR(nodeView);
+      }
+    }
+
+    /* For ease of comparing different checker's views in output
+     * Add own-node to unionView as it's implicit
+     */
+    unionView.set(pNdb->getNodeId());
+
+    ndbout_c("%s : unionView : reporters(%u) : %s", name, reporters,
+             BaseString::getPrettyText(unionView).c_str());
+
+    const Uint32 currentSubscribers = unionView.count();
+    if (currentSubscribers > maxSubscribers) {
+      maxSubscribers = currentSubscribers;
+    }
+    if (currentSubscribers < maxSubscribers) {
+      ndbout_c("%s : Subscriber(s) lost - have (%u), max was %u", name,
+               currentSubscribers, maxSubscribers);
+      if ((ctx->getProperty("IgnoreSubscriberLoss", (Uint32)0)) != 0) {
+        ndbout_c("%s : Ignoring subscriber loss", name);
+        maxSubscribers = currentSubscribers;
+      } else {
+        error = true;
+      }
+    }
+  }
+
+  pNdb->dropEventOperation(evOp);
+
+  return (error ? NDBT_FAILED : NDBT_OK);
+}
+
+int runSubscriptionCheckerSameConn(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *table = ctx->getTab();
+  BaseString name;
+  name.appfmt("CheckerSC %u (%u)", step->getStepNo(), pNdb->getNodeId());
+
+  return runSubscriptionChecker(ctx, step, pNdb, table, name.c_str());
+}
+
+int runSubscriptionCheckerOtherConn(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb_cluster_connection *otherConn;
+  Ndb *otherNdb;
+
+  if (cc(&otherConn, &otherNdb) != 0) {
+    ndbout_c("Failed to setup another Api connection");
+    return NDBT_FAILED;
+  }
+
+  BaseString name;
+  name.appfmt("CheckerOC %u (%u)", step->getStepNo(), otherNdb->getNodeId());
+
+  const NdbDictionary::Table *table =
+      otherNdb->getDictionary()->getTable(ctx->getTab()->getName());
+
+  int res = runSubscriptionChecker(ctx, step, otherNdb, table, name.c_str());
+
+  delete otherNdb;
+  delete otherConn;
+
+  return res;
+}
+
+int runRestartRandomNodeStartWithError(NDBT_Context *ctx, NDBT_Step *step) {
+  int code = ctx->getProperty("ErrorInjectCode", (Uint32)0);
+
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2) {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  /* Give other steps some time to get going */
+  NdbSleep_SecSleep(5);
+
+  do {
+    int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    ndbout << "Restart node " << nodeId << endl;
+    if (restarter.restartOneDbNode(nodeId, false, true, true) != 0) {
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&nodeId, 1)) {
+      g_err << "Failed to wait node to reach no start state" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.insertErrorInNode(nodeId, code)) {
+      g_err << "Failed to inject error" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.startNodes(&nodeId, 1)) {
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitClusterStarted(60) != 0) {
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  } while (0);
+
+  restarter.insertErrorInAllNodes(0);  // Remove the injected error
+  ctx->stopTest();
+  return result;
 }
 
 NDBT_TESTSUITE(test_event);
@@ -5946,8 +6113,7 @@ TESTCASE("EmptyUpdates",
 }
 TESTCASE("PrimaryKeyUpdates",
          "Verify that updates of char-PKs to 'equal by collation rules'-values"
-         " are allowed, and sent as part of BEFORE/AFTER values in triggers")
-{
+         " are allowed, and sent as part of BEFORE/AFTER values in triggers") {
   INITIALIZER(createCharPKTable);
   INITIALIZER(runCreateEvent);
   STEP(testPKUpdates);
@@ -6068,8 +6234,7 @@ TESTCASE("getEventBufferUsage3",
 TESTCASE("getEventBufferHighUsage",
          "Get event buffer usage when buffer grows to over 4GB"
          "Tardy listener should receive, parse and print 64-bit"
-         "max, alloc and usage values correctly")
-{
+         "max, alloc and usage values correctly") {
   TC_PROPERTY("BufferUsage2", 1);
   INITIALIZER(runCreateEvent);
   INITIALIZER(setErrorInsertEBUsage);
@@ -6099,11 +6264,35 @@ TESTCASE("ExhaustedSafeCounterPool",
   FINALIZER(clearEmptySafeCounterPool);
   FINALIZER(runDropShadowTable);
 }
-
+TESTCASE("SubscribeEventsNR",
+         "Test that the subscriber/unsubscribe "
+         "events received are as expected over "
+         "node restarts.") {
+  TC_PROPERTY("ReportSubscribe", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runRestarterLoop);
+  STEP(runSubscriptionCheckerSameConn);
+  STEPS(runSubscriptionCheckerOtherConn, 2);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("SubscribeEventsNRAF",
+         "Test that the subscriber/unsubscribe "
+         "events received are as expected over "
+         "simultaneous data node restarts and "
+         "API nodes failure") {
+  TC_PROPERTY("ReportSubscribe", 1);
+  TC_PROPERTY("IgnoreDisconnect", 1);
+  TC_PROPERTY("IgnoreSubscriberLoss", 1);
+  TC_PROPERTY("ErrorInjectCode", 13058);
+  INITIALIZER(runCreateEvent);
+  STEP(runRestartRandomNodeStartWithError)
+  STEP(runSubscriptionCheckerSameConn);
+  STEPS(runSubscriptionCheckerOtherConn, 2);
+  FINALIZER(runDropEvent);
+}
 TESTCASE("DelayedEventDrop",
-        "Create and Drop events with load, having multiple events droppable"
-         "at once")
-{
+         "Create and Drop events with load, having multiple events droppable"
+         "at once") {
   INITIALIZER(runCreateEvent);
   STEP(runCreateDropConsume);
   STEP(runInsertDeleteUntilStopped);

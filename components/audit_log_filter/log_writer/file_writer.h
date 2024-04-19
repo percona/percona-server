@@ -48,7 +48,7 @@ class FileWriter : public FileWriterBase {
    * @brief Write file.
    *
    * @param record Log record
-   * @param record Log record size
+   * @param size Log record size
    */
   void write(const char *record, size_t size) noexcept override;
 

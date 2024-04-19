@@ -991,7 +991,7 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
 }
 
 /** Enable encryption for already existing tablespace.
-@param[in]	space_id	tablespace id
+@param[in]	space	tablespace id
 @return true if success */
 bool fsp_enable_encryption(fil_space_t *space) {
   byte encrypt_info[Encryption::INFO_SIZE];

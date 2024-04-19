@@ -146,7 +146,7 @@ INSERT INTO t1 VALUES ('a','j',10);
 INSERT INTO t1 VALUES ('a','k',11);
 SET @@SESSION.tmp_table_size=1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@SESSION.internal_tmp_mem_storage_engine=MEMORY;
 UPDATE t1 a, t1 b SET a.c3=22 WHERE a.c1 = b.c1;
 SELECT COUNT(*) FROM t1 WHERE c3=22;

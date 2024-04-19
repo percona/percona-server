@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <memory>
 
 #include "debug_sync.h"  // DEBUG_SYNC
 #include "my_command.h"
@@ -365,9 +366,10 @@ bool sp_lex_instr::execute_expression(THD *thd, uint *nextp) {
     return true;
   }
 
-  m_lex->restore_cmd_properties();
-  bind_fields(m_arena.item_list());
-
+  if (m_arena.get_state() != Query_arena::STMT_INITIALIZED_FOR_SP) {
+    m_lex->restore_cmd_properties();
+    bind_fields(m_arena.item_list());
+  }
   /*
     Trace the expression. This is not an SQL statement, but pretend it is
     a SELECT query expression.
@@ -787,10 +789,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !m_lex->unit->is_executed()) {
-        if (has_external_table(m_lex->query_tables)) {
-          set_external_engine_fail_reason(m_lex,
-                                          thd->get_stmt_da()->message_text());
-        }
         if (!thd->is_secondary_engine_forced()) {
           /*
             Some error occurred during resolving or optimization in
@@ -873,7 +871,8 @@ void sp_lex_instr::free_lex() {
   /* Prevent endless recursion. */
   m_lex->sphead = nullptr;
   lex_end(m_lex);
-  destroy(m_lex->result);
+  if (m_lex->result != nullptr) ::destroy_at(m_lex->result);
+  m_lex->set_secondary_engine_execution_context(nullptr);
   m_lex->destroy();
   delete (st_lex_local *)m_lex;
 
@@ -912,7 +911,8 @@ void sp_lex_instr::get_query(String *sql_query) const {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_stmt::psi_info = {0, "stmt", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_stmt::psi_info = {0, "stmt", 0,
+                                              "Stored Program: SQL statement"};
 #endif
 
 bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
@@ -1089,7 +1089,9 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_set::psi_info = {0, "set", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_set::psi_info = {
+    0, "set", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: SET statement"};
 #endif
 
 bool sp_instr_set::exec_core(THD *thd, uint *nextp) {
@@ -1132,7 +1134,8 @@ void sp_instr_set::print(const THD *thd, String *str) {
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_set_trigger_field::psi_info = {
-    0, "set_trigger_field", 0, PSI_DOCUMENT_ME};
+    0, "set_trigger_field", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: SET NEW.<field> in TRIGGER"};
 #endif
 
 bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp) {
@@ -1192,7 +1195,9 @@ void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_jump::psi_info = {0, "jump", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_jump::psi_info = {
+    0, "jump", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: jump microcode instruction"};
 #endif
 
 void sp_instr_jump::print(const THD *, String *str) {
@@ -1238,8 +1243,9 @@ void sp_instr_jump::opt_move(uint dst, List<sp_branch_instr> *bp) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_jump_if_not::psi_info = {0, "jump_if_not", 0,
-                                                     PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_jump_if_not::psi_info = {
+    0, "jump_if_not", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: jump if false microcode instruction"};
 #endif
 
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp) {
@@ -1320,8 +1326,9 @@ void sp_lex_branch_instr::opt_move(uint dst, List<sp_branch_instr> *bp) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_jump_case_when::psi_info = {0, "jump_case_when", 0,
-                                                        PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_jump_case_when::psi_info = {
+    0, "jump_case_when", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: jump CASE WHEN microcode instruction"};
 #endif
 
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp) {
@@ -1391,8 +1398,9 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_freturn::psi_info = {0, "freturn", 0,
-                                                 PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_freturn::psi_info = {
+    0, "freturn", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: RETURN from STORED FUNCTION"};
 #endif
 
 bool sp_instr_freturn::exec_core(THD *thd, uint *nextp) {
@@ -1429,8 +1437,9 @@ void sp_instr_freturn::print(const THD *thd, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_hpush_jump::psi_info = {0, "hpush_jump", 0,
-                                                    PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_hpush_jump::psi_info = {
+    0, "hpush_jump", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: install a DECLARE HANDLER microcode instruction"};
 #endif
 
 sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip, sp_pcontext *ctx,
@@ -1504,7 +1513,9 @@ uint sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_hpop::psi_info = {0, "hpop", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_hpop::psi_info = {
+    0, "hpop", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: uninstall a DECLARE HANDLER microcode instruction"};
 #endif
 
 bool sp_instr_hpop::execute(THD *thd, uint *nextp) {
@@ -1518,8 +1529,9 @@ bool sp_instr_hpop::execute(THD *thd, uint *nextp) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_hreturn::psi_info = {0, "hreturn", 0,
-                                                 PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_hreturn::psi_info = {
+    0, "hreturn", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: return from a DECLARE HANDLER microcode instruction"};
 #endif
 
 sp_instr_hreturn::sp_instr_hreturn(uint ip, sp_pcontext *ctx)
@@ -1582,7 +1594,9 @@ uint sp_instr_hreturn::opt_mark(sp_head *, List<sp_instr> *) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_cpush::psi_info = {0, "cpush", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_cpush::psi_info = {
+    0, "cpush", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: install a DECLARE CURSOR microcode instruction"};
 #endif
 
 bool sp_instr_cpush::execute(THD *thd, uint *nextp) {
@@ -1625,7 +1639,9 @@ void sp_instr_cpush::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_cpop::psi_info = {0, "cpop", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_cpop::psi_info = {
+    0, "cpop", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: uninstall a DECLARE CURSOR microcode instruction"};
 #endif
 
 bool sp_instr_cpop::execute(THD *thd, uint *nextp) {
@@ -1647,7 +1663,9 @@ void sp_instr_cpop::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_copen::psi_info = {0, "copen", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_copen::psi_info = {
+    0, "copen", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: OPEN cursor"};
 #endif
 
 bool sp_instr_copen::execute(THD *thd, uint *nextp) {
@@ -1712,8 +1730,9 @@ void sp_instr_copen::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_cclose::psi_info = {0, "cclose", 0,
-                                                PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_cclose::psi_info = {
+    0, "cclose", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: CLOSE cursor"};
 #endif
 
 bool sp_instr_cclose::execute(THD *thd, uint *nextp) {
@@ -1748,8 +1767,9 @@ void sp_instr_cclose::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_cfetch::psi_info = {0, "cfetch", 0,
-                                                PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_cfetch::psi_info = {
+    0, "cfetch", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: FETCH cursor"};
 #endif
 
 bool sp_instr_cfetch::execute(THD *thd, uint *nextp) {
@@ -1793,7 +1813,9 @@ void sp_instr_cfetch::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_error::psi_info = {0, "error", 0, PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_error::psi_info = {
+    0, "error", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: CASE WHEN not found microcode instruction"};
 #endif
 
 void sp_instr_error::print(const THD *, String *str) {
@@ -1808,8 +1830,9 @@ void sp_instr_error::print(const THD *, String *str) {
 ///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_statement_info sp_instr_set_case_expr::psi_info = {0, "set_case_expr", 0,
-                                                       PSI_DOCUMENT_ME};
+PSI_statement_info sp_instr_set_case_expr::psi_info = {
+    0, "set_case_expr", PSI_FLAG_DISABLED | PSI_FLAG_UNTIMED,
+    "Stored Program: CASE microcode instruction"};
 #endif
 
 bool sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp) {

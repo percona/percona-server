@@ -31,6 +31,7 @@
 #include "violite.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/interface/connection_acceptor.h"
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/ngs/socket_events.h"
 #include "plugin/x/src/operations_factory.h"
@@ -57,8 +58,6 @@
   do {                            \
   } while (0)
 #endif
-
-extern sigset_t mysqld_signal_mask;
 
 namespace ngs {
 
@@ -96,7 +95,7 @@ class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
     if (!vio) throw std::bad_alloc();
 
 #ifdef USE_PPOLL_IN_VIO
-    vio->signal_mask = mysqld_signal_mask;
+    vio->signal_mask = mysqld::get_mysqld_signal_mask();
 #endif
 
     // enable TCP_NODELAY

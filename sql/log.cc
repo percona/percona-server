@@ -919,8 +919,15 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err;
   }
 
-  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO))) {
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_INFO)) &&
+      thd->get_command() == COM_QUERY) {
     // Query_tables
+    //
+    // Concept of query table list doesn't apply to most of server commands
+    // other than COM_QUERY. Even if it makes sense, like for COM_STMT_EXECUTE,
+    // it might be not easily available. They might not fully initialize LEX as
+    // well, so LEX::query_tables can contain gargbage from previous statements
+    // for them.
     std::string tbl_list_str = "";
     if (thd->lex->query_tables != nullptr) {
       std::stringstream tbl_list;
@@ -1756,7 +1763,6 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
    themselves.
 
    @param thd              thread handle
-   @param cur_utime        current relative time in microseconds
 
    @return                 time in microseconds
 */

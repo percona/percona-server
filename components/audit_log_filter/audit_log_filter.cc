@@ -258,9 +258,8 @@ static std::array udfs_list{
     DECLARE_AUDIT_INT_UDF_INFO(audit_log_session_filter_id)};
 
 /**
- * @brief Initialize the plugin at server start or plugin installation.
+ * @brief Initialize the component at server start or component installation.
  *
- * @param plugin_info Pointer to plugin info structure
  * @return Initialization status, 0 in case of success or non zero
  *         code otherwise
  */
@@ -376,9 +375,9 @@ mysql_service_status_t audit_log_filter_init() {
 }
 
 /**
- * @brief Terminate the plugin at server shutdown or plugin deinstallation.
+ * @brief Terminate the component at server shutdown or component
+ *        deinstallation.
  *
- * @param arg Plugin descriptor pointer
  * @return Plugin deinit status, 0 in case of success or non zero
  *         code otherwise
  */

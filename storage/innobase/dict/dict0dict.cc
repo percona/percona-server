@@ -3611,7 +3611,7 @@ ulint dict_table_get_highest_foreign_id(
 
   biggest_id = (size > biggest_id) ? size : biggest_id;
 
-  DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: %lu", biggest_id));
+  DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: " ULINTPF, biggest_id));
 
   return biggest_id;
 }
@@ -6193,7 +6193,6 @@ Must be freed with mem_free().
 @param[out]	name_len	dictionary name length
 @param[out]	data		dictionary data
 @param[out]	data_len	dictionary data lenght
-@param[in]	dict_locked	true if data dictionary locked
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
@@ -6279,7 +6278,6 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
 }
 
 /** Reads mysql.ibd's page0 directly from disk
-@param[in] buf - buffer for reading page0 into
 @return tuple <0> success - true if no error
               <1> true if encryption flag is set, false otherwise */
 static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
@@ -6323,10 +6321,10 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
 /** Detect if mysql.ibd's page0 has encryption flag set.
 The page 0 either read from buffer (if available) or
 directly from disk.
-@return tuple <0> success - true if no error
-              <1> true if encryption flag is set, false otherwise */
+@return tuple 0 success - true if no error
+              1 true if encryption flag is set, false otherwise */
 static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
-  //<0> element - success, <1> element - encryption flag
+  // 0 element - success, 1 element - encryption flag
   auto result = std::make_tuple(false, false);
 
   /* read from buffer */

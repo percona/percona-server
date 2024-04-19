@@ -138,7 +138,7 @@ set big_tables=0;
 # limits and queries.
 set @@tmp_table_size=1024,@@max_heap_table_size=16384;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 set cte_max_recursion_depth=5000;
 flush status;
 with recursive q (b) as
@@ -212,7 +212,7 @@ Variable_name	Value
 Created_tmp_disk_tables	1
 set @@tmp_table_size=30000,@@max_heap_table_size=30000;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 Warning	1292	Truncated incorrect max_heap_table_size value: '30000'
 set cte_max_recursion_depth=5000;
 flush status;
@@ -287,7 +287,7 @@ Variable_name	Value
 Created_tmp_disk_tables	1
 set @@tmp_table_size=60000,@@max_heap_table_size=61000;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 Warning	1292	Truncated incorrect max_heap_table_size value: '61000'
 set cte_max_recursion_depth=5000;
 flush status;

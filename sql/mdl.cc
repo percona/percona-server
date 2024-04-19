@@ -4050,7 +4050,7 @@ end:
 
   @retval true  A deadlock is found. A pointer to deadlock
                  victim is saved in the visitor.
-  @retval false
+  @retval false TBD
 */
 
 bool MDL_ticket::accept_visitor(MDL_wait_for_graph_visitor *gvisitor) {
@@ -4070,7 +4070,7 @@ bool MDL_ticket::accept_visitor(MDL_wait_for_graph_visitor *gvisitor) {
 
   @retval true  A deadlock is found. A pointer to deadlock
                 victim is saved in the visitor.
-  @retval false
+  @retval false TBD
 */
 
 bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor) {

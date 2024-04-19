@@ -20,8 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 ADD_WSHADOW_WARNING()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
@@ -436,7 +434,6 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/print_utils.cc
   join_optimizer/relational_expression.cc
   join_optimizer/replace_item.cc
-  json_diff.cc
   json_schema.cc
   key.cc
   key_spec.cc
@@ -792,6 +789,7 @@ SET(SQL_SOURCE
   ../sql-common/bind_params.cc
   ../sql-common/json_binary.cc
   ../sql-common/my_decimal.cc
+  ../sql-common/json_diff.cc
   ../sql-common/json_dom.cc
   ../sql-common/json_error_handler.cc
   ../sql-common/json_path.cc
@@ -969,13 +967,14 @@ ADD_DEPENDENCIES(sql_main GenSysSchema)
 
 MYSQL_ADD_PLUGIN(mysql_native_password
   auth/mysql_native_password.cc
+  LINK_LIBRARIES extra::boost
   SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
   STATIC_ONLY DEFAULT)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto
-  extra::rapidjson)
+  extra::rapidjson extra::boost)
 
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
@@ -989,6 +988,7 @@ ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
 TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
+TARGET_LINK_LIBRARIES(sql_gis extra::boost)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 # Suppress warnings for clang-18 or newer
@@ -1045,6 +1045,7 @@ SET(BINLOG_SOURCE
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
+  changestreams/index/locked_sidno_set.cc
   changestreams/misc/replicated_columns_view.cc
   changestreams/misc/replicated_columns_view_with_gipk_on_source.cc
   changestreams/misc/column_filters/column_filter_inbound_func_indexes.cc
@@ -1060,7 +1061,7 @@ SET(BINLOG_SOURCE
   rpl_gtid_owned.cc
   rpl_gtid_persist.cc
   rpl_gtid_set.cc
-  rpl_gtid_sid_map.cc
+  rpl_gtid_tsid_map.cc
   rpl_gtid_specification.cc
   rpl_gtid_state.cc
   rpl_injector.cc
@@ -1107,7 +1108,6 @@ SET (RPL_REPLICA_SRCS
   rpl_info.cc
   rpl_info_dummy.cc
   rpl_info_factory.cc
-  rpl_info_file.cc
   rpl_info_handler.cc
   rpl_info_table.cc
   rpl_info_table_access.cc
@@ -1248,11 +1248,18 @@ IF(FPROFILE_GENERATE)
 ENDIF()
 
 IF(MSVC)
-  # Set module definition file.
-  SET_TARGET_PROPERTIES(mysqld
-    PROPERTIES LINK_FLAGS
+  ADD_DEPENDENCIES(sql_main GenError)
+  IF(MYSQLD_DEF_FILE)
+    # Set module definition file.
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS
+        "${mysqld_link_flags} /DEF:${MYSQLD_DEF_FILE}")
+  ELSE()
+    # Set module definition file.
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS
     "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def")
-
+  ENDIF()
   SET(_PLATFORM  x64)
 
   MYSQL_ADD_EXECUTABLE(create_def create_def.cc SKIP_INSTALL)

@@ -148,7 +148,7 @@ class ib_counter_t {
 
   /** Use this if you can use a unique indentifier, saves a
   call to get_rnd_index().
-  @param i - index into a slot
+  @param index - index into a slot
   @param n - amount to increment */
   void add(size_t index, Type n) {
     size_t i = m_policy.offset(index);
@@ -162,7 +162,7 @@ class ib_counter_t {
   void dec() { sub(1); }
 
   /** If you can't use a good index id.
-   * @param - n is the amount to decrement */
+   * @param n is the amount to decrement */
   void sub(Type n) {
     size_t i = m_policy.offset(m_policy.get_rnd_index());
 
@@ -173,7 +173,7 @@ class ib_counter_t {
 
   /** Use this if you can use a unique indentifier, saves a
   call to get_rnd_index().
-  @param i - index into a slot
+  @param index - index into a slot
   @param n - amount to decrement */
   void sub(size_t index, Type n) {
     size_t i = m_policy.offset(index);

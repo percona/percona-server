@@ -20,7 +20,7 @@
 # 1. Execute $_CREATE_TABLE_QUERY on source server.
 # 2. Sync the replica server with source server.
 # 3. Execute ALTER TABLE on replica server.
-# 4. For each value of slave_rows_search_algorithms, do
+# 4. Replicate and validate the data
 #    4.1. Execute $_DATA_INSERT_QUERY on source server.
 #    4.2. Sync the replica server with source server.
 #    4.3. Execute $_TEST_QUERY on source server.
@@ -61,82 +61,44 @@
 --eval $_ALTER_TABLE_QUERY
 
 --echo #
---echo # 4. Test with all combinations of slave_rows_search_algorithms.
+--echo # 4. Replicate and validate the data.
 --echo #
---let $k= 0
-while ($k < 7) {
 
-  if ($k == 0) {
-    SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN';
-  }
+# Execute $_DATA_INSERT_QUERY on source server.
+--source include/rpl_connection_master.inc
+--eval $_DATA_INSERT_QUERY
 
-  if ($k == 1) {
-    SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN';
-  }
+# Sync replica server with source server.
+--source include/sync_slave_sql_with_master.inc
 
-  if ($k == 2) {
-    SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN';
-  }
+# Execute $_TEST_QUERY on source server.
+--source include/rpl_connection_master.inc
+--eval $_TEST_QUERY
 
-  if ($k == 3) {
-    SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN';
-  }
+# Sync replica server with source server.
+--source include/sync_slave_sql_with_master.inc
 
-  if ($k == 4) {
-    SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
-  }
+# Assert that replica table has $expected_row_count rows.
+--let $assert_text= There are exactly $expected_row_count rows on replica server
+--let $assert_cond= COUNT(*) = $expected_row_count FROM $table_name
+--source include/assert.inc
 
-  if ($k == 5) {
-    SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
-  }
+# Verify that both source and replica tables have same rows except the rows
+# listed in $columns_to_be_masked.
+--let $diff_tables= master:$table_name, slave:$table_name
+--let $mask_column_list= $columns_to_be_masked
+--source include/diff_tables.inc
 
-  if ($k == 6) {
-    SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN,INDEX_SCAN';
-  }
+# Execute $_DISPLAY_QUERY query to display the contents after validation.
+--source include/rpl_connection_master.inc
+--eval $_DISPLAY_QUERY
+--source include/rpl_connection_slave.inc
+--eval $_DISPLAY_QUERY
 
-  --let $search_algorithm = `SELECT @@GLOBAL.slave_rows_search_algorithms`
-  --echo
-  --echo # Testing with $search_algorithm
-  --echo #
-
-  # Execute $_DATA_INSERT_QUERY on source server.
-  --source include/rpl_connection_master.inc
-  --eval $_DATA_INSERT_QUERY
-
-  # Sync replica server with source server.
-  --source include/sync_slave_sql_with_master.inc
-
-  # Execute $_TEST_QUERY on source server.
-  --source include/rpl_connection_master.inc
-  --eval $_TEST_QUERY
-
-  # Sync replica server with source server.
-  --source include/sync_slave_sql_with_master.inc
-
-  # Assert that replica table has $expected_row_count rows.
-  --let $assert_text= There are exactly $expected_row_count rows on replica server
-  --let $assert_cond= COUNT(*) = $expected_row_count FROM $table_name
-  --source include/assert.inc
-
-  # Verify that both source and replica tables have same rows except the rows
-  # listed in $columns_to_be_masked.
-  --let $diff_tables= master:$table_name, slave:$table_name
-  --let $mask_column_list= $columns_to_be_masked
-  --source include/diff_tables.inc
-
-  # Execute $_DISPLAY_QUERY query to display the contents after validation.
-  --source include/rpl_connection_master.inc
-  --eval $_DISPLAY_QUERY
-  --source include/rpl_connection_slave.inc
-  --eval $_DISPLAY_QUERY
-
-  # Execute $_CLEANUP_ITER_QUERY before next iteration.
-  --source include/rpl_connection_master.inc
-  --eval $_CLEANUP_ITER_QUERY
-  --source include/sync_slave_sql_with_master.inc
-
-  --inc $k
-}
+# Execute $_CLEANUP_ITER_QUERY before next iteration.
+--source include/rpl_connection_master.inc
+--eval $_CLEANUP_ITER_QUERY
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # 5. Cleanup

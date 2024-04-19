@@ -476,14 +476,6 @@ ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint srv_lock_table_size = ULINT_MAX;
 
-/** The maximum time limit for a single LRU tail flush iteration by the page
-cleaner thread */
-ulint srv_cleaner_max_lru_time = 1000;
-
-/** The maximum time limit for a single flush list flush iteration by the page
-cleaner thread */
-ulint srv_cleaner_max_flush_time = 1000;
-
 /** Page cleaner LSN age factor formula option */
 ulong srv_cleaner_lsn_age_factor = SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
 
@@ -1220,11 +1212,6 @@ static void srv_init(void) {
       UT_NEW_THIS_FILE_PSI_KEY,
       ut::Count{srv_threads.m_page_cleaner_workers_n});
 
-  srv_threads.m_lru_managers_n = srv_buf_pool_instances;
-
-  srv_threads.m_lru_managers = ut::new_arr_withkey<IB_thread>(
-      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{srv_threads.m_lru_managers_n});
-
   srv_sys = static_cast<srv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));
 
@@ -1324,14 +1311,6 @@ void srv_free(void) {
   ut::free(srv_sys);
 
   srv_sys = nullptr;
-
-  if (srv_threads.m_lru_managers != nullptr) {
-    for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
-      srv_threads.m_lru_managers[i] = {};
-    }
-    ut::free(srv_threads.m_lru_managers);
-    srv_threads.m_lru_managers = nullptr;
-  }
 
   if (srv_threads.m_page_cleaner_workers != nullptr) {
     for (size_t i = 0; i < srv_threads.m_page_cleaner_workers_n; ++i) {

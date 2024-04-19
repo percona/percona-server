@@ -26,8 +26,10 @@
 /**
   Get start timers for cpu_time and busy_time.
 
-  @return start_busy_usecs  Start value of busy_time or 0.0 in case of error
-  @return start_cpu_nsecs   Start value of cpu_time or 0.0 in case of error
+  @param [in,out] start_busy_usecs  Start value of busy_time or 0.0
+                                    in case of error
+  @param [in,out] start_cpu_nsecs   Start value of cpu_time or 0.0
+                                    in case of error
 */
 void userstat_start_timer(double *start_busy_usecs,
                           double *start_cpu_nsecs) noexcept {
@@ -51,12 +53,12 @@ void userstat_start_timer(double *start_busy_usecs,
   Get interval time for cpu_time and busy_time between calls to
   userstat_start_timer() and this function.
 
-  @param  start_busy_usecs  Start value of busy_time or 0.0 in case of error
-  @param  start_cpu_nsecs   Start value of cpu_time or 0.0 in case of error
-  @return busy_sec          Interval time for busy_time in seconds or 0.0 in
-                            case of error
-  @return cpu_sec           Interval time for cpu_time in seconds or 0.0 in case
-                            of error
+  @param [in] start_busy_usecs  Start value of busy_time or 0.0 in case of error
+  @param [in] start_cpu_nsecs   Start value of cpu_time or 0.0 in case of error
+  @param [in,out] busy_sec      Interval time for busy_time in seconds or 0.0
+                                in case of error
+  @param [in,out] cpu_sec       Interval time for cpu_time in seconds or 0.0
+                                in case of error
 */
 void userstat_finish_timer(double start_busy_usecs, double start_cpu_nsecs,
                            double *busy_sec, double *cpu_sec) noexcept {

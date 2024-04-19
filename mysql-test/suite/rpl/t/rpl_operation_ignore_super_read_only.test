@@ -19,8 +19,6 @@
 #               MANY RPL CMDS.
 # Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
 #               OPTION
-# Bug#27675107: SUPER_READ_ONLY WITH MASTER_INFO_REPOSITORY=TABLE BREAKS
-#               REPLICATION ON RESTART
 
 # Test in this file only makes sense in standard replication,
 # so it is skipped in group replication.
@@ -28,8 +26,6 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 

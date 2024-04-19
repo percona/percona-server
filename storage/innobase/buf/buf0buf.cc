@@ -57,7 +57,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "page0page.h"
-#include "scope_guard.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -387,6 +386,9 @@ ulint buf_get_flush_list_len(const buf_pool_t *buf_pool) {
 lsn_t buf_pool_get_oldest_modification_approx(void) {
   lsn_t lsn = 0;
   lsn_t oldest_lsn = 0;
+
+  /* When we traverse all the flush lists we don't care if previous
+  flush lists changed. We do not require consistent result. */
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
@@ -1358,9 +1360,6 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     os_event_set(buf_pool->no_flush[i]);
   }
 
-  buf_pool->run_lru = os_event_create();
-  os_event_set(buf_pool->run_lru);
-
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
@@ -1455,8 +1454,6 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
     os_event_destroy(buf_pool->no_flush[i]);
   }
-
-  os_event_destroy(buf_pool->run_lru);
 
   ut::free(buf_pool->chunks);
   mutex_exit(&buf_pool->chunks_mutex);
@@ -2699,6 +2696,9 @@ void buf_pool_clear_hash_index(void) {
 
   DEBUG_SYNC_C("purge_wait_for_btr_search_latch");
 
+  bool pause_before_processing = DBUG_EVALUATE_IF(
+      "buf_pool_clear_hash_index_check_other_blocks", true, false);
+
   for (ulong p = 0; p < srv_buf_pool_instances; p++) {
     buf_pool_t *const buf_pool = buf_pool_from_array(p);
     buf_chunk_t *const chunks = buf_pool->chunks;
@@ -2718,6 +2718,13 @@ void buf_pool_clear_hash_index(void) {
           /* The block is already not in AHI, and it can't be added before the
           AHI is re-enabled, so there's nothing to be done here. */
           continue;
+        }
+
+        /* Identify target block and sync with test */
+        if (pause_before_processing && block->page.old &&
+            !block->page.is_dirty()) {
+          DEBUG_SYNC_C("buf_pool_clear_hash_index_will_process_block");
+          pause_before_processing = false;
         }
 
         /* This latch will prevent block state transitions. It is important for
@@ -2753,6 +2760,8 @@ void buf_pool_clear_hash_index(void) {
             /* No other state should have AHI */
             ut_ad(block->ahi.index == nullptr);
             ut_ad(block->ahi.n_pointers == 0);
+            /* Go to next block as AHI is already nullptr */
+            continue;
         }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -2764,6 +2773,13 @@ void buf_pool_clear_hash_index(void) {
         btr_search_set_block_not_cached(block);
       }
     }
+  }
+
+  /* Main intent was to identify target block. Due to rare race conditions, such
+  block is not found. To prevent timeout, unblock in case target block is not
+  found */
+  if (pause_before_processing) {
+    DEBUG_SYNC_C("buf_pool_clear_hash_index_will_process_block");
   }
 }
 
@@ -6170,17 +6186,18 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  os_event_reset(buf_pool->run_lru);
-  auto guard = create_scope_guard([&]() { os_event_set(buf_pool->run_lru); });
-
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    /* Although this function is called during startup and
-    during redo application phase during recovery, Percona InnoDB
-    might be running several LRU manager threads at this stage.
-    Hence, a new write batch can be in initialization stage at this point. */
+    /* As this function is called during startup and during redo application
+    phase during recovery, a flush might be requested either by
+    recv_writer thread (which is not started yet, or paused by writer_mutex), or
+    by our own thread (in which case we wait for it to finish initialization).
+    No new write batch can be in initialization stage at this point.
+    This also explains why we don't need flush_state_mutex to assert this. */
+    ut_ad(!buf_pool->init_flush[i]);
 
-    /* For buffer pool invalidation to proceed we must ensure there is NO
-    write activity happening. */
+    /* However, it is possible that a write batch that has been posted earlier
+    is still not complete. For buffer pool invalidation to proceed we must
+    ensure there is NO write activity happening. */
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
 

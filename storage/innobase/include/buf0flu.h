@@ -42,9 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Checks if the page_cleaner is in active state. */
 bool buf_flush_page_cleaner_is_active();
 
-/** Returns the count of currently active LRU manager threads. */
-MY_NODISCARD size_t buf_flush_active_lru_managers() noexcept;
-
 #ifdef UNIV_DEBUG
 
 /** Value of MySQL global variable used to disable page cleaner. */
@@ -192,8 +189,8 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage);
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 
-/** Disables page cleaner threads (coordinator and workers) and LRU manager
-threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers).
+It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]      thd             thread handle
 @param[in]      var             pointer to system variable
 @param[out]     var_ptr         where the formal string goes
@@ -321,15 +318,6 @@ class Flush_observer {
   @param[in]    bpage           buffer page flushed */
   void notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage);
 
-  /** Increase the estimate of dirty pages by this observer
-  @param[in]	block		buffer pool block */
-  void inc_estimate(const buf_block_t &block) noexcept;
-
-  /** @return estimate of dirty pages to be flushed */
-  ulint get_estimate() const noexcept {
-    return (m_estimate.load(std::memory_order_relaxed));
-  }
-
  private:
   using Counter = std::atomic_int;
   using Counters = std::vector<Counter, ut::allocator<Counter>>;
@@ -362,13 +350,6 @@ class Flush_observer {
 
   /** True if the operation was interrupted. */
   bool m_interrupted{};
-
-  /* Estimate of pages to be flushed */
-  std::atomic<ulint> m_estimate;
-
-  /** LSN at which observer started observing. This is
-  used to find the dirty blocks that are dirtied before Observer */
-  const lsn_t m_lsn;
 };
 
 lsn_t get_flush_sync_lsn() noexcept;

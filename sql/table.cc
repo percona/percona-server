@@ -66,7 +66,8 @@
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "nulls.h"
-#include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql-common/json_diff.h"  // Json_diff_vector
+#include "sql-common/json_dom.h"   // Json_wrapper
 #include "sql-common/json_path.h"
 #include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
@@ -91,8 +92,7 @@
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/json_diff.h"  // Json_diff_vector
-#include "sql/key.h"        // find_ref_key
+#include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
 #include "sql/mysqld.h"  // reg_ext key_file_frm ...
 #include "sql/nested_join.h"
@@ -554,8 +554,8 @@ void TABLE_SHARE::destroy() {
     delete ha_share;
     ha_share = nullptr;
   }
-  if (m_part_info) {
-    ::destroy(m_part_info);
+  if (m_part_info != nullptr) {
+    ::destroy_at(m_part_info);
     m_part_info = nullptr;
   }
   /* The mutex is initialized only for shares that are part of the TDC */
@@ -2352,7 +2352,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
-  destroy(handler_file);
+  ::destroy_at(handler_file);
   my_free(extra_segment_buff);
   return 0;
 
@@ -2361,7 +2361,7 @@ err:
   my_free(extra_segment_buff);
   share->fields = 0;
   share->field = 0;
-  destroy(handler_file);
+  if (handler_file != nullptr) ::destroy_at(handler_file);
 
   open_table_error(thd, share, error, my_errno());
   return error;
@@ -3392,7 +3392,7 @@ err:
     outparam->histograms = nullptr;
   }
   if (!error_reported) open_table_error(thd, share, error, my_errno());
-  destroy(outparam->file);
+  ::destroy_at(outparam->file);
   if (outparam->part_info) free_items(outparam->part_info->item_list);
   if (outparam->vfield) {
     for (Field **vfield = outparam->vfield; *vfield; vfield++)
@@ -3434,7 +3434,7 @@ int closefrm(TABLE *table, bool free_share) {
       if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);
       if ((*ptr)->m_default_val_expr)
         free_items((*ptr)->m_default_val_expr->item_list);
-      destroy(*ptr);
+      ::destroy_at(*ptr);
     }
     table->field = nullptr;
   }
@@ -3443,7 +3443,7 @@ int closefrm(TABLE *table, bool free_share) {
       free_items(table_cc.value_generator()->item_list);
     }
   }
-  destroy(table->file);
+  if (table->file != nullptr) ::destroy_at(table->file);
   table->file = nullptr; /* For easier errorchecking */
   if (table->part_info) {
     /* Allocated through table->mem_root, freed below */
@@ -3554,7 +3554,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                  : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
                                         : ER_SERVER_CANT_OPEN_FILE,
              buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
-      destroy(file);
+      ::destroy_at(file);
       break;
     }
     default: /* Better wrong error than none */
@@ -7471,6 +7471,7 @@ uint Table_ref::get_hidden_field_count_for_derived() const {
 bool Table_ref::is_external() const {
   if (m_table_ref_type == TABLE_REF_BASE_TABLE && table != nullptr &&
       table->file != nullptr) {
+    if (is_placeholder()) return false;
     handler *primary_handler = table->get_primary_handler();
     return primary_handler != nullptr &&
            Overlaps(primary_handler->ht->flags,
@@ -7608,7 +7609,9 @@ struct Partial_update_info {
   }
 
   ~Partial_update_info() {
-    for (auto v : m_logical_diff_vectors) destroy(v);
+    for (auto *v : m_logical_diff_vectors) {
+      if (v != nullptr) ::destroy_at(v);
+    }
   }
 
   /**
@@ -7730,18 +7733,16 @@ bool TABLE::setup_partial_update() {
       (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
       mysql_bin_log.is_open() &&
       (thd->variables.option_bits & OPTION_BIN_LOG) != 0 &&
-      log_bin_use_v1_row_events == 0 &&
       thd->is_current_stmt_binlog_format_row();
-  DBUG_PRINT(
-      "info",
-      ("TABLE::setup_partial_update(): logical_diffs=%d "
-       "because binlog_row_value_options=%d binlog.is_open=%d "
-       "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
-       logical_diffs,
-       (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0,
-       mysql_bin_log.is_open(),
-       (thd->variables.option_bits & OPTION_BIN_LOG) != 0,
-       log_bin_use_v1_row_events, thd->is_current_stmt_binlog_format_row()));
+  DBUG_PRINT("info", ("TABLE::setup_partial_update(): logical_diffs=%d "
+                      "because binlog_row_value_options=%d binlog.is_open=%d "
+                      "sql_log_bin=%d rbr=%d",
+                      logical_diffs,
+                      (thd->variables.binlog_row_value_options &
+                       PARTIAL_JSON_UPDATES) != 0,
+                      mysql_bin_log.is_open(),
+                      (thd->variables.option_bits & OPTION_BIN_LOG) != 0,
+                      thd->is_current_stmt_binlog_format_row()));
   return setup_partial_update(logical_diffs);
 }
 
@@ -7756,7 +7757,7 @@ bool TABLE::has_columns_marked_for_partial_update() const {
 
 void TABLE::cleanup_partial_update() {
   DBUG_TRACE;
-  destroy(m_partial_update_info);
+  if (m_partial_update_info != nullptr) ::destroy_at(m_partial_update_info);
   m_partial_update_info = nullptr;
 }
 

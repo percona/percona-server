@@ -42,7 +42,6 @@
 #include <vector>
 
 /* MySQL includes */
-#include "my_bit.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
 #include "mysql/thread_pool_priv.h"
@@ -3936,7 +3935,7 @@ class Rdb_transaction {
     Check whether secondary key value is duplicate or not
 
     @param[in] table_arg         the table currently working on
-    @param[in  key_def           the key_def is being checked
+    @param[in] key_def           the key_def is being checked
     @param[in] key               secondary key storage data
     @param[out] sk_info          hold secondary key memcmp datas(new/old)
     @return
@@ -7577,7 +7576,7 @@ static handler *rocksdb_create_handler(my_core::handlerton *const hton,
   if (partitioned) {
     ha_rockspart *file = new (mem_root) ha_rockspart(hton, table_arg);
     if (file && file->init_partitioning(mem_root)) {
-      destroy(file);
+      destroy_at(file);
       return (nullptr);
     }
     return (file);
@@ -8881,9 +8880,10 @@ bool ha_rocksdb::contains_foreign_key(THD *const thd) {
   splits the normalized table name of <dbname>.<tablename>#P#<part_no> into
   the <dbname>, <tablename> and <part_no> components.
 
-  @param dbbuf returns database name/table_schema
-  @param tablebuf returns tablename
-  @param partitionbuf returns partition suffix if there is one
+  @param fullname  normalized table name
+  @param db        returns database name/table_schema
+  @param table     returns table name
+  @param partition returns partition suffix if there is one
   @return HA_EXIT_SUCCESS on success, non-zero on failure to split
 */
 int rdb_split_normalized_tablename(const std::string &fullname,
@@ -10713,10 +10713,10 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
 /**
    Check the specified primary key value is unique and also lock the row
 
-  @param[in] row_info         hold all data for update row, such as old row
-                              data and new row data
-  @param[out] found           whether the primary key exists before.
-  @param[out] pk_changed      whether primary key is changed
+  @param[in] row_info           hold all data for update row, such as old row
+                                data and new row data
+  @param[out] found             whether the primary key exists before.
+  @param[out] skip_unique_check whether to skip key uniqueness check
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -11141,7 +11141,7 @@ int ha_rocksdb::finalize_bulk_load(bool print_client_error) {
   Update an existing primary key record or write a new primary key record
 
   @param[in] kd                the primary key is being update/write
-  @param[in] update_row_info   hold all row data, such as old row data and
+  @param[in] row_info          hold all row data, such as old row data and
                                new row data
   @param[in] pk_changed        whether primary key is changed
   @return
@@ -15974,7 +15974,7 @@ bool ha_rocksdb::check_bloom_and_set_bounds(
    If bloom filter does not exist, return value does not matter because
    RocksDB does not use bloom filter internally.
 
-  @param kd
+  @param kd           Index information.
   @param eq_cond      Equal condition part of the key. This always includes
                       system index id (4 bytes).
 */

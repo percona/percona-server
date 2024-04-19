@@ -1709,7 +1709,7 @@ to check whether it is encrypted.
 @param[in]  dict_init_mode      initalization mode
 @param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
                                 during upgrade
-@param[out] do_encrypt          true if encrypted, false if not encrypted
+@param[out] encrypt_mysql       true if encrypted, false if not encrypted
 @return true if success, false if failure */
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
                                          space_id_t mysql_plugin_space,

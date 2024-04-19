@@ -918,12 +918,6 @@ class Global_read_lock {
   void unlock_global_read_lock(THD *thd);
 
   /**
-    Used by innodb memcached server to check if any connections
-    have global read lock
-  */
-  static bool global_read_lock_active() { return m_atomic_active_requests > 0; }
-
-  /**
     Check if this connection can acquire protection against GRL and
     emit error if otherwise.
   */
@@ -939,7 +933,6 @@ class Global_read_lock {
   void set_explicit_lock_duration(THD *thd);
 
  private:
-  static std::atomic<int32> m_atomic_active_requests;
   enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must
@@ -1038,10 +1031,7 @@ class Bloom_filter final {
   /**
      Check whether key is maybe a member of a set
 
-     @param[in, out]    mem_root        MEM_ROOT to allocate the bit set in, if
-      not allocated already
-     @param[in]         key             key whose presence to check
-
+     @param[in] key key whose presence to check
      @return if true, the key might be a member of the set. If false, the key
      is definitely not a member of the set.
   */
@@ -4071,10 +4061,10 @@ class THD : public MDL_context_owner,
   static const int OWNED_SIDNO_ANONYMOUS = -2;
 
   /**
-    For convenience, this contains the SID component of the GTID
+    For convenience, this contains the TSID component of the GTID
     stored in owned_gtid.
   */
-  rpl_sid owned_sid;
+  mysql::gtid::Tsid owned_tsid;
 
   /** SE GTID persistence flag types. */
   enum Se_GTID_flag : size_t {
@@ -4097,10 +4087,10 @@ class THD : public MDL_context_owner,
   /** Flags for SE GTID persistence. */
   Se_GTID_flagset m_se_gtid_flags;
 
-  /** Defer freeing owned GTID and SID till unpinned. */
+  /** Defer freeing owned GTID and TSID till unpinned. */
   void pin_gtid() { m_se_gtid_flags.set(SE_GTID_PIN); }
 
-  /** Unpin and free GTID and SID. */
+  /** Unpin and free GTID and TSID. */
   void unpin_gtid() {
     m_se_gtid_flags.reset(SE_GTID_PIN);
     /* Do any deferred cleanup */
@@ -4192,7 +4182,7 @@ class THD : public MDL_context_owner,
 #endif
     }
     owned_gtid.clear();
-    owned_sid.clear();
+    owned_tsid.clear();
     owned_gtid.dbug_print(nullptr, "set owned_gtid in clear_owned_gtids");
   }
 
@@ -5114,7 +5104,12 @@ class THD : public MDL_context_owner,
   Event_reference_caching_cache *events_cache_{nullptr};
   Event_tracking_data_stack event_tracking_data_;
   bool audit_plugins_present;
-};  // End of class THD
+
+ public:
+  /// Flag indicating whether this session incremented the number of sessions
+  /// with GTID_NEXT set to AUTOMATIC:tag
+  bool has_incremented_gtid_automatic_count;
+};
 
 /**
    Return lock_tables_mode for secondary engine.

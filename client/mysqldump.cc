@@ -3420,7 +3420,7 @@ static inline bool innodb_stats_tables(const char *db, const char *table) {
    Checks if --add-drop-table option is enabled and prints
    "DROP TABLE IF EXISTS ..." if the specified table is not a log table.
 
-   @param sq_file            output file
+   @param sql_file           output file
    @param db                 db name
    @param table              table name
    @param opt_quoted_table   optionally quoted table name
@@ -5544,8 +5544,7 @@ static int dump_all_tables_in_db(char *database) {
     dynstr_free(&query);
   }
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG))
-      DB_error(mysql, "when doing refresh");
+    if (mysql_query(mysql, "FLUSH LOGS")) DB_error(mysql, "when doing refresh");
     /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
@@ -5700,8 +5699,7 @@ static bool dump_all_views_in_db(char *database) {
     dynstr_free(&query);
   }
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG))
-      DB_error(mysql, "when doing refresh");
+    if (mysql_query(mysql, "FLUSH LOGS")) DB_error(mysql, "when doing refresh");
     /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_all_views_in_db : logs flushed successfully!\n");
@@ -5819,7 +5817,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs) {
-    if (mysql_refresh(mysql, REFRESH_LOG)) {
+    if (mysql_query(mysql, "FLUSH LOGS")) {
       if (!opt_force) root.Clear();
       DB_error(mysql, "when doing refresh");
     }
@@ -7197,7 +7195,7 @@ int main(int argc, char **argv) {
   if (opt_lock_all_tables || opt_source_data ||
       (opt_single_transaction && flush_logs) || opt_delete_source_logs) {
     if (flush_logs || opt_delete_source_logs) {
-      if (mysql_refresh(mysql, REFRESH_LOG)) {
+      if (mysql_query(mysql, "FLUSH LOGS")) {
         DB_error(mysql, "when doing refresh");
         goto err;
       }

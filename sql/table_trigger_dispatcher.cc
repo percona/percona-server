@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <sys/types.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -100,13 +101,16 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher() {
 
   if (m_record1_field) {
     for (Field **fld_ptr = m_record1_field; *fld_ptr; fld_ptr++)
-      destroy(*fld_ptr);
+      ::destroy_at(*fld_ptr);
   }
 
   // Destroy trigger chains.
 
-  for (int i = 0; i < (int)TRG_EVENT_MAX; ++i)
-    for (int j = 0; j < (int)TRG_ACTION_MAX; ++j) destroy(m_trigger_map[i][j]);
+  for (int i = 0; i < (int)TRG_EVENT_MAX; ++i) {
+    for (int j = 0; j < (int)TRG_ACTION_MAX; ++j) {
+      if (m_trigger_map[i][j] != nullptr) ::destroy_at(m_trigger_map[i][j]);
+    }
+  }
 }
 bool Table_trigger_dispatcher::create_trigger(
     THD *thd, String *binlog_create_trigger_stmt, bool if_not_exists,
@@ -241,7 +245,7 @@ bool Table_trigger_dispatcher::create_trigger(
       &m_subject_table->mem_root, t->get_event(), t->get_action_time());
 
   if (!tc) {
-    destroy(t);
+    ::destroy_at(t);
     return true;
   }
 
@@ -250,7 +254,7 @@ bool Table_trigger_dispatcher::create_trigger(
   if (tc->add_trigger(&m_subject_table->mem_root, t,
                       lex->sphead->m_trg_chistics.ordering_clause,
                       lex->sphead->m_trg_chistics.anchor_trigger_name)) {
-    destroy(t);
+    ::destroy_at(t);
     return true;
   }
 
@@ -490,7 +494,7 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd, List<Trigger> *triggers,
       }
 
       if (fatal_parse_error) {
-        destroy(t);
+        ::destroy_at(t);
         it.remove();
       }
 

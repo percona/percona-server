@@ -440,7 +440,7 @@ a	quux
 DROP TABLE t1;
 set tmp_table_size=1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 create table t1 (id int, a int, key idx(a));
 create table t2 (id int unsigned not null auto_increment primary key, a int);
 insert into t2(a) values(1),(2),(3),(4),(5),(6),(7),(8);
@@ -850,9 +850,9 @@ id INTEGER NOT NULL AUTO_INCREMENT,
 token VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (id),
 KEY token (token)
-)DEFAULT CHARSET=utf8;
+)DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 SET sql_mode='';
 UPDATE t1 SET token = X'ad';

@@ -1427,8 +1427,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   LEX *lex = thd->lex;
   set_var_base *var;
   if (!thd->lex->unit->is_prepared()) {
-    lex->using_hypergraph_optimizer =
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+    lex->set_using_hypergraph_optimizer(
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER));
 
     const Prepared_stmt_arena_holder ps_arena_holder(thd);
     while ((var = it++)) {
@@ -1462,7 +1462,6 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
           "lc_messages_dir",
           "plugin_dir",
           "relay_log",
-          "relay_log_info_file",
           "replica_load_tmpdir",
           "socket",
           "tmpdir",

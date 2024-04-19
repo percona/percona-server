@@ -1069,7 +1069,7 @@ DROP TABLE t1;
 SET @tmp_table_size_save= @@tmp_table_size;
 SET @@tmp_table_size= 1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 INSERT INTO t1 SELECT a+8 FROM t1;

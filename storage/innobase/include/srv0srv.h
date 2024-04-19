@@ -252,12 +252,6 @@ struct Srv_threads {
   same shared state as m_page_cleaner_coordinator. */
   IB_thread *m_page_cleaner_workers;
 
-  /** Number of LRU manager threads and size of array below. */
-  size_t m_lru_managers_n;
-
-  /** LRU manager threads. */
-  IB_thread *m_lru_managers;
-
   /** Archiver's log archiver (used by Clone). */
   IB_thread m_log_archiver;
 
@@ -650,14 +644,6 @@ extern ulint srv_show_locks_held;
 
 extern ulint srv_lock_table_size;
 
-extern ulint srv_cleaner_max_lru_time; /*!< the maximum time limit for a
-                                      single LRU tail flush iteration by the
-                                      page cleaner thread */
-
-extern ulint srv_cleaner_max_flush_time; /*!< the maximum time limit for a
-                                      single flush list flush iteration by
-                                      the page cleaner thread */
-
 extern ulong srv_cleaner_lsn_age_factor;
 /*!< page cleaner LSN age factor
 formula option */
@@ -904,7 +890,6 @@ extern srv_stats_t srv_stats;
 extern mysql_pfs_key_t log_archiver_thread_key;
 extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
-extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
 extern mysql_pfs_key_t clone_ddl_thread_key;
 extern mysql_pfs_key_t clone_gtid_thread_key;
@@ -924,6 +909,7 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
+extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;

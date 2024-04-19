@@ -732,7 +732,7 @@ class AIO {
   /** Submit buffered AIO requests on the array to the kernel.
   (low level function).
   @param[in] acquire_mutex specifies whether to lock array mutex
-  @param[in] array for which to submit IO */
+  @param[in] arr for which to submit IO */
   static void os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex
                                                               [[maybe_unused]],
                                                               const AIO *arr);
@@ -2591,7 +2591,7 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex
 /** Submit buffered AIO requests on the array to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex
-@param[in] array for which to submit IO */
+@param[in] arr for which to submit IO */
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex
                                                           [[maybe_unused]],
                                                           const AIO *arr) {
@@ -3633,7 +3633,7 @@ bool os_file_close_func(os_file_t file) {
 
 /** Announces an intention to access file data in a specific pattern in the
 future.
-@param[in, own]	file	handle to a file
+@param[in,out]	file	handle to a file
 @param[in]	offset	file region offset
 @param[in]	len	file region length
 @param[in]	advice	advice for access pattern
@@ -3965,8 +3965,6 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
 
 /** Free storage space associated with a section of the file.
 @param[in]      fh              Open file handle
-@param[in]      page_size       Tablespace page size
-@param[in]      block_size      File system block size
 @param[in]      off             Starting offset (SEEK_SET)
 @param[in]      len             Size of the hole
 @return 0 on success or errno */
@@ -6597,8 +6595,7 @@ static void io_handler_thread(ulint segment) {
                << actual_priority;
 
   while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
-         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free() ||
-         buf_flush_active_lru_managers() > 0) {
+         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
     fil_aio_wait(segment);
   }
 }

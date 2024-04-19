@@ -50,7 +50,6 @@ INSERT INTO flush_statement(value) VALUES
   ('GENERAL LOGS'),
   ('SLOW LOGS'),
   ('RELAY LOGS'),
-  ('HOSTS'),
   ('PRIVILEGES'),
   ('STATUS'),
   ('CLIENT_STATISTICS'),

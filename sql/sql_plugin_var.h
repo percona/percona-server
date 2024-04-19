@@ -291,7 +291,7 @@ class sys_var_pluginvar : public sys_var {
     @param[in]     var   Plugin variable.
     @param[in,out] dest  Destination string pointer.
   */
-  void persist_only_to_string(THD *, set_var *var, String *dest) override;
+  void persist_only_to_string(THD *thd, set_var *var, String *dest) override;
   void global_save_default(THD *, set_var *) override {}
   bool session_update(THD *thd, set_var *var) override;
   bool global_update(THD *thd, set_var *var) override;

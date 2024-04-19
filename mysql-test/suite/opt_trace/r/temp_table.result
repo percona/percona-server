@@ -347,7 +347,7 @@ select @@tmp_table_size;
 SET @old_size= @@tmp_table_size;
 SET SESSION tmp_table_size= 1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET SESSION internal_tmp_mem_storage_engine='memory';
 INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
@@ -1344,7 +1344,7 @@ SET SESSION internal_tmp_mem_storage_engine=MEMORY;
 SET @@session.optimizer_trace='enabled=on';
 SET @@session.tmp_table_size = 1024;
 Warnings:
-Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@optimizer_switch='semijoin=off';
 SELECT name, data FROM t2 WHERE name IN
 ( SELECT name FROM t1 WHERE type='table');

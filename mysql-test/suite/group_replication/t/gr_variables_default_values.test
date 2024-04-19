@@ -93,7 +93,7 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
 
 # Total number of GR variables.
---let $total_gr_vars= 66
+--let $total_gr_vars= 65
 
 --echo #
 --echo # Test Unit#1

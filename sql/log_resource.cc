@@ -105,11 +105,11 @@ void Log_resource_gtid_state_wrapper::lock() {
   DEBUG_SYNC(current_thd, "log_resource_gtid_lock");
   mysql_mutex_lock(binlog->get_sync_lock());
   mysql_mutex_lock(binlog->get_commit_lock());
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 }
 
 void Log_resource_gtid_state_wrapper::unlock() {
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   mysql_mutex_unlock(binlog->get_commit_lock());
   mysql_mutex_unlock(binlog->get_sync_lock());
 }
@@ -118,7 +118,7 @@ bool Log_resource_gtid_state_wrapper::collect_info() {
   bool error = false;
   mysql_mutex_assert_owner(binlog->get_sync_lock());
   mysql_mutex_assert_owner(binlog->get_commit_lock());
-  global_sid_lock->assert_some_wrlock();
+  global_tsid_lock->assert_some_wrlock();
 
   char *gtid_executed_string;
   Json_object *json_local = static_cast<Json_object *>(get_json());

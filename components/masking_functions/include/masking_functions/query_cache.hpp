@@ -26,22 +26,22 @@
 #include <my_inttypes.h>
 #include <mysql/components/services/psi_thread.h>
 
-#include "masking_functions/dictionary_container.hpp"
+#include "masking_functions/bookshelf.hpp"
 
 namespace masking_functions {
 
 class query_cache {
  public:
   query_cache();
-  query_cache(query_cache &other) = delete;
+  query_cache(const query_cache &other) = delete;
   query_cache(query_cache &&other) = delete;
-  query_cache &operator=(query_cache &other) = delete;
+  query_cache &operator=(const query_cache &other) = delete;
   query_cache &operator=(query_cache &&other) = delete;
   ~query_cache();
 
   bool contains(const std::string &dictionary_name,
                 const std::string &term) const;
-  optional_string get(const std::string &dictionary_name) const;
+  optional_string get_random(const std::string &dictionary_name) const;
   bool remove(const std::string &dictionary_name);
   bool remove(const std::string &dictionary_name, const std::string &term);
   bool insert(const std::string &dictionary_name, const std::string &term);
@@ -52,8 +52,7 @@ class query_cache {
   void dict_flusher() noexcept;
 
  private:
-  mutable std::shared_mutex m_dict_mut;
-  dictionary_container m_dict_cache;
+  bookshelf_ptr m_dict_cache;
 
   ulonglong m_flusher_interval_seconds;
   std::atomic<bool> m_is_flusher_stopped;

@@ -34,15 +34,12 @@ using global_component_sys_variable_services =
     masking_functions::primitive_singleton<
         masking_functions::component_sys_variable_service_tuple>;
 
-using str_arg_check_type = STR_CHECK_ARG(str);
-using ulonglong_arg_check_type = INTEGRAL_CHECK_ARG(ulonglong);
-
-constexpr std::string_view component_name{"masking_functions"};
-constexpr std::string_view masking_database_var_name{"masking_database"};
-constexpr std::string_view flush_interval_var_name{
+constexpr const char component_name[]{"masking_functions"};
+constexpr const char masking_database_var_name[]{"masking_database"};
+constexpr const char flush_interval_var_name[]{
     "dictionaries_flush_interval_seconds"};
 
-std::string default_database_name{"mysql"};
+char default_database_name[]{"mysql"};
 const ulonglong default_flush_interval_seconds = 0;
 
 bool is_database_name_initialised = false;
@@ -62,11 +59,11 @@ std::uint64_t get_flush_interval_seconds() noexcept {
 }
 
 bool register_sys_vars() {
-  str_arg_check_type check_db_name{default_database_name.data()};
+  STR_CHECK_ARG(str) check_db_name{default_database_name};
 
   const auto &services{global_component_sys_variable_services::instance()};
   if (services.registrator->register_variable(
-          component_name.data(), masking_database_var_name.data(),
+          component_name, masking_database_var_name,
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_READONLY,
           "Specifies the database to use for data masking dictionaries "
@@ -77,11 +74,11 @@ bool register_sys_vars() {
   }
   is_database_name_initialised = true;
 
-  ulonglong_arg_check_type check_flush_interval{default_flush_interval_seconds,
-                                                0, ULLONG_MAX, 1};
+  INTEGRAL_CHECK_ARG(ulonglong)
+  check_flush_interval{default_flush_interval_seconds, 0, ULLONG_MAX, 1};
 
   if (services.registrator->register_variable(
-          component_name.data(), flush_interval_var_name.data(),
+          component_name, flush_interval_var_name,
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_READONLY,
           "Sets the interval, in seconds, to wait before attempting to "
@@ -103,13 +100,13 @@ bool unregister_sys_vars() {
   const auto &services{global_component_sys_variable_services::instance()};
   if (is_database_name_initialised &&
       services.unregistrator->unregister_variable(
-          component_name.data(), masking_database_var_name.data()) != 0) {
+          component_name, masking_database_var_name) != 0) {
     is_success = false;
   }
 
   if (is_flush_interval_initialised &&
       services.unregistrator->unregister_variable(
-          component_name.data(), flush_interval_var_name.data()) != 0) {
+          component_name, flush_interval_var_name) != 0) {
     is_success = false;
   }
 

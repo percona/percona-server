@@ -35,7 +35,10 @@
 #include <mysqld_error.h>
 
 #include "masking_functions/command_service_tuple.hpp"
+#include "masking_functions/component_sys_variable_service_tuple.hpp"
 #include "masking_functions/primitive_singleton.hpp"
+#include "masking_functions/query_builder.hpp"
+#include "masking_functions/query_cache.hpp"
 #include "masking_functions/registration_routines.hpp"
 #include "masking_functions/string_service_tuple.hpp"
 #include "masking_functions/sys_vars.hpp"
@@ -117,6 +120,12 @@ static mysql_service_status_t component_init() {
           mysql_service_mysql_command_query_result,
           mysql_service_mysql_command_options,
           mysql_service_mysql_command_factory};
+  masking_functions::primitive_singleton<
+      masking_functions::component_sys_variable_service_tuple>::instance() =
+      masking_functions::component_sys_variable_service_tuple{
+          // TODO: convert this to designated initializers in c++20
+          mysql_service_component_sys_variable_register,
+          mysql_service_component_sys_variable_unregister};
 
   // here we use a custom error reporting function
   // 'masking_functions_my_error()' based on the
@@ -132,10 +141,17 @@ static mysql_service_status_t component_init() {
     return 1;
   }
 
-  if (!masking_functions::sys_vars::register_sys_vars() ||
-      !masking_functions::sys_vars::validate()) {
+  if (!masking_functions::register_sys_vars()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot register system variables");
+    component_deinit();
+    return 1;
+  }
+
+  std::string check_error_message;
+  if (!masking_functions::check_sys_vars(check_error_message)) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    check_error_message.c_str());
     component_deinit();
     return 1;
   }
@@ -146,6 +162,13 @@ static mysql_service_status_t component_init() {
     return 1;
   }
 
+  auto builder{std::make_unique<masking_functions::query_builder>(
+      masking_functions::get_dict_database_name())};
+  masking_functions::primitive_singleton<
+      masking_functions::query_cache_ptr>::instance() =
+      std::make_unique<masking_functions::query_cache>(
+          std::move(builder), masking_functions::get_flush_interval_seconds());
+
   LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Component successfully initialized");
   return 0;
@@ -153,20 +176,25 @@ static mysql_service_status_t component_init() {
 
 static mysql_service_status_t component_deinit() {
   int result = 0;
+
+  masking_functions::primitive_singleton<
+      masking_functions::query_cache_ptr>::instance()
+      .reset();
+
   if (!masking_functions::unregister_udfs()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot unregister UDFs");
+    result = 1;
+  }
+
+  if (!masking_functions::unregister_sys_vars()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot unregister system variables");
     result = 1;
   }
 
   if (!masking_functions::unregister_dynamic_privileges()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot unregister dynamic privilege");
-    result = 1;
-  }
-
-  if (!masking_functions::sys_vars::unregister_sys_vars()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Cannot unregister system variables");
     result = 1;
   }
 

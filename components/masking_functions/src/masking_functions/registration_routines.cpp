@@ -56,7 +56,7 @@ namespace {
 using global_string_services = masking_functions::primitive_singleton<
     masking_functions::string_service_tuple>;
 using global_query_cache =
-    masking_functions::primitive_singleton<masking_functions::query_cache>;
+    masking_functions::primitive_singleton<masking_functions::query_cache_ptr>;
 
 constexpr std::string_view masking_dictionaries_privilege_name =
     "MASKING_DICTIONARIES_ADMIN";
@@ -965,15 +965,16 @@ class gen_blocklist_impl {
         escape_string(make_charset_string_from_arg(ctx, 2));
 
     {
-      auto sresult = global_query_cache::instance().contains(cs_dict_a_escaped,
-                                                             cs_term_escaped);
+      auto sresult = global_query_cache::instance()->contains(cs_dict_a_escaped,
+                                                              cs_term_escaped);
 
       if (!sresult) {
         return cs_term_escaped;
       }
     }
 
-    auto sresult = global_query_cache::instance().get_random(cs_dict_b_escaped);
+    auto sresult =
+        global_query_cache::instance()->get_random(cs_dict_b_escaped);
 
     if (sresult && !sresult->empty()) {
       masking_functions::charset_string utf8_result{
@@ -1019,7 +1020,7 @@ class gen_dictionary_impl {
     const auto cs_dictionary_escaped =
         escape_string(make_charset_string_from_arg(ctx, 0));
     auto sresult =
-        global_query_cache::instance().get_random(cs_dictionary_escaped);
+        global_query_cache::instance()->get_random(cs_dictionary_escaped);
 
     if (sresult && !sresult->empty()) {
       return *sresult;
@@ -1060,7 +1061,7 @@ class masking_dictionaries_flush_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &ctx
                                                  [[maybe_unused]]) {
-    if (!global_query_cache::instance().load_cache()) {
+    if (!global_query_cache::instance()->load_cache()) {
       return std::nullopt;
     }
 
@@ -1107,7 +1108,7 @@ class masking_dictionary_remove_impl {
     const auto cs_dictionary_escaped =
         escape_string(make_charset_string_from_arg(ctx, 0));
 
-    if (!global_query_cache::instance().remove(cs_dictionary_escaped)) {
+    if (!global_query_cache::instance()->remove(cs_dictionary_escaped)) {
       return std::nullopt;
     }
 
@@ -1161,8 +1162,8 @@ class masking_dictionary_term_add_impl {
     const auto cs_term_escaped =
         escape_string(make_charset_string_from_arg(ctx, 1));
 
-    if (!global_query_cache::instance().insert(cs_dictionary_escaped,
-                                               cs_term_escaped)) {
+    if (!global_query_cache::instance()->insert(cs_dictionary_escaped,
+                                                cs_term_escaped)) {
       return std::nullopt;
     }
 
@@ -1216,8 +1217,8 @@ class masking_dictionary_term_remove_impl {
     const auto cs_term_escaped =
         escape_string(make_charset_string_from_arg(ctx, 1));
 
-    if (!global_query_cache::instance().remove(cs_dictionary_escaped,
-                                               cs_term_escaped)) {
+    if (!global_query_cache::instance()->remove(cs_dictionary_escaped,
+                                                cs_term_escaped)) {
       return std::nullopt;
     }
 

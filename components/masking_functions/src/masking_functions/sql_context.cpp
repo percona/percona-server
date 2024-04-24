@@ -19,9 +19,9 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include "masking_functions/sql_context.hpp"
-
+#include "masking_functions/bookshelf.hpp"
 #include "masking_functions/command_service_tuple.hpp"
+#include "masking_functions/sql_context.hpp"
 
 namespace {
 
@@ -82,7 +82,7 @@ sql_context::sql_context(const command_service_tuple &services)
   }
 }
 
-optional_dictionary_container sql_context::query_list(std::string_view query) {
+bookshelf_ptr sql_context::query_list(std::string_view query) {
   if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
                                      query.length()) != 0) {
     throw std::runtime_error{"Error while executing SQL query"};
@@ -115,7 +115,7 @@ optional_dictionary_container sql_context::query_list(std::string_view query) {
                                              &row_count) != 0)
     throw std::runtime_error{"Couldn't query row count"};
 
-  optional_dictionary_container result{std::in_place, dictionary_container{}};
+  bookshelf_ptr result{std::make_shared<bookshelf>()};
 
   for (auto i = row_count; i > 0; --i) {
     MYSQL_ROW_H row = nullptr;

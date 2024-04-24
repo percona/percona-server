@@ -136,33 +136,29 @@ void query_cache::dict_flusher() noexcept {
 }
 
 bool query_cache::load_cache() {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query = global_query_builder::instance().select_all_from_dictionary();
-  auto result =
-      masking_functions::sql_context{global_command_services::instance()}
-          .query_list(query);
+  auto result = sql_ctx.query_list(query);
 
-  if (result.has_value()) {
-    std::unique_lock dict_write_lock{m_dict_mut};
-    m_dict_cache = std::move(result.value());
+  if (result) {
+    // TODO: in c++20 change to m_dict_cache to std::atomic<bookshelf_ptr>
+    std::atomic_store(&m_dict_cache, result);
   }
 
-  return result.has_value();
+  return static_cast<bool>(result);
 }
 
 bool query_cache::contains(const std::string &dictionary_name,
                            const std::string &term) const {
-  std::shared_lock dict_read_lock{m_dict_mut};
-  return m_dict_cache.contains(dictionary_name, term);
+  return m_dict_cache->contains(dictionary_name, term);
 }
 
-optional_string query_cache::get(const std::string &dictionary_name) const {
-  std::shared_lock dict_read_lock{m_dict_mut};
-  return m_dict_cache.get(dictionary_name);
+optional_string query_cache::get_random(
+    const std::string &dictionary_name) const {
+  return m_dict_cache->get_random(dictionary_name);
 }
 
 bool query_cache::remove(const std::string &dictionary_name) {
-  std::unique_lock dict_write_lock{m_dict_mut};
-
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query =
       global_query_builder::instance().delete_for_dictionary(dictionary_name);
@@ -171,13 +167,11 @@ bool query_cache::remove(const std::string &dictionary_name) {
     return false;
   }
 
-  return m_dict_cache.remove(dictionary_name);
+  return m_dict_cache->remove(dictionary_name);
 }
 
 bool query_cache::remove(const std::string &dictionary_name,
                          const std::string &term) {
-  std::shared_lock dict_read_lock{m_dict_mut};
-
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query = global_query_builder::instance().delete_for_dictionary_and_term(
       dictionary_name, term);
@@ -186,13 +180,11 @@ bool query_cache::remove(const std::string &dictionary_name,
     return false;
   }
 
-  return m_dict_cache.remove(dictionary_name, term);
+  return m_dict_cache->remove(dictionary_name, term);
 }
 
 bool query_cache::insert(const std::string &dictionary_name,
                          const std::string &term) {
-  std::unique_lock dict_write_lock{m_dict_mut};
-
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query = global_query_builder::instance().insert_ignore_record(
       dictionary_name, term);
@@ -201,7 +193,7 @@ bool query_cache::insert(const std::string &dictionary_name,
     return false;
   }
 
-  return m_dict_cache.insert(dictionary_name, term);
+  return m_dict_cache->insert(dictionary_name, term);
 }
 
 }  // namespace masking_functions

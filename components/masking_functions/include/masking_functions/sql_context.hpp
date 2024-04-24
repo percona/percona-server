@@ -21,8 +21,8 @@
 #include <string>
 #include <string_view>
 
+#include "masking_functions/bookshelf_fwd.hpp"
 #include "masking_functions/command_service_tuple_fwd.hpp"
-#include "masking_functions/dictionary_container.hpp"
 
 namespace masking_functions {
 
@@ -46,7 +46,7 @@ class sql_context {
     return *impl_.get_deleter().services;
   }
 
-  optional_dictionary_container query_list(std::string_view query);
+  bookshelf_ptr query_list(std::string_view query);
 
   bool execute(std::string_view query);
 

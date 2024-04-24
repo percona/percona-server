@@ -973,7 +973,7 @@ class gen_blocklist_impl {
       }
     }
 
-    auto sresult = global_query_cache::instance().get(cs_dict_b_escaped);
+    auto sresult = global_query_cache::instance().get_random(cs_dict_b_escaped);
 
     if (sresult && !sresult->empty()) {
       masking_functions::charset_string utf8_result{
@@ -1018,7 +1018,8 @@ class gen_dictionary_impl {
       const mysqlpp::udf_context &ctx) {
     const auto cs_dictionary_escaped =
         escape_string(make_charset_string_from_arg(ctx, 0));
-    auto sresult = global_query_cache::instance().get(cs_dictionary_escaped);
+    auto sresult =
+        global_query_cache::instance().get_random(cs_dictionary_escaped);
 
     if (sresult && !sresult->empty()) {
       return *sresult;

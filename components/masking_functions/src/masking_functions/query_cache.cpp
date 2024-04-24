@@ -15,11 +15,8 @@
 
 #include "masking_functions/query_cache.hpp"
 
-#include "masking_functions/command_service_tuple.hpp"
-#include "masking_functions/primitive_singleton.hpp"
-#include "masking_functions/query_builder.hpp"
-#include "masking_functions/sql_context.hpp"
-#include "masking_functions/sys_vars.hpp"
+#include <chrono>
+#include <string_view>
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/psi/mysql_thread.h>
@@ -27,36 +24,33 @@
 #include <sql/debug_sync.h>
 #include <sql/sql_class.h>
 
-#include <chrono>
-#include <string_view>
+#include "masking_functions/bookshelf.hpp"
+#include "masking_functions/command_service_tuple.hpp"
+#include "masking_functions/primitive_singleton.hpp"
+#include "masking_functions/query_builder.hpp"
+#include "masking_functions/sql_context.hpp"
+#include "masking_functions/sys_vars.hpp"
 
 extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 
-namespace masking_functions {
 namespace {
+
+using global_command_services = masking_functions::primitive_singleton<
+    masking_functions::command_service_tuple>;
 
 constexpr std::string_view psi_category_name{"masking_functions"};
 constexpr std::string_view flusher_thd_psi_name{
     "masking_functions_dict_flusher"};
 constexpr std::string_view flusher_thd_psi_os_name{"mf_flusher"};
 
-using global_command_services = masking_functions::primitive_singleton<
-    masking_functions::command_service_tuple>;
-using global_query_builder =
-    masking_functions::primitive_singleton<masking_functions::query_builder>;
+}  // anonymous namespace
 
-void *run_dict_flusher(void *arg) {
-  auto *self = reinterpret_cast<masking_functions::query_cache *>(arg);
-  self->init_thd();
-  self->dict_flusher();
-  self->release_thd();
-  return nullptr;
-}
+namespace masking_functions {
 
-}  // namespace
-
-query_cache::query_cache()
-    : m_flusher_interval_seconds{sys_vars::get_flush_interval_seconds()},
+query_cache::query_cache(query_builder_ptr query_builder,
+                         std::uint64_t flusher_interval_seconds)
+    : m_query_builder{std::move(query_builder)},
+      m_flusher_interval_seconds{flusher_interval_seconds},
       m_is_flusher_stopped{true} {
   load_cache();
 
@@ -87,6 +81,65 @@ query_cache::~query_cache() {
     m_is_flusher_stopped = true;
     m_flusher_condition_var.notify_one();
   }
+}
+
+bool query_cache::load_cache() {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query = m_query_builder->select_all_from_dictionary();
+  auto result = sql_ctx.query_list(query);
+
+  if (result) {
+    // TODO: in c++20 change to m_dict_cache to std::atomic<bookshelf_ptr>
+    std::atomic_store(&m_dict_cache, result);
+  }
+
+  return static_cast<bool>(result);
+}
+
+bool query_cache::contains(const std::string &dictionary_name,
+                           const std::string &term) const {
+  return m_dict_cache->contains(dictionary_name, term);
+}
+
+optional_string query_cache::get_random(
+    const std::string &dictionary_name) const {
+  return m_dict_cache->get_random(dictionary_name);
+}
+
+bool query_cache::remove(const std::string &dictionary_name) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query = m_query_builder->delete_for_dictionary(dictionary_name);
+
+  if (!sql_ctx.execute(query)) {
+    return false;
+  }
+
+  return m_dict_cache->remove(dictionary_name);
+}
+
+bool query_cache::remove(const std::string &dictionary_name,
+                         const std::string &term) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query =
+      m_query_builder->delete_for_dictionary_and_term(dictionary_name, term);
+
+  if (!sql_ctx.execute(query)) {
+    return false;
+  }
+
+  return m_dict_cache->remove(dictionary_name, term);
+}
+
+bool query_cache::insert(const std::string &dictionary_name,
+                         const std::string &term) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query = m_query_builder->insert_ignore_record(dictionary_name, term);
+
+  if (!sql_ctx.execute(query)) {
+    return false;
+  }
+
+  return m_dict_cache->insert(dictionary_name, term);
 }
 
 void query_cache::init_thd() noexcept {
@@ -135,65 +188,12 @@ void query_cache::dict_flusher() noexcept {
   }
 }
 
-bool query_cache::load_cache() {
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = global_query_builder::instance().select_all_from_dictionary();
-  auto result = sql_ctx.query_list(query);
-
-  if (result) {
-    // TODO: in c++20 change to m_dict_cache to std::atomic<bookshelf_ptr>
-    std::atomic_store(&m_dict_cache, result);
-  }
-
-  return static_cast<bool>(result);
-}
-
-bool query_cache::contains(const std::string &dictionary_name,
-                           const std::string &term) const {
-  return m_dict_cache->contains(dictionary_name, term);
-}
-
-optional_string query_cache::get_random(
-    const std::string &dictionary_name) const {
-  return m_dict_cache->get_random(dictionary_name);
-}
-
-bool query_cache::remove(const std::string &dictionary_name) {
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query =
-      global_query_builder::instance().delete_for_dictionary(dictionary_name);
-
-  if (!sql_ctx.execute(query)) {
-    return false;
-  }
-
-  return m_dict_cache->remove(dictionary_name);
-}
-
-bool query_cache::remove(const std::string &dictionary_name,
-                         const std::string &term) {
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = global_query_builder::instance().delete_for_dictionary_and_term(
-      dictionary_name, term);
-
-  if (!sql_ctx.execute(query)) {
-    return false;
-  }
-
-  return m_dict_cache->remove(dictionary_name, term);
-}
-
-bool query_cache::insert(const std::string &dictionary_name,
-                         const std::string &term) {
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = global_query_builder::instance().insert_ignore_record(
-      dictionary_name, term);
-
-  if (!sql_ctx.execute(query)) {
-    return false;
-  }
-
-  return m_dict_cache->insert(dictionary_name, term);
+void *query_cache::run_dict_flusher(void *arg) {
+  auto *self = reinterpret_cast<masking_functions::query_cache *>(arg);
+  self->init_thd();
+  self->dict_flusher();
+  self->release_thd();
+  return nullptr;
 }
 
 }  // namespace masking_functions

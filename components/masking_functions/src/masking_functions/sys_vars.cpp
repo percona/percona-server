@@ -15,22 +15,24 @@
 
 #include "masking_functions/sys_vars.hpp"
 
+#include <climits>
+#include <cstring>
+#include <string>
+
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/log_builtins.h>
 
 #include <mysqld_error.h>
 
-#include <climits>
-#include <cstring>
-#include <string>
+#include "masking_functions/component_sys_variable_service_tuple.hpp"
+#include "masking_functions/primitive_singleton.hpp"
 
-extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
-extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
-extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
-
-namespace masking_functions::sys_vars {
 namespace {
+
+using global_component_sys_variable_services =
+    masking_functions::primitive_singleton<
+        masking_functions::component_sys_variable_service_tuple>;
 
 using str_arg_check_type = STR_CHECK_ARG(str);
 using ulonglong_arg_check_type = INTEGRAL_CHECK_ARG(ulonglong);
@@ -49,18 +51,21 @@ bool is_flush_interval_initialised = false;
 char *database_name;
 ulonglong flush_interval_seconds = 0;
 
-}  // namespace
+}  // anonymous namespace
+
+namespace masking_functions {
 
 std::string_view get_dict_database_name() noexcept { return database_name; }
 
-ulonglong get_flush_interval_seconds() noexcept {
+std::uint64_t get_flush_interval_seconds() noexcept {
   return flush_interval_seconds;
 }
 
 bool register_sys_vars() {
   str_arg_check_type check_db_name{default_database_name.data()};
 
-  if (mysql_service_component_sys_variable_register->register_variable(
+  const auto &services{global_component_sys_variable_services::instance()};
+  if (services.registrator->register_variable(
           component_name.data(), masking_database_var_name.data(),
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_READONLY,
@@ -75,7 +80,7 @@ bool register_sys_vars() {
   ulonglong_arg_check_type check_flush_interval{default_flush_interval_seconds,
                                                 0, ULLONG_MAX, 1};
 
-  if (mysql_service_component_sys_variable_register->register_variable(
+  if (services.registrator->register_variable(
           component_name.data(), flush_interval_var_name.data(),
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_READONLY,
@@ -95,14 +100,15 @@ bool register_sys_vars() {
 bool unregister_sys_vars() {
   bool is_success = true;
 
+  const auto &services{global_component_sys_variable_services::instance()};
   if (is_database_name_initialised &&
-      mysql_service_component_sys_variable_unregister->unregister_variable(
+      services.unregistrator->unregister_variable(
           component_name.data(), masking_database_var_name.data()) != 0) {
     is_success = false;
   }
 
   if (is_flush_interval_initialised &&
-      mysql_service_component_sys_variable_unregister->unregister_variable(
+      services.unregistrator->unregister_variable(
           component_name.data(), flush_interval_var_name.data()) != 0) {
     is_success = false;
   }
@@ -110,14 +116,13 @@ bool unregister_sys_vars() {
   return is_success;
 }
 
-bool validate() {
-  if (database_name == nullptr || strlen(database_name) == 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Bad masking_functions.masking_database value");
+bool check_sys_vars(std::string &error_message) {
+  if (database_name == nullptr || std::strlen(database_name) == 0) {
+    error_message = "Bad masking_functions.masking_database value";
     return false;
   }
 
   return true;
 }
 
-}  // namespace masking_functions::sys_vars
+}  // namespace masking_functions

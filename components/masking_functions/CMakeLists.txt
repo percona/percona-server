@@ -45,10 +45,14 @@ set(DATAMASKING_SOURCES
   include/masking_functions/charset_string_operations.hpp
   include/masking_functions/command_service_tuple_fwd.hpp
   include/masking_functions/command_service_tuple.hpp
+  include/masking_functions/component_sys_variable_service_tuple_fwd.hpp
+  include/masking_functions/component_sys_variable_service_tuple.hpp
   include/masking_functions/dictionary_fwd.hpp
   include/masking_functions/dictionary.hpp
   include/masking_functions/primitive_singleton.hpp
+  include/masking_functions/query_builder_fwd.hpp
   include/masking_functions/query_builder.hpp
+  include/masking_functions/query_cache_fwd.hpp
   include/masking_functions/query_cache.hpp
   include/masking_functions/random_string_generators.hpp
   include/masking_functions/registration_routines.hpp

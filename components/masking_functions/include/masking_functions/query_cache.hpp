@@ -16,6 +16,8 @@
 #ifndef MASKING_FUNCTIONS_QUERY_CACHE_HPP
 #define MASKING_FUNCTIONS_QUERY_CACHE_HPP
 
+#include "masking_functions/query_cache_fwd.hpp"
+
 #include <atomic>
 #include <condition_variable>
 #include <memory>
@@ -23,16 +25,18 @@
 #include <optional>
 #include <string>
 
-#include <my_inttypes.h>
 #include <mysql/components/services/psi_thread.h>
 
-#include "masking_functions/bookshelf.hpp"
+#include "masking_functions/bookshelf_fwd.hpp"
+#include "masking_functions/dictionary_fwd.hpp"
+#include "masking_functions/query_builder_fwd.hpp"
 
 namespace masking_functions {
 
 class query_cache {
  public:
-  query_cache();
+  query_cache(query_builder_ptr query_builder,
+              std::uint64_t flusher_interval_seconds);
   query_cache(const query_cache &other) = delete;
   query_cache(query_cache &&other) = delete;
   query_cache &operator=(const query_cache &other) = delete;
@@ -45,16 +49,15 @@ class query_cache {
   bool remove(const std::string &dictionary_name);
   bool remove(const std::string &dictionary_name, const std::string &term);
   bool insert(const std::string &dictionary_name, const std::string &term);
-  bool load_cache();
 
-  void init_thd() noexcept;
-  void release_thd() noexcept;
-  void dict_flusher() noexcept;
+  bool load_cache();
 
  private:
   bookshelf_ptr m_dict_cache;
 
-  ulonglong m_flusher_interval_seconds;
+  query_builder_ptr m_query_builder;
+
+  std::uint64_t m_flusher_interval_seconds;
   std::atomic<bool> m_is_flusher_stopped;
   std::mutex m_flusher_mutex;
   std::condition_variable m_flusher_condition_var;
@@ -63,6 +66,12 @@ class query_cache {
   my_thread_handle m_flusher_thread;
   my_thread_attr_t m_flusher_thread_attr;
   std::unique_ptr<THD> m_flusher_thd;
+
+  void init_thd() noexcept;
+  void release_thd() noexcept;
+  void dict_flusher() noexcept;
+
+  static void *run_dict_flusher(void *arg);
 };
 
 }  // namespace masking_functions

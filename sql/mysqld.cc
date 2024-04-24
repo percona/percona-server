@@ -12118,7 +12118,7 @@ static int fix_secure_path(const char *&opt_path, char *realpath,
   bool force_priv_check = false;
   DBUG_EXECUTE_IF("force_secure_file_priv_check", { force_priv_check = true; });
 
-  if (opt_initialize & !force_priv_check) opt_path = "";
+  if (opt_initialize && !force_priv_check) opt_path = "";
   opt_nonempty = opt_path[0] ? true : false;
 
   if (opt_nonempty && strlen(opt_path) > FN_REFLEN) {

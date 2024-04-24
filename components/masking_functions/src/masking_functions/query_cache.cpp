@@ -38,10 +38,9 @@ namespace {
 using global_command_services = masking_functions::primitive_singleton<
     masking_functions::command_service_tuple>;
 
-constexpr std::string_view psi_category_name{"masking_functions"};
-constexpr std::string_view flusher_thd_psi_name{
-    "masking_functions_dict_flusher"};
-constexpr std::string_view flusher_thd_psi_os_name{"mf_flusher"};
+constexpr const char psi_category_name[]{"masking_functions"};
+constexpr const char flusher_thd_psi_name[]{"masking_functions_dict_flusher"};
+constexpr const char flusher_thd_psi_os_name[]{"mf_flusher"};
 
 }  // anonymous namespace
 
@@ -56,12 +55,12 @@ query_cache::query_cache(query_builder_ptr query_builder,
 
   if (m_flusher_interval_seconds > 0) {
     PSI_thread_info thread_info{&m_psi_flusher_thread_key,
-                                flusher_thd_psi_name.data(),
-                                flusher_thd_psi_os_name.data(),
+                                flusher_thd_psi_name,
+                                flusher_thd_psi_os_name,
                                 PSI_FLAG_SINGLETON,
                                 0,
                                 PSI_DOCUMENT_ME};
-    mysql_thread_register(psi_category_name.data(), &thread_info, 1);
+    mysql_thread_register(psi_category_name, &thread_info, 1);
 
     const auto res =
         mysql_thread_create(m_psi_flusher_thread_key, &m_flusher_thread,

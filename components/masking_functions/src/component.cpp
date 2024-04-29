@@ -60,6 +60,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_compare);
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query_result);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_command_field_info);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_factory);
 
@@ -118,6 +119,7 @@ static mysql_service_status_t component_init() {
           // TODO: convert this to designated initializers in c++20
           mysql_service_mysql_command_query,
           mysql_service_mysql_command_query_result,
+          mysql_service_mysql_command_field_info,
           mysql_service_mysql_command_options,
           mysql_service_mysql_command_factory};
   masking_functions::primitive_singleton<
@@ -227,6 +229,7 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
 
   REQUIRES_SERVICE(mysql_command_query),
   REQUIRES_SERVICE(mysql_command_query_result),
+  REQUIRES_SERVICE(mysql_command_field_info),
   REQUIRES_SERVICE(mysql_command_options),
   REQUIRES_SERVICE(mysql_command_factory),
 

@@ -49,10 +49,15 @@ namespace masking_functions {
 query_cache::query_cache(query_builder_ptr query_builder,
                          std::uint64_t flusher_interval_seconds)
     : m_query_builder{std::move(query_builder)},
+      m_dict_cache{},
       m_flusher_interval_seconds{flusher_interval_seconds},
       m_is_flusher_stopped{true} {
-  load_cache();
+  // we do not initialize m_dict_cache with create_dict_cache_internal() here
+  // as this constructor is called from the component initialization method
+  // and any call to mysql_command_query service may mess up with current THD
 
+  // the cache will be loaded during the first call to one of the dictionary
+  // functions or by the flusher thread
   if (m_flusher_interval_seconds > 0) {
     PSI_thread_info thread_info{&m_psi_flusher_thread_key,
                                 flusher_thd_psi_name,
@@ -82,63 +87,62 @@ query_cache::~query_cache() {
   }
 }
 
-bool query_cache::load_cache() {
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = m_query_builder->select_all_from_dictionary();
-  auto result = sql_ctx.query_list(query);
-
-  if (result) {
-    // TODO: in c++20 change to m_dict_cache to std::atomic<bookshelf_ptr>
-    std::atomic_store(&m_dict_cache, result);
+void query_cache::reload_cache() {
+  auto local_dict_cache{create_dict_cache_internal()};
+  if (!local_dict_cache) {
+    throw std::runtime_error{"Cannot load dictionary cache"};
   }
 
-  return static_cast<bool>(result);
+  std::atomic_store(&m_dict_cache, local_dict_cache);
 }
 
 bool query_cache::contains(const std::string &dictionary_name,
                            const std::string &term) const {
-  return m_dict_cache->contains(dictionary_name, term);
+  return get_pinned_dict_cache_internal()->contains(dictionary_name, term);
 }
 
 optional_string query_cache::get_random(
     const std::string &dictionary_name) const {
-  return m_dict_cache->get_random(dictionary_name);
+  return get_pinned_dict_cache_internal()->get_random(dictionary_name);
 }
 
 bool query_cache::remove(const std::string &dictionary_name) {
+  auto local_dict_cache{get_pinned_dict_cache_internal()};
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query = m_query_builder->delete_for_dictionary(dictionary_name);
 
-  if (!sql_ctx.execute(query)) {
+  if (!sql_ctx.execute_dml(query)) {
     return false;
   }
 
-  return m_dict_cache->remove(dictionary_name);
+  return local_dict_cache->remove(dictionary_name);
 }
 
 bool query_cache::remove(const std::string &dictionary_name,
                          const std::string &term) {
+  auto local_dict_cache{get_pinned_dict_cache_internal()};
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query =
       m_query_builder->delete_for_dictionary_and_term(dictionary_name, term);
 
-  if (!sql_ctx.execute(query)) {
+  if (!sql_ctx.execute_dml(query)) {
     return false;
   }
 
-  return m_dict_cache->remove(dictionary_name, term);
+  return local_dict_cache->remove(dictionary_name, term);
 }
 
 bool query_cache::insert(const std::string &dictionary_name,
                          const std::string &term) {
+  auto local_dict_cache{get_pinned_dict_cache_internal()};
   masking_functions::sql_context sql_ctx{global_command_services::instance()};
   auto query = m_query_builder->insert_ignore_record(dictionary_name, term);
 
-  if (!sql_ctx.execute(query)) {
+  if (!sql_ctx.execute_dml(query)) {
     return false;
   }
 
-  return m_dict_cache->insert(dictionary_name, term);
+  return local_dict_cache->insert(dictionary_name, term);
 }
 
 void query_cache::init_thd() noexcept {
@@ -177,7 +181,10 @@ void query_cache::dict_flusher() noexcept {
         });
 
     if (!m_is_flusher_stopped) {
-      load_cache();
+      auto local_dict_cache{create_dict_cache_internal()};
+      if (local_dict_cache) {
+        std::atomic_store(&m_dict_cache, local_dict_cache);
+      }
 
       DBUG_EXECUTE_IF("masking_functions_signal_on_cache_reload", {
         const char act[] = "now SIGNAL masking_functions_cache_reload_done";
@@ -193,6 +200,37 @@ void *query_cache::run_dict_flusher(void *arg) {
   self->dict_flusher();
   self->release_thd();
   return nullptr;
+}
+
+bookshelf_ptr query_cache::create_dict_cache_internal() const {
+  bookshelf_ptr result;
+  try {
+    masking_functions::sql_context sql_ctx{global_command_services::instance()};
+    auto query = m_query_builder->select_all_from_dictionary();
+    auto local_dict_cache{std::make_shared<bookshelf>()};
+    sql_context::row_callback<2> result_inserter{[&terms = *local_dict_cache](
+                                                     const auto &field_values) {
+      terms.insert(std::string{field_values[0]}, std::string{field_values[1]});
+    }};
+    sql_ctx.execute_select(query, result_inserter);
+    result = local_dict_cache;
+  } catch (...) {
+  }
+
+  return result;
+}
+
+bookshelf_ptr query_cache::get_pinned_dict_cache_internal() const {
+  auto local_dict_cache{std::atomic_load(&m_dict_cache)};
+  if (!local_dict_cache) {
+    local_dict_cache = create_dict_cache_internal();
+    if (!local_dict_cache) {
+      throw std::runtime_error{"Cannot load dictionary cache"};
+    }
+    std::atomic_store(&m_dict_cache, local_dict_cache);
+  }
+
+  return local_dict_cache;
 }
 
 }  // namespace masking_functions

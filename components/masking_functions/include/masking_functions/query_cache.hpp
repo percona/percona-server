@@ -50,12 +50,14 @@ class query_cache {
   bool remove(const std::string &dictionary_name, const std::string &term);
   bool insert(const std::string &dictionary_name, const std::string &term);
 
-  bool load_cache();
+  void reload_cache();
 
  private:
-  bookshelf_ptr m_dict_cache;
-
   query_builder_ptr m_query_builder;
+
+  // TODO: in c++20 change this to std::atomic<bookshelf_ptr> and
+  //       remove deprecated atomic_load() / atomic_store()
+  mutable bookshelf_ptr m_dict_cache;
 
   std::uint64_t m_flusher_interval_seconds;
   std::atomic<bool> m_is_flusher_stopped;
@@ -72,6 +74,10 @@ class query_cache {
   void dict_flusher() noexcept;
 
   static void *run_dict_flusher(void *arg);
+
+  bookshelf_ptr create_dict_cache_internal() const;
+  // returning deliberately by value to increase reference counter
+  bookshelf_ptr get_pinned_dict_cache_internal() const;
 };
 
 }  // namespace masking_functions

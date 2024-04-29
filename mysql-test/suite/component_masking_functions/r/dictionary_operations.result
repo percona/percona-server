@@ -59,6 +59,8 @@ SELECT gen_blocklist('Berlin', 'de_cities', 'us_cities');
 ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
 SELECT gen_dictionary('us_cities');
 ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
+SELECT masking_dictionaries_flush();
+ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
 #
 # NULL for NULL checks
 include/assert.inc [gen_blocklist() for the NULL primary argument should return NULL]
@@ -97,12 +99,30 @@ include/assert.inc [collation of the result of evaluating 'gen_blocklist('Berlin
 INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city1');
 INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city2');
 INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city3');
-INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто1');
-INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
+include/assert.inc [gen_dictionary on a existing but not flushed dictionary must return NULL]
 SELECT masking_dictionaries_flush();
 masking_dictionaries_flush()
 1
+include/assert.inc [the number of distinct US city names after the first insert and flush must be 3]
+INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
+INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
+include/assert.inc [the number of distinct US city names after the second insert but before flush must be 3]
+SELECT masking_dictionaries_flush();
+masking_dictionaries_flush()
+1
+include/assert.inc [the number of distinct US city names after the second insert and flush must be 4]
+RENAME TABLE mysql.masking_dictionaries TO mysql.masking_dictionaries_hidden;
+include/assert.inc [the number of distinct US city names after hiding dict table must be 4]
+SELECT masking_dictionaries_flush();
+ERROR HY000: Error in command service backend interface, because of : "Table 'mysql.masking_dictionaries' doesn't exist"
+include/assert.inc [the number of distinct US city names after dict unsuccessful flush must be 4]
+RENAME TABLE mysql.masking_dictionaries_hidden TO mysql.masking_dictionaries;
+include/assert.inc [the number of distinct US city names after restoring dict table must be 4]
+SELECT masking_dictionaries_flush();
+masking_dictionaries_flush()
+1
+include/assert.inc [the number of distinct US city names after restoring dict table and flush must be 4]
 include/assert.inc [gen_dictionary on a non-existing dictionary must return NULL]
 SET @check_expression_result = gen_dictionary('us_cities');
 include/assert.inc [the result of evaluating 'gen_dictionary('us_cities')' must match the 'city[[:digit:]]{1}' pattern]

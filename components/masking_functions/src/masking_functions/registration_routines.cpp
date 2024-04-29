@@ -1061,9 +1061,7 @@ class masking_dictionaries_flush_impl {
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &ctx
                                                  [[maybe_unused]]) {
-    if (!global_query_cache::instance()->load_cache()) {
-      return std::nullopt;
-    }
+    global_query_cache::instance()->reload_cache();
 
     return "1";
   }

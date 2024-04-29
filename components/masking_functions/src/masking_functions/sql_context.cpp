@@ -19,7 +19,6 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include "masking_functions/bookshelf.hpp"
 #include "masking_functions/command_service_tuple.hpp"
 #include "masking_functions/sql_context.hpp"
 
@@ -82,10 +81,36 @@ sql_context::sql_context(const command_service_tuple &services)
   }
 }
 
-bookshelf_ptr sql_context::query_list(std::string_view query) {
+bool sql_context::execute_dml(std::string_view query) {
+  if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
+                                     query.length()) != 0) {
+    return false;
+  }
+  std::uint64_t row_count = 0;
+  if ((*get_services().query->affected_rows)(to_mysql_h(impl_.get()),
+                                             &row_count) != 0) {
+    return false;
+  }
+  return row_count > 0;
+}
+
+void sql_context::execute_select_internal(
+    std::string_view query, std::size_t expected_number_of_fields,
+    const row_internal_callback &callback) {
   if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
                                      query.length()) != 0) {
     throw std::runtime_error{"Error while executing SQL query"};
+  }
+
+  unsigned int actual_number_of_fields;
+  if ((*get_services().field_info->field_count)(
+          to_mysql_h(impl_.get()), &actual_number_of_fields) != 0) {
+    throw std::runtime_error{"Couldn't get number of fields"};
+  }
+
+  if (actual_number_of_fields != expected_number_of_fields) {
+    throw std::runtime_error{
+        "Micmatch between actual and expected number of fields"};
   }
 
   MYSQL_RES_H mysql_res = nullptr;
@@ -106,7 +131,7 @@ bookshelf_ptr sql_context::query_list(std::string_view query) {
       std::unique_ptr<mysql_res_type, decltype(mysql_res_deleter)>;
 
   mysql_res_ptr mysql_res_guard(mysql_res, std::move(mysql_res_deleter));
-  uint64_t row_count = 0;
+  std::uint64_t row_count = 0;
   // As the 'affected_rows()' method of the 'mysql_command_query' MySQL
   // service is implementted via 'mysql_affected_rows()' MySQL client
   // function, it is OK to use it for SELECT statements as well, because
@@ -115,35 +140,19 @@ bookshelf_ptr sql_context::query_list(std::string_view query) {
                                              &row_count) != 0)
     throw std::runtime_error{"Couldn't query row count"};
 
-  bookshelf_ptr result{std::make_shared<bookshelf>()};
-
   for (auto i = row_count; i > 0; --i) {
-    MYSQL_ROW_H row = nullptr;
-    ulong *length = nullptr;
+    MYSQL_ROW_H field_values = nullptr;
+    ulong *field_value_lengths = nullptr;
 
-    if ((*get_services().query_result->fetch_row)(mysql_res, &row) != 0)
+    if ((*get_services().query_result->fetch_row)(mysql_res, &field_values) !=
+        0)
       throw std::runtime_error{"Couldn't fetch length"};
-    if ((*get_services().query_result->fetch_lengths)(mysql_res, &length) != 0)
+    if ((*get_services().query_result->fetch_lengths)(
+            mysql_res, &field_value_lengths) != 0)
       throw std::runtime_error{"Couldn't fetch length"};
 
-    result->insert(std::string{row[0], length[0]},
-                   std::string{row[1], length[1]});
+    callback(field_values, field_value_lengths);
   }
-
-  return result;
-}
-
-bool sql_context::execute(std::string_view query) {
-  if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
-                                     query.length()) != 0) {
-    return false;
-  }
-  uint64_t row_count = 0;
-  if ((*get_services().query->affected_rows)(to_mysql_h(impl_.get()),
-                                             &row_count) != 0) {
-    return false;
-  }
-  return row_count > 0;
 }
 
 }  // namespace masking_functions

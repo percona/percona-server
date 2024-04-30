@@ -141,6 +141,11 @@ bool Storage::store_report(const std::string &report) {
       throw file_stream_exception(ec.message());
     }
 
+    fs::permissions(json_filename,
+                    fs::perms::owner_read | fs::perms::owner_write |
+                        fs::perms::group_read | fs::perms::others_read,
+                    fs::perm_options::add);
+
     logger_.info("Created telemetry file: %s", json_filename.c_str());
     return false;
   } catch (const std::exception &e) {

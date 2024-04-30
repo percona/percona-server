@@ -72,28 +72,25 @@ structure. Its value can potentially originate from different sources, so we
 have to decide which one to use. This class solves the problem if there is
 more than one source of the ID. */
 class DbReplicationIdSolver {
-public:
-   DbReplicationIdSolver() = default;
-   ~DbReplicationIdSolver() = default;
-  DbReplicationIdSolver( const DbReplicationIdSolver&) = delete;
-  DbReplicationIdSolver( const DbReplicationIdSolver&&) = delete;
-  DbReplicationIdSolver& operator=(const DbReplicationIdSolver&) = delete;
-  DbReplicationIdSolver& operator=(const DbReplicationIdSolver&&) = delete;
+ public:
+  DbReplicationIdSolver() = default;
+  ~DbReplicationIdSolver() = default;
+  DbReplicationIdSolver(const DbReplicationIdSolver &) = delete;
+  DbReplicationIdSolver(const DbReplicationIdSolver &&) = delete;
+  DbReplicationIdSolver &operator=(const DbReplicationIdSolver &) = delete;
+  DbReplicationIdSolver &operator=(const DbReplicationIdSolver &&) = delete;
 
   /* Voters in the order of their priorities. Lower number, lower priority. */
-  enum Voter {
-    NONE,
-    GROUP_REPLICATION
-  };
+  enum Voter { NONE, GROUP_REPLICATION };
 
-  void vote(const std::string& id, Voter voter) {
+  void vote(const std::string &id, Voter voter) {
     if (voter > id_voter_) {
       db_replication_id_ = id;
       id_voter_ = voter;
     }
   }
 
-  const std::string& get_db_replication_id() const {
+  const std::string &get_db_replication_id() const {
     return db_replication_id_;
   }
 
@@ -102,11 +99,10 @@ public:
     id_voter_ = Voter::NONE;
   }
 
-private:
+ private:
   std::string db_replication_id_;
-  Voter id_voter_ {Voter::NONE};
+  Voter id_voter_{Voter::NONE};
 };
-
 
 DataProvider::DataProvider(
     SERVICE_TYPE(mysql_command_factory) & command_factory_service,
@@ -425,7 +421,8 @@ bool DataProvider::collect_group_replication_info(
     role.SetString(result[0][0].c_str(), allocator);
     gr_json.AddMember(rapidjson::StringRef(JSONKey::role), role, allocator);
 
-    db_replication_id_solver_->vote(result[0][1], DbReplicationIdSolver::Voter::GROUP_REPLICATION);
+    db_replication_id_solver_->vote(
+        result[0][1], DbReplicationIdSolver::Voter::GROUP_REPLICATION);
 
     rapidjson::Value single_primary_mode;
     single_primary_mode.SetString(result[0][2].c_str(), allocator);
@@ -528,14 +525,13 @@ bool DataProvider::collect_async_replication_info(
 }
 
 bool DataProvider::collect_db_replication_id(rapidjson::Document *document) {
-
-  const std::string& id = db_replication_id_solver_->get_db_replication_id();
+  const std::string &id = db_replication_id_solver_->get_db_replication_id();
   if (id.length() > 0) {
     rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
     rapidjson::Value replication_group_id;
     replication_group_id.SetString(id.c_str(), allocator);
     document->AddMember(rapidjson::StringRef(JSONKey::db_replication_id),
-                      replication_group_id, allocator);
+                        replication_group_id, allocator);
   }
 
   return false;

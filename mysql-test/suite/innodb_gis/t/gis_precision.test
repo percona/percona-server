@@ -1,0 +1,73 @@
+# **************************************************
+# Test if MBR compairson used for InnoDB secondary
+# index updates works well with more precise data
+# **************************************************
+
+--echo Create separate tables of supported geometric types
+CREATE TABLE gis_point (
+    id INTEGER NOT NULL PRIMARY KEY,
+    shape POINT NOT NULL SRID 0,
+    SPATIAL KEY IND(shape)
+) ENGINE=INNODB;
+
+CREATE TABLE gis_line (
+    id INTEGER NOT NULL PRIMARY KEY,
+    shape LINESTRING NOT NULL SRID 0,
+    SPATIAL KEY IND(shape)
+) ENGINE=INNODB;
+
+CREATE TABLE gis_polygon(
+    id INTEGER NOT NULL PRIMARY KEY,
+    shape POLYGON NOT NULL SRID 0,
+    SPATIAL KEY IND(shape)
+) ENGINE=INNODB;
+
+
+--echo Point
+INSERT INTO gis_point VALUES (1,POINT(0.0000000000000099,0));
+SELECT id, ST_AsText(shape) FROM gis_point;
+
+UPDATE gis_point SET shape = POINT(0.00000000000001, 0) WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_point;
+
+DELETE FROM gis_point WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_point;
+
+INSERT INTO gis_point VALUES (1,POINT(0.0000000000000099,0));
+SELECT id, ST_AsText(shape) FROM gis_point;
+
+
+--echo Line
+INSERT INTO gis_line VALUES
+(1, ST_LineFromText('LINESTRING(0.0000000000000099 0,1 0.0000000000000099)'));
+SELECT id, ST_AsText(shape) FROM gis_line;
+
+UPDATE gis_line SET shape = ST_LineFromText('LINESTRING(0.00000000000001 0,1 0.00000000000001)') WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_line;
+
+DELETE FROM gis_line WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_line;
+
+INSERT INTO gis_line VALUES (1, ST_LineFromText('LINESTRING(0.0000000000000099 0,1 0.0000000000000099)'));
+SELECT id, ST_AsText(shape) FROM gis_line;
+
+
+--echo Polygon
+INSERT INTO gis_polygon VALUES
+(1, ST_PolyFromText('POLYGON((-0.1681156881122417 47.54646568683867,-0.031445000320673 47.88496876305664,-0.8493347636841432 47.31022644042969,-0.0318659991025925 47.310115814208984,-0.1681156881122417 47.54646568683867))'));
+SELECT id, ST_AsText(shape) FROM gis_polygon;
+
+UPDATE gis_polygon SET
+shape = ST_PolyFromText('POLYGON((-0.168115688112241675 47.54646568683867,-0.03144500032067299 47.88496876305664,-0.849334763684143234 47.31022644042969,-0.03186599910259247 47.310115814208984,-0.168115688112241675 47.54646568683867))')
+WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_polygon;
+
+DELETE FROM gis_polygon WHERE id = 1;
+SELECT id, ST_AsText(shape) FROM gis_polygon;
+
+INSERT INTO gis_polygon VALUES
+(1, ST_PolyFromText('POLYGON((-0.1681156881122417 47.54646568683867,-0.031445000320673 47.88496876305664,-0.8493347636841432 47.31022644042969,-0.0318659991025925 47.310115814208984,-0.1681156881122417 47.54646568683867))'));
+SELECT id, ST_AsText(shape) FROM gis_polygon;
+
+
+DROP TABLE gis_point, gis_line, gis_polygon;

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 #define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
-// Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2024, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,18 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 /// @retval false The two MBRs aren't equal.
 bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                    rtr_mbr_t *b);
+
+/// Checks if two MBRs are equal more precisely
+///
+/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
+/// than or equal to the corresponding coordinates of the maximum corner.
+///
+/// @param[in] mbr_a The first MBR.
+/// @param[in] mbr_b The second MBR.
+///
+/// @retval true The two MBRs are equal.
+/// @retval false The two MBRs aren't equal.
+bool mbr_equal_precise_cmp(rtr_mbr_t *mbr_a, rtr_mbr_t *mbr_b);
 
 /// Checks if two MBRs intersect each other
 ///

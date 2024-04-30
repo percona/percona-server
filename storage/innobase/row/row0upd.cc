@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1580,7 +1580,7 @@ bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
         mem_heap_free(temp_heap);
       }
 
-      if (!mbr_equal_cmp(index->rtr_srs.get(), old_mbr, new_mbr)) {
+      if (!mbr_equal_precise_cmp(old_mbr, new_mbr)) {
         return (true);
       } else {
         continue;

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2024, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -141,6 +141,14 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   }
 
   return result;
+}
+
+bool mbr_equal_precise_cmp(rtr_mbr_t *mbr_a, rtr_mbr_t *mbr_b) {
+  assert(mbr_a->xmin <= mbr_a->xmax && mbr_a->ymin <= mbr_a->ymax);
+  assert(mbr_b->xmin <= mbr_b->xmax && mbr_b->ymin <= mbr_b->ymax);
+
+  return mbr_a->xmin == mbr_b->xmin && mbr_a->xmax == mbr_b->xmax &&
+         mbr_a->ymin == mbr_b->ymin && mbr_a->ymax == mbr_b->ymax;
 }
 
 bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,

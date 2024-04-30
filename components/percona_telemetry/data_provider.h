@@ -73,7 +73,6 @@ class DataProvider {
   bool collect_db_replication_id(rapidjson::Document *document);
   bool collect_metrics(rapidjson::Document *document);
 
-
   const std::string &get_database_instance_id();
 
   SERVICE_TYPE(mysql_command_factory) & command_factory_service_;

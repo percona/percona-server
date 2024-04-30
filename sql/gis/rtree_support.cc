@@ -143,6 +143,14 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   return result;
 }
 
+bool mbr_equal_precise_cmp(rtr_mbr_t *a, rtr_mbr_t *b) {
+  assert(a->xmin <= a->xmax && a->ymin <= a->ymax);
+  assert(b->xmin <= b->xmax && b->ymin <= b->ymax);
+
+  return a->xmin == b->xmin && a->xmax == b->xmax &&
+         a->ymin == b->ymin && a->ymax == b->ymax;
+}
+
 bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                        rtr_mbr_t *b) {
   try {

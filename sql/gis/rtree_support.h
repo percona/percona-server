@@ -91,6 +91,18 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
                    rtr_mbr_t *b);
 
+/// Checks if two MBRs are equal more precisely
+///
+/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
+/// than or equal to the corresponding coordinates of the maximum corner.
+///
+/// @param[in] a The first MBR.
+/// @param[in] b The second MBR.
+///
+/// @retval true The two MBRs are equal.
+/// @retval false The two MBRs aren't equal.
+bool mbr_equal_precise_cmp(rtr_mbr_t *a, rtr_mbr_t *b);
+
 /// Checks if two MBRs intersect each other
 ///
 /// @param[in] srs Spatial reference system.

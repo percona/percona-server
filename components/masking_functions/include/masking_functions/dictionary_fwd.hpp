@@ -17,16 +17,12 @@
 #define MASKING_FUNCTIONS_DICTIONARY_FWD_HPP
 
 #include <memory>
-#include <optional>
-#include <string>
 
 namespace masking_functions {
 
-using optional_string = std::optional<std::string>;
-
 class dictionary;
 
-using dictionary_ptr = std::shared_ptr<dictionary>;
+using dictionary_ptr = std::unique_ptr<dictionary>;
 
 }  // namespace masking_functions
 

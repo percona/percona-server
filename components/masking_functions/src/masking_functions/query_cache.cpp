@@ -48,18 +48,19 @@ namespace masking_functions {
 
 query_cache::query_cache(query_builder_ptr query_builder,
                          std::uint64_t flusher_interval_seconds)
-    : m_query_builder{std::move(query_builder)},
-      m_dict_cache{},
-      m_flusher_interval_seconds{flusher_interval_seconds},
-      m_is_flusher_stopped{true} {
+    : dict_query_builder_{std::move(query_builder)},
+      dict_cache_{},
+      dict_cache_mutex_{},
+      flusher_interval_seconds_{flusher_interval_seconds},
+      is_flusher_stopped_{true} {
   // we do not initialize m_dict_cache with create_dict_cache_internal() here
   // as this constructor is called from the component initialization method
   // and any call to mysql_command_query service may mess up with current THD
 
   // the cache will be loaded during the first call to one of the dictionary
   // functions or by the flusher thread
-  if (m_flusher_interval_seconds > 0) {
-    PSI_thread_info thread_info{&m_psi_flusher_thread_key,
+  if (flusher_interval_seconds_ > 0) {
+    PSI_thread_info thread_info{&psi_flusher_thread_key_,
                                 flusher_thd_psi_name,
                                 flusher_thd_psi_os_name,
                                 PSI_FLAG_SINGLETON,
@@ -68,81 +69,102 @@ query_cache::query_cache(query_builder_ptr query_builder,
     mysql_thread_register(psi_category_name, &thread_info, 1);
 
     const auto res =
-        mysql_thread_create(m_psi_flusher_thread_key, &m_flusher_thread,
-                            &m_flusher_thread_attr, run_dict_flusher, this);
+        mysql_thread_create(psi_flusher_thread_key_, &flusher_thread_,
+                            &flusher_thread_attr_, run_dict_flusher, this);
 
     if (res != 0) {
       LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "Cannot initialize dictionary flusher");
     } else {
-      m_is_flusher_stopped = false;
+      is_flusher_stopped_ = false;
     }
   }
 }
 
 query_cache::~query_cache() {
-  if (!m_is_flusher_stopped) {
-    m_is_flusher_stopped = true;
-    m_flusher_condition_var.notify_one();
+  if (!is_flusher_stopped_) {
+    is_flusher_stopped_ = true;
+    flusher_condition_var_.notify_one();
   }
 }
 
+bool query_cache::contains(const std::string &dictionary_name,
+                           const std::string &term) const {
+  shared_lock_type read_lock{};
+  unique_lock_type write_lock{};
+  const auto &acquired_dict_cache{
+      acquire_dict_cache_shared(read_lock, write_lock)};
+  return acquired_dict_cache.contains(dictionary_name, term);
+}
+
+std::string query_cache::get_random(const std::string &dictionary_name) const {
+  shared_lock_type read_lock{};
+  unique_lock_type write_lock{};
+  const auto &acquired_dict_cache{
+      acquire_dict_cache_shared(read_lock, write_lock)};
+  return std::string{acquired_dict_cache.get_random(dictionary_name)};
+}
+
+bool query_cache::remove(const std::string &dictionary_name) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query{dict_query_builder_->delete_for_dictionary(dictionary_name)};
+
+  unique_lock_type write_lock{};
+  auto &acquired_dict_cache{acquire_dict_cache_unique(write_lock)};
+
+  // there is a chance that a user can delete the dictionary from the
+  // dictionary table directly (not via UDF function) and execute_dml()
+  // will return false here, whereas cache operation will return true -
+  // this is why we rely only on the result of the cache operation
+  sql_ctx.execute_dml(query);
+  return acquired_dict_cache.remove(dictionary_name);
+}
+
+bool query_cache::remove(const std::string &dictionary_name,
+                         const std::string &term) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query{dict_query_builder_->delete_for_dictionary_and_term(
+      dictionary_name, term)};
+
+  unique_lock_type write_lock{};
+  auto &acquired_dict_cache{acquire_dict_cache_unique(write_lock)};
+
+  // similarly to another remove() method, we ignore the result of the
+  // sql operation and rely only on the result of the cache modification
+  sql_ctx.execute_dml(query);
+  return acquired_dict_cache.remove(dictionary_name, term);
+}
+
+bool query_cache::insert(const std::string &dictionary_name,
+                         const std::string &term) {
+  masking_functions::sql_context sql_ctx{global_command_services::instance()};
+  auto query{dict_query_builder_->insert_ignore_record(dictionary_name, term)};
+
+  unique_lock_type write_lock{};
+  auto &acquired_dict_cache{acquire_dict_cache_unique(write_lock)};
+
+  // here, as cache insert may throw, we start the 2-phase operation
+  // with this cache insert because it can be easily reversed without throwing
+  const auto result{acquired_dict_cache.insert(dictionary_name, term)};
+  try {
+    sql_ctx.execute_dml(query);
+  } catch (...) {
+    dict_cache_->remove(dictionary_name, term);
+    throw;
+  }
+
+  return result;
+}
+
 void query_cache::reload_cache() {
+  unique_lock_type dict_cache_write_lock{dict_cache_mutex_};
+
   auto local_dict_cache{create_dict_cache_internal()};
   if (!local_dict_cache) {
     throw std::runtime_error{"Cannot load dictionary cache"};
   }
 
-  std::atomic_store(&m_dict_cache, local_dict_cache);
-}
-
-bool query_cache::contains(const std::string &dictionary_name,
-                           const std::string &term) const {
-  return get_pinned_dict_cache_internal()->contains(dictionary_name, term);
-}
-
-optional_string query_cache::get_random(
-    const std::string &dictionary_name) const {
-  return get_pinned_dict_cache_internal()->get_random(dictionary_name);
-}
-
-bool query_cache::remove(const std::string &dictionary_name) {
-  auto local_dict_cache{get_pinned_dict_cache_internal()};
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = m_query_builder->delete_for_dictionary(dictionary_name);
-
-  if (!sql_ctx.execute_dml(query)) {
-    return false;
-  }
-
-  return local_dict_cache->remove(dictionary_name);
-}
-
-bool query_cache::remove(const std::string &dictionary_name,
-                         const std::string &term) {
-  auto local_dict_cache{get_pinned_dict_cache_internal()};
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query =
-      m_query_builder->delete_for_dictionary_and_term(dictionary_name, term);
-
-  if (!sql_ctx.execute_dml(query)) {
-    return false;
-  }
-
-  return local_dict_cache->remove(dictionary_name, term);
-}
-
-bool query_cache::insert(const std::string &dictionary_name,
-                         const std::string &term) {
-  auto local_dict_cache{get_pinned_dict_cache_internal()};
-  masking_functions::sql_context sql_ctx{global_command_services::instance()};
-  auto query = m_query_builder->insert_ignore_record(dictionary_name, term);
-
-  if (!sql_ctx.execute_dml(query)) {
-    return false;
-  }
-
-  return local_dict_cache->insert(dictionary_name, term);
+  dict_cache_ = std::move(local_dict_cache);
 }
 
 void query_cache::init_thd() noexcept {
@@ -151,7 +173,7 @@ void query_cache::init_thd() noexcept {
   thd->set_new_thread_id();
   thd->thread_stack = reinterpret_cast<char *>(&thd);
   thd->store_globals();
-  m_flusher_thd.reset(thd);
+  flusher_thd_.reset(thd);
 }
 
 void query_cache::release_thd() noexcept { my_thread_end(); }
@@ -159,31 +181,34 @@ void query_cache::release_thd() noexcept { my_thread_end(); }
 void query_cache::dict_flusher() noexcept {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   {
-    struct PSI_thread *psi = m_flusher_thd->get_psi();
-    PSI_THREAD_CALL(set_thread_id)(psi, m_flusher_thd->thread_id());
-    PSI_THREAD_CALL(set_thread_THD)(psi, m_flusher_thd.get());
-    PSI_THREAD_CALL(set_thread_command)(m_flusher_thd->get_command());
+    struct PSI_thread *psi = flusher_thd_->get_psi();
+    PSI_THREAD_CALL(set_thread_id)(psi, flusher_thd_->thread_id());
+    PSI_THREAD_CALL(set_thread_THD)(psi, flusher_thd_.get());
+    PSI_THREAD_CALL(set_thread_command)(flusher_thd_->get_command());
     PSI_THREAD_CALL(set_thread_info)
     (STRING_WITH_LEN("Masking functions component cache flusher"));
   }
 #endif
 
-  while (!m_is_flusher_stopped) {
-    std::unique_lock lock{m_flusher_mutex};
+  while (!is_flusher_stopped_) {
+    std::unique_lock lock{flusher_mutex_};
     const auto wait_started_at = std::chrono::system_clock::now();
-    m_flusher_condition_var.wait_for(
-        lock, std::chrono::seconds{m_flusher_interval_seconds},
+    flusher_condition_var_.wait_for(
+        lock, std::chrono::seconds{flusher_interval_seconds_},
         [this, wait_started_at] {
           return std::chrono::duration_cast<std::chrono::seconds>(
                      std::chrono::system_clock::now() - wait_started_at) >=
-                     std::chrono::seconds{m_flusher_interval_seconds} ||
-                 m_is_flusher_stopped.load();
+                     std::chrono::seconds{flusher_interval_seconds_} ||
+                 is_flusher_stopped_.load();
         });
 
-    if (!m_is_flusher_stopped) {
-      auto local_dict_cache{create_dict_cache_internal()};
-      if (local_dict_cache) {
-        std::atomic_store(&m_dict_cache, local_dict_cache);
+    if (!is_flusher_stopped_) {
+      {
+        unique_lock_type dict_cache_write_lock{dict_cache_mutex_};
+        auto local_dict_cache{create_dict_cache_internal()};
+        if (local_dict_cache) {
+          dict_cache_ = std::move(local_dict_cache);
+        }
       }
 
       DBUG_EXECUTE_IF("masking_functions_signal_on_cache_reload", {
@@ -206,31 +231,42 @@ bookshelf_ptr query_cache::create_dict_cache_internal() const {
   bookshelf_ptr result;
   try {
     masking_functions::sql_context sql_ctx{global_command_services::instance()};
-    auto query = m_query_builder->select_all_from_dictionary();
-    auto local_dict_cache{std::make_shared<bookshelf>()};
+    auto query{dict_query_builder_->select_all_from_dictionary()};
+    auto local_dict_cache{std::make_unique<bookshelf>()};
     sql_context::row_callback<2> result_inserter{[&terms = *local_dict_cache](
                                                      const auto &field_values) {
       terms.insert(std::string{field_values[0]}, std::string{field_values[1]});
     }};
     sql_ctx.execute_select(query, result_inserter);
-    result = local_dict_cache;
+    result = std::move(local_dict_cache);
   } catch (...) {
   }
 
   return result;
 }
 
-bookshelf_ptr query_cache::get_pinned_dict_cache_internal() const {
-  auto local_dict_cache{std::atomic_load(&m_dict_cache)};
-  if (!local_dict_cache) {
-    local_dict_cache = create_dict_cache_internal();
+const bookshelf &query_cache::acquire_dict_cache_shared(
+    shared_lock_type &read_lock, unique_lock_type &write_lock) const {
+  read_lock = shared_lock_type{dict_cache_mutex_};
+  if (!dict_cache_) {
+    // upgrading to a unique_lock
+    read_lock.unlock();
+    acquire_dict_cache_unique(write_lock);
+  }
+  return *dict_cache_;
+}
+
+bookshelf &query_cache::acquire_dict_cache_unique(
+    unique_lock_type &write_lock) const {
+  write_lock = unique_lock_type{dict_cache_mutex_};
+  if (!dict_cache_) {
+    auto local_dict_cache{create_dict_cache_internal()};
     if (!local_dict_cache) {
       throw std::runtime_error{"Cannot load dictionary cache"};
     }
-    std::atomic_store(&m_dict_cache, local_dict_cache);
+    dict_cache_ = std::move(local_dict_cache);
   }
-
-  return local_dict_cache;
+  return *dict_cache_;
 }
 
 }  // namespace masking_functions

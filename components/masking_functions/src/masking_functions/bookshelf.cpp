@@ -15,82 +15,64 @@
 
 #include "masking_functions/bookshelf.hpp"
 
-#include <mutex>
-#include <optional>
-#include <shared_mutex>
-
 #include "masking_functions/dictionary.hpp"
 
 namespace masking_functions {
 
+bookshelf::bookshelf() = default;
+bookshelf::~bookshelf() = default;
+
 bool bookshelf::contains(const std::string &dictionary_name,
                          const std::string &term) const noexcept {
-  const auto dict{find_dictionary_internal(dictionary_name)};
-  if (!dict) {
+  const auto dictionary_it{dictionaries_.find(dictionary_name)};
+  if (dictionary_it == std::cend(dictionaries_)) {
     return false;
   }
-  return dict->contains(term);
+  return dictionary_it->second->contains(term);
 }
 
-// returning a copy deliberately for thread safety
-optional_string bookshelf::get_random(
+std::string_view bookshelf::get_random(
     const std::string &dictionary_name) const noexcept {
-  const auto dict{find_dictionary_internal(dictionary_name)};
-  if (!dict) {
-    return std::nullopt;
+  const auto dictionary_it{dictionaries_.find(dictionary_name)};
+  if (dictionary_it == std::cend(dictionaries_)) {
+    return {};
   }
-  return dict->get_random();
+  return dictionary_it->second->get_random();
 }
 
 bool bookshelf::remove(const std::string &dictionary_name) noexcept {
-  std::unique_lock dictionaries_write_lock{dictionaries_mutex_};
   return dictionaries_.erase(dictionary_name) != 0U;
 }
 
 bool bookshelf::remove(const std::string &dictionary_name,
                        const std::string &term) noexcept {
-  const auto dict{find_dictionary_internal(dictionary_name)};
-  if (!dict) {
+  const auto dictionary_it{dictionaries_.find(dictionary_name)};
+  if (dictionary_it == std::end(dictionaries_)) {
     return false;
   }
-  return dict->remove(term);
-  // after this operation we may have a dictionary with no terms in it -
-  // it is fine and much safer than trying to re-acquire a write lock and
-  // removing the dictionary from the bookshelf when it has 0 terms.
+  const auto result{dictionary_it->second->remove(term)};
+  if (dictionary_it->second->is_empty()) {
+    dictionaries_.erase(dictionary_it);
+  }
+  return result;
 }
 
 bool bookshelf::insert(const std::string &dictionary_name,
                        const std::string &term) {
-  auto dict{find_dictionary_internal(dictionary_name)};
-  if (dict) {
-    return dict->insert(term);
+  // here we use try_emplace as an combined version of find and
+  // insert
+  const auto [dictionary_it,
+              inserted]{dictionaries_.try_emplace(dictionary_name)};
+  if (!inserted) {
+    return dictionary_it->second->insert(term);
   }
-
-  // if no dictionary with such name alteady exist, we need to
-  // create it under a write lock
-  {
-    std::unique_lock dictionaries_write_lock{dictionaries_mutex_};
-    // it may happen that between the read and write locks another thread
-    // already created the dictionary with the same name - checking again
-    dict = std::make_shared<dictionary>(term);
-    const auto [dictionary_it,
-                inserted]{dictionaries_.emplace(dictionary_name, dict)};
-    if (inserted) {
-      return true;
-    }
-    dict = dictionary_it->second;
+  try {
+    dictionary_it->second = std::make_unique<dictionary>(term);
+  } catch (...) {
+    dictionaries_.erase(dictionary_it);
+    throw;
   }
-  return dict->insert(term);
-}
-
-dictionary_ptr bookshelf::find_dictionary_internal(
-    const std::string &dictionary_name) const noexcept {
-  std::shared_lock dictionaries_read_lock{dictionaries_mutex_};
-  const auto dictionary_it{dictionaries_.find(dictionary_name)};
-  if (dictionary_it == std::cend(dictionaries_)) {
-    return {};
-  }
-  return dictionary_it->second;
+  return true;
 }
 
 }  // namespace masking_functions

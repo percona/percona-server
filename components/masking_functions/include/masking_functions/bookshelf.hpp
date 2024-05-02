@@ -18,8 +18,8 @@
 
 #include "masking_functions/bookshelf_fwd.hpp"
 
-#include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "masking_functions/dictionary_fwd.hpp"
@@ -28,16 +28,18 @@ namespace masking_functions {
 
 class bookshelf {
  public:
-  bookshelf() = default;
+  bookshelf();
   bookshelf(const dictionary &) = delete;
   bookshelf(bookshelf &&) = delete;
   bookshelf &operator=(const bookshelf &) = delete;
   bookshelf &operator=(bookshelf &&) = delete;
+  ~bookshelf();
 
   bool contains(const std::string &dictionary_name,
                 const std::string &term) const noexcept;
-  // returning a copy deliberately for thread safety
-  optional_string get_random(const std::string &dictionary_name) const noexcept;
+  // returns empty std::string_view if no such dictionary exist
+  std::string_view get_random(
+      const std::string &dictionary_name) const noexcept;
   bool remove(const std::string &dictionary_name) noexcept;
   bool remove(const std::string &dictionary_name,
               const std::string &term) noexcept;
@@ -49,10 +51,6 @@ class bookshelf {
   //       transparent_string_like_hash, std::equal_to<>>.
   using dictionary_container = std::unordered_map<std::string, dictionary_ptr>;
   dictionary_container dictionaries_;
-  mutable std::shared_mutex dictionaries_mutex_;
-
-  dictionary_ptr find_dictionary_internal(
-      const std::string &dictionary_name) const noexcept;
 };
 
 }  // namespace masking_functions

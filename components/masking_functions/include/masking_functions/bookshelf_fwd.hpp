@@ -22,7 +22,7 @@ namespace masking_functions {
 
 class bookshelf;
 
-using bookshelf_ptr = std::shared_ptr<bookshelf>;
+using bookshelf_ptr = std::unique_ptr<bookshelf>;
 
 }  // namespace masking_functions
 

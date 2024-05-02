@@ -18,38 +18,33 @@
 #include "masking_functions/random_string_generators.hpp"
 
 #include <iterator>
-#include <mutex>
-#include <optional>
 
 namespace masking_functions {
 
-dictionary::dictionary(const std::string &term) : terms_{}, terms_mutex_{} {
-  terms_.emplace(term);
-}
+dictionary::dictionary(const std::string &term)
+    :  // here we use std::unordered_set iterator range constructor with
+       // single 'term' element converted to a fake range
+      terms_{&term, std::next(&term)} {}
 
 bool dictionary::contains(const std::string &term) const noexcept {
-  std::shared_lock terms_read_lock{terms_mutex_};
+  // TODO: in c++20 change to terms_.contains(term)
   return terms_.count(term) > 0U;
 }
 
-optional_string dictionary::get_random() const {
-  std::shared_lock terms_read_lock{terms_mutex_};
-
+std::string_view dictionary::get_random() const noexcept {
   if (terms_.empty()) {
-    return std::nullopt;
+    return {};
   }
 
   const auto random_index{random_number(0, terms_.size() - 1U)};
-  return *std::next(terms_.begin(), random_index);
+  return *std::next(std::begin(terms_), random_index);
 }
 
 bool dictionary::insert(const std::string &term) {
-  std::unique_lock terms_write_lock{terms_mutex_};
   return terms_.emplace(term).second;
 }
 
 bool dictionary::remove(const std::string &term) noexcept {
-  std::unique_lock terms_write_lock{terms_mutex_};
   return terms_.erase(term) > 0U;
 }
 

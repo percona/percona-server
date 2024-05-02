@@ -16,7 +16,6 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <stdexcept>
 #include <type_traits>
 
@@ -85,12 +84,12 @@ sql_context::sql_context(const command_service_tuple &services)
 bool sql_context::execute_dml(std::string_view query) {
   if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
                                      query.length()) != 0) {
-    return false;
+    throw std::runtime_error{"Error while executing SQL DML query"};
   }
   std::uint64_t row_count = 0;
   if ((*get_services().query->affected_rows)(to_mysql_h(impl_.get()),
                                              &row_count) != 0) {
-    return false;
+    throw std::runtime_error{"Couldn't get number of affected rows"};
   }
   return row_count > 0;
 }
@@ -100,7 +99,7 @@ void sql_context::execute_select_internal(
     const row_internal_callback &callback) {
   if ((*get_services().query->query)(to_mysql_h(impl_.get()), query.data(),
                                      query.length()) != 0) {
-    throw std::runtime_error{"Error while executing SQL query"};
+    throw std::runtime_error{"Error while executing SQL select query"};
   }
 
   unsigned int actual_number_of_fields = 0;

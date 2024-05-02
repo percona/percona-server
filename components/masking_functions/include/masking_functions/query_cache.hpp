@@ -23,6 +23,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 
 #include <mysql/components/services/psi_thread.h>
@@ -35,6 +36,7 @@ namespace masking_functions {
 
 class query_cache {
  public:
+  // passing unique_ptr by value to transfer ownership
   query_cache(query_builder_ptr query_builder,
               std::uint64_t flusher_interval_seconds);
   query_cache(const query_cache &other) = delete;
@@ -45,7 +47,9 @@ class query_cache {
 
   bool contains(const std::string &dictionary_name,
                 const std::string &term) const;
-  optional_string get_random(const std::string &dictionary_name) const;
+  // returns a copy of the string to avoid race conditions
+  // an empty string is returned if the dictionary does not exist
+  std::string get_random(const std::string &dictionary_name) const;
   bool remove(const std::string &dictionary_name);
   bool remove(const std::string &dictionary_name, const std::string &term);
   bool insert(const std::string &dictionary_name, const std::string &term);
@@ -53,21 +57,20 @@ class query_cache {
   void reload_cache();
 
  private:
-  query_builder_ptr m_query_builder;
+  query_builder_ptr dict_query_builder_;
 
-  // TODO: in c++20 change this to std::atomic<bookshelf_ptr> and
-  //       remove deprecated atomic_load() / atomic_store()
-  mutable bookshelf_ptr m_dict_cache;
+  mutable bookshelf_ptr dict_cache_;
+  mutable std::shared_mutex dict_cache_mutex_;
 
-  std::uint64_t m_flusher_interval_seconds;
-  std::atomic<bool> m_is_flusher_stopped;
-  std::mutex m_flusher_mutex;
-  std::condition_variable m_flusher_condition_var;
+  std::uint64_t flusher_interval_seconds_;
+  std::atomic<bool> is_flusher_stopped_;
+  std::mutex flusher_mutex_;
+  std::condition_variable flusher_condition_var_;
 
-  PSI_thread_key m_psi_flusher_thread_key;
-  my_thread_handle m_flusher_thread;
-  my_thread_attr_t m_flusher_thread_attr;
-  std::unique_ptr<THD> m_flusher_thd;
+  PSI_thread_key psi_flusher_thread_key_;
+  my_thread_handle flusher_thread_;
+  my_thread_attr_t flusher_thread_attr_;
+  std::unique_ptr<THD> flusher_thd_;
 
   void init_thd() noexcept;
   void release_thd() noexcept;
@@ -76,8 +79,11 @@ class query_cache {
   static void *run_dict_flusher(void *arg);
 
   bookshelf_ptr create_dict_cache_internal() const;
-  // returning deliberately by value to increase reference counter
-  bookshelf_ptr get_pinned_dict_cache_internal() const;
+  using shared_lock_type = std::shared_lock<std::shared_mutex>;
+  using unique_lock_type = std::unique_lock<std::shared_mutex>;
+  const bookshelf &acquire_dict_cache_shared(
+      shared_lock_type &read_lock, unique_lock_type &write_lock) const;
+  bookshelf &acquire_dict_cache_unique(unique_lock_type &write_lock) const;
 };
 
 }  // namespace masking_functions

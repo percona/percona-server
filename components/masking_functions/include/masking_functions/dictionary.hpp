@@ -18,8 +18,8 @@
 
 #include "masking_functions/dictionary_fwd.hpp"
 
-#include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 
 namespace masking_functions {
@@ -34,9 +34,13 @@ class dictionary {
   dictionary &operator=(const dictionary &) = delete;
   dictionary &operator=(dictionary &&) = delete;
 
+  ~dictionary() = default;
+
+  bool is_empty() const noexcept { return terms_.empty(); }
+
   bool contains(const std::string &term) const noexcept;
-  // returning a copy deliberately for thread safety
-  optional_string get_random() const;
+  // returns empty std::string_view if the dictionary is empty
+  std::string_view get_random() const noexcept;
   bool insert(const std::string &term);
   bool remove(const std::string &term) noexcept;
 
@@ -46,7 +50,6 @@ class dictionary {
   //       transparent_string_like_hash, std::equal_to<>>.
   using term_container = std::unordered_set<std::string>;
   term_container terms_;
-  mutable std::shared_mutex terms_mutex_;
 };
 
 }  // namespace masking_functions

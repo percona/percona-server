@@ -976,9 +976,9 @@ class gen_blocklist_impl {
     auto sresult =
         global_query_cache::instance()->get_random(cs_dict_b_escaped);
 
-    if (sresult && !sresult->empty()) {
+    if (!sresult.empty()) {
       masking_functions::charset_string utf8_result{
-          global_string_services::instance(), *sresult,
+          global_string_services::instance(), sresult,
           masking_functions::charset_string::utf8mb4_collation_name};
       masking_functions::charset_string conversion_buffer;
       const auto &cs_result = masking_functions::smart_convert_to_collation(
@@ -1022,8 +1022,8 @@ class gen_dictionary_impl {
     auto sresult =
         global_query_cache::instance()->get_random(cs_dictionary_escaped);
 
-    if (sresult && !sresult->empty()) {
-      return *sresult;
+    if (!sresult.empty()) {
+      return sresult;
     }
 
     return std::nullopt;

@@ -159,7 +159,7 @@ get_sources(){
     IS_RELEASE_BRANCH=$(echo ${BRANCH} | grep -c release);
     if [ ${IS_RELEASE_BRANCH} != 0 ]; then
         IFS='.' read -r MAJOR MINOR PATCH <<< $(echo $BRANCH | awk -F'-' '{print $2}')
-        EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}')
+        EXTRA=$(echo $BRANCH | awk -F'-' '{print $3}' | awk -F'_' '{print $1}')
         if [ ${MYSQL_VERSION_MAJOR} != ${MAJOR} ]; then
             echo "Major version differs from defined in version file"
             exit 1

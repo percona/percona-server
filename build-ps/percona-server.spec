@@ -242,8 +242,10 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
+%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}|libfido2.*
+%global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
 %global __perl_provides %{SOURCE90}
@@ -486,6 +488,7 @@ Provides:      percona-mysql-router = %{version}-%{release}
 Obsoletes:     percona-mysql-router < %{version}-%{release}
 Provides:      mysql-router
 Conflicts:     percona-mysql-router-pro
+%{?el7:Requires:  openssl-libs >= 1.0.2j}
 
 %description -n percona-mysql-router
 The Percona MySQL Router software delivers a fast, multi-threaded way of
@@ -554,7 +557,19 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DUSE_LD_LLD=0 \
+%if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
            -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
@@ -613,7 +628,19 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DUSE_LD_LLD=0 \
+%if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
            -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
@@ -632,6 +659,7 @@ mkdir release
            -DWITH_ROCKSDB=1 \
            -DROCKSDB_DISABLE_AVX2=1 \
            -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
+           %{?ssl_option} \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
@@ -655,6 +683,18 @@ mkdir release
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
+%if 0%{?ssl_default}
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -1043,11 +1083,14 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %endif # add_fido_plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1308,6 +1351,12 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.21*
+%if 0%{?ssl_bundled}
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so.1.1
+%endif # ssl_bundled
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
 %attr(755, root, root) /usr/lib/libcoredumper.a
@@ -1328,7 +1377,15 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
+%if 0%{?ssl_bundled}
+%attr(755, root, root) %{_bindir}/my_openssl
+%endif # ssl_bundled
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
+%if 0%{?systemd}
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%endif
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
@@ -1416,6 +1473,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
+%endif # add_fido_plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so

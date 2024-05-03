@@ -848,32 +848,36 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
+    ADDITIONAL_FLAG=''
+    if [ "x${RHEL}" = "x8" ]; then
+        ADDITIONAL_FLAG='--define "with_openssl11 1" '
+    fi
     if [ ${ARCH} = x86_64 ]; then
         if [[ ${WITH_ZENFS} == "1" ]]; then
             if [[ "x${FIPSMODE}" == "x1" ]]; then
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         else
             if [[ "x${FIPSMODE}" == "x1" ]]; then
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     else
         if [[ ${WITH_ZENFS} == "1" ]]; then
             if [[ "x${FIPSMODE}" == "x1" ]]; then
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         else
             if [[ "x${FIPSMODE}" == "x1" ]]; then
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "enable_fipsmode 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" ${ADDITIONAL_FLAG} --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     fi

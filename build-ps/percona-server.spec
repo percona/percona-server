@@ -1,23 +1,24 @@
-# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
-# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
-# MA  02110-1301  USA.
-
-# Rebuild on OL5/RHEL5 needs following rpmbuild options:
-#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
-
-# Install cmake28 from EPEL when building on OL5/RHEL5 and OL6/RHEL6.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -55,6 +56,16 @@
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+
+%global ssl_default 1
+
+# Pass alternative ssl setting if provided. Can be used for newer OpenSSL.
+%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
+%{?with_ssl: %global ssl_bundled 1}
+
+# Use OpenSSL 1.1
+%{?with_openssl11: %global ssl_option -DWITH_SSL=openssl11}
+%{?with_openssl11: %global ssl_default 0}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -204,6 +215,9 @@ BuildRequires:  readline-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
+%if 0%{?with_openssl11}
+BuildRequires:  openssl11-devel
+%endif
 BuildRequires:  bison
 BuildRequires:  openldap-devel
 BuildRequires:  libcurl-devel

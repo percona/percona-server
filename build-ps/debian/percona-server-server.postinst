@@ -132,24 +132,32 @@ case "$1" in
 
 		PROFILE_ACTION="Use NEW AppArmor profile"
 		# If the existing AppArmor module/local profile is the proper file, we back it up
-		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
-			db_input high percona-server-server/existing_profile_file || true
-			db_go
-			db_get percona-server-server/existing_profile_file && PROFILE_ACTION=${RET}
-		fi
-		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
-			DATE=`date +%Y-%m-%d-%H:%m:%S`
-			mkdir -p /etc/apparmor.d/mysqld_apparmor_backup
-			mkdir -p /etc/apparmor.d/local/mysqld_apparmor_backup
-			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-
-			mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
+			 if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
+                                sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
+                                sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
+                                sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
+                                echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "" >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
+                                echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
+				sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/' /etc/apparmor.d/usr.sbin.mysqld
+                                rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
+                        else
+                                mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
+                        fi
+		else
+			mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true
+                fi
+		if [ -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
+			rm -f /etc/apparmor.d/local/usr.sbin.mysqld.in
+		else
 			mv -f /etc/apparmor.d/local/usr.sbin.mysqld.in /etc/apparmor.d/local/usr.sbin.mysqld
-
 		fi
-		rm -f /etc/apparmor.d/usr.sbin.mysqld.in
-		rm -f /etc/apparmor.d/local/usr.sbin.mysqld.in
+                rm -f /etc/apparmor.d/old_apparmor
 		if aa-status --enabled 2>/dev/null; then
 			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
 		fi
@@ -193,24 +201,29 @@ EOF
 			echo "Please use etc/mysql/mysql.conf.d for any custom configuration settings"
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
-
-		# If it's a updated version of apparmor profile, install the new one and take a backup of the old profile
-		if [ -f "/etc/apparmor.d/usr.sbin.mysqld.in" -o -f "/etc/apparmor.d/usr.sbin.mysqld.in.dpkg-dist" ]; then
-			DATE=`date +%Y-%m-%d-%H:%m:%S`
-			mkdir -p /etc/apparmor.d/mysqld_apparmor_backup
-			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-                        echo "WARNING: /etc/apparmor.d/usr.sbin.mysqld moved to /etc/apparmor.d/mysqld_apparmor_backup/usr.sbin.mysqld_$DATE.bak"
-                        echo "Updated version will be installed in /etc/apparmor.d/usr.sbin.mysqld"
-                        echo "Please use /etc/apparmor.d/local/usr.sbin.mysqld for any custom configuration settings"
-			if [ -f "etc/apparmor.d/usr.sbin.mysqld.in" ]; then
-				mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
+			if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
+				sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
+				sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
+				sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
+				echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "" >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
+				echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
+				sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/'  /etc/apparmor.d/usr.sbin.mysqld
+				rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
 			else
-				mv -f /etc/apparmor.d/usr.sbin.mysqld.in.dpkg-dist /etc/apparmor.d/usr.sbin.mysqld
+				mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
 			fi
-			if aa-status --enabled 2>/dev/null; then
-				apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
-			fi
-		fi
+                fi
+		rm -f /etc/apparmor.d/old_apparmor
+		mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true
+		if aa-status --enabled 2>/dev/null; then
+			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
+                fi
 	fi
 	chmod +x /etc/init.d/mysql || true
 	;;

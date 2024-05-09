@@ -4262,22 +4262,23 @@ ibuf_delete(
 	}
 }
 
-/*********************************************************************//**
-Restores insert buffer tree cursor position
-@return TRUE if the position was restored; FALSE if not */
+/** Restores insert buffer tree cursor position
+@param[in]        space_id      Tablespace id
+@param[in]        page_no       index page number where the record should belong
+@param [in]       search_tuple  search tuple for entries of page_no
+@param[in]        mode       BTR_MODIFY_LEAF or BTR_MODIFY_TREE
+@param[in,out]    pcur       persistent cursor whose position is to be restored
+@param[in, out]   mtr        mini-transaction
+@return true if the position was restored; false if not */
 static MY_ATTRIBUTE((nonnull))
 ibool
 ibuf_restore_pos(
-/*=============*/
-	ulint		space,	/*!< in: space id */
-	ulint		page_no,/*!< in: index page number where the record
-				should belong */
+	ulint space_id,
+	ulint page_no,
 	const dtuple_t*	search_tuple,
-				/*!< in: search tuple for entries of page_no */
-	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
-	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor whose
-				position is to be restored */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	ulint mode,
+	btr_pcur_t*	pcur,
+	mtr_t* mtr)
 {
 	ut_ad(mode == BTR_MODIFY_LEAF
 	      || BTR_LATCH_MODE_WITHOUT_INTENTION(mode) == BTR_MODIFY_TREE);
@@ -4286,17 +4287,15 @@ ibuf_restore_pos(
 
 		return(TRUE);
 	}
-
-	if (fil_space_get_flags(space) == ULINT_UNDEFINED ||
-		fil_space_is_being_truncated(space)) {
-		/* The tablespace has been dropped. Or the tablespace is being
-		truncated. It is possible that another thread has deleted
-		the insert buffer entry.  Do not complain. */
+	fil_space_t* space = fil_space_acquire_silent(space_id);
+	if (space == NULL) {
+		/* The tablespace has been(or being) deleted. Do not complain. */
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 	} else {
+		fil_space_release(space);
 		ib::error() << "ibuf cursor restoration fails!."
 			" ibuf record inserted to page "
-			<< space << ":" << page_no;
+			<< space_id << ":" << page_no;
 
 		ib::error() << BUG_REPORT_MSG;
 

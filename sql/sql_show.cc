@@ -10115,7 +10115,7 @@ int finalize_schema_table(st_plugin_int *plugin)
     if (plugin->plugin->deinit)
     {
       DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-      if (plugin->plugin->deinit(NULL))
+      if (plugin->plugin->deinit(plugin))
       {
         DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                                plugin->name.str));

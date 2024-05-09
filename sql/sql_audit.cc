@@ -1390,7 +1390,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
 {
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 
-  if (plugin->plugin->deinit && plugin->plugin->deinit(NULL))
+  if (plugin->plugin->deinit && plugin->plugin->deinit(plugin))
   {
     DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                             plugin->name.str));

@@ -23,7 +23,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%define build_timestamp %(date +"%Y")
+%global build_timestamp %(date +"%Y")
 %undefine _missing_build_ids_terminate_build
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc

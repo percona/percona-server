@@ -1061,7 +1061,9 @@ build_deb(){
     dpkg-source -x ${DSC}
 
     cd ${DIRNAME}
-
+    if [ ${DEBIAN_VERSION} == "noble" ]; then
+        exit 0
+    fi
 
     if [[ ${WITH_ZENFS} == "1" ]]; then
         enable_zenfs debian

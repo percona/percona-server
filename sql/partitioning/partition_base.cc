@@ -27,6 +27,7 @@
 #include "partition_base.h"
 #include "mysql/psi/mysql_file.h"
 #include "pfs_file_provider.h"
+#include "scope_guard.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -57,8 +58,6 @@
 
 #include "mysql/psi/mysql_file.h"
 #include "pfs_file_provider.h"
-
-#include <boost/scope_exit.hpp>
 
 using std::max;
 using std::min;
@@ -637,12 +636,14 @@ int Partition_base::create(const char *name, TABLE *table_arg,
           old_index_file_name = create_info->data_file_name;
           create_info->index_file_name = part_elem->index_file_name;
         }
-        BOOST_SCOPE_EXIT_ALL(&) {
+
+        Scope_guard file_context_reset_guard([&]() {
           if (part_elem->data_file_name)
             create_info->data_file_name = old_data_file_name;
           if (part_elem->index_file_name)
             create_info->index_file_name = old_index_file_name;
-        };
+        });
+
         if ((error = (*file)->ha_create(name_buff, table_arg, create_info,
                                         table_def)))
           return false;

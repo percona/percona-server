@@ -40,7 +40,6 @@
 #include "sql/sql_show.h"    // append_identifier
 #include "sql/sql_table.h"   // tablename_to_filename
 #include "sql/thd_raii.h"
-#include "varlen_sort.h"
 
 #include "sql/dd/dd.h"
 #include "sql/dd/dictionary.h"
@@ -2990,14 +2989,14 @@ int Partition_base::info(uint flag) {
       i++;
     } while (*(++file_array));
     /*
-      Sort the array of part_ids by number of records in
-      in descending order.
+      Sort the array of part_ids by number of records in descending order.
     */
-    varlen_sort(m_part_ids_sorted_by_num_of_records,
-                m_part_ids_sorted_by_num_of_records + m_tot_parts,
-                sizeof(uint32), [this](const uint32 *a, const uint32 *b) {
-                  return m_file[*a]->stats.records < m_file[*b]->stats.records;
-                });
+    std::sort(m_part_ids_sorted_by_num_of_records,
+              m_part_ids_sorted_by_num_of_records + m_tot_parts,
+              [this](const uint32 &a, const uint32 &b) {
+                return m_file[a]->stats.records > m_file[b]->stats.records;
+              });
+
     file = m_file[handler_instance];
     res = file->info(HA_STATUS_CONST | no_lock_flag);
     if (res && !error) {

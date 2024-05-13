@@ -732,7 +732,7 @@ build_mecab_lib(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
     #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
-    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/mecab/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}

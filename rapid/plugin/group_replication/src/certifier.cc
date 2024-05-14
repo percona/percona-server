@@ -255,8 +255,7 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 
 
 Certifier::Certifier()
-  :initialized(false),
-   positive_cert(0), negative_cert(0),
+  :positive_cert(0), negative_cert(0),
    parallel_applier_last_committed_global(1),
    parallel_applier_sequence_number(2),
    certifying_already_applied_transactions(false),
@@ -264,6 +263,7 @@ Certifier::Certifier()
    gtids_assigned_in_blocks_counter(1),
    conflict_detection_enable(!local_member_info->in_primary_mode())
 {
+   my_atomic_store32(&initialized, 0);
    last_conflict_free_transaction.clear();
 
 #if !defined(NDEBUG)
@@ -310,16 +310,19 @@ Certifier::Certifier()
 
 Certifier::~Certifier()
 {
+  mysql_mutex_lock(&LOCK_certification_info);
+  my_atomic_store32(&initialized, 0);
   clear_certification_info();
   delete certification_info_sid_map;
 
   delete stable_gtid_set;
   delete stable_sid_map;
   delete stable_gtid_set_lock;
-  delete broadcast_thread;
   delete group_gtid_executed;
   delete group_gtid_extracted;
   delete group_gtid_sid_map;
+  mysql_mutex_unlock(&LOCK_certification_info);
+  delete broadcast_thread;
 
   clear_incoming();
   delete incoming;
@@ -566,6 +569,7 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
 
 void Certifier::clear_certification_info()
 {
+  mysql_mutex_assert_owner(&LOCK_certification_info);
   for (Certification_info::iterator it= certification_info.begin();
        it != certification_info.end();
        ++it)
@@ -630,7 +634,7 @@ int Certifier::initialize(ulonglong gtid_assignment_block_size)
   }
 
   error= broadcast_thread->initialize();
-  initialized= !error;
+  my_atomic_store32(&initialized, !error);
 
 end:
   mysql_mutex_unlock(&LOCK_certification_info);
@@ -931,6 +935,10 @@ int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
 {
   DBUG_ENTER("Certifier::add_specified_gtid_to_group_gtid_executed");
 
+  if (!is_initialized()) {
+    return 1;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   rpl_sidno sidno= gle->get_sidno(group_gtid_sid_map);
 
@@ -961,6 +969,11 @@ int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
 int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno, bool local)
 {
   DBUG_ENTER("Certifier::add_group_gtid_to_group_gtid_executed");
+
+  if (!is_initialized()) {
+    return 1;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, gno, local);
   mysql_mutex_unlock(&LOCK_certification_info);
@@ -1178,6 +1191,10 @@ Certifier::get_group_stable_transactions_set_string(char **buffer,
   DBUG_ENTER("Certifier::get_group_stable_transactions_set_string");
   int error= 1;
 
+  if (!is_initialized()) {
+    return 1;
+  }
+
   char *m_buffer= NULL;
   int m_length= stable_gtid_set->to_string(&m_buffer, true);
   if (m_length >= 0)
@@ -1223,6 +1240,11 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
 void Certifier::garbage_collect()
 {
   DBUG_ENTER("Certifier::garbage_collect");
+
+  if (!is_initialized()) {
+    return;
+  }
+
   DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
                     { DBUG_VOID_RETURN; };);
 
@@ -1493,6 +1515,11 @@ int Certifier::stable_set_handle()
 void Certifier::handle_view_change()
 {
   DBUG_ENTER("Certifier::handle_view_change");
+
+  if (!is_initialized()) {
+    return;
+  }
+
   clear_incoming();
   clear_members();
   DBUG_VOID_RETURN;
@@ -1502,6 +1529,11 @@ void Certifier::handle_view_change()
 void Certifier::get_certification_info(std::map<std::string, std::string> *cert_info)
 {
   DBUG_ENTER("Certifier::get_certification_info");
+
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   for(Certification_info::iterator it = certification_info.begin();
@@ -1538,6 +1570,10 @@ rpl_gno Certifier::generate_view_change_group_gno()
 {
   DBUG_ENTER("Certifier::generate_view_change_group_gno");
 
+  if (!is_initialized()) {
+    return -1;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   rpl_gno result= get_group_next_available_gtid(NULL);
 
@@ -1557,6 +1593,11 @@ rpl_gno Certifier::generate_view_change_group_gno()
 int Certifier::set_certification_info(std::map<std::string, std::string> *cert_info)
 {
   DBUG_ENTER("Certifier::set_certification_info");
+
+  if (!is_initialized()) {
+    return 1;
+  }
+
   assert(cert_info != NULL);
 
   if (cert_info->size() == 1) {
@@ -1674,6 +1715,10 @@ ulonglong Certifier::get_certification_info_size()
 
 void Certifier::get_last_conflict_free_transaction(std::string* value)
 {
+  if (!is_initialized()) {
+    return;
+  }
+
   int length= 0;
   char buffer[Gtid::MAX_TEXT_LENGTH + 1];
 
@@ -1710,6 +1755,10 @@ void Certifier::enable_conflict_detection()
   DBUG_ENTER("Certifier::enable_conflict_detection");
   assert(local_member_info->in_primary_mode());
 
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable= true;
   local_member_info->enable_conflict_detection();
@@ -1720,6 +1769,11 @@ void Certifier::enable_conflict_detection()
 void Certifier::disable_conflict_detection()
 {
   DBUG_ENTER("Certifier::disable_conflict_detection");
+
+  if (!is_initialized()) {
+    return;
+  }
+
   assert(local_member_info->in_primary_mode());
 
   mysql_mutex_lock(&LOCK_certification_info);
@@ -1737,6 +1791,10 @@ void Certifier::disable_conflict_detection()
 bool Certifier::is_conflict_detection_enable()
 {
   DBUG_ENTER("Certifier::is_conflict_detection_enable");
+
+  if (!is_initialized()) {
+    return false;
+  }
 
   mysql_mutex_lock(&LOCK_certification_info);
   bool result= conflict_detection_enable;

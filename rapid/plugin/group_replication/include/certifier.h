@@ -433,7 +433,7 @@ private:
   /**
     Is certifier initialized.
   */
-  bool initialized;
+  int32 initialized;
 
   /**
     Variable to store the sidno used for transactions which will be logged
@@ -540,7 +540,7 @@ private:
 
   bool inline is_initialized()
   {
-    return initialized;
+    return my_atomic_load32(&initialized);
   }
 
   void clear_certification_info();

@@ -19,7 +19,7 @@ let $NEW_CMD = $MYSQLD_CMD --plugin-dir=$PLUGIN_DIR --log-error=$MYSQLTEST_VARDI
 --inc $rc
 
 # Following query should fail as server crashed during restart
---error CR_SERVER_LOST,CR_SERVER_GONE_ERROR
+--error CR_SERVER_LOST,CR_SERVER_GONE_ERROR,CR_CONNECTION_ERROR
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 
 --echo # Search the pattern in error log

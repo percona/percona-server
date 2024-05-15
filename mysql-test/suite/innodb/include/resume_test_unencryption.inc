@@ -10,7 +10,7 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 
 --echo # Unencrypt the tablespace. It will cause crash.
 --source include/expect_crash.inc
---error 0,CR_SERVER_LOST,CR_SERVER_GONE_ERROR,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,CR_SERVER_GONE_ERROR,ER_INTERNAL_ERROR,CR_CONNECTION_ERROR
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 
 --echo # RESTART $rc : WITH KEYRING COMPONENT after crash and cause resume operation
@@ -22,7 +22,7 @@ let $NEW_CMD = $MYSQLD_CMD --plugin-dir=$PLUGIN_DIR --log-error=$MYSQLTEST_VARDI
 --inc $rc
 
 # Following query should fail as server crashed during restart
---error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
+--error CR_SERVER_GONE_ERROR,CR_SERVER_LOST,CR_CONNECTION_ERROR
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 
 --echo # Search the pattern in error log

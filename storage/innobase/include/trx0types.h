@@ -72,7 +72,7 @@ static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 30;
 /** Mark the transaction for forced rollback */
 static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
 
-/** For masking out the above four flags */
+/** For masking out the above flags */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */

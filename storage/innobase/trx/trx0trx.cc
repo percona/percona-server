@@ -258,6 +258,9 @@ struct TrxFactory {
 
 		trx->dict_operation_lock_mode = 0;
 
+		ut_a(trx->in_innodb == 0);
+		ut_a(trx->in_depth == 0);
+
 		trx->xid = UT_NEW_NOKEY(xid_t());
 
 		trx->detailed_error = reinterpret_cast<char*>(
@@ -519,10 +522,12 @@ trx_free(trx_t*& trx)
 
 	ut_ad(trx->read_view == NULL);
 	ut_ad(trx->is_dd_trx == false);
+	ut_ad(trx->in_depth == 0);
 
 	/* trx locking state should have been reset before returning trx
 	to pool */
 	ut_ad(trx->will_lock == 0);
+	trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 
 	trx_pools->mem_free(trx);
 
@@ -657,6 +662,7 @@ trx_free_prepared(
 	was not called. */
 	trx->lock.table_locks.clear();
 
+	trx_validate_state_before_free(trx);
 	trx_free(trx);
 }
 

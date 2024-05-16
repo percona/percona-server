@@ -678,11 +678,6 @@ install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysco
 %endif
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
-# set rpath for plugin to use private/libfido2.so
-%if 0%{?add_fido_plugins}
-patchelf --debug --set-rpath '$ORIGIN/../private' %{buildroot}/%{_libdir}/mysql/plugin/authentication_fido.so
-%endif # add_fido_plugins
-
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/percona-server/mysql.server
@@ -992,9 +987,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1047,9 +1039,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1131,10 +1120,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 

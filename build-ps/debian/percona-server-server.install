@@ -157,8 +157,6 @@ usr/lib/mysql/plugin/component_encryption_udf.so
 usr/lib/mysql/plugin/debug/component_encryption_udf.so
 usr/lib/mysql/plugin/component_keyring_kms.so
 usr/lib/mysql/plugin/debug/component_keyring_kms.so
-usr/lib/mysql/plugin/authentication_fido.so
-usr/lib/mysql/plugin/debug/authentication_fido.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/component_test_mysql_thd_store_service.so

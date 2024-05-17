@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -8,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Establish connection con3 (user=root)
 # Establish connection con4 (user=root)
 # reset replication to guarantee that master-bin.000001 is used
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 RESET MASTER;
@@ -16,7 +16,7 @@ CHANGE MASTER TO master_host="127.0.0.1",master_port=MASTER_PORT,master_user="ro
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Switch to connection con1
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
@@ -67,7 +67,7 @@ set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 DELETE FROM t1;
@@ -79,7 +79,7 @@ CHANGE MASTER TO master_host="127.0.0.1",master_port=MASTER_PORT,master_user="ro
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 SELECT * FROM t1;
 a
 1
@@ -115,7 +115,7 @@ set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 DELETE FROM t1;
@@ -124,7 +124,7 @@ CHANGE MASTER TO master_host="127.0.0.1",master_port=MASTER_PORT,master_user="ro
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 # sync and then query slave
 ShouldBeZero
 0
@@ -155,7 +155,7 @@ set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 SET @@global.gtid_purged='gtid_executed_from_snapshot';
@@ -168,7 +168,7 @@ CHANGE MASTER TO master_host="127.0.0.1",master_port=MASTER_PORT,master_user="ro
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 SELECT * FROM t1;
 a
 1
@@ -204,7 +204,7 @@ set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 SET @@global.gtid_purged='gtid_executed_from_snapshot';
@@ -214,14 +214,14 @@ CHANGE MASTER TO master_host="127.0.0.1",master_port=MASTER_PORT,master_user="ro
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/rpl/start_replica.inc
 # sync and then query slave
 ShouldBeZero
 0
 DROP TABLE t1_backup;
 DROP TABLE t1;
 # Switch to connection default + close connections con1 and con2
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CHANGE MASTER to master_auto_position=0;
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

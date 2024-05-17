@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,6 +6,6 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, KEY s_k(b)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1,2);
 ALTER TABLE t1 DROP KEY s_k;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -11,7 +11,7 @@ SET @@session.default_storage_engine = ROCKSDB;
 --disable_warnings
 --source include/not_valgrind.inc
 --source include/have_rocksdb_as_default.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 DROP TABLE IF EXISTS t1;
 --enable_warnings

@@ -28,7 +28,7 @@ source include/wait_until_connected_again.inc;
 
 # if sync_slave_with_master had a configurable timeout this would not be needed
 let $slave_sync_timeout = 7200;
---source include/wait_for_slave_to_sync_with_master.inc
+--source include/rpl/deprecated/wait_for_replica_to_sync_with_source.inc
 
 --connection slave
 --let $slave_checksum = query_get_value(CHECKSUM TABLE $table, Checksum, 1)
@@ -47,16 +47,16 @@ eval $cleanup;
 
 # if sync_slave_with_master had a configurable timeout this would not be needed
 let $slave_sync_timeout = 7200;
---source include/wait_for_slave_to_sync_with_master.inc
+--source include/rpl/deprecated/wait_for_replica_to_sync_with_source.inc
 
 --connection slave
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 # For stress tests sometimes the replication thread can not connect to master
 # temporarily. This is either because the master crashed and it is recovering
 # or the master is too busy and could not service the slave's requests.
 # mtr's internal check requires that there be no errors in slave status.
 # restarting replication clears the errors.
---source include/start_slave.inc
---source include/stop_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/stop_replica.inc
 --connection master
---source include/stop_dump_threads.inc
+--source include/rpl/stop_dump_threads.inc

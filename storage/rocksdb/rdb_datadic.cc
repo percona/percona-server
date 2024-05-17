@@ -568,7 +568,7 @@ void Rdb_key_def::setup(const TABLE &tbl, const Rdb_tbl_def &tbl_def) {
           Check key part name here, if it matches the TTL column then we store
           the offset of the TTL key part here.
         */
-        if (!m_ttl_column.empty() &&
+        if (field && !m_ttl_column.empty() &&
             !my_strcasecmp(system_charset_info, field->field_name,
                            m_ttl_column.c_str())) {
           assert((field->real_type() == MYSQL_TYPE_LONGLONG &&
@@ -578,7 +578,7 @@ void Rdb_key_def::setup(const TABLE &tbl, const Rdb_tbl_def &tbl_def) {
           m_ttl_pk_key_part_offset = dst_i;
         }
 
-        key_part++;
+        if (key_part) key_part++;
         /*
           For "unique" secondary indexes, pretend they have
           "index extensions"

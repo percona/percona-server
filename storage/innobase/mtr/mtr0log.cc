@@ -514,18 +514,28 @@ constexpr size_t inst_col_info_size = 6;
 @param[in]   is_comp       true if COMP
 @param[in]   is_versioned  if table has row versions
 @param[in]   is_instant    true if table has INSTANT cols
+@param[in]   changed_order array indicating fields changed position
 @param[out]  size_needed   total size needed on REDO LOG */
 static void log_index_get_size_needed(const dict_index_t *index, size_t size,
                                       uint16_t n, bool is_comp,
                                       bool is_versioned, bool is_instant,
+                                      const bool *changed_order,
                                       size_t &size_needed) {
-  auto size_for_versioned_fields = [](const dict_index_t *ind) {
+  auto size_for_versioned_fields = [n, changed_order](const dict_index_t *ind) {
     size_t _size = 0;
     /* 2 bytes for number of columns with version */
     _size += 2;
 
-    size_t n_versioned_fields = ind->table->get_n_instant_add_cols() +
-                                ind->table->get_n_instant_drop_cols();
+    size_t n_versioned_fields = 0;
+    for (size_t i = 0; i < n; i++) {
+      dict_field_t *field = ind->get_field(i);
+      const dict_col_t *col = field->col;
+      if (col->is_instant_added() || col->is_instant_dropped() ||
+          changed_order[i]) {
+        n_versioned_fields += 1;
+      }
+    }
+
     ut_ad(n_versioned_fields != 0);
 
     _size += n_versioned_fields * inst_col_info_size;
@@ -643,6 +653,7 @@ static bool close_and_reopen_log(byte *&log_ptr, const byte *&log_start,
                                  const byte *&log_end, mtr_t *&mtr,
                                  size_t &alloc, size_t &total) {
   mlog_close(mtr, log_ptr);
+
   ut_a(total > (ulint)(log_ptr - log_start));
   total -= log_ptr - log_start;
   alloc = total;
@@ -698,7 +709,7 @@ static bool log_index_fields(const dict_index_t *index, uint16_t n,
 
     if (is_versioned) {
       if (col->is_instant_added() || col->is_instant_dropped() ||
-          changed_order[i]) {
+          changed_order[i]) { // e6e13a8: This change causes the regression
         f.push_back(field);
       }
     }
@@ -798,9 +809,36 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     n = DICT_INDEX_SPATIAL_NODEPTR_SIZE;
   }
 
+  /* Ordinal position of an existing field can't be changed with INSTANT
+  algorithm. But when it is combined with ADD/DROP COLUMN, ordinal position
+  of a filed can be changed. This bool array of size #fields in index,
+  represents if ordinal position of an existing filed is changed. */
+  
+  // Move the logic to find columns that changed order before calculating
+  // the buffer size
+  bool *fields_with_changed_order = nullptr;
+  if (is_versioned) {
+    fields_with_changed_order = new bool[n];
+    memset(fields_with_changed_order, false, (sizeof(bool) * n));
+
+    uint16_t phy_pos = 0;
+    for (size_t i = 0; i < n; i++) {
+      dict_field_t *field = index->get_field(i);
+      const dict_col_t *col = field->col;
+
+      if (col->is_instant_added() || col->is_instant_dropped()) {
+        continue;
+      } else if (col->get_phy_pos() >= phy_pos) {
+        phy_pos = col->get_phy_pos();
+      } else {
+        fields_with_changed_order[i] = true;
+      }
+    }
+  }
+
   size_t size_needed = 0;
   log_index_get_size_needed(index, size, n, is_comp, is_versioned, is_instant,
-                            size_needed);
+                            fields_with_changed_order, size_needed);
   size_t total = size_needed;
   size_t alloc = total;
   if (alloc > mtr_buf_t::MAX_DATA_SIZE) {
@@ -809,6 +847,9 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
   if (!mlog_open(mtr, alloc, log_ptr)) {
     /* logging is disabled */
+    if (is_versioned){
+      delete[] fields_with_changed_order;
+    }
     return (false);
   }
 
@@ -844,30 +885,6 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     }
     return true;
   };
-
-  /* Ordinal position of an existing field can't be changed with INSTANT
-  algorithm. But when it is combined with ADD/DROP COLUMN, ordinal position
-  of a filed can be changed. This bool array of size #fields in index,
-  represents if ordinal position of an existing filed is changed. */
-  bool *fields_with_changed_order = nullptr;
-  if (is_versioned) {
-    fields_with_changed_order = new bool[n];
-    memset(fields_with_changed_order, false, (sizeof(bool) * n));
-
-    uint16_t phy_pos = 0;
-    for (size_t i = 0; i < n; i++) {
-      dict_field_t *field = index->get_field(i);
-      const dict_col_t *col = field->col;
-
-      if (col->is_instant_added() || col->is_instant_dropped()) {
-        continue;
-      } else if (col->get_phy_pos() >= phy_pos) {
-        phy_pos = col->get_phy_pos();
-      } else {
-        fields_with_changed_order[i] = true;
-      }
-    }
-  }
 
   if (is_comp) {
     /* Write fields info. */

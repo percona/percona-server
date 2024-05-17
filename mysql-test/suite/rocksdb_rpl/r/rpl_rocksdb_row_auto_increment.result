@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,7 +10,7 @@ a	b
 12	1
 22	2
 32	3
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 12	1
@@ -28,7 +28,7 @@ a	b
 3	3
 22	5
 32	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a	b
 1	1
@@ -65,7 +65,7 @@ a
 400
 410
 1000
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 5
@@ -100,7 +100,7 @@ a
 400
 410
 1000
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 5
@@ -150,7 +150,7 @@ a
 600
 610
 611
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -168,7 +168,7 @@ a
 drop table t1;
 set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 insert into t1 values(2),(12),(22),(32),(42);
 insert into t1 values (NULL),(NULL);
 insert into t1 values (3),(NULL),(NULL);
@@ -179,7 +179,7 @@ a
 11
 21
 31
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -226,7 +226,7 @@ Warning	1264	Out of range value for column 'a' at row 1
 select * from t3 order by a;
 a
 127
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1 order by a;
 a
 103
@@ -240,7 +240,7 @@ a
 127
 drop table t1,t2,t3;
 SET sql_mode = default;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set auto_increment_increment=1;
 set auto_increment_offset=1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
@@ -251,7 +251,7 @@ t1	CREATE TABLE `t1` (
   `id` mediumint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -259,7 +259,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-include/rpl_reset.inc
+include/rpl/reset.inc
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
@@ -313,27 +313,27 @@ id
 INSERT INTO t1 VALUES(4);
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET BINARY LOGS AND GTIDS;
 RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
 BEGIN;
 # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
@@ -347,15 +347,15 @@ COMMIT;
 SELECT * FROM t1;
 id	data
 0	2
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 id	data
 0	2
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 create table t1(a int auto_increment primary key) engine=rocksdb;
 insert into t1 values (null),(null),(1025),(null);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 select * from t1;
 a
 1
@@ -364,5 +364,5 @@ a
 1026
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

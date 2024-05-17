@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -8,7 +8,7 @@ create table t1 (a int primary key, b int) engine = rocksdb;
 set @@unique_checks = 0;
 insert into t1 values(1, 1);
 insert into t1 values(2, 2);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 begin;
 update t1 set b = 20 where a = 2;
@@ -26,7 +26,7 @@ update t1 set b = 10 where a = 1;
 [connection master]
 set @@unique_checks = 0;
 insert into t1 values(1, 100);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 rollback;
 select * from t1;
@@ -36,5 +36,5 @@ a	b
 set @@global.rocksdb_skip_locks_if_skip_unique_check = 0;
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

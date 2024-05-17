@@ -6,7 +6,7 @@
 --source include/have_rocksdb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection slave;
 call mtr.add_suppression("Replica SQL for channel '': Worker.*failed executing transaction");
@@ -31,13 +31,13 @@ set session transaction_isolation='READ-COMMITTED';
 insert into t3 select * from t2;
 set session transaction_isolation=@orig_transaction_isolation;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 connection slave;
 let $old_debug = `select @@global.debug`;
 set global debug= 'd,dbug.rocksdb.get_row_by_rowid';
---source include/stop_slave.inc
---source include/start_slave.inc
+--source include/rpl/stop_replica.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 update t2 set col1=100 where kp1 between 1 and 3 and mod(kp2,2)=0;
@@ -53,17 +53,17 @@ set debug_sync= 'now SIGNAL signal.rocksdb.get_row_by_rowid_let_running';
 # Error is found as expected.
 # Do NOT show slave sql error as it will contain test specific binlog coords
 let $show_slave_sql_error = 0;
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # fix up the table so we can easily let slave to continue
 set sql_log_bin=0;
 insert into t2 select a,a,a,a from t1 where a in (2,3);
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Cleanup
 connection master;
 drop table t0, t1, t2, t3;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

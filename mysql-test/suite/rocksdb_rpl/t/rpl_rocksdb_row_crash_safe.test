@@ -5,11 +5,11 @@
 --source include/have_debug.inc
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/not_mts_replica_parallel_workers.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/connection_source.inc
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from source pos .* and file master-bin.000001");
@@ -18,5 +18,5 @@ call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maxi
 
 let $engine_type=RocksDB;
 let $database_name=test;
---source extra/rpl_tests/rpl_crash_safe.test
---source include/rpl_end.inc
+--source common/rpl/rpl_crash_safe.test
+--source include/rpl/deinit.inc

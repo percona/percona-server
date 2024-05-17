@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 call mtr.add_suppression("Attempting backtrace");
 call mtr.add_suppression("failed to write to WAL");
@@ -43,14 +43,14 @@ insert into t1 values (1,1),(2,2),(3,3);
 set session debug= "+d,myrocks_commit_io_error";
 insert into t1 values (4,4);
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
 2	2
 3	3
 4	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -65,7 +65,7 @@ insert into t1 values (5,5);
 insert into t1 values (6,6);
 commit;
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
@@ -74,7 +74,7 @@ id	value
 4	4
 5	5
 6	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -86,21 +86,21 @@ id	value
 6	6
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 create table t1 (id int primary key, value int) engine = rocksdb;
 insert into t1 values (1,1),(2,2),(3,3);
 set session debug= "+d,myrocks_commit_incomplete";
 insert into t1 values (4,4);
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
 2	2
 3	3
 4	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -115,7 +115,7 @@ insert into t1 values (5,5);
 insert into t1 values (6,6);
 commit;
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
@@ -124,7 +124,7 @@ id	value
 4	4
 5	5
 6	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -136,21 +136,21 @@ id	value
 6	6
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 create table t1 (id int primary key, value int) engine = rocksdb;
 insert into t1 values (1,1),(2,2),(3,3);
 set session debug= "+d,myrocks_commit_merge_io_error";
 insert into t1 values (4,4);
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
 2	2
 3	3
 4	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -165,7 +165,7 @@ insert into t1 values (5,5);
 insert into t1 values (6,6);
 commit;
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
@@ -174,7 +174,7 @@ id	value
 4	4
 5	5
 6	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -186,21 +186,21 @@ id	value
 6	6
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 create table t1 (id int primary key, value int) engine = rocksdb;
 insert into t1 values (1,1),(2,2),(3,3);
 set session debug= "+d,myrocks_commit_merge_incomplete";
 insert into t1 values (4,4);
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
 2	2
 3	3
 4	4
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -215,7 +215,7 @@ insert into t1 values (5,5);
 insert into t1 values (6,6);
 commit;
 ERROR HY000: Lost connection to MySQL server during query
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 select * from t1 order by id;
 id	value
 1	1
@@ -224,7 +224,7 @@ id	value
 4	4
 5	5
 6	6
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection slave]
 select * from t1 order by id;
 id	value
@@ -236,5 +236,5 @@ id	value
 6	6
 [connection master]
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

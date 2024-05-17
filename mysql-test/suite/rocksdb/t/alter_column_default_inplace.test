@@ -1,10 +1,10 @@
 source include/have_rocksdb.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo
 --echo # Test inplace alter when changing column default
@@ -25,7 +25,7 @@ alter table t0 modify b char(100) default 'xyz';
 set @@global.rocksdb_alter_column_default_inplace = ON;
 alter table t0 modify b char(100) default 'xyz';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --disconnect con1
 
 set @@global.rocksdb_max_row_locks = default;
@@ -39,20 +39,20 @@ set @@global.rocksdb_alter_column_default_inplace = default;
 --echo
 --echo # Test alter behavior when rocksdb_alter_column_default_inplace = off
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 create table t1(a enum('a', 'aa', 'aaa')) engine = rocksdb;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 set @@global.rocksdb_alter_column_default_inplace=FALSE;
 alter table t1 modify a enum('a', 'aa');
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 insert into t1 values('aaa');
 select * from t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 set @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify a enum('a', 'aa', 'aaa');
 select * from t1;
@@ -60,20 +60,20 @@ select * from t1;
 --echo
 --echo # Test alter behavior when rocksdb_alter_column_default_inplace = on
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 create table t2(a enum('a', 'aa', 'aaa')) engine = rocksdb;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 set @@global.rocksdb_alter_column_default_inplace=TRUE;
 alter table t2 modify a enum('a', 'aa');
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 insert into t2 values('aaa');
 select * from t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 alter table t2 modify a enum('a', 'aa', 'aaa');
 select * from t2;
 
@@ -82,8 +82,8 @@ set @@global.rocksdb_alter_column_default_inplace = default;
 --echo
 --echo # Cleanup
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 drop table t1, t2;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/wait_until_count_sessions.inc

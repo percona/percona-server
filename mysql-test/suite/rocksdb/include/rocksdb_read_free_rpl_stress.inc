@@ -1,7 +1,7 @@
 --disable_query_log
 
 # Create a schema with different kinds of tables (with different kinds of keys)
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 create table t1(a int, b int, c int, d int) Engine=RocksDB; #no keys
 create table t2(a int primary key, b int, c int, d int) Engine=RocksDB; #only pk
 create table t3(a int, b int, c int, d int, key(b)) Engine=RocksDB; #only sk
@@ -46,9 +46,9 @@ while ($iter < 10) {
   }
   inc $iter;
 }
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 let $t = 1;
 while ($t <= 8) {
   let $diff_tables = master:t$t, slave:t$t;
@@ -57,12 +57,12 @@ while ($t <= 8) {
 }
 
 # Cleanup
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 let $t = 1;
 while ($t <= 8) {
   eval drop table t$t;
   inc $t;
 }
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --enable_query_log

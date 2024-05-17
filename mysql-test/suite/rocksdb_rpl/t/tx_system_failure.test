@@ -4,7 +4,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --disable_warnings
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --enable_warnings
 
 call mtr.add_suppression("Attempting backtrace");
@@ -34,4 +34,4 @@ let $myrocks_debug_set_code = "+d,myrocks_commit_merge_io_error";
 let $myrocks_debug_set_code = "+d,myrocks_commit_merge_incomplete";
 --source ../include/tx_system_failure_commit.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

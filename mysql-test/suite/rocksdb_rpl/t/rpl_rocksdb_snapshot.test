@@ -1,7 +1,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --source include/count_sessions.inc
 
@@ -16,7 +16,7 @@ connect (con4,localhost,root,,);
 
 --echo # reset replication to guarantee that master-bin.000001 is used
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 
@@ -26,7 +26,7 @@ RESET MASTER;
 connection slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root";
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 ### Test 1:
 ### - While a consistent snapshot transaction is executed,
@@ -119,7 +119,7 @@ set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 DELETE FROM t1;
@@ -129,7 +129,7 @@ SELECT * FROM t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT $binlog_pos binlog_pos
 eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root",master_log_file="master-bin.000001",master_log_pos=$binlog_pos,master_auto_position=0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 sync_slave_with_master slave;
@@ -199,7 +199,7 @@ set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 DELETE FROM t1;
@@ -208,7 +208,7 @@ eval LOAD DATA INFILE '$outfile' INTO TABLE t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT $binlog_pos binlog_pos
 eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root",master_log_file="master-bin.000001",master_log_pos=$binlog_pos;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # sync and then query slave
 connection master;
@@ -271,7 +271,7 @@ set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 --replace_result $gtid_executed gtid_executed_from_snapshot
@@ -283,7 +283,7 @@ SELECT * FROM t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root", master_auto_position=1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 sync_slave_with_master slave;
@@ -353,7 +353,7 @@ set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
 set session transaction_isolation=@orig_tx_iso;
 
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 RESET SLAVE;
 RESET MASTER;
 --replace_result $gtid_executed gtid_executed_from_snapshot
@@ -365,7 +365,7 @@ eval LOAD DATA INFILE '$outfile' INTO TABLE t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root", master_auto_position=1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --echo # sync and then query slave
 connection master;
@@ -399,10 +399,10 @@ disconnect con4;
 
 connection default;
 sync_slave_with_master slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 CHANGE MASTER to master_auto_position=0;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --source include/wait_until_count_sessions.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

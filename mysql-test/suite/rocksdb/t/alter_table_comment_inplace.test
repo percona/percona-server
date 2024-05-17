@@ -1,13 +1,13 @@
 --source include/have_debug.inc
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/count_sessions.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace=ON;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 --echo
 --echo # Test inplace ALTER when changing TABLE comment --- implicit TTL
@@ -58,13 +58,13 @@ SELECT * from t0;
 ALTER TABLE t0 comment = 'abadfas;dfikajps;ttl_duration=30;aspipwrqp3948r', ALGORITHM=INPLACE;
 
 DROP TABLE t0;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
 --echo # Test inplace ALTER when changing TABLE comment --- explicit TTL 
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t1 (a INT, b INT, c INT, ts BIGINT UNSIGNED NOT NULL, PRIMARY KEY (a), KEY(b)) ENGINE=ROCKSDB COMMENT "ttl_duration=1000;ttl_col=ts;";
 INSERT into t1 values(1, 1, 1, UNIX_TIMESTAMP());
 INSERT into t1 values(2, 2, 2, UNIX_TIMESTAMP()); 
@@ -112,13 +112,13 @@ SELECT a,b,c from t1;
 ALTER TABLE t1 comment = 'abadfas;dfikajps;ttl_duration=1000;ttl_col=ts;aspipwrqp3948r', ALGORITHM=INPLACE;
 
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
 --echo # Test inplace ALTER when changing TABLE comment --- partition with implicit TTL 
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t2 (
     c1 INT,
     PRIMARY KEY (`c1`)
@@ -181,13 +181,13 @@ SET GLOBAL rocksdb_compact_cf='default';
 --sorted_result
 SELECT * FROM t2;
 DROP TABLE t2;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
 --echo # Test inplace ALTER when changing TABLE comment --- partition with explicit TTL 
 --echo
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE t3 (
     c1 BIGINT UNSIGNED NOT NULL,
     c2 BIGINT UNSIGNED NOT NULL,
@@ -262,17 +262,17 @@ SET GLOBAL rocksdb_debug_ttl_snapshot_ts = 0;
 --sorted_result
 SELECT c1 FROM t3;
 DROP TABLE t3;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
 --echo
 --echo # Cleanup
 --echo
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace=default;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace=default;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/wait_until_count_sessions.inc

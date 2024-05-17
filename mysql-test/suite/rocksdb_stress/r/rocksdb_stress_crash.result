@@ -1,5 +1,5 @@
 SET @@session.default_storage_engine = ROCKSDB;
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 [connection master]
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(id INT PRIMARY KEY,
@@ -28,7 +28,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/stop_slave.inc
-include/start_slave.inc
-include/stop_slave.inc
-include/stop_dump_threads.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/stop_dump_threads.inc

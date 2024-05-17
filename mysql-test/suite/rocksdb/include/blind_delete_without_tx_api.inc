@@ -1,5 +1,5 @@
 --source include/have_rocksdb.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation
 set @save_rocksdb_blind_delete_primary_key=@@session.rocksdb_blind_delete_primary_key;
@@ -35,11 +35,11 @@ while ($i <= 1000) {
 select variable_value-@c from performance_schema.global_status where variable_name='rocksdb_rows_deleted_blind';
 SELECT count(*) FROM t1;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
 --eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation
 SELECT count(*) FROM t1;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # Deleting 1000 rows from t2 (blind delete disabled because of secondary key)
 select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_rows_deleted_blind';
@@ -72,11 +72,11 @@ while ($t <= 2) {
 select variable_value-@c from performance_schema.global_status where variable_name='rocksdb_rows_deleted_blind';
 SELECT count(*) FROM t1;
 SELECT count(*) FROM t2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
 SELECT count(*) FROM t1;
 SELECT count(*) FROM t2;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 # Range Deletes (blind delete disabled)
@@ -86,41 +86,41 @@ DELETE FROM t2 WHERE id BETWEEN 3001 AND 4000;
 select variable_value-@c from performance_schema.global_status where variable_name='rocksdb_rows_deleted_blind';
 SELECT count(*) FROM t1;
 SELECT count(*) FROM t2;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
 SELECT count(*) FROM t1;
 SELECT count(*) FROM t2;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 # Deleting same keys (slaves stop)
 DELETE FROM t1 WHERE id = 10;
 SELECT count(*) FROM t1;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
 call mtr.add_suppression("Replica: Can't find record in 't1'.*");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 # wait until we have the expected error
 --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 set @save_rocksdb_read_free_rpl=@@global.rocksdb_read_free_rpl;
 set global rocksdb_read_free_rpl=PK_SK;
---source include/start_slave.inc
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
 SELECT count(*) FROM t1;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 
 # cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 set global rocksdb_read_free_rpl=@save_rocksdb_read_free_rpl;
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET session rocksdb_blind_delete_primary_key=@save_rocksdb_blind_delete_primary_key;
 SET session rocksdb_master_skip_tx_api=@save_rocksdb_master_skip_tx_api;
 
 DROP TABLE t1, t2;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -7,4 +7,4 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_rocksdb.inc
 let $engine_type=RocksDB;
---source suite/rpl/include/rpl_mixed_ddl.inc
+--source common/rpl/mixed_ddl.inc

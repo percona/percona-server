@@ -23,7 +23,7 @@ Occurrences of 'Group communication SSL configuration: group_replication_ssl_mod
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 include/start_group_replication.inc
-include/rpl_gr_wait_for_number_of_members.inc
+include/rpl/gr_wait_for_number_of_members.inc
 Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
 
 ############################################################

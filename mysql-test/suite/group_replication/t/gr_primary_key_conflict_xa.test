@@ -126,7 +126,7 @@ XA COMMIT 'trx';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo
@@ -217,7 +217,7 @@ XA COMMIT 'trx2';
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo

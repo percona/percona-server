@@ -1,70 +1,70 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event=''
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule '' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: Cannot process empty pattern]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='.event%'
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule '.event%' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: The pattern doesn't follow the format <db_pattern>.<event_pattern>]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='db%.'
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule 'db%.' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: The pattern doesn't follow the format <db_pattern>.<event_pattern>]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='event'
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule 'event' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: The pattern doesn't follow the format <db_pattern>.<event_pattern>]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='db%.event%.random'
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule 'db%.event%.random' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: The pattern has multiple dot characters. Please restart with format <db_pattern>.<event_pattern>]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='channel:db%.event%'
 Server Startup aborted as expected.
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 include/assert_grep.inc [Found the message: Could not add event rule 'channel:db%.event%' to --replica-enable-event]
 include/assert_grep.inc [Found the reason: This server doesn't support per-channel --replica-enable-event feature]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='db%.event1%'
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
+include/rpl/stop_server.inc [server_number=2]
 
 Starting the replica server with --replica-enable-event='d%b%.%event%'
-include/rpl_start_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 # Stop the server
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
 SHOW GLOBAL VARIABLES LIKE '%replica_enable_event%';
 Variable_name	Value
 replica_enable_event	db%.event1%,d%b%.%event%
@@ -74,4 +74,4 @@ db%.event1%,d%b%.%event%
 SET @hex_expected= HEX("db%.event1%,d%b%.%event%");
 SELECT HEX(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'replica_enable_event%' INTO @hex_value;
 include/assert.inc [Assert that perfschema query reports the list contents in the CSV format.]
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,5 +1,5 @@
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t0 (
 f0 INT PRIMARY KEY
@@ -24,14 +24,14 @@ DELETE t0a.*, t1.* FROM t0 AS t0a, t1 WHERE t0a.f0 = 0 AND t1.f1 = 0;
 SELECT COUNT(*) = 1 FROM t0;
 SELECT COUNT(*) = 0 FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT COUNT(*) = 1 FROM t0;
 SELECT COUNT(*) = 0 FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 DROP TABLE t0;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

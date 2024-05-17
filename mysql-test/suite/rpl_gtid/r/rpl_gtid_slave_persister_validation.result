@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -13,13 +13,13 @@ INSERT INTO t1 VALUES (2);
 # 2. Assert that table is not compressed on primary server.
 include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
 include/assert.inc [The mysql gtid table should have 3 rows.]
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Assert that table is not compressed on replica server.
 include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
 [connection master]
 INSERT INTO t1 VALUES (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [The mysql gtid table is not compressed.]
 #
 # 4. Enable debug point to print the compression info for validation purpose.
@@ -36,4 +36,4 @@ include/assert_grep.inc [GTID table compression is done by persister thread.]
 # Removing debug point 'print_gtid_compression_info' from @@GLOBAL.debug
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

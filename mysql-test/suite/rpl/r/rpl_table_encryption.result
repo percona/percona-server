@@ -1,15 +1,15 @@
 #
 # WL#12261 - Test in replication environment.
 #
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/rpl_restart_server.inc [server_number=1]
-include/rpl_restart_server.inc [server_number=2]
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=2]
 [connection slave]
-include/start_slave.inc
+include/rpl/start_replica.inc
 # Start the master with default_table_encryption=off
 [connection master]
 CREATE DATABASE db1;
@@ -54,7 +54,7 @@ t1	CREATE TABLE `t1` (
 # Start the slave with default_table_encryption=on
 # The 'table_encryption_privilege_check' setting does not affect the
 # slave thread operations.
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 # Make sure encryption type for following objects are same as master.
 SHOW CREATE DATABASE db1;
 Database	Create Database
@@ -93,9 +93,9 @@ DROP DATABASE db3;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts3;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/rpl_restart_server.inc [server_number=1]
-include/rpl_restart_server.inc [server_number=2]
-include/start_slave.inc
-include/rpl_end.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

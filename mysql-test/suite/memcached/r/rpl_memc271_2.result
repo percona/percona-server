@@ -5,7 +5,7 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 INSERT INTO config_options VALUES("separator", "|");
 INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 connection default;
 connect  $rpl_connection_name,127.0.0.1,root,,test,$_rpl_port,;
 connection master;
@@ -209,7 +209,7 @@ H	Hamburg	Norderstedt
 connection master;
 DROP TABLE t1;
 connection slave;
-include/rpl_end.inc
+include/rpl/deinit.inc
 connection server_2;
 connection server_2;
 connection server_2;

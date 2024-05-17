@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @replica_parallel_workers_save = @@global.replica_parallel_workers;
 SET GLOBAL replica_parallel_workers = 1;
-include/start_slave.inc
+include/rpl/start_replica.inc
 CREATE TABLE joinit (
 i int NOT NULL AUTO_INCREMENT,
 s varchar(64) DEFAULT NULL,
@@ -29,7 +29,7 @@ INSERT INTO joinit SELECT NULL, uuid(), time(now()), (FLOOR( 1 + RAND( ) *60 )) 
 INSERT INTO joinit SELECT NULL, uuid(), time(now()), (FLOOR( 1 + RAND( ) *60 )) FROM joinit;
 INSERT INTO joinit SELECT NULL, uuid(), time(now()), (FLOOR( 1 + RAND( ) *60 )) FROM joinit;
 INSERT INTO joinit SELECT NULL, uuid(), time(now()), (FLOOR( 1 + RAND( ) *60 )) FROM joinit;
-include/rpl_sync.inc
+include/rpl/sync.inc
 CREATE TABLE joinit_copy AS SELECT * FROM joinit;
 DO SLEEP(1);
 STOP REPLICA;
@@ -37,4 +37,4 @@ START REPLICA;
 SET GLOBAL replica_parallel_workers = @replica_parallel_workers_save;
 DROP TABLE joinit_copy;
 DROP TABLE joinit;
-include/rpl_end.inc
+include/rpl/deinit.inc

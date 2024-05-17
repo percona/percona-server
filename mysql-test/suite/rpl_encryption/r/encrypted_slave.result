@@ -1,13 +1,13 @@
 #################
 # Initialization
 #################
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 connection server_2;
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 #################
 # Test flow
 #################
@@ -159,7 +159,7 @@ DROP SERVER server_name_to_encrypt;
 Pattern "_to_encrypt" found
 Pattern "COMMIT" found
 Pattern "TIMESTAMP" found
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 connection server_1;
 connection server_2;
 connection server_2;
@@ -177,10 +177,10 @@ Pattern "TIMESTAMP" not found
 #################
 # Slave binlog checks
 #################
-include/start_slave.inc
-include/sync_slave_sql_with_io.inc
+include/rpl/start_replica.inc
+include/rpl/sync_with_recieved.inc
 connection server_1;
-include/sync_slave_io_with_master.inc
+include/rpl/sync_to_replica_received.inc
 connection server_1;
 connection server_2;
 connection server_2;
@@ -193,4 +193,4 @@ Pattern "TIMESTAMP" not found
 ##########
 # Cleanup
 ##########
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_statement.inc
 
 call mtr.add_suppression("Replica:*");
@@ -53,8 +53,8 @@ commit;
 
 connection slave;
 --let $rpl_server_number= 2
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 set global debug="";
@@ -89,8 +89,8 @@ set debug_sync="now wait_for relay_xid_reached";
 
 --let $rpl_server_number= 2
 --let $rpl_force_stop= 1
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
 set global debug="";
 set debug_sync="now signal resume";
@@ -119,9 +119,9 @@ commit;
 connection slave;
 set global debug="d,stop_replica_middle_group,incomplete_group_in_relay_log";
 --let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 set global debug="";
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 set global debug="";
@@ -143,4 +143,4 @@ drop table a;
 
 sync_slave_with_master;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

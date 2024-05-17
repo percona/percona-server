@@ -2,7 +2,7 @@ source include/have_myisam.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 call mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after accessing a transactional");
 call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
@@ -26,18 +26,18 @@ INSERT INTO t1 VALUES(1, 1);
 
 sync_slave_with_master;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 let $debug_save= `SELECT @@GLOBAL.debug`;
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
 
---source include/rpl_connection_slave.inc
-source include/restart_slave_sql.inc;
+--source include/rpl/connection_replica.inc
+source include/rpl/restart_applier.inc;
 
 BEGIN;
 UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 BEGIN;
 INSERT INTO t1 VALUES(2, 2);
 --disable_warnings
@@ -46,7 +46,7 @@ INSERT INTO t2 VALUES(1);
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 let $show_statement= SHOW PROCESSLIST;
 let $field= Info;
 let $condition= = 'UPDATE t1 SET c2 = 3 WHERE c1 = 1';
@@ -54,24 +54,24 @@ source include/wait_show_condition.inc;
 
 send STOP REPLICA;
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 ROLLBACK;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
---source include/rpl_connection_slave.inc
-source include/wait_for_slave_to_stop.inc;
+--source include/rpl/connection_replica.inc
+source include/rpl/wait_for_replica_to_stop.inc;
 
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 reap;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL debug= '$debug_save';
 DROP TABLE t1, t2;
 
---source include/rpl_connection_slave1.inc
-source include/start_slave.inc;
+--source include/rpl/connection_replica1.inc
+source include/rpl/start_replica.inc;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

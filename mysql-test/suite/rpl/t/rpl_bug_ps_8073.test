@@ -2,7 +2,7 @@
 # https://jira.percona.com/browse/PS-8073
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 SET SESSION binlog_row_image= 'MINIMAL';
 
@@ -14,10 +14,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET a = 2 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
   a INT NOT NULL,
@@ -28,10 +28,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET b = 1 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
   a INT NOT NULL,
@@ -41,10 +41,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET a = 2 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
   a INT NOT NULL,
@@ -55,10 +55,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a, b) VALUES (1, 2);
 UPDATE t1 SET a = 3 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
   a INT NOT NULL,
@@ -69,10 +69,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET b = 2 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 CREATE TABLE t1 (
   a INT NOT NULL,
@@ -84,9 +84,9 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a, b) VALUES (1, 2);
 UPDATE t1 SET c = 3 WHERE a = 1;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

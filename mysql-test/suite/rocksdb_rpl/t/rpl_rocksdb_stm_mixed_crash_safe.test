@@ -4,11 +4,11 @@
 --source include/have_debug.inc
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_mixed_or_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/not_mts_replica_parallel_workers.inc
---source include/rpl_connection_master.inc
+--source include/rpl/connection_replica.inc
+--source include/not_replica_parallel_workers.inc
+--source include/rpl/connection_source.inc
 
 set session sql_log_bin=0;
 call mtr.add_suppression('Attempting backtrace');
@@ -30,4 +30,4 @@ set session sql_log_bin=1;
 let $engine_type=RocksDB;
 let $database_name=test;
 --source extra/rpl_tests/rpl_crash_safe.test
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

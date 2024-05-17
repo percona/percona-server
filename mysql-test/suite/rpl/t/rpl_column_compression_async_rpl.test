@@ -2,7 +2,7 @@
 # PS-7806 : Column compression breaks async replication on PS
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE DATABASE test7806;
 USE test7806;
@@ -15,13 +15,13 @@ INSERT INTO t  ( ip_col ,c0 ,lb1 ,d2 ,lb3 ,f4 ,v5 ) VALUES( 4314, 'C', '9v2pBuu9
 
 DELETE FROM t WHERE d2 = 0.00000 ;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $rpl_diff_statement = SELECT * FROM test7806.t;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t;
 DROP DATABASE test7806;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -1,6 +1,6 @@
 #
 # 1. Create source-replica topolgy.
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,8 +11,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    2.2. Setup necessary variables on replica server.
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
-include/sync_slave_sql_with_master.inc
-include/stop_slave_sql.inc
+include/rpl/sync_to_replica.inc
+include/rpl/stop_applier.inc
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
@@ -40,7 +40,7 @@ DELETE FROM t1 WHERE c2 <= 3;
 BEGIN;
 INSERT INTO t1 VALUES(11, 11);
 [connection slave1]
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # 4. When the replica server finds the deadlock, it will rollback w2 in
 # order to allow w1 to commit first. When w2 rolls back the transaction
@@ -51,19 +51,19 @@ include/start_slave_sql.inc
 ROLLBACK;
 #
 # 5. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
-include/wait_for_slave_sql_error.inc [errno=1213]
+include/rpl/wait_for_applier_error.inc [errno=1213]
 # Removing debug point 'simulate_exhausted_trans_retries' from @@GLOBAL.debug
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 #
 # 6. Restart replication threads, sync the replica and verify that table
 #    data is consistent.
 [connection master]
-include/sync_slave_sql_with_master.inc
-include/rpl_diff.inc
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
 #
 # 7. Cleanup.
 [connection slave]
-include/stop_slave_sql.inc
+include/rpl/stop_applier.inc
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 Warnings:
@@ -71,10 +71,10 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-include/start_slave_sql.inc
+include/rpl/start_applier.inc
 CALL mtr.add_suppression("Consider raising the value of the replica_transaction_retries variable");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CALL mtr.add_suppression("Worker .* failed executing transaction");
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

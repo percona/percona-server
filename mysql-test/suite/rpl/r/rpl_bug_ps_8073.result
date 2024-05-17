@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,7 +11,7 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET a = 2 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	g
 2	2
@@ -25,7 +25,7 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET b = 1 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	b	g
 1	1	1
@@ -38,7 +38,7 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET a = 2 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	g
 2	12
@@ -52,7 +52,7 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a, b) VALUES (1, 2);
 UPDATE t1 SET a = 3 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	b	g
 3	2	5
@@ -66,7 +66,7 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a) VALUES (1);
 UPDATE t1 SET b = 2 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	b	g
 1	2	11
@@ -81,10 +81,10 @@ PRIMARY KEY (g)
 );
 INSERT INTO t1 (a, b) VALUES (1, 2);
 UPDATE t1 SET c = 3 WHERE a = 1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT * FROM t1;
 a	b	c	g
 1	2	3	3
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

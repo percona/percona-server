@@ -26,9 +26,9 @@
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --no-console --log-error=$MYSQLTEST_VARDIR/tmp/slave_log.err
 --let $rpl_omit_print_server_parameters= 1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 --connection slave
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 # Execute dummy statements on Master and sync with Slave.
 --connection master

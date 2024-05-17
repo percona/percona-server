@@ -1,11 +1,11 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # 1) Setup semisync replication
-include/install_semisync.inc
+include/rpl/install_semisync.inc
 #
 # 2) Set the rpl_semi_sync_source_timeout on source to a large value.
 [connection master]
@@ -37,12 +37,12 @@ START REPLICA;
 #
 # 6) Verify that the transaction on source server has finished and the
 #    statement has been replicated.
-include/rpl_sync.inc
-include/rpl_diff.inc
+include/rpl/sync.inc
+include/rpl/diff.inc
 #
 # 7) Cleanup
 [connection master]
 DROP DATABASE test1;
 SET GLOBAL rpl_semi_sync_source_timeout = @saved_rpl_semi_sync_source_timeout;
-include/uninstall_semisync.inc
-include/rpl_end.inc
+include/rpl/uninstall_semisync.inc
+include/rpl/deinit.inc

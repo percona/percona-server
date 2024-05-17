@@ -96,4 +96,4 @@ SET binlog_ddl_skip_rewrite = OFF;
 /* comment start */ CREATE DATABASE test7526 /* comment end */;
 /* comment start */ DROP DATABASE test7526 /* comment end */;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc

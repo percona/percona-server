@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -9,9 +9,9 @@ CREATE TABLE t (ip_col INT, c0 CHAR(26), lb1 LONGBLOB, d2 DOUBLE, lb3 LONGBLOB C
 INSERT INTO t  ( ip_col ,c0 ,lb1 ,d2 ,lb3 ,f4 ,v5 ) VALUES( 7731, 'cRCs1irmg7F1WeZqJtxCleKm', 'zGylBmoT3wjZicqkerK3BVKmAzCOZGKmKffbFom3oNcStfiorYpuMi0ZBbgO5zeDnE04TZI0CoycKtHinA9WcnNOtqJBciSqiaduaxpf6ptlzWdwq7d9aVA2EPjCHIdCL4eOSNdx1bUebos4qmEkMEuznY630v7aM7En6eaJfpXo1Gg5CYNwTNsj1dHyo7C8pe5x0HmXQRa2KvPuTrasrNJeCbcntrNwo4jlNFOywkQbGxBd41TPzRK8rGNJWjUMZdq99T27tUirTcl9TaQNUWxFQHc3iNvHFvk6HsLMJV1iYtn7iTbGPjAqiSCVnxcvDvqCfqmB1oMVhrXWXLUSFbmu7EIMcXRzqiVLh3VwLsnRnAQOqELoCPx05VsoV9MwPsQoZbc53CEhmpmUirwrETaenFS8ExoF2P2OYgbPtyzjNQbt0bVRH4u6dRob7R5KzbNpRzev64ggXtb0s5ADOiSMKXbvtcrpjugcTU3vzdv9RsnLebJEQ5YFdfjQWOmqVFKjAjRNXoQYjjNeMNkvvAkgvOo7', 0.00000, 'L7sJjPWAkQObv0LCRUoifwYLmTA9Qjxj7HD6gCkE7xG4Fx00tfsrQw7AXTH6gGZmOvOyy9m9LMOIVhOHCTMqfvuGXDhz5Eqri8BLD3SQhbOZmXWxvq1nu32NWDUOyxAGRbO9xJHNaJ8ZX1ajW2pS84YZjj2yb6x9SupVASP2jNl1vLpgcTJ9eodpGFmy9yLlLJi0RyRS', 0.00, 'lFve5HiZaVPY' ) ;
 INSERT INTO t  ( ip_col ,c0 ,lb1 ,d2 ,lb3 ,f4 ,v5 ) VALUES( 4314, 'C', '9v2pBuu9PACawxmCC5eoYEsDHNmOaJLKqoW994gvKqEO35F8goMG9o', 0.00000, 'vio1lMJ3e9sGa5tKRz1iJwsHXjKw8uQelcv9o5tBzmgP2YDjG4bB5OK9IaBpWaf3I1Muwd06FFgT8pZKc2GyHCQ3bcqab83yKXe8BWpWFpw3sOb1rdM7uOCvGmSvGKzfBgaPfGCgqbx29kTcQxOzYJd5zGuEd32gQfocLNdttxPiBjyIIPg3kTI8US73sNN4UoEzCcC4XZJ8lWKAqVbDQmNDwV7kZZGb7s8JMjsJ0XTcAKf0sl9lw5L6albce2GqwsSDv', 0.00, '3VK82eQXa' ) ;
 DELETE FROM t WHERE d2 = 0.00000 ;
-include/sync_slave_sql_with_master.inc
-include/rpl_diff.inc
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
 [connection master]
 DROP TABLE t;
 DROP DATABASE test7806;
-include/rpl_end.inc
+include/rpl/deinit.inc

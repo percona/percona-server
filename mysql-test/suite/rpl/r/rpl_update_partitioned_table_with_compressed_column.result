@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1 (f1 INT, f2 BLOB COLUMN_FORMAT COMPRESSED) ENGINE=INNODB PARTITION BY HASH (f1) PARTITIONS 2;
 REPLACE INTO t1 (f1,f2) VALUES(0,'123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456');
 UPDATE t1 SET f1=1 WHERE f1 = 0;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:t1,slave:t1]
 [connection master]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

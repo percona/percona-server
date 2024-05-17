@@ -20,13 +20,13 @@
 # This test fails for binlog-format='row' due to Bug#1735185:
 # Assert fail in field.cc. The below check should be removed once
 # this bug gets fixed.
---source include/not_binlog_format_row.inc
+--source include/rpl/deprecated/not_binlog_format_row.inc
 
 --echo #################
 --echo # Initialization
 --echo #################
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --enable_connect_log
 
 # We stop SQL thread because we want to have
@@ -34,7 +34,7 @@
 
 --connection server_2
 --disable_connect_log
---source include/stop_slave_sql.inc
+--source include/rpl/stop_applier.inc
 --enable_connect_log
 
 --connection server_1
@@ -101,7 +101,7 @@ SET binlog_row_image= MINIMAL;
 --source include/search_pattern.inc
 
 --disable_connect_log
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 --enable_connect_log
 
 --echo #############################
@@ -115,7 +115,7 @@ SET binlog_row_image= MINIMAL;
 --let $slave_datadir= `SELECT @@datadir`
 
 --disable_connect_log
---source include/sync_slave_io.inc
+--source include/rpl/sync_received_with_saved.inc
 
 # Check that relay logs are unencrypted
 
@@ -135,8 +135,8 @@ SET binlog_row_image= MINIMAL;
 # Re-enable SQL thread, let it catch up with IO thread
 # and check slave binary logs
 
---source include/start_slave.inc
---source include/sync_slave_sql_with_io.inc
+--source include/rpl/start_replica.inc
+--source include/rpl/sync_with_recieved.inc
 --enable_connect_log
 
 --let SEARCH_FILE= $slave_datadir/slave-bin.0*
@@ -161,4 +161,4 @@ SET GLOBAL source_verify_checksum= @source_verify_checksum.save;
 SET GLOBAL binlog_row_image= @binlog_row_image.save;
 
 --disable_connect_log
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

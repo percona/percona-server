@@ -24,7 +24,7 @@ flush logs;
 select "--- --start-position --" as "";
 --enable_query_log
 --let $mysqlbinlog_parameters=--short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --compress binlog.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 drop table t1;
 

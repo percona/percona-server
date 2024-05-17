@@ -9,7 +9,7 @@
 --source include/have_semisync_plugin.inc
 
 --let $semisync_source_enabled = OFF
---source include/install_semisync_source.inc
+--source include/rpl/install_semisync_source.inc
 
 SET @saved_rpl_semi_sync_source_wait_no_replica = @@global.rpl_semi_sync_source_wait_no_replica;
 
@@ -19,4 +19,4 @@ SET GLOBAL rpl_semi_sync_source_wait_no_replica = 0;
 
 SET GLOBAL rpl_semi_sync_source_wait_no_replica = @saved_rpl_semi_sync_source_wait_no_replica;
 
---source include/uninstall_semisync_source.inc
+--source include/rpl/uninstall_semisync_source.inc

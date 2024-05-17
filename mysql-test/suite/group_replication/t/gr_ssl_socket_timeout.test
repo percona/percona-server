@@ -25,7 +25,7 @@
 --echo ############################################################
 --echo # 1. Start one member with GCS SSL enabled.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_ssl_mode= REQUIRED;
 
@@ -50,7 +50,7 @@ SET GLOBAL group_replication_xcom_ssl_accept_retries= 3;
 --echo # 2. Start the second member with GCS SSL enabled, the member
 --echo #    will be able to join the group.
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
 --enable_query_log
@@ -115,13 +115,13 @@ SET @@GLOBAL.group_replication_communication_debug_options= @group_replication_c
 --echo ############################################################
 --echo # 4. Clean up.
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET GLOBAL group_replication_xcom_ssl_socket_timeout= @group_replication_xcom_ssl_socket_timeout_save;
 SET GLOBAL group_replication_xcom_ssl_accept_retries= @group_replication_xcom_ssl_accept_retries_save;
 
 --let $rpl_connection_name= server2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 
 --remove_file $pid_file

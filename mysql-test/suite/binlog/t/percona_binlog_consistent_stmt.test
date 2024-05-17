@@ -4,4 +4,4 @@
 
 CALL mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after");
 
---source extra/binlog_tests/percona_binlog_consistent.test
+--source common/binlog/percona_binlog_consistent.test

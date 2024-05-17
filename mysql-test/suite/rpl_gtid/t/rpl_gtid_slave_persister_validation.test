@@ -24,7 +24,7 @@
 --source include/have_debug.inc
 # This test is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $server_uuid = `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -59,7 +59,7 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 
 # Sync replica with the primary.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --echo #
 --echo # 3. Assert that table is not compressed on replica server.
 
@@ -71,9 +71,9 @@ INSERT INTO t1 VALUES (2);
 # GTIDs 1-3 in a single transaction, and this may cause the following assert to
 # fail. So, execute one more transaction on primary server, so that there are
 # at least two rows in the mysql.gtid_executed table.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO t1 VALUES (3);
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Wait till the above transaction get reflected in the mysql.gtid_executed table.
 --let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed WHERE interval_start = 4 AND interval_end = 4
@@ -113,7 +113,7 @@ FLUSH ENGINE LOGS;
 --let $debug_point = print_gtid_compression_info
 --source include/remove_debug_point.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

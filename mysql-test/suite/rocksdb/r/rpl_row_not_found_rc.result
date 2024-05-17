@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -22,10 +22,10 @@ set @orig_transaction_isolation=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 insert into t3 select * from t2;
 set session transaction_isolation=@orig_transaction_isolation;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 set global debug= 'd,dbug.rocksdb.get_row_by_rowid';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 update t2 set col1=100 where kp1 between 1 and 3 and mod(kp2,2)=0;
 set debug_sync= 'now WAIT_FOR Reached';
 set global debug = '';
@@ -33,10 +33,10 @@ set sql_log_bin=0;
 delete from t2 where pk=2;
 delete from t2 where pk=3;
 set debug_sync= 'now SIGNAL signal.rocksdb.get_row_by_rowid_let_running';
-include/wait_for_slave_sql_error.inc [errno=1032]
+include/rpl/wait_for_applier_error.inc [errno=1032]
 set sql_log_bin=0;
 insert into t2 select a,a,a,a from t1 where a in (2,3);
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
 drop table t0, t1, t2, t3;
-include/rpl_end.inc
+include/rpl/deinit.inc

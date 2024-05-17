@@ -1,6 +1,6 @@
 --source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 CREATE TABLE t1 (a INT, b INT, c INT, PRIMARY KEY (a), KEY (B), KEY(c)) ENGINE=ROCKSDB;
@@ -18,7 +18,7 @@ SELECT a, b FROM t1 FORCE INDEX (b);
 SELECT a, c FROM t1 FORCE INDEX (c);
 
 # Switch to the slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # select output from slave must match the master's
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
@@ -28,4 +28,4 @@ SELECT a, c FROM t1 FORCE INDEX (c);
 --connection master
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

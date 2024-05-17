@@ -1,5 +1,5 @@
 # Test case for bug #77684 (DROP TABLE IF EXISTS may brake replication if slave has replication filters)
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # Test A (using fully-qualified table names) 
 --connection master
@@ -30,4 +30,4 @@ DROP TABLE IF EXISTS t1b;
 --connection master
 DROP DATABASE db1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

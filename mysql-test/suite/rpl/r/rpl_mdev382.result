@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -20,7 +20,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 insert into t1 values (3);
 commit;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Statement is unsafe because it accesses a non-transactional table after accessing a transactional table' COLLATE 'utf8mb4_0900_ai_ci'))
@@ -61,7 +61,7 @@ savepoint `d``d`;
 insert into t1 values(18);
 COMMIT;
 set sql_quote_show_create = 1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
@@ -91,7 +91,7 @@ INSERT INTO t1 VALUES (1);
 set sql_mode = '';
 INSERT INTO t1 VALUES (2);
 set sql_mode = 'ANSI_QUOTES';
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
@@ -103,7 +103,7 @@ master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES
 master-bin.000001	#	Query	#	#	COMMIT
 set sql_mode = '';
 set sql_quote_show_create = 0;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
@@ -114,7 +114,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (2)
 master-bin.000001	#	Query	#	#	COMMIT
 set sql_quote_show_create = 1;
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
@@ -148,7 +148,7 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f''le.txt'
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 a`1	b`2	c`3
 fo\o	bar	|b"a'z!
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
 `c``3` VARCHAR(7))
@@ -161,7 +161,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f\'le.txt' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!") ;file_id=#
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -244,7 +244,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 1	X| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|X
 2	A| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|A
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
@@ -271,7 +271,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98));
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100))
 master-bin.000001	#	Query	#	#	BEGIN
@@ -287,7 +287,7 @@ master-bin.000001	#	User var	#	#	@```c`=-123450123456789012345678901234567890123
 master-bin.000001	#	User var	#	#	@```d```=_utf8mb4 0x78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878 COLLATE utf8mb4_0900_ai_ci
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-include/mysqlbinlog.inc
+include/rpl/mysqlbinlog.inc
 # The proper term is pseudo_replica_mode, but we use this compatibility alias
 # to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -367,7 +367,7 @@ ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db
 DROP TABLE `t``2`;
 DROP TABLE `t``1`;
 *** Test correct quoting of DELETE FROM statement binlogged for HEAP table that is emptied due to server restart
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 CREATE TABLE `db1``; select 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
 INSERT INTO `db1``; select 'oops!'`.`t``1` VALUES (1), (2), (5);
 SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
@@ -375,20 +375,20 @@ a`
 1
 2
 5
-include/rpl_restart_server.inc [server_number=1]
+include/rpl/restart_server.inc [server_number=1]
 set timestamp=1000000000;
 # The table should be empty on the master.
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 a`
 # The DELETE statement should be correctly quoted
-include/show_binlog_events.inc
+include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	use `db1``; select 'oops!'`; TRUNCATE TABLE `db1``; select 'oops!'`.`t``1` /* generated by server, implicitly emptying in-memory table */
-include/start_slave.inc
+include/rpl/start_replica.inc
 # The table should be empty on the slave also.
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 a`
 DROP TABLE `db1``; select 'oops!'`.`t``1`;
 use test;
 DROP DATABASE `db1``; select 'oops!'`;
-include/rpl_end.inc
+include/rpl/deinit.inc

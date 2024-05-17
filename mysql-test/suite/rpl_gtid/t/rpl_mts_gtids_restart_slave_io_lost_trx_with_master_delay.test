@@ -12,4 +12,4 @@
 
 --let $using_mts=1
 --let $source_delay_test=1
---source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+--source common/rpl/rpl_gtids_restart_receiver_lost_trx.test

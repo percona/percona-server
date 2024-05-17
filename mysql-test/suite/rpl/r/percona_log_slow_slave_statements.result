@@ -1,28 +1,28 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t(id INT);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
 SET GLOBAL min_examined_row_limit=0;
 SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=0;
 SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
 SET GLOBAL log_slow_replica_statements=OFF;
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 [log_start.inc] percona.slow_extended.log_slow_replica_statements
 INSERT INTO t VALUES (1);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL log_slow_replica_statements=ON;
 BEGIN;
 INSERT INTO t VALUES (2);
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET GLOBAL log_slow_replica_statements=OFF;
 INSERT INTO t VALUES (3);
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [log_stop.inc] percona.slow_extended.log_slow_replica_statements
 [log_grep.inc] file: percona.slow_extended.log_slow_replica_statements pattern: INSERT INTO t VALUES \(1\)
 [log_grep.inc] lines:   0
@@ -36,4 +36,4 @@ DROP TABLE t;
 SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
 SET GLOBAL long_query_time=@saved_long_query_time;
 SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
-include/rpl_end.inc
+include/rpl/deinit.inc

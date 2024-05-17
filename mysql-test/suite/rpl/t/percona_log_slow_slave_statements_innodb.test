@@ -1,5 +1,5 @@
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
 INSERT INTO t VALUES
@@ -11,7 +11,7 @@ INSERT INTO t VALUES
 INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
 INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --source include/log_prepare.inc
 
@@ -21,7 +21,7 @@ SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
 SET GLOBAL log_slow_replica_statements=TRUE;
 SET @saved_log_slow_verbosity=@@GLOBAL.log_slow_verbosity;
 SET GLOBAL log_slow_verbosity='innodb';
---source include/restart_slave_sql.inc
+--source include/rpl/restart_applier.inc
 
 --let log_file=percona.slow_extended.log_slow_replica_statements-innodb
 
@@ -29,7 +29,7 @@ SET GLOBAL log_slow_verbosity='innodb';
 connection master;
 INSERT INTO t SELECT t.id,t.data from t;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --source include/log_stop.inc
  
@@ -46,4 +46,4 @@ SET GLOBAL log_slow_verbosity=@saved_log_slow_verbosity;
 
 --source include/log_cleanup.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

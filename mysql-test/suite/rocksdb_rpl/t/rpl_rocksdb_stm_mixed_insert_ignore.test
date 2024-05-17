@@ -5,7 +5,7 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/not_ndb_default.inc
 -- source include/have_rocksdb.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 
 --connection master
 set session sql_log_bin=0;
@@ -21,4 +21,4 @@ set session sql_log_bin=1;
 
 -- let $engine_type=rocksdb
 -- source extra/rpl_tests/rpl_insert_ignore.test
--- source include/rpl_end.inc
+-- source include/rpl/deinit.inc

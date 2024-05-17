@@ -7,7 +7,7 @@
 # and the second one is getting master time. The error was injected to the code
 # to test the bug fix.
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 # The error injection works only with debug facilities.
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
@@ -32,7 +32,7 @@ SET @debug_saved=@@global.debug;
 let i=3;
 
 connection slave;
-source include/stop_slave.inc;
+source include/rpl/stop_replica.inc;
 let old_debug=`SELECT @@global.debug`;
 
 while($i)
@@ -45,17 +45,17 @@ while($i)
   START REPLICA;
   # Crash if error during slave starting takes place
   let $rpl_allow_error= 0;
-  source include/wait_for_slave_io_to_start.inc;
+  source include/rpl/wait_for_receiver_to_start.inc;
 
   let SEARCH_PATTERN=`SELECT CASE $i WHEN 1 THEN '"SELECT UNIX_TIMESTAMP.." failed on master, do not trust column' WHEN 2 THEN 'fatal error is encountered when it try to get the value of SERVER_ID variable from master' WHEN 3 THEN 'The slave I/O thread stops because SET @master_heartbeat_period on master failed.' END`;
 
   source include/search_pattern.inc;
 
-  source include/stop_slave.inc;
+  source include/rpl/stop_replica.inc;
   dec $i;
 }
 
 eval SET @@global.debug='$old_debug';
 
-source include/start_slave.inc;
-source include/rpl_end.inc;
+source include/rpl/start_replica.inc;
+source include/rpl/deinit.inc;

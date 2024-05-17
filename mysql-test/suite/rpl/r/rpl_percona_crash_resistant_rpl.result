@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -10,46 +10,46 @@ INSERT INTO t1 VALUES ();
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-include/rpl_restart_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2]
+include/rpl/start_replica.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL debug="+d,crash_commit_before";
 INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 START REPLICA;
-include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL debug="+d,crash_innodb_after_prepare";
 INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
 START REPLICA;
-include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3
-include/stop_slave.inc
+include/rpl/stop_replica.inc
 SET GLOBAL debug="+d,crash_innodb_before_commit";
 INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 4
 START REPLICA;
-include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=2]
+include/rpl/start_replica.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 4
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

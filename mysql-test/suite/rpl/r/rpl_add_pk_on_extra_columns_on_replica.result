@@ -646,4 +646,4 @@ SET SQL_LOG_BIN=0;
 DROP TABLE queries;
 SET SQL_LOG_BIN=1;
 [connection slave]
-include/rpl_end.inc
+include/rpl/deinit.inc

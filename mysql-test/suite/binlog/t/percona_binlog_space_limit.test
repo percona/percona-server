@@ -5,11 +5,11 @@ FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 FLUSH LOGS;
 # binary.000001 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 CREATE TABLE `t1` (
   `v1` int DEFAULT NULL,
@@ -18,50 +18,50 @@ CREATE TABLE `t1` (
 );
 INSERT INTO t1 VALUES (0,0);
 # binary.000002+binary.000003+binary.000004 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (1,1);
 # binary.000005 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 FLUSH LOGS;
 # binary.000006 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 PURGE BINARY LOGS TO 'binary.000008';
 FLUSH LOGS;
 # only binary.000007 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (2,2);
 # binary.000008 and binary.000009 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (3,3);
 # binary.000010 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 RESET BINARY LOGS AND GTIDS;
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (4,4);
 FLUSH LOGS;
 INSERT INTO t1 VALUES (5,5);
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 INSERT INTO t1 VALUES (6,6);
 # binary.000001 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 FLUSH LOGS;
 FLUSH LOGS;
 # binary.000002 should be deleted now
-source include/show_binary_logs.inc;
+source include/rpl/deprecated/show_binary_logs.inc;
 
 DROP TABLE t1;

@@ -122,7 +122,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo
@@ -211,7 +211,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo

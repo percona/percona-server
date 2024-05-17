@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -42,7 +42,7 @@ CREATE TABLE t3(x INT);
 INSERT INTO t3 VALUE(1),(2),(3);
 UPDATE t3 SET x=1 WHERE x=2;
 DELETE FROM t3 WHERE x=1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [Rows updated on slave should be equal to 13 (i.e. Number of RBR rows updates replicated from master)]
 SET GLOBAL userstat=@slave_userstat_saved;
 SELECT * FROM t1 ORDER BY m;
@@ -52,5 +52,5 @@ m
 SET GLOBAL userstat=@master_userstat_saved;
 DROP TABLE t1, t2;
 DROP TABLE t3;
-include/rpl_end.inc
+include/rpl/deinit.inc
 CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=();

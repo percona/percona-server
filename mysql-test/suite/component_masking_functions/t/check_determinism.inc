@@ -1,4 +1,4 @@
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $binlog_format = `SELECT @@binlog_format`
 CREATE TABLE t(vl VARCHAR(64) NOT NULL);
 eval INSERT INTO t VALUES($check_determinism_expression);
@@ -26,7 +26,7 @@ if ($binlog_format == STATEMENT) {
 }
 --let $result = `SELECT vl FROM t`
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 if ($binlog_format != STATEMENT) {
   --let $comparison_result = `SELECT vl = '$result' FROM t`
   --let $assert_cond = $comparison_result
@@ -34,6 +34,6 @@ if ($binlog_format != STATEMENT) {
   --source include/assert.inc
 }
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc

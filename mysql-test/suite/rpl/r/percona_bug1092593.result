@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,19 +6,19 @@ Note	####	Storing MySQL user name or password information in the connection meta
 DROP TABLE IF EXISTS x;
 CREATE TABLE x (a INT) engine=InnoDB;
 INSERT INTO x VALUES (1);
-include/rpl_restart_server.inc [server_number=2 parameters: --log-slave-updates=FALSE]
-include/start_slave.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --log-slave-updates=FALSE]
+include/rpl/start_replica.inc
 INSERT INTO x VALUES (2);
 SELECT a FROM x ORDER BY a;
 a
 1
 2
 # Kill the server
-include/rpl_start_server.inc [server_number=2 parameters: --log-slave-updates=FALSE]
-include/start_slave.inc
+include/rpl/start_server.inc [server_number=2 parameters: --log-slave-updates=FALSE]
+include/rpl/start_replica.inc
 SELECT a FROM x ORDER BY a;
 a
 1
 2
 DROP TABLE x;
-include/rpl_end.inc
+include/rpl/deinit.inc

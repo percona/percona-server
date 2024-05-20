@@ -1,2 +1,3 @@
 $REFERENCE_CACHE_COMPONENT_OPT
---mysqlx=ON
+--loose-mysqlx=ON
+--loose-skip-rocksdb

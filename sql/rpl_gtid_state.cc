@@ -750,6 +750,7 @@ int Gtid_state::save(THD *thd)
 int Gtid_state::save(const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_state::save(Gtid_set *gtid_set)");
+  DBUG_EXECUTE_IF("crash_before_gtid_persist", DBUG_SUICIDE(););
   int ret= gtid_table_persistor->save(gtid_set);
   DBUG_RETURN(ret);
 }

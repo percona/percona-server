@@ -95,13 +95,13 @@ INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
 # Makes sure we got the expected warnings
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_master.err
---let $assert_count = 1
+--let $assert_count = 2
 --let $assert_select = Error reading GTIDs from binary log: -1
 --let $assert_text = Found the expected warning "Error reading GTIDs from binary log: -1" in master's error log.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_master.err
---let $assert_count = 1
+--let $assert_count = 2
 --let $assert_select = Error initializing decryption while reading GTIDs from binary log
 --let $assert_text = Found the expected warning "Error initializing decryption while reading GTIDs from binary log" in slave's error log.
 --source include/assert_grep.inc

@@ -1,1 +1,1 @@
---mysqlx=OFF --loose-percona-telemetry-disable=ON
+--loose-mysqlx=OFF --loose-percona-telemetry-disable=ON

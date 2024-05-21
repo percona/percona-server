@@ -1,2 +1,0 @@
-Pattern "\[ERROR\] .* Unknown storage engine 'TokuDB'" found
-# restart:<hidden args>

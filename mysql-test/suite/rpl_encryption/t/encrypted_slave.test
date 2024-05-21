@@ -10,12 +10,22 @@
 #
 
 --source include/have_myisam.inc
+--source include/have_component_keyring_file.inc
 
 --echo #################
 --echo # Initialization
 --echo #################
 
---source include/rpl/init_source_replica.inc
+--source suite/component_keyring_file/inc/rpl_replica_setup_component.inc
+
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--let $rpl_server_error= 0
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 --enable_connect_log
 --connection server_2
@@ -116,4 +126,4 @@
 --echo ##########
 
 --disable_connect_log
---source include/rpl/deinit.inc
+--source suite/component_keyring_file/inc/rpl_replica_teardown_component.inc

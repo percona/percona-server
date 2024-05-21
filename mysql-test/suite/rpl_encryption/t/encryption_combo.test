@@ -11,6 +11,8 @@
 #
 
 --source include/have_binlog_format_mixed.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --echo #################
 --echo # Initialization
@@ -58,8 +60,6 @@ INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 --echo # Part 2: restart master, now with binlog encryption
 --echo #####################################################
 
-UNINSTALL PLUGIN keyring_file;
-
 --let $rpl_server_parameters= --binlog-encryption=1
 --let $rpl_server_number= 1
 --source include/rpl/restart_server.inc
@@ -87,8 +87,6 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 --echo #####################################################
 --echo # Part 3: restart master again without encryption
 --echo #####################################################
-
-UNINSTALL PLUGIN keyring_file;
 
 --let $rpl_server_parameters= --binlog-encryption=0
 --let $rpl_server_number= 1
@@ -130,8 +128,7 @@ SELECT COUNT(*) FROM table2_to_encrypt;
 SELECT COUNT(*) FROM table3_no_encryption;
 DROP TABLE table1_no_encryption, table2_to_encrypt, table3_no_encryption;
 
-UNINSTALL PLUGIN keyring_file;
-
 --disable_connect_log
 --source include/rpl/sync_to_replica.inc
 --source include/rpl/deinit.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

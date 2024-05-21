@@ -2,18 +2,24 @@
 --echo # WL#12261 - Test in replication environment.
 --echo #
 
---let $rpl_skip_start_slave = 1
---source include/rpl/init_source_replica.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
 
---let $rpl_server_number = 1
---let $rpl_server_parameters = $KEYRING_PLUGIN_OPT --early-plugin-load=keyring_file=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring1 --default-table-encryption=OFF --table-encryption-privilege-check=OFF
---let $rpl_omit_print_server_parameters = 1
---source include/rpl/restart_server.inc
+# Restart source and replica with keyring
 
---let $rpl_server_number = 2
---let $rpl_server_parameters = $KEYRING_PLUGIN_OPT --early-plugin-load=keyring_file=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --default-table-encryption=ON --table-encryption-privilege-check=ON
---let $rpl_omit_print_server_parameters = 1
---source include/rpl/restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl/stop_server.inc
+--let $rpl_server_error= 0
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters= --default-table-encryption=OFF --table-encryption-privilege-check=OFF
+--source include/rpl/start_server.inc
+
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--let $rpl_server_error= 0
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters= --default-table-encryption=ON --table-encryption-privilege-check=ON
+--source include/rpl/start_server.inc
 
 --source include/rpl/connection_replica.inc
 --source include/rpl/start_replica.inc
@@ -76,14 +82,4 @@ DROP TABLESPACE ts3;
 
 --source include/rpl/start_replica.inc
 
---source include/rpl/deinit.inc
-
-# keyring backup files might have been generated
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring1"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring1.backup"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring2"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring2.backup"
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

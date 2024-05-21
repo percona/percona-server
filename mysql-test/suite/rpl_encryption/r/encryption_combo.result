@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 #################
 # Initialization
 #################
@@ -29,16 +35,10 @@ Pattern "table1_no_encryption" found
 #####################################################
 # Part 2: restart master, now with binlog encryption
 #####################################################
-UNINSTALL PLUGIN keyring_file;
 include/rpl/restart_server.inc [server_number=1 parameters: --binlog-encryption=1]
 connection server_1;
 connection server_1;
 connection server_1;
-connection default;
-connection master;
-connection master1;
-connection server_1;
-connection server_1_1;
 connection default;
 connection master;
 connection master1;
@@ -66,16 +66,10 @@ Pattern "table2_to_encrypt" not found
 #####################################################
 # Part 3: restart master again without encryption
 #####################################################
-UNINSTALL PLUGIN keyring_file;
 include/rpl/restart_server.inc [server_number=1 parameters: --binlog-encryption=0]
 connection server_1;
 connection server_1;
 connection server_1;
-connection default;
-connection master;
-connection master1;
-connection server_1;
-connection server_1_1;
 connection default;
 connection master;
 connection master1;
@@ -116,6 +110,12 @@ SELECT COUNT(*) FROM table3_no_encryption;
 COUNT(*)
 4
 DROP TABLE table1_no_encryption, table2_to_encrypt, table3_no_encryption;
-UNINSTALL PLUGIN keyring_file;
 include/rpl/sync_to_replica.inc
 include/rpl/deinit.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -1,13 +1,24 @@
 #
 # WL#12261 - Test in replication environment.
 #
+# ----------------------------------------------------------------------
+# Setup
 include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-include/rpl/restart_server.inc [server_number=1]
-include/rpl/restart_server.inc [server_number=2]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+include/rpl/stop_server.inc [server_number=1]
+include/rpl/start_server.inc [server_number=1]
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2]
 [connection slave]
 include/rpl/start_replica.inc
 # Start the master with default_table_encryption=off
@@ -98,4 +109,14 @@ include/rpl/stop_replica.inc
 include/rpl/restart_server.inc [server_number=1]
 include/rpl/restart_server.inc [server_number=2]
 include/rpl/start_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
 include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

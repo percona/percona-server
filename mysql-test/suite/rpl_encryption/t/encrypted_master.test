@@ -21,6 +21,12 @@
 # Assert fail in field.cc. The below check should be removed once
 # this bug gets fixed.
 --source include/rpl/deprecated/not_binlog_format_row.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $restart_parameters = restart: --binlog_encryption=ON $PLUGIN_DIR_OPT
+--let $explicit_default_wait_counter=4000
+--source include/restart_mysqld_no_echo.inc
 
 --echo #################
 --echo # Initialization
@@ -162,3 +168,4 @@ SET GLOBAL binlog_row_image= @binlog_row_image.save;
 
 --disable_connect_log
 --source include/rpl/deinit.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

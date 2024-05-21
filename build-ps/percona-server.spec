@@ -800,12 +800,12 @@ fi
 %endif
 %ifarch x86_64
 mkdir -p %{ps_telemetry}
-chown mysql:percona-telemetry /usr/local/percona/telemetry/ps
-chmod 775 /usr/local/percona/telemetry/ps
-chmod g+s /usr/local/percona/telemetry/ps
-chmod u+s /usr/local/percona/telemetry/ps
-/usr/sbin/semanage fcontext -a -e /var/lib/mysql %{ps_telemetry}
-restorecon -RvF %{ps_telemetry}
+chown mysql:percona-telemetry %{ps_telemetry}
+chmod 775 %{ps_telemetry}
+chmod g+s %{ps_telemetry}
+chmod u+s %{ps_telemetry}
+chcon -t mysqld_db_t %{ps_telemetry}
+chcon -u system_u %{ps_telemetry}
 %endif
 if [ -d /etc/percona-server.conf.d ]; then
     CONF_EXISTS=$(grep "percona-server.conf.d" /etc/my.cnf | wc -l)

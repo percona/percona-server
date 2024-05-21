@@ -75,10 +75,6 @@
 # Allow access to openssl config
   /etc/ssl/openssl.cnf r,
 
-# Allow access to PS Telemetry directory
-  /usr/local/percona/telemetry/ps/ rw,
-  /usr/local/percona/telemetry/ps/** rw,
-
   # Site-specific additions and overrides. See local/README for details.
   #include <local/usr.sbin.mysqld>
 }

@@ -42,6 +42,29 @@ check_exit_status() {
         fi
 }
 
+# PKG-40 To check if the apparmor profile has been changed on the user's system
+# If the file has been changed, append telemetry rules to the file
+# If unchanged, install the new apparmor profile
+check_apparmor_files() {
+	if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
+		sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
+                sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
+                sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
+                echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
+                sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/'  /etc/apparmor.d/usr.sbin.mysqld
+                rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
+        else
+                mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
+        fi
+}
+
+
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
 TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb')
 if [ $TOKUDB = 1 ]
@@ -133,22 +156,7 @@ case "$1" in
 		PROFILE_ACTION="Use NEW AppArmor profile"
 		# If the existing AppArmor module/local profile is the proper file, we back it up
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
-			 if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
-                                sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
-                                sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
-                                sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
-                                echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "" >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
-                                echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
-				sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/' /etc/apparmor.d/usr.sbin.mysqld
-                                rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
-                        else
-                                mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
-                        fi
+			check_apparmor_files
 		else
 			mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true
                 fi
@@ -202,22 +210,7 @@ EOF
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
-			if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
-				sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
-				sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
-				sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
-				echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "" >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
-				echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
-				sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/'  /etc/apparmor.d/usr.sbin.mysqld
-				rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
-			else
-				mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
-			fi
+			check_apparmor_files
                 fi
 		rm -f /etc/apparmor.d/old_apparmor
 		mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true

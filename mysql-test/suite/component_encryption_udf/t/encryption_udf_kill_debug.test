@@ -56,9 +56,8 @@ while($statement_index <= 3)
   --error CR_SERVER_LOST
   reap;
 
-  --enable_reconnect
+  connect;
   SELECT 'Connection restored' AS status;
-  --disable_reconnect
 
   --inc $statement_index
 }

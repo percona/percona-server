@@ -3042,7 +3042,10 @@ ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED
   eng "%s failed: processor_affinity failed (error code %d - %-.192s)."
 
 ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED
-  eng "Error in renaming mysql_index_stats.ibd."
+  eng "Missing required files mysql/innodb_index_stats.ibd."
+
+ER_DD_UPGRADE_RENAME_TBL_STATS_FILE_FAILED
+  eng "Missing required files mysql/innodb_table_stats.ibd."
 
 ER_DD_UPGRADE_DD_OPEN_FAILED
   eng "Error in opening data directory %s."

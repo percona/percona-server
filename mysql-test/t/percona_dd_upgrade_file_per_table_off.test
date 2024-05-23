@@ -3,7 +3,8 @@
 --source include/have_util_unzip.inc
 
 --disable_query_log
-call mtr.add_suppression("Error in renaming mysql_index_stats.ibd");
+call mtr.add_suppression("Missing required files mysql/innodb_index_stats.ibd.");
+call mtr.add_suppression("Missing required files mysql/innodb_table_stats.ibd.");
 call mtr.add_suppression("Resizing redo log from");
 call mtr.add_suppression("Upgrading redo log");
 call mtr.add_suppression("Starting to delete and rewrite log files");

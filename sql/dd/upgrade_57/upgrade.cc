@@ -175,7 +175,7 @@ static void rename_stats_tables() {
                        table_stats.c_str(), IBD_EXT.c_str(), 0, &not_used);
 
   if (mysql_file_rename(key_file_misc, from_path, to_path, MYF(0))) {
-    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED);
+    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_RENAME_TBL_STATS_FILE_FAILED);
   }
 }
 

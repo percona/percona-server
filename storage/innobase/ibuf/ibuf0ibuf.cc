@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0sync.h"
 
 #include "my_dbug.h"
-#include "scope_guard.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 bool srv_ibuf_disable_background_merge;
@@ -3813,14 +3812,7 @@ static bool ibuf_restore_pos(
     return true;
   }
 
-  /* Check if the tablespace is dropped. */
-  fil_space_t *sp = fil_space_acquire_silent(space);
-
-  auto guard = create_scope_guard([&]() {
-    if (sp != nullptr) fil_space_release(sp);
-  });
-
-  if (sp == nullptr || sp->flags == UINT32_UNDEFINED) {
+  if (fil_space_get_flags(space) == UINT32_UNDEFINED) {
     /* The tablespace has been dropped.  It is possible
     that another thread has deleted the insert buffer
     entry.  Do not complain. */

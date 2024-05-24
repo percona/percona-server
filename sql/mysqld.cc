@@ -8762,31 +8762,12 @@ static int init_server_components() {
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (!is_help_or_validate_option()) {
-    /*
-      Initialize the cost model, but delete it after the pfs is initialized.
-      Cost model is needed while dropping and creating pfs tables to
-      update metadata of referencing views (if there are any).
-    */
-    init_optimizer_cost_module(true);
-
-    bool st;
-    if (opt_initialize || dd::upgrade_57::in_progress() ||
-        opt_upgrade_mode == UPGRADE_FORCE)
-      st = dd::performance_schema::init_pfs_tables(
-          dd::enum_dd_init_type::DD_INITIALIZE);
-    else
-      st = dd::performance_schema::init_pfs_tables(
-          dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE);
-
-    /* Now that the pfs is initialized, delete the cost model. */
-    delete_optimizer_cost_module();
-
-    if (st) {
-      LogErr(ERROR_LEVEL, ER_PERFSCHEMA_TABLES_INIT_FAILED);
-      unireg_abort(1);
-    }
-  }
+  /*
+    A value of the variable dd_upgrade_flag is reset after
+    dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
+    So make its copy to call init_pfs_tables() with right argument value later.
+  */
+  const bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
 #endif
 
   if (!is_help_or_validate_option() && dd::upgrade_57::in_progress()) {
@@ -8810,6 +8791,34 @@ static int init_server_components() {
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  if (!is_help_or_validate_option()) {
+    /*
+      Initialize the cost model, but delete it after the pfs is initialized.
+      Cost model is needed while dropping and creating pfs tables to
+      update metadata of referencing views (if there are any).
+    */
+    init_optimizer_cost_module(true);
+
+    bool st;
+    if (opt_initialize || dd_upgrade_was_initiated ||
+        opt_upgrade_mode == UPGRADE_FORCE)
+      st = dd::performance_schema::init_pfs_tables(
+          dd::enum_dd_init_type::DD_INITIALIZE);
+    else
+      st = dd::performance_schema::init_pfs_tables(
+          dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE);
+
+    /* Now that the pfs is initialized, delete the cost model. */
+    delete_optimizer_cost_module();
+
+    if (st) {
+      LogErr(ERROR_LEVEL, ER_PERFSCHEMA_TABLES_INIT_FAILED);
+      unireg_abort(1);
+    }
+  }
+#endif
 
   bool recreate_non_dd_based_system_view = dd::upgrade::I_S_upgrade_required();
   if (!is_help_or_validate_option() && !opt_initialize &&

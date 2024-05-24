@@ -1706,13 +1706,10 @@ This can happen if Percona Server is bootstrapped with
 upgrade, mysql.ibd should be encrpted.
 In no upgrade scenario it fetches encryption flag from first page of mysql.ibd
 to check whether it is encrypted.
-@param[in]  dict_init_mode      initalization mode
-@param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
-                                during upgrade
-@param[out] encrypt_mysql       true if encrypted, false if not encrypted
+@param[in]  dict_init_mode  initalization mode
+@param[out] encrypt_mysql   true if encrypted, false if not encrypted
 @return true if success, false if failure */
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
-                                         space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql);
 
 /** Set the compression type for the tablespace of a table

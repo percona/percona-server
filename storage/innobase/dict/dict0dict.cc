@@ -6157,7 +6157,6 @@ void dict_validate_no_purge_rollback_threads() {
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
-
 /** Get single compression dictionary id for the given
 (table id, column pos) pair.
 @param[in]	table_id	table id
@@ -6214,33 +6213,6 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   trx_free_for_background(trx);
 
   return err;
-}
-
-/** Detect if database has encrypted mysql plugin space. This is
- *  indication that system tablespace was encrypted.
-@param[in] mysql_plugin_space   space_id of mysql/plugin table.
-@return true if encrypted, false if not (or fail to open mysql/plugin table) */
-static bool dict_is_mysql_plugin_space_encrypted(
-    space_id_t mysql_plugin_space) {
-  /* It is possible that plugin table was created with
-  innodb_file_per_table == false, then this tablespace
-  will reside in system tablespace */
-  if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
-    return (srv_sys_space.is_encrypted());
-  }
-
-  space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
-  if (space_id == SPACE_UNKNOWN) {
-    return (false);
-  }
-
-  const fil_space_t *space = fil_space_get(space_id);
-  ut_ad(space != nullptr);
-
-  if (space == nullptr) {
-    return false;
-  }
-  return FSP_FLAGS_GET_ENCRYPTION(space->flags);
 }
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
@@ -6346,9 +6318,6 @@ bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
   switch (dict_init_mode) {
     case DICT_INIT_CREATE_FILES:
       encrypt_mysql = (default_enc == DEFAULT_TABLE_ENC_ON);
-      return true;
-    case DICT_INIT_UPGRADE_57_FILES:
-      encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);
       return true;
     case DICT_INIT_CHECK_FILES:
       std::tie(success, encrypt_mysql) =

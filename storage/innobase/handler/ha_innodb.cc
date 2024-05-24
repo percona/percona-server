@@ -6194,8 +6194,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
-  space_id_t upgrade_mysql_plugin_space = SPACE_UNKNOWN;
-
   if (srv_is_upgrade_mode) {
     if (!dict_sys_table_id_build()) {
       return innodb_init_abort();
@@ -6236,15 +6234,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
     buf_flush_sync_all_buf_pools();
 
-    /* We have to find the space_id of "mysql/plugin" here. i.e. before we evict
-    the tables from cache. */
-    dict_table_t *table = dict_table_open_on_name("mysql/plugin", false, true,
-                                                  DICT_ERR_IGNORE_NONE);
-    if (table != nullptr) {
-      upgrade_mysql_plugin_space = table->space;
-      dict_table_close(table, false, false);
-    }
-
     dict_upgrade_evict_tables_cache();
 
     dict_stats_evict_tablespaces();
@@ -6253,8 +6242,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   }
 
   bool do_encrypt = false;
-  bool ret = dict_detect_encryption_of_mysql_ibd(
-      dict_init_mode, upgrade_mysql_plugin_space, do_encrypt);
+  bool ret = dict_detect_encryption_of_mysql_ibd(dict_init_mode, do_encrypt);
   if (!ret) {
     ib::error(ER_XB_MSG_4, "mysql.ibd")
         << "Failed to determine if mysql.ibd is encrypted. "

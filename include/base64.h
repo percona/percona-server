@@ -239,8 +239,7 @@ constexpr inline uint64 base64_decode_max_arg_length() {
 /*
   Encode data as a base64 string
 */
-static inline int base64_encode(const void *src, size_t src_len, char *dst,
-                                bool inject_linebreak = true) {
+static inline int base64_encode(const void *src, size_t src_len, char *dst) {
   const unsigned char *s = (const unsigned char *)src;
   size_t i = 0;
   size_t len = 0;
@@ -248,7 +247,7 @@ static inline int base64_encode(const void *src, size_t src_len, char *dst,
   for (; i < src_len; len += 4) {
     unsigned c;
 
-    if (len == 76 && inject_linebreak) {
+    if (len == 76) {
       len = 0;
       *dst++ = '\n';
     }

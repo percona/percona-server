@@ -43,7 +43,6 @@
 #include "mysql/thread_pool_priv.h"
 #include "strings/m_ctype_internals.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "sql/dd/upgrade_57/upgrade.h"       // dd::upgrade_57::in_progress
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"
@@ -5007,7 +5006,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     If validate_tables is greater than 0 run the validation.  Only fail the
     initialzation if the setting is 1.  If the setting is 2 we continue.
   */
-  if (validate_tables > 0 && !dd::upgrade_57::in_progress()) {
+  if (validate_tables > 0) {
     std::string msg;
     if (!validate_schemas()) {
       msg =

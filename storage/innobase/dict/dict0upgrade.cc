@@ -1188,12 +1188,6 @@ int dd_upgrade_tablespace(THD *thd) {
         upgrade_space.name = new_tablespace_name.c_str();
       } else {
         upgrade_space.name = name;
-        /* Set encryption attribute for encrypted general tablespaces */
-        if (FSP_FLAGS_GET_ENCRYPTION(flags)) {
-          dd::Properties &space_options = dd_space->options();
-          dd::String_type encrypt_type("y");
-          space_options.set("encryption", encrypt_type);
-        }
       }
 
       dict_sys_mutex_enter();

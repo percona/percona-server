@@ -357,10 +357,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   ut_ad(offset);
 
   /* Return if the encryption metadata is empty. */
-  if (!Encryption::is_encrypted_with_v3(first_page + offset) &&
-      !(srv_is_upgrade_mode &&
-        memcmp(first_page + offset, Encryption::KEY_MAGIC_V2,
-               Encryption::MAGIC_SIZE) == 0)) {
+  if (!Encryption::is_encrypted_with_v3(first_page + offset)) {
     ut::aligned_free(first_page);
     return (DB_SUCCESS);
   }

@@ -1,8 +1,6 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_util_unzip.inc
 
---source include/add_mtr_suppression_for_innodb_readonly.inc
-
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");
 call mtr.add_suppression("Upgrading redo log");
@@ -42,6 +40,8 @@ call mtr.add_suppression("Error creating master info: Error checking repositorie
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("db.opt file not found for test database. Using default Character set");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
 --enable_query_log
 
 --echo # Set different paths for --datadir
@@ -60,6 +60,12 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_zip_dict;
 --let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1"
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --source include/start_mysqld.inc
+
+--echo # Execute mysql_upgrade
+
+--source include/mysql_upgrade_preparation.inc
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--source include/mysql_upgrade_cleanup.inc
 
 SHOW CREATE TABLE test.t1;
 SHOW CREATE TABLE test.t2;

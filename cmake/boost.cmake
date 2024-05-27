@@ -33,31 +33,6 @@ SET(BOOST_INCLUDE_DIR ${BOOST_SOURCE_DIR}/${BOOST_PACKAGE_NAME})
 SET(BOOST_PATCHES_DIR
   "${CMAKE_SOURCE_DIR}/include/${BOOST_PACKAGE_NAME}/patches")
 
-# Bundled boost excludes unnecessary sources. Some of them are required by Percona Server specific code.
-# Each time bundled boost gets updated we must update those Percona Server specific sources as well.
-# Actual list of Percona Server specific boost sources is the following:
-#   boost/dynamic_bitset.hpp
-#   boost/dynamic_bitset/*
-#   boost/io/*
-#   boost/random/*
-#   boost/tti/*
-#   boost/uuid/*
-SET(EXPECTED_BOOST_VERSION 107700)
-IF(EXISTS "${BOOST_INCLUDE_DIR}/boost/version.hpp")
-  FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp" BOOST_VERSION_HPP_CONTENTS REGEX "#define BOOST_VERSION ")
-  IF("${BOOST_VERSION_HPP_CONTENTS}" MATCHES "#define BOOST_VERSION ([0-9]+)")
-    IF(NOT ${CMAKE_MATCH_1} EQUAL ${EXPECTED_BOOST_VERSION})
-      MESSAGE(FATAL_ERROR "Actual BOOST_VERSION doesn't match EXPECTED_BOOST_VERSION. \
-                           Make sure boost headers required by Percona Server are updated \
-                           and update EXPECTED_BOOST_VERSION.")
-    ENDIF()
-  ELSE()
-    MESSAGE(FATAL_ERROR "Cannot find BOOST_VERSION in version.hpp")
-  ENDIF()
-ELSE()
-  MESSAGE(FATAL_ERROR "Cannot find boost version.hpp")
-ENDIF()
-
 ADD_LIBRARY(boost INTERFACE)
 ADD_LIBRARY(extra::boost ALIAS boost)
 

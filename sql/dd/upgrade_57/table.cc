@@ -38,7 +38,6 @@
 #include <memory>
 #include <string>
 
-#include <iostream>
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -94,7 +93,6 @@
 #include "sql/sql_show.h"   // view_store_options
 #include "sql/sql_table.h"  // build_tablename
 #include "sql/sql_view.h"   // mysql_create_view
-#include "sql/sql_zip_dict.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"                     // Table_check_intact
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
@@ -1806,28 +1804,6 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       thd, schema_name.c_str(), table_name.c_str(), table_def.get(), true);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
-    LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY, schema_name.c_str(),
-           table_name.c_str());
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  const dd::Table *new_table_def = nullptr;
-  if (thd->dd_client()->acquire(schema_name.c_str(), table_name.c_str(),
-                                &new_table_def)) {
-    DBUG_LOG("zip_dict",
-             "Upgrade: Acquiring dictionary table object failed "
-             " table_db: "
-                 << schema_name << " table_name: " << table_name);
-    return (true);
-  }
-
-  /* New table is successfully created, check if any columns have
-  compression dictionary and add entry for them in
-  mysql.compression_dictionary_cols table */
-  if (compression_dict::cols_table_insert(thd, *new_table_def)) {
     LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY, schema_name.c_str(),
            table_name.c_str());
     trans_rollback_stmt(thd);

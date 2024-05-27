@@ -25,7 +25,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;explicit_encryption=1;
+mysql	encryption=N;
 # Restart the server
 # restart: --early-plugin-load=keyring_file=keyring_file.so --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --loose-keyring_file_data=MYSQLD_DATADIR/mysecret_keyring KEYRING_PLUGIN_OPT
 SET debug='+d,skip_dd_table_access_check';
@@ -35,7 +35,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;explicit_encryption=1;
+mysql	encryption=N;
 # Shutdown the server, remove the files, and restart with default options
 # Restart the server with default options
 # restart;

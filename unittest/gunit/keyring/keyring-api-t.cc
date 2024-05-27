@@ -245,6 +245,23 @@ TEST_F(Keyring_api_test, StoreTwiceTheSameDifferentTypes) {
       1);
 }
 
+TEST_F(Keyring_api_test, KeyGenerate) {
+  EXPECT_EQ(mysql_key_generate("Robert_key", "AES", "Robert", 128), 0);
+  char *key_type;
+  size_t key_len;
+  void *key;
+  EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key, &key_len),
+            0);
+  EXPECT_STREQ("AES", key_type);
+  EXPECT_EQ(key_len, (size_t)128);
+  // Try accessing the last byte of key
+  char ch = ((char *)key)[key_len - 1];
+  // Just to get rid of unused variable compiler error
+  (void)ch;
+  my_free(key);
+  my_free(key_type);
+}
+
 TEST_F(Keyring_api_test, InitWithDifferentKeyringFile) {
   EXPECT_EQ(
       mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
@@ -312,9 +329,6 @@ TEST_F(Keyring_api_test, InitWithDifferentKeyringFile) {
   my_free(key);
   key = nullptr;
   remove("./new_keyring");
-  // backup will stay as adding percona_binlog key will be unsuccessful - we
-  // have already added it in keyring
-  remove("./new_keyring.backup");
 }
 
 TEST_F(Keyring_api_test, NullUser) {

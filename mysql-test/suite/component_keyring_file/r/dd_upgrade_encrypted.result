@@ -40,7 +40,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;explicit_encryption=1;
+mysql	encryption=N;
 # Restart the server
 SET debug='+d,skip_dd_table_access_check';
 # The mysql tablespace should now be be un-encrypted
@@ -49,7 +49,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;explicit_encryption=1;
+mysql	encryption=N;
 # Shutdown the server, remove the files, and restart with default options
 # Removing local keyring file for keyring component: component_keyring_file
 # Restoring local keyring file from backup for keyring component: component_keyring_file

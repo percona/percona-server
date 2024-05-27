@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MOCK_LOGGER_H
-#define MOCK_LOGGER_H
+#ifndef MOCKLOGGER_H
+#define MOCKLOGGER_H
 
 #include <gmock/gmock.h>
 
@@ -46,4 +46,4 @@ class Mock_logger : public ILogger {
   }
 };
 }  // namespace keyring
-#endif  // MOCK_LOGGER_H
+#endif  // MOCKLOGGER_H

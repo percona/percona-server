@@ -22,6 +22,7 @@
 
 SET(TESTS
   keyring-api
+  keys_container
   buffered_file_io
   converter
   file_io

@@ -500,26 +500,6 @@ TEST_F(TempTableAllocator, block_size_cap) {
   EXPECT_TRUE(shared_block.is_empty());
 }
 
-struct AllocatorRaii {
-  AllocatorRaii(temptable::Allocator<uint8_t> *allocator)
-      : m_allocator(allocator) {}
-
-  void deallocate_all() {
-    for (const auto &[ptr, size] : allocs) {
-      m_allocator->deallocate(ptr, size);
-    }
-  }
-
-  uint8_t *allocate(size_t n_elements) {
-    auto *ptr = m_allocator->allocate(n_elements);
-    allocs.emplace_back(ptr, n_elements);
-    return ptr;
-  }
-
-  temptable::Allocator<uint8_t> *m_allocator;
-  std::vector<std::pair<uint8_t *, size_t>> allocs;
-};
-
 TEST_F(
     TempTableAllocator,
     table_resource_monitor_increases_then_drops_to_0_when_allocation_is_backed_by_shared_block) {
@@ -668,14 +648,9 @@ TEST_F(TempTableAllocator,
        shared_block_utilization_shall_not_impact_the_block_size_growth_policy) {
   temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
   temptable::Block shared_block;
-
   temptable::Allocator<uint8_t> a1(&shared_block, table_resource_monitor);
   temptable::Allocator<uint8_t> a2(&shared_block, table_resource_monitor);
-
-  AllocatorRaii a1_raii(&a1);
-  AllocatorRaii a2_raii(&a2);
-
-  auto r11 = a1_raii.allocate(512_KiB);
+  auto r11 = a1.allocate(512_KiB);
   temptable::Block b11 = temptable::Block(temptable::Chunk(r11));
   EXPECT_EQ(b11, shared_block);
   EXPECT_EQ(b11.size(), shared_block.size());
@@ -687,7 +662,7 @@ TEST_F(TempTableAllocator,
   // size big.
   // 4. Returns a pointer from shared_block.
 
-  auto r12 = a1_raii.allocate(256_KiB);
+  auto r12 = a1.allocate(256_KiB);
   temptable::Block b12 = temptable::Block(temptable::Chunk(r12));
   EXPECT_EQ(b12, shared_block);
   EXPECT_EQ(b12.size(), shared_block.size());
@@ -697,7 +672,7 @@ TEST_F(TempTableAllocator,
   // 512KiB) to accomodate the 256KiB request.
   // 3. Returns a pointer from shared_block.
 
-  auto r13 = a1_raii.allocate(512_KiB);
+  auto r13 = a1.allocate(512_KiB);
   temptable::Block b13 = temptable::Block(temptable::Chunk(r13));
   EXPECT_NE(b13, shared_block);
   EXPECT_NE(b13, b12);
@@ -710,7 +685,7 @@ TEST_F(TempTableAllocator,
   // 4. It allocates the block of 2MiB of size.
   // 5. Returns a pointer from new block.
 
-  auto r21 = a2_raii.allocate(512_KiB);
+  auto r21 = a2.allocate(512_KiB);
   temptable::Block b21 = temptable::Block(temptable::Chunk(r21));
   EXPECT_NE(b21, shared_block);
   EXPECT_EQ(b21.size(), 1_MiB);
@@ -722,7 +697,7 @@ TEST_F(TempTableAllocator,
   // 4. It allocates the block of 1MiB of size.
   // 5. Returns a pointer from new block.
 
-  auto r14 = a1_raii.allocate(128_KiB);
+  auto r14 = a1.allocate(128_KiB);
   temptable::Block b14 = temptable::Block(temptable::Chunk(r14));
   EXPECT_EQ(b14, shared_block);
   EXPECT_EQ(b14.size(), shared_block.size());
@@ -732,7 +707,7 @@ TEST_F(TempTableAllocator,
   // 256KiB = 256KiB) to accomodate the 128KiB request.
   // 3. Returns a pointer from shared_block.
 
-  auto r15 = a1_raii.allocate(1_MiB - 512_KiB);
+  auto r15 = a1.allocate(1_MiB - 512_KiB);
   temptable::Block b15 = temptable::Block(temptable::Chunk(r15));
   EXPECT_NE(b15, shared_block);
   EXPECT_EQ(b15.size(), 2_MiB);
@@ -745,7 +720,7 @@ TEST_F(TempTableAllocator,
   // 4. It allocates the block of 2MiB of size.
   // 3. Returns a pointer from new block.
 
-  auto r22 = a2_raii.allocate(1_MiB);
+  auto r22 = a2.allocate(1_MiB);
   temptable::Block b22 = temptable::Block(temptable::Chunk(r22));
   EXPECT_NE(b22, shared_block);
   EXPECT_EQ(b22.size(), 2_MiB);
@@ -755,13 +730,6 @@ TEST_F(TempTableAllocator,
   // 3. It uses the block-size growth policy to compute the block-size.
   // 4. It allocates the block of 2MiB of size.
   // 5. Returns a pointer from new block.
-
-  a2_raii.deallocate_all();
-  a1_raii.deallocate_all();
-
-  // Physically deallocate the shared-block (allocator keeps it alive
-  // intentionally)
-  shared_block.destroy();
 }
 
 // Create some aliases to make our life easier when generating the test-cases

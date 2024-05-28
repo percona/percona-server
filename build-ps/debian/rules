@@ -6,6 +6,7 @@
 export DH_VERBOSE=1
 export CFLAGS=
 export CXXFLAGS=
+export CPPFLAGS=
 export FIPSMODE=0
 
 PACKAGE=percona-server

@@ -838,6 +838,8 @@ bool rocksdb_enable_delete_range_for_drop_index = false;
 unsigned long long rocksdb_converter_record_cached_length = 0;
 static bool rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds = 0;
 
+char max_timestamp_uint64[ROCKSDB_SIZEOF_TTL_RECORD];
+
 enum file_checksums_type {
   CHECKSUMS_OFF = 0,
   CHECKSUMS_WRITE_ONLY,
@@ -3742,12 +3744,16 @@ class Rdb_transaction {
           MEM_ROOT mem_root;
           init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 4024);
 
+          auto sentinel_val = keydef->has_ttl()
+                                  ? rocksdb::Slice(max_timestamp_uint64,
+                                                   ROCKSDB_SIZEOF_TTL_RECORD)
+                                  : rocksdb::Slice();
           while ((rc2 = rdb_merge.next(&merge_key, &merge_val)) == 0) {
             if (cur_prefix.size() == 0 ||
                 !keydef->value_matches_prefix(merge_key, cur_prefix)) {
               if (keydef->m_is_reverse_cf && materialized) {
                 // Write sentinel before moving to next prefix.
-                rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+                rc2 = sst_info->put(cur_prefix, sentinel_val);
                 if (rc2 != 0) {
                   break;
                 }
@@ -3788,14 +3794,14 @@ class Rdb_transaction {
               if (keys.size() >= keydef->partial_index_threshold()) {
                 if (!keydef->m_is_reverse_cf) {
                   // Write sentinel
-                  rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+                  rc2 = sst_info->put(cur_prefix, sentinel_val);
                   if (rc2 != 0) {
                     break;
                   }
                 }
 
                 for (const auto &k : keys) {
-                  if ((rc2 = sst_info->put(k.first, k.second) != 0)) {
+                  if ((rc2 = sst_info->put(k.first, k.second)) != 0) {
                     break;
                   }
                 }
@@ -3831,7 +3837,7 @@ class Rdb_transaction {
           assert(rc2 != 0);
           if (rc2 <= 0 && keydef->m_is_reverse_cf && materialized) {
             // Write sentinel before moving to next prefix.
-            rc2 = sst_info->put(cur_prefix, rocksdb::Slice());
+            rc2 = sst_info->put(cur_prefix, sentinel_val);
           }
         } else {
           bool check_unique_index = keydef->is_unique_sk();
@@ -7098,6 +7104,9 @@ static int rocksdb_init_internal(void *const p) {
   DBUG_EXECUTE_IF("rocksdb_init_failure_everything_initialized",
                   { DBUG_RETURN(HA_EXIT_FAILURE); });
 
+  rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(max_timestamp_uint64),
+                          std::numeric_limits<uint64_t>::max());
+
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
@@ -7788,6 +7797,9 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
   */
   uint64 ts;
   if (!reader.read(kd.m_ttl_rec_offset) || reader.read_uint64(&ts)) {
+    // A partial-index sentinel written by an older MyRocks, which did not
+    // allow partial indexes on TTL tables, has no TTL. It never expires.
+    if (kd.is_partial_index()) return false;
     /*
       This condition should never be reached since all TTL records have an
       8 byte ttl field in front. Don't filter the record out, and log an error.
@@ -7801,6 +7813,14 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
         "Decoding ttl from PK value failed, for index (%u,%u), val: %s",
         gl_index_id.cf_id, gl_index_id.index_id, buf.c_str());
     assert(0);
+    return false;
+  }
+
+  /*
+    If the timestamp is max value, it means that this record will never expire
+    and should not be deleted. We will early return here to avoid overflow.
+   */
+  if (ts == std::numeric_limits<uint64_t>::max()) {
     return false;
   }
 

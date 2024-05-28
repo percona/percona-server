@@ -1,0 +1,19 @@
+CREATE TABLE t (i INT, j INT, k INT, PRIMARY KEY (i,j),
+KEY ik1 (i,k) COMMENT 'partial_group_keyparts=1;partial_group_threshold=5')
+ENGINE=ROCKSDB COMMENT='ttl_duration=3600;';
+INSERT INTO t VALUES (1,1,1),(1,2,2);
+SET SESSION transaction_isolation='REPEATABLE-READ';
+SELECT * FROM t FORCE INDEX(ik1) WHERE i=1 FOR UPDATE;
+i	j	k
+1	1	1
+1	2	2
+SHOW WARNINGS;
+Level	Code	Message
+UPDATE t FORCE INDEX(ik1) SET k=k+10 WHERE i=1;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT * FROM t;
+i	j	k
+1	1	11
+1	2	12
+DROP TABLE t;

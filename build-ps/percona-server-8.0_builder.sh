@@ -529,7 +529,7 @@ install_deps() {
     else
         apt-get -y install dirmngr || true
         apt-get update
-	    apt-get -y install lsb_release || true
+        apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
@@ -547,20 +547,13 @@ install_deps() {
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install copyright-update
-        apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
+        apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
-        fi
-        if [ x"${DIST}" = xbionic ]; then
-            apt-get -y install gcc-8 g++-8
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
-        else
-            apt-get -y install gcc g++
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
@@ -569,6 +562,16 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        if [ x"${DIST}" = xbionic ]; then
+            apt-get -y install gcc-8 g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+        elif [ x"${DIST}" = xnoble ]; then
+            apt-get -y install gcc-13 g++-13
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+        else
+            apt-get -y install gcc g++
+        fi
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
             apt-get -y install libeatmydata1
         fi
@@ -580,22 +583,21 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
-	    if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]]; then
+        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]]; then
             apt-get -y install libgflags-dev
-	    fi
-            apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
         fi
-        if [ x"${DIST}" = xnoble ]; then
-            apt-get -y install libtirpc-dev
-            echo "SET CPPFLAGS -Wdate-time -D_FORTIFY_SOURCE=2" > /etc/dpkg/buildflags.conf
+        if [ x${DIST} = xnoble ]; then
+            apt-get -y install libtirpc-dev gsasl-common
         fi
-        if [ ! -d /usr/local/percona-subunit2junitxml ]; then
+        apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
+    fi
+    if [ ! -d /usr/local/percona-subunit2junitxml ]; then
         cd /usr/local
-            git clone https://github.com/percona/percona-subunit2junitxml.git
-            rm -rf /usr/bin/subunit2junitxml
-            ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
-            cd ${CURPLACE}
-        fi
+        git clone https://github.com/percona/percona-subunit2junitxml.git
+        rm -rf /usr/bin/subunit2junitxml
+        ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
+        cd ${CURPLACE}
+    fi
     return;
 }
 
@@ -1102,14 +1104,11 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
-        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
-    fi
     if [ ${DEBIAN_VERSION} = "cosmic" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}

@@ -1,0 +1,39 @@
+CREATE TABLE t (pk INT, i INT, k INT, ts BIGINT UNSIGNED NOT NULL,
+PRIMARY KEY (i, pk),
+KEY ik1 (i, k) COMMENT 'cfname=cf;partial_group_keyparts=1;partial_group_threshold=3')
+ENGINE=ROCKSDB COMMENT='ttl_duration=100000;ttl_col=ts;';
+INSERT INTO t VALUES (1, 1, 1, UNIX_TIMESTAMP()), (2, 1, 2, UNIX_TIMESTAMP()),
+(3, 1, 3, UNIX_TIMESTAMP()), (4, 1, 4, UNIX_TIMESTAMP()),
+(5, 2, 1, UNIX_TIMESTAMP()), (6, 2, 2, UNIX_TIMESTAMP()),
+(7, 3, 1, UNIX_TIMESTAMP());
+# Materialize group i=1 with a sentinel without a TTL
+SET @saved_debug = @@SESSION.debug;
+SET SESSION debug = '+d,myrocks_partial_index_sentinel_without_ttl';
+SELECT pk, k FROM t FORCE INDEX (ik1) WHERE i = 1 ORDER BY k;
+pk	k
+1	1
+2	2
+3	3
+4	4
+SET SESSION debug = @saved_debug;
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+SET GLOBAL rocksdb_compact_cf = 'cf';
+SELECT pk, k FROM t FORCE INDEX (ik1) WHERE i = 1 ORDER BY k;
+pk	k
+1	1
+2	2
+3	3
+4	4
+SELECT pk, k FROM t FORCE INDEX (ik1) WHERE i = 1 ORDER BY k DESC;
+pk	k
+4	4
+3	3
+2	2
+1	1
+SELECT COUNT(*) FROM t FORCE INDEX (ik1);
+COUNT(*)
+7
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;

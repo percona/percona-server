@@ -593,7 +593,7 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
 
   rocksdb::PinnableSlice value;
   rc = Rdb_iterator_base::get(&cur_prefix_key, &value, RDB_LOCK_NONE,
-                              true /* skip ttl check*/);
+                              true /* sentinel timestamps never expire */);
 
   if (rc == HA_ERR_KEY_NOT_FOUND) {
     // Nothing in SK, so check PK.
@@ -616,7 +616,9 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
   } else if (rc == 0) {
     // Found rows in SK, so use them
     m_materialized = true;
-    assert(value.size() == 0);
+    // A sentinel written by an older MyRocks has no TTL, also in a TTL table.
+    assert(value.size() == 0 ||
+           (m_pkd.has_ttl() && value.size() == ROCKSDB_SIZEOF_TTL_RECORD));
 
     // Rdb_iterator_base::seek below will overwrite m_prefix_tuple, so we save a
     // copy here.
@@ -679,7 +681,13 @@ int Rdb_iterator_partial::materialize_prefix() {
 
   auto wb = std::unique_ptr<rocksdb::WriteBatch>(new rocksdb::WriteBatch);
   // Write sentinel key with empty value.
-  s = wb->Put(m_kd.get_cf(), cur_prefix_key, rocksdb::Slice());
+  auto val = m_pkd.has_ttl() ? rocksdb::Slice(max_timestamp_uint64,
+                                              ROCKSDB_SIZEOF_TTL_RECORD)
+                             : rocksdb::Slice();
+  // Write the sentinel without a TTL, as MyRocks 9.3.1 and older did
+  DBUG_EXECUTE_IF("myrocks_partial_index_sentinel_without_ttl",
+                  { val = rocksdb::Slice(); });
+  s = wb->Put(m_kd.get_cf(), cur_prefix_key, val);
   if (!s.ok()) {
     rc = rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
     rdb_tx_release_lock(tx, m_kd, cur_prefix_key, true /* force */);
@@ -884,7 +892,7 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
 
   rocksdb::PinnableSlice value;
   rc = Rdb_iterator_base::get(&cur_prefix_key, &value, RDB_LOCK_NONE,
-                              true /* skip ttl check*/);
+                              true /* sentinel timestamps never expire */);
 
   bool next_prefix = false;
   if (rc == HA_ERR_KEY_NOT_FOUND) {
@@ -951,7 +959,9 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
       }
     }
   } else if (rc == 0) {
-    assert(value.size() == 0);
+    // A sentinel written by an older MyRocks has no TTL, also in a TTL table.
+    assert(value.size() == 0 ||
+           (m_pkd.has_ttl() && value.size() == ROCKSDB_SIZEOF_TTL_RECORD));
     m_materialized = true;
 
     rc = Rdb_iterator_base::seek(find_flag, start_key, true, end_key,

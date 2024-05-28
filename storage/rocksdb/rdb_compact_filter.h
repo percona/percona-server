@@ -69,6 +69,11 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
       if (!m_should_delete) {
         get_ttl_duration_and_offset(gl_index_id, &m_ttl_duration,
                                     &m_ttl_offset);
+        m_partial_index = false;
+        if (m_ttl_duration != 0) {
+          const auto kd = rdb_get_ddl_manager()->safe_find(gl_index_id);
+          m_partial_index = kd != nullptr && kd->is_partial_index();
+        }
 
         if (m_ttl_duration != 0 && m_snapshot_timestamp == 0) {
           /*
@@ -164,6 +169,9 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
     uint64 ttl_timestamp;
     Rdb_string_reader reader(&existing_value);
     if (!reader.read(m_ttl_offset) || reader.read_uint64(&ttl_timestamp)) {
+      // A partial-index sentinel written by an older MyRocks, which did not
+      // allow partial indexes on TTL tables, has no TTL. Keep it.
+      if (m_partial_index) return false;
       std::string buf;
       buf = rdb_hexdump(existing_value.data(), existing_value.size());
       LogPluginErrMsg(ERROR_LEVEL, 0,
@@ -171,6 +179,14 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
                       "for index (%u,%u), val: %s",
                       m_prev_index.cf_id, m_prev_index.index_id, buf.c_str());
       abort();
+    }
+
+    /*
+      If the timestamp is max value, it means that this record will never expire
+      and should not be deleted. We will early return here to avoid overflow.
+    */
+    if (ttl_timestamp == std::numeric_limits<uint64_t>::max()) {
+      return false;
     }
 
     /*
@@ -196,6 +212,8 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
   mutable uint64 m_ttl_duration = 0;
   // TTL offset for all records in the current index
   mutable uint32 m_ttl_offset = 0;
+  // Current index is a partial index
+  mutable bool m_partial_index = false;
   // Oldest snapshot timestamp at the time a TTL index is discovered
   mutable uint64_t m_snapshot_timestamp = 0;
 };

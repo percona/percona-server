@@ -1205,4 +1205,10 @@ extern bool rocksdb_enable_instant_ddl_for_table_comment_changes;
 extern bool rocksdb_enable_instant_ddl_for_drop_index_changes;
 
 extern unsigned long long rocksdb_converter_record_cached_length;
+
+/*
+  The max value timestamp that is used to construct timestamp slice. This will
+  be used in the case of using max timestamp as a special value.
+*/
+extern char max_timestamp_uint64[ROCKSDB_SIZEOF_TTL_RECORD];
 }  // namespace myrocks

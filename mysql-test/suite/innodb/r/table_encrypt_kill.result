@@ -1,5 +1,18 @@
+<<<<<<< HEAD
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 # Starting server with keyring plugin
+||||||| merged common ancestors
+# Starting server with keyring plugin
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+=======
+# Starting server with keyring component
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+>>>>>>> mysql-8.4.0
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db. t_encrypt;
 CREATE DATABASE tde_db;
@@ -197,5 +210,17 @@ SELECT 1;
 1
 DROP DATABASE tde_db;
 # restart server without keyring
+<<<<<<< HEAD
 # restart:
+||||||| merged common ancestors
+# restart: 
+=======
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
+>>>>>>> mysql-8.4.0
 SET GLOBAL innodb_file_per_table=1;

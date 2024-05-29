@@ -11,7 +11,7 @@ GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
 GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server2]
@@ -28,13 +28,19 @@ include/start_group_replication.inc
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 # Ensuring the the two members are online.
 [connection server1]
+<<<<<<< HEAD
 include/rpl_gr_wait_for_number_of_members.inc
 # Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
+||||||| merged common ancestors
+include/rpl_gr_wait_for_number_of_members.inc
+# Asserting that CHANGE MASTER is not replicated in the binary log of the server.
+=======
+include/rpl/gr_wait_for_number_of_members.inc
+# Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
+>>>>>>> mysql-8.4.0
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 [connection server2]
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

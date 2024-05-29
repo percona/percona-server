@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1193,7 +1194,7 @@ stdx::expected<size_t, std::error_code> recv_with_cmsg(
   mhdr.set_control(net::buffer(control));
 
   auto recv_res = net::impl::socket::recvmsg(sock.native_handle(), mhdr, flags);
-  if (!recv_res) return stdx::make_unexpected(recv_res.error());
+  if (!recv_res) return stdx::unexpected(recv_res.error());
 #ifdef MSG_ERRQUEUE
   if (mhdr.flags() & MSG_ERRQUEUE) {
     // payload which triggered the error.
@@ -1244,7 +1245,7 @@ stdx::expected<size_t, std::error_code> recv_with_cmsg(
   }
 
   if (data.size() != 0 && *recv_res == 0) {
-    return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
+    return stdx::unexpected(make_error_code(net::stream_errc::eof));
   }
 
   return recv_res;
@@ -1267,7 +1268,7 @@ class error_handler {
 
     return recv_res;
 #else
-    return stdx::make_unexpected(
+    return stdx::unexpected(
         make_error_code(std::errc::operation_not_supported));
 #endif
   }
@@ -1462,7 +1463,7 @@ stdx::expected<void, std::error_code> run() {
   // www.oracle.com
   auto connect_res = sock.connect(net::ip::tcp::endpoint{
       net::ip::make_address("137.254.120.50").value(), 80});
-  if (!connect_res) return stdx::make_unexpected(connect_res.error());
+  if (!connect_res) return stdx::unexpected(connect_res.error());
 
   sock.async_wait(net::socket_base::wait_error, error_handler(sock));
 

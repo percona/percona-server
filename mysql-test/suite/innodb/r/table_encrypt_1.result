@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
@@ -5,6 +6,15 @@ ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # restart:<hidden args>
 DROP TABLE IF EXISTS t1;
+||||||| merged common ancestors
+=======
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+>>>>>>> mysql-8.4.0
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -102,7 +112,15 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
+<<<<<<< HEAD
 # Kill and restart:<hidden args>
+||||||| merged common ancestors
+# Kill the server
+# restart:
+=======
+# Kill the server
+# restart: --plugin-dir=PLUGIN_PATH
+>>>>>>> mysql-8.4.0
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -162,7 +180,13 @@ c1
 7
 8
 9
+<<<<<<< HEAD
 # restart:<hidden args>
+||||||| merged common ancestors
+# restart:
+=======
+# restart: --plugin-dir=PLUGIN_PATH
+>>>>>>> mysql-8.4.0
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -197,7 +221,13 @@ c1
 7
 8
 9
+<<<<<<< HEAD
 # restart:<hidden args>
+||||||| merged common ancestors
+# restart:
+=======
+# restart: --plugin-dir=PLUGIN_PATH
+>>>>>>> mysql-8.4.0
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -244,7 +274,13 @@ c1	ST_AsText(g)
 7	POINT(7 7)
 8	POINT(8 8)
 9	POINT(9 9)
+<<<<<<< HEAD
 # restart:<hidden args>
+||||||| merged common ancestors
+# restart: --innodb_strict_mode=OFF --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+=======
+# restart: --innodb_strict_mode=OFF --plugin-dir=PLUGIN_PATH
+>>>>>>> mysql-8.4.0
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 c1	ST_AsText(g)
 0	POINT(0 0)
@@ -285,3 +321,16 @@ t1	CREATE TABLE `t1` (
 Pattern "Sydney" not found
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;
+<<<<<<< HEAD
+||||||| merged common ancestors
+# restart:
+=======
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
+# restart:
+>>>>>>> mysql-8.4.0

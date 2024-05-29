@@ -99,18 +99,18 @@ if (!$remote_transaction)
 }
 
 --let $rpl_connection_name= $local_server_connection1
---source include/rpl_connection.inc
+--source include/connection.inc
 
 # Include gtid_utils if it is not included already
 if (!$gtid_util_included)
 {
   SET SESSION sql_log_bin= 0;
-  --source include/gtid_utils.inc
+  --source include/rpl/gtid_utils.inc
   SET SESSION sql_log_bin= 1;
   --let $gtid_utils_installed= 1;
 }
 # Remember the gtid position
---source include/gtid_step_reset.inc
+--source include/rpl/gtid_step_reset.inc
 --let $prev_certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Transactions_Checked, 1)
 --let $prev_negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Conflicts_Detected, 1)
 
@@ -119,7 +119,7 @@ if (!$gtid_util_included)
 --echo # 1. Set a debug sync before broadcast message to group on
 --echo #    connection local_server_connection1.
 --let $rpl_connection_name= $local_server_connection1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 
@@ -135,8 +135,14 @@ BEGIN;
 --echo # 3. Wait until local transaction reaches the
 --echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= $local_server_connection2
+<<<<<<< HEAD
 --source include/rpl_connection.inc
 SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
+||||||| merged common ancestors
+--source include/rpl_connection.inc
+=======
+--source include/connection.inc
+>>>>>>> mysql-8.4.0
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -146,7 +152,7 @@ SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_r
 --echo #    certification, since transaction on the local server
 --echo #    is blocked before broadcast.
 --let $rpl_connection_name= $remote_server_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 BEGIN;
 --eval $remote_transaction
 COMMIT;
@@ -156,7 +162,7 @@ COMMIT;
 --echo # 5. Signal the waiting thread on local server to resume the
 --echo #    transaction.
 --let $rpl_connection_name= $local_server_connection2
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
 
 --echo
@@ -164,9 +170,9 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --echo # 6. Wait for remote transaction to be executed succesfully
 --echo      on local server.
 --let $rpl_connection_name= $remote_server_connection
---source include/rpl_connection.inc
+--source include/connection.inc
 --let $sync_slave_connection= $local_server_connection2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo ############################################################
 --echo # 7. If the test case is conflict scenario, local transaction
@@ -175,7 +181,7 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --echo #    remote server was ordered first. If the test case is
 --echo #    is positive scenario, no error will be seen here.
 --let $rpl_connection_name= $local_server_connection1
---source include/rpl_connection.inc
+--source include/connection.inc
 if ($conflict_test)
 {
   --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
@@ -183,7 +189,7 @@ if ($conflict_test)
 --reap
 
 --let $rpl_connection_name= $local_server_connection1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET @@GLOBAL.DEBUG=@debug_save;
 
 --let $rpl_connection_name= $local_server_connection2
@@ -192,7 +198,7 @@ SET DEBUG_SYNC='RESET';
 
 --echo ############################################################
 --echo # 8. Sync everything
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --echo ############################################################
 --echo # 9. Assert that number of certified transactions are the
@@ -214,19 +220,19 @@ SET DEBUG_SYNC='RESET';
 --let $gtid_step_count= `SELECT 2 - $conflict_test`
 --let $gtid_step_uuid=`SELECT @@global.group_replication_group_name`
 --let $gtid_step_only_count= 1
---source include/gtid_step_assert.inc
+--source include/rpl/gtid_step_assert.inc
 
 # uninstall gtid_utils if it is installed by this file.
 if ($gtid_utils_installed)
 {
   --let $rpl_connection_name= $local_server_connection1
-  --source include/rpl_connection.inc
+  --source include/connection.inc
   SET SESSION sql_log_bin= 0;
-  --source include/gtid_utils_end.inc
+  --source include/rpl/gtid_utils_end.inc
   SET SESSION sql_log_bin= 1;
 }
 
 --echo ############################################################
 --echo # 11. Cleanup (restore the connection back to original)
 --let $rpl_connection_name= $old_conn
---source include/rpl_connection.inc
+--source include/connection.inc

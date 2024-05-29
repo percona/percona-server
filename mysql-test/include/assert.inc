@@ -7,7 +7,7 @@
 # ==== Usage ====
 #
 # --let $assert_text = Relay_Log_Pos must be between min_pos and max_pos
-# --let $assert_cond = [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
+# --let $assert_cond = [SHOW REPLICA STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
 # [--let $assert_escape = 1]
 # [--let $extra_debug_info = some text]
 # [--let $extra_debug_eval = expression parsable by include/eval.inc]
@@ -48,10 +48,16 @@
 #   several errors to be caught in a single run.
 #
 # $extra_debug_info, $extra_debug_eval
+<<<<<<< HEAD
 #   See include/show_rpl_debug_info.inc
 #
 # $assert_debug
 #   If set, and the assert fails, an extra SQL statement to execute
+||||||| merged common ancestors
+#   See include/show_rpl_debug_info.inc
+=======
+#   See include/rpl/debug/show_debug_info.inc
+>>>>>>> mysql-8.4.0
 
 
 --let $include_filename= assert.inc [$assert_text]
@@ -84,7 +90,7 @@ if (!$eval_result)
   --let $assert_result = $eval_result
   if ($show_rpl_debug_info)
   {
-    --source include/show_rpl_debug_info.inc
+    --source include/rpl/debug/show_debug_info.inc
   }
   if ($assert_no_stop) {
     if (!$show_rpl_debug_info) {

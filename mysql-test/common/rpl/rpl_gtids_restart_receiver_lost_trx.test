@@ -1,0 +1,180 @@
+#
+# This test will verify if the slave SQL thread and the slave IO thread behave
+# correctly when the IO thread is restarted in the middle of a transaction.
+#
+# It is expected that the IO thread will retrieve again the partial transaction
+# from the beginning and that the SQL thread will rollback the partially
+# retrieved transaction before applying the fully retrieved one.
+#
+# This test will insert some data in the master and then will stop the slave
+# IO thread right after queuing an event of a given type, starting the IO
+# thread again to fully retrieve the partially received transaction.
+#
+# Additionally, this test also tests partial transactions with SOURCE_DELAY
+# configured and verifies that the applier thread doesn't wait for SOURCE_DELAY
+# when the receiver thread is restarted in the middle of a transaction, if MTS
+# and GTID autoposition protocol. To test this, set $source_delay_test=1 and
+# source this file.
+####
+# param: $using_mts         1 if the test is running with multi-threaded slave
+# param: $source_delay_test 1 to test with SOURCE_DELAY
+
+# As this test depends on the use of a User_var_log_event in a DML statement
+# we have to use statement based replication.
+--source include/have_binlog_format_statement.inc
+--source include/force_restart.inc
+# Enable auto_position protocol
+--let $use_gtids= 1
+--let $rpl_gtid_utils= 1
+--source include/rpl/init_source_replica.inc
+# Test should run only on debug build
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+
+# Initial setup
+--connection master
+CREATE TABLE t1(i INT) ENGINE=InnoDB;
+# The following "FLUSH LOGS" will make the master to clear the "created" flag
+# of the Format Description events in the next binlog files (and also in
+# their replicated versions in the slave's relaylog).
+FLUSH LOGS;
+<<<<<<< HEAD:mysql-test/extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+--source include/sync_slave_sql_with_master.inc
+
+# Test for SOURCE_DELAY with partial transactions.
+if ($source_delay_test)
+{
+  --source include/stop_slave.inc
+  CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
+  --source include/start_slave.inc
+}
+||||||| merged common ancestors:mysql-test/extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+--source include/sync_slave_sql_with_master.inc
+=======
+--source include/rpl/sync_to_replica.inc
+>>>>>>> mysql-8.4.0:mysql-test/common/rpl/rpl_gtids_restart_receiver_lost_trx.test
+SET @save_debug=@@global.debug;
+
+#
+# Actual test starts here.
+#
+# Test will do the following five iterations
+#     1.Stop I/O thread after reading GTID_LOG_EVENT
+#     2.Stop I/O thread after reading QUERY_LOG_EVENT
+#     3.Stop I/O thread after reading XID_LOG_EVENT
+#        which is equal to I/O thread sync with master
+#     4.Stop I/O thread after the gtid is in EXECUTED_GTID_SET
+#       i.e., after sync slave sql thread with master.
+#     5.Stop I/O thread after reading USER_VAR_LOG_EVENT
+# and after that make sure there are no missing gtid events
+# i.e., we will verify this by doing diff between master:t1,
+# slave:t1.
+
+--let $i=1
+while ($i <= 5)
+{
+  if ($i == 1)
+  {
+    SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+  }
+  if ($i == 2)
+  {
+    SET GLOBAL DEBUG='d,stop_io_after_reading_query_log_event';
+  }
+  if ($i == 3)
+  {
+    # Stopping sql thread to make sure that case 3 is not equal to case 4.
+    --source include/rpl/stop_applier.inc
+    SET GLOBAL DEBUG='d,stop_io_after_reading_xid_log_event';
+  }
+  if ($i == 5)
+  {
+    SET GLOBAL DEBUG='d,stop_io_after_reading_user_var_log_event';
+  }
+  --connection master
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($i)
+  --eval SET @v= $i * 100
+  --eval INSERT INTO t1 VALUES (@v)
+  COMMIT;
+  --connection slave
+  if ($i == 4)
+  {
+    --connection master
+    --source include/rpl/sync_to_replica.inc
+    --source include/rpl/stop_receiver.inc
+  }
+<<<<<<< HEAD:mysql-test/extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+  --source include/wait_for_slave_io_to_stop.inc
+
+  if ($source_delay_test)
+  {
+    # Add a debug point to simulate older implementation, since PS-7498 cannot
+    # happen when we are replicating from 8.0 server (Fixed by WL#7318).
+    --let $debug_point= sql_delay_without_timestamps
+    --source include/add_debug_point.inc
+
+    # Sleep for slightly more than SOURCE_DELAY seconds.
+    --sleep 8
+
+    # When SOURCE_DELAY is set we don't expect the applier thread to
+    # wait while it is processing the source's Format_description_event
+    # as part of handling partial transaction in the relay log.
+    START REPLICA IO_THREAD;
+
+    --let $assert_text= Assert that the applier thread is not waiting for SOURCE_DELAY seconds.
+    --let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting until SOURCE_DELAY seconds after master executed event"] = 0
+    --source include/assert.inc
+
+    # Reset SOURCE_DELAY and remove debug point.
+    --source include/stop_slave.inc
+    CHANGE REPLICATION SOURCE TO SOURCE_DELAY=0;
+    --source include/remove_debug_point.inc
+
+    # Start only the applier thread
+    --source include/start_slave_sql.inc
+  }
+||||||| merged common ancestors:mysql-test/extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
+  --source include/wait_for_slave_io_to_stop.inc
+=======
+  --source include/rpl/wait_for_receiver_to_stop.inc
+>>>>>>> mysql-8.4.0:mysql-test/common/rpl/rpl_gtids_restart_receiver_lost_trx.test
+  # Remove the debug point and restart the slave threads
+  SET GLOBAL DEBUG= @save_debug;
+
+  --source include/rpl/start_receiver.inc
+
+  if ($i == 2)
+  {
+    if ($using_mts == 1)
+    {
+      --source include/rpl/connection_source.inc
+      --source include/rpl/sync_to_replica.inc
+      --let $applied_trxs_gtid= query_get_value(SELECT COUNT(LAST_APPLIED_TRANSACTION) FROM performance_schema.replication_applier_status_by_worker WHERE CHAR_LENGTH(LAST_APPLIED_TRANSACTION) > 0, COUNT(LAST_APPLIED_TRANSACTION), 1)
+      --let $assert_text= Assert that the monitoring recorded the transaction applied by only one worker
+      --let $assert_cond= "$applied_trxs_gtid" = 1
+      --source include/assert.inc
+    }
+  }
+
+  if ($i == 3)
+  {
+    --source include/rpl/start_applier.inc
+  }
+  # Do one more insert on master and then sync slave with master (to make sure
+  # that re-replicating the events are done successfully.
+  --connection master
+  --eval INSERT INTO t1 VALUES ($i)
+  --source include/rpl/sync_to_replica.inc
+  # Now compare master and slave's t1 table data
+  # to prove that there are no missing gtids.
+  --let diff_tables= master:t1, slave:t1
+  --source include/diff_tables.inc
+  --inc $i
+}
+
+# Cleanup
+--connection master
+DROP TABLE t1;
+
+--source include/rpl/deinit.inc

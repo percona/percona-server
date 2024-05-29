@@ -83,7 +83,13 @@ INSERT INTO aliases(name) VALUES
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
+<<<<<<< HEAD
 --let $expected = 114
+||||||| merged common ancestors
+--let $expected = 109
+=======
+--let $expected = 108
+>>>>>>> mysql-8.4.0
 --let $assert_text = Expect $expected variables in the table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
@@ -115,7 +121,13 @@ while ( $varid <= $countvars )
 }
 
 --echo
+<<<<<<< HEAD
 --let $expected = 101
+||||||| merged common ancestors
+--let $expected = 98
+=======
+--let $expected = 97
+>>>>>>> mysql-8.4.0
 --let $assert_text = Expect $expected persisted variables in persisted_variables table.
 --let $assert_cond = [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc

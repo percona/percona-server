@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -111,6 +111,7 @@ include/assert.inc ["t1 on master and temp_t1 have the same storage engine"]
 include/assert.inc ["t1 on slave and temp_t1 have the same storage engine"]
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
+<<<<<<< HEAD
 CREATE TEMPORARY TABLE temp_t1 (c1 INT) DEFAULT CHARSET=latin1;
 CREATE TABLE t1 LIKE temp_t1;
 include/assert.inc ["t1 on master and temp_t1 have the same character set"]
@@ -118,3 +119,8 @@ include/assert.inc ["t1 on slave and temp_t1 have the same character set"]
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
 include/rpl_end.inc
+||||||| merged common ancestors
+include/rpl_end.inc
+=======
+include/rpl/deinit.inc
+>>>>>>> mysql-8.4.0

@@ -23,7 +23,13 @@ WHERE VARIABLE_NAME LIKE '%group_replication%'
 
 SET PERSIST group_replication_advertise_recovery_endpoints = @@GLOBAL.group_replication_advertise_recovery_endpoints;
 SET PERSIST group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
+<<<<<<< HEAD
 SET PERSIST group_replication_auto_evict_timeout = @@GLOBAL.group_replication_auto_evict_timeout;
+||||||| merged common ancestors
+=======
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
+>>>>>>> mysql-8.4.0
 SET PERSIST group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET PERSIST group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
 SET PERSIST group_replication_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;
@@ -58,9 +64,8 @@ SET PERSIST group_replication_member_weight = @@GLOBAL.group_replication_member_
 SET PERSIST group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
 SET PERSIST group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET PERSIST group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
-SET PERSIST group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
-Warnings:
-Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
+SET PERSIST group_replication_preemptive_garbage_collection = @@GLOBAL.group_replication_preemptive_garbage_collection;
+SET PERSIST group_replication_preemptive_garbage_collection_rows_threshold = @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;
 SET PERSIST group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET PERSIST group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET PERSIST group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;
@@ -90,18 +95,34 @@ Warning	1681	'group_replication_view_change_uuid' is deprecated and will be remo
 SET PERSIST group_replication_xcom_ssl_accept_retries = @@GLOBAL.group_replication_xcom_ssl_accept_retries;
 SET PERSIST group_replication_xcom_ssl_socket_timeout = @@GLOBAL.group_replication_xcom_ssl_socket_timeout;
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 64 persisted variables.']
+||||||| merged common ancestors
+include/assert.inc ['Expect 59 persisted variables.']
+=======
+include/assert.inc ['Expect 60 persisted variables.']
+>>>>>>> mysql-8.4.0
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
 #    the persisted settings. Verify persisted configuration.
 # restart
-include/rpl_reconnect.inc
+include/rpl/reconnect.inc
 include/gr_wait_for_member_state.inc
 
+<<<<<<< HEAD
 include/assert.inc ['Expect 64 persisted variables in persisted_variables table.']
 include/assert.inc ['Expect 63 variables which last value was set through SET PERSIST.']
 include/assert.inc ['Expect 63 variables which last value was set through SET PERSIST is equal to its global value.']
+||||||| merged common ancestors
+include/assert.inc ['Expect 59 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST is equal to its global value.']
+=======
+include/assert.inc ['Expect 60 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 59 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 59 variables which last value was set through SET PERSIST is equal to its global value.']
+>>>>>>> mysql-8.4.0
 
 ############################################################
 # 3. Test RESET PERSIST.
@@ -143,7 +164,8 @@ RESET PERSIST group_replication_member_weight;
 RESET PERSIST group_replication_message_cache_size;
 RESET PERSIST group_replication_paxos_single_leader;
 RESET PERSIST group_replication_poll_spin_loops;
-RESET PERSIST group_replication_recovery_complete_at;
+RESET PERSIST group_replication_preemptive_garbage_collection;
+RESET PERSIST group_replication_preemptive_garbage_collection_rows_threshold;
 RESET PERSIST group_replication_recovery_compression_algorithms;
 RESET PERSIST group_replication_recovery_get_public_key;
 RESET PERSIST group_replication_recovery_public_key_path;

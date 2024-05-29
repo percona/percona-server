@@ -1,4 +1,14 @@
+<<<<<<< HEAD
 # restart:<hidden args>
+||||||| merged common ancestors
+=======
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+>>>>>>> mysql-8.4.0
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -66,7 +76,13 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+<<<<<<< HEAD
 # restart:<hidden args>
+||||||| merged common ancestors
+# restart:
+=======
+# restart: PLUGIN_DIR_OPT
+>>>>>>> mysql-8.4.0
 SELECT * FROM test.t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -151,3 +167,10 @@ ALTER TABLE test.t1 IMPORT TABLESPACE;
 ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 Warnings:
 Note	1051	Unknown table 'test.t1'
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

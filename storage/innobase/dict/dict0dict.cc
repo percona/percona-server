@@ -5880,51 +5880,6 @@ void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
   }
 }
 
-/** Change the table_id of SYS_* tables if they have been created after
-an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
-TODO - This function is to be removed by WL#16210.
-*/
-void dict_table_change_id_sys_tables() {
-  ut_ad(dict_sys_mutex_own());
-
-  /* On upgrading from 5.6 to 5.7, new system table SYS_VIRTUAL is given table
-   id after the last created user table. So, if last user table was created
-   with table_id as 1027, SYS_VIRTUAL would get id 1028. On upgrade to 8.0,
-   all these tables are shifted by 1024. On 5.7, the SYS_FIELDS has table id
-   4, which gets updated to 1028 on upgrade. This would later assert when we
-   try to open the SYS_VIRTUAL table (having id 1028) for upgrade. Hence, we
-   need to upgrade system tables in reverse order to avoid that.
-   These tables are created on boot. And hence this issue can only be caused by
-   a new table being added at a later stage - the SYS_VIRTUAL table being added
-   on upgrading to 5.7. */
-
-  for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
-    dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
-
-    ut_a(system_table != nullptr || i == SYS_ZIP_DICT ||
-         i == SYS_ZIP_DICT_COLS);
-
-    /* SYS_ZIP_DICT and SYS_ZIP_DICT_COLS can be missing when mysql-5.7 to
-    PS-8.0 upgrade */
-    if (system_table == nullptr &&
-        (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS)) {
-      ut_ad(dict_upgrade_zip_dict_missing);
-      continue;
-    }
-    ut_ad(dict_sys_table_id[i] == system_table->id);
-
-    /* During upgrade, table_id of user tables is also
-    moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
-    table_id_t new_table_id = system_table->id + DICT_MAX_DD_TABLES;
-
-    dict_table_change_id_in_cache(system_table, new_table_id);
-
-    dict_sys_table_id[i] = system_table->id;
-
-    dict_table_prevent_eviction(system_table);
-  }
-}
-
 /** @return true if table is InnoDB SYS_* table
 @param[in]      table_id        table id  */
 bool dict_table_is_system(table_id_t table_id) {

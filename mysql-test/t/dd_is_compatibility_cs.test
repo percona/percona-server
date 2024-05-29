@@ -180,23 +180,11 @@ SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
 --echo # 4. Names collate differently. On trunk, the queries below returns
 --echo #    the same result set.
 
-<<<<<<< HEAD
 # Percona added TABLE_STATISTICS
-SELECT count(*) = IF(@@lower_case_table_names = 0, 8, 13)
-||||||| merged common ancestors
 SELECT count(*) = IF(@@lower_case_table_names = 0, 7, 12)
-=======
-SELECT count(*) = IF(@@lower_case_table_names = 0, 6, 11)
->>>>>>> mysql-8.4.0
   FROM information_schema.tables
   WHERE table_name LIKE 'TAB%';
-<<<<<<< HEAD
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 13)
-||||||| merged common ancestors
 SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
-=======
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 11)
->>>>>>> mysql-8.4.0
   FROM information_schema.tables
   WHERE table_name LIKE 'tab%';
  

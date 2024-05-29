@@ -85,19 +85,9 @@ include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on STOP REPL
 RESET REPLICA;
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on RESET REPLICA.]
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
-<<<<<<< HEAD
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.]
-include/start_slave.inc
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.]
-||||||| merged common ancestors
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
-include/start_slave.inc
-include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.]
-=======
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.]
 include/rpl/start_replica.inc
 include/assert.inc [Source_SSL_Verify_Server_Cert should NOT change on START REPLICA.]
->>>>>>> mysql-8.4.0
 DROP TABLE IF EXISTS t1;
 include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc

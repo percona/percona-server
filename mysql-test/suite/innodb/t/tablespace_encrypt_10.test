@@ -179,13 +179,7 @@ let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/encryption_error_log.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/unencryption_error_log.inc
-<<<<<<< HEAD
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 
 # The backup file might be a leftover after calling generate key on existing key
 --error 0,1
 --remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"
-||||||| merged common ancestors
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
-=======
->>>>>>> mysql-8.4.0

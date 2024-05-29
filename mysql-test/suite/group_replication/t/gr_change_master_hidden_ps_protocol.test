@@ -14,16 +14,8 @@
 --source ../include/gr_change_replication_source_hidden.inc
 --disable_ps_protocol
 
-<<<<<<< HEAD
---echo # MASTER_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
---let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging_ps_protocol.err
-||||||| merged common ancestors
---echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
---let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_master_password_logging_ps_protocol.err
-=======
 --echo # SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/no_change_source_password_logging_ps_protocol.err
->>>>>>> mysql-8.4.0
 --let $grep_pattern= source_password
 --let $grep_output= print_count
 --source include/grep_pattern.inc

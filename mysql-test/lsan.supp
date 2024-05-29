@@ -72,13 +72,6 @@ leak:ndb_sign_keys
 # Internal leak in libprotobuf-lite
 # google::protobuf::internal::InitSCCImpl()
 leak:libprotobuf-lite.so
-<<<<<<< HEAD
-
-# The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
-# utility on Ubuntu 22.04 Jammy
-leak:re_compile_internal
-||||||| merged common ancestors
-=======
 
 # Bug#36170703 ndb api tools leak with TLS required on data nodes 
 # Suppress leak detection for them until leak is found.
@@ -96,4 +89,7 @@ leak:ndb_select_all
 leak:ndb_select_count
 leak:ndb_show_tables
 leak:ndb_sign_keys
->>>>>>> mysql-8.4.0
+
+# The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
+# utility on Ubuntu 22.04 Jammy
+leak:re_compile_internal

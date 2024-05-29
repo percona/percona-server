@@ -1,33 +1,14 @@
 ################################################################################
-<<<<<<< HEAD
-# This test verifies that the CHANGE REPLICATION SOURCE command is not logged in
-# the binary log. Therefore it is not replicated as well.
-||||||| merged common ancestors
-# This test verifies that the CHANGE MASTER command is not logged in the binary
-# log. Therefore it is not replicated as well.
-=======
 # This test verifies that the CHANGE REPLICATION SOURCE command is not logged in the binary
 # log. Therefore it is not replicated as well.
->>>>>>> mysql-8.4.0
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Create a user on M1 to be used by the recovery channel. Bootstrap
 #    GROUP on M1. Add some data for recovery.
-<<<<<<< HEAD
-# 2. Start GR on M2 post CHANGE REPLICATION SOURCE with valid values. Grep for
-#    'CHANGE REPLICATION SOURCE' pattern in binary log data. Expect 0 count.
-# 3. Grep for 'CHANGE REPLICATION SOURCE' pattern in binary log of M1.
-#    Expect 0 count.
-||||||| merged common ancestors
-# 2. Start GR on M2 post CHANGE MASTER with valid values. Grep for
-#    'CHANGE MASTER' pattern in binary log data. Expect 0 count.
-# 3. Grep for 'CHANGE MASTER' pattern in binary log of M1. Expect 0 count.
-=======
 # 2. Start GR on M2 post CHANGE REPLICATION SOURCE with valid values. Grep for
 #    'CHANGE REPLICATION SOURCE' pattern in binary log data. Expect 0 count.
 # 3. Grep for 'CHANGE REPLICATION SOURCE' pattern in binary log of M1. Expect 0 count.
->>>>>>> mysql-8.4.0
 ################################################################################
 
 --let $skip_recovery_configuration=1

@@ -67,14 +67,8 @@ SELECT * FROM t1;
 --echo ############################################################
 --echo # 04. Resume the plugin stop.
 --let $rpl_connection_name= server_1_1
-<<<<<<< HEAD
---source include/rpl_connection.inc
-SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
-||||||| merged common ancestors
---source include/rpl_connection.inc
-=======
 --source include/connection.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
 SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
 

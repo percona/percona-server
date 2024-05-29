@@ -18,32 +18,7 @@ SELECT * FROM query_rewrite.rewrite_rules;
 
 SELECT 'Rewrite';
 
-<<<<<<< HEAD
 --source include/restart_mysqld.inc
-||||||| merged common ancestors
---echo #
---echo # Restart the server
---echo #
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-=======
---echo #
---echo # Restart the server
---echo #
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
->>>>>>> mysql-8.4.0
 
 SELECT 'Rewrite';
 

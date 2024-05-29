@@ -1168,25 +1168,6 @@ static MYSQL_THDVAR_STR(tmpdir,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, nullptr, nullptr);
 
-<<<<<<< HEAD
-static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
-                         "Instruct FTS to ignore stopwords.", nullptr, nullptr,
-                         false);
-
-static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
-                          "Number of threads to do parallel read.", nullptr,
-                          nullptr, 4,                   /* Default. */
-                          1,                            /* Minimum. */
-                          Parallel_reader::MAX_THREADS, /* Maximum. */
-                          0);
-||||||| merged common ancestors
-static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
-                          "Number of threads to do parallel read.", nullptr,
-                          nullptr, 4,                   /* Default. */
-                          1,                            /* Minimum. */
-                          Parallel_reader::MAX_THREADS, /* Maximum. */
-                          0);
-=======
 static MYSQL_THDVAR_ULONG(
     parallel_read_threads, PLUGIN_VAR_RQCMDARG,
     "Number of threads to do parallel read.", nullptr, nullptr,
@@ -1195,7 +1176,10 @@ static MYSQL_THDVAR_ULONG(
     1,                                               /* Minimum. */
     Parallel_reader::MAX_THREADS,                    /* Maximum. */
     0);
->>>>>>> mysql-8.4.0
+
+static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
+                         "Instruct FTS to ignore stopwords.", nullptr, nullptr,
+                         false);
 
 static MYSQL_THDVAR_ULONG(ddl_buffer_size, PLUGIN_VAR_RQCMDARG,
                           "Maximum size of memory to use (in bytes) for DDL.",
@@ -6129,54 +6113,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
-<<<<<<< HEAD
-  if (srv_is_upgrade_mode) {
-    if (!dict_sys_table_id_build()) {
-      return innodb_init_abort();
-    }
-
-    if (trx_sys->found_prepared_trx) {
-      ib::error(ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION);
-      return innodb_init_abort();
-    }
-
-    /* Disable AHI when we start loading tables for purge.
-    These tables are evicted anyway after purge. */
-
-    bool old_btr_search_value = btr_search_enabled;
-    btr_search_enabled = false;
-
-    /* Load all tablespaces upfront from InnoDB Dictionary.
-    This is needed for applying purge and ibuf from 5.7 */
-    dict_load_tablespaces_for_upgrade();
-
-    /* Start purge threads immediately and wait for purge to
-    become empty. All table_ids will be adjusted by a fixed
-    offset during upgrade. So purge cannot load a table by
-    table_id later. Also InnoDB dictionary will be dropped
-    during the process of upgrade. So apply all the purge
-    now. */
-    srv_start_purge_threads();
-
-    uint64_t rseg_history_len;
-    while ((rseg_history_len = trx_sys->rseg_history_len.load()) != 0) {
-      ib::info(ER_IB_MSG_547)
-          << "Waiting for purge to become empty:"
-          << " current purge history len is " << rseg_history_len;
-      sleep(1);
-    }
-
-    srv_upgrade_old_undo_found = false;
-
-    buf_flush_sync_all_buf_pools();
-
-    dict_upgrade_evict_tables_cache();
-
-    dict_stats_evict_tablespaces();
-
-    btr_search_enabled = old_btr_search_value;
-  }
-
   bool do_encrypt = false;
   bool ret = dict_detect_encryption_of_mysql_ibd(dict_init_mode, do_encrypt);
   if (!ret) {
@@ -6196,58 +6132,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   const ulint dd_space_flags =
       do_encrypt ? predefined_flags | FSP_FLAGS_MASK_ENCRYPTION
                  : predefined_flags;
-||||||| merged common ancestors
-  if (srv_is_upgrade_mode) {
-    if (!dict_sys_table_id_build()) {
-      return innodb_init_abort();
-    }
-
-    if (trx_sys->found_prepared_trx) {
-      ib::error(ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION);
-      return innodb_init_abort();
-    }
-
-    /* Disable AHI when we start loading tables for purge.
-    These tables are evicted anyway after purge. */
-
-    bool old_btr_search_value = btr_search_enabled;
-    btr_search_enabled = false;
-
-    /* Load all tablespaces upfront from InnoDB Dictionary.
-    This is needed for applying purge and ibuf from 5.7 */
-    dict_load_tablespaces_for_upgrade();
-
-    /* Start purge threads immediately and wait for purge to
-    become empty. All table_ids will be adjusted by a fixed
-    offset during upgrade. So purge cannot load a table by
-    table_id later. Also InnoDB dictionary will be dropped
-    during the process of upgrade. So apply all the purge
-    now. */
-    srv_start_purge_threads();
-
-    uint64_t rseg_history_len;
-    while ((rseg_history_len = trx_sys->rseg_history_len.load()) != 0) {
-      ib::info(ER_IB_MSG_547)
-          << "Waiting for purge to become empty:"
-          << " current purge history len is " << rseg_history_len;
-      sleep(1);
-    }
-
-    srv_upgrade_old_undo_found = false;
-
-    buf_flush_sync_all_buf_pools();
-
-    dict_upgrade_evict_tables_cache();
-
-    dict_stats_evict_tablespaces();
-
-    btr_search_enabled = old_btr_search_value;
-  }
-
-  bool ret;
-=======
-  bool ret;
->>>>>>> mysql-8.4.0
 
   ret = create ? dd_create_hardcoded(dict_sys_t::s_dict_space_id,
                                      dict_sys_t::s_dd_space_file_name,

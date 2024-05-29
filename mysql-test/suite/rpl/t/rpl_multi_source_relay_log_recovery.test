@@ -32,17 +32,7 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/force_restart.inc
-<<<<<<< HEAD
---source include/have_binlog_format_statement.inc
-||||||| merged common ancestors
---source include/have_binlog_format_statement.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
-=======
 --source include/have_binlog_format_row.inc
---source include/have_replica_parallel_workers.inc
---source include/have_replica_parallel_type_database.inc
->>>>>>> mysql-8.4.0
 
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
@@ -56,17 +46,11 @@
 --source include/connection.inc
 --let $slave_stop_wait=5
 
-<<<<<<< HEAD
-# connection was switched to slave
---source include/only_mts_replica_parallel_type_database.inc
---source include/only_mts_replica_parallel_workers.inc
+# connection was switched to replica
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
 
---source include/rpl_stop_slaves.inc
-||||||| merged common ancestors
---source include/rpl_stop_slaves.inc
-=======
 --source include/rpl/stop_all_replicas.inc
->>>>>>> mysql-8.4.0
 SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
 

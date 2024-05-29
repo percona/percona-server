@@ -25,14 +25,8 @@
 --source include/have_debug_sync.inc
 --source include/rpl/init_source_replica.inc
 
-<<<<<<< HEAD
---source include/rpl_connection_slave.inc
---source include/only_mts_replica_parallel_workers.inc
-||||||| merged common ancestors
---source include/rpl_connection_slave.inc
-=======
 --source include/rpl/connection_replica.inc
->>>>>>> mysql-8.4.0
+--source include/have_replica_parallel_workers.inc
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --source include/rpl/stop_replica.inc
 CHANGE REPLICATION SOURCE to SOURCE_AUTO_POSITION=1;

@@ -135,17 +135,11 @@ void Server::delayed_start_tasks() {
   });
 }
 
-<<<<<<< HEAD
 void Server::reload_ssl_context() {
   m_ssl_context = xpl::Ssl_context_builder().get_result_context();
 }
 
-void Server::start_tasks() {
-||||||| merged common ancestors
-void Server::start_tasks() {
-=======
 void Server::start_tasks(xpl::iface::Sql_session *sql_session) {
->>>>>>> mysql-8.4.0
   // We can't fetch the servers ssl config at plugin-load
   // this method allows to setup it at better time.
   m_ssl_context = xpl::Ssl_context_builder(sql_session).get_result_context();

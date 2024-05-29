@@ -80,17 +80,9 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --source include/expect_crash.inc
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-<<<<<<< HEAD
---echo # Restart after crash without Keyring plugin loaded
---error 1
-||||||| merged common ancestors
---echo # Restart after crash without Keyring plugin loaded
---error 1,42
-=======
 --echo # Restart after crash without Keyring component loaded
 --source include/keyring_tests/helper/instance_backup_manifest.inc
---error 1,42
->>>>>>> mysql-8.4.0
+--error 1
 --exec $MYSQLD_CMD --plugin-dir=$PLUGIN_DIR --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log

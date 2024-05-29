@@ -8747,13 +8747,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       return RESULT_ABORTED;
     }
 
-<<<<<<< HEAD
-    int rc = ordered_commit(thd, all, skip_commit);
-
-    if (rc) return RESULT_INCONSISTENT;
-||||||| merged common ancestors
-    if (ordered_commit(thd, all, skip_commit)) return RESULT_INCONSISTENT;
-=======
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
         ordered_commit(thd, all, skip_commit)) {
       thd_get_cache_mngr(thd)->reset();
@@ -8761,7 +8754,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
         thd->get_stmt_da()->reset_diagnostics_area();
       return RESULT_INCONSISTENT;
     }
->>>>>>> mysql-8.4.0
 
     DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
       /* Assert that binlog cache is reset at commit time. */

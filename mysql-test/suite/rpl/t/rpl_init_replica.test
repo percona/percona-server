@@ -27,14 +27,8 @@ set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 connection master;
-<<<<<<< HEAD
 drop table t1;
---source include/sync_slave_sql_with_master.inc
-||||||| merged common ancestors
---source include/sync_slave_sql_with_master.inc
-=======
 --source include/rpl/sync_to_replica.inc
->>>>>>> mysql-8.4.0
 
 # Restore changed global variable
 set global init_connect= @my_global_init_connect;

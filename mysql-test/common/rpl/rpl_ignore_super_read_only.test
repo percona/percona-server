@@ -7,25 +7,11 @@
 # 1) SET GLOBAL super_read_only to 1 on slave
 # 2) Execute 'STOP REPLICA' command
 # 3) Execute 'CHANGE REPLICATION FILTER' command
-<<<<<<< HEAD:mysql-test/extra/rpl_tests/rpl_ignore_super_read_only.test
-# 4) Execute 'CHANGE REPLICATION SOURCE TO' command
-# 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
-# 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
-# 8) Execute 'RESET SLAVE' command
-# 9) Execute 'START SLAVE' command
-||||||| merged common ancestors:mysql-test/extra/rpl_tests/rpl_ignore_super_read_only.test
-# 4) Execute 'CHANGE MASTER TO' command
-# 5) Execute 'RESET SLAVE FOR CHANNEL <channel_name>' command
-# 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
-# 8) Execute 'RESET SLAVE' command
-# 9) Execute 'START SLAVE' command
-=======
 # 4) Execute 'CHANGE REPLICATION SOURCE TO' command
 # 5) Execute 'RESET REPLICA FOR CHANNEL <channel_name>' command
 # 7) Execute 'RESET REPLICA ALL FOR CHANNEL <channel_name>' command
 # 8) Execute 'RESET REPLICA' command
 # 9) Execute 'START REPLICA' command
->>>>>>> mysql-8.4.0:mysql-test/common/rpl/rpl_ignore_super_read_only.test
 # 10) Execute 'RESET BINARY LOGS AND GTIDS' command (with GTID_MODE=ON will assert)
 # 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
 # 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''

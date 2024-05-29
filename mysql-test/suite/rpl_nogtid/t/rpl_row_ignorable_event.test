@@ -129,13 +129,7 @@ source include/rpl/deprecated/show_binlog_events.inc;
 --echo # SHOW BINLOG EVENTS ON SLAVE
 source include/rpl/deprecated/show_binlog_events.inc;
 
-<<<<<<< HEAD
 --connection master
 set DEBUG_SYNC= 'RESET';
 
---source include/rpl_end.inc
-||||||| merged common ancestors
---source include/rpl_end.inc
-=======
 --source include/rpl/deinit.inc
->>>>>>> mysql-8.4.0

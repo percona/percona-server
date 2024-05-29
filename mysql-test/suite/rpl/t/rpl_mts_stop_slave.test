@@ -13,37 +13,17 @@
 # writes on d2 and generate gaps. Finally, the test case executes "STOP REPLICA"
 # and verify that the SQL thread was properly stopped and left no gaps.
 
-<<<<<<< HEAD
---source include/have_binlog_format_statement.inc
---source include/master-slave.inc
-||||||| merged common ancestors
---source include/have_binlog_format_statement.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/master-slave.inc
-=======
 --source include/have_binlog_format_row.inc
---source include/have_replica_parallel_workers.inc
---source include/have_replica_parallel_type_database.inc
 --source include/rpl/init_source_replica.inc
->>>>>>> mysql-8.4.0
 
 --let $slave_stop_wait=5
 
 --echo #### I. Initialize ####
 
-<<<<<<< HEAD
---source include/rpl_connection_slave.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/stop_slave.inc
-||||||| merged common ancestors
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
-=======
 --source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
 --source include/rpl/stop_replica.inc
->>>>>>> mysql-8.4.0
 SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
 

@@ -4104,67 +4104,13 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
 template <typename T>
 void Buf_fetch<T>::read_page() {
-<<<<<<< HEAD
-  bool success{};
-  auto sync = m_mode != Page_fetch::SCAN;
-
-  if (sync) {
-    success = buf_read_page(m_page_id, m_page_size, m_trx);
-  } else {
-    dberr_t err;
-
-    auto ret = buf_read_page_low(&err, false, 0, BUF_READ_ANY_PAGE, m_page_id,
-                                 m_page_size, false, m_trx, false);
-    success = ret > 0;
-
-    if (success) {
-      srv_stats.buf_pool_reads.add(1);
-    }
-
-    ut_a(err != DB_TABLESPACE_DELETED);
-
-    /* Increment number of I/O operations used for LRU policy. */
-    buf_LRU_stat_inc_io();
-  }
-
-  if (success) {
-    if (sync) {
-      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
-||||||| merged common ancestors
-  bool success{};
-  auto sync = m_mode != Page_fetch::SCAN;
-
-  if (sync) {
-    success = buf_read_page(m_page_id, m_page_size);
-  } else {
-    dberr_t err;
-
-    auto ret = buf_read_page_low(&err, false, 0, BUF_READ_ANY_PAGE, m_page_id,
-                                 m_page_size, false);
-    success = ret > 0;
-
-    if (success) {
-      srv_stats.buf_pool_reads.add(1);
-    }
-
-    ut_a(err != DB_TABLESPACE_DELETED);
-
-    /* Increment number of I/O operations used for LRU policy. */
-    buf_LRU_stat_inc_io();
-  }
-
-  if (success) {
-    if (sync) {
-      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
-=======
-  if (buf_read_page(m_page_id, m_page_size)) {
+  if (buf_read_page(m_page_id, m_page_size, m_trx)) {
     /* Avoid doing read-ahead for parallel scans (well, at least currently this
     flag is used only during the parallel scans). This would cause unnecessary
     IO when the process is already being parallelized on higher level of
     abstraction. */
     if (m_mode != Page_fetch::SCAN) {
-      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
->>>>>>> mysql-8.4.0
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
     }
     m_retries = 0;
   } else if (m_retries < BUF_PAGE_READ_MAX_RETRIES) {

@@ -28,16 +28,8 @@ include/start_group_replication.inc
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 # Ensuring the the two members are online.
 [connection server1]
-<<<<<<< HEAD
-include/rpl_gr_wait_for_number_of_members.inc
-# Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
-||||||| merged common ancestors
-include/rpl_gr_wait_for_number_of_members.inc
-# Asserting that CHANGE MASTER is not replicated in the binary log of the server.
-=======
 include/rpl/gr_wait_for_number_of_members.inc
 # Asserting that CHANGE REPLICATION SOURCE is not replicated in the binary log of the server.
->>>>>>> mysql-8.4.0
 Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 [connection server2]
 RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';

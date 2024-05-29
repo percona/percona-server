@@ -3680,26 +3680,15 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
       EXPECT_NO_ERROR(set_var_res);
 
       // ensure that no new nullable sys-vars are added.
-<<<<<<< HEAD
-      EXPECT_THAT(var[0],
-                  testing::AnyOf("character_set_results",
-                                 "innodb_ft_user_stopword_table",
-                                 "session_track_system_variables",
-                                 "debug_set_operations_secondary_overflow_at",
-                                 "log_query_errors"));
-||||||| merged common ancestors
-      EXPECT_THAT(var[0], testing::AnyOf("character_set_results",
-                                         "innodb_ft_user_stopword_table",
-                                         "session_track_system_variables"));
-=======
       EXPECT_THAT(
           var[0],
           testing::AnyOf("debug_set_operations_secondary_overflow_at",  // debug
                          "character_set_results",                       //
                          "innodb_ft_user_stopword_table",               //
                          "innodb_interpreter_output",                   // debug
-                         "session_track_system_variables"));
->>>>>>> mysql-8.4.0
+                         "session_track_system_variables",
+                         "debug_set_operations_secondary_overflow_at",
+                         "log_query_errors"));
     }
   }
 }

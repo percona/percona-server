@@ -407,15 +407,11 @@ void handle_fatal_signal(int sig, siginfo_t *info [[maybe_unused]],
     print_fatal_signal(sig, info);
   }
 
-<<<<<<< HEAD
-  buffered_error_log.write_to_disk();
-
-||||||| merged common ancestors
-=======
   if (g_fatal_callback.load() != nullptr)
     (*g_fatal_callback)(sig, info, ucontext);
 
->>>>>>> mysql-8.4.0
+  buffered_error_log.write_to_disk();
+
   if ((test_flags & TEST_CORE_ON_SIGNAL) != 0) {
 #if HAVE_LIBCOREDUMPER
     if (opt_libcoredumper) {

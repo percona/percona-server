@@ -23,16 +23,8 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 user	plugin	authentication_string
 plug_user	test_plugin_server	plug_user
 # Cleanup (on slave).
-<<<<<<< HEAD
-include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='';
-||||||| merged common ancestors
-include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
-=======
 include/rpl/stop_replica.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
->>>>>>> mysql-8.4.0
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

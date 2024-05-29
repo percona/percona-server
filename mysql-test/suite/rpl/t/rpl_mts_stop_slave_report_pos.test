@@ -25,12 +25,6 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
-<<<<<<< HEAD
-||||||| merged common ancestors
---source include/only_mts_replica_parallel_workers.inc
-=======
---source include/have_replica_parallel_workers.inc
->>>>>>> mysql-8.4.0
 # do not execute when binlog compression is on as the debug
 # point below is not activated
 --source include/not_binlog_transaction_compression_on.inc
@@ -47,7 +41,7 @@ INSERT INTO db2.t1 VALUES (40);
 --source include/rpl/sync_to_replica.inc
 
 # connection was switched to slave
---source include/only_mts_replica_parallel_workers.inc
+--source include/have_replica_parallel_workers.inc
 
 # Save the global variables that are being modified. Set bigger values for
 # replica_checkpoint_group/period so that no further checkpoints are done

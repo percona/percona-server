@@ -36,11 +36,3 @@ MYSQL_ADD_COMPONENT(test_execute_prepared_statement
     MODULE_ONLY
     TEST_ONLY
 )
-<<<<<<< HEAD:client/base/CMakeLists.txt
-
-TARGET_LINK_LIBRARIES(client_base perconaserverclient)
-||||||| merged common ancestors:client/base/CMakeLists.txt
-
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
-=======
->>>>>>> mysql-8.4.0:components/test/statement_services/CMakeLists.txt

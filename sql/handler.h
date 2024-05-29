@@ -1892,24 +1892,6 @@ typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
 typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
                                                     void **ptr_trx_arg);
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-/** Mode for initializing the data dictionary. */
-enum dict_init_mode_t {
-  DICT_INIT_CREATE_FILES,      ///< Create all required SE files
-  DICT_INIT_CHECK_FILES,       ///< Verify existence of expected files
-  DICT_INIT_UPGRADE_57_FILES,  ///< Used for upgrade from mysql-5.7
-  DICT_INIT_IGNORE_FILES       ///< Don't care about files at all
-};
-
-=======
-/** Mode for initializing the data dictionary. */
-enum dict_init_mode_t {
-  DICT_INIT_CREATE_FILES,  ///< Create all required SE files
-  DICT_INIT_CHECK_FILES    ///< Verify existence of expected files
-};
-
->>>>>>> mysql-8.4.0
 /**
   Initialize the SE for being used to store the DD tables. Create
   the required files according to the dict_init_mode. Create strings
@@ -3176,7 +3158,10 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
 inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
     1 << 23};
 
-<<<<<<< HEAD
+/* Whether the engine supports being specified as a default storage engine */
+inline constexpr const decltype(
+    handlerton::flags) HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
+
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3199,13 +3184,6 @@ inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
 
 /** End of Percona specific HTON_* defines */
 
-||||||| merged common ancestors
-=======
-/* Whether the engine supports being specified as a default storage engine */
-inline constexpr const decltype(
-    handlerton::flags) HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
-
->>>>>>> mysql-8.4.0
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 

@@ -200,16 +200,8 @@ Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 SET DEBUG_SYNC= 'now WAIT_FOR in_get_source_version_and_clock';
 SET GLOBAL debug= @save_debug;
-<<<<<<< HEAD
 SET DEBUG_SYNC= 'now SIGNAL signal.get_source_uuid';
-include/wait_for_slave_io_to_stop.inc
-||||||| merged common ancestors
-SET debug_sync= 'now SIGNAL signal.get_source_uuid';
-include/wait_for_slave_io_to_stop.inc
-=======
-SET debug_sync= 'now SIGNAL signal.get_source_uuid';
 include/rpl/wait_for_receiver_to_stop.inc
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 10,
 SOURCE_CONNECT_RETRY = 1;
 include/rpl/uninstall_semisync_replica.inc

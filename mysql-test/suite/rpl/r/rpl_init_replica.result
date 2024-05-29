@@ -4,20 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 set global max_connections=151;
-<<<<<<< HEAD
 create table t1(a int);
-include/stop_slave.inc
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-||||||| merged common ancestors
-include/stop_slave.inc
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-=======
 include/rpl/stop_replica.inc
 include/rpl/start_replica.inc
 include/rpl/sync_to_replica.inc
->>>>>>> mysql-8.4.0
 show variables like 'init_replica';
 Variable_name	Value
 init_replica	set global max_connections=500
@@ -37,14 +27,8 @@ set global init_connect="set @c=1";
 show variables like 'init_connect';
 Variable_name	Value
 init_connect	set @c=1
-<<<<<<< HEAD
 drop table t1;
-include/sync_slave_sql_with_master.inc
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc
-=======
 include/rpl/sync_to_replica.inc
->>>>>>> mysql-8.4.0
 set global init_connect= @my_global_init_connect;
 set global max_connections= default;
 include/rpl/deinit.inc

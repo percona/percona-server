@@ -9,19 +9,9 @@
 #
 # Test:
 # =====
-<<<<<<< HEAD
-# Do DMLs on the master and on the slave do a stop slave. Execute change
-# replication source to a future binlog file name and position which doesn't
-# exist. Master should not assert.
-||||||| merged common ancestors
-# Do DMLs on the master and on the slave do a stop slave. Execute change master
-# to a future binlog file name and position which doesn't exist. Master should
-# not assert.
-=======
 # Do DMLs on the master and on the slave do a stop replica. Execute change replication source
 # to a future binlog file name and position which doesn't exist. Master should
 # not assert.
->>>>>>> mysql-8.4.0
 ###############################################################################
 --source include/have_semisync_plugin.inc
 --source include/rpl/init_source_replica.inc

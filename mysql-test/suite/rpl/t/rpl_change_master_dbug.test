@@ -13,13 +13,7 @@
 #
 
 ## Checks that the slave actually gives up after retrying N times, where
-<<<<<<< HEAD
-## N was set with CHANGE REPLICATION SOURCE TO master_retry_count=N
-||||||| merged common ancestors
-## N was set with CHANGE MASTER TO master_retry_count=N
-=======
 ## N was set with CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=N
->>>>>>> mysql-8.4.0
 
 -- connection slave
 -- source include/rpl/stop_replica.inc

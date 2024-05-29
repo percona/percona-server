@@ -125,34 +125,14 @@ aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
 ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL GTID_MODE = OFF;
-<<<<<<< HEAD
-#### 2. CHANGE REPLICATION SOURCE TO MASTER_LOG_POS ####
-include/stop_slave_io.inc
-||||||| merged common ancestors
-#### 2. CHANGE MASTER TO MASTER_LOG_POS ####
-include/stop_slave_io.inc
-=======
 #### 2. CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS ####
 include/rpl/stop_receiver.inc
->>>>>>> mysql-8.4.0
 INSERT INTO t1 VALUES (1);
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POSITION;
-<<<<<<< HEAD
-include/start_slave_io.inc
-include/sync_slave_sql_with_master.inc
-#### 3. CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ####
-include/stop_slave_sql.inc
-||||||| merged common ancestors
-include/start_slave_io.inc
-include/sync_slave_sql_with_master.inc
-#### 3. CHANGE MASTER TO RELAY_LOG_POS ####
-include/stop_slave_sql.inc
-=======
 include/rpl/start_receiver.inc
 include/rpl/sync_to_replica.inc
 #### 3. CHANGE REPLICATION SOURCE TO RELAY_LOG_POS ####
 include/rpl/stop_applier.inc
->>>>>>> mysql-8.4.0
 INSERT INTO t1 VALUES (2);
 include/rpl/sync_to_replica_received.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE = 'FILE', RELAY_LOG_POS = POSITION;

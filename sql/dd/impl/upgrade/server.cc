@@ -779,10 +779,6 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
         }
       }
     }
-<<<<<<< HEAD
-    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
-||||||| merged common ancestors
-=======
 
     // Check if AUTO_INCREMENT is used with DOUBLE/FLOAT
     for (const auto &col : *table->columns()) {
@@ -796,7 +792,8 @@ static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
       }
     }
 
->>>>>>> mysql-8.4.0
+    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
+
     return error_count->has_too_many_errors();
   };
 

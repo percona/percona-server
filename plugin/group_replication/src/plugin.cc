@@ -5360,22 +5360,6 @@ static MYSQL_SYSVAR_ENUM(
     &ov.communication_stack_values_typelib_t /* type lib */
 );
 
-<<<<<<< HEAD
-static MYSQL_SYSVAR_UINT(auto_evict_timeout,    /* name */
-                         ov.auto_evict_timeout, /* var */
-                         PLUGIN_VAR_OPCMDARG |
-                             PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
-                         "Flow control auto eviction timeout",
-                         nullptr, /* check func */
-                         nullptr, /* update func */
-                         0U,      /* default */
-                         0U,      /* min */
-                         65535U,  /* max */
-                         0        /* block */
-);
-
-||||||| merged common ancestors
-=======
 bool get_preemptive_garbage_collection_var() {
   return ov.preemptive_garbage_collection_var;
 }
@@ -5437,7 +5421,19 @@ static MYSQL_SYSVAR_UINT(
     0                                                     /* block */
 );
 
->>>>>>> mysql-8.4.0
+static MYSQL_SYSVAR_UINT(auto_evict_timeout,    /* name */
+                         ov.auto_evict_timeout, /* var */
+                         PLUGIN_VAR_OPCMDARG |
+                             PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+                         "Flow control auto eviction timeout",
+                         nullptr, /* check func */
+                         nullptr, /* update func */
+                         0U,      /* default */
+                         0U,      /* min */
+                         65535U,  /* max */
+                         0        /* block */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -5497,17 +5493,13 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(view_change_uuid),
     MYSQL_SYSVAR(communication_stack),
     MYSQL_SYSVAR(paxos_single_leader),
-<<<<<<< HEAD
+    MYSQL_SYSVAR(preemptive_garbage_collection),
+    MYSQL_SYSVAR(preemptive_garbage_collection_rows_threshold),
     MYSQL_SYSVAR(auto_evict_timeout),            /* Added by Percona */
     MYSQL_SYSVAR(certification_loop_sleep_time), /* Added by Percona */
     MYSQL_SYSVAR(certification_loop_chunk_size), /* Added by Percona */
     MYSQL_SYSVAR(xcom_ssl_socket_timeout),       /* Added by Percona */
     MYSQL_SYSVAR(xcom_ssl_accept_retries),       /* Added by Percona */
-||||||| merged common ancestors
-=======
-    MYSQL_SYSVAR(preemptive_garbage_collection),
-    MYSQL_SYSVAR(preemptive_garbage_collection_rows_threshold),
->>>>>>> mysql-8.4.0
     nullptr,
 };
 

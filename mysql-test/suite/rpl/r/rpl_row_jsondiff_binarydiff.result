@@ -26,13 +26,7 @@ include/rpl/start_applier.inc
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_jsondiff_binarydiff_marked_columns';
 [connection master]
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc
-SET DEBUG_SYNC="reset";
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc
-=======
 include/rpl/sync_to_replica.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC="reset";
 # Removing debug point 'rpl_row_jsondiff_binarydiff' from @@GLOBAL.debug
 include/rpl/deinit.inc

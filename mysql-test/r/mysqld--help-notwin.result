@@ -541,17 +541,9 @@ The following options may be given as the first argument:
  Migrate from keyring plugin to keyring component.
  --keyring-migration-user=name 
  User to login to server.
-<<<<<<< HEAD
- --kill-idle-transaction=# 
+ --kill-idle-transaction=#
  If non-zero, number of seconds to wait before killing
  idle connections that have open transactions
- -L, --language=name Client error messages in given language. May be given as
- a full path. Deprecated. Use --lc-messages-dir instead.
-||||||| merged common ancestors
- -L, --language=name Client error messages in given language. May be given as
- a full path. Deprecated. Use --lc-messages-dir instead.
-=======
->>>>>>> mysql-8.4.0
  --large-pages       Enable support for large pages
  --lc-messages=name  Set the language used for the error messages.
  --lc-messages-dir=name 

@@ -159,13 +159,7 @@ static int mecab_parser_plugin_init(void *) {
 }
 
 /** MeCab parser plugin deinit
-<<<<<<< HEAD
-@retval	0 Operation status */
-||||||| merged common ancestors
-@retval	0 */
-=======
 @retval	0 always*/
->>>>>>> mysql-8.4.0
 static int mecab_parser_plugin_deinit(void *) {
   delete mecab_tagger;
   mecab_tagger = nullptr;
@@ -326,14 +320,8 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
     case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
       uchar *start = reinterpret_cast<uchar *>(doc);
       uchar *end = start + doc_length;
-<<<<<<< HEAD
-      FT_WORD word = {NULL, 0, 0};
-      const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
-||||||| merged common ancestors
-      FT_WORD word = {NULL, 0, 0};
-=======
       FT_WORD word = {nullptr, 0, 0};
->>>>>>> mysql-8.4.0
+      const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
 
       while (fts_get_word(param->cs, extra_word_chars, &start, end, &word,
                           &bool_info)) {

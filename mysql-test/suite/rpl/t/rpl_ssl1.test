@@ -136,16 +136,8 @@ RESET REPLICA;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_PORT= $MASTER_MYPORT
 
-<<<<<<< HEAD
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.
-||||||| merged common ancestors
---let $assert_cond= "[SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1]" = "Yes"
---let $assert_text= Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.
-=======
 --let $assert_cond= "[SHOW REPLICA STATUS, Source_SSL_Verify_Server_Cert, 1]" = "Yes"
 --let $assert_text= Source_SSL_Verify_Server_Cert should NOT change on CHANGE REPLICATION SOURCE.
->>>>>>> mysql-8.4.0
 --source include/assert.inc
 
 --source include/rpl/start_replica.inc
@@ -159,16 +151,8 @@ DROP TABLE IF EXISTS t1;
 --source include/rpl/sync_to_replica.inc
 --enable_warnings
 
-<<<<<<< HEAD
---source include/stop_slave.inc
-# Clean change replication source options.
-||||||| merged common ancestors
---source include/stop_slave.inc
-# Clean change master options.
-=======
 --source include/rpl/stop_replica.inc
 # Clean change replication source options.
->>>>>>> mysql-8.4.0
 --replace_column 2 ####
 CHANGE REPLICATION SOURCE TO
  SOURCE_HOST="127.0.0.1",

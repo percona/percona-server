@@ -3,6 +3,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_component_keyring_file.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
@@ -37,9 +38,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # Starting server with keyring plugin
 # restart with keying
---let $restart_parameters = $keyring_restart_param
---let $do_not_echo_parameters = 1
---source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 
 #------------------------------------------------------------------------------
@@ -761,6 +760,7 @@ connection default;
 disconnect con10;
 DROP USER encryption_admin@localhost;
 DROP TABLE t1;
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 # Normal restart
 --let $restart_parameters = restart:

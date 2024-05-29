@@ -1007,7 +1007,6 @@ sub main {
   remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
 
-<<<<<<< HEAD
   if ($opt_ctest) {
     find({ wanted => sub {
              my $core_file= $File::Find::name;
@@ -1020,19 +1019,6 @@ sub main {
        }}, $bindir);
   }
 
-  # Cleanup the secondary engine environment
-  if ($secondary_engine_support) {
-    clean_virtual_env();
-  }
-
-||||||| merged common ancestors
-  # Cleanup the secondary engine environment
-  if ($secondary_engine_support) {
-    clean_virtual_env();
-  }
-
-=======
->>>>>>> mysql-8.4.0
   print_total_times($opt_parallel) if $opt_report_times;
 
   report_stats("Completed", $completed, $opt_accept_fail);

@@ -923,7 +923,6 @@ bool initialize(THD *thd) {
   return false;
 }
 
-<<<<<<< HEAD
 /** On startup from mysql datadir to Percona Server, compression dictionary
 tables and I_S views on them will be missing. We check if they are missing
 and create the tables mysql.compression_dictionary,
@@ -973,12 +972,6 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
   return (dd::end_transaction(thd, false));
 }
 
-// Normal server restart.
-bool restart(THD *thd) {
-||||||| merged common ancestors
-// Normal server restart.
-bool restart(THD *thd) {
-=======
 // Initialize dictionary in case of server restart.
 bool restart_dictionary(THD *thd) {
   Disable_autocommit_guard autocommit_guard(thd);
@@ -1006,7 +999,6 @@ bool restart_dictionary(THD *thd) {
   thd->push_internal_handler(&key_error_handler);
   bootstrap_error_handler.set_log_error(false);
 
->>>>>>> mysql-8.4.0
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::STARTED);
 
   /*

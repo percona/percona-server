@@ -12599,10 +12599,6 @@ ER_GRP_RPL_MSG_DECODING_FAILED
 ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED
   eng "The Applier process of Group Replication found an error and was requested to stop: %s"
 
-<<<<<<< HEAD
-||||||| merged common ancestors
->>>>>>>>> Temporary merge branch 2
-=======
 ER_LANGUAGE_COMPONENT_INSTALL_ERROR
   eng "Cannot install the component."
 
@@ -12735,7 +12731,6 @@ ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS
 ER_IB_MSG_INNODB_FLUSH_METHOD
   eng "Using innodb_flush_method=%s"
 
->>>>>>> mysql-8.4.0
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -12751,7 +12746,6 @@ ER_IB_MSG_INNODB_FLUSH_METHOD
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
-<<<<<<< HEAD
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -13112,10 +13106,6 @@ ER_SSL_FIPS_MODE_ENABLED
 # End of Percona Server 8.0 server error log messages
 #
 
-||||||| merged common ancestors
-
-=======
->>>>>>> mysql-8.4.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

@@ -35,7 +35,7 @@ if ($expect_abort != 'yes')
   --let $rpl_server_number = 2
   --let $rpl_omit_print_server_parameters= 1
   --let $rpl_server_parameters= --log-error=$error_log $start_params
-  --source include/rpl_start_server.inc
+  --source include/rpl/start_server.inc
 }
 
 # Validation
@@ -45,7 +45,7 @@ if ($expect_abort == 'yes')
   --let $rpl_server_number = 2
   --let $rpl_omit_print_server_parameters= 1
   --let $rpl_server_parameters=
-  --source include/rpl_start_server.inc
+  --source include/rpl/start_server.inc
 
   # Assert that the server logs the message "Could not add event rule .* to --replica-enable-event"
   --let $assert_file= $error_log
@@ -63,5 +63,5 @@ if ($expect_abort == 'yes')
 }
 
 --echo # Stop the server
---source include/rpl_stop_server.inc
+--source include/rpl/stop_server.inc
 --remove_file $error_log

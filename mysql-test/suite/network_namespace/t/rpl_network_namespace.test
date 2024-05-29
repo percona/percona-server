@@ -84,13 +84,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --exec $EXE_MYSQL --no-defaults -u root  --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
 
-<<<<<<< HEAD
---echo # Stop slave and run change replication source to listen to the master on socket
-||||||| merged common ancestors
---echo # Stop slave and run change master to listen to the master on socket
-=======
 --echo # Stop replica and run change replication source to listen to the master on socket
->>>>>>> mysql-8.4.0
 --echo # created in the 'red' namespace
 --source include/rpl/stop_replica.inc
 
@@ -107,19 +101,9 @@ INSERT INTO t1 VALUES (3, 'ghi');
 
 --echo [ connection slave ]
 --connection slave
-<<<<<<< HEAD
---echo # Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
-||||||| merged common ancestors
---echo # Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
-=======
 --echo # Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
->>>>>>> mysql-8.4.0
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
  --let $crs= $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS
@@ -152,19 +136,9 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 
 --echo [ connection slave ]
 --connection slave
-<<<<<<< HEAD
---echo # Change replication source to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
-||||||| merged common ancestors
---echo # Change master to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
-=======
 --echo # Change replication source to original connection
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
->>>>>>> mysql-8.4.0
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
  --let $crs= $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS

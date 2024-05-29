@@ -31,7 +31,7 @@ connection slave;
 
 # Test some more combinations of ANSI_QUOTES and sql_quote_show_create
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 BEGIN;
 insert into t1 values(10);
 set sql_mode = 'ANSI_QUOTES';
@@ -63,7 +63,7 @@ set sql_quote_show_create = 1;
 
 --echo *** Test correct USE statement in SHOW BINLOG EVENTS ***
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 set sql_mode = 'ANSI_QUOTES';
 CREATE DATABASE "db1`; select 'oops!'";
 use "db1`; select 'oops!'";
@@ -90,7 +90,7 @@ use test;
 EOF
 
 use `db1``; select 'oops!'`;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 set timestamp=1000000000;
 CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
     `c``3` VARCHAR(7));
@@ -111,7 +111,7 @@ eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/f''le.txt'
   LINES TERMINATED BY '\\n'
   (`a``1`, `b``2`) SET `c``3` = concat('|', "b""a'z", "!");
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
-let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $pos2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -139,7 +139,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(1000));
 2,A
 EOF
 
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 # The bug was that the SET expression was truncated to 256 bytes, so test with
 # an expression longer than that.
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -161,12 +161,12 @@ DROP TABLE t1;
 
 --echo *** Test user variables whose names require correct quoting ***
 use `db1``; select 'oops!'`;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100));
 INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100));
 SELECT @`a``1`:=a1, @`a``2`:=a2, @`a``3`:=a3, @`a``4`:=a4, @`b```:=b, @```c`:=c, @```d```:=d FROM t1;
 INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98));
-let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $pos2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 
@@ -212,7 +212,7 @@ set timestamp=1000000000;
 
 --echo # The table should be empty on the master.
 let $binlog_file= master-bin.000002;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 
 --echo # The DELETE statement should be correctly quoted

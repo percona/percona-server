@@ -83,13 +83,9 @@ CHECK TABLE t1;
 SELECT f1, f2 FROM t1;
 
 DROP TABLE t1;
-<<<<<<< HEAD
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 # The backup file might be a leftover after calling generate key on existing key
 --error 0,1
 --remove_file "$MYSQL_TMP_DIR/mysecret_keyring.backup"
-||||||| merged common ancestors
-=======
---source suite/component_keyring_file/inc/teardown_component.inc
->>>>>>> mysql-8.4.0
 --echo # Test End

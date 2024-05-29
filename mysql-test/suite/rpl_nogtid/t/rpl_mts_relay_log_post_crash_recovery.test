@@ -27,26 +27,13 @@
 # --relay-log-recovery=1 option.
 
 --source include/force_restart.inc
-<<<<<<< HEAD
---source include/have_binlog_format_statement.inc
---source include/master-slave.inc
-
---source include/rpl_connection_slave.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/rpl_connection_master.inc
-||||||| merged common ancestors
---source include/have_binlog_format_statement.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_mts_replica_parallel_type_database.inc
---source include/master-slave.inc
-=======
 --source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
 
+--source include/rpl/connection_replica.inc
 --source include/have_replica_parallel_workers.inc
 --source include/have_replica_parallel_type_database.inc
---source include/rpl/init_source_replica.inc
->>>>>>> mysql-8.4.0
+--source include/rpl/connection_source.inc
 
 --let $skip_replica_start_var= FALSE
 --source common/rpl/rpl_mta_relay_log_recovery.test

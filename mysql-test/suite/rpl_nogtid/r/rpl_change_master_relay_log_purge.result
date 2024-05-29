@@ -6,31 +6,15 @@ Note	####	Storing MySQL user name or password information in the connection meta
 FLUSH BINARY LOGS;
 include/rpl/sync_to_replica.inc
 
-<<<<<<< HEAD
-We now stop the IO thread and ensure that the relaylog files
-are not deleted on doing a change replication source with a running SQL thread.
-||||||| merged common ancestors
-We now stop the IO thread and ensure that the relaylog files
-are not deleted on doing a change master with a running SQL thread.
-=======
 # We now stop the IO thread and ensure that the relaylog files
 # are not deleted on doing a CHANGE REPLICATION SOURCE with a running SQL thread.
->>>>>>> mysql-8.4.0
 
 include/rpl/stop_receiver.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 10;
 include/assert.inc [The relaylog file should not change if change replication source command was executed while SQL thread was running.]
 
-<<<<<<< HEAD
-We now stop the SQL thread and ensure that the relaylog files
-are not deleted on doing a change replication source with a running IO thread.
-||||||| merged common ancestors
-We now stop the SQL thread and ensure that the relaylog files
-are not deleted on doing a change master with a running IO thread.
-=======
 # We now stop the SQL thread and ensure that the relaylog files
 # are not deleted on doing a CHANGE REPLICATION SOURCE with a running IO thread.
->>>>>>> mysql-8.4.0
 
 include/rpl/stop_applier.inc
 include/rpl/start_receiver.inc

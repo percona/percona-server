@@ -74,14 +74,8 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 4. Try set group_replication_force_members on
 --echo #    server1 again, it will succeed.
 --let $rpl_connection_name= server1
-<<<<<<< HEAD
---source include/rpl_connection.inc
-SET DEBUG_SYNC='RESET';
-||||||| merged common ancestors
---source include/rpl_connection.inc
-=======
 --source include/connection.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC='RESET';
 SET GLOBAL group_replication_force_members= "";
 
 --let $assert_text= group_replication_force_members is empty

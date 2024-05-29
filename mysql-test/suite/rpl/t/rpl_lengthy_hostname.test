@@ -20,13 +20,7 @@
 
 --source include/rpl/connection_replica.inc
 #
-<<<<<<< HEAD
-# 1. Assertion: CHANGE REPLICATION SOURCE TO (CMT) accepts a lengthy hostname
-||||||| merged common ancestors
-# 1. Assertion: CHANGE MASTER TO (CMT) accepts a lengthy hostname
-=======
 # 1. Assertion: CHANGE REPLICATION SOURCE TO (CRST) accepts a lengthy hostname
->>>>>>> mysql-8.4.0
 #
 
 --replace_result $MASTER_MYPORT SOURCE_PORT

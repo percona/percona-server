@@ -72,17 +72,11 @@ IF(WIN32)
   SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
-<<<<<<< HEAD
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-TARGET_LINK_LIBRARIES(${XPL_UNIT_TESTS}
-||||||| merged common ancestors
-TARGET_LINK_LIBRARIES(${XPL_UNIT_TESTS}
-=======
 TARGET_LINK_LIBRARIES(xplugin_unit_tests
->>>>>>> mysql-8.4.0
   ${GCOV_LDFLAGS}
   ${MYSQLX_CLIENT_LIB}
   mysqlx

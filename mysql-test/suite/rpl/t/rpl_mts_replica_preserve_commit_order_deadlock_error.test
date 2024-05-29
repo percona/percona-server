@@ -23,12 +23,6 @@
 # ========
 #
 # Commit order deadlock occurs only when MTS + LOGICAL CLOCK are enabled.
-<<<<<<< HEAD
-||||||| merged common ancestors
---source include/only_mts_replica_parallel_type_logical_clock.inc
-=======
---source include/have_replica_parallel_type_logical_clock.inc
->>>>>>> mysql-8.4.0
 # This test needs at least 2 MTA workers
 --let $option_name = replica_parallel_workers
 --let $option_operator = >
@@ -46,7 +40,7 @@ CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --source include/rpl/sync_to_replica.inc
 
 # switched to slave connection
---source include/only_mts_replica_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 
 --echo #
 --echo # 2. Initial setup on Slave.

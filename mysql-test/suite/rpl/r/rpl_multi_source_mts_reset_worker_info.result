@@ -7,21 +7,9 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
-<<<<<<< HEAD
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-||||||| merged common ancestors
-include/stop_slave.inc
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-=======
 include/rpl/stop_replica.inc
 RESET REPLICA ALL;
->>>>>>> mysql-8.4.0
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SOURCE_PORT FOR CHANNEL 'ch_a';

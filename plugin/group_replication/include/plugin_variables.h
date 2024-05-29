@@ -304,16 +304,12 @@ struct plugin_options_variables {
   ulong communication_stack_var;
 
   bool allow_single_leader_var{false};
-<<<<<<< HEAD
-
-  uint auto_evict_timeout;
-||||||| merged common ancestors
-=======
 
   bool preemptive_garbage_collection_var;
 
   uint preemptive_garbage_collection_rows_threshold_var;
->>>>>>> mysql-8.4.0
+
+  uint auto_evict_timeout;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

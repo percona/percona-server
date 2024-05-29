@@ -12,13 +12,7 @@
 ################################################################################
 --source ../include/gr_change_replication_source_hidden.inc
 
-<<<<<<< HEAD
---echo # MASTER_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
-||||||| merged common ancestors
---echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
-=======
 --echo # SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
->>>>>>> mysql-8.4.0
 --let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $grep_pattern= source_password
 --let $grep_output= print_count

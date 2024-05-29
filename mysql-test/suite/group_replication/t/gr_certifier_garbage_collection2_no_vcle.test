@@ -52,14 +52,8 @@ UPDATE t1 SET b=10 WHERE a=1;
 --echo #  3. Wait until server_1 connection reaches the
 --echo #     group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
-<<<<<<< HEAD
---source include/rpl_connection.inc
-SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
-||||||| merged common ancestors
---source include/rpl_connection.inc
-=======
 --source include/connection.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_message_broadcast_reached";
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
@@ -93,14 +87,8 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 --echo ############################################################
 --echo #  7. Make sure the pipeline is suspended on server2.
 --let $rpl_connection_name= server2
-<<<<<<< HEAD
---source include/rpl_connection.inc
-SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_apply_data_packet_reached";
-||||||| merged common ancestors
---source include/rpl_connection.inc
-=======
 --source include/connection.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC="now WAIT_FOR signal.group_replication_before_apply_data_packet_reached";
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 

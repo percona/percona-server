@@ -30,16 +30,8 @@ connection slave;
 let $master_id= query_get_value(SHOW REPLICA STATUS, Source_Server_Id, 1);
 echo master_id: $master_id;
 
-<<<<<<< HEAD
-stop slave;
---echo *** --replicate-same-server-id and change replication source option can clash ***
-||||||| merged common ancestors
-stop slave;
---echo *** --replicate-same-server-id and change master option can clash ***
-=======
 STOP REPLICA;
 --echo *** --replicate-same-server-id and change replication source option can clash ***
->>>>>>> mysql-8.4.0
 --replace_column 2 ####
 --error ER_REPLICA_IGNORE_SERVER_IDS
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);

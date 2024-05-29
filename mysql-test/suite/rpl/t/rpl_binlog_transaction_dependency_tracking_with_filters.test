@@ -19,15 +19,9 @@
 
 --source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
-<<<<<<< HEAD
 
---source include/rpl_connection_slave.inc
---source include/not_mts_replica_parallel_workers.inc
-||||||| merged common ancestors
---source include/not_mts_replica_parallel_workers.inc
-=======
+--source include/rpl/connection_replica.inc
 --source include/not_replica_parallel_workers.inc
->>>>>>> mysql-8.4.0
 
 --source include/rpl/connection_replica.inc
 # Set filter rule.

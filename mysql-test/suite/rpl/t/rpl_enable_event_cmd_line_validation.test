@@ -22,47 +22,47 @@
 --let $wild_pattern=
 --let $expect_abort= yes
 --let $reason= Cannot process empty pattern
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Negative case 2 : No DB
 --let $wild_pattern=.event%
 --let $expect_abort= yes
 --let $reason= The pattern doesn't follow the format <db_pattern>.<event_pattern>
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Negative case 3 : No Event
 --let $wild_pattern=db%.
 --let $expect_abort= yes
 --let $reason= The pattern doesn't follow the format <db_pattern>.<event_pattern>
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Negative case 4 : No dot separator
 --let $wild_pattern=event
 --let $expect_abort= yes
 --let $reason= The pattern doesn't follow the format <db_pattern>.<event_pattern>
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Negative case 5 : Multiple dots
 --let $wild_pattern=db%.event%.random
 --let $expect_abort= yes
 --let $reason= The pattern has multiple dot characters. Please restart with format <db_pattern>.<event_pattern>
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Negative case 6 : Channel separator
 --let $wild_pattern=channel:db%.event%
 --let $expect_abort= yes
 --let $reason= This server doesn't support per-channel --replica-enable-event feature
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Positive case 1 : DB.EVENT
 --let $wild_pattern=db%.event1%
 --let $expect_abort= no
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Positive case 2 : DB.EVENT
 --let $wild_pattern=d%b%.%event%
 --let $expect_abort= no
---source extra/rpl_tests/rpl_enable_event_cmd_line_validation.inc
+--source common/rpl/rpl_enable_event_cmd_line_validation.inc
 
 # Restart the replica server and start the applier thread.
 --let $rpl_server_number= 2

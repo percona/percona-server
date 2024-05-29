@@ -1156,83 +1156,10 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
    garbage collection run, thence there is nothing to garbage collect
    with `executed_gtid_set`.
   */
-<<<<<<< HEAD
-
-  /* get the starttime in 1us unit */
-  ulonglong starttime = my_micro_time();
-
-  Certification_info::iterator it = certification_info.begin();
-
-  /*
-    The goal of the following loop is to avoid locking for too long transactions
-    on servers that have a high rate of trx. Processing 1M GTIDs in the original
-    code blocked the transaction processing for about 1s.
-  */
-  while (it != certification_info.end()) {
-    stable_gtid_set_lock->wrlock();
-
-    /* Needs to increase the rate if it takes too long, add a chunk every 5s */
-    ulonglong rate_multiplier = (my_micro_time() - starttime) / 5000000 + 1;
-
-    bool use_chunks = (get_certification_loop_chunk_size_var() > 0);
-    ulong chunk_size =
-        use_chunks ? get_certification_loop_chunk_size_var() * rate_multiplier
-                   : certification_info.size();
-
-    for (ulong i = 0; i < chunk_size; ++i) {
-      if (it == certification_info.end()) {
-        break;
-      }
-      if (it->second->is_subset_not_equals(stable_gtid_set)) {
-        if (it->second->unlink() == 0) {
-          delete it->second;
-        }
-        certification_info.erase(it++);
-      } else {
-        ++it;
-      }
-    } /* for loop */
-
-    stable_gtid_set_lock->unlock();
-
-    /* Honor certification_loop_sleep_time if it is using chunks. */
-    if (use_chunks && get_certification_loop_sleep_time_var() > 0 &&
-        it != certification_info.end()) {
-      /* Save the key before we unlock and sleep */
-      auto saved_key{it->first};
-      /* Unlock the LOCK_certification_info */
-      mysql_mutex_unlock(&LOCK_certification_info);
-
-      /* Sleep for certification_loop_sleep_time microseconds */
-      my_sleep(get_certification_loop_sleep_time_var());
-
-      /* Re-acquire the locks and check if the saved key is still valid */
-      mysql_mutex_lock(&LOCK_certification_info);
-      if ((it = certification_info.find(saved_key)) ==
-          certification_info.end()) {
-        /* This may have been deleted already by another thread. Let's break
-         * here. */
-        break;
-      }
-    }
-  } /* while loop */
-||||||| merged common ancestors
-  Certification_info::iterator it = certification_info.begin();
-  stable_gtid_set_lock->wrlock();
-  while (it != certification_info.end()) {
-    if (it->second->is_subset_not_equals(stable_gtid_set)) {
-      if (it->second->unlink() == 0) delete it->second;
-      certification_info.erase(it++);
-    } else
-      ++it;
-  }
-  stable_gtid_set_lock->unlock();
-=======
   if (!preemptive &&
       update_stable_set(*executed_gtid_set) != Certifier::STABLE_SET_UPDATED) {
     return;
   }
->>>>>>> mysql-8.4.0
 
   /*
     Data structures to hold a copy of certified gtids so that we can
@@ -1271,17 +1198,68 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         precedes them), then "t" is stable and can be removed from
         the certification info.
         */
-      Certification_info::iterator it = certification_info.begin();
-      stable_gtid_set_lock->wrlock();
 
+      /* get the starttime in 1us unit */
+      ulonglong starttime = my_micro_time();
+
+      Certification_info::iterator it = certification_info.begin();
+
+      /*
+        The goal of the following loop is to avoid locking for too long
+        transactions on servers that have a high rate of trx. Processing 1M
+        GTIDs in the original code blocked the transaction processing
+        for about 1s.
+       */
       while (it != certification_info.end()) {
-        if (it->second->is_subset_not_equals(stable_gtid_set)) {
-          if (it->second->unlink() == 0) delete it->second;
-          certification_info.erase(it++);
-        } else
-          ++it;
-      }
-      stable_gtid_set_lock->unlock();
+        stable_gtid_set_lock->wrlock();
+
+        /* Needs to increase the rate if it takes too long, add a chunk
+           every 5s */
+        ulonglong rate_multiplier = (my_micro_time() - starttime) / 5000000 + 1;
+
+        bool use_chunks = (get_certification_loop_chunk_size_var() > 0);
+        ulong chunk_size =
+            use_chunks ? get_certification_loop_chunk_size_var() *
+                             rate_multiplier
+                       : certification_info.size();
+
+        for (ulong i = 0; i < chunk_size; ++i) {
+          if (it == certification_info.end()) {
+            break;
+          }
+          if (it->second->is_subset_not_equals(stable_gtid_set)) {
+            if (it->second->unlink() == 0) {
+              delete it->second;
+            }
+            certification_info.erase(it++);
+          } else {
+            ++it;
+          }
+        } /* for loop */
+
+        stable_gtid_set_lock->unlock();
+
+        /* Honor certification_loop_sleep_time if it is using chunks. */
+        if (use_chunks && get_certification_loop_sleep_time_var() > 0 &&
+            it != certification_info.end()) {
+          /* Save the key before we unlock and sleep */
+          auto saved_key{it->first};
+          /* Unlock the LOCK_certification_info */
+          mysql_mutex_unlock(&LOCK_certification_info);
+
+          /* Sleep for certification_loop_sleep_time microseconds */
+          my_sleep(get_certification_loop_sleep_time_var());
+
+          /* Re-acquire the locks and check if the saved key is still valid */
+          mysql_mutex_lock(&LOCK_certification_info);
+          if ((it = certification_info.find(saved_key)) ==
+              certification_info.end()) {
+            /* This may have been deleted already by another thread. Let's break
+             * here. */
+            break;
+          }
+        }
+      } /* while loop */
     }
 
     /*

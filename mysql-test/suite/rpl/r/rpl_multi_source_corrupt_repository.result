@@ -149,22 +149,10 @@ Channel_Name = 'channel_2'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/rpl/stop_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -200,22 +188,10 @@ Channel_Name = 'channel_3'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -332,22 +308,10 @@ Channel_Name = ''
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/rpl/stop_replica.inc [FOR CHANNEL '']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -418,22 +382,10 @@ Channel_Name = 'channel_3'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc [FOR CHANNEL 'channel_3']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_3'.
 include/rpl/stop_replica.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_3'.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -550,22 +502,10 @@ Channel_Name = ''
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
-===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc [FOR CHANNEL '']
-===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL '']
 ===== Executing STOP REPLICA FOR CHANNEL on channel ''.
 include/rpl/stop_replica.inc [FOR CHANNEL '']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel ''.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL '';
 Connect_Retry = '100'
 Source_Retry_Count = '100'
@@ -601,22 +541,10 @@ Channel_Name = 'channel_2'
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
-===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc [FOR CHANNEL 'channel_2']
-===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
-=======
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP REPLICA FOR CHANNEL on channel 'channel_2'.
 include/rpl/stop_replica.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE REPLICATION SOURCE FOR CHANNEL on channel 'channel_2'.
->>>>>>> mysql-8.4.0
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
 Connect_Retry = '100'
 Source_Retry_Count = '100'

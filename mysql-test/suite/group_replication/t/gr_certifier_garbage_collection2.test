@@ -126,14 +126,8 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
 --let $rpl_connection_name= server1
 --source include/connection.inc
 INSERT INTO t1 VALUE(2, 2);
-<<<<<<< HEAD
---source include/rpl_sync.inc
-SET DEBUG_SYNC='RESET';
-||||||| merged common ancestors
---source include/rpl_sync.inc
-=======
 --source include/rpl/sync.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC='RESET';
 
 --let $expected_gtid_set= $group_replication_group_name:1-5:1000002
 if ($gtid_assignment_block_size == 1)

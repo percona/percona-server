@@ -125,7 +125,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo
@@ -216,7 +216,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
---source include/rpl_connection.inc
+--source include/connection.inc
 SET DEBUG_SYNC='RESET';
 
 --echo
@@ -228,14 +228,8 @@ SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save2;
 
 --let $rpl_connection_name= server1
-<<<<<<< HEAD
---source include/rpl_connection.inc
-SET DEBUG_SYNC='RESET';
-||||||| merged common ancestors
---source include/rpl_connection.inc
-=======
 --source include/connection.inc
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
-||||||| merged common ancestors
-/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
-=======
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
->>>>>>> mysql-8.4.0
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

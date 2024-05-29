@@ -47,13 +47,7 @@ Namespace from 'SHOW REPLICA STATUS' :
 a	b
 1	abc
 2	cdf
-<<<<<<< HEAD
-# Stop slave and run change replication source to listen to the master on socket
-||||||| merged common ancestors
-# Stop slave and run change master to listen to the master on socket
-=======
 # Stop replica and run change replication source to listen to the master on socket
->>>>>>> mysql-8.4.0
 # created in the 'red' namespace
 include/rpl/stop_replica.inc
 [ connection master ]
@@ -61,19 +55,9 @@ include/rpl/stop_replica.inc
 INSERT INTO t1 VALUES (3, 'ghi');
 #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
 [ connection slave ]
-<<<<<<< HEAD
-# Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-||||||| merged common ancestors
-# Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
-=======
 # Change replication source to listen to the master on IP '10.0.2.1' in the 'red' namespace
 include/rpl/start_replica.inc
 include/rpl/sync_to_replica.inc
->>>>>>> mysql-8.4.0
 # Check network namspace of currently connected master
 SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
 master_network_namespace
@@ -93,16 +77,8 @@ include/diff_tables.inc [master:t1, slave:t1]
 include/rpl/stop_replica.inc
 [ connection master ]
 [ connection slave ]
-<<<<<<< HEAD
-# Change replication source to original connection
-include/start_slave.inc
-||||||| merged common ancestors
-# Change master to original connection
-include/start_slave.inc
-=======
 # Change replication source to original connection
 include/rpl/start_replica.inc
->>>>>>> mysql-8.4.0
 INSERT INTO t1 VALUES (5, 'mno');
 include/rpl/sync_to_replica.inc
 # Check network namspace of currently connected master

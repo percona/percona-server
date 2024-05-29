@@ -10,9 +10,9 @@
 #          source not
 
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 
 # Create an empty helper file which will be later used to load to the server.
 --let $LOAD_FILE= $MYSQLTEST_VARDIR/tmp/query_map.dat
@@ -66,7 +66,7 @@ EOF
 # into the table. This table shall be used in later stage of the test to fetch
 # the queries based on the identifier and execute it on the source server.
 ################################################################################
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET SQL_LOG_BIN=0;
 CREATE TABLE `queries` (id VARCHAR(10), query VARCHAR(255));
 --disable_query_log
@@ -86,8 +86,8 @@ BEGIN
   RETURN 0;
 END|
 --delimiter ;
---source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
 
 ################################################################################
 # Test all combinations of CREATE TABLE and ALTER TABLE
@@ -149,7 +149,7 @@ while ($i < $no_of_create) {
 
     # Source rpl_add_pk_on_extra_columns_on_replica.inc to replicate and
     # validate the data.
-    --source extra/rpl_tests/rpl_add_pk_on_extra_columns_on_replica.inc
+    --source common/rpl/rpl_add_pk_on_extra_columns_on_replica.inc
     --inc $j
   }
   --inc $i
@@ -158,7 +158,7 @@ while ($i < $no_of_create) {
 #
 # Cleanup
 #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP FUNCTION update_and_delete_some_rows;
 
 # Drop the helper table.
@@ -169,5 +169,5 @@ SET SQL_LOG_BIN=1;
 # Remove the helper file.
 --remove_file $LOAD_FILE
 
---source include/rpl_connection_slave.inc
---source include/rpl_end.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/deinit.inc

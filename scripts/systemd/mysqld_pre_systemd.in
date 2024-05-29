@@ -46,7 +46,6 @@ install_validate_password_sql_file () {
     echo $initfile
 }
 
-<<<<<<< HEAD
 my_which () {
     save_ifs="${IFS-UNSET}"
     IFS=:
@@ -118,12 +117,7 @@ fix_thp_setting() {
     fi
 }
 
-fix_mysql_upgrade_info () {
-||||||| merged common ancestors
-fix_mysql_upgrade_info () {
-=======
 fix_mysql_upgrade_history () {
->>>>>>> mysql-8.4.0
     datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
     if [ -d  "$datadir" ]  && [ -O "$datadir/mysql_upgrade_history" ]; then
 	chown --reference="$datadir" "$datadir/mysql_upgrade_history"

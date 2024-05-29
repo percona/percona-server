@@ -41,15 +41,7 @@ SET(MIGRATE_KEYRING_LIBRARIES
   ${CMAKE_DL_LIBS}
   minchassis
   mysys
-<<<<<<< HEAD
   perconaserverclient
-  client_base
-||||||| merged common ancestors
-  mysqlclient
-  client_base
-=======
-  mysqlclient
->>>>>>> mysql-8.4.0
   OpenSSL::SSL OpenSSL::Crypto
 )
 

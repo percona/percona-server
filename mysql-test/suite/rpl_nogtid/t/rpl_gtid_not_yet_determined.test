@@ -185,13 +185,7 @@ ROLLBACK;
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 SET GLOBAL GTID_MODE = OFF;
 
-<<<<<<< HEAD
---echo #### 2. CHANGE REPLICATION SOURCE TO MASTER_LOG_POS ####
-||||||| merged common ancestors
---echo #### 2. CHANGE MASTER TO MASTER_LOG_POS ####
-=======
 --echo #### 2. CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS ####
->>>>>>> mysql-8.4.0
 
 --connection slave
 --source include/rpl/stop_receiver.inc

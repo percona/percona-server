@@ -26,27 +26,13 @@ include/assert.inc [Performance_schema should show that the network namespace fo
 include/assert.inc [The replication repository should show that the network namespace for the replication connection is configured to ''.]
 include/assert.inc [SHOW REPLICA STATUS should show that the network namespace for the replication connection is configured to ''.]
 ==== Scenario 2: source uses a namespace ====
-<<<<<<< HEAD
-# Stop slave and run CHANGE REPLICATION SOURCE to listen to the source on socket
-||||||| merged common ancestors
-# Stop slave and run CHANGE MASTER to listen to the source on socket
-=======
 # Stop replica and run CHANGE REPLICATION SOURCE to listen to the source on socket
->>>>>>> mysql-8.4.0
 # created in the 'red' namespace
 include/rpl/stop_replica.inc
 [connection master]
 [connection slave]
-<<<<<<< HEAD
-# Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
-include/start_slave.inc
-||||||| merged common ancestors
-# Change master to listen to the source on IP '10.0.2.1' in the 'red' namespace
-include/start_slave.inc
-=======
 # Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
 include/rpl/start_replica.inc
->>>>>>> mysql-8.4.0
 [connection master]
 include/rpl/sync_to_replica.inc
 include/assert.inc [Performance_schema should show that the network namespace for the replication connection is configured to 'red'.]
@@ -73,16 +59,8 @@ include/assert.inc [SHOW REPLICA STATUS should show that the network namespace f
 include/rpl/stop_replica.inc
 [connection master]
 [connection slave]
-<<<<<<< HEAD
-# Change replication source to original connection
-include/start_slave.inc
-||||||| merged common ancestors
-# Change master to original connection
-include/start_slave.inc
-=======
 # Change replication source to original connection
 include/rpl/start_replica.inc
->>>>>>> mysql-8.4.0
 [connection master]
 include/rpl/sync_to_replica.inc
 include/assert.inc [Performance_schema should show that the network namespace for the replication connection is configured to ''.]

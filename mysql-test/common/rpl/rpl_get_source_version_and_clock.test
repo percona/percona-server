@@ -44,13 +44,7 @@ if (!$debug_sync_action)
 
 eval SET @@global.debug= "+d,$dbug_sync_point";
 
-<<<<<<< HEAD:mysql-test/extra/rpl_tests/rpl_get_master_version_and_clock.test
-START REPLICA;
-||||||| merged common ancestors:mysql-test/extra/rpl_tests/rpl_get_master_version_and_clock.test
---source include/start_slave.inc
-=======
 --source include/rpl/start_replica.inc
->>>>>>> mysql-8.4.0:mysql-test/common/rpl/rpl_get_source_version_and_clock.test
 --echo slave is going to hang in get_master_version_and_clock
 
 SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";

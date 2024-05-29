@@ -95,14 +95,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
-<<<<<<< HEAD
-usr/lib/mysql/plugin/authentication_fido.so
-||||||| merged common ancestors
-usr/lib/mysql/plugin/audit_log.so
-usr/lib/mysql/plugin/authentication_fido.so
-=======
-usr/lib/mysql/plugin/audit_log.so
->>>>>>> mysql-8.4.0
 usr/lib/mysql/plugin/authentication_kerberos.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so

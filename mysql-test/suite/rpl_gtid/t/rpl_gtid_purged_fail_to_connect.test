@@ -12,16 +12,8 @@
 # 3) On master, generate a transaction, flush the binary log and execute PURGE
 #    BINARY LOGS TO command so that only remaining binlog only contains
 #    transaction UUID:3.
-<<<<<<< HEAD
-# 4) Verify that the slave fails if it tries to connect using
-#    CHANGE REPLICATION SOURCE TO MASTER_AUTO_POSITION=1.
-||||||| merged common ancestors
-# 4) Verify that the slave fails if it tries to connect using CHANGE MASTER TO
-#    MASTER_AUTO_POSITION=1.
-=======
 # 4) Verify that the slave fails if it tries to connect using CHANGE REPLICATION SOURCE TO
 #    SOURCE_AUTO_POSITION=1.
->>>>>>> mysql-8.4.0
 # 5) Verify that appropriate messages are logged into master's and slave's
 #    error log.
 # 6) Verify that replication succeeds if it tries to connect using CHANGE

@@ -9,12 +9,6 @@ SET DEBUG_SYNC= 'now SIGNAL continue';
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/rpl/save_binlog_file_position.inc
 DELETE FROM tmp;
-<<<<<<< HEAD
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
-SET DEBUG_SYNC= 'reset';
-||||||| merged common ancestors
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
-=======
 include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
->>>>>>> mysql-8.4.0
+SET DEBUG_SYNC= 'reset';
 DROP VIEW v_12;

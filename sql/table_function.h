@@ -464,7 +464,7 @@ class Table_function_sequence final : public Table_function {
   /**
     Return table_map of tables used by function's data source
   */
-  virtual table_map used_tables() override;
+  virtual table_map used_tables() const override;
 
   /**
     SEQUENCE_TABLE printout

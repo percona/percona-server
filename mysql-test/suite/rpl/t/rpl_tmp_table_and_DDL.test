@@ -203,7 +203,6 @@ CREATE TABLE t1 LIKE temp_t1;
 --connection master
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
-<<<<<<< HEAD
 
 --sync_slave_with_master
 #
@@ -245,9 +244,4 @@ CREATE TABLE t1 LIKE temp_t1;
 --connection master
 DROP TEMPORARY TABLE temp_t1;
 DROP TABLE t1;
---source include/rpl_end.inc
-||||||| merged common ancestors
---source include/rpl_end.inc
-=======
 --source include/rpl/deinit.inc
->>>>>>> mysql-8.4.0

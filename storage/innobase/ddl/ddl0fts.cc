@@ -936,17 +936,9 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
         auto &file = handler->m_file;
         handler->m_offsets.push_back(file.m_size);
 
-<<<<<<< HEAD
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
+        auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
           return builder->append(file, io_buffer,
                                  handler->m_io_buffer_crypt.first, space_id);
-||||||| merged common ancestors
-        auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-          return builder->append(file, io_buffer);
-=======
-        auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
-          return builder->append(file, io_buffer);
->>>>>>> mysql-8.4.0
         };
 
         err = key_buffer->serialize(io_buffer, persistor);
@@ -1074,17 +1066,9 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
 
       handler->m_offsets.push_back(file.m_size);
 
-<<<<<<< HEAD
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
+      auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
         return builder->append(file, io_buffer,
                                handler->m_io_buffer_crypt.first, space_id);
-||||||| merged common ancestors
-      auto persistor = [&](IO_buffer io_buffer, os_offset_t &) -> dberr_t {
-        return builder->append(file, io_buffer);
-=======
-      auto persistor = [&](IO_buffer io_buffer) -> dberr_t {
-        return builder->append(file, io_buffer);
->>>>>>> mysql-8.4.0
       };
 
       err = key_buffer->serialize(io_buffer, persistor);
@@ -1589,35 +1573,13 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
       ut_ad(current_thd == thd);
 
       thd->push_diagnostics_area(&parser->da, false);
-      parser->parse(builder);
+      parser->parse(builder, m_ctx.new_table()->space);
       thd->pop_diagnostics_area();
 
-<<<<<<< HEAD
-    auto thd = create_internal_thd();
-    ut_ad(current_thd == thd);
-
-    thd->push_diagnostics_area(&parser->da, false);
-    parser->parse(builder, m_ctx.new_table()->space);
-    thd->pop_diagnostics_area();
-
-    destroy_internal_thd(current_thd);
-    my_thread_end();
-||||||| merged common ancestors
-    auto thd = create_internal_thd();
-    ut_ad(current_thd == thd);
-
-    thd->push_diagnostics_area(&parser->da, false);
-    parser->parse(builder);
-    thd->pop_diagnostics_area();
-
-    destroy_internal_thd(current_thd);
-    my_thread_end();
-=======
       destroy_internal_thd(current_thd);
       /* Return value ignored but required for Runnable::operator() */
       return DB_SUCCESS;
     });
->>>>>>> mysql-8.4.0
   };
 
   size_t seqnum{1};

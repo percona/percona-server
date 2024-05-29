@@ -2874,33 +2874,9 @@ class List_process_list : public Do_THD_Impl {
       const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
-<<<<<<< HEAD
       const bool is_utility_user = acl_is_utility_user(
           inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
 
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-
-        if ((!(inspect_thd->get_protocol() &&
-               inspect_thd->get_protocol()->connection_alive()) &&
-             !inspect_thd->system_thread) ||
-            (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                        strcmp(inspect_sctx_user.str, m_user))) ||
-            is_utility_user) {
-          return;
-        }
-||||||| merged common ancestors
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-
-        if ((!(inspect_thd->get_protocol() &&
-               inspect_thd->get_protocol()->connection_alive()) &&
-             !inspect_thd->system_thread) ||
-            (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                        strcmp(inspect_sctx_user.str, m_user)))) {
-          return;
-        }
-=======
       /*
         Since we only access a cached value of connection_alive, which is
         also an atomic, we do not need to lock LOCK_thd_protocol here. We
@@ -2909,9 +2885,9 @@ class List_process_list : public Do_THD_Impl {
       */
       if (!inspect_thd->is_connected(true) ||
           (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, m_user)))) {
+                      strcmp(inspect_sctx_user.str, m_user))) ||
+          is_utility_user) {
         return;
->>>>>>> mysql-8.4.0
       }
 
       DBUG_EXECUTE_IF(
@@ -3192,24 +3168,6 @@ class Fill_process_list : public Do_THD_Impl {
               : client_priv_user;
       now_utime = my_micro_time();
 
-<<<<<<< HEAD
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-        if ((!inspect_thd->get_protocol()->connection_alive() &&
-             !inspect_thd->system_thread) ||
-            (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, user))) ||
-            is_utility_user)
-          return;
-||||||| merged common ancestors
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-        if ((!inspect_thd->get_protocol()->connection_alive() &&
-             !inspect_thd->system_thread) ||
-            (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, user))))
-          return;
-=======
       /*
         Since we only access a cached value of connection_alive, which is
         also an atomic, we do not need to lock LOCK_thd_protocol here. We
@@ -3218,9 +3176,9 @@ class Fill_process_list : public Do_THD_Impl {
       */
       if (!inspect_thd->is_connected(true) ||
           (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, user)))) {
+                    strcmp(inspect_sctx_user.str, user))) ||
+          is_utility_user) {
         return;
->>>>>>> mysql-8.4.0
       }
 
       DBUG_EXECUTE_IF(

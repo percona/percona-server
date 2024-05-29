@@ -10,22 +10,10 @@ CREATE TABLE t1 (a VARCHAR(100), b INT);
 INSERT INTO t1 VALUES ("zero", 0);
 ==== Normal setup ====
 [on slave]
-<<<<<<< HEAD
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/start_slave.inc
-include/assert.inc [SHOW SLAVE STATUS should return the same delay that we set with CHANGE REPLICATION SOURCE]
-||||||| merged common ancestors
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/start_slave.inc
-include/assert.inc [SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER]
-=======
 include/rpl/sync_to_replica.inc
 include/rpl/stop_replica.inc
 include/rpl/start_replica.inc
 include/assert.inc [SHOW REPLICA STATUS should return the same delay that we set with CHANGE REPLICATION SOURCE]
->>>>>>> mysql-8.4.0
 [on master]
 INSERT INTO t1 VALUES ('normal setup', 1);
 [connection slave]

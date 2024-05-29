@@ -822,12 +822,8 @@ MySQL clients support the protocol:
 #include "sql/regexp/regexp_facade.h"     // regexp::regexp_lib_charset
 #include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
-<<<<<<< HEAD
-#include "sql/sql_profile.h"
-||||||| merged common ancestors
-=======
 #include "sql/statement/statement.h"
->>>>>>> mysql-8.4.0
+#include "sql/sql_profile.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
@@ -1237,12 +1233,8 @@ bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
-<<<<<<< HEAD
-bool opt_libcoredumper, opt_corefile = 0;
-||||||| merged common ancestors
-=======
 bool opt_keyring_migration_from_component = false;
->>>>>>> mysql-8.4.0
+bool opt_libcoredumper, opt_corefile = 0;
 bool opt_persist_sensitive_variables_in_plaintext{true};
 int argc_cached;
 char **argv_cached;
@@ -8608,14 +8600,7 @@ static int init_server_components() {
     init_optimizer_cost_module(true);
 
     bool st;
-<<<<<<< HEAD
-    if (opt_initialize || dd_upgrade_was_initiated ||
-        opt_upgrade_mode == UPGRADE_FORCE)
-||||||| merged common ancestors
-    if (opt_initialize || dd_upgrade_was_initiated)
-=======
-    if (opt_initialize)
->>>>>>> mysql-8.4.0
+    if (opt_initialize || opt_upgrade_mode == UPGRADE_FORCE)
       st = dd::performance_schema::init_pfs_tables(
           dd::enum_dd_init_type::DD_INITIALIZE);
     else
@@ -11820,12 +11805,6 @@ static int show_deprecated_use_i_s_processlist_last_timestamp(THD *,
   return 0;
 }
 
-<<<<<<< HEAD
-/*
-  Variables shown by SHOW STATUS in alphabetical order
-*/
-||||||| merged common ancestors
-=======
 namespace {
 int show_deprecated_use_fk_on_non_standard_key_count(THD *, SHOW_VAR *var,
                                                      char *buf) {
@@ -11846,7 +11825,9 @@ int show_deprecated_use_fk_on_non_standard_key_last_timestamp(THD *,
 }
 }  // namespace
 
->>>>>>> mysql-8.4.0
+/*
+  Variables shown by SHOW STATUS in alphabetical order
+*/
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,

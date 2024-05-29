@@ -192,17 +192,8 @@ SHOW RELAYLOG EVENTS;
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
-<<<<<<< HEAD:mysql-test/extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
-# Step-3.5: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we
-#           have multiple channels, should throw error
-#           ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-||||||| merged common ancestors:mysql-test/extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
-# Step-3.5: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
-#           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-=======
 # Step-3.5: CHANGE REPLICATION SOURCE TO without 'FOR CHANNEL' clause when we have multiple
 #           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
->>>>>>> mysql-8.4.0:mysql-test/common/rpl/multi_source_corrupt_repository.inc
 ###############################################################################
 
 --echo ===== CHANGE REPLICATION SOURCE without 'FOR CHANNEL' clause should throw error.

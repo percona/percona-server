@@ -251,16 +251,8 @@ RESET BINARY LOGS AND GTIDS;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=4294968;
 RESET REPLICA;
 RESET BINARY LOGS AND GTIDS;
-<<<<<<< HEAD
-# Check double size of max allowed value for source_heartbeat_period
---replace_result $MASTER_MYPORT MASTER_PORT
-||||||| merged common ancestors
-# Check double size of max allowed value for master_heartbeat_period
---replace_result $MASTER_MYPORT MASTER_PORT
-=======
 # Check double size of max allowed value for source_heartbeat_period
 --replace_result $MASTER_MYPORT SOURCE_PORT
->>>>>>> mysql-8.4.0
 --replace_column 2 ####
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=8589935;
@@ -530,13 +522,7 @@ let $status_col_comparsion= >;
 #let $slave_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --connection master
 #--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
-<<<<<<< HEAD
-#eval CHANGE REPLICATION SOURCE TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
-||||||| merged common ancestors
-#eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
-=======
 #eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SLAVE_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=1, SOURCE_LOG_FILE='$slave_binlog';
->>>>>>> mysql-8.4.0
 
 # BUG#12403008 RPL_HEARTBEAT_BASIC FAILS SPORADICALLY ON PUSHBUILD
 # SOURCE_HEARTBEAT_PERIOD had the default value (replica_net_timeout/2)

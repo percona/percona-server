@@ -79,12 +79,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0que.h"
 #include "row0log.h"
 #include "row0mysql.h"
-<<<<<<< HEAD
 #include "sql/current_thd.h"
-||||||| merged common ancestors
-=======
 #include "sql/sql_class.h"
->>>>>>> mysql-8.4.0
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 

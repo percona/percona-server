@@ -208,12 +208,7 @@ COUNT(*)
 DROP TABLE tde_db.test_tbl;
 DROP DATABASE tde_db;
 SET GLOBAL innodb_file_per_table=1;
-<<<<<<< HEAD
 # restart:<hidden args>
-||||||| merged common ancestors
-# restart
-=======
-# restart: PLUGIN_DIR_OPT
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance
@@ -221,6 +216,5 @@ SET GLOBAL innodb_file_per_table=1;
 # Removing local configuration file for keyring component: component_keyring_file
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------
->>>>>>> mysql-8.4.0
 CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 DROP TABLE test.t1;

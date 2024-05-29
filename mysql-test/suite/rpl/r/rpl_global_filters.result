@@ -175,16 +175,8 @@ include/diff_tables.inc [slave:test.v1, slave:test.v2]
 # 8. Verify that the "channel_2" channel would copy the global
 # replication filters to its own per-channel replication
 # filters with the same values of CONFIGURED_BY when it
-<<<<<<< HEAD
-# is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
-# Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
-||||||| merged common ancestors
-# is created by CHANGE MASTER TO ... FOR CHANNEL.
-# Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
-=======
 # is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
 # Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
->>>>>>> mysql-8.4.0
 # will be removed from the P_S table.
 #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";

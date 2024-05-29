@@ -147,7 +147,7 @@ struct st_mysql_plugin i_s_xtradb_read_view = {
     STRUCT_FLD(descr, "InnoDB Read View information"),
     STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
     STRUCT_FLD(init, xtradb_read_view_init),
-    nullptr,
+    STRUCT_FLD(check_uninstall, nullptr),
     STRUCT_FLD(deinit, i_s_common_deinit),
     STRUCT_FLD(version, INNODB_VERSION_SHORT),
     STRUCT_FLD(status_vars, nullptr),

@@ -202,15 +202,7 @@ while ($i < $count)
 {
   --let $binlog_file= `SELECT filename FROM binlogs LIMIT $i, 1`
   --echo $binlog_file
-<<<<<<< HEAD
-  --source include/assert_binlog_events.inc
-||||||| merged common ancestors
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-  --source include/assert_binlog_events.inc
-=======
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
   --source include/rpl/assert_binlog_events.inc
->>>>>>> mysql-8.4.0
   --inc $i
 }
 DROP TEMPORARY TABLE binlogs;
@@ -236,15 +228,7 @@ CREATE TEMPORARY TABLE relay_logs
 while ($i < $count)
 {
   --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
-<<<<<<< HEAD
-  --source include/assert_binlog_events.inc
-||||||| merged common ancestors
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
-  --source include/assert_binlog_events.inc
-=======
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
   --source include/rpl/assert_binlog_events.inc
->>>>>>> mysql-8.4.0
 
   --inc $i
 }

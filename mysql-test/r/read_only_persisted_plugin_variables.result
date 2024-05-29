@@ -114,13 +114,7 @@ set @@persist_only.proxy_protocol_networks='*';
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-<<<<<<< HEAD
-98
-||||||| merged common ancestors
-94
-=======
-93
->>>>>>> mysql-8.4.0
+97
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.

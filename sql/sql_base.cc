@@ -7007,11 +7007,6 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
 
   if (open_secondary_engine_tables(thd, flags)) goto end;
 
-<<<<<<< HEAD
-  thd->check_rpl_stmt_event_format_used();
-
-||||||| merged common ancestors
-=======
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
       has_external_table(thd->lex)) {
@@ -7025,7 +7020,8 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
                                     OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
   }
 
->>>>>>> mysql-8.4.0
+  thd->check_rpl_stmt_event_format_used();
+
   return false;
 end:
   /*

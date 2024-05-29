@@ -8199,7 +8199,36 @@ static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 #endif
-<<<<<<< HEAD
+
+/**
+  Warn usage of restrict_fk_on_non_standard_key variable. When it is set
+  to false, warning should include usage of non std keys may break replication
+*/
+namespace {
+bool restrict_fk_on_non_standard_key_check(sys_var *self, THD *thd,
+                                           set_var *setv) {
+  if (setv->save_result.ulonglong_value == 0)
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_WITH_NOTE,
+        ER_THD(thd, ER_WARN_DEPRECATED_WITH_NOTE), self->name.str,
+        "Foreign key referring to non-unique or partial keys "
+        "is unsafe and may break replication.");
+  else
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        self->name.str);
+  return false;
+}
+
+Sys_var_bool Sys_restrict_fk_on_non_standard_key(
+    "restrict_fk_on_non_standard_key",
+    "Disallow the creation of foreign keys referencing non-unique key "
+    "or partial key",
+    NON_PERSIST SESSION_VAR(restrict_fk_on_non_standard_key), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
+}  // namespace
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};
@@ -8231,36 +8260,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| merged common ancestors
-=======
-
-/**
-  Warn usage of restrict_fk_on_non_standard_key variable. When it is set
-  to false, warning should include usage of non std keys may break replication
-*/
-namespace {
-bool restrict_fk_on_non_standard_key_check(sys_var *self, THD *thd,
-                                           set_var *setv) {
-  if (setv->save_result.ulonglong_value == 0)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_WITH_NOTE,
-        ER_THD(thd, ER_WARN_DEPRECATED_WITH_NOTE), self->name.str,
-        "Foreign key referring to non-unique or partial keys "
-        "is unsafe and may break replication.");
-  else
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                        self->name.str);
-  return false;
-}
-
-Sys_var_bool Sys_restrict_fk_on_non_standard_key(
-    "restrict_fk_on_non_standard_key",
-    "Disallow the creation of foreign keys referencing non-unique key "
-    "or partial key",
-    NON_PERSIST SESSION_VAR(restrict_fk_on_non_standard_key), CMD_LINE(OPT_ARG),
-    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
-}  // namespace
->>>>>>> mysql-8.4.0

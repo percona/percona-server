@@ -106,57 +106,33 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
 
     # To hide the component symbols in the shared object
     IF(UNIX)
-<<<<<<< HEAD
-      IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
-        # nothing, clang/ubsan gets confused
-        UNSET(COMPONENT_COMPILE_VISIBILITY CACHE)
-      ELSE()
-        # Use this also for component libraries and tests.
-        SET(COMPONENT_COMPILE_VISIBILITY
-          "-fvisibility=hidden" CACHE INTERNAL
-          "Use -fvisibility=hidden for components" FORCE)
-
-        # By default gcc / clang toolchain, when creating a shared library,
-        # marks all symbols as 'exported' - __attribute__((visibility("default"))).
-        # This includes not only the symbols declared explicitly in the library
-        # source code but also those linked from the dependent static libraries
-        # as well as symbols instantiated from the standard library templated code.
-        # This is not a desired behavior for UDF shared objects, MySQL plugins /
-        # components that rely on dynamic symbol lookups ('dlsym()' calls).
-        # The exported symbols namespace may be extremely polluted in this case,
-        # which may lead to slower symbols lookups as well as raising security
-        # concerns of being able to load symbols not intended originally to be
-        # loadable.
-        # The solution is to switch to __attribute__((visibility("hidden"))) by
-        # default and mark 'exported' only those sybbols that are marked with
-        # __attribute__((visibility("default"))) explicitly.
-        # Here, for gcc for instance, CXX_VISIBILITY_PRESET CMake target property
-        # will be translated into '-fvisibility=hidden' compiler option.
-        # VISIBILITY_INLINES_HIDDEN as an addition to the previous one will also
-        # add '-fvisibility-inlines-hidden' (helps a lot with STL code).
-        SET_TARGET_PROPERTIES(${target} PROPERTIES
-          CXX_VISIBILITY_PRESET hidden
-          VISIBILITY_INLINES_HIDDEN YES
-        )
-      ENDIF()
-||||||| merged common ancestors
-      IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
-        # nothing, clang/ubsan gets confused
-        UNSET(COMPONENT_COMPILE_VISIBILITY CACHE)
-      ELSE()
-        # Use this also for component libraries and tests.
-        SET(COMPONENT_COMPILE_VISIBILITY
-          "-fvisibility=hidden" CACHE INTERNAL
-          "Use -fvisibility=hidden for components" FORCE)
-        TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
-      ENDIF()
-=======
       # Use this also for component libraries and tests.
       SET(COMPONENT_COMPILE_VISIBILITY
         "-fvisibility=hidden" CACHE INTERNAL
         "Use -fvisibility=hidden for components" FORCE)
-      TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
->>>>>>> mysql-8.4.0
+
+      # By default gcc / clang toolchain, when creating a shared library,
+      # marks all symbols as 'exported' - __attribute__((visibility("default"))).
+      # This includes not only the symbols declared explicitly in the library
+      # source code but also those linked from the dependent static libraries
+      # as well as symbols instantiated from the standard library templated code.
+      # This is not a desired behavior for UDF shared objects, MySQL plugins /
+      # components that rely on dynamic symbol lookups ('dlsym()' calls).
+      # The exported symbols namespace may be extremely polluted in this case,
+      # which may lead to slower symbols lookups as well as raising security
+      # concerns of being able to load symbols not intended originally to be
+      # loadable.
+      # The solution is to switch to __attribute__((visibility("hidden"))) by
+      # default and mark 'exported' only those sybbols that are marked with
+      # __attribute__((visibility("default"))) explicitly.
+      # Here, for gcc for instance, CXX_VISIBILITY_PRESET CMake target property
+      # will be translated into '-fvisibility=hidden' compiler option.
+      # VISIBILITY_INLINES_HIDDEN as an addition to the previous one will also
+      # add '-fvisibility-inlines-hidden' (helps a lot with STL code).
+      SET_TARGET_PROPERTIES(${target} PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN YES
+      )
     ENDIF()
 
     IF(NOT ARG_SKIP_INSTALL)

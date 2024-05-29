@@ -52,13 +52,7 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-<<<<<<< HEAD
-let $total_persistent_vars=493;
-||||||| merged common ancestors
-let $total_persistent_vars=445;
-=======
-let $total_persistent_vars=441;
->>>>>>> mysql-8.4.0
+let $total_persistent_vars=489;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

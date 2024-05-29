@@ -825,7 +825,7 @@ bool Table_function_sequence::fill_result_table() {
   return false;
 }
 
-table_map Table_function_sequence::used_tables() {
+table_map Table_function_sequence::used_tables() const {
   return m_source->used_tables();
 }
 

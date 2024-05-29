@@ -28,21 +28,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-<<<<<<< HEAD
-# Curently there are 65 group replication variables.
-||||||| merged common ancestors
-# Curently there are 60 group replication variables.
-=======
-# Curently there are 61 group replication variables.
->>>>>>> mysql-8.4.0
+# Curently there are 66 group replication variables.
 #
-<<<<<<< HEAD
-include/assert.inc [There are 65 GR variables at present.]
-||||||| merged common ancestors
-include/assert.inc [There are 60 GR variables at present.]
-=======
-include/assert.inc [There are 61 GR variables at present.]
->>>>>>> mysql-8.4.0
+include/assert.inc [There are 66 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -97,13 +85,9 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
-<<<<<<< HEAD
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
 SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout = default;
 SET @@GLOBAL.group_replication_xcom_ssl_accept_retries = default;
-||||||| merged common ancestors
-=======
-SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
->>>>>>> mysql-8.4.0
 SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
@@ -153,14 +137,10 @@ include/assert.inc [Default group_replication_advertise_recovery_endpoints is "D
 include/assert.inc [Default group_replication_view_change_uuid is "AUTOMATIC"]
 include/assert.inc [Default group_replication_communication_stack is XCom]
 include/assert.inc [Default group_replication_paxos_single_leader is 0]
-<<<<<<< HEAD
-include/assert.inc [Default group_replication_xcom_ssl_socket_timeout is 0]
-include/assert.inc [Default group_replication_xcom_ssl_accept_retries is 10]
-||||||| merged common ancestors
-=======
 include/assert.inc [Default group_replication_preemptive_garbage_collection is 0]
 include/assert.inc [Default group_replication_preemptive_garbage_collection_rows_threshold is 100000]
->>>>>>> mysql-8.4.0
+include/assert.inc [Default group_replication_xcom_ssl_socket_timeout is 0]
+include/assert.inc [Default group_replication_xcom_ssl_accept_retries is 10]
 #
 # Clean up
 #

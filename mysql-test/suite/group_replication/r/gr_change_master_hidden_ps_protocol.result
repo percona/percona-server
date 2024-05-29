@@ -34,13 +34,7 @@ SET sql_log_bin=1;
 SET @@global.log_output= @old_log_output;
 TRUNCATE TABLE mysql.general_log;
 include/group_replication_end.inc
-<<<<<<< HEAD
-# MASTER_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
-||||||| merged common ancestors
-# MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
-=======
 # SOURCE_PASSWORD value for the CHANGE REPLICATION SOURCE command will not be logged in the error log.
->>>>>>> mysql-8.4.0
 Occurrences of 'source_password' in the input file: 0
 # The password value 'unique_password' is not logged in the error log.
 Occurrences of 'unique_password' in the input file: 0

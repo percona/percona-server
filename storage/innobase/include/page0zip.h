@@ -338,19 +338,9 @@ void page_zip_copy_recs(
 
 /** Parses a log record of compressing an index page.
  @return end of log record or NULL */
-<<<<<<< HEAD
-[[nodiscard]] byte *page_zip_parse_compress(
-    byte *ptr,                 /*!< in: buffer */
-    byte *end_ptr,             /*!< in: buffer end */
-||||||| merged common ancestors
-byte *page_zip_parse_compress(
-    byte *ptr,                 /*!< in: buffer */
-    byte *end_ptr,             /*!< in: buffer end */
-=======
-const byte *page_zip_parse_compress(
+[[nodiscard]] const byte *page_zip_parse_compress(
     const byte *ptr,           /*!< in: buffer */
     const byte *end_ptr,       /*!< in: buffer end */
->>>>>>> mysql-8.4.0
     page_t *page,              /*!< out: uncompressed page */
     page_zip_des_t *page_zip); /*!< out: compressed page */
 

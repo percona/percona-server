@@ -595,17 +595,11 @@ static struct my_option my_long_options[] = {
      "InnoDB table, but will make the dump itself take considerably longer.",
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-<<<<<<< HEAD
     {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
      "Taking backup ORDER BY primary key DESC.", &opt_order_by_primary_desc,
      &opt_order_by_primary_desc, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-#include "multi_factor_passwordopt-longopts.h"
-||||||| merged common ancestors
-#include "multi_factor_passwordopt-longopts.h"
-=======
 #include "client/include/multi_factor_passwordopt-longopts.h"
->>>>>>> mysql-8.4.0
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -683,7 +677,6 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
-<<<<<<< HEAD
 #ifndef NDEBUG
     {"start-sql-file", OPT_START_SQL_FILE,
      "Execute SQL statements from the file at the mysqldump start. "
@@ -698,15 +691,8 @@ static struct my_option my_long_options[] = {
      &finish_sql_file, &finish_sql_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
      0, nullptr, 0, nullptr},
 #endif  // DEBUF_OFF
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
-||||||| merged common ancestors
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
-=======
 #include "client/include/caching_sha2_passwordopt-longopts.h"
 #include "client/include/sslopt-longopts.h"
->>>>>>> mysql-8.4.0
 
     {"tab", 'T',
      "Create tab-separated textfile for each table to given path. (Create .sql "

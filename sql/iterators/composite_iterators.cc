@@ -1602,35 +1602,6 @@ bool MaterializeIterator<Profiler>::Init() {
   // initialize scanning of the index over that hash field. (This is entirely
   // separate from any index usage when reading back the materialized table;
   // m_table_iterator will do that for us.)
-<<<<<<< HEAD
-  auto end_unique_index = create_scope_guard([&] {
-    if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
-  });
-
-  if (doing_hash_deduplication() && !m_use_hash_map) {
-    if (table()->file->ha_index_init(0, /*sorted=*/false)) {
-      return true;
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-  auto end_unique_index = create_scope_guard([&] {
-    if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
-  });
-
-  if (doing_hash_deduplication()) {
-||||||||| 1dec2d25b0c
-  auto end_unique_index =
-      create_scope_guard([&] { table()->file->ha_index_end(); });
-  if (doing_hash_deduplication()) {
-=========
-  auto end_unique_index = create_scope_guard([&] {
-    if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
-  });
-
-  if (doing_hash_deduplication() && !m_use_hash_map) {
->>>>>>>>> Temporary merge branch 2
-    if (table()->file->ha_index_init(0, /*sorted=*/false)) {
-      return true;
-=======
   auto end_unique_index = create_scope_guard([&] {
     if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
   });
@@ -1661,7 +1632,6 @@ bool MaterializeIterator<Profiler>::Init() {
       if (table()->file->ha_index_init(0, /*sorted=*/false)) {
         return true;
       }
->>>>>>> mysql-8.4.0
     }
   }
 

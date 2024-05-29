@@ -25,15 +25,7 @@
 
 --source include/have_debug_sync.inc
 # this issue only happened on MTS
-<<<<<<< HEAD
---source include/master-slave.inc
-||||||| merged common ancestors
---source include/only_mts_replica_parallel_workers.inc
---source include/master-slave.inc
-=======
---source include/have_replica_parallel_workers.inc
 --source include/rpl/init_source_replica.inc
->>>>>>> mysql-8.4.0
 
 --echo #
 --echo # 1. Create a table on the master and sync it to the slave
@@ -50,14 +42,8 @@ CREATE TABLE t1 (i INT);
 --echo #  - The slave waits before forcing a relay log rotation
 --echo #  - The wait time between MTS checkpoints is minimal
 
-<<<<<<< HEAD
---source include/rpl_connection_slave.inc
---source include/only_mts_replica_parallel_workers.inc
-||||||| merged common ancestors
---source include/rpl_connection_slave.inc
-=======
 --source include/rpl/connection_replica.inc
->>>>>>> mysql-8.4.0
+--source include/have_replica_parallel_workers.inc
 
 SET @@GLOBAL.DEBUG= '+d,rpl_set_relay_log_limits';
 SET @@GLOBAL.DEBUG= '+d,rpl_before_forced_rotate';

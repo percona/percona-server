@@ -72,15 +72,9 @@
 --echo # Cleanup
 --echo
 
-<<<<<<< HEAD
 SET DEBUG_SYNC= "RESET";
 
---source include/rpl_connection_master.inc
-||||||| merged common ancestors
---source include/rpl_connection_master.inc
-=======
 --source include/rpl/connection_source.inc
->>>>>>> mysql-8.4.0
 
 DROP TABLE t1;
 DROP TABLE t2;

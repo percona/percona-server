@@ -562,11 +562,5 @@ DROP TABLESPACE encrypt_ts;
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
-<<<<<<< HEAD
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
 --error 0,1
 remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;
-||||||| merged common ancestors
-remove_file $MYSQL_TMP_DIR/mysecret_keyring;
-=======
->>>>>>> mysql-8.4.0

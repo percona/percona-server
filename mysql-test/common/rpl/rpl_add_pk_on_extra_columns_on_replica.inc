@@ -47,13 +47,13 @@
 --echo #
 --echo # 1. Execute $_CREATE_TABLE_QUERY on source server.
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_CREATE_TABLE_QUERY
 
 --echo #
 --echo # 2. Sync the replica server with source server.
 --echo #
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 3. Execute ALTER TABLE on replica server.
@@ -65,18 +65,18 @@
 --echo #
 
 # Execute $_DATA_INSERT_QUERY on source server.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_DATA_INSERT_QUERY
 
 # Sync replica server with source server.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Execute $_TEST_QUERY on source server.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_TEST_QUERY
 
 # Sync replica server with source server.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 # Assert that replica table has $expected_row_count rows.
 --let $assert_text= There are exactly $expected_row_count rows on replica server
@@ -90,18 +90,18 @@
 --source include/diff_tables.inc
 
 # Execute $_DISPLAY_QUERY query to display the contents after validation.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_DISPLAY_QUERY
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --eval $_DISPLAY_QUERY
 
 # Execute $_CLEANUP_ITER_QUERY before next iteration.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_CLEANUP_ITER_QUERY
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo #
 --echo # 5. Cleanup
 --echo #
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --eval $_CLEANUP_QUERY

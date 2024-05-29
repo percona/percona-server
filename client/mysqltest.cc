@@ -122,13 +122,7 @@
 #define MAX_VAR_NAME_LENGTH 256
 #define MAX_COLUMNS 256
 #define MAX_DELIMITER_LENGTH 16
-<<<<<<< HEAD
 #define DEFAULT_MAX_CONN 1024
-||||||| merged common ancestors
-#define DEFAULT_MAX_CONN 128
-=======
-#define DEFAULT_MAX_CONN 512
->>>>>>> mysql-8.4.0
 #define REPLACE_ROUND_MAX 16
 
 /* Flags controlling send and reap */
@@ -4888,23 +4882,13 @@ static void do_change_user(struct st_command *command) {
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str)) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-<<<<<<< HEAD
     if (reconnect) {
-      mysql->reconnect = true;
+      if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
+      cur_con->stmt = nullptr;
       mysql_reconnect(&cur_con->mysql);
     }
   } else
     handle_no_error(command);
-||||||| merged common ancestors
-    mysql->reconnect = true;
-    mysql_reconnect(&cur_con->mysql);
-  }
-=======
-    if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
-    cur_con->stmt = nullptr;
-    mysql_reconnect(&cur_con->mysql);
-  }
->>>>>>> mysql-8.4.0
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
@@ -7896,16 +7880,8 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 500, 1, 10000, nullptr, 0, nullptr},
     {"max-connections", OPT_MAX_CONNECTIONS,
      "Max number of open connections to server", &opt_max_connections,
-<<<<<<< HEAD
      &opt_max_connections, nullptr, GET_INT, REQUIRED_ARG, DEFAULT_MAX_CONN, 8,
      9120, nullptr, 0, nullptr},
-||||||| merged common ancestors
-     &opt_max_connections, nullptr, GET_INT, REQUIRED_ARG, 128, 8, 5120,
-     nullptr, 0, nullptr},
-=======
-     &opt_max_connections, nullptr, GET_INT, REQUIRED_ARG, 512, 8, 5120,
-     nullptr, 0, nullptr},
->>>>>>> mysql-8.4.0
     {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
      &no_skip, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-skip-exclude-list", 'n',

@@ -225,16 +225,8 @@ CREATE VIEW test.v2 AS SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM perfo
 --echo # 8. Verify that the "channel_2" channel would copy the global
 --echo # replication filters to its own per-channel replication
 --echo # filters with the same values of CONFIGURED_BY when it
-<<<<<<< HEAD
---echo # is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
---echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
-||||||| merged common ancestors
---echo # is created by CHANGE MASTER TO ... FOR CHANNEL.
---echo # Upon RESET SLAVE ALL FOR CHANNEL 'channel_2', per channel FILTERS
-=======
 --echo # is created by CHANGE REPLICATION SOURCE TO ... FOR CHANNEL.
 --echo # Upon RESET REPLICA ALL FOR CHANNEL 'channel_2', per channel FILTERS
->>>>>>> mysql-8.4.0
 --echo # will be removed from the P_S table.
 --echo #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "channel_2";

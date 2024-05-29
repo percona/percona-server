@@ -47,32 +47,7 @@ SET debug_sync = 'now WAIT_FOR parked';
 --echo # Two root connections are supposed to show here
 SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
 
-<<<<<<< HEAD
 --source include/restart_mysqld.inc
-||||||| merged common ancestors
---echo #
---echo # Restart the server
---echo #
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-=======
---echo #
---echo # Restart the server
---echo #
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
->>>>>>> mysql-8.4.0
 
 SELECT 'Rewrite';
 

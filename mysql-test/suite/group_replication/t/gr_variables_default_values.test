@@ -90,23 +90,13 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
 --let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid;`
 --let $saved_gr_communication_stack = `SELECT @@GLOBAL.group_replication_communication_stack;`
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader;`
-<<<<<<< HEAD
---let $saved_gr_xcom_ssl_socket_timeout = `SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout;`
---let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
-||||||| merged common ancestors
-=======
 --let $saved_group_replication_preemptive_garbage_collection = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection;`
 --let $saved_group_replication_preemptive_garbage_collection_rows_threshold = `SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold;`
->>>>>>> mysql-8.4.0
+--let $saved_gr_xcom_ssl_socket_timeout = `SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout;`
+--let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
 
 # Total number of GR variables.
-<<<<<<< HEAD
---let $total_gr_vars= 65
-||||||| merged common ancestors
---let $total_gr_vars= 60
-=======
---let $total_gr_vars= 61
->>>>>>> mysql-8.4.0
+--let $total_gr_vars= 66
 
 --echo #
 --echo # Test Unit#1
@@ -176,13 +166,9 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
-<<<<<<< HEAD
+SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
 SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout = default;
 SET @@GLOBAL.group_replication_xcom_ssl_accept_retries = default;
-||||||| merged common ancestors
-=======
-SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold = default;
->>>>>>> mysql-8.4.0
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -412,18 +398,6 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_paxos_single_leader]" = 0
 --source include/assert.inc
 
-<<<<<<< HEAD
-# group_replication_xcom_ssl_socket_timeout
---let $assert_text= Default group_replication_xcom_ssl_socket_timeout is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout]" = 0
---source include/assert.inc
-
-# group_replication_xcom_ssl_accept_retries
---let $assert_text= Default group_replication_xcom_ssl_accept_retries is 10
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries]" = 10
---source include/assert.inc
-||||||| merged common ancestors
-=======
 # group_replication_preemptive_garbage_collection
 --let $assert_text= Default group_replication_preemptive_garbage_collection is 0
 --let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection] = 0
@@ -434,7 +408,15 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= [SELECT @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold] = 100000
 --source include/assert.inc
 
->>>>>>> mysql-8.4.0
+# group_replication_xcom_ssl_socket_timeout
+--let $assert_text= Default group_replication_xcom_ssl_socket_timeout is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_socket_timeout]" = 0
+--source include/assert.inc
+
+# group_replication_xcom_ssl_accept_retries
+--let $assert_text= Default group_replication_xcom_ssl_accept_retries is 10
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries]" = 10
+--source include/assert.inc
 
 --echo #
 --echo # Clean up
@@ -491,14 +473,10 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --eval SET @@GLOBAL.group_replication_communication_stack= "$saved_gr_communication_stack"
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
-<<<<<<< HEAD
---eval SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout= $saved_gr_xcom_ssl_socket_timeout
---eval SET @@GLOBAL.group_replication_xcom_ssl_accept_retries= $saved_gr_xcom_ssl_accept_retries
-||||||| merged common ancestors
-=======
 --eval SET @@GLOBAL.group_replication_preemptive_garbage_collection= $saved_group_replication_preemptive_garbage_collection
 --eval SET @@GLOBAL.group_replication_preemptive_garbage_collection_rows_threshold= $saved_group_replication_preemptive_garbage_collection_rows_threshold
->>>>>>> mysql-8.4.0
+--eval SET @@GLOBAL.group_replication_xcom_ssl_socket_timeout= $saved_gr_xcom_ssl_socket_timeout
+--eval SET @@GLOBAL.group_replication_xcom_ssl_accept_retries= $saved_gr_xcom_ssl_accept_retries
 --enable_query_log
 
 --let $total_gr_vars=

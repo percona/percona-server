@@ -16,16 +16,8 @@
 
 CREATE TABLE t1 (c1 INT KEY) ENGINE=InnoDB;
 
-<<<<<<< HEAD
-# It is used by the CHANGE REPLICATION SOURCE below
---source include/save_binlog_position.inc
-||||||| merged common ancestors
-# It is used by the CHANGE MASTER below
---source include/save_binlog_position.inc
-=======
 # It is used by the CHANGE REPLICATION SOURCE below
 --source include/rpl/save_binlog_file_position.inc
->>>>>>> mysql-8.4.0
 
 --source include/rpl/sync_to_replica.inc
 

@@ -2821,22 +2821,10 @@ void recv_recover_page_func(
 @param[out]     page_no         page number
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
-<<<<<<< HEAD
-ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                         space_id_t *space_id, page_no_t *page_no,
-                         byte **body) {
-  byte *new_ptr;
-||||||| merged common ancestors
-static ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                                space_id_t *space_id, page_no_t *page_no,
-                                byte **body) {
-  byte *new_ptr;
-=======
-static ulint recv_parse_log_rec(mlog_id_t *type, const byte *ptr,
-                                const byte *end_ptr, space_id_t *space_id,
-                                page_no_t *page_no, const byte **body) {
+ulint recv_parse_log_rec(mlog_id_t *type, const byte *ptr,
+                         const byte *end_ptr, space_id_t *space_id,
+                         page_no_t *page_no, const byte **body) {
   const byte *new_ptr;
->>>>>>> mysql-8.4.0
 
   *body = nullptr;
 

@@ -563,14 +563,8 @@ void warn_on_deprecated_user_defined_collation(
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 66
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-%expect 63
-=======
-%expect 59
->>>>>>> mysql-8.4.0
+%expect 62
 
 /*
    MAINTAINER:

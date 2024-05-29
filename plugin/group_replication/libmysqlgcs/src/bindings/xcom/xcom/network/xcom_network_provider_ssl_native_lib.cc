@@ -52,16 +52,12 @@
 
 #include "openssl/engine.h"
 
-<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>
 #endif
 
-||||||| merged common ancestors
-=======
 #include "xcom/retry.h"
->>>>>>> mysql-8.4.0
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
 

@@ -49,19 +49,9 @@ innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has cha
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk
 
-<<<<<<< HEAD
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
 
-# keyring tests
-keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
-
-||||||| merged common ancestors
-# keyring tests
-keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
-
-=======
->>>>>>> mysql-8.4.0
 # Tests that run ALTER on the "mysql" database
 innodb.mysql_ts_alter_encrypt_1                 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
 component_keyring_file.mysql_ts_alter_encrypt_1 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
@@ -106,7 +96,6 @@ rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled
 rpl_gtid.rpl_gtid_mts_spco_deadlock_other_locks          : Bug#32499883 RPL_GTID.RPL_GTID_MTS_SPCO_DEADLOCK_OTHER_LOCKS FAILS ON PB2
 rpl_gtid.rpl_master_errors : BUG#4797 percona https://jira.percona.com/browse/PS-4797
 rpl_gtid.rpl_start_replica_until_pos_with_gtid_only      : Bug#33119241 START REPLICA UNTIL SOURCE_LOG_POS SHOULD NOT STOP ON REPLICA EVENTS
-rpl_gtid.rpl_gtid_while_super_read_only : Bug#8423 Fails on PS, even on earlier versions
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented

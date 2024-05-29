@@ -94,35 +94,17 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 
 --echo ==== Scenario 2: source uses a namespace ====
 
-<<<<<<< HEAD
---echo # Stop slave and run CHANGE REPLICATION SOURCE to listen to the source on socket
-||||||| merged common ancestors
---echo # Stop slave and run CHANGE MASTER to listen to the source on socket
-=======
 --echo # Stop replica and run CHANGE REPLICATION SOURCE to listen to the source on socket
->>>>>>> mysql-8.4.0
 --echo # created in the 'red' namespace
 --source include/rpl/stop_replica.inc
 
 --source include/rpl/connection_source.inc
 --let $SOURCE_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-<<<<<<< HEAD
---source include/rpl_connection_slave.inc
---echo # Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE REPLICATION SOURCE TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
-||||||| merged common ancestors
---source include/rpl_connection_slave.inc
---echo # Change master to listen to the source on IP '10.0.2.1' in the 'red' namespace
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE MASTER TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
-=======
 --source include/rpl/connection_replica.inc
 --echo # Change replication source to listen to the source on IP '10.0.2.1' in the 'red' namespace
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
->>>>>>> mysql-8.4.0
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
  --let $crs = $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS
@@ -188,22 +170,10 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 --source include/rpl/connection_source.inc
 --let $SOURCE_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
-<<<<<<< HEAD
---source include/rpl_connection_slave.inc
---echo # Change replication source to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE REPLICATION SOURCE TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
-||||||| merged common ancestors
---source include/rpl_connection_slave.inc
---echo # Change master to original connection
---replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm = CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
-=======
 --source include/rpl/connection_replica.inc
 --echo # Change replication source to original connection
 --replace_result $MASTER_MYPORT SOURCE_PORT $SOURCE_LOG_POS SOURCE_LOG_POS
 --let $crs = CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
->>>>>>> mysql-8.4.0
 if (`SELECT @@GLOBAL.GTID_MODE = "OFF"`)
 {
  --let $crs = $crs, SOURCE_LOG_POS=$SOURCE_LOG_POS

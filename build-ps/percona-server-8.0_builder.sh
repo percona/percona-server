@@ -359,7 +359,7 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         yum -y update
-        add_percona_yum_repo
+        # add_percona_yum_repo
         yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
         percona-release enable tools testing
         yum -y install epel-release
@@ -586,7 +586,7 @@ build_srpm(){
 
 build_mecab_lib(){
     MECAB_TARBAL="mecab-0.996.tar.gz"
-    MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -610,7 +610,7 @@ build_mecab_lib(){
 
 build_mecab_dict(){
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
-    MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}

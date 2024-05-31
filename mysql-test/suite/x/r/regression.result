@@ -4,7 +4,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '' failed, t
 Bug #21472634
 RUN show processlist;
 Id	User	Host	db	Command		State	Info			
-5	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
+$PROC_ES_ID	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
 $PROC_1_ID	root	localhost	test	Sleep		null
 $PROC_2_ID	x_root	localhost	null	Query	init	PLUGIN: show processlist
 0 rows affected
@@ -12,7 +12,7 @@ Warnings generated:
 WARNING | 1287 | 'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
 id	user	command	state
-5	event_scheduler	Daemon	Waiting on empty queue
+$PROC_ES_ID	event_scheduler	Daemon	Waiting on empty queue
 $PROC_1_ID	root	Sleep	
 $PROC_2_ID	x_root	Query	executing
 0 rows affected

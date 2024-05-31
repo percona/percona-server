@@ -1,46 +1,24 @@
+/* Copyright (c) 2024 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #include <mysqld_error.h>
 #include <sstream>
 
 #include "data_provider.h"
 #include "logger.h"
-
-/* The list of metrics collected by Percona Telemetry Component:
-Must have:
-1. replication information (is it enabled, Galera vs. Group Replication)
-   If it is PXC, it is Galera
-   If there is replication (see below) -> async replication
-   If there is replication and semisync_master or semisync_slave plugin is
-installed -> semi-sync replication For GR detection fool around GR plugin and
-performance_schema.replication_group_members table (see Orchestrator)
-2. product version with “…-pro” suffix for Pro Builds - SELECT VERSION();
-
-Should have:
-1. plugin information (list of active plugins) -
-    select plugin_name, plugin_status from information_schema.plugins;
-    select component_urn from mysql.component;
-
-Nice to have:
-1. MySQL uptime - SHOW GLOBAL STATUS LIKE 'Uptime';
-2. number of databases - SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE
-SCHEMA_NAME NOT IN('mysql', 'information_schema', 'performance_schema', 'sys');
-3. size of databases - SELECT IFNULL(ROUND(SUM(data_length + index_length), 1),
-"0") size_MB FROM information_schema.tables WHERE table_schema NOT IN('mysql',
-'information_schema', 'performance_schema', 'sys');
-4. encryption methods applied (?)
-   encrypted tables count: SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
-CREATE_OPTIONS LIKE '%ENCRYPTION%'; encrypted databases count: SELECT COUNT(*)
-FROM INFORMATION_SCHEMA.SCHEMATA WHERE DEFAULT_ENCRYPTION='YES'; encrypted
-tablespaces count: SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-WHERE (flag & 8192) != 0;
-5. number of replication nodes, master/slave
-  source:
-  show replicas;
-  replica:
-  show replica status; -> Replica_IO_Running, Replica_SQL_Running
-6. storage engine used (MyRocks, InnoDB) - SELECT DISTINCT ENGINE FROM
-information_schema.tables WHERE table_schema NOT IN('mysql',
-'information_schema', 'performance_schema', 'sys'); 7.
-*/
 
 namespace {
 inline const char *b2s(bool val) { return val ? "1" : "0"; }

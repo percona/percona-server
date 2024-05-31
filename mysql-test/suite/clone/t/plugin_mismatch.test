@@ -1,5 +1,10 @@
 --source include/have_example_plugin.inc
 
+# When the server is built with telemetry enabled ('-DWITH_PERCONA_TELEMETRY=ON'),
+# we deliberately enable telemetry component in the first instance and disable in the
+# second one in the .cnf file in order to check that mismatch in having this
+# component does not affect cloning plugin mismatch logic.
+
 --echo #
 --echo # PS-8188 : Make the clone_plugin to not force plugins to match on recipient/donor
 --echo #

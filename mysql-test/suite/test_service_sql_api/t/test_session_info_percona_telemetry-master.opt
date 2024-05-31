@@ -1,0 +1,2 @@
+$TEST_SESSION_INFO_OPT
+--loose-mysqlx=off

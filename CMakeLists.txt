@@ -2198,6 +2198,8 @@ IF(WITH_ENCRYPTION_UDF)
   ADD_SUBDIRECTORY(extra/opensslpp)
 ENDIF()
 
+option(WITH_PERCONA_TELEMETRY "Build Percona Telemetry component" OFF)
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 

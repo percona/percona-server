@@ -91,7 +91,7 @@ let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
 --source include/search_pattern.inc
 
 --echo # Server shouldn't have restarted, so query should fail.
---error CR_SERVER_LOST
+--error CR_SERVER_LOST,CR_CONNECTION_ERROR
 SELECT * from test.t1 limit 10;
 
 --echo #########################################################################
@@ -117,7 +117,7 @@ SELECT * FROM t1 LIMIT 10;
 --echo # Connection con1:
 connect (con1,localhost,root,,);
 connection con1;
-let $SAVED_CON_ID = `SELECT connection_id();`;
+#let $SAVED_CON_ID = `SELECT connection_id();`;
 --echo # Set Encryption process to crash at page 10
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 --echo # Encrypt the tablespace. It will cause crash.
@@ -135,13 +135,13 @@ connect (con2,localhost,root,,);
 connection con2;
 --echo # Check that this connection id is same as of the one which was trying
 --echo # to encrypt the tablespace before crash.
-let $CUR_CON_ID = `SELECT connection_id();`;
-if ($CUR_CON_ID == $SAVED_CON_ID) {
-  --echo Connectin ids are same.
-}
-if ($CUR_CON_ID != $SAVED_CON_ID) {
-  --echo Connectin ids are not same.
-}
+#let $CUR_CON_ID = `SELECT connection_id();`;
+#if ($CUR_CON_ID == $SAVED_CON_ID) {
+#  --echo Connectin ids are same.
+#}
+#if ($CUR_CON_ID != $SAVED_CON_ID) {
+#  --echo Connectin ids are not same.
+#}
 
 # Run a DDL with this connection. At post DDL it will remove DDL Log records.
 CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';

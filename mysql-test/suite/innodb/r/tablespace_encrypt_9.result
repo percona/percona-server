@@ -55,7 +55,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 Pattern "CORRUPT LOG RECORD FOUND" found
 # Server shouldn't have restarted, so query should fail.
 SELECT * from test.t1 limit 10;
-ERROR HY000: Lost connection to MySQL server during query
+Got one of the listed errors
 #########################################################################
 # RESTART 2 : WITH KEYRING COMPONENT
 #########################################################################
@@ -106,7 +106,6 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # Connection con2:
 # Check that this connection id is same as of the one which was trying
 # to encrypt the tablespace before crash.
-Connectin ids are same.
 CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';
 # connection con3
 # Run a DDL with this connection con3

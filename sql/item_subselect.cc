@@ -439,7 +439,10 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     {
       int ret= 0;
       (*ref)= substitution;
-      substitution->item_name= item_name;
+      if (item_name.is_set())
+      {
+        substitution->item_name = item_name;
+      }
       if (have_to_be_excluded)
 	engine->exclude();
       substitution= 0;

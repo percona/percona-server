@@ -1,0 +1,40 @@
+# PS-9132 mysql.gtid_executed persistent GTID info lost when MySQL crash in Gtid_state::save
+#
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_gtid.inc
+
+RESET MASTER;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+SHOW BINARY LOGS;
+SELECT * FROM mysql.gtid_executed;
+
+--echo Kill the server
+--source include/kill_mysqld.inc
+
+--echo Restart the server only to kill it before GTID is saved during recovery process
+--error 137
+--exec $MYSQLD_CMD --debug="d,crash_before_gtid_persist"
+
+--echo Start the server again to see if server recovers GTIDs from binlogs and updates @@global.gtid_executed and mysql.gtid_executed table.
+--source include/start_mysqld.inc
+
+SELECT interval_start, interval_end from mysql.gtid_executed;
+SHOW BINARY LOGS;
+
+# Verify if GTID_EXECUTED is updated with the Previous_gtids properly
+--let $prev_gtid = query_get_value(SHOW BINLOG EVENTS in 'master-bin.000003', Info, 2)
+--let $gtid_executed = `SELECT @@GLOBAL.GTID_EXECUTED`
+if($prev_gtid == '') {
+    die "Could not find Previous_gtid_log_event in the last binary log parsed by the server";
+}
+if($gtid_executed == '') {
+    die "Server could not recover GTIDs from binary logs during recovery";
+}
+--let $assert_text = GTID should be properly updated
+--let $assert_cond = "$prev_gtid" = "$gtid_executed"
+--source include/assert.inc
+
+#Cleanup
+DROP TABLE t1;

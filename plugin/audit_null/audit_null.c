@@ -221,6 +221,7 @@ static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 
 static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
+  assert(arg);
   if (g_plugin_installed == TRUE)
   {
     my_free((void *)(g_record_buffer));

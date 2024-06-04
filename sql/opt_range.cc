@@ -3075,6 +3075,7 @@ int test_quick_select(THD *thd, key_map keys_to_use,
     group_trp= get_best_group_min_max(&param, tree, &best_cost);
     if (group_trp)
     {
+      DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost_est.reset(););
       param.table->quick_condition_rows= min(group_trp->records,
                                              head->file->stats.records);
       Opt_trace_object grp_summary(trace,
@@ -11323,6 +11324,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
       assert(cur_prefix != NULL);
+      file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
       result= file->ha_index_read_map(record, cur_prefix, keypart_map,
                                       HA_READ_AFTER_KEY);
       if (result || last_range->max_keypart_map == 0)

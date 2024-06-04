@@ -3714,6 +3714,25 @@ retry:
 			goto err_exit;
 		}
 
+		/* When persistent cursor is used to scan over index in backwards
+		direction it stops on infimum record of its current page and releases
+		all latches it has, before switching from the cursor's current page to
+		the previous one. At this point merge from the previous page to cursor's
+		current one might happen. During this merge records from the previous
+		page will be moved over cursor position/infimum record which is used
+		used to continue iteration in optimistic case, making moved records
+		invisible to the scan.
+		We force such cursor to use pessimistic approach of restoring its
+		position/continuing iteration, which is not affected by this problem
+		(as it relies on looking up user record which was visited by cursor
+		right before the infimum) by incrementing modification clock for page
+		being merged into.
+		The forward iteration seems to be unaffected by this problem as it
+		doesn't release latch on the current page before it acquires latch on
+		the next one when cursor switches pages. So merge from the next page
+		to the current one stays blocked. */
+		buf_block_modify_clock_inc(merge_block);
+
 		btr_search_drop_page_hash_index(block);
 
 #ifdef UNIV_BTR_DEBUG

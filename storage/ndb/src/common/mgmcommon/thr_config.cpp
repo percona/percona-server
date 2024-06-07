@@ -1456,7 +1456,9 @@ TAPTEST(thr_config) {
       THRConfig tmp;
       int res = tmp.do_parse(fail[i], 0, 0);
       printf("do_parse(%s) => %s - %s\n", fail[i], res == 0 ? "OK" : "FAIL",
-             res == 0 ? "" : tmp.getErrorMessage());
+             (res == 0 || tmp.getErrorMessage() == nullptr)
+                 ? ""
+                 : tmp.getErrorMessage());
       OK(res != 0);
     }
   }

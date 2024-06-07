@@ -966,7 +966,14 @@ Log_event::Log_event(Log_event_header *header, Log_event_footer *footer)
   /*
      Mask out any irrelevant parts of the server_id
   */
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
   server_id = common_header->unmasked_server_id & opt_server_id_mask;
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
 }
 
 /*
@@ -7871,9 +7878,16 @@ Rows_log_event::Rows_log_event(
      for UPDATE_ROWS_EVENTS, else it is equal to the before image.
   */
   /* if bitmap_init fails, is_valid will be set to false */
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : nullptr,
                           m_width))) {
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
     if (!columns_before_image.empty()) {
       assert(n_bits_len == (m_width + 7) / 8);
       memcpy(m_cols.bitmap, &columns_before_image[0], n_bits_len);

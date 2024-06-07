@@ -80,7 +80,7 @@ static int vio_server_conv(int num_msg, const struct pam_message **msg,
     return PAM_CONV_ERR;
   }
 
-  *resp = (struct pam_response *)calloc(sizeof(struct pam_response), num_msg);
+  *resp = (struct pam_response *)calloc(num_msg, sizeof(struct pam_response));
   if (*resp == nullptr) return PAM_BUF_ERR;
 
   void *talk_data;

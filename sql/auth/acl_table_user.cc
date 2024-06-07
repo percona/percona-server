@@ -2075,32 +2075,6 @@ bool Acl_table_user_reader::driver() {
 Password_lock::Password_lock()
     : password_lock_time_days(0), failed_login_attempts(0) {}
 
-Password_lock &Password_lock::operator=(const Password_lock &other) {
-  if (this != &other) {
-    password_lock_time_days = other.password_lock_time_days;
-    failed_login_attempts = other.failed_login_attempts;
-  }
-  return *this;
-}
-
-Password_lock &Password_lock::operator=(Password_lock &&other) {
-  if (this != &other) {
-    std::swap(password_lock_time_days, other.password_lock_time_days);
-    std::swap(failed_login_attempts, other.failed_login_attempts);
-  }
-  return *this;
-}
-
-Password_lock::Password_lock(const Password_lock &other) {
-  password_lock_time_days = other.password_lock_time_days;
-  failed_login_attempts = other.failed_login_attempts;
-}
-
-Password_lock::Password_lock(Password_lock &&other) {
-  std::swap(password_lock_time_days, other.password_lock_time_days);
-  std::swap(failed_login_attempts, other.failed_login_attempts);
-}
-
 }  // namespace acl_table
 
 /**

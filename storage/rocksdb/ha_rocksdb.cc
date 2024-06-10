@@ -7192,7 +7192,6 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   rdb_block_cache_resize_mutex.destroy();
   rdb_bottom_pri_background_compactions_resize_mutex.destroy();
-
   rdb_collation_data_mutex.destroy();
   rdb_mem_cmp_space_mutex.destroy();
 

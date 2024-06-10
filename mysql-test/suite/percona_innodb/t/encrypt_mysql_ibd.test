@@ -1,3 +1,7 @@
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
 let $MYSQLD_BASEDIR= `select @@basedir`;
 --mkdir $MYSQL_TMP_DIR/datadir1
 
@@ -5,7 +9,6 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
 --source include/shutdown_mysqld.inc
 
 --let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
---let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
 --let ERROR_LOG=$MYSQL_TMP_DIR/percona_encrypt_mysql_ibd_err.log
 
 --echo # create bootstrap file
@@ -13,7 +16,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
---let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG --default_table_encryption=ON 2>&1
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL $PLUGIN_DIR_OPT > $ERROR_LOG --default_table_encryption=ON 2>&1
 
 --echo # Bootstrap new instance with encrypted mysql.ibd
 --exec $BOOTSTRAP_CMD
@@ -43,3 +46,5 @@ EOF
 --remove_file $BOOTSTRAP_SQL
 --force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $ERROR_LOG
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc

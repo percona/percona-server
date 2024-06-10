@@ -1,4 +1,1 @@
-$KEYRING_PLUGIN_OPT
-$KEYRING_PLUGIN_EARLY_LOAD
---keyring-file-data=$MYSQL_TMP_DIR/keyring_data
 --innodb-encrypt-online-alter-logs=ON

@@ -1,6 +1,7 @@
-let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
---source include/restart_mysqld.inc
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
 
 --source include/count_sessions.inc
 
@@ -125,3 +126,4 @@ connection default;
 disconnect con3;
 
 --source include/wait_until_count_sessions.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

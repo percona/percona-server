@@ -2,6 +2,8 @@
 # PS-8428 "ALTER TABLE t ADD FULLTEXT crashes the server when --innodb_encrypt_online_alter_logs=ON"
 # (https://jira.percona.com/browse/PS-8428)
 #
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a TEXT(500));
 
@@ -9,3 +11,5 @@ INSERT INTO t1 VALUES (0, 'A BC DEF GHIJ KLM NOPQRS TUV WXYZ 012 3456789');
 ALTER TABLE t1 ADD FULLTEXT(a);
 
 DROP TABLE t1;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

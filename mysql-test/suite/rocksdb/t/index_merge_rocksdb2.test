@@ -1,3 +1,4 @@
+--source include/have_rocksdb.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
 --source include/not_valgrind.inc
 # Adding big test option for this test.
@@ -16,7 +17,6 @@
 #               include/index_merge*.inc files
 #
 
---source include/have_rocksdb.inc
 let $engine_type= RocksDB;
 let $eval_before_analyze=set global rocksdb_force_flush_memtable_now=1;
 # skipping because too unstable in MyRocks

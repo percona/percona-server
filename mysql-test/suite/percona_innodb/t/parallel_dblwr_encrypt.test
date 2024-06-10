@@ -1,6 +1,8 @@
 # Test Parallel double write buffer encryption
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --let $MYSQLD_DATADIR=`SELECT @@datadir`
 
@@ -45,6 +47,7 @@ INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occu
 --let $grep_output= boolean
 --source include/grep_pattern.inc
 
+--let $do_not_echo_parameters=1
 --source include/start_mysqld.inc
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(a TEXT) ENCRYPTION='Y';
@@ -88,5 +91,8 @@ INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occu
 --let $grep_output= boolean
 --source include/grep_pattern.inc
 
+--let $do_not_echo_parameters=1
 --source include/start_mysqld.inc
 DROP TABLE t1, t2, t3;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -1,4 +1,9 @@
-# restart
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 SELECT @@innodb_temp_tablespace_encrypt;
 @@innodb_temp_tablespace_encrypt
 0
@@ -101,3 +106,10 @@ DROP TABLE t3;
 DROP TABLE t6;
 include/assert.inc [Active session temp tablespaces count should be 2]
 include/assert.inc [Inactive session temp tablespaces count should be 8]
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -4,6 +4,9 @@
 # test various combinations of partitioned tables with partitions created in
 # different tablespaces
 
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLESPACE ts_encrypted_new ADD DATAFILE 'ts_encrypted_new.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLESPACE ts_unencrypted ADD DATAFILE 'ts_unencrypted.ibd' ENGINE="InnoDB";
@@ -65,3 +68,5 @@ DROP TABLESPACE ts_encrypted;
 DROP TABLESPACE ts_encrypted_new;
 DROP TABLESPACE ts_unencrypted;
 DROP TABLESPACE ts_unencrypted_new;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

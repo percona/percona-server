@@ -57,8 +57,7 @@ SHOW CREATE TABLE t6;
 SHOW CREATE TABLE t7;
 
 --echo # Restarting server
-let $restart_parameters = restart: $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN keyring_file.so
+--let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 --echo # Done restarting server
 

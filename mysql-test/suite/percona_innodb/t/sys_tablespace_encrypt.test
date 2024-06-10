@@ -1,3 +1,7 @@
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
 # Test system tablespace encryption
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
@@ -117,7 +121,6 @@ connection default;
 --source include/shutdown_mysqld.inc
 
 --let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
---let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
 --let ERROR_LOG=$MYSQL_TMP_DIR/sys_encrypt_err.log
 
 --echo # create bootstrap file
@@ -125,7 +128,9 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
+
 --echo # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
+--source include/keyring_tests/helper/binary_backup_manifest.inc
 --error 1
 --exec $MYSQLD_CMD --innodb-sys-tablespace-encrypt=ON > $ERROR_LOG 2>&1
 --let $grep_pattern= The system tablespace is not encrypted but --innodb_sys_tablespace_encrypt is ON
@@ -133,8 +138,9 @@ EOF
 --let $grep_output= boolean
 --source include/grep_pattern.inc
 --remove_file $ERROR_LOG
+--source include/keyring_tests/helper/binary_restore_manifest.inc
 
---let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $MYSQLTEST_VARDIR/tmp/boot.log 2>&1
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON $PLUGIN_DIR_OPT > $MYSQLTEST_VARDIR/tmp/boot.log 2>&1
 
 --echo # Bootstrap new instance with encrypted system tablespace
 --exec $BOOTSTRAP_CMD
@@ -145,26 +151,8 @@ EOF
 
 --echo # Start encrypted system with --innodb-sys-tablespace-encrypt=OFF
 --error 1
---exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=OFF $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
+--exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=OFF $PLUGIN_DIR_OPT > $ERROR_LOG 2>&1
 --let $grep_pattern= The system tablespace is encrypted but --innodb_sys_tablespace_encrypt is OFF
---let $grep_file= $ERROR_LOG
---let $grep_output= boolean
---source include/grep_pattern.inc
---remove_file $ERROR_LOG
-
---echo # Start encrypted system without early-plugin-load and only --plugin-load
---error 1
---exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
---let $grep_pattern= Encryption can't find master key, please check the keyring is loaded
---let $grep_file= $ERROR_LOG
---let $grep_output= boolean
---source include/grep_pattern.inc
---remove_file $ERROR_LOG
-
---echo # Start encrypted system without keyring_data
---error 1
---exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD > $ERROR_LOG 2>&1
---let $grep_pattern= Encryption can't find master key, please check the keyring is loaded
 --let $grep_file= $ERROR_LOG
 --let $grep_output= boolean
 --source include/grep_pattern.inc
@@ -460,3 +448,5 @@ SET PERSIST_ONLY innodb_sys_tablespace_encrypt = OFF;
 SET PERSIST innodb_sys_tablespace_encrypt = ON;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET PERSIST innodb_sys_tablespace_encrypt = OFF;
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc

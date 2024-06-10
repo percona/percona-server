@@ -1,5 +1,9 @@
-# test temporary tables encryption with keyring_file plugin
+# test temporary tables encryption with component_keyring_file
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
-let $keyring_restart_param = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT;
+--let $keyring_restart_param = restart:
 
 --source ../include/percona_temp_table_encrypt.inc
+
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -1,3 +1,7 @@
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
 let $MYSQLD_BASEDIR= `select @@basedir`;
 --mkdir $MYSQL_TMP_DIR/datadir1
 
@@ -7,7 +11,6 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
 --source include/shutdown_mysqld.inc
 
 --let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
---let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
 --let ERROR_LOG=$MYSQL_TMP_DIR/session_temp_encrypt_err.log
 
 --echo # create bootstrap file
@@ -15,7 +18,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
---let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --default-table-encryption=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --default-table-encryption=ON $PLUGIN_DIR_OPT > $ERROR_LOG 2>&1
 
 --echo # Bootstrap new instance with default_table_encryption=ON
 --exec $BOOTSTRAP_CMD
@@ -52,3 +55,5 @@ DROP DATABASE db1;
 --remove_file $BOOTSTRAP_SQL
 --force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $ERROR_LOG
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc

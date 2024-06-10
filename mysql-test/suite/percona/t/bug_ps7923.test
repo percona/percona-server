@@ -1,3 +1,6 @@
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
 --connect (con1,localhost,root,,)
 
 --connection default
@@ -22,9 +25,11 @@ DELIMITER ;//
 --connection default
 
 --let $do_not_echo_parameters = 1
---let $restart_parameters = restart: --gtid-mode=ON --enforce-gtid-consistency=ON $KEYRING_PLUGIN_LOAD_EARLY --loose-keyring_file_data=$MYSQL_TMP_DIR/keyring $KEYRING_PLUGIN_OPT
+--let $restart_parameters = restart: --gtid-mode=ON --enforce-gtid-consistency=ON
 --source include/kill_and_restart_mysqld.inc
 
 --disconnect con1
 
 DROP PROCEDURE my_infinite_alter_ts;
+
+--source suite/component_keyring_file/inc/teardown_component.inc

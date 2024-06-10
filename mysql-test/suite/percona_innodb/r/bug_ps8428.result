@@ -1,6 +1,19 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a TEXT(500));
 INSERT INTO t1 VALUES (0, 'A BC DEF GHIJ KLM NOPQRS TUV WXYZ 012 3456789');
 ALTER TABLE t1 ADD FULLTEXT(a);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -1,3 +1,5 @@
+--source include/have_component_keyring_file.inc
+
 call mtr.add_suppression("\\[InnoDB\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
 call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespace. Probably due to missing keyring plugin");
@@ -55,9 +57,8 @@ SELECT @@innodb_temp_tablespace_encrypt;
 --source include/grep_pattern.inc
 --remove_file $ERROR_LOG
 
---let $do_not_echo_parameters = 1
---let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT
 --source include/start_mysqld.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
 CREATE TABLE t1 (a INT, b BLOB);
 INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
@@ -116,4 +117,4 @@ SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 --source include/assert.inc
 
 --source include/wait_until_count_sessions.inc
---remove_file $MYSQL_TMP_DIR/ts_encrypt_keyring
+--source suite/component_keyring_file/inc/teardown_component.inc

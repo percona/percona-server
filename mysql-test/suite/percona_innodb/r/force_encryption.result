@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 create tablespace ts_unencrypted1 add datafile 'ts_unencrypted1.ibd' engine=innodb;
 create tablespace ts_encrypted1 add datafile 'ts_encrypted1.ibd' engine=innodb encryption="Y";
 create tablespace ts_encrypted2 add datafile 'ts_encrypted2.ibd' engine=innodb encryption="Y";
@@ -266,3 +272,10 @@ ALTER DATABASE db1 DEFAULT ENCRYPTION='N';
 SET GLOBAL table_encryption_privilege_check = default;
 DROP USER u1@localhost;
 DROP DATABASE db1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

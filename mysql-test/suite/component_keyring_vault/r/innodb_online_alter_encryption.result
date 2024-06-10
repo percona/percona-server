@@ -112,6 +112,11 @@ t7	CREATE TABLE `t7` (
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='y'
 # Restarting server
+# restart:<hidden args>
+# Done restarting server
+SELECT COUNT(1) FROM t1;
+COUNT(1)
+15000
 SELECT COUNT(1) FROM t2;
 COUNT(1)
 15000

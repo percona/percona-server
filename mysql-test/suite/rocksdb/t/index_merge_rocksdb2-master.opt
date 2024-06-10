@@ -1,1 +1,1 @@
---loose-rocksdb_strict_collation_check=off --transaction-isolation='READ-COMMITTED' --loose-rocksdb_records_in_range=2
+--transaction-isolation='READ-COMMITTED' --loose-rocksdb_records_in_range=2

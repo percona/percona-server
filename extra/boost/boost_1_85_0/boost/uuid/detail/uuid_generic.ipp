@@ -1,51 +1,87 @@
-/*
- *             Copyright Andy Tompkins 2006.
- * Distributed under the Boost Software License, Version 1.0.
- *    (See accompanying file LICENSE_1_0.txt or copy at
- *          https://www.boost.org/LICENSE_1_0.txt)
- */
-/*!
- * \file   uuid/detail/uuid_generic.ipp
- *
- * \brief  This header contains generic implementation of \c boost::uuid operations.
- */
+#ifndef BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED
+#define BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED
 
-#ifndef BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED_
-#define BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED_
+// Copyright 2024 Peter Dimov
+// Distributed under the Boost Software License, Version 1.0.
+// https://www.boost.org/LICENSE_1_0.txt
 
-#include <string.h>
+#include <boost/uuid/detail/endian.hpp>
+#include <cstdint>
+
+#if defined(BOOST_UUID_REPORT_IMPLEMENTATION)
+
+#include <boost/config/pragma_message.hpp>
+BOOST_PRAGMA_MESSAGE( "Using uuid_generic.ipp" )
+
+#endif
 
 namespace boost {
 namespace uuids {
 
-inline bool uuid::is_nil() const BOOST_NOEXCEPT
+inline bool uuid::is_nil() const noexcept
 {
-    for (std::size_t i = 0; i < sizeof(data); ++i)
-    {
-        if (data[i] != 0U)
-            return false;
-    }
-    return true;
+    std::uint64_t v = detail::load_native_u64( this->data + 0 );
+    std::uint64_t w = detail::load_native_u64( this->data + 8 );
+
+    return v == 0 && w == 0;
 }
 
-inline void uuid::swap(uuid& rhs) BOOST_NOEXCEPT
+inline void uuid::swap( uuid& rhs ) noexcept
 {
-    uuid tmp = *this;
-    *this = rhs;
-    rhs = tmp;
+    std::uint64_t v1 = detail::load_native_u64( this->data + 0 );
+    std::uint64_t w1 = detail::load_native_u64( this->data + 8 );
+
+    std::uint64_t v2 = detail::load_native_u64( rhs.data + 0 );
+    std::uint64_t w2 = detail::load_native_u64( rhs.data + 8 );
+
+    detail::store_native_u64( this->data + 0, v2 );
+    detail::store_native_u64( this->data + 8, w2 );
+
+    detail::store_native_u64( rhs.data + 0, v1 );
+    detail::store_native_u64( rhs.data + 8, w1 );
 }
 
-inline bool operator== (uuid const& lhs, uuid const& rhs) BOOST_NOEXCEPT
+inline bool operator==( uuid const& lhs, uuid const& rhs ) noexcept
 {
-    return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) == 0;
+    std::uint64_t v1 = detail::load_native_u64( lhs.data + 0 );
+    std::uint64_t w1 = detail::load_native_u64( lhs.data + 8 );
+
+    std::uint64_t v2 = detail::load_native_u64( rhs.data + 0 );
+    std::uint64_t w2 = detail::load_native_u64( rhs.data + 8 );
+
+    return v1 == v2 && w1 == w2;
 }
 
-inline bool operator< (uuid const& lhs, uuid const& rhs) BOOST_NOEXCEPT
+inline bool operator<( uuid const& lhs, uuid const& rhs ) noexcept
 {
-    return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
+    std::uint64_t v1 = detail::load_big_u64( lhs.data + 0 );
+    std::uint64_t w1 = detail::load_big_u64( lhs.data + 8 );
+
+    std::uint64_t v2 = detail::load_big_u64( rhs.data + 0 );
+    std::uint64_t w2 = detail::load_big_u64( rhs.data + 8 );
+
+    return v1 < v2 || ( !( v2 < v1 ) && w1 < w2 );
 }
+
+#if defined(BOOST_UUID_HAS_THREE_WAY_COMPARISON)
+
+inline std::strong_ordering operator<=> (uuid const& lhs, uuid const& rhs) noexcept
+{
+    std::uint64_t v1 = detail::load_big_u64( lhs.data + 0 );
+    std::uint64_t w1 = detail::load_big_u64( lhs.data + 8 );
+
+    std::uint64_t v2 = detail::load_big_u64( rhs.data + 0 );
+    std::uint64_t w2 = detail::load_big_u64( rhs.data + 8 );
+
+    if( v1 < v2 ) return std::strong_ordering::less;
+    if( v1 > v2 ) return std::strong_ordering::greater;
+
+    return w1 <=> w2;
+}
+
+#endif
 
 } // namespace uuids
 } // namespace boost
 
-#endif // BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED_
+#endif // BOOST_UUID_DETAIL_UUID_GENERIC_IPP_INCLUDED

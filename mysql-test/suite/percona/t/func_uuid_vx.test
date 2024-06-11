@@ -1,0 +1,203 @@
+#####################################################################
+#                                                                   #
+# Tests for uuidx family of functions.                              #
+#                                                                   #
+#####################################################################
+--echo #
+--echo # Implement RFC 9562 standard for UUIDs
+--echo #
+
+--echo # install uuidx component
+INSTALL COMPONENT 'file://component_uuid_vx_udf';
+
+--echo # uuid_vx_version() with 1,3,4,5,6,7 versions
+SELECT uuid_vx_version('{bc776b91-1e4b-11ef-bcff-0b9de0906f7d}');
+SELECT uuid_vx_version('{905f8aa4-56fe-33ae-b318-293311ddf8de}');
+SELECT uuid_vx_version('{12e8120c-8ab6-4898-8570-32ac169acbf6}');
+SELECT uuid_vx_version('{0168c796-9e87-5d37-a2f6-eecabc720807}');
+SELECT uuid_vx_version('{1ef1e4c5-b360-65b1-bac4-b3a602cb9872}');
+SELECT uuid_vx_version('{018fc826-55ad-70f3-8019-2c429b48cf34}');
+
+--echo #uuid_vx_version() with NULL arg
+SELECT uuid_vx_version(NULL);
+
+--echo #uuid_vx_version() with '' arg
+--error ER_UDF_ERROR
+SELECT uuid_vx_version('');
+
+--echo #uuid_vx_version() with bad arg
+--error ER_UDF_ERROR
+SELECT uuid_vx_version('12354xy');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT uuid_vx_version();
+
+--echo # uuid_vx_variant()
+SELECT uuid_vx_variant('{018fc826-55ad-70f3-8019-2c429b48cf34}');
+--echo #uuid_vx_variant() with NULL arg
+SELECT uuid_vx_variant(NULL);
+--echo #uuid_vx_variant() with '' arg
+--error ER_UDF_ERROR
+SELECT uuid_vx_variant('');
+--echo #uuid_vx_variant() with bad arg
+--error ER_UDF_ERROR
+SELECT uuid_vx_variant('12354xy');
+--error ER_CANT_INITIALIZE_UDF
+SELECT uuid_vx_variant();
+
+--echo # is_uuid_vx() with right uuid
+SELECT is_uuid_vx('{12345678-1234-5678-1234-567812345678}');
+--echo # is_uuid_vx() with bad uuid
+SELECT is_uuid_vx('{12345xyz-1234-5678-1234-567812345678}');
+--echo # is_uuid_vx() with NULL uuid
+SELECT is_uuid_vx(NULL);
+--echo # is_uuid_vx() with empty string
+SELECT is_uuid_vx('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT is_uuid_vx();
+
+--echo # is_nil_uuid_vx() with good not-nil uuid
+SELECT is_nil_uuid_vx('{12345678-1234-5678-1234-567812345678}');
+--echo # is_nil_uuid_vx() with nil uuid
+SELECT is_nil_uuid_vx('{00000000-0000-0000-0000-000000000000}');
+--echo # is_nil_uuid_vx() with NULL uuid
+SELECT is_nil_uuid_vx(NULL);
+--echo # is_nil_uuid_vx() with empty string
+--error ER_UDF_ERROR
+SELECT is_nil_uuid_vx('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT is_nil_uuid_vx();
+
+--echo # is_max_uuid_vx() with good not-nil uuid
+SELECT is_max_uuid_vx('{12345678-1234-5678-1234-567812345678}');
+--echo # is_max_uuid_vx() with max uuid
+SELECT is_max_uuid_vx('{FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF}');
+--echo # is_max_uuid_vx() with NULL uuid
+SELECT is_max_uuid_vx(NULL);
+--echo # is_max_uuid_vx() with empty string
+--error ER_UDF_ERROR
+SELECT is_max_uuid_vx('');
+--error ER_CANT_INITIALIZE_UDF
+SELECT is_max_uuid_vx();
+
+--echo #uuid_v1() generation and check 
+SELECT is_uuid(uuid_v1());
+SELECT uuid_vx_version(uuid_v1());
+
+--echo #uuid_v3() generation and check 
+SELECT is_uuid_vx(uuid_v3('test.com'));
+SELECT uuid_vx_version(uuid_v3('test.com'));
+--echo #uuid_v3() with UUID namespace argument
+SELECT is_uuid_vx(uuid_v3('test.com',0));
+SELECT is_uuid_vx(uuid_v3('http://test.com',1));
+SELECT is_uuid_vx(uuid_v3('test.com',2));
+SELECT is_uuid_vx(uuid_v3('test.com',3));
+--error ER_UDF_ERROR
+SELECT is_uuid_vx(uuid_v3('test.com',4));
+--error ER_UDF_ERROR
+SELECT is_uuid_vx(uuid_v3('test.com',-1));
+--error ER_CANT_INITIALIZE_UDF
+SELECT uuid_v3();
+
+--echo #uuid_v4() generation and check 
+SELECT is_uuid_vx(uuid_v4());
+SELECT uuid_vx_version(uuid_v4());
+
+--echo #uuid_v5() generation and check 
+SELECT is_uuid(uuid_v5('test.com'));
+SELECT uuid_vx_version(uuid_v5('test.com'));
+--echo #uuid_v5() with UUID namespace argument
+SELECT is_uuid_vx(uuid_v5('test.com',0));
+SELECT is_uuid_vx(uuid_v5('http://test.com',1));
+SELECT is_uuid_vx(uuid_v5('test.com',2));
+SELECT is_uuid_vx(uuid_v5('test.com',3));
+--error ER_UDF_ERROR
+SELECT is_uuid_vx(uuid_v5('test.com',4));
+--error ER_UDF_ERROR
+SELECT is_uuid_vx(uuid_v5('test.com',-1));
+--error ER_CANT_INITIALIZE_UDF
+SELECT uuid_v5();
+
+#--echo #uuid_v6() generation and check 
+SELECT is_uuid(uuid_v6());
+SELECT uuid_vx_version(uuid_v6());
+
+
+#--echo #uuid_v7() generation and check 
+SELECT is_uuid(uuid_v7());
+SELECT uuid_vx_version(uuid_v7());
+#--echo #uuid_v7() generation with time offser
+SELECT is_uuid(uuid_v7(-100000));
+SELECT uuid_vx_version(uuid_v7(-100000));
+SELECT is_uuid(uuid_v7(100000));
+SELECT uuid_vx_version(uuid_v7(100000));
+
+--echo #uuid_vx_to_bin and bin_to_uid_vx
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v1())));
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v3('test.com'))));
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v4())));
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v5('test.com'))));
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v6())));
+SELECT uuid_vx_version(bin_to_uuid_vx(uuid_vx_to_bin(uuid_v7())));
+SELECT bin_to_uuid_vx(NULL);
+SELECT uuid_vx_to_bin(NULL);
+
+--error ER_UDF_ERROR
+SELECT bin_to_uuid_vx('123');
+--error ER_UDF_ERROR
+SELECT uuid_vx_to_bin('123');
+
+--echo #all functions outupts timestamps in GMT timezone
+
+--echo #time-based UUID timestamps test
+--echo #v1 (wrong values, boost bug, check if test fails)
+SELECT uuid_vx_version('93c39787-225d-11ef-bfac-f5e814172db8');
+SELECT uuid_vx_to_timestamp('93c39787-225d-11ef-bfac-f5e814172db8');
+SELECT uuid_vx_to_timestamp_tz('93c39787-225d-11ef-bfac-f5e814172db8');
+SELECT uuid_vx_to_unixtime('93c39787-225d-11ef-bfac-f5e814172db8');
+
+--echo #v6 (wrong values, boost bug, check if test fails)
+SELECT uuid_vx_version('1ef225dd-aded-6cfa-8604-ff7079a99e49');
+SELECT uuid_vx_to_timestamp('1ef225dd-aded-6cfa-8604-ff7079a99e49');
+SELECT uuid_vx_to_timestamp_tz('1ef225dd-aded-6cfa-8604-ff7079a99e49');
+SELECT uuid_vx_to_unixtime('1ef225dd-aded-6cfa-8604-ff7079a99e49');
+
+--echo #v7 (proper values)
+SELECT uuid_vx_version('018fe2cf-8209-71fe-8034-fa62177f35c7');
+SELECT uuid_vx_to_timestamp('018fe2cf-8209-71fe-8034-fa62177f35c7');
+SELECT uuid_vx_to_timestamp_tz('018fe2cf-8209-71fe-8034-fa62177f35c7');
+SELECT uuid_vx_to_unixtime('018fe2cf-8209-71fe-8034-fa62177f35c7');
+
+--echo #wrong UUID argument
+--error ER_UDF_ERROR
+SELECT  uuid_vx_to_unixtime('123');
+--error ER_UDF_ERROR
+SELECT  uuid_vx_to_timestamp_tz('123');
+--error ER_UDF_ERROR
+SELECT  uuid_vx_to_timestamp('123');
+
+--echo #NULL UUID argument
+SELECT  uuid_vx_to_unixtime(NULL);
+SELECT  uuid_vx_to_timestamp_tz(NULL);
+SELECT  uuid_vx_to_timestamp(NULL);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_unixtime();
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_timestamp_tz();
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_timestamp();
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_unixtime(1,2);
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_timestamp_tz(1,2);
+--error ER_CANT_INITIALIZE_UDF
+SELECT  uuid_vx_to_timestamp(1,2);
+
+--echo # uninstall uuidx component
+UNINSTALL COMPONENT 'file://component_uuid_vx_udf';
+
+--echo #
+--echo # end of test
+--echo #

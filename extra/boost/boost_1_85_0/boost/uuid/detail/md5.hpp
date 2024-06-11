@@ -1,3 +1,6 @@
+#ifndef BOOST_UUID_DETAIL_MD5_HPP_INCLUDED
+#define BOOST_UUID_DETAIL_MD5_HPP_INCLUDED
+
 /*
  * This RFC 1321 compatible MD5 implementation originated at:
  * http://openwall.info/wiki/people/solar/software/public-domain-source-code/md5
@@ -23,14 +26,8 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // https://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef BOOST_UUID_MD5_HPP
-#define BOOST_UUID_MD5_HPP
-
-#include <boost/cast.hpp>
-#include <boost/config.hpp>
-#include <boost/cstdint.hpp>
+#include <boost/uuid/detail/numeric_cast.hpp>
 #include <boost/uuid/uuid.hpp> // for version
-#include <boost/predef/other/endian.h>
 #include <string.h>
 
 namespace boost {
@@ -40,7 +37,8 @@ namespace detail {
 class md5
 {
 public:
-    typedef unsigned int(digest_type)[4];
+
+    typedef unsigned char digest_type[ 16 ];
 
     md5()
     {
@@ -54,12 +52,12 @@ public:
 
     void process_bytes(void const* buffer, std::size_t byte_count)
     {
-        MD5_Update(&ctx_, buffer, boost::numeric_cast<unsigned long>(byte_count));
+        MD5_Update(&ctx_, buffer, detail::numeric_cast<unsigned long>(byte_count));
     }
 
     void get_digest(digest_type& digest)
     {
-        MD5_Final(reinterpret_cast<unsigned char *>(&digest[0]), &ctx_);
+        MD5_Final(digest, &ctx_);
     }
 
     unsigned char get_version() const
@@ -71,7 +69,7 @@ public:
 private:
 
     /* Any 32-bit or wider unsigned integer data type will do */
-    typedef uint32_t MD5_u32plus;
+    typedef std::uint32_t MD5_u32plus;
 
     typedef struct {
         MD5_u32plus lo, hi;
@@ -118,9 +116,9 @@ private:
      */
     #if defined(__i386__) || defined(__x86_64__) || defined(__vax__)
     #define BOOST_UUID_DETAIL_MD5_SET(n) \
-        (*(MD5_u32plus *)&ptr[(n) * 4])
+        (memcpy(&ctx->block[(n)], &ptr[(n) * 4], sizeof(MD5_u32plus)), (ctx->block[(n)]))
     #define BOOST_UUID_DETAIL_MD5_GET(n) \
-        BOOST_UUID_DETAIL_MD5_SET(n)
+        (ctx->block[(n)])
     #else
     #define BOOST_UUID_DETAIL_MD5_SET(n) \
         (ctx->block[(n)] = \
@@ -288,49 +286,11 @@ private:
         memcpy(ctx->buffer, data, size);
     }
 
-    // This must remain consistent no matter the endianness
     #define BOOST_UUID_DETAIL_MD5_OUT(dst, src) \
         (dst)[0] = (unsigned char)(src); \
         (dst)[1] = (unsigned char)((src) >> 8); \
         (dst)[2] = (unsigned char)((src) >> 16); \
         (dst)[3] = (unsigned char)((src) >> 24);
-
-    //
-    // A big-endian issue with MD5 results was resolved
-    // in boost 1.71.  If you generated md5 name-based uuids
-    // with boost 1.66 through 1.70 and stored them, then
-    // set the following compatibility flag to ensure that
-    // your hash generation remains consistent.
-    //
-#if defined(BOOST_UUID_COMPAT_PRE_1_71_MD5)
-    #define BOOST_UUID_DETAIL_MD5_BYTE_OUT(dst, src) \
-        BOOST_UUID_DETAIL_MD5_OUT(dst, src)
-#else
-    //
-    // We're copying into a byte buffer which is actually
-    // backed by an unsigned int array, which later on
-    // is then swabbed one more time by the basic name
-    // generator.  Therefore the logic here is reversed.
-    // This was done to minimize the impact to existing
-    // name-based hash generation.  The correct fix would
-    // be to make this and name generation endian-correct
-    // but that would even break previously generated sha1
-    // hashes too.
-    //
-#if BOOST_ENDIAN_LITTLE_BYTE
-    #define BOOST_UUID_DETAIL_MD5_BYTE_OUT(dst, src) \
-        (dst)[0] = (unsigned char)((src) >> 24); \
-        (dst)[1] = (unsigned char)((src) >> 16); \
-        (dst)[2] = (unsigned char)((src) >> 8); \
-        (dst)[3] = (unsigned char)(src);
-#else
-    #define BOOST_UUID_DETAIL_MD5_BYTE_OUT(dst, src) \
-        (dst)[0] = (unsigned char)(src); \
-        (dst)[1] = (unsigned char)((src) >> 8); \
-        (dst)[2] = (unsigned char)((src) >> 16); \
-        (dst)[3] = (unsigned char)((src) >> 24);
-#endif
-#endif // BOOST_UUID_COMPAT_PRE_1_71_MD5
 
     void MD5_Final(unsigned char *result, MD5_CTX *ctx)
     {
@@ -357,10 +317,10 @@ private:
 
         body(ctx, ctx->buffer, 64);
 
-        BOOST_UUID_DETAIL_MD5_BYTE_OUT(&result[0], ctx->a)
-        BOOST_UUID_DETAIL_MD5_BYTE_OUT(&result[4], ctx->b)
-        BOOST_UUID_DETAIL_MD5_BYTE_OUT(&result[8], ctx->c)
-        BOOST_UUID_DETAIL_MD5_BYTE_OUT(&result[12], ctx->d)
+        BOOST_UUID_DETAIL_MD5_OUT(&result[0], ctx->a)
+        BOOST_UUID_DETAIL_MD5_OUT(&result[4], ctx->b)
+        BOOST_UUID_DETAIL_MD5_OUT(&result[8], ctx->c)
+        BOOST_UUID_DETAIL_MD5_OUT(&result[12], ctx->d)
 
         memset(ctx, 0, sizeof(*ctx));
     }
@@ -378,4 +338,4 @@ private:
 } // uuids
 } // boost
 
-#endif // BOOST_UUID_MD5_HPP
+#endif // BOOST_UUID_DETAIL_MD5_HPP_INCLUDED

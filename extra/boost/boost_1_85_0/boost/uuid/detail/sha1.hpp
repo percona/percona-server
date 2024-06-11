@@ -1,37 +1,24 @@
+#ifndef BOOST_UUID_DETAIL_SHA1_HPP_INCLUDED
+#define BOOST_UUID_DETAIL_SHA1_HPP_INCLUDED
+
 // Copyright 2007 Andy Tompkins.
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
 // https://www.boost.org/LICENSE_1_0.txt)
 
-// Revision History
-//  29 May 2007 - Initial Revision
-//  25 Feb 2008 - moved to namespace boost::uuids::detail
-//  10 Jan 2012 - can now handle the full size of messages (2^64 - 1 bits)
-
-// This is a byte oriented implementation
-
-#ifndef BOOST_UUID_SHA1_H
-#define BOOST_UUID_SHA1_H
-
-#include <boost/static_assert.hpp>
-#include <boost/throw_exception.hpp>
+#include <boost/uuid/detail/endian.hpp>
+#include <boost/uuid/detail/static_assert.hpp>
 #include <boost/uuid/uuid.hpp> // for version
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 
-#ifdef BOOST_NO_STDC_NAMESPACE
-namespace std {
-    using ::size_t;
-} // namespace std
-#endif
-
 namespace boost {
 namespace uuids {
 namespace detail {
 
-BOOST_STATIC_ASSERT(sizeof(unsigned char)*8 == 8);
-BOOST_STATIC_ASSERT(sizeof(unsigned int)*8 == 32);
+BOOST_UUID_STATIC_ASSERT(sizeof(unsigned char)*8 == 8);
+BOOST_UUID_STATIC_ASSERT(sizeof(unsigned int)*8 == 32);
 
 inline unsigned int left_rotate(unsigned int x, std::size_t n)
 {
@@ -41,8 +28,11 @@ inline unsigned int left_rotate(unsigned int x, std::size_t n)
 class sha1
 {
 public:
-    typedef unsigned int(digest_type)[5];
+
+    typedef unsigned char digest_type[ 20 ];
+
 public:
+
     sha1();
 
     void reset();
@@ -55,10 +45,12 @@ public:
     unsigned char get_version() const;
 
 private:
+
     void process_block();
     void process_byte_impl(unsigned char byte);
 
 private:
+
     unsigned int h_[5];
 
     unsigned char block_[64];
@@ -97,12 +89,7 @@ inline void sha1::process_byte(unsigned char byte)
         bit_count_low += 8;
     } else {
         bit_count_low = 0;
-
-        if (bit_count_high <= 0xFFFFFFFE) {
-            ++bit_count_high;
-        } else {
-            BOOST_THROW_EXCEPTION(std::runtime_error("sha1 too many bytes"));
-        }
+        ++bit_count_high;
     }
 }
 
@@ -186,7 +173,7 @@ inline void sha1::process_block()
 inline unsigned char sha1::get_version() const
 {
     // RFC 4122 Section 4.1.3
-    return uuid::version_name_based_sha1;
+        return uuid::version_name_based_sha1;
 }
 
 inline void sha1::get_digest(digest_type& digest)
@@ -225,13 +212,13 @@ inline void sha1::get_digest(digest_type& digest)
     process_byte_impl( static_cast<unsigned char>((bit_count_low)     & 0xFF) );
 
     // get final digest
-    digest[0] = h_[0];
-    digest[1] = h_[1];
-    digest[2] = h_[2];
-    digest[3] = h_[3];
-    digest[4] = h_[4];
+    detail::store_big_u32( digest +  0, h_[0] );
+    detail::store_big_u32( digest +  4, h_[1] );
+    detail::store_big_u32( digest +  8, h_[2] );
+    detail::store_big_u32( digest + 12, h_[3] );
+    detail::store_big_u32( digest + 16, h_[4] );
 }
 
 }}} // namespace boost::uuids::detail
 
-#endif
+#endif // #ifndef BOOST_UUID_DETAIL_SHA1_HPP_INCLUDED

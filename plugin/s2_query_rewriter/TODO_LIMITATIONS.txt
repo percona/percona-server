@@ -1,0 +1,12 @@
+============
+TODO
+============
+  1) Find a way to inform error to client with MySQL ERROR.
+     (if there's error, current implementation will return different format of result-set)
+  2) Does not parse if there's comment (both of single and multi line) in S2WITHIN() block.
+
+============
+LIMITATIONS
+============
+  1) Prepared-statement is not supported (Because this plugin will rewrite query before-parse)
+  2) Not tested with big area search which greater than hemisphere

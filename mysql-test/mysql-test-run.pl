@@ -303,6 +303,7 @@ our @DEFAULT_SUITES = qw(
   binlog_57_decryption
   percona
   percona-pam-for-mysql
+  component_encryption_udf
   component_masking_functions
   data_masking
   procfs

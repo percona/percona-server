@@ -1,18 +1,19 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
 #
-# This program is also distributed with certain software (including
+# This program is designed to work with certain software (including
 # but not limited to OpenSSL) that is licensed under separate terms,
 # as designated in a particular file or component or in included license
 # documentation.  The authors of MySQL hereby grant you an additional
 # permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -165,6 +166,7 @@ my $opt_max_test_fail      = env_or_val(MTR_MAX_TEST_FAIL => 10);
 my $opt_mysqlx_baseport    = $ENV{'MYSQLXPLUGIN_PORT'} || "auto";
 my $opt_port_base          = $ENV{'MTR_PORT_BASE'} || "auto";
 my $opt_port_exclude       = $ENV{'MTR_PORT_EXCLUDE'} || "none";
+my $opt_bind_local         = $ENV{'MTR_BIND_LOCAL'};
 my $opt_reorder            = 1;
 my $opt_retry              = 3;
 my $opt_retry_failure      = env_or_val(MTR_RETRY_FAILURE => 2);
@@ -1779,6 +1781,7 @@ sub command_line_setup {
     'mysqlx-port=i'                   => \$opt_mysqlx_baseport,
     'port-base|mtr-port-base=i'       => \$opt_port_base,
     'port-exclude|mtr-port-exclude=s' => \$opt_port_exclude,
+    'bind-local!'                     => \$opt_bind_local,
 
     # Test case authoring
     'check-testcases!' => \$opt_check_testcases,
@@ -3308,6 +3311,7 @@ sub environment_setup {
       ndb_move_data
       ndb_perror
       ndb_print_backup_file
+      ndb_redo_log_reader
       ndb_restore
       ndb_select_all
       ndb_select_count
@@ -4339,7 +4343,12 @@ sub default_mysqld {
                                     baseport      => 0,
                                     user          => $opt_user,
                                     password      => '',
+<<<<<<< HEAD
                                     worker        => DEFAULT_WORKER_ID,
+||||||| 49ef33f7eda
+=======
+                                    bind_local    => $opt_bind_local
+>>>>>>> mysql-8.0.37
                                   });
 
   my $mysqld = $config->group('mysqld.1') or
@@ -5145,8 +5154,13 @@ sub run_testcase ($) {
                            tmpdir              => $opt_tmpdir,
                            user                => $opt_user,
                            vardir              => $opt_vardir,
+<<<<<<< HEAD
                            worker              => $tinfo->{worker} ||
                                                     DEFAULT_WORKER_ID
+||||||| 49ef33f7eda
+=======
+                           bind_local          => $opt_bind_local
+>>>>>>> mysql-8.0.37
                          });
 
       # Write the new my.cnf
@@ -7470,8 +7484,9 @@ sub start_mysqltest ($) {
 
   my $tail_lines = 500;
   if ($tinfo->{'full_result_diff'}) {
-    # Use 1G as an approximation for infinite output.
-    $tail_lines = 1000000000;
+    # Use 10000 as an approximation for infinite output (same as maximum for
+    # mysqltest --tail-lines).
+    $tail_lines = 10000;
   }
   # Number of lines of result to include in failure report
   mtr_add_arg($args, "--tail-lines=${tail_lines}");
@@ -8119,6 +8134,11 @@ Options that specify ports
                         and is not "auto", it overrides build-thread.
   port-exclude=#-#      Specify the range of ports to exclude when searching
                         for available port ranges to use.
+  bind-local            Bind listening ports to localhost, i.e disallow
+                        "incoming network connections" which might cause
+                        firewall to display annoying popups.
+                        Can be set in environment variable MTR_BIND_LOCAL=1.
+                        To disable use --no-bind-local.
 
 Options for test case authoring
 

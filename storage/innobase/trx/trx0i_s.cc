@@ -1,17 +1,18 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+Copyright (c) 2007, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -66,16 +67,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 
 #include "storage/perfschema/pfs_data_lock.h"
-static_assert(sizeof(pk_pos_data_lock::m_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock::m_engine_lock_id must be able to hold "
               "engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
-static_assert(sizeof(pk_pos_data_lock_wait::m_requesting_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock_wait::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock_wait::m_requesting_engine_lock_id must be able "
               "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
-static_assert(sizeof(pk_pos_data_lock_wait::m_blocking_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock_wait::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock_wait::m_blocking_engine_lock_id must be able "
               "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
 

@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -48,6 +49,7 @@
 #include "router_test_helpers.h"
 #include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
+#include "test/temp_directory.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -163,6 +165,74 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
       "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+}
+
+TEST_F(RouterRoutingTest, ResolveFails) {
+  RecordProperty("Description",
+                 "If resolve fails due to timeout or not resolvable, move the "
+                 "destination to the quarantine.");
+  const auto router_port = port_pool_.get_next_available();
+
+  TempDirectory conf_dir("conf");
+
+  auto writer = config_writer(conf_dir.name());
+  writer.section("routing:does_not_resolve",
+                 {
+                     // the test needs a hostname that always fails to resolve.
+                     //
+                     // RFC2606 declares .invalid as reserved TLD.
+                     {"destinations", "does-not-resolve.invalid"},
+                     {"routing_strategy", "round-robin"},
+                     {"protocol", "classic"},
+                     {"bind_port", std::to_string(router_port)},
+                 });
+
+  auto &rtr = router_spawner().spawn({"-c", writer.write()});
+
+  mysqlrouter::MySQLSession sess;
+
+  SCOPED_TRACE(
+      "// make a connection that should fail as the host isn't resolvable");
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "");
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(e.what(),
+                ::testing::HasSubstr("Can't connect to remote MySQL server"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+
+  SCOPED_TRACE("// port should be closed now.");
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "");
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(e.what(), ::testing::HasSubstr("Can't connect to MySQL server"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+
+  rtr.send_clean_shutdown_event();
+  ASSERT_NO_THROW(rtr.wait_for_exit());
+
+  // connecting to backend(s) for client from 127.0.0.1:57804 failed:
+  // resolve(does-not-resolve-to-anything.foo) failed after 160ms: Name or
+  // service not known, end of destinations: no more destinations
+  auto logcontent = rtr.get_logfile_content();
+  EXPECT_THAT(
+      logcontent,
+      testing::HasSubstr("resolve(does-not-resolve.invalid) failed after"));
+
+  // check that it was actually added to the quarantine.
+  EXPECT_THAT(
+      logcontent,
+      testing::HasSubstr(
+          "add destination 'does-not-resolve.invalid:3306' to quarantine"));
 }
 
 struct ConnectTimeoutTestParam {
@@ -1092,127 +1162,6 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
                                 5s));
 }
 #endif
-
-TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
-  const auto server_port = port_pool_.get_next_available();
-  const auto router_port = port_pool_.get_next_available();
-
-  // json file does not actually matter in this test as we are not going to
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-  TempDirectory bootstrap_dir;
-
-  // launch the server mock for bootstrapping
-  launch_mysql_server_mock(
-      json_stmts, server_port, EXIT_SUCCESS,
-      false /*expecting huge data, can't print on the console*/);
-
-  const std::string routing_section =
-      "[routing:basic]\n"
-      "bind_port = " +
-      std::to_string(router_port) +
-      "\n"
-      "mode = read-write\n"
-      "destinations = 127.0.0.1:" +
-      std::to_string(server_port) +
-      "\n"
-      "max_connect_errors = 1\n";
-
-  TempDirectory conf_dir("conf");
-  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
-
-  // launch the router
-  auto &router = launch_router({"-c", conf_file});
-
-  // wait for router to begin accepting the connections
-  // NOTE: this should cause connection/disconnection which
-  //       should be treated as connection error and increment
-  //       connection errors counter.  This test relies on that.
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  SCOPED_TRACE("// wait until 'blocking client host' appears in the log");
-  ASSERT_TRUE(wait_log_contains(router, "blocking client host", 5000ms));
-
-  // for the next connection attempt we should get an error as the
-  // max_connect_errors was exceeded
-  MySQLSession client;
-  EXPECT_THROW_LIKE(
-      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
-      std::exception, "Too many connection errors");
-}
-
-/**
- * @test
- * This test verifies that:
- *   1. Router will block a misbehaving client after consecutive
- *      <max_connect_errors> connection errors
- *   2. Router will reset its connection error counter if client establishes a
- *      successful connection before <max_connect_errors> threshold is hit
- */
-TEST_F(RouterRoutingTest, error_counters) {
-  const uint16_t server_port = port_pool_.get_next_available();
-  const uint16_t router_port = port_pool_.get_next_available();
-
-  // doesn't really matter which file we use here, we are not going to do any
-  // queries
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
-  // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
-
-  // create a config with max_connect_errors == 3
-  const std::string routing_section =
-      "[routing:basic]\n"
-      "bind_port = " +
-      std::to_string(router_port) +
-      "\n"
-      "mode = read-write\n"
-      "max_connect_errors = 3\n"
-      "destinations = 127.0.0.1:" +
-      std::to_string(server_port) + "\n";
-  TempDirectory conf_dir("conf");
-  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
-
-  // launch the router with the created configuration
-  launch_router({"-c", conf_file});
-
-  SCOPED_TRACE(
-      "// make good and bad connections (connect() + 1024 0-bytes) to check "
-      "blocked client gets reset");
-  // we loop just for good measure, to additionally test that this behaviour
-  // is repeatable
-  for (int i = 0; i < 5; i++) {
-    // good connection, followed by 2 bad ones. Good one should reset the
-    // error counter
-    try {
-      mysqlrouter::MySQLSession client;
-      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
-    } catch (const std::exception &e) {
-      FAIL() << e.what();
-    }
-    make_bad_connection(router_port);
-    make_bad_connection(router_port);
-  }
-
-  SCOPED_TRACE("// make bad connection to trigger blocked client");
-  // make a 3rd consecutive bad connection - it should cause Router to start
-  // blocking us
-  make_bad_connection(router_port);
-
-  // we loop just for good measure, to additionally test that this behaviour
-  // is repeatable
-  for (int i = 0; i < 5; i++) {
-    // now trying to make a good connection should fail due to blockage
-    mysqlrouter::MySQLSession client;
-    SCOPED_TRACE("// make connection to check if we are really blocked");
-    try {
-      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
-
-      FAIL() << "connect should be blocked, but isn't";
-    } catch (const std::exception &e) {
-      EXPECT_THAT(e.what(), ::testing::HasSubstr("Too many connection errors"));
-    }
-  }
-}
 
 TEST_F(RouterRoutingTest, spaces_in_destinations_list) {
   mysql_harness::ConfigBuilder builder;

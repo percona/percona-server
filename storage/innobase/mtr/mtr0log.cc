@@ -1,17 +1,18 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+Copyright (c) 1995, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -667,11 +668,12 @@ template <typename F>
 @param[in]  n             number of fields
 @param[in]  is_versioned  true if table has row versions
 @param[in,out]  f         vector of fields with versions
+@param[in]  changed_order array indicating fields changed position
 @param[in]  log_ptr       log buffer pointer
 @param[in]  func          callback to check size reopen log buffer */
 static bool log_index_fields(const dict_index_t *index, uint16_t n,
                              bool is_versioned, std::vector<dict_field_t *> &f,
-                             byte *&log_ptr, F &func) {
+                             bool *changed_order, byte *&log_ptr, F &func) {
   /* Write metadata for each field. Log the fields in their logical order. */
   for (size_t i = 0; i < n; i++) {
     dict_field_t *field = index->get_field(i);
@@ -696,7 +698,8 @@ static bool log_index_fields(const dict_index_t *index, uint16_t n,
     log_ptr += 2;
 
     if (is_versioned) {
-      if (col->is_instant_added() || col->is_instant_dropped()) {
+      if (col->is_instant_added() || col->is_instant_dropped() ||
+          changed_order[i]) {
         f.push_back(field);
       }
     }
@@ -738,7 +741,7 @@ static bool log_index_versioned_fields(const std::vector<dict_field_t *> &f,
            | 16th bit indicates add version info follows. */
     uint16_t phy_pos = field->get_phy_pos();
 
-    ut_ad(field->col->is_instant_added() || field->col->is_instant_dropped());
+    /* It also might be accompanying column order change (!added&&!dropped) */
 
     if (field->col->is_instant_added()) {
       /* Set 16th bit in phy_pos to indicate presence of version added */
@@ -843,20 +846,52 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     return true;
   };
 
+  /* Ordinal position of an existing field can't be changed with INSTANT
+  algorithm. But when it is combined with ADD/DROP COLUMN, ordinal position
+  of a filed can be changed. This bool array of size #fields in index,
+  represents if ordinal position of an existing filed is changed. */
+  bool *fields_with_changed_order = nullptr;
+  if (is_versioned) {
+    fields_with_changed_order = new bool[n];
+    memset(fields_with_changed_order, false, (sizeof(bool) * n));
+
+    uint16_t phy_pos = 0;
+    for (size_t i = 0; i < n; i++) {
+      dict_field_t *field = index->get_field(i);
+      const dict_col_t *col = field->col;
+
+      if (col->is_instant_added() || col->is_instant_dropped()) {
+        continue;
+      } else if (col->get_phy_pos() >= phy_pos) {
+        phy_pos = col->get_phy_pos();
+      } else {
+        fields_with_changed_order[i] = true;
+      }
+    }
+  }
+
   if (is_comp) {
     /* Write fields info. */
     if (!log_index_fields(index, n, is_versioned, instant_fields_to_log,
-                          log_ptr, f)) {
+                          fields_with_changed_order, log_ptr, f)) {
+      if (is_versioned) {
+        delete[] fields_with_changed_order;
+      }
       return false;
     }
   } else if (is_versioned) {
     for (size_t i = 0; i < n; i++) {
       dict_field_t *field = index->get_field(i);
       const dict_col_t *col = field->col;
-      if (col->is_instant_added() || col->is_instant_dropped()) {
+      if (col->is_instant_added() || col->is_instant_dropped() ||
+          fields_with_changed_order[i]) {
         instant_fields_to_log.push_back(field);
       }
     }
+  }
+
+  if (is_versioned) {
+    delete[] fields_with_changed_order;
   }
 
   if (!instant_fields_to_log.empty()) {
@@ -1093,7 +1128,6 @@ static void update_instant_info(instant_fields_list_t f, dict_index_t *index) {
   for (auto field : f) {
     bool is_added = field.v_added != UINT8_UNDEFINED;
     bool is_dropped = field.v_dropped != UINT8_UNDEFINED;
-    ut_ad(is_added || is_dropped);
 
     dict_col_t *col = index->fields[field.logical_pos].col;
 
@@ -1277,9 +1311,6 @@ static byte *mlog_parse_index_v1(byte *ptr, const byte *end_ptr,
         field->col->set_phy_pos(phy_pos);
         phy_pos_bitmap[phy_pos] = true;
       } else {
-        ut_ad(field->col->is_instant_added() ||
-              field->col->is_instant_dropped());
-
         if (field->col->is_instant_added() &&
             !field->col->is_instant_dropped()) {
           shift_count--;

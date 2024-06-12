@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -22,12 +22,13 @@ This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -123,6 +124,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
+#include "handler0alter.h"  //alter_stats_rebuild()
 #include "i_s.h"
 #include "ibuf0ibuf.h"
 #include "lex_string.h"
@@ -5634,7 +5636,9 @@ static int innodb_init(void *p) {
 
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
+#ifndef _WIN32
   os_file_set_umask(my_umask);
+#endif
 
   /* Setup the memory alloc/free tracing mechanisms before calling
   any functions that could possibly allocate memory. */
@@ -19091,6 +19095,8 @@ int ha_innobase::extra(enum ha_extra_function operation)
       m_prebuilt->table->skip_alter_undo = 1;
       break;
     case HA_EXTRA_END_ALTER_COPY:
+      alter_stats_rebuild(m_prebuilt->table, m_prebuilt->table->name.m_name,
+                          m_user_thd);
       m_prebuilt->table->skip_alter_undo = 0;
       break;
     case HA_EXTRA_NO_AUTOINC_LOCKING:
@@ -20809,9 +20815,11 @@ static xa_status_code innobase_commit_by_xid(
   trx_t *trx = trx_get_trx_by_xid(xid);
 
   if (trx != nullptr) {
-    TrxInInnoDB trx_in_innodb(trx);
+    {
+      TrxInInnoDB trx_in_innodb(trx);
 
-    innobase_commit_low(trx);
+      innobase_commit_low(trx);
+    }
     ut_ad(trx->mysql_thd == nullptr);
     /* use cases are: disconnected xa, slave xa, recovery */
     trx_deregister_from_2pc(trx);
@@ -20837,9 +20845,12 @@ static xa_status_code innobase_rollback_by_xid(
   trx_t *trx = trx_get_trx_by_xid(xid);
 
   if (trx != nullptr) {
-    TrxInInnoDB trx_in_innodb(trx);
+    int ret;
+    {
+      TrxInInnoDB trx_in_innodb(trx);
 
-    int ret = innobase_rollback_trx(trx);
+      ret = innobase_rollback_trx(trx);
+    }
 
     trx_deregister_from_2pc(trx);
     ut_ad(!trx->will_lock);

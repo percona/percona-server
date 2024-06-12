@@ -1,16 +1,17 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -439,6 +440,7 @@ void Suma::execDICT_LOCK_CONF(Signal *signal) {
 
   DictLockConf *conf = (DictLockConf *)signal->getDataPtr();
   Uint32 state = conf->userPtr;
+  SubscriptionPtr subPtr;
 
   switch (state) {
     case DictLockReq::SumaStartMe:
@@ -450,6 +452,17 @@ void Suma::execDICT_LOCK_CONF(Signal *signal) {
       return;
     case DictLockReq::SumaHandOver:
       jam();
+      if ((c_no_of_buckets == 0) && (!c_subscriptions.first(subPtr))) {
+        /**
+         * no subscriptions to report
+         * Continue restart
+         */
+        jam();
+        send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+        sendSTTORRY(signal);
+        return;
+      }
+
       /**
        * All subscribers are now connected.
        * Report subscriptions details to all the subscribers.
@@ -806,6 +819,7 @@ void Suma::execAPI_START_REP(Signal *signal) {
 
 void Suma::check_start_handover(Signal *signal) {
   if (c_startup.m_wait_handover) {
+    jam();
     NodeBitmask tmp;
     tmp.assign(c_connected_nodes);
     tmp.bitAND(c_subscriber_nodes);
@@ -814,15 +828,18 @@ void Suma::check_start_handover(Signal *signal) {
     }
     c_startup.m_wait_handover = false;
     SubscriptionPtr subPtr;
-    // Lock the dict only if there are any buckets to handover or
-    // there are subscriptions whose reports need to be sent out
-    if (c_no_of_buckets || c_subscriptions.first(subPtr)) {
-      jam();
-      send_dict_lock_req(signal, DictLockReq::SumaHandOver);
-    } else {
-      jam();
-      sendSTTORRY(signal);
-    }
+
+    /** Lock the dict.
+     * Lock is needed because, at least, one of the three following conditions
+     * is always met:
+     * 1. There are any buckets to handover
+     * 2. There are subscriptions whose reports need to be sent out
+     * 3. No buckets to handover nor subscriptions reports to send out (e.g
+     * start node with no nodegroup assigned and no subscribers connected), but
+     * lock is needed to force dict to trigger DIH to update the ndbinfo
+     * restart_state to RESTART COMPLETED
+     */
+    send_dict_lock_req(signal, DictLockReq::SumaHandOver);
   }
 }
 

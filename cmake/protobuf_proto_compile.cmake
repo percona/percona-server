@@ -1,15 +1,16 @@
-# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
 #
-# This program is also distributed with certain software (including
+# This program is designed to work with certain software (including
 # but not limited to OpenSSL) that is licensed under separate terms,
 # as designated in a particular file or component or in included license
 # documentation.  The authors of MySQL hereby grant you an additional
 # permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -187,6 +188,11 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   # Generate it only if needed by other targets
   SET_PROPERTY(TARGET ${TARGET_NAME} PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+  IF(WITH_PROTOBUF STREQUAL "bundled")
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_NAME} SYSTEM BEFORE PUBLIC
+      "${BUNDLED_ABSEIL_SRCDIR}")
+  ENDIF()
+
   # Run protoc to generate .pb.h and .pb.cc files, for clang-tidy.
   IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
     # New in version 3.19:
@@ -202,7 +208,9 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
   SET(MY_PROTOBUF_FLAGS "")
   SET(MY_PUBLIC_PROTOBUF_FLAGS "")
 
-  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  # The flags set below need to cover all "system" versions of protobuf,
+  # in addition to the version we have bundled.
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT WIN32_CLANG)
     STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter -Wno-undef")
 
     STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-unused-variable -Wno-undef")
@@ -233,23 +241,34 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
 
   IF(MSVC)
     IF(WIN32_CLANG)
-      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} -Wno-sign-compare")
-      SET(MY_PUBLIC_PROTOBUF_FLAGS
-        "${MY_PUBLIC_PROTOBUF_FLAGS} -Wno-sign-compare")
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-unused-parameter")
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-extra-semi")
     ELSE()
-      # /wd4018 'expression' : signed/unsigned mismatch
-      # /wd4251 'type' : class 'type1' needs to have dll-interface
-      #         to be used by clients of class 'type2'
-      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} /wd4018 /wd4251")
-
       # Silence warnings about: needs to have dll-interface
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4251")
+      # __declspec(dllimport): ignored on left of ...  VS16 only
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " /wd4091")
+
+      # not all control paths return a value
+      STRING_APPEND(MY_PROTOBUF_FLAGS " /wd4715")
+      # <expression> is never evaluated and might have side effects
+      STRING_APPEND(MY_PROTOBUF_FLAGS " /wd6286")
     ENDIF()
   ENDIF(MSVC)
 
-  ADD_COMPILE_FLAGS(${PROTO_SRCS} COMPILE_FLAGS
-    "${MY_PROTOBUF_FLAGS} ${MY_PUBLIC_PROTOBUF_FLAGS}"
-  )
+  STRING(REPLACE " " ";"
+    private_flags "${MY_PROTOBUF_FLAGS} ${MY_PUBLIC_PROTOBUF_FLAGS}")
+  TARGET_COMPILE_OPTIONS(${TARGET_NAME}
+    PRIVATE ${private_flags}
+    )
+
+  # We must propagate those dll-related flags to users of this library.
+  IF(MSVC AND NOT WIN32_CLANG)
+    STRING(REPLACE " " ";" public_flags "${MY_PUBLIC_PROTOBUF_FLAGS}")
+    TARGET_COMPILE_OPTIONS(${TARGET_NAME}
+      PUBLIC ${public_flags}
+      )
+  ENDIF()
 
   SET(MY_PUBLIC_PROTOBUF_FLAGS ${MY_PUBLIC_PROTOBUF_FLAGS} PARENT_SCOPE)
 ENDFUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY)

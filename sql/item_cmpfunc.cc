@@ -1,15 +1,16 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1142,6 +1143,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
                               (*right)->data_type() == MYSQL_TYPE_JSON))) {
     // Use the JSON comparator if at least one of the arguments is JSON.
     func = &Arg_comparator::compare_json;
+    m_compare_type = STRING_RESULT;
     // Convention: Immediate dynamic parameters are handled as scalars:
     (*left)->mark_json_as_scalar();
     (*right)->mark_json_as_scalar();
@@ -7597,6 +7599,23 @@ static bool append_hash_for_string_value(Item *comparand,
   return false;
 }
 
+static bool append_hash_for_json_value(Item *comparand,
+                                       String *join_key_buffer) {
+  Json_wrapper value;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer1, buffer2;
+  if (get_json_atom_wrapper(
+          &comparand, /*arg_idx=*/0, /*calling_function=*/"hash", &buffer1,
+          &buffer2, &value, /*scalar=*/nullptr, /*accept_string=*/true)) {
+    return true;
+  }
+
+  if (comparand->null_value) return true;
+
+  const uint64_t hash = value.make_hash_key(/*hash_val=*/0);
+  return join_key_buffer->append(pointer_cast<const char *>(&hash),
+                                 sizeof(hash));
+}
+
 // Append a decimal value to join_key_buffer, extracted from "comparand".
 //
 // The number of bytes written depends on the actual value. (Leading zero digits
@@ -7711,6 +7730,11 @@ static bool extract_value_for_hash_join(THD *thd,
 
   switch (comparator->get_compare_type()) {
     case STRING_RESULT: {
+      if (comparator->compare_as_json()) {
+        // JSON values can be large, so we don't store the full sort key.
+        assert(!join_condition.store_full_sort_key());
+        return append_hash_for_json_value(comparand, join_key_buffer);
+      }
       if (join_condition.store_full_sort_key()) {
         return append_string_value(
             comparand, comparator->cmp_collation.collation,

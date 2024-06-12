@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+Copyright (c) 1995, 2024, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -13,12 +13,13 @@ This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -4079,6 +4080,7 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
 template <typename T>
 void Buf_fetch<T>::read_page() {
+<<<<<<< HEAD
   bool success{};
   auto sync = m_mode != Page_fetch::SCAN;
 
@@ -4104,6 +4106,41 @@ void Buf_fetch<T>::read_page() {
   if (success) {
     if (sync) {
       buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
+||||||| 49ef33f7eda
+  bool success{};
+  auto sync = m_mode != Page_fetch::SCAN;
+
+  if (sync) {
+    success = buf_read_page(m_page_id, m_page_size);
+  } else {
+    dberr_t err;
+
+    auto ret = buf_read_page_low(&err, false, 0, BUF_READ_ANY_PAGE, m_page_id,
+                                 m_page_size, false);
+    success = ret > 0;
+
+    if (success) {
+      srv_stats.buf_pool_reads.add(1);
+    }
+
+    ut_a(err != DB_TABLESPACE_DELETED);
+
+    /* Increment number of I/O operations used for LRU policy. */
+    buf_LRU_stat_inc_io();
+  }
+
+  if (success) {
+    if (sync) {
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
+=======
+  if (buf_read_page(m_page_id, m_page_size)) {
+    /* Avoid doing read-ahead for parallel scans (well, at least currently this
+    flag is used only during the parallel scans). This would cause unnecessary
+    IO when the process is already being parallelized on higher level of
+    abstraction. */
+    if (m_mode != Page_fetch::SCAN) {
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
+>>>>>>> mysql-8.0.37
     }
     m_retries = 0;
   } else if (m_retries < BUF_PAGE_READ_MAX_RETRIES) {
@@ -4365,21 +4402,19 @@ buf_block_t *Buf_fetch<T>::single_page() {
   /* Check if this is the first access to the page */
   const auto access_time = buf_page_is_accessed(&block->page);
 
+  /* This is a heuristic and we don't care about ordering issues. */
+  if (access_time == std::chrono::steady_clock::time_point{}) {
+    buf_page_mutex_enter(block);
+
+    buf_page_set_accessed(&block->page);
+
+    buf_page_mutex_exit(block);
+  }
+
   /* Don't move the page to the head of the LRU list so that the
   page can be discarded quickly if it is not accessed again. */
-  if (m_mode != Page_fetch::SCAN) {
-    /* This is a heuristic and we don't care about ordering issues. */
-    if (access_time == std::chrono::steady_clock::time_point{}) {
-      buf_page_mutex_enter(block);
-
-      buf_page_set_accessed(&block->page);
-
-      buf_page_mutex_exit(block);
-    }
-
-    if (m_mode != Page_fetch::PEEK_IF_IN_POOL) {
-      buf_page_make_young_if_needed(&block->page);
-    }
+  if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN) {
+    buf_page_make_young_if_needed(&block->page);
   }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4405,7 +4440,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   mtr_add_page(block);
 
-  if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN &&
+  if (m_mode != Page_fetch::PEEK_IF_IN_POOL &&
       access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
 

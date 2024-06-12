@@ -1,16 +1,17 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -962,13 +963,11 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // does not print the original expression which leads to an incorrect clone.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
-    Item_result result_type = INVALID_RESULT;
+    Item_result result_type = this->result_type();
     for (Query_block *qb = derived_query_expression->first_query_block();
          qb != nullptr; qb = qb->next_query_block()) {
       Item *item = qb->get_derived_expr(field->field_index());
-      if (result_type == INVALID_RESULT) {
-        result_type = item->result_type();
-      } else if (result_type != item->result_type()) {
+      if (result_type != item->result_type()) {
         return true;
       }
       bool has_trigger_field = false;
@@ -1070,7 +1069,8 @@ Item *Item_field::replace_with_derived_expr(uchar *arg) {
   if (derived_table != table_ref) return this;
   Query_block *query_block = dti->m_derived_query_block;
   return query_block->clone_expression(
-      current_thd, query_block->get_derived_expr(field->field_index()));
+      current_thd, query_block->get_derived_expr(field->field_index()),
+      derived_table);
 }
 
 Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
@@ -3684,7 +3684,6 @@ bool Item_param::fix_fields(THD *, Item **) {
   }
   if (param_state() == NULL_VALUE) {
     // Parameter data type may be ignored, keep existing type
-    set_data_type_null();
     fixed = true;
     return false;
   }
@@ -5253,7 +5252,8 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
 int Item_field::fix_outer_field(THD *thd, Field **from_field,
                                 Item **reference) {
-  bool field_found = (*from_field != not_found_field);
+  const bool field_found =
+      (*from_field != nullptr) && (*from_field != not_found_field);
   bool upward_lookup = false;
 
   /*
@@ -6546,7 +6546,6 @@ void Item_field::make_field(Send_field *tmp_field) {
  */
 static inline type_conversion_status field_conv_with_cache(
     Field *to, Field *from, Field **last_to, uint32_t *to_is_memcpyable) {
-  assert(to->field_ptr() != from->field_ptr());
   if (to != *last_to) {
     *last_to = to;
     if (fields_are_memcpyable(to, from)) {
@@ -6559,7 +6558,13 @@ static inline type_conversion_status field_conv_with_cache(
       *to_is_memcpyable == to->pack_length() && from->type() == to->type() &&
       (from->type() != MYSQL_TYPE_NEWDECIMAL ||
        from->decimals() == to->decimals())) {
-    memcpy(to->field_ptr(), from->field_ptr(), *to_is_memcpyable);
+    const size_t length = *to_is_memcpyable;
+    // Check that we're not memcpying from the source string into itself, since
+    // that invokes undefined behaviour. Two adjacent fields could have the same
+    // position in the record buffer if one of them has zero length (such as
+    // CHAR(0)). This is not a problem, since memcpy is a no-op in that case.
+    assert(to->field_ptr() != from->field_ptr() || length == 0);
+    memcpy(to->field_ptr(), from->field_ptr(), length);
     return TYPE_OK;
   } else {
     return field_conv_slow(to, from);
@@ -8844,7 +8849,7 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
   // block, the context to resolve the field will be different than
   // the derived table context (dt1).
   return dti->m_derived_query_block->outer_query_block()->clone_expression(
-      current_thd, ref_item());
+      current_thd, ref_item(), dti->m_derived_table);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {

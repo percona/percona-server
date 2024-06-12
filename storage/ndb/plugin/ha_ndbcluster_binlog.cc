@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2006, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -355,6 +356,13 @@ static bool ndbcluster_binlog_index_remove_file(THD *thd, const char *filename);
   to remove any rows in its mysql.ndb_binlog_index table which
   references the removed file.
 
+  @note This function can be activated by:
+   - User session calling PURGE BINARY LOGS
+   - MySQL Server startup checking time to purge
+   - rotate+purge triggered by writing to binlog, this means that the
+     ndb binlog thread itself may invoke this function when writing epoch
+     transactions to binlog.
+
   @param thd Thread handle
   @param filename Name of the binlog file which has been removed
 
@@ -382,6 +390,8 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
     return 0;  // Nothing to do, slave thread
   }
 
+  ndb_log_info("Purging binlog file: '%s'", filename);
+
   // Create a separate temporary THD, primarily in order to isolate from any
   // active transactions in the THD passed by caller. NOTE! This should be
   // revisited
@@ -403,6 +413,8 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
 
   /* Relink original THD */
   thd->store_globals();
+
+  if (error == 0) ndb_log_info("Purged binlog file: '%s'", filename);
 
   return error;
 }
@@ -5049,12 +5061,6 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
         return -1;
       }
     }
-    // The function that check if event exist will silently mark the NDB table
-    // definition as 'Invalid' when the event's table version does not match the
-    // cached NDB table definitions version. This indicates that the caller have
-    // used a stale version of the NDB table definition and is a problem which
-    // has to be fixed by the caller of this function.
-    assert(ndbtab->getObjectStatus() != NdbDictionary::Object::Invalid);
 
     if (share->have_event_operation()) {
       DBUG_PRINT("info", ("binlogging already setup"));
@@ -7131,12 +7137,13 @@ void Ndb_binlog_thread::recall_pending_purges(THD *thd) {
   // Iterate list of pending purges and delete corresponding
   // rows from ndb_binlog_index table
   for (const std::string &filename : m_pending_purges) {
-    log_verbose(1, "Purging binlog file: '%s'", filename.c_str());
+    log_info("Purging binlog file: '%s'", filename.c_str());
 
     if (Ndb_binlog_index_table_util::remove_rows_for_file(thd,
                                                           filename.c_str())) {
       log_warning("Failed to purge binlog file: '%s'", filename.c_str());
     }
+    log_info("Purged binlog file: '%s'", filename.c_str());
   }
   // All pending purges performed, clear the list
   m_pending_purges.clear();

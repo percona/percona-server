@@ -1,15 +1,16 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1839,7 +1840,7 @@ class Query_block : public Query_term {
 
   /// Creates a clone for the given expression by re-parsing the
   /// expression. Used in condition pushdown to derived tables.
-  Item *clone_expression(THD *thd, Item *item);
+  Item *clone_expression(THD *thd, Item *item, Table_ref *derived_table);
   /// Returns an expression from the select list of the query block
   /// using the field's index in a derived table.
   Item *get_derived_expr(uint expr_index);
@@ -2358,6 +2359,11 @@ class Query_block : public Query_term {
 
   /// Number of GROUP BY expressions added to all_fields
   int hidden_group_field_count;
+
+  /// A backup of the items in base_ref_items at the end of preparation, so that
+  /// base_ref_items can be restored between executions of prepared statements.
+  /// Empty if it's a regular statement.
+  Ref_item_array m_saved_base_items;
 
   /**
     True if query block has semi-join nests merged into it. Notice that this
@@ -3932,7 +3938,7 @@ struct LEX : public Query_tables_list {
     KILL, HA_READ, CREATE/ALTER EVENT etc. Set this to `false` to get
     syntax error back.
   */
-  bool expr_allows_subselect;
+  bool expr_allows_subquery{true};
   /**
     If currently re-parsing a CTE's definition, this is the offset in bytes
     of that definition in the original statement which had the WITH

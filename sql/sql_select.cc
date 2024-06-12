@@ -1,15 +1,16 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -3720,22 +3721,6 @@ void JOIN::cleanup() {
       cleanup_table(cleanup.table);
     }
   }
-
-  if (rollup_state != RollupState::NONE) {
-    for (size_t i = 0; i < fields->size(); i++) {
-      Item *inner = unwrap_rollup_group(query_block->base_ref_items[i]);
-      if (inner->type() == Item::SUM_FUNC_ITEM) {
-        Item_sum *sum = down_cast<Item_sum *>(inner);
-        if (sum->is_rollup_sum_wrapper()) {
-          // unwrap sum switcher to restore original Item_sum
-          inner = down_cast<Item_rollup_sum_switcher *>(sum)->unwrap_sum();
-        }
-      }
-      query_block->base_ref_items[i] = inner;
-    }
-  }
-  /* Restore ref array to original state */
-  set_ref_item_slice(REF_SLICE_SAVED_BASE);
 }
 
 /**

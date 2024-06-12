@@ -1,15 +1,16 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -131,7 +132,6 @@
 #include "sql_tmp_table.h"  // free_tmp_table
 #include "template_utils.h"
 #include "uniques.h"  // Unique_on_insert
-#include "varlen_sort.h"
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -774,7 +774,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin) {
       engine plugins.
     */
     DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(nullptr)) {
+    if (plugin->plugin->deinit(plugin)) {
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
@@ -916,7 +916,7 @@ err_deinit:
     Let plugin do its inner deinitialization as plugin->init()
     was successfully called before.
   */
-  if (plugin->plugin->deinit) (void)plugin->plugin->deinit(nullptr);
+  if (plugin->plugin->deinit) (void)plugin->plugin->deinit(plugin);
 
 err:
   my_free(hton);
@@ -7129,9 +7129,18 @@ int DsMrr_impl::dsmrr_fill_buffer() {
   uint elem_size = h->ref_length + (int)is_mrr_assoc * sizeof(void *);
   assert((rowids_buf_cur - rowids_buf) % elem_size == 0);
 
-  varlen_sort(
-      rowids_buf, rowids_buf_cur, elem_size,
-      [this](const uchar *a, const uchar *b) { return h->cmp_ref(a, b) < 0; });
+  // Store the handler in a thread local variable so that it is available in the
+  // stateless comparator passed to qsort.
+  thread_local const handler *current_handler;
+  current_handler = h;
+
+  qsort(rowids_buf, (rowids_buf_cur - rowids_buf) / elem_size, elem_size,
+        [](const void *a, const void *b) {
+          return current_handler->cmp_ref(
+              static_cast<const unsigned char *>(a),
+              static_cast<const unsigned char *>(b));
+        });
+
   rowids_buf_last = rowids_buf_cur;
   rowids_buf_cur = rowids_buf;
   return 0;

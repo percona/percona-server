@@ -1,15 +1,16 @@
-/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,10 +25,11 @@
 #include <ndb_opts.h>
 
 #include <ndb_rand.h>
-#include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbIndexStatImpl.hpp>
 #include <NdbOut.hpp>
+#include "NDBT_Output.hpp"
+#include "NdbToolsProgramExitCodes.hpp"
 
 // stats options
 static const char *_dbname = 0;
@@ -89,7 +91,10 @@ static int doconnect() {
   int ret = 0;
   do {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
-    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0,
+    g_ncc->set_name("ndb_index_stat");
+
+    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) ==
+             0,
          getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
@@ -583,7 +588,7 @@ int main(int argc, char **argv) {
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0) {
-    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   setOutputLevel(_verbose ? 2 : 0);
 
@@ -593,7 +598,7 @@ int main(int argc, char **argv) {
 
   ret = doall();
   if (ret == -1) {
-    exit(NDBT_ProgramExit(NDBT_FAILED));
+    return NdbToolsProgramExitCode::FAILED;
   }
-  exit(NDBT_ProgramExit(NDBT_OK));
+  return NdbToolsProgramExitCode::OK;
 }

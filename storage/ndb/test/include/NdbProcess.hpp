@@ -1,17 +1,18 @@
 /*
-  Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2009, 2024, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,6 +26,8 @@
 
 #ifndef NDB_PROCESS_HPP
 #define NDB_PROCESS_HPP
+
+#include <memory>
 
 #include <portlib/NdbSleep.h>
 #include "util/require.h"
@@ -51,6 +54,10 @@ class NdbProcess {
    public:
     void add(const char *str) { m_args.push_back(str); }
 
+    /*
+     * For '--name=value' options which will be passed as one argument.
+     * Example: args.add("--id=", 7);
+     */
     void add(const char *str, const char *str2) {
       BaseString tmp;
       tmp.assfmt("%s%s", str, str2);
@@ -60,6 +67,23 @@ class NdbProcess {
     void add(const char *str, int val) {
       BaseString tmp;
       tmp.assfmt("%s%d", str, val);
+      m_args.push_back(tmp);
+    }
+
+    /*
+     * For '-name value' options which will be passed as two arguments.
+     * Example: args.add2("-id",7);
+     */
+    void add2(const char *str, const char *str2) {
+      BaseString tmp;
+      m_args.push_back(str);
+      m_args.push_back(str2);
+    }
+
+    void add2(const char *str, int val) {
+      m_args.push_back(str);
+      BaseString tmp;
+      tmp.assfmt("%d", val);
       m_args.push_back(tmp);
     }
 
@@ -86,27 +110,27 @@ class NdbProcess {
   }
 #endif
 
-  static NdbProcess *create(const BaseString &name, const BaseString &path,
-                            const BaseString &cwd, const Args &args) {
-    NdbProcess *proc = new NdbProcess(name);
+  static std::unique_ptr<NdbProcess> create(const BaseString &name,
+                                            const BaseString &path,
+                                            const BaseString &cwd,
+                                            const Args &args) {
+    std::unique_ptr<NdbProcess> proc(new NdbProcess(name));
+
     if (!proc) {
       fprintf(stderr, "Failed to allocate memory for new process\n");
-      return NULL;
     }
 
-    // Check existence of cwd
     if (cwd.c_str() && access(cwd.c_str(), F_OK) != 0) {
       fprintf(stderr, "The specified working directory '%s' does not exist\n",
               cwd.c_str());
-      delete proc;
-      return NULL;
+      proc.reset(nullptr);
     }
 
     if (!start_process(proc->m_pid, path.c_str(), cwd.c_str(), args)) {
       fprintf(stderr, "Failed to create process '%s'\n", name.c_str());
-      delete proc;
-      return NULL;
+      proc.reset(nullptr);
     }
+
     return proc;
   }
 
@@ -266,7 +290,7 @@ class NdbProcess {
 
     char **argv = BaseString::argify(path, args_str.c_str());
     // printf("name: %s\n", path);
-    execv(path, argv);
+    execvp(path, argv);
 
     fprintf(stderr, "execv failed, errno: %d\n", errno);
     exit(1);

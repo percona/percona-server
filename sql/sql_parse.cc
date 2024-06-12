@@ -2362,16 +2362,20 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     case COM_BINLOG_DUMP_GTID:
       MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
       // TODO: access of protocol_classic should be removed
+      thd_wait_begin(thd, THD_WAIT_BINLOG);
       error = com_binlog_dump_gtid(
           thd, (char *)thd->get_protocol_classic()->get_raw_packet(),
           thd->get_protocol_classic()->get_packet_length());
+      thd_wait_end(thd);
       break;
     case COM_BINLOG_DUMP:
       MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
       // TODO: access of protocol_classic should be removed
+      thd_wait_begin(thd, THD_WAIT_BINLOG);
       error = com_binlog_dump(
           thd, (char *)thd->get_protocol_classic()->get_raw_packet(),
           thd->get_protocol_classic()->get_packet_length());
+      thd_wait_end(thd);
       break;
     case COM_REFRESH: {
       MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);

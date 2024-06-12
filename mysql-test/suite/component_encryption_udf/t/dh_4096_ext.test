@@ -6,4 +6,4 @@
 --let $key_length = 4096
 --let $use_openssl_binary = 1
 
---source include/percona_encryption_udf_dh.inc
+--source ../include/dh.inc

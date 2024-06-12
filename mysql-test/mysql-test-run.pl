@@ -318,6 +318,7 @@ our @DEFAULT_SUITES = qw(
   percona_rpl
   percona_rpl_gtid
   percona-pam-for-mysql
+  component_encryption_udf
   component_js_lang
   component_masking_functions
   procfs

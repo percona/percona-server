@@ -3,4 +3,4 @@
 --let $algorithm = RSA
 --let $key_length = 1024
 
---source include/percona_encryption_udf_xsa.inc
+--source ../include/xsa.inc

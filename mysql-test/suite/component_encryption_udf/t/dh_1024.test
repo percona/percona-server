@@ -2,4 +2,4 @@
 
 --let $key_length = 1024
 
---source include/percona_encryption_udf_dh.inc
+--source ../include/dh.inc

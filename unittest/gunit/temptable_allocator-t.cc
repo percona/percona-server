@@ -801,16 +801,6 @@ TEST_F(TempTableAllocator,
   // 3. It uses the block-size growth policy to compute the block-size.
   // 4. It allocates the block of 2MiB of size.
   // 5. Returns a pointer from new block.
-<<<<<<< HEAD
-
-  a2_raii.deallocate_all();
-  a1_raii.deallocate_all();
-
-  // Physically deallocate the shared-block (allocator keeps it alive
-  // intentionally)
-  shared_block.destroy();
-||||||| 49ef33f7eda
-=======
 
   a1.deallocate(r11, 512_KiB);
   a1.deallocate(r12, 256_KiB);
@@ -933,7 +923,6 @@ TEST_F(
   // 1. Allocator is destroyed.
   // 2. It sees it has an empty current block and deallocates it.
   // 3. The consumption should drop by the 2MiB used by the current block.
->>>>>>> mysql-8.0.37
 }
 
 // Create some aliases to make our life easier when generating the test-cases

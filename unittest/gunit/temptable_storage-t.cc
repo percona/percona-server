@@ -34,30 +34,11 @@ TEST(StorageTest, Iterate) {
   std::thread t([]() {
     temptable::TableResourceMonitor table_resource_monitor(16 * 1024 * 1024);
     temptable::Block shared_block;
-<<<<<<< HEAD
-||||||| 49ef33f7eda
-    temptable::Allocator<uint8_t> allocator(&shared_block,
-                                            table_resource_monitor);
-    temptable::Storage storage(&allocator);
-=======
     temptable::Allocator<uint8_t> allocator(&shared_block,
                                             table_resource_monitor);
     {
       temptable::Storage storage(&allocator);
->>>>>>> mysql-8.0.37
 
-<<<<<<< HEAD
-    {
-      temptable::Allocator<uint8_t> allocator(&shared_block,
-                                              table_resource_monitor);
-      temptable::Storage storage(&allocator);
-||||||| 49ef33f7eda
-    storage.element_size(sizeof(uint64_t));
-=======
-      storage.element_size(sizeof(uint64_t));
->>>>>>> mysql-8.0.37
-
-<<<<<<< HEAD
       storage.element_size(sizeof(uint64_t));
 
       for (uint64_t i = 0; i < 10000; ++i) {
@@ -77,53 +58,12 @@ TEST(StorageTest, Iterate) {
         EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
       }
       EXPECT_EQ(0u, i);
-||||||| 49ef33f7eda
-    for (uint64_t i = 0; i < 10000; ++i) {
-      *static_cast<uint64_t *>(storage.allocate_back()) = i;
-=======
-      for (uint64_t i = 0; i < 10000; ++i) {
-        *static_cast<uint64_t *>(storage.allocate_back()) = i;
-      }
-
-      uint64_t i = 0;
-      for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-      }
-
-      i = storage.size();
-      auto it = storage.end();
-      for (; it != storage.begin();) {
-        --it;
-        --i;
-        EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-      }
-      EXPECT_EQ(0u, i);
->>>>>>> mysql-8.0.37
     }
-<<<<<<< HEAD
 
     // Deallocate the shared-block (allocator keeps it alive
     // intentionally)
     // Must be done after storage is destructed
     shared_block.destroy();
-||||||| 49ef33f7eda
-
-    uint64_t i = 0;
-    for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-
-    i = storage.size();
-    auto it = storage.end();
-    for (; it != storage.begin();) {
-      --it;
-      --i;
-      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
-    }
-    EXPECT_EQ(0u, i);
-=======
-    shared_block.destroy();
->>>>>>> mysql-8.0.37
   });
   t.join();
 }
@@ -147,16 +87,10 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
-<<<<<<< HEAD
 
     // Deallocate the shared-block (allocator keeps it alive
     // intentionally)
     shared_block.destroy();
-||||||| 49ef33f7eda
-=======
-
-    shared_block.destroy();
->>>>>>> mysql-8.0.37
   };
   std::thread t(thread_function);
   t.join();

@@ -452,11 +452,6 @@ TEST_F(MySQLNetworkProviderTest, NewServerConnectionTest) {
   vio_delete(active_vio);
 }
 
-<<<<<<< HEAD
-}  // namespace group_replication_gcs_mysql_networkprovidertest
-||||||| 49ef33f7eda
-}  // namespace group_replication_gcs_mysql_networkprovidertest
-=======
 TEST_F(MySQLNetworkProviderTest, LogMappingTest) {
   // Test for default return
   int coded_log_level = ERROR_LEVEL;
@@ -484,4 +479,3 @@ TEST_F(MySQLNetworkProviderTest, LogMappingTest) {
 }
 
 }  // namespace group_replication_gcs_mysql_networkprovidertest
->>>>>>> mysql-8.0.37

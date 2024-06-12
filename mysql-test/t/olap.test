@@ -1275,22 +1275,6 @@ SELECT DISTINCT i1, i2, GROUPING(i1), GROUPING(i2), GROUPING(i1+i2), GROUPING(i1
 --error ER_AGGREGATE_IN_ORDER_NOT_SELECT
 SELECT DISTINCT i1, i2, GROUPING(i1), GROUPING(i2) FROM t GROUP BY i1, i2 WITH ROLLUP ORDER BY i1, i2, GROUPING(i1+i2);
 DROP TABLE t;
-<<<<<<< HEAD
-
---echo #
---echo # PS-8328: MySQL 8 Crash when using group_concat with group by with
---echo #          rollup.
---echo #
-
-CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, string TEXT, i INT);
-INSERT INTO t1 (string, i) VALUES ('something', 10), ('something_else', 10), ('something_completely_else', 20);
-SELECT GROUP_CONCAT(string) FROM t1 GROUP BY string WITH ROLLUP;
-SELECT string, GROUP_CONCAT(string) FROM t1 GROUP BY string WITH ROLLUP;
-SELECT i, GROUP_CONCAT(string) FROM t1 GROUP BY i WITH ROLLUP;
-SELECT i, string, GROUP_CONCAT(string) FROM t1 GROUP BY i, string WITH ROLLUP;
-DROP TABLE t1;
-||||||| 49ef33f7eda
-=======
 
 --echo #
 --echo # Bug#35856247: Assertion Item_ref::walk at sql/item.h
@@ -1319,4 +1303,16 @@ EXECUTE ps;
 EXECUTE ps;
 DROP PREPARE ps;
 DROP TABLE t;
->>>>>>> mysql-8.0.37
+
+--echo #
+--echo # PS-8328: MySQL 8 Crash when using group_concat with group by with
+--echo #          rollup.
+--echo #
+
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, string TEXT, i INT);
+INSERT INTO t1 (string, i) VALUES ('something', 10), ('something_else', 10), ('something_completely_else', 20);
+SELECT GROUP_CONCAT(string) FROM t1 GROUP BY string WITH ROLLUP;
+SELECT string, GROUP_CONCAT(string) FROM t1 GROUP BY string WITH ROLLUP;
+SELECT i, GROUP_CONCAT(string) FROM t1 GROUP BY i WITH ROLLUP;
+SELECT i, string, GROUP_CONCAT(string) FROM t1 GROUP BY i, string WITH ROLLUP;
+DROP TABLE t1;

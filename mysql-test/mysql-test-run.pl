@@ -4343,12 +4343,8 @@ sub default_mysqld {
                                     baseport      => 0,
                                     user          => $opt_user,
                                     password      => '',
-<<<<<<< HEAD
+                                    bind_local    => $opt_bind_local,
                                     worker        => DEFAULT_WORKER_ID,
-||||||| 49ef33f7eda
-=======
-                                    bind_local    => $opt_bind_local
->>>>>>> mysql-8.0.37
                                   });
 
   my $mysqld = $config->group('mysqld.1') or
@@ -5154,13 +5150,9 @@ sub run_testcase ($) {
                            tmpdir              => $opt_tmpdir,
                            user                => $opt_user,
                            vardir              => $opt_vardir,
-<<<<<<< HEAD
+                           bind_local          => $opt_bind_local,
                            worker              => $tinfo->{worker} ||
                                                     DEFAULT_WORKER_ID
-||||||| 49ef33f7eda
-=======
-                           bind_local          => $opt_bind_local
->>>>>>> mysql-8.0.37
                          });
 
       # Write the new my.cnf

@@ -3817,27 +3817,8 @@ static bool ibuf_restore_pos(space_id_t space_id, page_no_t page_no,
     return true;
   }
 
-<<<<<<< HEAD
-  /* Check if the tablespace is dropped. */
-  fil_space_t *sp = fil_space_acquire_silent(space);
-
-  auto guard = create_scope_guard([&]() {
-    if (sp != nullptr) fil_space_release(sp);
-  });
-
-  if (sp == nullptr || sp->flags == UINT32_UNDEFINED) {
-    /* The tablespace has been dropped.  It is possible
-    that another thread has deleted the insert buffer
-    entry.  Do not complain. */
-||||||| 49ef33f7eda
-  if (fil_space_get_flags(space) == UINT32_UNDEFINED) {
-    /* The tablespace has been dropped.  It is possible
-    that another thread has deleted the insert buffer
-    entry.  Do not complain. */
-=======
   if (const auto space = fil_space_acquire_silent(space_id); space == nullptr) {
     /* The tablespace has been(or being) deleted. Do not complain. */
->>>>>>> mysql-8.0.37
     ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
   } else {
     fil_space_release(space);

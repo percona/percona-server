@@ -32,8 +32,10 @@
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error.h>
+#include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
 
+#include <mysqlpp/udf_context_charset_extension.hpp>
 #include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
@@ -58,6 +60,7 @@
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
@@ -169,6 +172,9 @@ opensslpp::key_generation_cancellation_callback create_cancellation_callback() {
   return [local_thd]() noexcept -> bool { return is_thd_killed(local_thd); };
 }
 
+constexpr char ascii_charset_name[]{"ascii"};
+constexpr char binary_charset_name[]{"binary"};
+
 // CREATE_ASYMMETRIC_PRIV_KEY(@algorithm, {@key_len|@dh_parameters})
 // This functions generates a private key using the given algorithm
 // (@algorithm) and key length (@key_len) or Diffie-Hellman
@@ -180,17 +186,23 @@ class create_asymmetric_priv_key_impl {
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, ascii_charset_name);
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @key_len|@dh_parameters
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -255,17 +267,23 @@ class create_asymmetric_pub_key_impl {
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, ascii_charset_name);
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @priv_key_str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -302,21 +320,28 @@ class asymmetric_encrypt_impl {
     if (ctx.get_number_of_args() != 3)
       throw std::invalid_argument("Function requires exactly three arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, binary_charset_name);
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, binary_charset_name);
 
     // arg2 - @key_str
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 2, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -357,21 +382,28 @@ class asymmetric_decrypt_impl {
     if (ctx.get_number_of_args() != 3)
       throw std::invalid_argument("Function requires exactly three arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, binary_charset_name);
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @crypt_str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, binary_charset_name);
 
     // arg2 - @key_str
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 2, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -413,17 +445,23 @@ class create_digest_impl {
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, binary_charset_name);
 
     // arg0 - @digest_type
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, binary_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -459,25 +497,33 @@ class asymmetric_sign_impl {
     if (ctx.get_number_of_args() != 4)
       throw std::invalid_argument("Function requires exactly four arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, binary_charset_name);
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @digest_str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, binary_charset_name);
 
     // arg2 - @priv_key_str
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 2, ascii_charset_name);
 
     // arg3 - @digest_type
     ctx.mark_arg_nullable(3, false);
     ctx.set_arg_type(3, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 3, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -534,29 +580,38 @@ class asymmetric_verify_impl {
     if (ctx.get_number_of_args() != 5)
       throw std::invalid_argument("Function requires exactly five arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    // return value charset is not set here as its type is INT_RESULT
 
     // arg0 - @algorithm
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @digest_str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, binary_charset_name);
 
     // arg2 - @sig_str
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 2, binary_charset_name);
 
     // arg3 - @pub_key_str
     ctx.mark_arg_nullable(3, false);
     ctx.set_arg_type(3, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 3, ascii_charset_name);
 
     // arg4 - @digest_type
     ctx.mark_arg_nullable(4, false);
     ctx.set_arg_type(4, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 4, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx);
@@ -601,13 +656,18 @@ class create_dh_parameters_impl {
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument("Function requires exactly one argument");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, ascii_charset_name);
 
     // arg0 - @key_len
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, INT_RESULT);
+    // argument charset is not set here as its type is INT_RESULT
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -649,17 +709,23 @@ class asymmetric_derive_impl {
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument("Function requires exactly two arguments");
 
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+
     // result
     ctx.mark_result_const(false);
     ctx.mark_result_nullable(true);
+    charset_ext.set_return_value_charset(ctx, binary_charset_name);
 
     // arg0 - @pub_key_str
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 0, ascii_charset_name);
 
     // arg1 - @priv_key_str
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
+    charset_ext.set_arg_value_charset(ctx, 1, ascii_charset_name);
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -772,6 +838,7 @@ END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_runtime_error),
   REQUIRES_SERVICE(udf_registration),
+  REQUIRES_SERVICE(mysql_udf_metadata),
   REQUIRES_SERVICE(component_sys_variable_register),
   REQUIRES_SERVICE(component_sys_variable_unregister),
   REQUIRES_SERVICE(mysql_current_thread_reader),

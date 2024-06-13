@@ -75,13 +75,18 @@ class Worker_thread_context {
 #endif
  public:
   Worker_thread_context() noexcept
-      :
 #ifdef HAVE_PSI_THREAD_INTERFACE
+      :
         psi_thread(PSI_THREAD_CALL(get_thread)())
-#endif
 #ifndef NDEBUG
         ,
         thread_id(my_thread_var_id())
+#endif
+#else
+#ifndef NDEBUG
+      :
+        thread_id(my_thread_var_id())
+#endif
 #endif
   {
   }

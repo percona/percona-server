@@ -7192,7 +7192,6 @@ static int rocksdb_shutdown(bool minimalShutdown) {
 
   rdb_block_cache_resize_mutex.destroy();
   rdb_bottom_pri_background_compactions_resize_mutex.destroy();
-
   rdb_collation_data_mutex.destroy();
   rdb_mem_cmp_space_mutex.destroy();
 
@@ -8509,7 +8508,7 @@ bool ha_rocksdb::create_cfs(
         return true;
       }
 
-      if (cf_manager.create_cf_flags_if_needed(local_dict_manager,
+      if (cf_manager.create_cf_flags_if_needed(*local_dict_manager,
                                                cf_handle->GetID(), cf_name,
                                                per_part_match_found)) {
         return true;
@@ -8522,7 +8521,7 @@ bool ha_rocksdb::create_cfs(
     auto &cf = cfs[i];
 
     cf.cf_handle = cf_handle;
-    cf.is_reverse_cf = Rdb_cf_manager::is_cf_name_reverse(cf_name.c_str());
+    cf.is_reverse_cf = Rdb_cf_manager::is_cf_name_reverse(cf_name);
     cf.is_per_partition_cf = per_part_match_found;
   }
 
@@ -10802,7 +10801,6 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
   @param[in] row_info           hold all data for update row, such as old row
                                 data and new row data
   @param[out] found             whether the primary key exists before.
-  @param[out] skip_unique_check whether to skip key uniqueness check
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -11516,7 +11514,6 @@ int ha_rocksdb::update_write_indexes(const struct update_row_info &row_info,
 
   @param[in] old_data           nullptr for write, non-null for update
   @param[in] new_data           non-null for write/update
-  @param[in] skip_unique_check  whether to check uniqueness
   @return
     HA_EXIT_SUCCESS OK
     Other           HA_ERR error code (can be SE-specific)
@@ -16854,7 +16851,7 @@ static int rocksdb_validate_update_cf_options(
 
   // Basic sanity checking and parsing the options into a map. If this fails
   // then there's no point to proceed.
-  if (!Rdb_cf_options::parse_cf_options(str, &option_map, &output)) {
+  if (!Rdb_cf_options::parse_cf_options(str, option_map, &output)) {
     my_printf_error(ER_WRONG_VALUE_FOR_VAR, "%s", MYF(0), output.str().c_str());
     return HA_EXIT_FAILURE;
   }
@@ -16907,7 +16904,7 @@ static void rocksdb_set_update_cf_options(
   Rdb_cf_options::Name_to_config_t option_map;
 
   // This should never fail, because of rocksdb_validate_update_cf_options
-  if (!Rdb_cf_options::parse_cf_options(val, &option_map)) {
+  if (!Rdb_cf_options::parse_cf_options(val, option_map)) {
     return;
   }
 

@@ -5093,42 +5093,38 @@ void Rdb_snapshot_notifier::SnapshotCreated(
 std::multiset<Rdb_transaction *> Rdb_transaction::s_tx_list;
 Rds_mysql_mutex Rdb_transaction::s_tx_list_mutex;
 
-class Rdb_ha_data {
+class [[nodiscard]] Rdb_ha_data {
  public:
-  Rdb_ha_data()
-      : checkpoint_dir(nullptr), trx(nullptr), disable_file_deletions(false) {}
+  Rdb_ha_data(const Rdb_ha_data &) = delete;
+  Rdb_ha_data(Rdb_ha_data &&) = delete;
+  Rdb_ha_data &operator=(const Rdb_ha_data &) = delete;
+  Rdb_ha_data &operator=(Rdb_ha_data &&) = delete;
 
-  ~Rdb_ha_data() { clear_checkpoint_dir(); }
+  Rdb_ha_data() = default;
+  ~Rdb_ha_data() = default;
 
-  const char *get_checkpoint_dir() const { return checkpoint_dir; }
-
-  void set_checkpoint_dir(const char *checkpoint_dir_) {
-    clear_checkpoint_dir();
-    if (checkpoint_dir_ != nullptr) {
-      checkpoint_dir = strdup(checkpoint_dir_);
-    }
+  [[nodiscard]] std::string_view get_checkpoint_dir() const noexcept {
+    return checkpoint_dir;
   }
 
-  Rdb_transaction *get_trx() const { return trx; }
+  void set_checkpoint_dir(std::string_view checkpoint_dir_) {
+    checkpoint_dir = checkpoint_dir_;
+  }
+
+  [[nodiscard]] Rdb_transaction *get_trx() const noexcept { return trx; }
 
   void set_trx(Rdb_transaction *t) { trx = t; }
 
-  bool get_disable_file_deletions() const { return disable_file_deletions; }
+  [[nodiscard]] bool get_disable_file_deletions() const noexcept {
+    return disable_file_deletions;
+  }
 
   void set_disable_file_deletions(bool d) { disable_file_deletions = d; }
 
  private:
-  void clear_checkpoint_dir() {
-    if (checkpoint_dir) {
-      free(checkpoint_dir);
-      checkpoint_dir = nullptr;
-    }
-  }
-
- private:
-  char *checkpoint_dir;
-  Rdb_transaction *trx;
-  bool disable_file_deletions;
+  std::string checkpoint_dir;
+  Rdb_transaction *trx{nullptr};
+  bool disable_file_deletions{false};
 };
 
 static Rdb_ha_data *&get_ha_data_or_null(THD *const thd) {
@@ -5238,10 +5234,9 @@ static int rocksdb_close_connection(handlerton *const hton, THD *const thd) {
     delete tx;
     set_tx_on_thd(thd, nullptr);
   }
-  const char *checkpoint_dir = get_ha_data(thd)->get_checkpoint_dir();
-  if (checkpoint_dir != nullptr) {
-    rocksdb_remove_checkpoint(checkpoint_dir);
-    get_ha_data(thd)->set_checkpoint_dir(nullptr);
+  const auto checkpoint_dir = get_ha_data(thd)->get_checkpoint_dir();
+  if (!checkpoint_dir.empty()) {
+    rocksdb_remove_checkpoint(std::string{checkpoint_dir}.c_str());
   }
   if (get_ha_data(thd)->get_disable_file_deletions()) {
     rdb->EnableFileDeletions();
@@ -5256,10 +5251,9 @@ static int rocksdb_create_temporary_checkpoint_validate(
   assert(rdb != nullptr);
   assert(thd != nullptr);
 
+  const char *current_checkpoint_dir = THDVAR(thd, create_temporary_checkpoint);
   char buf[FN_REFLEN];
   int len = sizeof(buf);
-
-  const char *current_checkpoint_dir = get_ha_data(thd)->get_checkpoint_dir();
   const char *new_checkpoint_dir = value->val_str(value, buf, &len);
 
   if (current_checkpoint_dir != nullptr && new_checkpoint_dir != nullptr) {
@@ -5280,13 +5274,13 @@ static int rocksdb_create_temporary_checkpoint_validate(
   } else if (current_checkpoint_dir != nullptr) {
     const auto res = rocksdb_remove_checkpoint(current_checkpoint_dir);
     *reinterpret_cast<const char **>(save) = nullptr;
-    get_ha_data(thd)->set_checkpoint_dir(nullptr);
+    get_ha_data(thd)->set_checkpoint_dir("");
     if (res != HA_EXIT_SUCCESS) {
       return res;
     }
   } else {
     *reinterpret_cast<const char **>(save) = nullptr;
-    get_ha_data(thd)->set_checkpoint_dir(nullptr);
+    get_ha_data(thd)->set_checkpoint_dir("");
   }
   return HA_EXIT_SUCCESS;
 }

@@ -46,6 +46,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "lob0lob.h"
+
+/** A blob map to track the first page no of external LOB and its parent record
+which is the <page_no, heap_no>. This is used to find duplicate external LOB
+pages that is shared between two records. This can happen only on corruption
+(cause unknown yet). CHECK TABLE  t1 EXTENDED will use this map to report
+corruption and mark the table as corrupted */
+thread_local blob_ref_map *thread_local_blob_map = nullptr;
 
 /*                      THE INDEX PAGE
                         ==============
@@ -1721,6 +1729,124 @@ bool page_rec_validate(
   return true;
 }
 
+/** Validate that the external LOB's first page is not shared between records of
+a clustered index
+@param[in] rec     physical record
+@param[in] index   index of the table
+@param[in] offsets the record offset array
+@return true If OK else false if external LOB is found to be shared between two
+records, ie false on failure */
+bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
+                            const ulint *offsets) {
+  // this means reference check is not enabled. Enabled only via
+  // CHECK TABLE path
+  if (thread_local_blob_map == nullptr) {
+    return true;
+  }
+
+  // if index is not PRIMARY, return true
+  if (!index->is_clustered()) {
+    return true;
+  }
+
+  // if page-level is not zero, return true because blob exists only on leaf
+  // level
+  const page_t *page = page_align(rec);
+  if (!page_is_leaf(page)) {
+    return true;
+  }
+
+  // if rec is not user record, blobs dont exist, return true
+  if (!page_rec_is_user_rec(rec)) {
+    return true;
+  }
+
+  // if rec doesn't have any external LOB, return true
+  if (!rec_offs_any_extern(offsets)) {
+    return true;
+  }
+
+  // if rec is deleted marked, return true, we cannot validate the blob. the
+  // blob pages in the deleted marked records could be freed
+  if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+    return true;
+  }
+
+  // if rec is not the owner of the blob, we cannot validate if blob page state
+  // now validate that the blob first page is not marked as free from page
+  // bitmap
+
+  ulint n_fields = rec_offs_n_fields(offsets);
+
+  for (ulint i = 0; i < n_fields; i++) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
+      // We do const_cast to remove constness because lob::ref_t doesn't have a
+      // variant that takes const record pointer
+      byte *field_ref = const_cast<byte *>(
+          lob::btr_rec_get_field_ref(index, rec, offsets, i));
+
+      lob::ref_t ref(field_ref);
+      if (!ref.is_owner() || ref.is_null() || ref.is_null_relaxed() ||
+          ref.is_being_modified()) {
+        continue;
+      }
+
+      if (ref.length() == 0) {
+        // LOB purged
+        continue;
+      }
+
+      space_id_t blob_space_id = ref.space_id();
+      page_no_t blob_page_no = ref.page_no();
+
+      page_id_t blob_page_id(blob_space_id, blob_page_no);
+      bool is_free = fseg_page_is_free(nullptr, blob_space_id, blob_page_no);
+      if (is_free) {
+        // This should not be possible. A record that owns the BLOB shouldn't
+        // have the first page marked as free in page bitmap
+        ut_ad(0);
+        ib::error() << "Invalid record. The record's blob reference is marked"
+                    << " as free although the record owns it "
+                    << " page_no: " << page_get_page_no(page)
+                    << " heap_no: " << page_rec_get_heap_no(rec);
+        ib::error() << "BLOB reference that is marked free " << blob_page_id;
+
+        return false;
+      }
+
+      DBUG_EXECUTE_IF(
+          "simulate_lob_corruption",
+          // introduce corruption after 5 external LOB entries
+          if (thread_local_blob_map->size() >= 5) {
+            // we introduce a fake entry in the map
+            (*thread_local_blob_map)[blob_page_no] = std::make_pair(
+                page_get_page_no(page) - 1, page_rec_get_heap_no(rec) - 1);
+          });
+
+      auto it = thread_local_blob_map->find(blob_page_no);
+      if (it == thread_local_blob_map->end()) {
+        (*thread_local_blob_map)[blob_page_no] =
+            std::make_pair(page_get_page_no(page), page_rec_get_heap_no(rec));
+      } else {
+        auto val = it->second;
+        ib::error() << "Invalid record! External LOB first page cannot be "
+                       "shared between "
+                       "two records";
+        ib::error() << "The external LOB first page is " << blob_page_id;
+        ib::error() << "The first occurence of the external LOB first page is "
+                       "in record : page_no: "
+                    << val.first << " with heap_no: " << val.second;
+        ib::error() << "The second occurence of the external LOB first page is "
+                       "in record: page_no: "
+                    << page_get_page_no(page)
+                    << " with heap no: " << page_rec_get_heap_no(rec);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Checks that the first directory slot points to the infimum record and
@@ -2231,6 +2357,10 @@ bool page_validate(const page_t *page, dict_index_t *index) {
     }
 
     if (UNIV_UNLIKELY(!page_rec_validate(rec, offsets))) {
+      goto func_exit;
+    }
+
+    if (!page_rec_blob_validate(const_cast<byte *>(rec), index, offsets)) {
       goto func_exit;
     }
 

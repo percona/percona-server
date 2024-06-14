@@ -5920,7 +5920,7 @@ int Rdb_dict_manager::add_missing_cf_flags(
     std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
         cf_manager->get_cf(cf_name);
 
-    if (cf_manager->create_cf_flags_if_needed(this, cfh->GetID(), cf_name)) {
+    if (cf_manager->create_cf_flags_if_needed(*this, cfh->GetID(), cf_name)) {
       return HA_EXIT_FAILURE;
     }
   }

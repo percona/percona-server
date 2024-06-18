@@ -62,6 +62,11 @@ std::string encrypt_with_rsa_private_key(std::string_view input,
   if (!key.is_private())
     throw core_error{"RSA key does not have private components"};
 
+  if (padding == rsa_padding::pkcs1_oaep)
+    throw core_error{
+        "encrypting with RSA private key is not supported for PKCS1 OAEP "
+        "padding"};
+
   if (input.size() > key.get_max_block_size_in_bytes(padding))
     throw core_error{
         "encryption block size is too long for the specified padding and RSA "
@@ -85,6 +90,11 @@ std::string decrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
                                         rsa_padding padding) {
   assert(!key.is_empty());
+
+  if (padding == rsa_padding::pkcs1_oaep)
+    throw core_error{
+        "decrypting with RSA public key is not supported for PKCS1 OAEP "
+        "padding"};
 
   if (input.size() != key.get_size_in_bytes())
     throw core_error{

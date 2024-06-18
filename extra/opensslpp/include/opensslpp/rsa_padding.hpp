@@ -21,7 +21,7 @@
 
 namespace opensslpp {
 
-enum class rsa_padding { no, pkcs1 };
+enum class rsa_padding { no, pkcs1, pkcs1_oaep };
 
 }  // namespace opensslpp
 

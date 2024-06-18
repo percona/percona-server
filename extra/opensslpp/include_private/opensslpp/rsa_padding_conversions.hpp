@@ -34,6 +34,9 @@ inline int rsa_padding_to_native_padding(rsa_padding padding) noexcept {
     case rsa_padding::pkcs1:
       res = RSA_PKCS1_PADDING;
       break;
+    case rsa_padding::pkcs1_oaep:
+      res = RSA_PKCS1_OAEP_PADDING;
+      break;
     default:
       assert(false);
   }

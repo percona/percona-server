@@ -2,42 +2,79 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 
 ** checking private key generation, public key derivation, encryption/decryption and sign/verify functionality
 
-** [RSA] checking asymmertic algorithm functions
+** [RSA] checking asymmetric algorithm functions
 ** [RSA][4096] checking asymmetric algorithm functions
 **** [RSA][4096] generating private key
 **** [RSA][4096] deriving public key
-**** [RSA][4096] checking operations on NULL message
-****** [RSA][4096] checking encryption with public key of NULL message
+**** [RSA][4096][no] checking encrypt/decrypt operations on NULL message
+****** [RSA][4096][no] checking encryption with public key of NULL message
 ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
-****** [RSA][4096] checking encryption with private key of NULL message
+****** [RSA][4096][no] checking encryption with private key of NULL message
 ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
-**** [RSA][4096][message_len=0] checking operations
-****** [RSA][4096][message_len=0] checking encryption with public key
-****** [RSA][4096][message_len=0] checking decryption with private key
-****** [RSA][4096][message_len=0] checking encryption with private key
-****** [RSA][4096][message_len=0] checking decryption with public key
-****** [RSA][4096][message_len=0] checking sign/verify functionality
-**** [RSA][4096][message_len=1] checking operations
-****** [RSA][4096][message_len=1] checking encryption with public key
-****** [RSA][4096][message_len=1] checking decryption with private key
-****** [RSA][4096][message_len=1] checking encryption with private key
-****** [RSA][4096][message_len=1] checking decryption with public key
-****** [RSA][4096][message_len=1] checking sign/verify functionality
-**** [RSA][4096][message_len=250] checking operations
-****** [RSA][4096][message_len=250] checking encryption with public key
-****** [RSA][4096][message_len=250] checking decryption with private key
-****** [RSA][4096][message_len=250] checking encryption with private key
-****** [RSA][4096][message_len=250] checking decryption with public key
-****** [RSA][4096][message_len=250] checking sign/verify functionality
-**** [RSA][4096][message_len=501] checking operations
-****** [RSA][4096][message_len=501] checking encryption with public key
-****** [RSA][4096][message_len=501] checking decryption with private key
-****** [RSA][4096][message_len=501] checking encryption with private key
-****** [RSA][4096][message_len=501] checking decryption with public key
-****** [RSA][4096][message_len=501] checking sign/verify functionality
-**** [RSA][4096] checking operations on oversize message
-****** [RSA][4096] checking encryption of oversize message with public key
+**** [RSA][4096][no] checking encrypt/decrypt operations on oversize message
+****** [RSA][4096][no] checking encryption of oversize message with public key
 ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
-****** [RSA][4096] checking encryption of oversize message with private key
+****** [RSA][4096][no] checking encryption of oversize message with private key
 ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+**** [RSA][4096][no][message_len=512] checking encrypt/decrypt operations
+****** [RSA][4096][no][message_len=512] checking encryption with public key
+****** [RSA][4096][no][message_len=512] checking decryption with private key
+****** [RSA][4096][no][message_len=512] checking encryption with private key
+****** [RSA][4096][no][message_len=512] checking decryption with public key
+**** [RSA][4096][pkcs1] checking encrypt/decrypt operations on NULL message
+****** [RSA][4096][pkcs1] checking encryption with public key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+****** [RSA][4096][pkcs1] checking encryption with private key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+**** [RSA][4096][pkcs1] checking encrypt/decrypt operations on oversize message
+****** [RSA][4096][pkcs1] checking encryption of oversize message with public key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** [RSA][4096][pkcs1] checking encryption of oversize message with private key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+**** [RSA][4096][pkcs1][message_len=0] checking encrypt/decrypt operations
+****** [RSA][4096][pkcs1][message_len=0] checking encryption with public key
+****** [RSA][4096][pkcs1][message_len=0] checking decryption with private key
+****** [RSA][4096][pkcs1][message_len=0] checking encryption with private key
+****** [RSA][4096][pkcs1][message_len=0] checking decryption with public key
+**** [RSA][4096][pkcs1][message_len=1] checking encrypt/decrypt operations
+****** [RSA][4096][pkcs1][message_len=1] checking encryption with public key
+****** [RSA][4096][pkcs1][message_len=1] checking decryption with private key
+****** [RSA][4096][pkcs1][message_len=1] checking encryption with private key
+****** [RSA][4096][pkcs1][message_len=1] checking decryption with public key
+**** [RSA][4096][pkcs1][message_len=250] checking encrypt/decrypt operations
+****** [RSA][4096][pkcs1][message_len=250] checking encryption with public key
+****** [RSA][4096][pkcs1][message_len=250] checking decryption with private key
+****** [RSA][4096][pkcs1][message_len=250] checking encryption with private key
+****** [RSA][4096][pkcs1][message_len=250] checking decryption with public key
+**** [RSA][4096][pkcs1][message_len=501] checking encrypt/decrypt operations
+****** [RSA][4096][pkcs1][message_len=501] checking encryption with public key
+****** [RSA][4096][pkcs1][message_len=501] checking decryption with private key
+****** [RSA][4096][pkcs1][message_len=501] checking encryption with private key
+****** [RSA][4096][pkcs1][message_len=501] checking decryption with public key
+**** [RSA][4096][oaep] checking encrypt/decrypt operations on NULL message
+****** [RSA][4096][oaep] checking encryption with public key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+****** [RSA][4096][oaep] checking encryption with private key of NULL message
+ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
+**** [RSA][4096][oaep] checking encrypt/decrypt operations on oversize message
+****** [RSA][4096][oaep] checking encryption of oversize message with public key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encryption block size is too long for the specified padding and RSA key
+****** [RSA][4096][oaep] checking encryption of oversize message with private key
+ERROR HY000: asymmetric_encrypt<string> UDF failed; encrypting with RSA private key is not supported for PKCS1 OAEP padding
+**** [RSA][4096][oaep][message_len=0] checking encrypt/decrypt operations
+****** [RSA][4096][oaep][message_len=0] checking encryption with public key
+****** [RSA][4096][oaep][message_len=0] checking decryption with private key
+**** [RSA][4096][oaep][message_len=1] checking encrypt/decrypt operations
+****** [RSA][4096][oaep][message_len=1] checking encryption with public key
+****** [RSA][4096][oaep][message_len=1] checking decryption with private key
+**** [RSA][4096][oaep][message_len=235] checking encrypt/decrypt operations
+****** [RSA][4096][oaep][message_len=235] checking encryption with public key
+****** [RSA][4096][oaep][message_len=235] checking decryption with private key
+**** [RSA][4096][oaep][message_len=470] checking encrypt/decrypt operations
+****** [RSA][4096][oaep][message_len=470] checking encryption with public key
+****** [RSA][4096][oaep][message_len=470] checking decryption with private key
+**** [RSA][4096][message_len=0] checking sign/verify operations
+**** [RSA][4096][message_len=1] checking sign/verify operations
+**** [RSA][4096][message_len=256] checking sign/verify operations
+**** [RSA][4096][message_len=512] checking sign/verify operations
 UNINSTALL COMPONENT 'file://component_encryption_udf';

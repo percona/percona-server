@@ -11,7 +11,7 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 --disable_query_log
 
 --echo
---echo ** [$algorithm] checking asymmertic algorithm functions
+--echo ** [$algorithm] checking asymmetric algorithm functions
 eval SET @algorithm = "$algorithm";
 
 --echo ** [$algorithm][$key_length] checking asymmetric algorithm functions
@@ -67,77 +67,121 @@ if ($use_openssl_binary)
   --let $include_silent =
 }
 
-# for RSA <max message size> = <key length in bytes> - <pkcs1 padding>
+#  <max message size> = <key length in bytes>
 --let $max_message_size = `SELECT $key_length DIV 8`
-if ($algorithm == 'RSA')
-{
-  --let $max_message_size = `SELECT $max_message_size - 11`
-}
 
 # size of MD5 hash in bytes is 32
 eval SET @random_pattern = REPEAT(MD5(42), $max_message_size DIV 32 + 1);
 
 if ($algorithm == 'RSA')
 {
-  --echo **** [$algorithm][$key_length] checking operations on NULL message
-  SET @message = NULL;
-  --echo ****** [$algorithm][$key_length] checking encryption with public key of NULL message
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @pub);
-  --echo ****** [$algorithm][$key_length] checking encryption with private key of NULL message
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @priv);
+  --let $padding_scheme_index = 1
+  while ($padding_scheme_index <= 3)
+  {
+    --let $padding_scheme = `SELECT ELT($padding_scheme_index, 'no', 'pkcs1', 'oaep')`
+    eval SET @padding_scheme = '$padding_scheme';
+
+    --echo **** [$algorithm][$key_length][$padding_scheme] checking encrypt/decrypt operations on NULL message
+    SET @message = NULL;
+    --echo ****** [$algorithm][$key_length][$padding_scheme] checking encryption with public key of NULL message
+    --error ER_UDF_ERROR
+    SELECT asymmetric_encrypt(@algorithm, @message, @pub, @padding_scheme);
+    --echo ****** [$algorithm][$key_length][$padding_scheme] checking encryption with private key of NULL message
+    --error ER_UDF_ERROR
+    SELECT asymmetric_encrypt(@algorithm, @message, @priv, @padding_scheme);
+
+    --let $max_unpadded_message_size = `SELECT $max_message_size - ELT($padding_scheme_index, 0, 11, 42)`
+
+    --let $message_length = $max_unpadded_message_size + 1
+    --echo **** [$algorithm][$key_length][$padding_scheme] checking encrypt/decrypt operations on oversize message
+    eval SET @message = LEFT(@random_pattern, $message_length);
+    --echo ****** [$algorithm][$key_length][$padding_scheme] checking encryption of oversize message with public key
+    --error ER_UDF_ERROR
+    SELECT asymmetric_encrypt(@algorithm, @message, @pub, @padding_scheme);
+    --echo ****** [$algorithm][$key_length][$padding_scheme] checking encryption of oversize message with private key
+    --error ER_UDF_ERROR
+    SELECT asymmetric_encrypt(@algorithm, @message, @priv, @padding_scheme);
+
+    --let $message_index = 1
+    if ($padding_scheme == 'no') {
+      # for encryption with no padding we can only encrypt messages of size equal to the key size
+      --let $message_index = 4
+    }
+    while ($message_index <= 4)
+    {
+      --let $message_length = `SELECT ELT($message_index, 0, 1, $max_unpadded_message_size DIV 2, $max_unpadded_message_size)`
+      eval SET @message = LEFT(@random_pattern, $message_length);
+      --echo **** [$algorithm][$key_length][$padding_scheme][message_len=$message_length] checking encrypt/decrypt operations
+
+      --echo ****** [$algorithm][$key_length][$padding_scheme][message_len=$message_length] checking encryption with public key
+      SET @message_enc_with_pub = asymmetric_encrypt(@algorithm, @message, @pub, @padding_scheme);
+      if ($padding_scheme != 'no')
+      {
+        # RSA encryption with public key wiht  'pkcs1'/ 'oaep' padding schemes should include random bytes in padding and therefore
+        # calls to "asymmetric_encrypt('RSA', @message, @pub, @padding_scheme)" with the same arguments are expected to
+        # return different results
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with public key for the second time must differ
+        --let $assert_cond = @message_enc_with_pub <> asymmetric_encrypt(@algorithm, @message, @pub, @padding_scheme)
+      }
+      if ($padding_scheme == 'no')
+      {
+        # RSA encryption with public key with no padding should not include random bytes and therefore
+        # calls to "asymmetric_encrypt('RSA', @message, @pub, @padding_scheme)" with the same arguments are expected to
+        # return identical results
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with public key for the second time must be the same
+        --let $assert_cond = @message_enc_with_pub = asymmetric_encrypt(@algorithm, @message, @pub, @padding_scheme)
+      }
+      --let $include_silent = 1
+      --source include/assert.inc
+      --let $include_silent =
+
+      --echo ****** [$algorithm][$key_length][$padding_scheme][message_len=$message_length] checking decryption with private key
+      SET @message_dec_with_priv = asymmetric_decrypt(@algorithm, @message_enc_with_pub, @priv, @padding_scheme);
+      --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with private key must match the original one
+      --let $assert_cond = @message_dec_with_priv = @message
+      --let $include_silent = 1
+      --source include/assert.inc
+      --let $include_silent =
+
+      if ($padding_scheme != 'oaep')
+      {
+        # encrypting with RSA private key is not supported for PKCS1 OAEP padding
+
+        --echo ****** [$algorithm][$key_length][$padding_scheme][message_len=$message_length] checking encryption with private key
+        SET @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv, @padding_scheme);
+        # RSA encryption with private key should be deterministic and therefore
+        # calls to "asymmetric_encrypt('RSA', @message, @pub, @padding_scheme)" with the same arguments are expected to
+        # return identical results
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with private key for the second time must not differ
+        --let $assert_cond = @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv, @padding_scheme)
+        --let $include_silent = 1
+        --source include/assert.inc
+        --let $include_silent =
+
+        --echo ****** [$algorithm][$key_length][$padding_scheme][message_len=$message_length] checking decryption with public key
+        SET @message_dec_with_pub = asymmetric_decrypt(@algorithm, @message_enc_with_priv, @pub, @padding_scheme);
+        --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with public key must match the original one
+        --let $assert_cond = @message_dec_with_pub = @message
+        --let $include_silent = 1
+        --source include/assert.inc
+        --let $include_silent =
+      }
+
+      --inc $message_index
+    }
+
+    --inc $padding_scheme_index
+  }
 }
+
 
 --let $message_index = 1
 while ($message_index <= 4)
 {
   --let $message_length = `SELECT ELT($message_index, 0, 1, $max_message_size DIV 2, $max_message_size)`
   eval SET @message = LEFT(@random_pattern, $message_length);
-  --echo **** [$algorithm][$key_length][message_len=$message_length] checking operations
 
-  if ($algorithm == 'RSA')
-  {
-    --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with public key
-    SET @message_enc_with_pub = asymmetric_encrypt(@algorithm, @message, @pub);
-    # RSA encryption with public key should include random bytes in padding and therefore
-    # calls to "asymmetric_encrypt('RSA', @message, @pub)" with the same arguments are expected to
-    # return different results
-    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with public key for the second time must differ
-    --let $assert_cond = @message_enc_with_pub <> asymmetric_encrypt(@algorithm, @message, @pub)
-    --let $include_silent = 1
-    --source include/assert.inc
-    --let $include_silent =
-
-    --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with private key
-    SET @message_dec_with_priv = asymmetric_decrypt(@algorithm, @message_enc_with_pub, @priv);
-    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with private key must match the original one
-    --let $assert_cond = @message_dec_with_priv = @message
-    --let $include_silent = 1
-    --source include/assert.inc
-    --let $include_silent =
-
-    --echo ****** [$algorithm][$key_length][message_len=$message_length] checking encryption with private key
-    SET @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv);
-    # RSA encryption with private key should be deterministic and therefore
-    # calls to "asymmetric_encrypt('RSA', @message, @pub)" with the same arguments are expected to
-    # return identical results
-    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message encrypted with private key for the second time must not differ
-    --let $assert_cond = @message_enc_with_priv = asymmetric_encrypt(@algorithm, @message, @priv)
-    --let $include_silent = 1
-    --source include/assert.inc
-    --let $include_silent =
-
-    --echo ****** [$algorithm][$key_length][message_len=$message_length] checking decryption with public key
-    SET @message_dec_with_pub = asymmetric_decrypt(@algorithm, @message_enc_with_priv, @pub);
-    --let $assert_text = [$algorithm][$key_length][message_len=$message_length] message decrypted with public key must match the original one
-    --let $assert_cond = @message_dec_with_pub = @message
-    --let $include_silent = 1
-    --source include/assert.inc
-    --let $include_silent =
-  }
-
-  --echo ****** [$algorithm][$key_length][message_len=$message_length] checking sign/verify functionality
+  --echo **** [$algorithm][$key_length][message_len=$message_length] checking sign/verify operations
   --let $digest_type_idx = 1
   while($digest_type_idx <= $number_of_digest_types)
   {
@@ -176,19 +220,6 @@ while ($message_index <= 4)
   }
 
   --inc $message_index
-}
-
-if ($algorithm == 'RSA')
-{
-  --let $message_length = $max_message_size + 1
-  --echo **** [$algorithm][$key_length] checking operations on oversize message
-  eval SET @message = LEFT(@random_pattern, $message_length);
-  --echo ****** [$algorithm][$key_length] checking encryption of oversize message with public key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @pub);
-  --echo ****** [$algorithm][$key_length] checking encryption of oversize message with private key
-  --error ER_UDF_ERROR
-  SELECT asymmetric_encrypt(@algorithm, @message, @priv);
 }
 
 --enable_query_log

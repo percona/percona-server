@@ -106,6 +106,19 @@ algorithm_id_type get_and_validate_algorithm_id_by_label(
   return res;
 }
 
+opensslpp::rsa_padding get_and_validate_padding_by_label(
+    std::string_view padding) {
+  if (padding.data() == nullptr)
+    throw std::invalid_argument("RSA padding cannot be NULL");
+
+  if (boost::iequals(padding, "no")) return opensslpp::rsa_padding::no;
+  if (boost::iequals(padding, "pkcs1")) return opensslpp::rsa_padding::pkcs1;
+  if (boost::iequals(padding, "oaep"))
+    return opensslpp::rsa_padding::pkcs1_oaep;
+
+  throw std::invalid_argument("Invalid RSA padding specified");
+}
+
 enum class threshold_index_type { rsa, dsa, dh, delimiter };
 constexpr std::size_t number_of_thresholds =
     static_cast<std::size_t>(threshold_index_type::delimiter);
@@ -317,8 +330,8 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
 class asymmetric_encrypt_impl {
  public:
   asymmetric_encrypt_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 3)
-      throw std::invalid_argument("Function requires exactly three arguments");
+    if (ctx.get_number_of_args() < 3 || ctx.get_number_of_args() > 4)
+      throw std::invalid_argument("Function requires three or four arguments");
 
     mysqlpp::udf_context_charset_extension charset_ext{
         mysql_service_mysql_udf_metadata};
@@ -342,6 +355,13 @@ class asymmetric_encrypt_impl {
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
     charset_ext.set_arg_value_charset(ctx, 2, ascii_charset_name);
+
+    // optional arg3 - @padding
+    if (ctx.get_number_of_args() == 4) {
+      ctx.mark_arg_nullable(3, false);
+      ctx.set_arg_type(3, STRING_RESULT);
+      charset_ext.set_arg_value_charset(ctx, 3, ascii_charset_name);
+    }
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -358,6 +378,12 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
+  opensslpp::rsa_padding padding = opensslpp::rsa_padding::pkcs1_oaep;
+  if (ctx.get_number_of_args() == 4) {
+    auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
+    padding = get_and_validate_padding_by_label(padding_sv);
+  }
+
   opensslpp::rsa_key key;
   try {
     key = opensslpp::rsa_key::import_private_pem(key_pem_sv);
@@ -365,11 +391,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     key = opensslpp::rsa_key::import_public_pem(key_pem_sv);
   }
 
-  return {key.is_private()
-              ? opensslpp::encrypt_with_rsa_private_key(
-                    message_sv, key, opensslpp::rsa_padding::pkcs1)
-              : opensslpp::encrypt_with_rsa_public_key(
-                    message_sv, key, opensslpp::rsa_padding::pkcs1)};
+  return {
+      key.is_private()
+          ? opensslpp::encrypt_with_rsa_private_key(message_sv, key, padding)
+          : opensslpp::encrypt_with_rsa_public_key(message_sv, key, padding)};
 }
 
 // ASYMMETRIC_DECRYPT(@algorithm, @crypt_str, @key_str)
@@ -379,8 +404,8 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
 class asymmetric_decrypt_impl {
  public:
   asymmetric_decrypt_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 3)
-      throw std::invalid_argument("Function requires exactly three arguments");
+    if (ctx.get_number_of_args() < 3 || ctx.get_number_of_args() > 4)
+      throw std::invalid_argument("Function requires three or four arguments");
 
     mysqlpp::udf_context_charset_extension charset_ext{
         mysql_service_mysql_udf_metadata};
@@ -404,6 +429,13 @@ class asymmetric_decrypt_impl {
     ctx.mark_arg_nullable(2, false);
     ctx.set_arg_type(2, STRING_RESULT);
     charset_ext.set_arg_value_charset(ctx, 2, ascii_charset_name);
+
+    // optional arg3 - @padding
+    if (ctx.get_number_of_args() == 4) {
+      ctx.mark_arg_nullable(3, false);
+      ctx.set_arg_type(3, STRING_RESULT);
+      charset_ext.set_arg_value_charset(ctx, 3, ascii_charset_name);
+    }
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -420,6 +452,12 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
+  opensslpp::rsa_padding padding = opensslpp::rsa_padding::pkcs1_oaep;
+  if (ctx.get_number_of_args() == 4) {
+    auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
+    padding = get_and_validate_padding_by_label(padding_sv);
+  }
+
   opensslpp::rsa_key key;
   try {
     key = opensslpp::rsa_key::import_private_pem(key_pem_sv);
@@ -427,11 +465,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     key = opensslpp::rsa_key::import_public_pem(key_pem_sv);
   }
 
-  return {key.is_private()
-              ? opensslpp::decrypt_with_rsa_private_key(
-                    message_sv, key, opensslpp::rsa_padding::pkcs1)
-              : opensslpp::decrypt_with_rsa_public_key(
-                    message_sv, key, opensslpp::rsa_padding::pkcs1)};
+  return {
+      key.is_private()
+          ? opensslpp::decrypt_with_rsa_private_key(message_sv, key, padding)
+          : opensslpp::decrypt_with_rsa_public_key(message_sv, key, padding)};
 }
 
 // CREATE_DIGEST(@digest_type, @str)

@@ -5693,7 +5693,7 @@ rec_loop:
                                       UT_LOCATION_HERE, &heap);
       rtr_get_mbr_from_rec(rec, index_offsets, &index_mbr);
 
-      if (mbr_equal_cmp(index->rtr_srs.get(), &clust_mbr, &index_mbr)) {
+      if (mbr_equal_precise_cmp(&clust_mbr, &index_mbr)) {
         *is_dup_rec = true;
       }
     }

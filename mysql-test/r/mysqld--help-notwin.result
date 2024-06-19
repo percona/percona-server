@@ -1693,8 +1693,8 @@ The following options may be given as the first argument:
  addition the thread commands that were in use until
  8.0.25 are written to the slow query log.
  --tf-sequence-table-max-upper-bound=# 
- Maximum number of records SEQUENCE_TABLE() table function
- is allowed to generate.
+ Maximum number of records PERCONA_SEQUENCE_TABLE() table
+ function is allowed to generate.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 

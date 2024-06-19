@@ -60,7 +60,7 @@ SET @@GLOBAL.DEBUG='+d,PS-8747_wait_for_disconnect_after_check';
 
 # Send data which will not fit into one communication packet, so client will try to send them
 # before flush and reconnection.
-INSERT INTO test.t1 SELECT tt.* FROM SEQUENCE_TABLE(20000) AS tt;
+INSERT INTO test.t1 SELECT tt.* FROM PERCONA_SEQUENCE_TABLE(20000) AS tt;
 SET GLOBAL DEBUG= @debug_save;
 
 DROP TABLE test.t1;

@@ -1646,8 +1646,8 @@ The following options may be given as the first argument:
  information_schema.events will also output the old
  terminology for the event status field.
  --tf-sequence-table-max-upper-bound=# 
- Maximum number of records SEQUENCE_TABLE() table function
- is allowed to generate.
+ Maximum number of records PERCONA_SEQUENCE_TABLE() table
+ function is allowed to generate.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 

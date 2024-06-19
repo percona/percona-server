@@ -1,11 +1,3 @@
---- client/base/CMakeLists.txt	2018-08-18 03:29:34.986169793 -0400
-+++ client/base/CMakeLists.txt	2018-08-18 03:29:34.991586542 -0400
-@@ -51,4 +51,4 @@
-   ${CMAKE_SOURCE_DIR}/client/multi_factor_passwordopt-vars.cc
- )
- 
--TARGET_LINK_LIBRARIES(client_base perconaserverclient)
-+TARGET_LINK_LIBRARIES(client_base mysqlclient)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
 @@ -46,13 +46,13 @@

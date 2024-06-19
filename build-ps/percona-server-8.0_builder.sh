@@ -112,8 +112,8 @@ add_percona_yum_repo(){
 }
 
 switch_to_vault_repo() {
-    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-*
-    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
+    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
     sed -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/CentOS-Linux-PowerTools.repo
 }
 
@@ -441,7 +441,7 @@ install_deps() {
                 # add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
-                percona-release enable tools experimental
+                # percona-release enable tools experimental
             else
                 yum -y install yum-utils
                 yum-config-manager --enable ol9_codeready_builder
@@ -505,6 +505,7 @@ install_deps() {
         if [ "x$RHEL" = "x8" ]; then
             yum -y install libtirpc-devel
             yum -y install centos-release-stream
+            switch_to_vault_repo
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream

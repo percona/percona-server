@@ -17,6 +17,7 @@
 
 --disable_query_log
 call mtr.add_suppression("Plugin keyring_vault reported: 'vault_ca is not specified but vault_url is https://");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Vault Server outdated key skipped'");
 call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
 call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
 --enable_query_log

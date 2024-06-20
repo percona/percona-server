@@ -139,7 +139,10 @@ TEST_F(Vault_parser_test, ParseVaultPayload) {
   payload += "\"]},\"wrap_info\":null,\"warnings\":null,\"auth\":null}";
   Vault_keys_list keys;
   Vault_parser_composer vault_parser(logger);
-  EXPECT_FALSE(vault_parser.parse_keys(payload, &keys));
+  EXPECT_FALSE(
+      vault_parser.parse_keys(payload, [&keys](std::unique_ptr<Vault_key> key) {
+        keys.push_back(key.release());
+      }));
   EXPECT_EQ(keys.size(), static_cast<uint>(2));
   EXPECT_TRUE(keys.has_next_key());
   IKey *key_loaded = nullptr;
@@ -163,7 +166,10 @@ TEST_F(Vault_parser_test, ParseVaultPayloadEmptyKeyList) {
       "\":null,\"warnings\":null,\"auth\":null}");
   Vault_keys_list keys;
   Vault_parser_composer vault_parser(logger);
-  EXPECT_FALSE(vault_parser.parse_keys(payload, &keys));
+  EXPECT_FALSE(
+      vault_parser.parse_keys(payload, [&keys](std::unique_ptr<Vault_key> key) {
+        keys.push_back(key.release());
+      }));
   EXPECT_EQ(keys.size(), static_cast<uint>(0));
 }
 
@@ -178,7 +184,10 @@ TEST_F(Vault_parser_test, ParseVaultPayloadNoKeyList) {
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
               log(MY_ERROR_LEVEL, StrEq("Vault Server response[\"data\"] "
                                         "does not have \"keys\" member")));
-  EXPECT_TRUE(vault_parser.parse_keys(payload, &keys));
+  EXPECT_TRUE(
+      vault_parser.parse_keys(payload, [&keys](std::unique_ptr<Vault_key> key) {
+        keys.push_back(key.release());
+      }));
   EXPECT_EQ(keys.size(), static_cast<uint>(0));
 }
 
@@ -245,8 +254,7 @@ TEST_F(Vault_parser_test, ParseKeyDataDeleted) {
   Vault_key key{};
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_INFORMATION_LEVEL, StrEq("Vault Server response metadata has "
-                                      "\"deletion_time\" set")));
+      log(MY_INFORMATION_LEVEL, StrEq("Vault Server outdated key skipped")));
   EXPECT_TRUE(vault_parser.parse_key_data(payload, &key, Vault_version_v2));
 }
 

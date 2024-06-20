@@ -29,7 +29,8 @@ class Vault_parser_composer final : public IVault_parser_composer {
  public:
   explicit Vault_parser_composer(ILogger *logger) : logger(logger) {}
 
-  bool parse_keys(const Secure_string &payload, Vault_keys_list *keys) override;
+  bool parse_keys(const Secure_string &payload,
+                  VaultKeyFetchedCallback key_fetched_callback) override;
   bool parse_key_data(const Secure_string &payload, IKey *key,
                       Vault_version_type vault_version) override;
   bool parse_key_signature(const Secure_string &base64_key_signature,

@@ -25,9 +25,15 @@
 #include "vault_key.h"
 #include "vault_keys_list.h"
 
+#include <functional>
+#include <memory>
+
 namespace keyring {
 class IVault_parser_composer {
  public:
+  using VaultKeyFetchedCallback =
+      std::function<void(std::unique_ptr<Vault_key>)>;
+
   struct KeyParameters {
     Secure_string key_id;
     Secure_string user_id;
@@ -42,7 +48,7 @@ class IVault_parser_composer {
   };
 
   virtual bool parse_keys(const Secure_string &payload,
-                          Vault_keys_list *keys) = 0;
+                          VaultKeyFetchedCallback key_fetched_callback) = 0;
   virtual bool parse_key_data(const Secure_string &payload, IKey *key,
                               Vault_version_type vault_version) = 0;
   virtual bool parse_key_signature(const Secure_string &key_signature,

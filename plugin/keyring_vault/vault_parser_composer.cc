@@ -189,8 +189,9 @@ bool Vault_parser_composer::parse_errors(const Secure_string &payload,
   return false;
 }
 
-bool Vault_parser_composer::parse_keys(const Secure_string &payload,
-                                       Vault_keys_list *keys) {
+bool Vault_parser_composer::parse_keys(
+    const Secure_string &payload,
+    VaultKeyFetchedCallback key_fetched_callback) {
   /* payload is built as follows:
    * (...)"data":{"keys":["keysignature","keysignature"]}(...)
    * We need to retrieve keys signatures from it
@@ -251,9 +252,9 @@ bool Vault_parser_composer::parse_keys(const Secure_string &payload,
       logger->log(MY_WARNING_LEVEL,
                   "Could not parse key's signature, skipping the key.");
     } else {
-      keys->push_back(new Vault_key(key_parameters.key_id.c_str(), nullptr,
-                                    key_parameters.user_id.c_str(), nullptr,
-                                    0));
+      key_fetched_callback(std::make_unique<Vault_key>(
+          key_parameters.key_id.c_str(), nullptr,
+          key_parameters.user_id.c_str(), nullptr, 0));
     }
   }
   return false;
@@ -324,8 +325,7 @@ bool Vault_parser_composer::parse_key_data(const Secure_string &payload,
 
       if (it != metadata_node->MemberEnd() && it->value.IsString() &&
           strlen(it->value.GetString()) != 0) {
-        logger->log(MY_INFORMATION_LEVEL,
-                    "Vault Server response metadata has \"deletion_time\" set");
+        logger->log(MY_INFORMATION_LEVEL, "Vault Server outdated key skipped");
         return true;
       }
     }

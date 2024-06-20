@@ -1,0 +1,52 @@
+--source include/have_keyring_vault_plugin.inc
+--source include/have_debug.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+--source parse_combination.inc
+
+--let $conf_file1 = $MYSQLTEST_VARDIR/keyring_vault1.conf
+--let $conf_file2 = $MYSQLTEST_VARDIR/keyring_vault2.conf
+
+--let $mount_point_service_op = CREATE
+
+--let $vault_conf_file = $conf_file1
+--let $vault_conf_mount_point_suffix = _1
+--source generate_conf_file.inc
+--source mount_point_service.inc
+
+--let $vault_conf_file = $conf_file2
+--let $vault_conf_mount_point_suffix = _2
+--source generate_conf_file.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --source mount_point_service.inc
+}
+
+--disable_query_log
+call mtr.add_suppression("Probing mtr for being a mount point unsuccessful - skipped");
+call mtr.add_suppression("for being a mount point successful");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
+--enable_query_log
+
+--let $keyring_restart_param = $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$conf_file1
+--source include/keyring_tests/binlog/rpl_encryption_master_key_rotation_at_startup.inc
+
+# Delete mount points
+--let $mount_point_service_op = DELETE
+--let $vault_conf_mount_point_suffix = _1
+--source mount_point_service.inc
+if (!$vault_conf_mount_point_directory)
+{
+  --let $vault_conf_mount_point_suffix = _2
+  --source mount_point_service.inc
+}
+
+# Removing .conf files
+--remove_file $conf_file1
+--remove_file $conf_file2

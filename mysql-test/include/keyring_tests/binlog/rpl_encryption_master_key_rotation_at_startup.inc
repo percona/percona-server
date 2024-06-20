@@ -37,7 +37,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 
 --echo Restart the master enabling the rotate option only
 --let $rpl_server_number= 1
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
+--let $rpl_server_parameters= $keyring_restart_param --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc
 --let $assert_text=binlog_encryption option shall be OFF
@@ -68,7 +68,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --echo # Force the server to fail storing master key index
 --let $error_message=Failed to store key
 --let $rpl_server_number= 1
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
+--let $rpl_server_parameters= $keyring_restart_param --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
 --echo Try to restart the master enabling the options with debug instrumentation
 --error 0,1
 --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
@@ -92,7 +92,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --remove_file $master_error_log
 
 --echo Restart the master enabling the options
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
+--let $rpl_server_parameters= $keyring_restart_param --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --connection master
@@ -124,7 +124,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 # The 3rd master key will be generated in this point
 --echo # Force the server to fail storing master key index
 --let $error_message=Failed to store key
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
+--let $rpl_server_parameters= $keyring_restart_param --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --debug=d,$debug_point --log-error=$MYSQL_TMP_DIR/master.err
 --echo Try to restart the master enabling the options with debug instrumentation
 --error 0,1
 --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
@@ -148,7 +148,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --remove_file $master_error_log
 
 --echo Restart the master enabling just the binlog_encryption option
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --log-error=$MYSQL_TMP_DIR/master.err
+--let $rpl_server_parameters= $keyring_restart_param --binlog_encryption=ON --log-error=$MYSQL_TMP_DIR/master.err
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
 --connection master
@@ -179,7 +179,7 @@ while ($key < 9)
   --inc $key
   --echo Restart the master enabling the options to generate key #$key
   --let $rpl_server_number= 1
-  --let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
+  --let $rpl_server_parameters= $keyring_restart_param --binlog_encryption=ON --binlog_rotate_encryption_master_key_at_startup=ON --log-error=$MYSQL_TMP_DIR/master.err
   --let $rpl_omit_print_server_parameters= 1
   --source include/rpl_restart_server.inc
   --let $assert_text=binlog_encryption option shall be ON

@@ -17,6 +17,7 @@
 
 #include "vault_io.h"
 
+#include <memory>
 #include <sstream>
 
 #include <boost/lexical_cast/try_lexical_convert.hpp>
@@ -75,7 +76,16 @@ bool Vault_io::get_serialized_object(ISerialized_object **serialized_object) {
   }
 
   std::unique_ptr<Vault_keys_list> keys(new Vault_keys_list());
-  if (vault_parser->parse_keys(json_response, keys.get())) {
+  auto key_callback = [&keys, this](std::unique_ptr<Vault_key> key) {
+    // With Vault API v2 server returns keys for already deleted data (with
+    // deletion_time set) when populating cache during plugin initialization.
+    // Need to fetch actual key and check it has valid version before using it.
+    if (!retrieve_key_type_and_data(key.get())) {
+      keys->push_back(key.release());
+    }
+  };
+
+  if (vault_parser->parse_keys(json_response, key_callback)) {
     logger->log(MY_ERROR_LEVEL, err_msg.c_str());
     return true;
   }

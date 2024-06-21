@@ -1085,6 +1085,10 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
         choose it over ALL/index, there is no need to consider a full table
         scan.
   */
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
   if (rows_fetched < tab->found_records &&  // (1a)
       best_read_cost <= tab->read_time)     // (1b)
   {
@@ -1190,6 +1194,9 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
     trace_access_scan.add("chosen", best_ref == nullptr);
   }
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
 
   /*
     Storage engines that track exact sizes may report an empty table

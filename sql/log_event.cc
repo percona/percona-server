@@ -1011,10 +1011,17 @@ Log_event::Log_event(Log_event_header *header, Log_event_footer *footer)
 #ifdef MYSQL_SERVER
   thd = nullptr;
 #endif
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
   /*
      Mask out any irrelevant parts of the server_id
   */
   server_id = common_header->unmasked_server_id & opt_server_id_mask;
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
 }
 
 /*
@@ -7977,6 +7984,10 @@ Rows_log_event::Rows_log_event(
      for UPDATE_ROWS_EVENTS, else it is equal to the before image.
   */
   /* if bitmap_init fails, is_valid will be set to false */
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : nullptr,
                           m_width))) {
@@ -7996,6 +8007,9 @@ Rows_log_event::Rows_log_event(
     common_header->set_is_valid(false);
     return;
   }
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
   m_cols_ai.bitmap =
       m_cols.bitmap;  // See explanation below while setting is_valid.
 

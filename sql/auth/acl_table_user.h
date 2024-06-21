@@ -73,13 +73,6 @@ struct Password_lock {
 
   Password_lock();
 
-  Password_lock &operator=(const Password_lock &other);
-
-  Password_lock &operator=(Password_lock &&other);
-
-  Password_lock(const Password_lock &other);
-
-  Password_lock(Password_lock &&other);
 };
 
 /**

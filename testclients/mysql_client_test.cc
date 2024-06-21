@@ -484,8 +484,15 @@ static void mct_start_logging(const char *test_case_name) {
     return;
   }
 
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
   snprintf(mct_log_file_path, FILE_PATH_SIZE, "%s/%s.out.log",
            (const char *)tmp_dir, (const char *)test_case_name);
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
 
   mct_log_file =
       my_fopen(mct_log_file_path, O_WRONLY | MY_FOPEN_BINARY, MYF(MY_WME));

@@ -413,7 +413,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       ASSERT_NO_FATAL_FAILURE(
           connect_client_and_query_port(router_port, node_port));
       if (i == 0) {  // first-connection
-        const auto &real_port_iter =
+        const auto real_port_iter =
             std::find(cluster_nodes_ports.begin(), cluster_nodes_ports.end(),
                       static_cast<uint16_t>(std::atoi(node_port.c_str())));
         ASSERT_NE(real_port_iter, cluster_nodes_ports.end());

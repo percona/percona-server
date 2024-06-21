@@ -21,7 +21,8 @@ debian/extra/mysql.cnf  etc/mysql/
 debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
 
 # AppArmor profile
-debian/extra/apparmor.d/usr.sbin.mysqld.in etc/apparmor.d/
+debian/extra/apparmor.d/usr.sbin.mysqld.in2 etc/apparmor.d/
+debian/extra/apparmor.d/old_apparmor etc/apparmor.d/
 debian/extra/apparmor.d/local/usr.sbin.mysqld.in etc/apparmor.d/local/
 
 # debug binary
@@ -160,10 +161,12 @@ usr/lib/mysql/plugin/component_test_udf_services.so
 usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/component_mysqlbackup.so
+usr/lib/mysql/plugin/component_percona_telemetry.so
 usr/lib/mysql/plugin/authentication_webauthn_client.so
 usr/lib/mysql/plugin/component_test_server_telemetry_metrics.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
+usr/lib/mysql/plugin/debug/component_percona_telemetry.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so

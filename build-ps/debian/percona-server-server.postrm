@@ -58,8 +58,14 @@ case "$1" in
 	remove)
 
 	set -e
+	PS_TELEMETRY=/usr/local/percona/telemetry/ps
 
 	place_upstart_job_back
+	# Remove PS Telemetry directory
+	if [ -d ${PS_TELEMETRY} ];
+	then
+                rm -rf ${PS_TELEMETRY}
+        fi
 	update-alternatives --remove my.cnf "/etc/mysql/mysql.cnf"
 
 	set +e

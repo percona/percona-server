@@ -1,0 +1,44 @@
+--source include/have_rocksdb.inc
+
+SET SESSION rocksdb_enable_autoinc_compat_mode=ON;
+SET SESSION information_schema_stats_expiry=0;
+CREATE TABLE t (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v INT UNIQUE)
+  ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,1);
+
+--echo # A failed first row must not leave a wrapped reservation behind
+ALTER TABLE t AUTO_INCREMENT=18446744073709551614;
+--error ER_DUP_ENTRY
+INSERT INTO t(v) VALUES (1),(2),(3);
+SELECT AUTO_INCREMENT FROM information_schema.tables
+  WHERE table_schema=DATABASE() AND table_name='t';
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t(v) VALUES (2);
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo # A non-unit increment can reserve ULLONG_MAX as its last value
+CREATE TABLE t (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v INT UNIQUE)
+  ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,1);
+ALTER TABLE t AUTO_INCREMENT=18446744073709551613;
+SET SESSION auto_increment_increment=2;
+--error ER_DUP_ENTRY
+INSERT INTO t(v) VALUES (1),(2);
+SELECT AUTO_INCREMENT FROM information_schema.tables
+  WHERE table_schema=DATABASE() AND table_name='t';
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t(v) VALUES (2);
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo # Reservations that still fit must retain the requested increment
+CREATE TABLE t (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB
+  AUTO_INCREMENT=18446744073709551609;
+INSERT INTO t VALUES (NULL),(NULL);
+SELECT * FROM t ORDER BY id;
+SELECT AUTO_INCREMENT FROM information_schema.tables
+  WHERE table_schema=DATABASE() AND table_name='t';
+DROP TABLE t;
+SET SESSION auto_increment_increment=DEFAULT;
+SET SESSION rocksdb_enable_autoinc_compat_mode=DEFAULT;

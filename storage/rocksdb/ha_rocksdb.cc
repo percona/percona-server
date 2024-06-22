@@ -824,7 +824,7 @@ bool rocksdb_enable_tmp_table = false;
 bool rocksdb_enable_delete_range_for_drop_index = false;
 unsigned long long rocksdb_converter_record_cached_length = 0;
 static bool rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds = 0;
-
+bool rocksdb_enable_autoinc_compact_mode = false;
 char max_timestamp_uint64[ROCKSDB_SIZEOF_TTL_RECORD];
 
 enum file_checksums_type {
@@ -2699,6 +2699,12 @@ static MYSQL_SYSVAR_BOOL(
     "conditions would otherwise allow bloom filters to be used.",
     nullptr, nullptr, false);
 
+static MYSQL_THDVAR_BOOL(
+    enable_autoinc_compat_mode, PLUGIN_VAR_RQCMDARG,
+    "if enabled, allow simple inserts generate consecutive autoinc values, "
+    "similar to behavior as innodb_autoinc_lock_mode = 2",
+    nullptr, nullptr, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
@@ -2919,6 +2925,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(converter_record_cached_length),
     MYSQL_SYSVAR(file_checksums),
     MYSQL_SYSVAR(debug_skip_bloom_filter_check_on_iterator_bounds),
+    MYSQL_SYSVAR(enable_autoinc_compat_mode),
     nullptr};
 
 static bool is_tmp_table(const std::string &tablename) {
@@ -13978,12 +13985,9 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
     by MySQL, until a hard-coded value shows up in the insert statement, after
     which MySQL again calls this function to reset its starting value.
    *
-    For simplicity we will just ignore nb_desired_values - we aren't going to
-    reserve any extra values for a multi-insert statement.  Each row will
-    simply acquire the next value as needed and we will always tell MySQL that
-    we only reserved 1 value.  Since we are using an atomic value for
-    m_auto_incr_val this should be safe - if we had to grab a mutex, doing
-    an actual reserve of some values might be a better solution.
+    we are using an atomic value for m_auto_incr_val this should be safe -
+    if we had to grab a mutex, doing an actual reserve of some values might
+    be a better solution.
    */
   DEBUG_SYNC(ha_thd(), "rocksdb.autoinc_vars");
 
@@ -13998,6 +14002,13 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
 
   // Local variable reference to simplify code below
   auto &auto_incr = m_tbl_def->m_auto_incr_val;
+  // when enable compat, always try to reserve ids as specified
+  auto compat_mode = THDVAR(ha_thd(), enable_autoinc_compat_mode);
+  if (compat_mode) {
+    *nb_reserved_values = (nb_desired_values == 0) ? 1 : nb_desired_values;
+  } else {
+    *nb_reserved_values = 1;
+  }
 
   if (inc == 1) {
     assert(off == 1);
@@ -14008,17 +14019,22 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
     // increment value while ensuring that we don't wrap around to a negative
     // number.
     //
-    // We set auto_incr to the min of max_val and new_val + 1. This means that
-    // if we're at the maximum, we should be returning the same value for
-    // multiple rows, resulting in duplicate key errors (as expected).
+    // We set auto_incr to the min of max_val and new_val + *nb_reserved_values.
+    // This means that if we're at the maximum, we should be returning the same
+    // value for multiple rows, resulting in duplicate key errors (as expected).
     //
     // If we return values greater than the max, the SQL layer will "truncate"
     // the value anyway, but it means that we store invalid values into
     // auto_incr that will be visible in SHOW CREATE TABLE.
     new_val = auto_incr;
     while (new_val != std::numeric_limits<ulonglong>::max()) {
-      if (auto_incr.compare_exchange_weak(new_val,
-                                          std::min(new_val + 1, max_val))) {
+      // Clamp before adding: a multi-row reservation can wrap even when
+      // its first value fits in an UNSIGNED BIGINT.
+      const auto next_val =
+          new_val >= max_val || *nb_reserved_values > max_val - new_val
+              ? max_val
+              : new_val + *nb_reserved_values;
+      if (auto_incr.compare_exchange_weak(new_val, next_val)) {
         break;
       }
     }
@@ -14029,6 +14045,7 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
     if (last_val > max_val) {
       new_val = std::numeric_limits<ulonglong>::max();
     } else {
+      ulonglong last_reserved_val;
       // Loop until we can correctly update the atomic value
       do {
         assert(last_val > 0);
@@ -14057,9 +14074,10 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
         ulonglong n =
             (last_val - 1) / inc + ((last_val - 1) % inc + inc - off) / inc;
 
-        // Check if n * inc + off will overflow. This can only happen if we have
-        // an UNSIGNED BIGINT field.
-        if (n > (std::numeric_limits<ulonglong>::max() - off) / inc) {
+        ulonglong max_n = (std::numeric_limits<ulonglong>::max() - off) / inc;
+        // Check if n * inc + off  or n + *nb_reserved_values - 1 will overflow.
+        // This can only happen if we have an UNSIGNED BIGINT field.
+        if (n > max_n || *nb_reserved_values - 1 > max_n - n) {
           assert(max_val == std::numeric_limits<ulonglong>::max());
           // The 'last_val' value is already equal to or larger than the largest
           // value in the sequence.  Continuing would wrap around (technically
@@ -14085,7 +14103,16 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
           break;
         }
 
+        const ulonglong n_with_reserved = n + *nb_reserved_values - 1;
+        assert_IMP(!compat_mode, n == n_with_reserved);
+
+        // new value for current trx
         new_val = n * inc + off;
+        // last reserved value for current call
+        last_reserved_val = n_with_reserved * inc + off;
+        // if only allocate one, first reserved value should be same as last
+        // reserved
+        assert_IMP(!compat_mode, new_val == last_reserved_val);
 
         // Attempt to store the new value (plus 1 since m_auto_incr_val contains
         // the next available value) into the atomic value.  If the current
@@ -14093,14 +14120,14 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
         // we will repeat the loop (`last_val` will automatically get updated
         // with the current value).
         //
-        // See above explanation for inc == 1 for why we use std::min.
+        // Clamp before adding, including when the last reserved value is
+        // exactly ULLONG_MAX.
       } while (!auto_incr.compare_exchange_weak(
-          last_val, std::min(new_val + 1, max_val)));
+          last_val,
+          last_reserved_val >= max_val ? max_val : last_reserved_val + 1));
     }
   }
-
   *first_value = new_val;
-  *nb_reserved_values = 1;
 }
 
 #ifndef NDEBUG

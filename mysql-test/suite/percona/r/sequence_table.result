@@ -27,7 +27,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(0) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(0) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ### SELECT value FROM SEQUENCE_TABLE(1) AS tt ###
@@ -43,7 +43,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(1) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ### SELECT value FROM SEQUENCE_TABLE(4) AS tt ###
@@ -62,7 +62,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ###
@@ -93,7 +93,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(-(1)) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(-1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # NULL value
@@ -109,7 +109,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(NULL) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(NULL) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # Floating point numbers
@@ -128,7 +128,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(2.5) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(2.5) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ### SELECT value FROM SEQUENCE_TABLE(0.15E1) AS tt ###
@@ -145,7 +145,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(0.15E1) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(0.15E1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ### SELECT value FROM SEQUENCE_TABLE(0.15E-1) AS tt ###
@@ -160,7 +160,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(0.15E-1) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(0.15E-1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # String values
@@ -179,7 +179,7 @@ Warning	1292	Truncated incorrect INTEGER value: ''
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table('') `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE("") AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
@@ -199,7 +199,7 @@ Warning	1292	Truncated incorrect INTEGER value: ' '
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(' ') `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(" ") AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ' '
@@ -218,7 +218,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table('2') `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE("2") AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ###
@@ -242,7 +242,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table((@`a`)) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(@a) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 SET @a = 3;
@@ -261,7 +261,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table((@`a`)) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(@a) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # Simple arithmetic expressions
@@ -281,7 +281,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table((((@`a`) * (@`a`)) - 1)) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(@a * @a - 1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 SET @a = 1;
@@ -299,7 +299,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table((exp((@`a`)) - 1)) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(EXP(@a) - 1) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ###
@@ -319,7 +319,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(4) `tt` where (`tt`.`value` = 1)
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(4) AS tt WHERE value = 1;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=0.35 rows=1)
 
 
 # Range selection
@@ -337,8 +337,8 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(4) `tt` where (`tt`.`value` > 1)
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(4) AS tt WHERE value > 1;
 EXPLAIN
--> Filter: (tt.`value` > 1)
-    -> Materialize table function
+-> Filter: (tt.`value` > 1)  (cost=2.73 rows=1)
+    -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Every second record
@@ -356,8 +356,8 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(4) `tt` where ((`tt`.`value` % 2) = 0)
 EXPLAIN FORMAT=TREE SELECT value FROM SEQUENCE_TABLE(4) AS tt WHERE value %2 = 0;
 EXPLAIN
--> Filter: ((tt.`value` % 2) = 0)
-    -> Materialize table function
+-> Filter: ((tt.`value` % 2) = 0)  (cost=2.73 rows=2)
+    -> Materialize table function  (cost=2.73 rows=2)
 
 
 ###
@@ -380,7 +380,7 @@ Warnings:
 Note	1003	/* select#1 */ select (`tt`.`value` + 1) AS `value + 1` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT value + 1 FROM SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # Odd numbers
@@ -400,7 +400,7 @@ Warnings:
 Note	1003	/* select#1 */ select ((`tt`.`value` * 2) + 1) AS `value * 2 + 1` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT value * 2 + 1 FROM SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # Reverse order
@@ -420,7 +420,7 @@ Warnings:
 Note	1003	/* select#1 */ select (7 - `tt`.`value`) AS `7 - value` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT 7 - value FROM SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 # Mapping with ELT()
@@ -440,7 +440,7 @@ Warnings:
 Note	1003	/* select#1 */ select elt((`tt`.`value` + 1),'a','b','c','d') AS `ELT(value + 1, "a", "b", "c", "d")` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT ELT(value + 1, "a", "b", "c", "d") FROM SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 ###
@@ -466,7 +466,7 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`value` AS `value` from sequence_table(4) `tt`
 EXPLAIN FORMAT=TREE SELECT value FROM v1;
 EXPLAIN
--> Materialize table function
+-> Materialize table function  (cost=2.73 rows=2)
 
 
 DROP VIEW v1;
@@ -541,10 +541,10 @@ Warnings:
 Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt`.`value`) AS `t1.a * 10 + value` from `test`.`t1` join sequence_table(3) `tt`
 EXPLAIN FORMAT=TREE SELECT t1.a * 10 + value FROM t1, SEQUENCE_TABLE(3) AS tt;
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=3.58 rows=6)
     -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
-        -> Materialize table function
+        -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Join with UNION-based row set
@@ -574,14 +574,14 @@ Warnings:
 Note	1003	/* select#1 */ select ((`tt1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from (/* select#2 */ select 0 AS `a` union /* select#3 */ select 1 AS `1` union /* select#4 */ select 2 AS `2`) `tt1` join sequence_table(3) `tt2`
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (SELECT 0 AS a UNION SELECT 1 UNION SELECT 2) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=5.86 rows=6)
     -> Table scan on tt1  (cost=1.15..2.84 rows=3)
         -> Union materialize with deduplication  (cost=0.3..0.3 rows=3)
             -> Rows fetched before execution  (cost=0..0 rows=1)
             -> Rows fetched before execution  (cost=0..0 rows=1)
             -> Rows fetched before execution  (cost=0..0 rows=1)
     -> Hash
-        -> Materialize table function
+        -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Join with VALUES ROW-based row set
@@ -608,12 +608,12 @@ Warnings:
 Note	1003	/* select#1 */ select ((`tt1`.`column_0` * 10) + `tt2`.`value`) AS `tt1.column_0 * 10 + value` from (values row(0),row(1),row(2)) `tt1` join sequence_table(3) `tt2`
 EXPLAIN FORMAT=TREE SELECT tt1.column_0 * 10 + value FROM (VALUES ROW(0), ROW(1), ROW(2)) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=5.86 rows=6)
     -> Table scan on tt1  (cost=1.15..2.84 rows=3)
         -> Materialize  (cost=0.3..0.3 rows=3)
             -> Rows fetched before execution  (cost=0..0 rows=3)
     -> Hash
-        -> Materialize table function
+        -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Join with derived SELECT
@@ -639,10 +639,10 @@ Warnings:
 Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from `test`.`t1` join sequence_table(3) `tt2`
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (SELECT * FROM t1) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=3.58 rows=6)
     -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
-        -> Materialize table function
+        -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Join with derived TABLE
@@ -668,10 +668,10 @@ Warnings:
 Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from `test`.`t1` join sequence_table(3) `tt2`
 EXPLAIN FORMAT=TREE SELECT tt1.a * 10 + value FROM (TABLE t1) AS tt1, SEQUENCE_TABLE(3) AS tt2;
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=3.58 rows=6)
     -> Table scan on t1  (cost=0.275 rows=3)
     -> Hash
-        -> Materialize table function
+        -> Materialize table function  (cost=2.73 rows=2)
 
 
 # Dependent upper_bound
@@ -694,9 +694,9 @@ Warnings:
 Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt`.`value`) AS `t1.a * 10 + value` from `test`.`t1` join sequence_table((`test`.`t1`.`a` + 1)) `tt`
 EXPLAIN FORMAT=TREE SELECT t1.a * 10 + value FROM t1, SEQUENCE_TABLE(a + 1) AS tt;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=3.68 rows=6)
     -> Table scan on t1  (cost=0.55 rows=3)
-    -> Materialize table function
+    -> Materialize table function  (cost=0.908 rows=2)
 
 
 ###

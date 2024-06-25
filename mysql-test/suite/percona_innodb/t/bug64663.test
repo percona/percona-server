@@ -18,8 +18,6 @@ SET debug="+d,crash_innodb_add_index_after";
 --error CR_SERVER_LOST
 ALTER TABLE t1 ADD INDEX (b);
 
---enable_reconnect
-
 --source include/wait_until_connected_again.inc
 
 # Ignore ndb_binlog_index to have same results not depending on whether NDB is enabled or not

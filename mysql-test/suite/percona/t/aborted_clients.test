@@ -15,7 +15,6 @@ SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME=
 
 # Kill a connection, check that aborted_clients is incremented
 connect(con2,localhost,root,,); 
---disable_reconnect
 --error ER_QUERY_INTERRUPTED
 KILL CONNECTION_ID();
 disconnect con2;

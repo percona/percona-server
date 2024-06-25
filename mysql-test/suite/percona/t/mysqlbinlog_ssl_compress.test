@@ -14,7 +14,7 @@ RESET BINARY LOGS AND GTIDS;
 
 create table t1 (word varchar(20));
 
---let $binlog_start_pos=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_start_pos=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 # simple test for simple statement and various events
 insert into t1 values ("abirvalg");
 flush logs;

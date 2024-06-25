@@ -21,7 +21,6 @@ COMMIT;
 --error 1
 --exec $MYSQLD_CMD --tc-heuristic-recover=ROLLBACK --console > $restart_log 2>&1
 --exec echo "restart" > $restart_file
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo 2 should be absent:
@@ -39,7 +38,6 @@ COMMIT;
 --error 1
 --exec $MYSQLD_CMD --tc-heuristic-recover=COMMIT --console >> $restart_log 2>&1
 --exec echo "restart" > $restart_file
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo 2 should be absent due to COMMIT to ROLLBACK conversion:

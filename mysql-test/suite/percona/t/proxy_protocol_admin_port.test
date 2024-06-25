@@ -2,10 +2,11 @@
 --source include/have_ipv4_mapped.inc
 --source include/add_extra_root_users.inc
 --source include/count_sessions.inc
+--source include/suppress_tls_off.inc
 
 --let $PORT_OFFSET = 100
 --expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
---let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=$ADMIN_PORT --admin-ssl=OFF --proxy_protocol_networks=*
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:127.0.0.1 --admin_port=$ADMIN_PORT --admin-tls-version= --proxy_protocol_networks=*
 --replace_result $ADMIN_PORT ADMIN_PORT
 --source include/restart_mysqld.inc
 

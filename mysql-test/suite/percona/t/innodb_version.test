@@ -2,5 +2,5 @@
 # Bug #917246: Unintentional change of innodb_version format in 5.1.60
 ########################################################################
 
---replace_regex /8\.3\.[0-9]+-[0-9]+/8.3.x-x/
+--replace_regex /8\.4\.[0-9]+-[0-9]+/8.4.x-x/
 SELECT @@innodb_version;

@@ -21,14 +21,16 @@ sleep 2;
 
 --echo # Current connection idle transaction killed, reconnecting
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SELECT * FROM t1;
 
 --echo #
 --echo # Test that row locks are released on idle transaction kill
 --echo #
+
+--disable_query_log
+call mtr.add_suppression("IO-layer timeout before wait_timeout was reached");
+--enable_query_log
 
 SET GLOBAL kill_idle_transaction= 2;
 

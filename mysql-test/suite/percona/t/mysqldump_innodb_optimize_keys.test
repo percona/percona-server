@@ -335,7 +335,7 @@ DROP TABLE t1;
 CREATE TABLE `t1` (
   `id` int DEFAULT NULL,
   `a` int DEFAULT NULL,
-  KEY (`id`),
+  UNIQUE KEY (`id`),
   FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 

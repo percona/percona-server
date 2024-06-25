@@ -57,7 +57,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 --echo # Cleanup (on slave).
 --source include/rpl/stop_replica.inc
 --replace_column 2 ####
-eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$master_user', SOURCE_PASSWORD='';
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$source_user', SOURCE_PASSWORD='';
 DROP USER 'plug_user';
 
 --echo # Cleanup (on master).

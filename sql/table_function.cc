@@ -826,7 +826,7 @@ table_map Table_function_sequence::used_tables() {
 
 bool Table_function_sequence::print(const THD *thd, String *str,
                                     enum_query_type query_type) const {
-  if (str->append(STRING_WITH_LEN("sequence_table("))) return true;
+  if (str->append(STRING_WITH_LEN("percona_sequence_table("))) return true;
   m_source->print(thd, str, query_type);
   if (thd->is_error()) return true;
   return str->append(')');
@@ -850,7 +850,7 @@ bool Table_function_sequence::do_init_args() {
   assert(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (m_source->has_aggregation() || m_source->has_subquery() ||
       m_source != dummy) {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "SEQUENCE_TABLE");
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "PERCONA_SEQUENCE_TABLE");
     return true;
   }
 

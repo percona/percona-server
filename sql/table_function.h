@@ -441,7 +441,7 @@ class Table_function_sequence final : public Table_function {
   /**
     Returns function's name
   */
-  const char *func_name() const override { return "sequence_table"; }
+  const char *func_name() const override { return "percona_sequence_table"; }
   /**
     Initialize the table function before creation of result table
 
@@ -466,7 +466,7 @@ class Table_function_sequence final : public Table_function {
   virtual table_map used_tables() override;
 
   /**
-    SEQUENCE_TABLE printout
+    PERCONA_SEQUENCE_TABLE printout
 
     @param str        string to print to
     @param query_type type of query
@@ -482,10 +482,10 @@ class Table_function_sequence final : public Table_function {
                     uchar *arg) override;
 
  private:
-  /// SEQUENCE_TABLE's alias, for error reporting
+  /// PERCONA_SEQUENCE_TABLE's alias, for error reporting
   const char *m_table_alias;
 
-  /// SEQUENCE_TABLE's data source expression
+  /// PERCONA_SEQUENCE_TABLE's data source expression
   Item *m_source;
 
   Create_field m_value_field;

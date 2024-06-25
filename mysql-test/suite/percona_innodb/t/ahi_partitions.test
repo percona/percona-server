@@ -4,6 +4,9 @@
 #
 
 # Check setup
+SET @saved_innodb_adaptive_hash_index = @@GLOBAL.innodb_adaptive_hash_index;
+SET GLOBAL innodb_adaptive_hash_index=ON;
+
 SELECT @@GLOBAL.innodb_adaptive_hash_index;
 SELECT @@GLOBAL.innodb_adaptive_hash_index_parts;
 
@@ -61,3 +64,5 @@ SET GLOBAL innodb_monitor_disable=module_adaptive_hash;
 DROP TABLE t1, t2, t3;
 
 --source include/innodb_monitor_restore.inc
+
+SET GLOBAL innodb_adaptive_hash_index = @saved_innodb_adaptive_hash_index;

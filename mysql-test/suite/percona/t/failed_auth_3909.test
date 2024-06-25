@@ -25,7 +25,6 @@ change_user u1;
 
 --error ER_ACCESS_DENIED_ERROR
 change_user u2;
---enable_reconnect
 
 --error ER_ACCESS_DENIED_ERROR
 change_user u2,password;

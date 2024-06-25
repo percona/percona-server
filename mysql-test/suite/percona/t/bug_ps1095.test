@@ -7,8 +7,7 @@ CREATE TABLE t1 (i int);
 --sleep 9
 --source include/wait_until_disconnected.inc
 
-
---enable_reconnect
+--connect
 --connection default
 DROP TABLE t1;
 

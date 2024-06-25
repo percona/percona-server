@@ -22,7 +22,6 @@ if ($_kill_signal == '')
 --source include/expect_crash.inc
 
 # Kill the connected server
---disable_reconnect
 --let KILL_NODE_PIDFILE = `SELECT @@pid_file`
 --let KILL_SIGNAL = $_kill_signal
 --perl

@@ -2,6 +2,10 @@
 --echo # Tests for kill_idle_transaction feature that do not depend on transactional SEs
 --echo #
 
+--disable_query_log
+call mtr.add_suppression("IO-layer timeout before wait_timeout was reached");
+--enable_query_log
+
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 
 let $saved_kill_idle_transaction= `SELECT @@kill_idle_transaction`;
@@ -24,9 +28,7 @@ sleep 2;
 
 --echo # Current connection idle transaction killed, reconnecting
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # With a low wait_timeout and high kill_idle_transaction the lower value takes precedence
 SET GLOBAL kill_idle_transaction= 100000;
@@ -36,9 +38,7 @@ BEGIN;
 sleep 6;
 --echo # Current connection idle transaction killed, reconnecting
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo # Cleanup
 DROP TABLE t1;

@@ -42,8 +42,6 @@ while ($numinserts)
   INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 }
 
---enable_reconnect
-
 while ($numtests)
 {
   RESET BINARY LOGS AND GTIDS;

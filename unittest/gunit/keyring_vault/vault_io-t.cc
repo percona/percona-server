@@ -59,8 +59,8 @@ class Mock_vault_curl : public IVault_curl {
 
 class Mock_vault_parser_composer : public IVault_parser_composer {
  public:
-  MOCK_METHOD2(parse_keys,
-               bool(const Secure_string &payload, Vault_keys_list *keys));
+  MOCK_METHOD2(parse_keys, bool(const Secure_string &payload,
+                                VaultKeyFetchedCallback key_fetched_callback));
   MOCK_METHOD3(parse_key_data, bool(const Secure_string &payload, IKey *key,
                                     Vault_version_type vault_version));
   MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature,

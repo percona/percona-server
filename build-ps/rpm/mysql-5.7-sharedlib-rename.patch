@@ -1,22 +1,15 @@
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
-@@ -46,13 +46,13 @@
-   multi_factor_passwordopt-vars.cc
+@@ -40,7 +40,7 @@
    multi_option.cc
    ${CMAKE_CURRENT_SOURCE_DIR}/common/user_registration.cc
--  LINK_LIBRARIES perconaserverclient client_base ${EDITLINE_LIBRARY}
-+  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
+   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+-  LINK_LIBRARIES perconaserverclient ${EDITLINE_LIBRARY}
++  LINK_LIBRARIES mysqlclient ${EDITLINE_LIBRARY}
    )
 
- IF(NOT WITHOUT_SERVER)
-   MYSQL_ADD_EXECUTABLE(mysql_upgrade
-     upgrade/program.cc
--    LINK_LIBRARIES perconaserverclient client_base
-+    LINK_LIBRARIES mysqlclient client_base
-     )
- ENDIF()
- 
-@@ -69,7 +69,7 @@
+ MYSQL_ADD_EXECUTABLE(mysqltest
+@@ -57,7 +57,7 @@
    COMPONENT Test
    DEPENDENCIES GenError GenClientError
    ENABLE_EXPORTS
@@ -25,7 +18,7 @@
    )
  IF (WITH_COREDUMPER)
    TARGET_LINK_LIBRARIES(mysqltest coredumper)
-@@ -80,23 +80,23 @@
+@@ -67,23 +67,23 @@
    check/mysqlcheck.cc
    check/mysqlcheck_core.cc
    multi_factor_passwordopt-vars.cc
@@ -53,16 +46,16 @@
    )
 
  OPTION(WITH_JSON_BINLOG_LIBRARY
-@@ -254,7 +254,7 @@
+@@ -240,7 +240,7 @@
+
  SET(MYSQLBINLOG_LIBRARIES
    mysql_binlog_event
-   client_base
 -  perconaserverclient
 +  mysqlclient
    )
 
  IF(WITH_JSON_BINLOG_LIBRARY)
-@@ -285,20 +285,20 @@
+@@ -282,20 +282,20 @@
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
    multi_factor_passwordopt-vars.cc
@@ -85,20 +78,19 @@
 -  LINK_LIBRARIES perconaserverclient
 +  LINK_LIBRARIES mysqlclient
    )
- MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
-   logger.cc
-   logger.cc
+
+ # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 --- client/migrate_keyring/CMakeLists.txt
 +++ client/migrate_keyring/CMakeLists.txt
-@@ -40,7 +40,7 @@
+@@ -41,7 +41,7 @@
    ${CMAKE_DL_LIBS}
    minchassis
    mysys
 -  perconaserverclient
 +  mysqlclient
-   client_base
    OpenSSL::SSL OpenSSL::Crypto
  )
+
 --- include/mysql.h	2022-09-13 10:19:20.000000000 +0300
 +++ include/mysql.h	2022-09-13 12:40:29.000000000 +0300
 @@ -28,7 +28,7 @@
@@ -324,8 +316,8 @@
      )
 --- unittest/gunit/xplugin/xcl/CMakeLists.txt
 +++ unittest/gunit/xplugin/xcl/CMakeLists.txt
-@@ -68,7 +68,7 @@
-   ${MYSQLX_PROTOCOL_FULL_LIB}
+@@ -70,7 +70,7 @@
+   harness_net_ts
    ext::libprotobuf
    ext::lz4
 -  perconaserverclient
@@ -419,7 +411,7 @@
  # If we are using the protobuf extensions
 --- libmysql/fido_client/common/CMakeLists.txt	2024-01-06 19:59:00.366685501 +0000
 +++ libmysql/fido_client/common/CMakeLists.txt	2024-01-06 19:59:05.366685501 +0000
-@@ -44,6 +44,6 @@
+@@ -45,6 +45,6 @@
    fido_client_common
    ${FIDO_COMMON_SOURCES}
    LINK_LIBRARIES

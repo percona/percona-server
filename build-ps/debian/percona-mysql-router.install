@@ -42,6 +42,7 @@ usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 # private shared libraries
 usr/lib/mysqlrouter/private/libprotobuf-lite.so.*
+usr/lib/mysqlrouter/private/libabsl_*.so
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
@@ -55,6 +56,7 @@ usr/lib/mysqlrouter/private/libmysqlrouter_io_component.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_metadata_cache.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_routing_connections.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_destination_status.so.1
 
 usr/share/mysqlrouter/docs/sample_mysqlrouter.conf

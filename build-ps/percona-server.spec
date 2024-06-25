@@ -932,13 +932,9 @@ fi
 %endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
-%attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
-%attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 %if 0%{?rhel} < 7
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %endif
@@ -956,13 +952,9 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
-%attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysqldumpslow
 %attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
-%attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
-%attr(755, root, root) %{_bindir}/lz4_decompress
-%attr(755, root, root) %{_bindir}/zlib_decompress
 %attr(755, root, root) %{_bindir}/ps-admin
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
@@ -976,6 +968,91 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_optional_access.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_variant_access.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_base.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_city.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_civil_time.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cord_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cord.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_functions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_handle.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_info.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_cordz_sample_token.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc32c.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cord_state.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_cpu_detect.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_crc_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_debugging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_die_if_null.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_examine_stack.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_exponential_biased.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_failure_signal_handler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_commandlineflag_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_commandlineflag.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_config.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_marshalling.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_parse.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_private_handle_accessor.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_program_name.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_reflection.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_graphcycles_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtablez_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_int128.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_kernel_timeout_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_leak_check.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_entry.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_flags.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_globals.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_initialize.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_check_op.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_conditions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_format.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_globals.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_log_sink_set.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_message.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_nullguard.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_proto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_severity.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_sink.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_low_level_hash.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_malloc_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_periodic_sampler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_distributions.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_distribution_test_util.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_platform.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_pool_urbg.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_slow.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_seed_material.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_seed_gen_exception.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_seed_sequences.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_raw_hash_set.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_raw_logging_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_scoped_set_env.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_spinlock_wait.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_stacktrace.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_statusor.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_status.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strerror.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_str_format_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strings_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_strings.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_string_view.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_symbolize.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_synchronization.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
 %endif # add_fido_plugins
@@ -997,7 +1074,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
@@ -1009,7 +1085,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
@@ -1030,6 +1105,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_prepared_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_regular_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_signal_handler.so
 
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -1049,7 +1128,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -1061,7 +1139,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
@@ -1077,6 +1154,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
@@ -1194,7 +1272,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlcheck
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlimport
-%attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
@@ -1205,7 +1282,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlbinlog.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlcheck.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldump.1*
-%attr(644, root, root) %{_mandir}/man1/mysqlpump.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlimport.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlshow.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
@@ -1232,7 +1308,7 @@ fi
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.23*
+%{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
 %attr(755, root, root) /usr/lib/libcoredumper.a
@@ -1427,6 +1503,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_prepared_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_regular_statement.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_signal_handler.so
 
 %if 0%{?tokudb}
 %files -n percona-server-tokudb
@@ -1478,10 +1557,12 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+%{_libdir}/mysqlrouter/private/libabsl_*.so
 %{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.1
 %{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_routing_connections.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_destination_status.so.*
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private

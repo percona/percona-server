@@ -245,6 +245,7 @@ SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 connection default;
 
 --disable_query_log
+--replace_regex /thread [0-9]+/thread X/
 --error ER_KILL_DENIED_ERROR
 --eval KILL $conn_id
 --enable_query_log

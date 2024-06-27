@@ -985,8 +985,18 @@ static const char *percona_telemetry_uninstall[] = {
     "component_urn=\"file://component_percona_telemetry\"\n;",
     NULL};
 
+/**
+  Always return success, regardless of Percona Telemetry Component setup
+  status.
+*/
 bool setup_percona_telemetry(THD *thd [[maybe_unused]]) {
-  if (dd::check_if_server_ddse_readonly(thd, MYSQL_SCHEMA_NAME.str)) {
+  /* Do not call dd::check_if_server_ddse_readonly()
+   * to avoid issuing the warning */
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
+    LogErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+           "Percona Telemetry Component not configured due to InnoDB "
+           "in read only mode.");
     return false;
   }
 
@@ -1015,7 +1025,6 @@ bool setup_percona_telemetry(THD *thd [[maybe_unused]]) {
 
   bootstrap_error_handler.set_log_error(true);
 
-  // TODO: needed?
   close_thread_tables(thd);
   close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
 
@@ -1024,8 +1033,6 @@ bool setup_percona_telemetry(THD *thd [[maybe_unused]]) {
            "Failed to setup Percona Telemetry component. Ignoring.");
   }
 
-  // Always return success, regardless of Percona Telemetry Component setup
-  // status.
   return false;
 }
 #endif /* HAVE_PERCONA_TELEMETRY */

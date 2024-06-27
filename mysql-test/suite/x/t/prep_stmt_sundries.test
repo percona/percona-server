@@ -479,12 +479,22 @@ source ../include/wait_for_status_variables.inc;
 --let $assert_cond= [SHOW GLOBAL STATUS LIKE "Prepared_stmt_count", Value, 1] = 0
 --source include/assert.inc
 
+# When Percona Telemetry is built-in it installs the component, which changes conters values
+--let $Com_stmt_prepare_expected = 11
+--let $Com_stmt_execute_expected = 6
+--let $Com_stmt_close_expected = 7
+if (`SELECT COUNT(*) = 1 FROM mysql.component WHERE component_urn='file://component_percona_telemetry'`) {
+--let $Com_stmt_prepare_expected = 13
+--let $Com_stmt_execute_expected = 8
+--let $Com_stmt_close_expected = 9
+}
+
 --let $assert_text= Global system status Com_stmt_prepare must be set to zero, all prep-stmt must be deallocated.
---let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_prepare", Value, 1] = 11
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_prepare", Value, 1] = $Com_stmt_prepare_expected
 --source include/assert.inc
 
 --let $assert_text= Global system status Com_stmt_execute must be set to zero, all prep-stmt must be deallocated.
---let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_execute", Value, 1] = 6
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_execute", Value, 1] = $Com_stmt_execute_expected
 --source include/assert.inc
 
 --let $assert_text= Global system status Com_stmt_fetch must be set to zero, all prep-stmt must be deallocated.
@@ -492,7 +502,7 @@ source ../include/wait_for_status_variables.inc;
 --source include/assert.inc
 
 --let $assert_text= Global system status Com_stmt_close must be set to zero, all prep-stmt must be deallocated.
---let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_close", Value, 1] = 7
+--let $assert_cond= [SHOW GLOBAL STATUS LIKE "Com_stmt_close", Value, 1] = $Com_stmt_close_expected
 --source include/assert.inc
 
 ## Cleanup

@@ -730,7 +730,14 @@ class Log_event_header {
     @return True if the event object is valid, false otherwise.
   */
 
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
   bool get_is_valid() { return m_is_valid; }
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#pragma GCC diagnostic pop
+#endif
 
   /**
     Set if the event object shall be considered valid or not.

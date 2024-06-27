@@ -440,7 +440,7 @@ int Ndb::computeHash(Uint32 *retval, const NdbDictionary::Table *table,
   while (true) {
     if (buf == nullptr) {
       bufLen = sumlen;
-      buf = malloc(bufLen);
+      buf = calloc(bufLen, 1);
       if (unlikely(buf == nullptr)) return 4000;
       malloced_buf = buf; /* Remember to free */
     }

@@ -31,10 +31,10 @@ using FileWriterPtr = std::unique_ptr<FileWriterBase>;
 template <>
 class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
  public:
-  LogWriter<AuditLogHandlerType::File>() = delete;
-  explicit LogWriter<AuditLogHandlerType::File>(
+  LogWriter() = delete;
+  explicit LogWriter(
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
-  ~LogWriter<AuditLogHandlerType::File>() override;
+  ~LogWriter() override;
 
   /**
    * @brief Init log writer.

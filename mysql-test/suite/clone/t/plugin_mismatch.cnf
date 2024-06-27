@@ -5,6 +5,7 @@ server_id=1
 
 [mysqld.2]
 server_id=2
+loose-percona-telemetry-disable=ON
 
 [ENV]
 SERVER_PORT_1 = @mysqld.1.port

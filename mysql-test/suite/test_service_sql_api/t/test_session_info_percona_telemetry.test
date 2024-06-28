@@ -1,6 +1,6 @@
 # This test relies on real session IDs. They are different if Percona Telemetry
-# is built in, so it is better to disable this test than mask IDs in result
---source include/not_have_percona_telemetry.inc
+# is built in. This is the version for binary with Percona Telemetry built-in.
+--source include/have_percona_telemetry.inc
 
 CREATE TABLE t1(id INT NOT NULL);
 

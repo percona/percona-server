@@ -18,5 +18,5 @@ call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maxi
 
 let $engine_type=RocksDB;
 let $database_name=test;
---source extra/rpl_tests/rpl_crash_safe.test
+--source common/rpl/rpl_crash_safe.test
 --source include/rpl/deinit.inc

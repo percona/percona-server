@@ -29,5 +29,5 @@ set session sql_log_bin=1;
 
 let $engine_type=RocksDB;
 let $database_name=test;
---source extra/rpl_tests/rpl_crash_safe.test
+--source common/rpl/rpl_crash_safe.test
 --source include/rpl/deinit.inc

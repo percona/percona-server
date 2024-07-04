@@ -236,6 +236,11 @@ const constexpr int MAX_SUBCOMPACTIONS = 64;
 const constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 
 /*
+  Default value for rocksdb_max_trash_db_ratio_pct (multiplied by 1GB).
+*/
+const constexpr uint64_t DEFAULT_MAX_TRASH_DB_RATIO_PCT = 100000000000;
+
+/*
   Defines the field sizes for serializing XID object to a string representation.
   string byte format: [field_size: field_value, ...]
   [

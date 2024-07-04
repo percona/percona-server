@@ -515,31 +515,34 @@ constexpr size_t inst_col_info_size = 6;
 @param[in]   is_comp       true if COMP
 @param[in]   is_versioned  if table has row versions
 @param[in]   is_instant    true if table has INSTANT cols
-@param[in]   changed_order array indicating fields changed position
+@param[in]   fields_with_changed_order bitmap to indicate fields with changed
+                                       order
 @param[out]  size_needed   total size needed on REDO LOG */
-static void log_index_get_size_needed(
-    const dict_index_t *index, size_t size, uint16_t n, bool is_comp,
-    bool is_versioned, bool is_instant,
-    const std::unique_ptr<bool[]> &changed_order, size_t &size_needed) {
-  auto size_for_versioned_fields = [n,
-                                    &changed_order](const dict_index_t *ind) {
+static void log_index_get_size_needed(const dict_index_t *index, size_t size,
+                                      uint16_t n, bool is_comp,
+                                      bool is_versioned, bool is_instant,
+                                      const bool *fields_with_changed_order,
+                                      size_t &size_needed) {
+  auto size_for_versioned_fields = [&](const dict_index_t *ind) {
     size_t _size = 0;
     /* 2 bytes for number of columns with version */
     _size += 2;
 
-    size_t n_versioned_fields = 0;
-    for (size_t i = 0; i < n; i++) {
-      dict_field_t *field = ind->get_field(i);
-      const dict_col_t *col = field->col;
-      if (col->is_instant_added() || col->is_instant_dropped() ||
-          changed_order[i]) {
-        n_versioned_fields += 1;
-      }
-    }
-
+    size_t n_versioned_fields = ind->table->get_n_instant_add_cols() +
+                                ind->table->get_n_instant_drop_cols();
     ut_ad(n_versioned_fields != 0);
 
     _size += n_versioned_fields * inst_col_info_size;
+
+    /* For fields with changed order */
+    size_t n_changed_order_fields = 0;
+    for (size_t i = 0; i < n; i++) {
+      if (fields_with_changed_order[i]) {
+        n_changed_order_fields++;
+      }
+    }
+    _size += n_changed_order_fields * inst_col_info_size;
+
     return (_size);
   };
 
@@ -654,7 +657,6 @@ static bool close_and_reopen_log(byte *&log_ptr, const byte *&log_start,
                                  const byte *&log_end, mtr_t *&mtr,
                                  size_t &alloc, size_t &total) {
   mlog_close(mtr, log_ptr);
-
   ut_a(total > (ulint)(log_ptr - log_start));
   total -= log_ptr - log_start;
   alloc = total;
@@ -684,8 +686,7 @@ template <typename F>
 @param[in]  func          callback to check size reopen log buffer */
 static bool log_index_fields(const dict_index_t *index, uint16_t n,
                              bool is_versioned, std::vector<dict_field_t *> &f,
-                             const std::unique_ptr<bool[]> &changed_order,
-                             byte *&log_ptr, F &func) {
+                             bool *changed_order, byte *&log_ptr, F &func) {
   /* Write metadata for each field. Log the fields in their logical order. */
   for (size_t i = 0; i < n; i++) {
     dict_field_t *field = index->get_field(i);
@@ -815,12 +816,10 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   algorithm. But when it is combined with ADD/DROP COLUMN, ordinal position
   of a filed can be changed. This bool array of size #fields in index,
   represents if ordinal position of an existing filed is changed. */
-
-  // Move the logic to find columns that changed order before calculating
-  // the buffer size
-  std::unique_ptr<bool[]> fields_with_changed_order = nullptr;
+  bool *fields_with_changed_order = nullptr;
   if (is_versioned) {
-    fields_with_changed_order = std::make_unique<bool[]>(n);
+    fields_with_changed_order = new bool[n];
+    memset(fields_with_changed_order, false, (sizeof(bool) * n));
 
     uint16_t phy_pos = 0;
     for (size_t i = 0; i < n; i++) {
@@ -829,9 +828,8 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 
       if (col->is_instant_added() || col->is_instant_dropped()) {
         continue;
-      }
-      if (col->get_col_phy_pos() >= phy_pos) {
-        phy_pos = col->get_col_phy_pos();
+      } else if (field->get_phy_pos() >= phy_pos) {
+        phy_pos = field->get_phy_pos();
       } else {
         fields_with_changed_order[i] = true;
       }
@@ -848,6 +846,9 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   }
 
   if (!mlog_open(mtr, alloc, log_ptr)) {
+    if (is_versioned) {
+      delete[] fields_with_changed_order;
+    }
     /* logging is disabled */
     return (false);
   }
@@ -889,6 +890,9 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
     /* Write fields info. */
     if (!log_index_fields(index, n, is_versioned, instant_fields_to_log,
                           fields_with_changed_order, log_ptr, f)) {
+      if (is_versioned) {
+        delete[] fields_with_changed_order;
+      }
       return false;
     }
   } else if (is_versioned) {
@@ -900,6 +904,10 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
         instant_fields_to_log.push_back(field);
       }
     }
+  }
+
+  if (is_versioned) {
+    delete[] fields_with_changed_order;
   }
 
   if (!instant_fields_to_log.empty()) {

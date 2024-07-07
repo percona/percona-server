@@ -437,17 +437,17 @@ install_deps() {
             switch_to_vault_repo
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
-            if [ "${RHEL}" -lt 9 ]; then
+            if [ "${RHEL}" -lt 8 ]; then
                 # add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
                 # percona-release enable tools experimental
             else
                 yum -y install yum-utils
-                yum-config-manager --enable ol9_codeready_builder
-           fi
+                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+            fi
         else
-            if [ "x${RHEL}" = "x9" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" ]; then
                 yum -y install yum-utils
                 yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi

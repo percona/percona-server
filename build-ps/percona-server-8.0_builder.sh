@@ -433,29 +433,31 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        if [ "x${RHEL}" = "x8" ]; then
+        if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
-            if [ "${RHEL}" -lt 9 ]; then
+            if [ "${RHEL}" -lt 8 ]; then
                 # add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
                 # percona-release enable tools experimental
             else
                 yum -y install yum-utils
-                yum-config-manager --enable ol9_codeready_builder
-           fi
+                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+            fi
         else
-            if [ "x${RHEL}" = "x9" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" ]; then
                 yum -y install yum-utils
                 yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi
         fi
         yum -y update
-#        yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install epel-release
+        if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
+            switch_to_vault_repo
+        fi
+        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
@@ -464,6 +466,7 @@ install_deps() {
                 echo "waiting"
                 sleep 1
             done
+            switch_to_vault_repo
             yum -y install gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
             yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
@@ -740,7 +743,7 @@ build_mecab_lib(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
     #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
-    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/mecab/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -772,7 +775,7 @@ build_mecab_dict(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
     #MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
-    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/mecab/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}

@@ -419,8 +419,11 @@ install_deps() {
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev
-        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
-
+        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl libsasl2-dev
+        apt-get -y install python-mysqldb
+        if [ "x${DIST}" = "xnoble" ]; then
+            apt-get -y install libtirpc-dev
+        fi
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
@@ -508,7 +511,7 @@ build_srpm(){
     wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
     #wget --no-check-certificate http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
-    wget --no-check-certificate https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget --no-check-certificate https://downloads.percona.com/downloads/packaging/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -546,7 +549,7 @@ build_srpm(){
 build_mecab_lib(){
     MECAB_TARBAL="mecab-0.996.tar.gz"
     #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
-    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -571,7 +574,7 @@ build_mecab_lib(){
 build_mecab_dict(){
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
     #MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
-    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
@@ -751,15 +754,15 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = focal -o ${DEBIAN_VERSION} = buster -o ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm -o ${DEBIAN_VERSION} = noble ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
-    if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
+    if [ ${DEBIAN_VERSION} = bullseye -o ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm -o ${DEBIAN_VERSION} = noble ]; then
         sed -i '28d' debian/control
         sed -i 's|libcurl4-openssl-dev,|libcurl4-openssl-dev|' debian/control
     fi
-    if [ ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm ]; then
+    if [ ${DEBIAN_VERSION} = jammy -o ${DEBIAN_VERSION} = bookworm -o ${DEBIAN_VERSION} = noble ]; then
         sed -i 's|libjemalloc1 (>= 3.3.0)|libjemalloc2|' debian/control
         sed -i 's|libjemalloc.so.1|libjemalloc.so.2|' scripts/*.sh
         sed -i 's|libjemalloc1|libjemalloc2|' scripts/*.sh
@@ -785,7 +788,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye -a ${DEBIAN_VERSION} != jammy -a ${DEBIAN_VERSION} != bookworm ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != focal -a ${DEBIAN_VERSION} != buster -a ${DEBIAN_VERSION} != bullseye -a ${DEBIAN_VERSION} != jammy -a ${DEBIAN_VERSION} != bookworm -a ${DEBIAN_VERSION} != noble ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -809,7 +812,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "jammy" -o ${DEBIAN_VERSION} = "bookworm" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "jammy" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare  /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -W#warnings -Wno-error=deprecated-copy -Wno-deprecated-copy -Wno-error=redundant-move -Wno-error=sign-compare -Wno-error /' debian/rules
     fi

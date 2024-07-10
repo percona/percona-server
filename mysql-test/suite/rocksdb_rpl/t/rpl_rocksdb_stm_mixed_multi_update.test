@@ -3,4 +3,4 @@
 -- source include/not_group_replication_plugin.inc
 -- source include/have_rocksdb.inc
 let $engine_type=RocksDB;
--- source extra/rpl_tests/rpl_multi_update.test
+-- source common/rpl/rpl_multi_update.test

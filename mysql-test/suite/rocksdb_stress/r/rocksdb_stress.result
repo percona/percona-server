@@ -12,22 +12,14 @@ msg_length int,
 msg_checksum varchar(128),
 KEY msg_i(msg(255), zero_sum))
 ENGINE=RocksDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
-CREATE USER 'rocksdb_stress_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'rocksdb_stress_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 GRANT ALL ON *.* TO 'rocksdb_stress_test'@'localhost';
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP REPLICA;
+START REPLICA;
 DROP USER 'rocksdb_stress_test'@'localhost';
 DROP TABLE t1;
-stop slave;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-start slave;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+STOP REPLICA;
+START REPLICA;
 include/rpl/stop_replica.inc
 include/rpl/start_replica.inc
 include/rpl/stop_replica.inc

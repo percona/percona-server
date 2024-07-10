@@ -8,5 +8,5 @@
 #
 
 -- let $engine= RocksDB
--- source extra/rpl_tests/rpl_record_compare.test
+-- source common/rpl/rpl_record_compare.test
 -- source include/rpl/deinit.inc

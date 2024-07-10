@@ -4,5 +4,5 @@
 -- source include/have_rocksdb.inc
 -- source include/rpl/init_source_replica.inc
 let $engine_type=rocksdb;
--- source extra/rpl_tests/rpl_commit_after_flush.test
+-- source common/rpl/rpl_commit_after_flush.test
 -- source include/rpl/deinit.inc

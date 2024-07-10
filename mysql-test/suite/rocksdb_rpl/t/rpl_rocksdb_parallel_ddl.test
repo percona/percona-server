@@ -7,4 +7,4 @@
 # InnoDB creates .frm and .ibd files.
 
 --let $DEFAULT_ENGINE = rocksdb
---source extra/rpl_tests/rpl_parallel_ddl.test
+--source common/rpl/rpl_parallel_ddl.test

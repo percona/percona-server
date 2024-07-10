@@ -101,9 +101,7 @@ SET DEBUG = "+d,rocksdb_truncate_failure_crash";
 --error 2013
 TRUNCATE TABLE t1_crash;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 --exec grep 'Removing truncated leftover' $LOG | wc -l
 DROP TABLE IF EXISTS t1_crash;
 --remove_file $LOG
@@ -111,6 +109,4 @@ DROP TABLE IF EXISTS t1_crash;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 shutdown_server;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect

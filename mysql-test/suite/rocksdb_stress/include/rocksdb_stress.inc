@@ -6,7 +6,7 @@
 --connection master
 --let $master_host = 127.0.0.1
 
-CREATE USER 'rocksdb_stress_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'rocksdb_stress_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 GRANT ALL ON *.* TO 'rocksdb_stress_test'@'localhost';
 
 let $exec =
@@ -21,7 +21,6 @@ exec $exec;
 
 --exec rm $MYSQL_TMP_DIR/load_generator.log
 
-enable_reconnect;
 source include/wait_until_connected_again.inc;
 
 --let $master_checksum = query_get_value(CHECKSUM TABLE $table, Checksum, 1)

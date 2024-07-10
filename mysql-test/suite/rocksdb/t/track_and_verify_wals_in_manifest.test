@@ -91,7 +91,6 @@ EOF
 --exec grep "Corruption: SST file is ahead of WALs" $_custom_err | wc -l
 
 --exec echo "restart:--rocksdb_wal_recovery_mode=3 --rocksdb_track_and_verify_wals_in_manifest=0" --rocksdb_write_policy=$write_policy > $_expect_file_name
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 select * from t1;

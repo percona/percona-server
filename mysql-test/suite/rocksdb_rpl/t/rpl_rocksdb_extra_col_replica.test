@@ -5,5 +5,5 @@
 CALL mtr.add_suppression("Replica: .*Duplicate column name");
 
 let $engine_type='RocksDB';
---source extra/rpl_tests/rpl_extra_col_slave.test
+--source common/rpl/rpl_extra_col_replica.test
 --source include/rpl/deinit.inc

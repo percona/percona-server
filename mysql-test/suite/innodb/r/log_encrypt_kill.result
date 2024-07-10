@@ -4,10 +4,10 @@ SELECT @@global.innodb_redo_log_encrypt ;
 0
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SET GLOBAL innodb_undo_log_encrypt = 1;
-select * from performance_schema.keyring_component_status;
-STATUS_KEY	STATUS_VALUE
 Warnings:
 Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.
+select * from performance_schema.keyring_component_status;
+STATUS_KEY	STATUS_VALUE
 CREATE TABLE tne_1(c1 INT, c2 varchar(2000)) ENGINE = InnoDB;
 INSERT INTO tne_1 VALUES (1,REPEAT('a',1990)),(2,REPEAT('b',1990)),(100,REPEAT('c',1990));
 SELECT c1,LEFT(c2,10) FROM tne_1;

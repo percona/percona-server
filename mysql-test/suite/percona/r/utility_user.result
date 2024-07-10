@@ -160,7 +160,7 @@ COUNT(DISTINCT PROCESSLIST_ID)
 SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 COUNT(*)
 3
-ERROR HY000: You are not owner of thread 10
+ERROR HY000: You are not owner of thread <ID>
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
 CREATE ROLE r1;
 GRANT r1 TO frank@'%';

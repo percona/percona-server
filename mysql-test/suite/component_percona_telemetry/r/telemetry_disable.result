@@ -1,0 +1,11 @@
+include/assert.inc [Percona Telemetry Component should not be installed]
+UNINSTALL COMPONENT 'file://component_percona_telemetry';
+include/assert.inc [Percona Telemetry Component should not be installed]
+# restart:
+include/assert.inc [Percona Telemetry Component should be installed after server restart]
+# restart:--percona-telemetry-disable=1
+include/assert.inc [Percona Telemetry Component should not be installed when server is started with --percona-telemetry-disable=1]
+INSTALL COMPONENT 'file://component_percona_telemetry';
+include/assert.inc [It should be possible to manually install Percona Telemetry Component]
+# restart:--percona-telemetry-disable=1
+include/assert.inc [Percona Telemetry Component should not be installed when server is started with --percona-telemetry-disable=1]

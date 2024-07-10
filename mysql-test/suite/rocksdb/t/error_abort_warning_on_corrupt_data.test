@@ -31,7 +31,6 @@ select * from t1;
 --remove_file $DATADIR_LOCATION/.rocksdb/ROCKSDB_CORRUPTED
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -70,7 +69,6 @@ insert into t2 (sk) values (1), (2) on duplicate key update val = val + 1;
 --remove_file $DATADIR_LOCATION/.rocksdb/ROCKSDB_CORRUPTED
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 

@@ -696,9 +696,7 @@ ERROR HY000: Table storage engine 'ROCKSDB' does not support the create option '
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
 CREATE TABLE t1 (a INT) ENGINE=ROCKSDB TABLESPACE ts1;
 ERROR 42000: This version of MySQL doesn't yet support 'TABLESPACEs for the RocksDB storage engine'
-DROP TABLESPACE ts1 ENGINE=INNODB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE ts1;
 CREATE TABLE t1 (a INT) COMPRESSION='ZLIB' ENGINE=ROCKSDB;
 ERROR 42000: This version of MySQL doesn't yet support 'InnoDB page COMPRESSION for the RocksDB storage engine'
 CREATE TABLE t1 (a INT) COMPRESSION='LZ4' ENGINE=ROCKSDB;

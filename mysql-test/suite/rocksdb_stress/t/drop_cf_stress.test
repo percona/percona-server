@@ -22,7 +22,7 @@ call mtr.add_suppression("Could not get index information for Index Number");
 --let $drop_cf_weight = 9
 --let $manual_compaction_weight = 1
 
-CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 GRANT ALL ON *.* TO 'drop_cf_test'@'localhost';
 
 connect (conn1,localhost,drop_cf_test,,);

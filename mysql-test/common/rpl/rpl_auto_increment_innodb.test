@@ -29,7 +29,7 @@ drop table t1;
 connection master;
 set auto_increment_increment=1;
 set auto_increment_offset=1;
-CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
+eval CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=$engine_type;
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 show create table t1;
 
@@ -118,7 +118,7 @@ SET SQL_MODE='';
 # will fail in ha_external_lock() function.
 #
 connection master;
-CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+eval CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=$engine_type;
 
 BEGIN;
 --echo # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing

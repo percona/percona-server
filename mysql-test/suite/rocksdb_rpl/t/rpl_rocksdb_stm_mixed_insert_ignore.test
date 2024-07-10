@@ -20,5 +20,5 @@ set session sql_log_bin=1;
 --connection master
 
 -- let $engine_type=rocksdb
--- source extra/rpl_tests/rpl_insert_ignore.test
+-- source common/rpl/rpl_insert_ignore.test
 -- source include/rpl/deinit.inc

@@ -1,4 +1,4 @@
-CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'drop_cf_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password';
 GRANT ALL ON *.* TO 'drop_cf_test'@'localhost';
 CREATE TABLE tables (
 table_id int NOT NULL,

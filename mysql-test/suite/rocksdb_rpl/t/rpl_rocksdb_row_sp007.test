@@ -2,4 +2,4 @@
 -- source include/not_ndb_default.inc
 -- source include/have_rocksdb.inc
 let $engine_type=RocksDB;
--- source extra/rpl_tests/rpl_row_sp007.test
+-- source common/rpl/rpl_row_sp007.test

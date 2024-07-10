@@ -1,0 +1,6 @@
+CALL mtr.add_suppression("Component percona_telemetry reported: 'Skipping file deletion this_file_should_not_be_removed'");
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.history_keep_interval=80 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
+File with the name not conforming to the pattern still should be there
+1
+Obsolete file should be removed
+0

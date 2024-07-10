@@ -27,7 +27,7 @@ LOCK TABLES FOR BACKUP;
 # connection master
 INSERT INTO t_myisam VALUES (0);
 # connection slave
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 UNLOCK TABLES;
 # connection master
@@ -37,7 +37,7 @@ LOCK INSTANCE FOR BACKUP;
 # connection master
 CREATE TABLE t (a INT);
 # connection slave
-STOP SLAVE SQL_THREAD;
+STOP REPLICA SQL_THREAD;
 ERROR HY000: Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
 UNLOCK INSTANCE;
 # connection master

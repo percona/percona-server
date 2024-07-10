@@ -4,6 +4,6 @@
 -- source include/rpl/init_source_replica.inc
 
 let $engine_type=RocksDB;
--- source extra/rpl_tests/rpl_row_tabledefs.test
+-- source common/rpl/rpl_row_tabledefs.test
 
 -- source include/rpl/deinit.inc

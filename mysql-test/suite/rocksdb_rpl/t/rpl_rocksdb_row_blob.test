@@ -11,6 +11,6 @@
 -- source include/have_binlog_format_row.inc
 -- source include/rpl/init_source_replica.inc
 let $engine_type=RocksDB;
--- source extra/rpl_tests/rpl_row_blob.test
+-- source common/rpl/rpl_row_blob.test
 
 -- source include/rpl/deinit.inc

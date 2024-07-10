@@ -1,4 +1,1 @@
 !include suite/rpl/t/rpl_row_img.cnf
-
-[mysqld]
-binlog_transaction_dependency_tracking=COMMIT_ORDER

@@ -20,10 +20,8 @@ set debug="+d,crash_commit_before";
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -36,10 +34,8 @@ set debug="+d,crash_commit_after_prepare";
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -52,10 +48,8 @@ set debug="+d,crash_commit_after_log";
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -68,10 +62,8 @@ set debug="+d,crash_commit_after";
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 

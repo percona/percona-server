@@ -15,6 +15,6 @@
 -- source include/have_rocksdb.inc
 -- source include/rpl/init_source_replica.inc
 let $engine_type=ROCKSDB;
--- source extra/rpl_tests/rpl_trig004.test
+-- source common/rpl/rpl_trig004.test
 
 -- source include/rpl/deinit.inc

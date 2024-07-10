@@ -3,4 +3,4 @@
 -- source include/not_ndb_default.inc
 -- source include/have_rocksdb.inc
 let $engine_type=RocksDB;
--- source extra/rpl_tests/rpl_sv_relay_space.test
+-- source common/rpl/rpl_sv_relay_space.test

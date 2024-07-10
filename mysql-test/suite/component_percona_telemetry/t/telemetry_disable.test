@@ -1,0 +1,50 @@
+# Component enable/disable
+
+--source include/have_percona_telemetry.inc
+--source include/force_restart.inc
+
+
+# Telemetry is enabled. It is checked already by have_percona_telemetry.inc
+--let $assert_text = Percona Telemetry Component should not be installed
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 1
+--source include/assert.inc
+
+# Component can be unloaded
+UNINSTALL COMPONENT 'file://component_percona_telemetry';
+
+--let $assert_text = Percona Telemetry Component should not be installed
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 0
+--source include/assert.inc
+
+# Restart the server. Percona Telemetry Component should be installed again
+--let $restart_parameters = "restart:"
+--source include/restart_mysqld.inc
+
+--let $assert_text = Percona Telemetry Component should be installed after server restart
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 1
+--source include/assert.inc
+
+# Now restart the server with --percona-telemetry-disable=1. Component should not be loaded
+--let $restart_parameters = "restart:--percona-telemetry-disable=1"
+--source include/restart_mysqld.inc
+
+--let $assert_text = Percona Telemetry Component should not be installed when server is started with --percona-telemetry-disable=1
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 0
+--source include/assert.inc
+
+# Component can be loaded
+INSTALL COMPONENT 'file://component_percona_telemetry';
+
+--let $assert_text = It should be possible to manually install Percona Telemetry Component
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 1
+--source include/assert.inc
+
+# ... but after restart with --percona-telemetry-disable=1 is should not be there
+# Now restart the server with --percona-telemetry-disable=1. Component should not be loaded
+--let $restart_parameters = "restart:--percona-telemetry-disable=1"
+--source include/restart_mysqld.inc
+
+--let $assert_text = Percona Telemetry Component should not be installed when server is started with --percona-telemetry-disable=1
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.component WHERE component_urn = "file://component_percona_telemetry"] = 0
+--source include/assert.inc
+

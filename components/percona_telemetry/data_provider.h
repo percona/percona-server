@@ -61,7 +61,7 @@ class DataProvider {
       SERVICE_TYPE(mysql_command_thread) & command_thread_service,
       Logger &logger);
 
-  ~DataProvider() = default;
+  virtual ~DataProvider() = default;
 
   DataProvider(const DataProvider &rhs) = delete;
   DataProvider(DataProvider &&rhs) = delete;
@@ -73,9 +73,9 @@ class DataProvider {
   std::string get_report();
 
  private:
-  bool do_query(const std::string &query, QueryResult *result,
-                unsigned int *err_no = nullptr,
-                bool suppress_query_error_log = false);
+  virtual bool do_query(const std::string &query, QueryResult *result,
+                        unsigned int *err_no = nullptr,
+                        bool suppress_query_error_log = false);
   bool collect_db_instance_id_info(rapidjson::Document *document);
   bool collect_product_version_info(rapidjson::Document *document);
   bool collect_plugins_info(rapidjson::Document *document);

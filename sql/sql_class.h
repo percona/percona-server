@@ -1262,6 +1262,9 @@ class THD : public MDL_context_owner,
   /* Slave applier execution context */
   Relay_log_info *rli_slave;
 
+  /* Execution mode used to execute RBR events */
+  enum_rbr_exec_mode m_rbr_exec_mode = RBR_EXEC_MODE_STRICT;
+
   /* Is transaction commit still pending */
   bool tx_commit_pending;
 

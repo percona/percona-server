@@ -10536,6 +10536,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       this->rbr_exec_mode = replica_exec_mode_options;
     else  // set the mode for user thread
       this->rbr_exec_mode = thd->variables.rbr_exec_mode_options;
+    // Lets storage engines skip optimizations that trust the before image,
+    // such as MyRocks read-free replication, in idempotent mode.
+    thd->m_rbr_exec_mode = static_cast<enum_rbr_exec_mode>(rbr_exec_mode);
 
     // Do event specific preparations
     error = do_before_row_operations(rli);
@@ -10701,6 +10704,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       clear_all_errors(thd, const_cast<Relay_log_info *>(rli));
       error = 0;
     }
+    thd->m_rbr_exec_mode = RBR_EXEC_MODE_STRICT;
 
     // reset back the db
     thd->reset_db(current_db_name_saved);

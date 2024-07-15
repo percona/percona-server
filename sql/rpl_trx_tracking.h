@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <atomic>
-#include <map>
+#include <unordered_map>
 
 #include "mysql/binlog/event/binlog_event.h"
 
@@ -170,7 +170,7 @@ class Writeset_trx_dependency_tracker {
     Track the last transaction sequence number that changed each row
     in the database, using row hashes from the writeset as the index.
   */
-  typedef std::map<uint64, int64> Writeset_history;
+  typedef std::unordered_map<uint64, int64> Writeset_history;
   Writeset_history m_writeset_history;
 };
 

@@ -214,6 +214,27 @@ class PCursor {
   PCursor(btr_pcur_t *pcur, mtr_t *mtr, size_t read_level)
       : m_mtr(mtr), m_pcur(pcur), m_read_level(read_level) {}
 
+  /**
+    Restore position of cursor created from Scan_ctx::Range object.
+    Adjust it if starting record of range has been purged.
+  */
+  void restore_position_for_range() noexcept {
+    /*
+      Restore position on the record or its predecessor if the record
+      was purged meanwhile. In the latter case we need to adjust position by
+      moving one step forward as predecessor belongs to another range.
+
+      We rely on return value from restore_position() to detect this scenario.
+      This can be done when saved position points to user record which is
+      always the case for saved start of Scan_ctx::Range.
+    */
+    ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
+
+    if (!m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE)) {
+      page_cur_move_to_next(m_pcur->get_page_cur());
+    }
+  }
+
   /** Create a savepoint and commit the mini-transaction.*/
   void savepoint() noexcept;
 
@@ -224,65 +245,6 @@ class PCursor {
   @param[in]  index             Index being traversed.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t move_to_next_block(dict_index_t *index);
-
-  /** Restore the cursor position. */
-  void restore_position() noexcept {
-    constexpr auto MODE = BTR_SEARCH_LEAF;
-    const auto relative = m_pcur->m_rel_pos;
-    auto equal = m_pcur->restore_position(MODE, m_mtr, UT_LOCATION_HERE);
-
-#ifdef UNIV_DEBUG
-    if (m_pcur->m_pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
-      ut_ad(m_pcur->m_rel_pos == BTR_PCUR_BEFORE ||
-            m_pcur->m_rel_pos == BTR_PCUR_AFTER);
-    } else {
-      ut_ad(m_pcur->m_pos_state == BTR_PCUR_IS_POSITIONED);
-      ut_ad((m_pcur->m_rel_pos == BTR_PCUR_ON) == m_pcur->is_on_user_rec());
-    }
-#endif /* UNIV_DEBUG */
-
-    switch (relative) {
-      case BTR_PCUR_ON:
-        if (!equal) {
-          page_cur_move_to_next(m_pcur->get_page_cur());
-        }
-        break;
-
-      case BTR_PCUR_UNSET:
-      case BTR_PCUR_BEFORE_FIRST_IN_TREE:
-        ut_error;
-        break;
-
-      case BTR_PCUR_AFTER:
-      case BTR_PCUR_AFTER_LAST_IN_TREE:
-        break;
-
-      case BTR_PCUR_BEFORE:
-        /* For non-optimistic restoration:
-        The position is now set to the record before pcur->old_rec.
-
-        For optimistic restoration:
-        The position also needs to take the previous search_mode into
-        consideration. */
-        switch (m_pcur->m_pos_state) {
-          case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
-            m_pcur->m_pos_state = BTR_PCUR_IS_POSITIONED;
-            /* The cursor always moves "up" ie. in ascending order. */
-            break;
-
-          case BTR_PCUR_IS_POSITIONED:
-            if (m_pcur->is_on_user_rec()) {
-              m_pcur->move_to_next(m_mtr);
-            }
-            break;
-
-          case BTR_PCUR_NOT_POSITIONED:
-          case BTR_PCUR_WAS_POSITIONED:
-            ut_error;
-        }
-        break;
-    }
-  }
 
   /** @return the current page cursor. */
   [[nodiscard]] page_cur_t *get_page_cursor() noexcept {
@@ -347,7 +309,7 @@ void PCursor::resume() noexcept {
   /* Restore position on the record, or its predecessor if the record
   was purged meanwhile. */
 
-  restore_position();
+  m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE);
 
   if (!m_pcur->is_after_last_on_page()) {
     /* Move to the successor of the saved record. */
@@ -625,7 +587,7 @@ dberr_t Parallel_reader::Ctx::traverse() {
   auto &from = m_range.first;
 
   PCursor pcursor(from->m_pcur, &mtr, m_scan_ctx->m_config.m_read_level);
-  pcursor.restore_position();
+  pcursor.restore_position_for_range();
 
   dberr_t err{DB_SUCCESS};
 

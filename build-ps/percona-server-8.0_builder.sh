@@ -1086,8 +1086,8 @@ build_deb(){
     cat call-home.sh >> percona-server-server"${postfix}".postinst
     echo "CALLHOME" >> percona-server-server"${postfix}".postinst
     echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid" >> percona-server-server"${postfix}".postinst
-    echo "chmod 664 /usr/local/percona/telemetry_uuid" >> percona-server-server"${postfix}".postinst
+    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh

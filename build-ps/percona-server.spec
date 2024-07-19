@@ -1197,6 +1197,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_encryption_udf.so
 %endif
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_uuid_vx_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_uuid_vx_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_kms.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kms.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so

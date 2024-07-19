@@ -532,28 +532,30 @@ install_deps() {
             yum -y install MySQL-python
         fi
     else
-        apt-get -y install dirmngr || true
-        apt-get update
-        apt-get -y install lsb_release || true
-        apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget git curl
-        wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
-        percona-release enable tools testing
+        until apt-get update; do
+            echo "apt-get update failed. Retrying in 5 seconds..."
+            sleep 5
+        done
         export DEBIAN_FRONTEND="noninteractive"
+        apt-get -y install dirmngr || true
+        apt-get -y install lsb-release || true
+        apt-get -y install wget git curl
         export DIST="$(lsb_release -sc)"
-            until apt-get update; do
-            sleep 1
-            echo "waiting"
+        if [ x"${DIST}" != xnoble ];then
+            wget https://repo.percona.com/apt/percona-release_latest."${DIST}"_all.deb && dpkg -i percona-release_latest."${DIST}"_all.deb
+            percona-release enable tools testing
+        fi
+        until apt-get update; do
+            echo "apt-get update failed. Retrying in 5 seconds..."
+            sleep 5
         done
         apt-get -y purge eatmydata || true
-
-        apt-get update
         apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install copyright-update
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
             apt-get -y install python3-mysqldb
@@ -1115,6 +1117,12 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
+    if [ ${DEBIAN_VERSION} = "noble" -a ${ARCH} = "aarch64" ]; then
+        sed -i 's:dh_strip --dbg-package=percona-server-dbg:mv debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so /tmp\n\tdh_strip --dbg-package=percona-server-dbg\n\tmv /tmp/authentication_fido.so debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
+    fi
+
+    cat debian/rules
 
     dpkg-buildpackage -rfakeroot -uc -us -b
 

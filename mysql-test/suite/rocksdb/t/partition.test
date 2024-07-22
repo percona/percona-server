@@ -35,6 +35,7 @@ SELECT PARTITION_NAME FROM information_schema.rocksdb_ddl WHERE TABLE_NAME="VAR_
 
 --enable_query_log
 
+--sorted_result
 SHOW TABLES;
 
 SELECT * FROM t1 ORDER BY i LIMIT 10;

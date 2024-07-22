@@ -225,6 +225,8 @@ usr/lib/mysql/plugin/debug/authentication_oci_client.so
 usr/lib/mysql/plugin/debug/component_keyring_kmip.so
 usr/lib/mysql/plugin/component_encryption_udf.so
 usr/lib/mysql/plugin/debug/component_encryption_udf.so
+usr/lib/mysql/plugin/component_uuid_vx_udf.so
+usr/lib/mysql/plugin/debug/component_uuid_vx_udf.so
 usr/lib/mysql/plugin/component_keyring_kms.so
 usr/lib/mysql/plugin/debug/component_keyring_kms.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so

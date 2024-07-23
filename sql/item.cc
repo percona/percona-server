@@ -2902,13 +2902,13 @@ void Item_ident::print(String *str, enum_query_type query_type,
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used()))
   {
-    if (table_name_arg && table_name_arg[0])
+    if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0])
     {
       my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
     }
-    if (db_name_arg && db_name_arg[0])
+    if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0])
     {
       my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
@@ -2924,8 +2924,8 @@ void Item_ident::print(String *str, enum_query_type query_type,
     return;
   }
 
-  if (db_name_arg && db_name_arg[0] &&
-      !(query_type & QT_NO_DB) &&
+  if (!(query_type & QT_NO_DB) &&
+      db_name_arg && db_name_arg[0] &&
       !alias_name_used())
   {
     const size_t d_name_len= strlen(d_name);
@@ -2936,7 +2936,7 @@ void Item_ident::print(String *str, enum_query_type query_type,
       str->append('.');
     }
   }
-  if (table_name_arg[0] && !(query_type & QT_NO_TABLE))
+  if (!(query_type & QT_NO_TABLE) && table_name_arg[0])
   {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');

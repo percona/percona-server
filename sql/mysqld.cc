@@ -1241,7 +1241,7 @@ bool opt_show_replica_auth_info;
 bool opt_log_replica_updates = false;
 char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
-
+bool opt_ctas_compatibility_mode = false;
 /**
   compatibility option:
     - index usage hints (USE INDEX without a FOR clause) behave as in 5.0

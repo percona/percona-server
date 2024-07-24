@@ -2357,7 +2357,8 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     This is done only while binlogging CREATE TABLE AS SELECT.
   */
   if (!thd->lex->query_block->field_list_is_empty() &&
-      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      !opt_ctas_compatibility_mode) {
     packet->append(STRING_WITH_LEN(" START TRANSACTION"));
   }
 

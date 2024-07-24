@@ -1,0 +1,31 @@
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t (id INT PRIMARY KEY, b VARCHAR(36), KEY k(b)) ENGINE=RocksDB;
+INSERT INTO t VALUES (1,'first-long-value'), (2,'last-long-value');
+--disable_query_log
+let $i=100;
+while ($i < 400) {
+  eval INSERT INTO t VALUES ($i, CONCAT('other-', $i));
+  inc $i;
+}
+--enable_query_log
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+ANALYZE TABLE t;
+SET @saved_bounds=@@global.rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds;
+SET GLOBAL rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds=ON;
+--connect (reader,localhost,root,,test)
+SET optimizer_switch='mrr=off';
+SET DEBUG_SYNC='rocksdb.check_flags_nwd SIGNAL first_read WAIT_FOR resume';
+--send SELECT id FROM t FORCE INDEX(k) WHERE b IN ('first-long-value','last-long-value') ORDER BY id
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR first_read';
+SET GLOBAL rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds=OFF;
+SET DEBUG_SYNC='now SIGNAL resume';
+--connection reader
+--reap
+--disconnect reader
+--connection default
+SET GLOBAL rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds=@saved_bounds;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t;

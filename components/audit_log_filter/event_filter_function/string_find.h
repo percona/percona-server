@@ -24,8 +24,7 @@ template <>
 class EventFilterFunction<EventFilterFunctionType::StringFind>
     : public EventFilterFunctionBase {
  public:
-  explicit EventFilterFunction<EventFilterFunctionType::StringFind>(
-      FunctionArgsList args);
+  explicit EventFilterFunction(FunctionArgsList args);
 
   /**
    * @brief Validate function arguments.

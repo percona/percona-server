@@ -4292,6 +4292,13 @@ static Sys_var_int32 Sys_regexp_stack_limit(
     GLOBAL_VAR(opt_regexp_stack_limit), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, INT32_MAX), DEFAULT(8000000), BLOCK_SIZE(1));
 
+static Sys_var_bool Sys_ctas_compatibility_mode(
+    "ctas_compatibility_mode",
+    "Execute and binlog CTAS in pre 8.0.21 way, i.e. with intermediate commit "
+    "after the table creation.",
+    READ_ONLY GLOBAL_VAR(opt_ctas_compatibility_mode), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
+
 static Sys_var_bool Sys_replica_compressed_protocol(
     "replica_compressed_protocol",
     "Use compression in the source/replica protocol.",

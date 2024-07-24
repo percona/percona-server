@@ -1,0 +1,45 @@
+#
+# The default is OFF
+#
+--let $assert_text= ctas_compatibility_mode default should be OFF
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "ctas_compatibility_mode", Value, 1]" = "OFF"
+--source include/assert.inc
+
+#
+# Check that it is read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL ctas_compatibility_mode = ON; 
+
+#
+# Check that compatibility mode works 
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+
+--let $binlog_file = ctas_binlog
+--let $restart_parameters = "restart: --ctas-compatibility-mode=ON --log-bin=$binlog_file"
+--source include/restart_mysqld.inc
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+--let $restart_parameters = "restart:"
+--source include/restart_mysqld.inc
+
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/$binlog_file.000001 > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+--let $assert_text = "Checking if ctas_compatibility_mode works"
+--let $assert_select = START TRANSACTION
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--let $assert_text = "Checking if rows are inserted as the separate transaction"
+--let $assert_select = BEGIN
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# cleanup
+DROP TABLE t1, t2;
+--remove_file $MYSQLD_DATADIR/$binlog_file.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file.sql

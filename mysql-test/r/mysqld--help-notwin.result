@@ -307,6 +307,9 @@ The following options may be given as the first argument:
  --create-admin-listener-thread 
  Use a dedicated thread for listening incoming connections
  on admin interface
+ --ctas-compatibility-mode 
+ Execute and binlog CTAS in pre 8.0.21 way, i.e. with
+ intermediate commit after the table creation.
  --cte-max-recursion-depth=# 
  Abort a recursive common table expression if it does more
  than this number of iterations.
@@ -1856,6 +1859,7 @@ connection-memory-limit 18446744073709551615
 console FALSE
 coredumper (No default value)
 create-admin-listener-thread FALSE
+ctas-compatibility-mode FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE
 default-authentication-plugin caching_sha2_password

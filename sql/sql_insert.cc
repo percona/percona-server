@@ -3039,8 +3039,9 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
 
     bool is_trans = false;
     bool direct = true;
-    if (get_default_handlerton(thd, thd->lex->create_info->db_type)->flags &
-        HTON_SUPPORTS_ATOMIC_DDL) {
+    if ((get_default_handlerton(thd, thd->lex->create_info->db_type)->flags &
+         HTON_SUPPORTS_ATOMIC_DDL) &&
+        !opt_ctas_compatibility_mode) {
       is_trans = true;
       direct = false;
     }

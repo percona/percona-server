@@ -1,0 +1,11 @@
+include/assert.inc [ctas_compatibility_mode default should be OFF]
+SET GLOBAL ctas_compatibility_mode = ON;
+ERROR HY000: Variable 'ctas_compatibility_mode' is a read only variable
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+# restart: --ctas-compatibility-mode=ON --log-bin=ctas_binlog
+CREATE TABLE t2 AS SELECT * FROM t1;
+# restart:
+include/assert_grep.inc ["Checking if ctas_compatibility_mode works"]
+include/assert_grep.inc ["Checking if rows are inserted as the separate transaction"]
+DROP TABLE t1, t2;

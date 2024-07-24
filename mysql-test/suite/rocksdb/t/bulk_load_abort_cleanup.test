@@ -1,0 +1,89 @@
+--source include/have_rocksdb.inc
+--source include/count_sessions.inc
+
+CREATE TABLE bulk_abort (id INT, v VARBINARY(1024),
+                         PRIMARY KEY(id) COMMENT 'cfname=bulk_abort_cf')
+  ENGINE=ROCKSDB;
+SET @saved_cf_options=@@GLOBAL.rocksdb_update_cf_options;
+# Rdb_sst_info rolls over at three times target_file_size_base. This produces
+# completed files plus an unfinished file, exercising both cleanup paths.
+SET GLOBAL rocksdb_update_cf_options=
+  'bulk_abort_cf={target_file_size_base=16384}';
+--let rocksdb_dir = `SELECT CONCAT(@@datadir, @@rocksdb_datadir)`
+call mtr.add_suppression("Error .* finalizing last SST file while disconnecting");
+call mtr.add_suppression("Failed to bulk load");
+
+--echo # A bulk load that fails at disconnect must remove its SST files
+# The existing row overlaps the loaded range, so the ingestion fails.
+INSERT INTO bulk_abort VALUES (1,'x');
+
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+  SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+--connection default
+--perl
+  my @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+  die "Expected multiple pending SST files" unless @files >= 2;
+EOF
+--disconnect loader
+--source include/wait_until_count_sessions.inc
+--perl
+  my @files;
+  for (1..100) {
+    @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+    last unless @files;
+    select undef, undef, undef, 0.1;
+  }
+  die "Aborted bulk load left SST files: @files" if @files;
+EOF
+SELECT COUNT(*) FROM bulk_abort;
+
+--echo # A disconnect finishes the bulk load: keep the data and remove temporary
+--echo # files
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+  SELECT 1001 UNION ALL SELECT n+1 FROM seq WHERE n<1128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+--connection default
+--disconnect loader
+--source include/wait_until_count_sessions.inc
+--perl
+  my @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+  die "Bulk load finished at disconnect left SST files: @files" if @files;
+EOF
+SELECT COUNT(*), MIN(id), MAX(id) FROM bulk_abort WHERE id > 1000;
+
+--echo # Successful ingestion must keep the data and remove temporary files
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort VALUES (2001,'a'),(2002,'b');
+SET rocksdb_bulk_load=0;
+SELECT * FROM bulk_abort WHERE id < 1000 OR id > 2000 ORDER BY id;
+--perl
+  my @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+  die "Successful bulk load left SST files: @files" if @files;
+EOF
+DROP TABLE bulk_abort;
+SET GLOBAL rocksdb_update_cf_options=@saved_cf_options;
+
+--echo # Secondary keys of the rows loaded with rocksdb_bulk_load_allow_sk=OFF
+--echo # are committed by each statement, so the primary key data must be
+--echo # finished at disconnect too.
+CREATE TABLE t1 (pk INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+--connection default
+--disconnect loader
+--source include/wait_until_count_sessions.inc
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+SELECT COUNT(*) FROM t1 FORCE INDEX (kb);
+SELECT * FROM t1 FORCE INDEX (kb) WHERE b = 2;
+CHECK TABLE t1;
+DROP TABLE t1;

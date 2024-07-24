@@ -1,0 +1,60 @@
+CREATE TABLE bulk_abort (id INT, v VARBINARY(1024),
+PRIMARY KEY(id) COMMENT 'cfname=bulk_abort_cf')
+ENGINE=ROCKSDB;
+SET @saved_cf_options=@@GLOBAL.rocksdb_update_cf_options;
+SET GLOBAL rocksdb_update_cf_options=
+'bulk_abort_cf={target_file_size_base=16384}';
+call mtr.add_suppression("Error .* finalizing last SST file while disconnecting");
+call mtr.add_suppression("Failed to bulk load");
+# A bulk load that fails at disconnect must remove its SST files
+INSERT INTO bulk_abort VALUES (1,'x');
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+SELECT COUNT(*) FROM bulk_abort;
+COUNT(*)
+1
+# A disconnect finishes the bulk load: keep the data and remove temporary
+# files
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+SELECT 1001 UNION ALL SELECT n+1 FROM seq WHERE n<1128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+SELECT COUNT(*), MIN(id), MAX(id) FROM bulk_abort WHERE id > 1000;
+COUNT(*)	MIN(id)	MAX(id)
+128	1001	1128
+# Successful ingestion must keep the data and remove temporary files
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort VALUES (2001,'a'),(2002,'b');
+SET rocksdb_bulk_load=0;
+SELECT * FROM bulk_abort WHERE id < 1000 OR id > 2000 ORDER BY id;
+id	v
+1	x
+2001	a
+2002	b
+DROP TABLE bulk_abort;
+SET GLOBAL rocksdb_update_cf_options=@saved_cf_options;
+# Secondary keys of the rows loaded with rocksdb_bulk_load_allow_sk=OFF
+# are committed by each statement, so the primary key data must be
+# finished at disconnect too.
+CREATE TABLE t1 (pk INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+COUNT(*)
+3
+SELECT COUNT(*) FROM t1 FORCE INDEX (kb);
+COUNT(*)
+3
+SELECT * FROM t1 FORCE INDEX (kb) WHERE b = 2;
+pk	b
+2	2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

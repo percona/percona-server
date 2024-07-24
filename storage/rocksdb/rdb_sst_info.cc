@@ -55,12 +55,6 @@ Rdb_sst_file_ordered::Rdb_sst_file::Rdb_sst_file(
   assert(cf != nullptr);
 }
 
-Rdb_sst_file_ordered::Rdb_sst_file::~Rdb_sst_file() {
-  // Make sure we clean up
-  delete m_sst_file_writer;
-  m_sst_file_writer = nullptr;
-}
-
 rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
   assert(m_sst_file_writer == nullptr);
 
@@ -77,19 +71,21 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
   if (m_compression_parallel_threads > 1)
     options.compression_opts.parallel_threads = m_compression_parallel_threads;
 
-  m_sst_file_writer =
-      new rocksdb::SstFileWriter(env_options, options, m_comparator, m_cf, true,
-                                 rocksdb::Env::IOPriority::IO_TOTAL,
-                                 cf_descr.options.optimize_filters_for_hits);
+  m_sst_file_writer = std::make_unique<rocksdb::SstFileWriter>(
+      env_options, options, m_comparator, m_cf, true,
+      rocksdb::Env::IOPriority::IO_TOTAL,
+      cf_descr.options.optimize_filters_for_hits);
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
-    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Open(%s) returned %s",
-                    m_name.c_str(), s.ok() ? "ok" : "not ok");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "SST Tracing: Open(%s) returned %s, "
+                    "compression_parallel_threads=%u",
+                    m_name.c_str(), s.ok() ? "ok" : "not ok",
+                    options.compression_opts.parallel_threads);
   }
 
   if (!s.ok()) {
-    delete m_sst_file_writer;
     m_sst_file_writer = nullptr;
   }
 
@@ -151,7 +147,6 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
     }
   }
 
-  delete m_sst_file_writer;
   m_sst_file_writer = nullptr;
 
   return s;
@@ -350,7 +345,13 @@ Rdb_sst_info::Rdb_sst_info(rocksdb::DB *const db, const std::string &tablename,
 }
 
 Rdb_sst_info::~Rdb_sst_info() {
-  assert(m_sst_file == nullptr);
+  if (m_sst_file) {
+    // An aborted load can still own an unfinished file, which has not been
+    // added to m_committed_files. Close the writer before removing the file.
+    const auto name = m_sst_file->get_name();
+    m_sst_file = nullptr;
+    std::remove(name.c_str());
+  }
 
   for (const auto &sst_file : m_committed_files) {
     // In case something went wrong attempt to delete the temporary file.
@@ -370,15 +371,14 @@ int Rdb_sst_info::open_new_sst_file() {
   const std::string name = m_prefix + std::to_string(m_sst_count++) + m_suffix;
 
   // Create the new sst file object
-  m_sst_file =
-      new Rdb_sst_file_ordered(m_db, m_cf, m_db_options, name, m_tracing,
-                               m_max_size, m_compression_parallel_threads);
+  m_sst_file = std::make_unique<Rdb_sst_file_ordered>(
+      m_db, m_cf, m_db_options, name, m_tracing, m_max_size,
+      m_compression_parallel_threads);
 
   // Open the sst file
   const rocksdb::Status s = m_sst_file->open();
   if (!s.ok()) {
     set_error_msg(m_sst_file->get_name(), s);
-    delete m_sst_file;
     m_sst_file = nullptr;
     return HA_ERR_ROCKSDB_BULK_LOAD;
   }
@@ -396,15 +396,13 @@ void Rdb_sst_info::commit_sst_file(Rdb_sst_file_ordered *sst_file) {
   }
 
   m_committed_files.push_back(sst_file->get_name());
-
-  delete sst_file;
 }
 
 void Rdb_sst_info::close_curr_sst_file() {
   assert(m_sst_file != nullptr);
   assert(m_curr_size > 0);
 
-  commit_sst_file(m_sst_file);
+  commit_sst_file(m_sst_file.get());
 
   // Reset for next sst file
   m_sst_file = nullptr;

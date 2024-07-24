@@ -288,6 +288,7 @@ SET(ROCKSDB_SE_SOURCES
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
   sql_dd.cc sql_dd.h
+  rdb_bulk_load.cc rdb_bulk_load.h
 )
 
 IF(WITH_FB_TSAN OR ROCKSDB_DYNAMIC_PLUGIN)

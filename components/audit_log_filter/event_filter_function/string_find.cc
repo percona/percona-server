@@ -15,6 +15,7 @@
 
 #include "components/audit_log_filter/event_filter_function/string_find.h"
 
+#include <algorithm>
 #include <functional>
 
 namespace audit_log_filter::event_filter_function {

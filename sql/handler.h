@@ -960,7 +960,8 @@ enum ha_ddl_type : int {
   HA_INVALID_DDL,
   HA_ALTER_DDL,
   HA_TRUNCATE_DDL,
-  HA_RENAME_DDL
+  HA_RENAME_DDL,
+  HA_DROP_DDL
 };
 
 /** Clone start operation mode */
@@ -2913,6 +2914,7 @@ struct handlerton {
   notify_alter_table_t notify_alter_table;
   notify_rename_table_t notify_rename_table;
   notify_truncate_table_t notify_truncate_table;
+  notify_alter_table_t notify_drop_table_ddl;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;

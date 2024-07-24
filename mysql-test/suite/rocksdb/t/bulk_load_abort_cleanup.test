@@ -1,0 +1,49 @@
+--source include/have_rocksdb.inc
+--source include/count_sessions.inc
+
+CREATE TABLE bulk_abort (id INT, v VARBINARY(1024),
+                         PRIMARY KEY(id) COMMENT 'cfname=bulk_abort_cf')
+  ENGINE=ROCKSDB;
+SET @saved_cf_options=@@GLOBAL.rocksdb_update_cf_options;
+# Rdb_sst_info rolls over at three times target_file_size_base. This produces
+# completed files plus an unfinished file, exercising both cleanup paths.
+SET GLOBAL rocksdb_update_cf_options=
+  'bulk_abort_cf={target_file_size_base=16384}';
+--let rocksdb_dir = `SELECT CONCAT(@@datadir, @@rocksdb_datadir)`
+
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+  SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+--connection default
+--perl
+  my @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+  die "Expected multiple pending SST files" unless @files >= 2;
+EOF
+--disconnect loader
+--source include/wait_until_count_sessions.inc
+--perl
+  my @files;
+  for (1..100) {
+    @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+    last unless @files;
+    select undef, undef, undef, 0.1;
+  }
+  die "Aborted bulk load left SST files: @files" if @files;
+EOF
+SELECT COUNT(*) FROM bulk_abort;
+
+--echo # Successful ingestion must keep the data and remove temporary files
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort VALUES (1,'a'),(2,'b');
+SET rocksdb_bulk_load=0;
+SELECT * FROM bulk_abort ORDER BY id;
+--perl
+  my @files = glob("$ENV{rocksdb_dir}/test.bulk_abort_PRIMARY_*.bulk_load.tmp.sst");
+  die "Successful bulk load left SST files: @files" if @files;
+EOF
+DROP TABLE bulk_abort;
+SET GLOBAL rocksdb_update_cf_options=@saved_cf_options;

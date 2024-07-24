@@ -124,6 +124,7 @@ void Rdb_iterator_base::setup_scan_iterator(
   bool skip_bloom = true;
 
   const rocksdb::Slice eq_cond(slice->data(), eq_cond_len);
+  const bool had_bounds = !m_scan_it_lower_bound_slice.empty();
 
   // The size of m_scan_it_lower_bound (and upper) is technically
   // max_packed_sk_len as calculated in ha_rocksdb::alloc_key_buffers.  Rather
@@ -157,7 +158,11 @@ void Rdb_iterator_base::setup_scan_iterator(
     and
     re-create Iterator.
     */
-  if (m_scan_it_skips_bloom != skip_bloom) {
+  // ReadOptions retains pointers to bound slices. Recreate the iterator when
+  // a dynamic option changes whether bounds exist; clearing a bound on a live
+  // iterator would instead turn it into an empty interval.
+  if (m_scan_it_skips_bloom != skip_bloom ||
+      had_bounds != !m_scan_it_lower_bound_slice.empty()) {
     release_scan_iterator();
   }
 

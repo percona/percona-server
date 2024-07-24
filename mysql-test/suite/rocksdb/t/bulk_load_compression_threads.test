@@ -1,0 +1,54 @@
+--source include/have_rocksdb.inc
+
+SET @saved_log_verbosity=@@GLOBAL.log_error_verbosity;
+SET GLOBAL log_error_verbosity=3;
+SET rocksdb_trace_sst_api=ON;
+
+--echo # Preserve single-threaded compression
+CREATE TABLE bulk_compression_serial (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load_compression_parallel_threads=1;
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_compression_serial VALUES (1),(2);
+SET rocksdb_bulk_load=0;
+SELECT * FROM bulk_compression_serial ORDER BY id;
+--let $assert_text = Sorted SST writer uses one compression thread
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = SST Tracing: Open.*test.bulk_compression_serial_PRIMARY_.*compression_parallel_threads=1[^0-9]
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # The sorted path must preserve the configured thread count
+CREATE TABLE bulk_compression_sorted (id INT PRIMARY KEY, v VARBINARY(8192))
+  ENGINE=ROCKSDB;
+SET rocksdb_bulk_load_compression_parallel_threads=4;
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_compression_sorted VALUES (1,REPEAT('a',8192)),(2,REPEAT('b',8192));
+SET rocksdb_bulk_load=0;
+SELECT id, v=REPEAT(IF(id=1,'a','b'),8192) AS intact
+  FROM bulk_compression_sorted ORDER BY id;
+--let $assert_text = Sorted SST writer uses four compression threads
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = SST Tracing: Open.*test.bulk_compression_sorted_PRIMARY_.*compression_parallel_threads=4[^0-9]
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # The merge path must also preserve the configured thread count
+CREATE TABLE bulk_compression_merge (id INT PRIMARY KEY, v VARBINARY(8192))
+  ENGINE=ROCKSDB;
+SET rocksdb_bulk_load_allow_unsorted=1;
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_compression_merge VALUES (2,REPEAT('b',8192)),(1,REPEAT('a',8192));
+SET rocksdb_bulk_load=0;
+SELECT id, v=REPEAT(IF(id=1,'a','b'),8192) AS intact
+  FROM bulk_compression_merge ORDER BY id;
+--let $assert_text = Merge SST writer uses four compression threads
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = SST Tracing: Open.*test.bulk_compression_merge_PRIMARY_.*compression_parallel_threads=4[^0-9]
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+SET rocksdb_bulk_load_allow_unsorted=DEFAULT;
+SET rocksdb_bulk_load_compression_parallel_threads=DEFAULT;
+SET rocksdb_trace_sst_api=DEFAULT;
+DROP TABLE bulk_compression_serial, bulk_compression_sorted, bulk_compression_merge;
+SET GLOBAL log_error_verbosity=@saved_log_verbosity;

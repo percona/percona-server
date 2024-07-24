@@ -4211,19 +4211,21 @@ class Rdb_transaction {
     const bool fill_cache = !THDVAR(get_thd(), skip_fill_cache);
 
     if (skip_bloom_filter) {
-      const bool enable_iterate_bounds =
-          THDVAR(get_thd(), enable_iterate_bounds);
       options.total_order_seek = true;
-      options.iterate_lower_bound =
-          enable_iterate_bounds ? &eq_cond_lower_bound : nullptr;
-      options.iterate_upper_bound =
-          enable_iterate_bounds ? &eq_cond_upper_bound : nullptr;
     } else {
       // With this option, Iterator::Valid() returns false if key
       // is outside of the prefix bloom filter range set at Seek().
       // Must not be set to true if not using bloom filter.
       options.prefix_same_as_start = true;
     }
+
+    // setup_scan_iterator already decided whether this range uses bounds.
+    // Do not re-read a mutable global and disagree with the stored slices.
+    if (!eq_cond_lower_bound.empty()) {
+      options.iterate_lower_bound = &eq_cond_lower_bound;
+      options.iterate_upper_bound = &eq_cond_upper_bound;
+    }
+
     options.fill_cache = fill_cache;
     if (read_current) {
       options.snapshot = nullptr;
@@ -16474,6 +16476,12 @@ bool ha_rocksdb::check_bloom_and_set_bounds(
                           upper_bound, lower_bound_slice, upper_bound_slice,
                           find_flag);
     *check_iterate_bounds = THDVAR(thd, check_iterate_bounds);
+  } else {
+    // A previous range may have used bounds even though this one uses a
+    // prefix bloom filter. Neither the iterator nor our checks may reuse them.
+    *check_iterate_bounds = false;
+    lower_bound_slice->clear();
+    upper_bound_slice->clear();
   }
   return can_use_bloom;
 }

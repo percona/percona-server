@@ -26,8 +26,7 @@ template <>
 class EventFilterFunction<EventFilterFunctionType::QueryDigest>
     : public EventFilterFunctionBase {
  public:
-  explicit EventFilterFunction<EventFilterFunctionType::QueryDigest>(
-      FunctionArgsList args);
+  explicit EventFilterFunction(FunctionArgsList args);
 
   /**
    * @brief Validate function arguments.

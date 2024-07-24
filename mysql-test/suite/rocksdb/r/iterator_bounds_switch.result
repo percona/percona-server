@@ -1,0 +1,60 @@
+create table t3(
+a int,
+b varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+c int,
+primary key(a), key b(b, c)
+) engine=rocksdb;
+insert into t3 values(1, "11",1),(2,"22",2),(3,"33",3);
+set global rocksdb_force_flush_memtable_now = 1;
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+explain select count(*) from t3 force index(b) where b in ("", "33");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	b	b	39	NULL	#	#	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` FORCE INDEX (`b`) where (`test`.`t3`.`b` in ('','33'))
+include/assert.inc [Mixed short/long ranges must retain the matching row]
+select count(*) from t3 force index(b) where b in ("", "33");
+count(*)
+1
+select count(*) from t3 force index(b) where b in ("33", "");
+count(*)
+1
+select a from t3 force index(b) where b in ("", "22", "33") order by a;
+a
+2
+3
+select a from t3 force index(b) where b in ("22", "33", "") order by a;
+a
+2
+3
+drop table t3;
+create table t2(
+a int,
+b int,
+c bigint,
+d bigint,
+primary key(a), key b(b,c,d)
+) engine=rocksdb;
+insert into t2 values(1,1,1,1),(2,2,2,2),(3,3,3,3);
+set global rocksdb_force_flush_memtable_now = 1;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+explain select count(*) from t2 force index(b) where b = 2 or (b = 3 and c=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	b	b	14	NULL	#	#	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t2` FORCE INDEX (`b`) where ((`test`.`t2`.`b` = 2) or ((`test`.`t2`.`c` = 3) and (`test`.`t2`.`b` = 3)))
+select count(*) from t2 force index(b) where b = 2 or (b = 3 and c=3);
+count(*)
+2
+select count(*) from t2 force index(b) where (b = 3 and c=3) or b = 2;
+count(*)
+2
+select a from t2 force index(b) where b = 2 or (b = 3 and c=3) order by a;
+a
+2
+3
+drop table t2;

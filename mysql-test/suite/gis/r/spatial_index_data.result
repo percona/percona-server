@@ -1,0 +1,14 @@
+CREATE TABLE `tab` (
+`id` INT AUTO_INCREMENT NOT NULL,
+`shape` GEOMETRY NOT NULL /*!80003 SRID 0 */,
+PRIMARY KEY (`id`),
+SPATIAL KEY (`shape`)
+) ENGINE=InnoDB;
+INSERT INTO tab VALUES (2, POINT(1,100));
+SELECT id FROM tab FORCE INDEX (primary) WHERE id > 0;
+id
+2
+SELECT id FROM tab FORCE INDEX (shape) WHERE id > 0;
+id
+2
+DROP TABLE tab;

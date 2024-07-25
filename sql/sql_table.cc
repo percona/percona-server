@@ -10396,8 +10396,23 @@ bool mysql_create_table(THD *thd, Table_ref *create_table,
           }
         }
       } else {
-        result = write_bin_log(thd, true, thd->query().str, thd->query().length,
-                               is_trans);
+        /*
+          We can get here from replica thread executing
+          CREATE TABLE ... START TRANSACTION. If ctas_compatibility_mode==true
+          we follow the right path because of create_info->m_transactional_ddl
+          being set properly to false in
+          PT_create_start_transaction_option::contextualize(), but we need to
+          remove START TRANSACTION clause from the query before binlogging it.
+        */
+        size_t query_length = thd->query().length;
+        if (opt_ctas_compatibility_mode) {
+          const char *pos = strstr(thd->query().str, "START TRANSACTION");
+          if (pos != nullptr) {
+            query_length = pos - thd->query().str;
+          }
+        }
+        result =
+            write_bin_log(thd, true, thd->query().str, query_length, is_trans);
       }
     }
   }

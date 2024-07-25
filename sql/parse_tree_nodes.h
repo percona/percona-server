@@ -46,6 +46,7 @@
 #include "sql/handler.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
+#include "sql/mysqld.h"	 // opt_ctas_compatibility_mode
 #include "sql/opt_explain.h"  // Sql_cmd_explain_other_thread
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
@@ -2484,10 +2485,33 @@ typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::key_block_size), HA_CREATE_USED_KEY_BLOCK_SIZE>
     PT_create_key_block_size_option;
 
-typedef PT_traceable_create_table_option<
-    TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
-    HA_CREATE_USED_START_TRANSACTION>
-    PT_create_start_transaction_option;
+class PT_create_start_transaction_option
+    : public PT_traceable_create_table_option<
+          TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
+          HA_CREATE_USED_START_TRANSACTION> {
+  typedef PT_create_table_option super;
+
+  decltype(HA_CREATE_INFO::m_transactional_ddl) value;
+
+ public:
+  explicit PT_create_start_transaction_option(
+      decltype(HA_CREATE_INFO::m_transactional_ddl) value)
+      : PT_traceable_create_table_option<
+            TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
+            HA_CREATE_USED_START_TRANSACTION>(value),
+        value(value) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override {
+    if (super::contextualize(pc)) return true;
+    if (opt_ctas_compatibility_mode) {
+      pc->create_info->m_transactional_ddl = false;
+    } else {
+      pc->create_info->m_transactional_ddl = value;
+      pc->create_info->used_fields |= HA_CREATE_USED_START_TRANSACTION;
+    }
+    return false;
+  }
+};
 
 typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::m_implicit_tablespace_autoextend_size),

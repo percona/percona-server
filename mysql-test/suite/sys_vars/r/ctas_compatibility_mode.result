@@ -9,3 +9,25 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 include/assert_grep.inc ["Checking if ctas_compatibility_mode works"]
 include/assert_grep.inc ["Checking if rows are inserted as the separate transaction"]
 DROP TABLE t1, t2;
+include/rpl_init.inc [topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+include/rpl_sync.inc
+[connection server_2]
+include/rpl_restart_server.inc [server_number=2 parameters: --ctas-compatibility-mode=ON --log-bin=ctas_binlog]
+include/rpl_start_slaves.inc
+[connection server_1]
+CREATE TABLE t2 AS SELECT * FROM t1;
+include/rpl_sync.inc
+[connection server_2]
+include/rpl_restart_server.inc [server_number=2]
+include/rpl_start_slaves.inc
+[connection server_2]
+include/assert_grep.inc ["Checking if ctas_compatibility_mode works on replica"]
+include/assert_grep.inc ["Checking if rows are inserted as the separate transaction on replica"]
+[connection server_1]
+DROP TABLE t1, t2;
+include/rpl_end.inc

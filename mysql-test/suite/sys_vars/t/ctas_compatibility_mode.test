@@ -43,3 +43,62 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 DROP TABLE t1, t2;
 --remove_file $MYSQLD_DATADIR/$binlog_file.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+
+
+#
+# Check the behavior of replica started with ctas_compatibility_mode enabled
+#
+--let $rpl_topology = 1->2
+--source include/rpl_init.inc
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+--source include/rpl_sync.inc
+
+# Now restart replica with ctas-compatibility-mode=ON and a custom binlog file
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--let $binlog_file = ctas_binlog
+--let $rpl_server_parameters = --ctas-compatibility-mode=ON --log-bin=$binlog_file
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+--source include/rpl_start_slaves.inc
+
+# Execute CTAS on source server
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+CREATE TABLE t2 AS SELECT * FROM t1;
+--source include/rpl_sync.inc
+
+# Restart replica with the default parameters
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--let $rpl_server_parameters =
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+--source include/rpl_start_slaves.inc
+
+# We expect that replica started with --ctas-compatibility-mode=ON behaved accordingly
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/$binlog_file.000001 > $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+--let $assert_text = "Checking if ctas_compatibility_mode works on replica"
+--let $assert_select = START TRANSACTION
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--let $assert_text = "Checking if rows are inserted as the separate transaction on replica"
+--let $assert_select = BEGIN
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# cleanup
+--remove_file $MYSQLD_DATADIR/$binlog_file.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file.sql
+
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+DROP TABLE t1, t2;
+
+--source include/rpl_end.inc

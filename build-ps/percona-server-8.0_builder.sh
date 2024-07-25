@@ -1120,6 +1120,7 @@ build_deb(){
 
     if [ ${DEBIAN_VERSION} = "noble" -a ${ARCH} = "aarch64" ]; then
         sed -i 's:dh_strip --dbg-package=percona-server-dbg:mv debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so /tmp\n\tdh_strip --dbg-package=percona-server-dbg\n\tmv /tmp/authentication_fido.so debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
+        sed -i 's:dh_strip -Xlibprotobuf-lite:dh_strip -Xlibprotobuf-lite --exclude=debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
     fi
 
     cat debian/rules

@@ -3035,6 +3035,15 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
 #ifndef NDEBUG
     w_rr++;
 #endif
+  } else if (opt_ctas_compatibility_mode && is_ctas()) {
+    /*
+      In ctas compatibility there will be intermediate commit
+      after CREATE TABLE. It will call pre_commit hook, which will call
+      Slave_worker::commit_positions() where we check the validity of
+      ptr_group->checkpoint_seqno.
+    */
+    ptr_group->checkpoint_seqno = rli->rli_checkpoint_seqno;
+    rli->rli_checkpoint_seqno++;
   }
 
   return ret_worker;

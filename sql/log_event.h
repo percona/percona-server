@@ -1099,6 +1099,7 @@ class Log_event {
              false otherwise
   */
   virtual bool ends_group() const { return false; }
+  virtual bool is_ctas() const { return false; }
 #ifdef MYSQL_SERVER
   /**
      Apply the event to the database.
@@ -1471,6 +1472,12 @@ class Query_log_event : public virtual binary_log::Query_event,
             native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))) ||
            !strncmp(query, STRING_WITH_LEN("XA ROLLBACK"));
   }
+
+  bool is_ctas() const override {
+    return (strstr(query, "CREATE TABLE") != nullptr) &&
+           (strstr(query, "START TRANSACTION") != nullptr);
+  }
+
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_event *fd_event,
                           const char **query_arg);

@@ -669,6 +669,24 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = false) {
 
 bool thd_init_client_charset(THD *thd, uint cs_number) {
   CHARSET_INFO *cs;
+
+  // if the 8.0 client sets 'MYSQL_SET_CHARSET_NAME' option to 'utf8mb4' or
+  // leaves it empty, basically meaning the same, this function will be called
+  // with 'cs_number' equal to 255 (meaning 'utf8mb4_0900_ai_ci')
+
+  // at the same time, if 'default_collation_for_utf8mb4' is set to something
+  // other than default 'utf8mb4' collation ('utf8mb4_0900_ai_ci', number 255),
+  // we need to fix 'cs_number' here by setting it to the corresponding number
+  // of 'default_collation_for_utf8mb4' (currently only 'utf8mb4_general_ci',
+  // number 45, is supported)
+  const auto *primary_utf8mb4_collation =
+      get_charset_by_csname("utf8mb4", MY_CS_PRIMARY, MYF(0));
+  if (thd->variables.default_collation_for_utf8mb4 !=
+      primary_utf8mb4_collation) {
+    if (cs_number == primary_utf8mb4_collation->number) {
+      cs_number = thd->variables.default_collation_for_utf8mb4->number;
+    }
+  }
   /*
    Use server character set and collation if
    - opt_character_set_client_handshake is not set

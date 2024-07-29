@@ -73,11 +73,6 @@ namespace connection_control
 
   /** variables used by connection_delay.cc */
   static mysql_rwlock_t connection_event_delay_lock;
-  static PSI_rwlock_key key_connection_event_delay_lock;
-  static PSI_rwlock_info all_rwlocks[]=
-  {
-    {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
-  };
 
   static opt_connection_control opt_enums[]=
   {
@@ -542,31 +537,14 @@ namespace connection_control
 
     /** PSI_stage_info for thd_enter_cond/thd_exit_cond */
     PSI_stage_info old_stage;
-    PSI_stage_info stage_waiting_in_connection_control_plugin=
-    {0, "Waiting in connection_control plugin", 0};
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
-    const char * category= "conn_delay";
-    PSI_mutex_key key_connection_delay_mutex;
-    PSI_mutex_info connection_delay_mutex_info[]=
-    {
-      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL}
-    };
-    int count_mutex= array_elements(connection_delay_mutex_info);
-    PSI_server->register_mutex(category, connection_delay_mutex_info, count_mutex);
     mysql_mutex_init(key_connection_delay_mutex, &connection_delay_mutex,
                      MY_MUTEX_INIT_FAST);
 
     /* Initialize condition to wait for */
     mysql_cond_t connection_delay_wait_condition;
-    PSI_cond_key key_connection_delay_wait;
-    PSI_cond_info connection_delay_wait_info[]=
-    {
-      {&key_connection_delay_wait, "connection_delay_wait_condition", 0}
-    };
-    int count_cond= array_elements(connection_delay_wait_info);
-    PSI_server->register_cond(category, connection_delay_wait_info, count_cond);
     mysql_cond_init(key_connection_delay_wait, &connection_delay_wait_condition);
 
     /** Register wait condition with THD */
@@ -927,9 +905,6 @@ namespace connection_control
     /*
       1. Initialize lock(s)
     */
-    const char *category= "conn_control";
-    int count= array_elements(all_rwlocks);
-    mysql_rwlock_register(category, all_rwlocks, count);
     mysql_rwlock_init(key_connection_event_delay_lock,
                       &connection_event_delay_lock);
     g_max_failed_connection_handler= new Connection_delay_action(g_variables.failed_connections_threshold,

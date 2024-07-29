@@ -63,6 +63,57 @@ Connection_event_coordinator *g_connection_event_coordinator= 0;
 MYSQL_PLUGIN connection_control_plugin_info= 0;
 
 
+/* Performance Schema instrumentation */
+
+PSI_mutex_key key_connection_delay_mutex = PSI_NOT_INSTRUMENTED;
+
+static PSI_mutex_info all_connection_delay_mutex_info[]=
+{
+  {&key_connection_delay_mutex, "connection_delay_mutex", 0}
+};
+
+PSI_rwlock_key key_connection_event_delay_lock;
+
+static PSI_rwlock_info all_connection_delay_rwlock_info[]=
+{
+  {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
+};
+
+PSI_cond_key key_connection_delay_wait = PSI_NOT_INSTRUMENTED;
+
+static PSI_cond_info all_connection_delay_cond_info[]=
+{
+  {&key_connection_delay_wait, "connection_delay_wait_condition", 0}
+};
+
+PSI_stage_info stage_waiting_in_connection_control_plugin=
+{0, "Waiting in connection_control plugin", 0};
+
+static PSI_stage_info *all_connection_delay_stage_info[]=
+{&stage_waiting_in_connection_control_plugin};
+
+
+/** Register all performance schema instrumentation for connection_control */
+static void
+init_performance_schema()
+{
+  const char *category = "conn_delay";
+
+  int count_mutex = array_elements(all_connection_delay_mutex_info);
+  PSI_server->register_mutex(category, all_connection_delay_mutex_info, count_mutex);
+
+  int count_rwlock = array_elements(all_connection_delay_rwlock_info);
+  mysql_rwlock_register(category, all_connection_delay_rwlock_info,
+                        count_rwlock);
+
+  int count_cond = array_elements(all_connection_delay_cond_info);
+  PSI_server->register_cond(category, all_connection_delay_cond_info, count_cond);
+
+  int count_stage = array_elements(all_connection_delay_stage_info);
+  mysql_stage_register(category, all_connection_delay_stage_info, count_stage);
+}
+
+
 /**
   event_notify() implementation for connection_control
 
@@ -115,6 +166,13 @@ connection_control_notify(MYSQL_THD thd,
 static int
 connection_control_init(MYSQL_PLUGIN plugin_info)
 {
+
+  /*
+    Declare all performance schema instrumentation up front,
+    so it is discoverable.
+  */
+  init_performance_schema();
+
   connection_control_plugin_info= plugin_info;
   Connection_control_error_handler error_handler(connection_control_plugin_info);
   g_connection_event_coordinator= new Connection_event_coordinator();

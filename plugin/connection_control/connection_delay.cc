@@ -565,8 +565,7 @@ namespace connection_control
 
     /* Finish waiting and deregister wait condition */
     mysql_mutex_unlock(&connection_delay_mutex);
-    thd_exit_cond(thd, &stage_waiting_in_connection_control_plugin,
-                  __func__, __FILE__, __LINE__);
+    thd_exit_cond(thd, &old_stage, __func__, __FILE__, __LINE__);
 
     /* Cleanup */
     mysql_mutex_destroy(&connection_delay_mutex);
@@ -652,6 +651,12 @@ namespace connection_control
       conditional_wait(thd, wait_time);
       rd_lock.lock();
     }
+
+    /*
+      Introduce a delay to check that connection delay status doesn't last
+      longer than configured
+    */
+    DBUG_EXECUTE_IF("delay_after_connection_delay", sleep(2););
 
     if (connection_event->status)
     {

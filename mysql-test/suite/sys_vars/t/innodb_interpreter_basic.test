@@ -98,3 +98,10 @@ SET SESSION innodb_interpreter = 0;
 SET GLOBAL innodb_interpreter = null;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_interpreter = 0;
+
+--echo #
+--echo # PS-9117: Check server doesn't crash upon an attempt to set innodb_interpreter_output
+--echo #
+SET SESSION innodb_interpreter = 'init';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION innodb_interpreter_output = '';

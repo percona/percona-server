@@ -1,0 +1,144 @@
+--source include/count_sessions.inc
+
+# needed for repeatable content of the binary log
+RESET MASTER;
+
+--let $global_col_stmt = SHOW GLOBAL VARIABLES LIKE '%collation%'
+--let $session_col_stmt = SHOW SESSION VARIABLES LIKE '%collation%'
+
+--echo *** Variables from the default session
+--echo *** (values for all collation variables are expected to be utf8mb4_0900_ai_ci)
+eval $global_col_stmt;
+eval $session_col_stmt;
+
+--let $default_database = `SELECT DATABASE()`
+
+--echo
+--echo *** Variables from the new connection established via MySQL command line client
+--echo *** (values for all collation variables are expected to be utf8mb4_0900_ai_ci)
+--exec $MYSQL -e "$global_col_stmt; $session_col_stmt;" $default_database
+
+--echo
+--echo
+--echo *** Updating collation variables
+--let $saved_default_collation_for_utf8mb4 = `SELECT @@global.default_collation_for_utf8mb4`
+--let $saved_collation_server = `SELECT @@global.collation_server`
+--let $saved_collation_connection = `SELECT @@global.collation_connection`
+--let $saved_collation_database = `SELECT @@global.collation_database`
+
+SET GLOBAL default_collation_for_utf8mb4 = utf8mb4_general_ci;
+SET GLOBAL collation_server = utf8mb4_general_ci;
+SET GLOBAL collation_connection = utf8mb4_general_ci;
+SET GLOBAL collation_database = utf8mb4_general_ci;
+
+--echo
+--echo
+--echo *** Re-connecting
+--disconnect default
+--connect (default,localhost,root,,$default_database)
+
+--echo
+--echo
+--echo *** Variables after re-connecting to the default database
+--echo *** (values for all collation variables except for @@session.collation_database are expected to be utf8mb4_general_ci)
+eval $global_col_stmt;
+eval $session_col_stmt;
+
+--echo
+--echo
+--echo *** Creating a fresh database
+--let $fresh_database = fresh
+eval CREATE DATABASE $fresh_database;
+eval SHOW CREATE DATABASE $fresh_database;
+
+--connect (con1,localhost,root,,$fresh_database)
+
+--echo
+--echo
+--echo *** Variables after connecting to a fresh database
+--echo *** (values for collation variables expected to be utf8mb4_general_ci)
+eval $global_col_stmt;
+eval $session_col_stmt;
+
+--echo
+--echo *** Variables from the new connection established via MySQL command line client to a fresh database
+--echo *** (values for all collation variables are expected to be utf8mb4_general_ci)
+--exec $MYSQL -e "$global_col_stmt; $session_col_stmt;" $fresh_database
+
+--let $binlog_file = query_get_value("SHOW MASTER STATUS", File, 1)
+--let $server_port = `SELECT @@port`
+
+--echo
+--echo
+--echo *** Creating tables in the fresh database from the default connection
+CREATE TABLE tbl_internal_before(id BIGINT UNSIGNED);
+SET character_set_client = utf8mb4;
+CREATE TABLE tbl_internal_after(id BIGINT UNSIGNED);
+
+--echo
+--echo
+--echo *** Creating tables in the fresh database from a connection established via MySQL command line client
+--exec $MYSQL -e "CREATE TABLE tbl_external_before(id BIGINT UNSIGNED); SET character_set_client = utf8mb4; CREATE TABLE tbl_external_after(id BIGINT UNSIGNED);" $fresh_database
+
+
+--echo
+--echo
+--echo *** Creating logical dump of the fresh database
+--let $fresh_dump_file = $MYSQL_TMP_DIR/fresh_dump.sql
+--exec $MYSQL_DUMP --column-statistics=0 --no-data $fresh_database > $fresh_dump_file
+
+--echo
+--echo
+--echo *** Creating a database for restoring data from the logical dump
+--let $restore_database = restore
+eval CREATE DATABASE $restore_database;
+eval SHOW CREATE DATABASE $restore_database;
+
+--echo
+--echo
+--echo *** Restoring data from the logical dump
+--exec $MYSQL $restore_database < $fresh_dump_file
+
+--remove_file $fresh_dump_file
+
+--echo
+--echo
+--echo *** Checking events in the binary log
+--let $binlog_dump_file = $MYSQL_TMP_DIR/binlog_dump.sql
+--exec $MYSQL_BINLOG --read-from-remote-server --host=127.0.0.1 --port=$server_port --user=root --to-last-log $binlog_file > $binlog_dump_file
+
+# The binary log is expected to have the following 2 lines with collation 45 (utf8mb4_general_ci)
+# SET @@session.character_set_client=45,@@session.collation_connection=45,@@session.collation_server=45/*!*/;
+# /*!80011 SET @@session.default_collation_for_utf8mb4=45*//*!*/;
+--let $assert_text = Events in the binary log must use utf8mb4_general_ci (45) collation
+--let $assert_file = $binlog_dump_file
+--let $assert_select = =45
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--let $assert_text = Events in the binary log must not use utf8mb4_0900_ai_ci (255) collation
+--let $assert_file = $binlog_dump_file
+--let $assert_select = =255
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--remove_file $binlog_dump_file
+
+
+--disconnect con1
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo
+--echo *** Dropping fresh database
+eval DROP DATABASE $restore_database;
+eval DROP DATABASE $fresh_database;
+
+--echo
+--echo
+--echo *** Restoring collation variables
+eval SET GLOBAL collation_database = $saved_collation_database;
+eval SET GLOBAL collation_connection = $saved_collation_connection;
+eval SET GLOBAL collation_server = $saved_collation_server;
+eval SET GLOBAL default_collation_for_utf8mb4 = $saved_default_collation_for_utf8mb4;

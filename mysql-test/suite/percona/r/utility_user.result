@@ -92,7 +92,7 @@ SELECT * FROM mysql.proxies_priv;
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
 xx	root			1		xx
 xx	root	%	frank	0	root@localhost	xx
-ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+ERROR HY000: Access denied for user 'plug'@'localhost', missing proxy privilege.
 DROP USER plug;
 #
 # 5.6 tests

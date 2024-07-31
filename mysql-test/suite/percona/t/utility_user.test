@@ -146,7 +146,7 @@ REVOKE PROXY ON frank FROM plug;
 SELECT * FROM mysql.proxies_priv;
 
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_NO_PROXY_GRANT
 connect(plug_con,localhost,plug,frank);
 --enable_query_log
 

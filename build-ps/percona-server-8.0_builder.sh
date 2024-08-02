@@ -473,11 +473,10 @@ install_deps() {
             yum -y install MySQL-python
         fi
     else
-        apt-get -y install dirmngr || true
         apt-get update
-	apt-get -y install lsb_release || true
+        apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget git curl
+        apt-get -y install gnupg2 lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"

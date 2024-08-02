@@ -105,7 +105,7 @@ add_percona_yum_repo(){
 
 switch_to_vault_repo() {
     sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+    sed -i 's|#\s*baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
     sed -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/CentOS-Linux-PowerTools.repo
 }
 
@@ -381,7 +381,7 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        if [ "x${RHEL}" = "x8" ]; then
+        if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8" ]; then
             switch_to_vault_repo
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
@@ -390,15 +390,12 @@ install_deps() {
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
               #  percona-release enable tools experimental
-            else
-                yum -y install yum-utils
-                yum-config-manager --enable ol9_codeready_builder
-           fi
-        else
-            if [ "x${RHEL}" = "x9" ]; then
-                yum -y install yum-utils
-                yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi
+            yum -y install yum-utils
+            yum-config-manager --enable ol"${RHEL}"_codeready_builder
+        else
+            yum -y install yum-utils
+            yum-config-manager --enable ol"${RHEL}"_codeready_builder
         fi
         yum -y update
         yum -y install epel-release
@@ -411,6 +408,7 @@ install_deps() {
                 echo "waiting"
                 sleep 1
             done
+            switch_to_vault_repo
             yum -y install gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
             yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
@@ -454,14 +452,14 @@ install_deps() {
             yum -y install libtirpc-devel
             yum -y install centos-release-stream
             switch_to_vault_repo
-            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
+            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
-            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
+            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
                 ln -s annobin.so gcc-annobin.so
@@ -475,11 +473,10 @@ install_deps() {
             yum -y install MySQL-python
         fi
     else
-        apt-get -y install dirmngr || true
         apt-get update
-	apt-get -y install lsb_release || true
+        apt-get -y install lsb_release || true
         apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget git curl
+        apt-get -y install gnupg2 lsb-release wget git curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"

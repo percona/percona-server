@@ -58,7 +58,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
 INSERT INTO t1 VALUES (1);
 SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
 SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
-Pattern not found.
+Pattern found.
 Pattern not found.
 grep_pattern: origin: Binlog_snapshot_gtid_executed
 Pattern not found.
@@ -75,7 +75,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
 INSERT INTO t1 VALUES (1);
 SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
 SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
-Pattern not found.
+Pattern found.
 Pattern not found.
 grep_pattern: origin: Binlog_snapshot_gtid_executed
 Pattern not found.

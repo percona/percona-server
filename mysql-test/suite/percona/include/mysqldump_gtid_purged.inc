@@ -61,7 +61,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
 --let $gtid_executed_finish = `SELECT @@GLOBAL.GTID_EXECUTED`
 
 
-# We expect this gtid to be present for all but --lock-for-backup and --lock-all-tables test cases
+# We expect this gtid to be present for all cases
 --let $grep_output = boolean
 --let $grep_file = $output_file
 --let $grep_pattern = SET @@GLOBAL.GTID_PURGED=/\*!80000 '\+'\*/ '$gtid_executed_start';

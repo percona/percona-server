@@ -5271,6 +5271,11 @@ is null
 DROP PROCEDURE p1;
 DROP TABLE t1;
 #
+# PS-9314: Signal 11 when using JSON_TABLE
+# (https://perconadev.atlassian.net/browse/PS-9314)
+SELECT ele AS domain FROM JSON_TABLE('["TEST' + (SELECT LOAD_FILE('test')) + '"]', "$[*]" COLUMNS (ele VARCHAR(70) PATH "$" )) AS json_elements;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_table; a JSON string or JSON type is required.
+#
 # Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
 #               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
 do crc32(char(1.134475e+308));

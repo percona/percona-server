@@ -119,7 +119,7 @@
 
 %ifarch x86_64
 %global __isa_bits            64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 %global ps_telemetry          /usr/local/percona/telemetry/ps
 %endif
 %endif
@@ -250,7 +250,7 @@ Requires:       percona-icu-data-files
 Requires:       curl
 Requires:       openssl
 %ifarch x86_64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 Requires:  percona-telemetry-agent
 %endif
 %endif
@@ -771,7 +771,7 @@ fi
 %endif
 
 %ifarch x86_64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 mkdir -p %{ps_telemetry}
 chown mysql:percona-telemetry %{ps_telemetry}
 chmod 775 %{ps_telemetry}
@@ -828,7 +828,7 @@ fi
   fi
 %endif
 %ifarch x86_64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 rm -rf %{ps_telemetry}
 %endif
 %endif
@@ -1100,7 +1100,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %ifarch x86_64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_telemetry.so
 %endif
 %endif
@@ -1159,7 +1159,7 @@ if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %ifarch x86_64
-if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_telemetry.so
 %endif
 %endif

@@ -130,9 +130,10 @@
 
 %ifarch x86_64
 %global __isa_bits            64
+%endif
+
 %if 0%{?rhel} >= 8
 %global ps_telemetry          /usr/local/percona/telemetry/ps
-%endif
 %endif
 
 %global src_dir               %{src_base}-%{mysql_version}-%{percona_server_version}
@@ -261,10 +262,8 @@ Requires:       percona-server-client
 Requires:       percona-icu-data-files
 Requires:       curl
 Requires:       openssl
-%ifarch x86_64
 %if 0%{?rhel} >= 8
 Requires:  percona-telemetry-agent
-%endif
 %endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
@@ -806,7 +805,6 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
-%ifarch x86_64
 %if 0%{?rhel} >= 8
 mkdir -p %{ps_telemetry}
 chown mysql:percona-telemetry %{ps_telemetry}
@@ -815,7 +813,6 @@ chmod g+s %{ps_telemetry}
 chmod u+s %{ps_telemetry}
 chcon -t mysqld_db_t %{ps_telemetry}
 chcon -u system_u %{ps_telemetry}
-%endif
 %endif
 if [ -d /etc/percona-server.conf.d ]; then
     CONF_EXISTS=$(grep "percona-server.conf.d" /etc/my.cnf | wc -l)
@@ -867,10 +864,8 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
-%ifarch x86_64
 %if 0%{?rhel} >= 8
 rm -rf %{ps_telemetry}
-%endif
 %endif
 
 

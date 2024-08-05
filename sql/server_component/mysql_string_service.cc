@@ -238,6 +238,24 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer_v2,
   return true;
 }
 
+DEFINE_BOOL_METHOD(mysql_string_imp::copy_convert,
+                   (my_h_string dest_string, const char *src_buffer,
+                    uint64 src_length, CHARSET_INFO_h src_charset,
+                    CHARSET_INFO_h dest_charset, uint *errors)) {
+  try {
+    String *str = from_api(dest_string);
+    const CHARSET_INFO *src_cs = from_api(src_charset);
+    const CHARSET_INFO *dest_cs = from_api(dest_charset);
+
+    if (str->copy(src_buffer, src_length, src_cs, dest_cs, errors)) return true;
+
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
 DEFINE_METHOD(void, mysql_string_imp::destroy, (my_h_string string)) {
   try {
     String *str = reinterpret_cast<String *>(string);

@@ -210,3 +210,4 @@ component_binlog_utils_udf          plugin_output_directory  no  BINLOG_UTILS_UD
 component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_COMPONENT
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
+component_js_lang                   plugin_output_directory  no  JS_LANG_COMPONENT

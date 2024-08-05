@@ -302,6 +302,7 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
 
   component_audit_log_filter
+  component_js_lang
   percona
   percona_innodb
   percona-pam-for-mysql

@@ -438,8 +438,8 @@ install_deps() {
             if [ "${RHEL}" -lt 9 ]; then
                 #add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
-                percona-release enable tools testing
-                percona-release enable tools experimental
+                #percona-release enable tools testing
+                #percona-release enable tools experimental
             else
                 yum -y install yum-utils
                 yum-config-manager --enable ol9_codeready_builder
@@ -453,7 +453,8 @@ install_deps() {
         yum -y update
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
-        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata pkg-config
+        yum -y install jemalloc-devel
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then

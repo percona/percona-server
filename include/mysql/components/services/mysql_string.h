@@ -222,6 +222,27 @@ convert_from_buffer_v2_t convert_from_buffer;
 convert_to_buffer_v2_t convert_to_buffer;
 END_SERVICE_DEFINITION(mysql_string_charset_converter)
 
+BEGIN_SERVICE_DEFINITION(mysql_string_copy_converter)
+/**
+  Copies string stored in source charset in a buffer to a string object
+  with conversion to destination charset.
+
+  @param      dest_string   Handle for destination string object.
+  @param      src_buffer    Buffer with a source string
+  @param      src_length    Length of the source string (in bytes).
+  @param      src_charset   Handle for source charset.
+  @param      dest_charset  Handle for destination charset.
+  @param[out] errors        Number of conversion errors.
+
+  @retval False - Success.
+  @retval True  - Failure.
+*/
+DECLARE_BOOL_METHOD(copy_convert,
+                    (my_h_string dest_string, const char *src_buffer,
+                     uint64 src_length, CHARSET_INFO_h src_charset,
+                     CHARSET_INFO_h dest_charset, uint *errors));
+END_SERVICE_DEFINITION(mysql_string_copy_converter)
+
 /**
   @ingroup group_string_component_services_inventory
 

@@ -145,6 +145,10 @@ class mysql_string_imp {
                             (my_h_string src_string, char *dest_buffer,
                              uint64 dest_length, CHARSET_INFO_h dest_charset));
 
+  static DEFINE_BOOL_METHOD(copy_convert,
+                            (my_h_string dest_string, const char *src_buffer,
+                             uint64 src_length, CHARSET_INFO_h src_charset,
+                             CHARSET_INFO_h dest_charset, uint *errors));
   /**
     Gets character code of character on specified index position in
     string to a specified buffer.

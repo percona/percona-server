@@ -129,7 +129,9 @@ DEFINE_BOOL_METHOD(mysql_stored_program_metadata_query_imp::get,
   "is_signed"       -> boolean (Applicable to numeric data types)
   "is_nullable"     -> boolean
   "charset"         -> char const *
+  "collation"       -> char const *
   "max_byte_length" -> size_t (Applicable to string/blob data types)
+  "max_display_length" -> uint64_t
 
   @note Have the key at least 7 characters long, with unique first 8 characters.
 
@@ -262,10 +264,15 @@ static int get_field_metadata_internal(Create_field &field, bool input,
     }
   else if (strcmp("charset", key) == 0)
     *reinterpret_cast<char const **>(value) = field.charset->csname;
+  else if (strcmp("collation", key) == 0)
+    *reinterpret_cast<char const **>(value) = field.charset->m_coll_name;
   else if (strcmp("decimals", key) == 0)
     *reinterpret_cast<uint32_t *>(value) = field.decimals;
   else if (strcmp("max_byte_length", key) == 0)
     *reinterpret_cast<size_t *>(value) = field.max_display_width_in_bytes();
+  else if (strcmp("max_display_length", key) == 0)
+    *reinterpret_cast<size_t *>(value) =
+        field.max_display_width_in_codepoints();
   else
     return MYSQL_FAILURE;
   return MYSQL_SUCCESS;

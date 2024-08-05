@@ -1,0 +1,60 @@
+# Global prepare of playground.
+INSTALL COMPONENT 'file://component_js_lang';
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+#
+# Test what happens if one tries to create JS routine which body which
+# exceeds V8 string length limit (2^29 - 24 on 64-bit systems).
+#
+# Temporarily raise max_allowed_packet value so we can easily produce
+# strings exceeding V8 limit. It should be multiply of 1024.
+SET @save_max_allowed_packet = @@global.max_allowed_packet;
+SET @@global.max_allowed_packet= V8_MAX_STRING_LENGTH + 24 + 1024;
+# Use new connection so new max_allowed_packet value takes effect.
+connect  con_big_packet, localhost, root,,;
+# Try to create function with body exceeding JS string length limit.
+# Note that auxiliary huge_string string we use for this still fits
+# within the limit.
+# Also note that attempt to create routine which is below the limit,
+# but is huge enough, might pass but will make InnoDB complain in
+# the error log about too big rows/tuples.
+# Executing: CREATE FUNCTION f_huge() RETURNS LONGBLOB LANGUAGE JS AS $$ let too_lengthy_body_we_get = 1; return "HUGE_STRING_HERE" $$
+ERROR HY000: Routine body exceeds V8 string length
+#
+# Test coverage for SQL to JS parameter conversion failures due to
+# exceeding V8 string length limit/ 2^29 - 24.
+#
+# Create functions with parameter types which values can exceed
+# the limit.
+CREATE FUNCTION f_json(s JSON) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longtext(s LONGTEXT) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longtext_cs(s LONGTEXT CHARACTER SET cp1251) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longblob(b LONGBLOB) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return b.byteLength $$;
+# Passing too long JSON and LONGTEXT values should cause error with
+# appropriate message.
+SELECT f_json(JSON_ARRAY(REPEAT('a', V8_MAX_STRING_LENGTH - 100 ), REPEAT('b', 200 )));
+ERROR HY000: Can't create JS value from routine parameter value of JSON type (V8 string length limit excedeed)
+SELECT f_longtext(REPEAT('a', V8_MAX_STRING_LENGTH + 200));
+ERROR HY000: Can't create JS value from routine parameter value (V8 string length limit excedeed)
+SELECT f_longtext_cs(REPEAT(X'fa', V8_MAX_STRING_LENGTH + 200));
+ERROR HY000: Can't create JS value from routine parameter value (V8 string length limit excedeed)
+# This should not apply to LONGBLOB parameters however, as their
+# values are directly converted to JS ArrayBuffer/DataView objects.
+SELECT f_longblob(REPEAT(X'ff', V8_MAX_STRING_LENGTH + 200)) = V8_MAX_STRING_LENGTH + 200 AS length_is_correct;
+length_is_correct
+1
+DROP FUNCTION f_json;
+DROP FUNCTION f_longtext;
+DROP FUNCTION f_longtext_cs;
+DROP FUNCTION f_longblob;
+disconnect con_big_packet;
+connection default;
+SET @@global.max_allowed_packet = @save_max_allowed_packet;
+# Global clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+# Disconnect of default connection to free the only remaining
+# connection context and isolate, so we can uninstall component.
+disconnect default;
+connect default,localhost,root;
+UNINSTALL COMPONENT 'file://component_js_lang';
+# Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+# restart

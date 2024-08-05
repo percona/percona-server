@@ -1,0 +1,31 @@
+--source include/have_debug.inc
+
+connect (con1, localhost, root,,);
+--connection default
+create table c(id int primary key, val varchar(8000));
+insert into c values (1,repeat('a',3000));
+insert into c values (2,repeat('a',3000));
+insert into c values (3,repeat('a',3000));
+insert into c values (4,repeat('a',3000));
+insert into c values (5,repeat('a',3000));
+
+insert into c values (-1,repeat('a',2000));
+insert into c values (-2,repeat('a',2000));
+insert into c values (-3,repeat('a',2000));
+insert into c values (-4,repeat('a',2000));
+insert into c values (-5,repeat('a',2000));
+
+--connection con1
+select id,length(val) from c order by id desc;
+set DEBUG="+d,desc_scan_debug";
+set DEBUG_SYNC="desc_scan_before_restore_position SIGNAL desc_scan_before_restore_position_done WAIT_FOR continue";
+send select id,length(val) from c order by id desc;
+--connection default
+set DEBUG_SYNC="now WAIT_FOR desc_scan_before_restore_position_done";
+update c set val=repeat('b',6000) where id=2;
+set DEBUG_SYNC="now SIGNAL continue";
+--connection con1
+reap;
+set DEBUG="-d,desc_scan_debug";
+--connection default
+drop table c;

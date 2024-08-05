@@ -419,6 +419,12 @@ void btr_pcur_t::move_backward_from_page(mtr_t *mtr) {
 
   mtr_commit(mtr);
 
+  DBUG_EXECUTE_IF("desc_scan_debug", {
+    if (strcmp(index()->table_name, "test/c") == 0) {
+      DEBUG_SYNC_C("desc_scan_before_restore_position");
+    }
+  });
+
   mtr_start(mtr);
 
   restore_position(latch_mode2, mtr, UT_LOCATION_HERE);

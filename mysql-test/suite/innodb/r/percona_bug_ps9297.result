@@ -1,0 +1,42 @@
+create table c(id int primary key, val varchar(8000));
+insert into c values (1,repeat('a',3000));
+insert into c values (2,repeat('a',3000));
+insert into c values (3,repeat('a',3000));
+insert into c values (4,repeat('a',3000));
+insert into c values (5,repeat('a',3000));
+insert into c values (-1,repeat('a',2000));
+insert into c values (-2,repeat('a',2000));
+insert into c values (-3,repeat('a',2000));
+insert into c values (-4,repeat('a',2000));
+insert into c values (-5,repeat('a',2000));
+select id,length(val) from c order by id desc;
+id	length(val)
+5	3000
+4	3000
+3	3000
+2	3000
+1	3000
+-1	2000
+-2	2000
+-3	2000
+-4	2000
+-5	2000
+set DEBUG="+d,desc_scan_debug";
+set DEBUG_SYNC="desc_scan_before_restore_position SIGNAL desc_scan_before_restore_position_done WAIT_FOR continue";
+select id,length(val) from c order by id desc;
+set DEBUG_SYNC="now WAIT_FOR desc_scan_before_restore_position_done";
+update c set val=repeat('b',6000) where id=2;
+set DEBUG_SYNC="now SIGNAL continue";
+id	length(val)
+5	3000
+4	3000
+3	3000
+2	3000
+1	3000
+-1	2000
+-2	2000
+-3	2000
+-4	2000
+-5	2000
+set DEBUG="-d,desc_scan_debug";
+drop table c;

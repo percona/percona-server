@@ -3849,6 +3849,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   dberr_t optim_err;
   roll_ptr_t roll_ptr;
   bool was_first;
+  bool was_before_last = false;
   ulint n_reserved = 0;
   ulint max_ins_size = 0;
   trx_t *const trx = (thr == nullptr) ? nullptr : thr_get_trx(thr);
@@ -4155,6 +4156,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   record on its page? */
   was_first = page_cur_is_before_first(page_cursor);
 
+  was_before_last =
+      !page_rec_is_supremum(btr_cur_get_rec(cursor)) &&
+      page_rec_is_supremum(page_rec_get_next(btr_cur_get_rec(cursor)));
+
   /* Lock checks and undo logging were already performed by
   btr_cur_upd_lock_and_undo(). We do not try
   btr_cur_optimistic_insert() because
@@ -4168,6 +4173,15 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   ut_a(dummy_big_rec == nullptr);
   ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
   page_cursor->rec = rec;
+
+  if (was_before_last) {
+    /** We may moved the record from the current page to the next page.
+     * Therefore, we need to disable optimistic access to the next page to
+     * ensure that the record will not be mistakenly skipped during reverse
+     * scanning on cursor.
+     */
+    buf_block_modify_clock_inc(btr_cur_get_block(cursor));
+  }
 
   /* Multiple transactions cannot simultaneously operate on the
   same temp-table in parallel.

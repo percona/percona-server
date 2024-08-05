@@ -182,7 +182,7 @@ ENDIF()
 
 # Suppress warnings for clang-21 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 21)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-format-attribute FILES rocksdb/env/file_system.cc rocksdb/env/env.cc rocksdb/env/mock_env.cc rocksdb/logging/auto_roll_logger.cc rocksdb/util/stderr_logger.cc rocksdb/logging/log_buffer.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-format-attribute FILES rocksdb/env/file_system.cc rocksdb/env/env.cc rocksdb/env/mock_env.cc rocksdb/logging/auto_roll_logger.cc rocksdb/util/stderr_logger.cc rocksdb/logging/log_buffer.cc rocksdb/db/c.cc)
 ENDIF()
 
 # Suppress warnings for clang-15 or newer

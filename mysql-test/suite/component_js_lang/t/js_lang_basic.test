@@ -1,0 +1,3359 @@
+--source include/have_js_lang_component.inc
+
+INSTALL COMPONENT 'file://component_js_lang';
+
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+
+--echo #
+--echo # Some basic tests.
+--echo #
+CREATE FUNCTION f1() RETURNS INT LANGUAGE JS AS $$ return 2*2 $$;
+SELECT f1();
+DROP FUNCTION f1;
+
+DELIMITER |;
+CREATE FUNCTION fact(n INT) RETURNS INT LANGUAGE JS AS $$
+  let result = 1;
+  while (n > 1) {
+    result *= n;
+    n--;
+  }
+  return result;
+$$|
+DELIMITER ;|
+SELECT fact(5);
+DROP FUNCTION fact;
+
+DELIMITER |;
+CREATE PROCEDURE p1(a INT, b INT, OUT r INT) LANGUAGE JS AS $$
+  r = a * b;
+$$|
+DELIMITER ;|
+CALL p1(7, 11, @r);
+SELECT @r;
+DROP PROCEDURE p1;
+
+--error ER_LANGUAGE_COMPONENT
+CREATE FUNCTION f2() RETURNS INT LANGUAGE JS AS $$ Syntax error ! $$;
+
+DELIMITER |;
+CREATE PROCEDURE p2(OUT i INT, j INT, INOUT k INT) LANGUAGE JS AS $$ i = 5; k = k * j $$ |
+DELIMITER ;|
+SET @k := 7;
+CALL p2(@i, 11, @k);
+SELECT @i, @k;
+DROP PROCEDURE p2;
+
+--echo
+--echo #
+--echo # Test that creation of routine with parameter name which is
+--echo # valid in MySQL but is not valid JS identifier fails.
+--echo #
+--echo # Error messages might be cryptic at the moment.
+--error ER_LANGUAGE_COMPONENT
+CREATE FUNCTION f3(1param INT) RETURNS INT LANGUAGE JS AS $$ return 1 $$;
+--error ER_LANGUAGE_COMPONENT
+CREATE PROCEDURE p3(`123` INT) LANGUAGE JS AS $$ return $$;
+--error ER_LANGUAGE_COMPONENT
+CREATE FUNCTION f3(`for` INT) RETURNS INT LANGUAGE JS AS $$ return 1 $$;
+--error ER_LANGUAGE_COMPONENT
+CREATE PROCEDURE p3(throw INT) LANGUAGE JS AS $$ return $$;
+
+
+--echo
+--echo #
+--echo # Test that returning values from procedures is not allowed.
+--echo #
+CREATE PROCEDURE p3(a INT) LANGUAGE JS AS $$ return 1 $$;
+--error ER_LANGUAGE_COMPONENT
+CALL p3(1);
+DROP PROCEDURE p3;
+--echo # However, return without value should be fine.
+CREATE PROCEDURE p3(a INT) LANGUAGE JS AS $$ return $$;
+CALL p3(2);
+DROP PROCEDURE p3;
+
+--echo
+--echo #
+--echo # Test that 'strict' mode is enforced for our routines without
+--echo # it being enabled it explicitly.
+--echo #
+--echo # Assigning to undeclared variables is banned in strict mode.
+DELIMITER |;
+CREATE FUNCTION f_strict() RETURNS INT LANGUAGE JS AS $$
+  no_such_var = 1;
+  return 1;
+$$ |
+DELIMITER ;|
+--error ER_LANGUAGE_COMPONENT
+SELECT f_strict();
+DROP FUNCTION f_strict;
+
+CREATE PROCEDURE p_strict() LANGUAGE JS AS $$ no_such_var = 1 $$;
+--error ER_LANGUAGE_COMPONENT
+CALL p_strict();
+DROP PROCEDURE p_strict;
+
+
+--echo
+--echo #
+--echo # Let us test how stored program parameters are converted to JS values.
+--echo #
+
+--echo #
+--echo # Let us start with numeric types.
+--echo #
+
+# Create the unpacking iterator
+--let $json_label = num_types
+--let $json_keys = type, values, comment
+--source include/create_json_unpacking_iterator.inc
+
+# Reset the iterator to the first element of this array.
+let $json_array = [
+  {
+    "type": "TINYINT",
+    "values": "null, 0, 1, -1, 127, -128"
+  },
+  {
+    "type": "TINYINT UNSIGNED",
+    "values": "null, 0, 1, 255"
+  },
+  {
+    "type": "SMALLINT",
+    "values": "null, 0, 1, -1, 32767, -32768"
+  },
+  {
+    "type": "SMALLINT UNSIGNED",
+    "values": "null, 0, 1, 65535"
+  },
+  {
+    "type": "MEDIUMINT",
+    "values": "null, 0, 1, -1, 8388607, -8388608"
+  },
+  {
+    "type": "MEDIUMINT UNSIGNED",
+    "values": "null, 0, 1, 16777215"
+  },
+  {
+    "type": "INT",
+    "values": "null, 0, 1, -1, 1073741823, -1073741824, 1073741824, -1073741825, -2147483648, 2147483647",
+    "comment": "-2^30 and 2^30-1 are interesting because these are borders of V8 SMall Integer (SMI) optimization on 32-bit systems, on 64-bit systems these are -2^31 and 2^31-1."
+  },
+  {
+    "type": "INT UNSIGNED",
+    "values": "null, 0, 1, 1073741823, 1073741824, 2147483647, 2147483648, 4294967295",
+    "comment": "2^30-1 is interesting because this is the border of V8 SMall Integer (SMI) optimization on 32-bit systems, on 64-bit systems this is 2^31-1."
+  },
+  {
+    "type": "BIGINT",
+    "values": "null, 0, 1, -1, 1073741823, -1073741824, 1073741824, -1073741825, -2147483648, 2147483647, -2147483649, 2147483648, 9007199254740991, -9007199254740991, 9007199254740992,-9007199254740992, 9223372036854775806, -9223372036854775807",
+    "comment": "-2^30, 2^30-1 and -2^31, 2^31-1 are interesting because these are borders of V8 SMall Integer (SMI) optimization on 32-bit and 64-bit systems. +/-2^53-1 are interesting becauses this is max/min safe integer representable as Numeric type (primitive) in JS."
+  },
+  {
+    "type": "BIGINT UNSIGNED",
+    "values": "null, 0, 1, 1073741823, 1073741824, 2147483647, 2147483648, 4294967295, 4294967296, 9007199254740991, 9007199254740992, 18446744073709551615",
+    "comment": "2^30-1 and 2^31-1 are interesting because these are borders of V8 SMall Integer (SMI) optimization on 32-bit and 64-bit systems. 2^53-1 is interesting becauses this is max safe integer representable as Numeric type (primitive) in JS."
+  },
+  {
+    "type": "FLOAT",
+    "values": "null, 0e0, 1e0, -1e0, 1e1, 5e-1, -3.4028234e+38, -1.1754943e-38, 1.1754943e-38, 3.4028234E+38",
+    "comment": "UNSIGNED attribute doesn't affect floating and fixed point type storage and is deprecated for them."
+  },
+  {
+    "type": "DOUBLE",
+    "values": "null, 0e0, 1e0, -1e0, 1e1, 5e-1, -1.7976931348623157e+308, -2.2250738585072014e-308, 2.2250738585072014e-308, 1.7976931348623157e+308",
+    "comment": "UNSIGNED attribute doesn't affect floating and fixed point type storage and is deprecated for them."
+  },
+  {
+    "type": "DECIMAL(10,5)",
+    "values": "null, 0.0, 1.0, -1.0, 10.0, 0.1, 1.23456, -1.23456, 99999.99999, -99999.99999",
+    "comment": "JS doesn't have primitive fixed precision type. So we convert such parameters to strings to avoid precision loss."
+  },
+  {
+    "type": "BOOLEAN",
+    "values": "null, false, true, 0, 1, 100",
+    "comment": "BOOLEAN type is an alias for TINYINT at the moment and is indistinguishable from it."
+  }
+];
+
+--source $json_num_types_start
+while (!$json_num_types_done) {
+  --eval CREATE FUNCTION f(arg $type) RETURNS VARCHAR(100) LANGUAGE JS AS \$\$ return '<' + arg + '> is ' + typeof arg; \$\$
+  if ($comment) {
+    --echo # Note: $comment
+  }
+  --eval SELECT f(val) FROM JSON_TABLE('[$values]', '\$[*]' COLUMNS(val $type PATH '\$')) as v
+  DROP FUNCTION f;
+
+  # Step forward to the next element.
+  --source $json_num_types_next
+}
+
+# Clean up the generated files
+--source include/destroy_json_functions.inc
+
+--echo
+--echo #
+--echo # Now let us test string types using different charsets.
+--echo #
+--echo # They are naturally mapped to JS strings (using Unicode).
+
+--let $str_types='CHAR(40),VARCHAR(50),TINYTEXT,TEXT,MEDIUMTEXT,LONGTEXT'
+--let $charsets='utf8mb4,latin1,cp1251'
+--let $literals="'Twas brillig, and the slithy toves'|X'496c20e974616974206772696c6865757265203b206c657320736c6963747565757820746f766573'|X'c1e520f1e3ebe0e4ede520e820f7e5f1f2ebe8edede8f2e520eaeeece1f3f0f1e8'"
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($str_types,',',$i),',',-1)`
+  --let $j= 1
+  while($j <= 3)
+  {
+    --let $charset = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($charsets,',',$j),',',-1)`
+    --let $literal = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($literals,'|',$j),'|',-1)`
+
+    --eval CREATE FUNCTION f(arg $type CHARACTER SET $charset) RETURNS VARCHAR(100) LANGUAGE JS AS \$\$ return '<' + arg + '> is ' + typeof arg; \$\$
+    --eval SELECT f(NULL) AS nil, f("") AS e, f("A") AS a, f(_$charset $literal) AS r;
+    DROP FUNCTION f;
+    --inc $j
+  }
+  --inc $i
+}
+
+--echo
+--echo #
+--echo # Binary/BLOB types are mapped to TypedArray objects though.
+--echo #
+--echo # Notice the padding for BINARY(10)!
+--let $bin_types='BINARY(10),VARBINARY(15),TINYBLOB,BLOB,MEDIUMBLOB,LONGBLOB'
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($bin_types,',',$i),',',-1)`
+  --echo # We do a bit of pretty-printing of DataView contents.
+  --eval CREATE FUNCTION f(arg $type) RETURNS VARCHAR(100) LANGUAGE JS AS \$\$ return (arg instanceof DataView) ? ('<' + new Uint8Array(arg.buffer) + '> is DataView') : ('<' + arg + '> is ' + typeof arg); \$\$
+  SELECT f(NULL) AS nil, f("") AS e, f("A") AS a, f(X'0001020304') AS r;
+  DROP FUNCTION f;
+  --inc $i
+}
+
+--echo
+--echo #
+--echo # Test for various datetime types.
+--echo #
+
+--echo
+--echo #
+--echo # YEAR parameters are mapped to integers.
+--echo #
+CREATE FUNCTION f(arg YEAR) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f(0) AS z, f('00') AS a, f('01') AS b, f('99') AS c, f('1901') AS d, f('2155') AS e;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # TIME parameters are mapped to strings as JS doesn't have
+--echo # corresponding type.
+--echo #
+CREATE FUNCTION f(arg TIME) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('0:0:0') AS z, f('-838:59:59') AS a, f('838:59:59') AS b, f('01:02:03') AS c;
+DROP FUNCTION f;
+--echo #
+--echo # Also test TIME with fractional part.
+--echo #
+CREATE FUNCTION f(arg TIME(6)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('0:0:0.0') AS z, f('-838:59:59.000000') AS a, f('838:59:59.000000') AS b, f('01:02:03.999999') AS c;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # DATETIME and TIMESTAMP parameters are mapped to strings as
+--echo # TZ-related and API issues make their mapping to JS Date
+--echo # not the best idea.
+--echo #
+CREATE FUNCTION f(arg DATETIME) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('1000-01-01 00:00:00') AS a, f('9999-12-31 23:59:59') AS b, f('2023-12-07 11:04:42') AS c;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg DATETIME(6)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('1000-01-01 00:00:00.000000') AS a, f('9999-12-31 23:59:59.499999') AS b, f('2023-12-07 11:04:42.123456') AS c;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg TIMESTAMP) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('1970-01-01 03:00:01') AS a, f('2038-01-19 06:14:07') AS b, f('2023-12-07 11:04:42') AS c;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg TIMESTAMP(6)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('1970-01-01 03:00:01.000000') AS a, f('2038-01-19 06:14:07.499999') AS b, f('2023-12-07 11:04:42.123456') AS c;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # DATE parameters are mapped to strings for the same reasons as well.
+--echo #
+CREATE FUNCTION f(arg DATE) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f('1000-01-01') AS a, f('9999-12-31') AS b, f('2023-12-07') AS c;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # ENUM parameters are mapped to strings as well.
+--echo #
+CREATE FUNCTION f(arg ENUM('a', 'b', 'c')) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f("a") AS a, f(2) AS t;
+DROP FUNCTION f;
+--echo #
+--echo # We do charset conversions for ENUM as well.
+--echo #
+CREATE FUNCTION f(arg ENUM(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f("Додо") AS Dodo, f(2) AS Tweedledum;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # SET parameters are mapped to strings of comma-separated list of set
+--echo # elements.
+--echo #
+CREATE FUNCTION f(arg SET('a', 'b', 'c')) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f("a,b") AS ab, f("c") AS c, f(6) AS bc;
+DROP FUNCTION f;
+--echo #
+--echo # Check SET with non-UTF8 charset as well.
+--echo #
+CREATE FUNCTION f(arg SET(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f("Додо") AS D, f("Туидълдъм,Туидълди") AS TT, f(5) AS TD;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # BIT parameters with size <= 53 bits are mapped to integer JS Number
+--echo # values.
+--echo #
+--echo # BIT parameters with size > 53 bits can't be safely represented as JS
+--echo # Number values in generic case. So we map them to BigInt values.
+--echo #
+CREATE FUNCTION f(arg BIT(11)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f(0) AS z, f(b'1000000000') AS f, f(7) AS s, f(b'11111111111') AS m;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg BIT(53)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f(0) AS z, f(b'1000000000') AS f, f(7) AS s, f(b'11111111111') AS b, f(x'1FFFFFFFFFFFFF') AS m;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg BIT(54)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f(0) AS z, f(b'1000000000') AS f, f(7) AS s, f(b'11111111111') AS b, f(x'3FFFFFFFFFFFFF') AS m;
+DROP FUNCTION f;
+CREATE FUNCTION f(arg BIT(64)) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil, f(0) AS z, f(b'1000000000') AS f, f(7) AS s, f(b'11111111111') AS b, f(x'FFFFFFFFFFFFFFFF') AS m;
+DROP FUNCTION f;
+
+
+--echo
+--echo #
+--echo # GEOMETRY arguments are mapped to JS DataView objects over
+--echo # MySQL internal representation of this type. This internal
+--echo # representation is documented and based on standard WKB format.
+--echo #
+CREATE FUNCTION f(arg GEOMETRY) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return (arg instanceof DataView) ? ('<' + new Uint8Array(arg.buffer) + '> is DataView') : ('<' + arg + '> is ' + typeof arg) $$;
+SELECT f(NULL) AS nil, f(ST_GeomFromText('POINT(15 20)')) AS g;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # JSON arguments are mapped to corresponding JS objects which
+--echo # are constructed using JSON.parse() method.
+--echo #
+CREATE FUNCTION f(arg JSON) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return '<' + arg + '> is ' + typeof arg $$;
+SELECT f(NULL) AS nil1, f("null") AS nil2, f("1") AS i, f("1.01") AS n, f('"alpha"') AS s, f("[1, 2, 3]") AS arr, f('{"a": 1, "b": "alpha"}') AS obj;
+DROP FUNCTION f;
+
+--echo
+--echo #
+--echo # Additional test coverage for scenarios in which SQL to JS value
+--echo # conversion fails can be found in js_lang_big.test.
+--echo #
+
+--echo
+--echo #
+--echo # Now let us test how JS values are converted to SQL types for return
+--echo # values.
+--echo #
+
+--echo #
+--echo # Let us start with string SQL types.
+--echo #
+--echo # Values of all JS types are converted to non-binary string SQL-types
+--echo # using JS toString() conversion.
+--echo # The exception are JS 'null' and 'undefined' values which are mapped
+--echo # to SQL NULL.
+
+--let $str_types='CHAR(50),VARCHAR(60),TINYTEXT,TEXT,MEDIUMTEXT,LONGTEXT'
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($str_types,',',$i),',',-1)`
+
+  --eval CREATE FUNCTION f_undefined() RETURNS $type LANGUAGE JS AS \$\$ return; \$\$
+  --eval CREATE FUNCTION f_null() RETURNS $type LANGUAGE JS AS \$\$ return null; \$\$
+
+  --eval CREATE FUNCTION f_int() RETURNS $type LANGUAGE JS AS \$\$ return 1; \$\$
+  --eval CREATE FUNCTION f_num() RETURNS $type LANGUAGE JS AS \$\$ return 1.25; \$\$
+  --eval CREATE FUNCTION f_bigint() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(100); \$\$
+  --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
+  --eval CREATE FUNCTION f_str_0() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
+  --eval CREATE FUNCTION f_str_1() RETURNS $type CHARACTER SET utf8mb4 LANGUAGE JS AS \$\$ return "Far over the misty mountains cold"; \$\$
+  --eval CREATE FUNCTION f_str_2() RETURNS $type CHARACTER SET latin1 LANGUAGE JS AS \$\$ return "Au-delà des montagnes glaciales et embrumées"; \$\$
+  --eval CREATE FUNCTION f_str_3() RETURNS $type CHARACTER SET cp1251 LANGUAGE JS AS \$\$ return "Там отвъд мъглявите студени планини"; \$\$
+  --eval CREATE FUNCTION f_str_cerr() RETURNS $type CHARACTER SET cp1251 LANGUAGE JS AS \$\$ return "\u{1F434}\u{1F9D9}\u{26F0}\u{FE0F}"; \$\$
+
+  --eval CREATE FUNCTION f_array() RETURNS $type LANGUAGE JS AS \$\$ return [1, 2, 3] \$\$
+  --eval CREATE FUNCTION f_object() RETURNS $type LANGUAGE JS AS \$\$ return { x: 1, y: "alpha" } \$\$
+  --eval CREATE FUNCTION f_func() RETURNS $type LANGUAGE JS AS \$\$ return function (a) { return 1;} \$\$
+
+  # Typed Arrays and DataView objects are interesting because they got
+  # special handling for binary string types.
+  --eval CREATE FUNCTION f_typed_arr() RETURNS $type LANGUAGE JS AS \$\$ return new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE FUNCTION f_data_view() RETURNS $type LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(3), 1, 1); dv.setUint8(0, 3); return dv \$\$
+
+  --eval CREATE FUNCTION f_object_serr() RETURNS $type LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+
+  SELECT f_undefined() AS u, f_null() AS nil;
+  SELECT f_int() AS i, f_num() AS num, f_bigint() AS bi, f_bool() AS bo;
+  SELECT f_str_e() AS se, f_str_0() AS s0, f_str_1() AS s1, f_str_2() AS s2, f_str_3() AS s3;
+  # Check that values which are returned are expected ones and in expected charset.
+  SELECT f_str_1() = X'466172206F76657220746865206D69737479206D6F756E7461696E7320636F6C64' AS r1,
+         f_str_2() = X'41752D64656CE020646573206D6F6E7461676E657320676C616369616C657320657420656D6272756DE96573' AS r2,
+         f_str_3() = X'D2E0EC20EEF2E2FAE420ECFAE3EBFFE2E8F2E520F1F2F3E4E5EDE820EFEBE0EDE8EDE8' AS r3;
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_str_cerr();
+
+  SELECT f_array() AS a, f_object() AS o, f_func() AS f;
+  SELECT f_typed_arr() AS ta, f_data_view() AS dv;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_serr();
+
+  DROP FUNCTION f_undefined;
+  DROP FUNCTION f_null;
+  DROP FUNCTION f_int;
+  DROP FUNCTION f_num;
+  DROP FUNCTION f_bigint;
+  DROP FUNCTION f_bool;
+  DROP FUNCTION f_str_e;
+  DROP FUNCTION f_str_0;
+  DROP FUNCTION f_str_1;
+  DROP FUNCTION f_str_2;
+  DROP FUNCTION f_str_3;
+  DROP FUNCTION f_str_cerr;
+  DROP FUNCTION f_array;
+  DROP FUNCTION f_object;
+  DROP FUNCTION f_func;
+  DROP FUNCTION f_typed_arr;
+  DROP FUNCTION f_data_view;
+  DROP FUNCTION f_object_serr;
+
+  --inc $i
+}
+
+
+--echo
+--echo #
+--echo # For binary string/BLOB SQL-types in addition to 'null' and 'undefined'
+--echo # values, ArrayBuffer-based objects are also getting special treatment.
+--echo # All other JS values are converted using the same toString() approach
+--echo # as for non-binary strings.
+
+--let $bin_types='BINARY(50),VARBINARY(60),TINYBLOB,BLOB,MEDIUMBLOB,LONGBLOB'
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($bin_types,',',$i),',',-1)`
+
+  --eval CREATE FUNCTION f_undefined() RETURNS $type LANGUAGE JS AS \$\$ return; \$\$
+  --eval CREATE FUNCTION f_null() RETURNS $type LANGUAGE JS AS \$\$ return null; \$\$
+
+  --eval CREATE FUNCTION f_int() RETURNS $type LANGUAGE JS AS \$\$ return 1; \$\$
+  --eval CREATE FUNCTION f_num() RETURNS $type LANGUAGE JS AS \$\$ return 1.25; \$\$
+  --eval CREATE FUNCTION f_bigint() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(100); \$\$
+  --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
+  --eval CREATE FUNCTION f_str_a() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
+
+  --eval CREATE FUNCTION f_array() RETURNS $type LANGUAGE JS AS \$\$ return [1, 2, 3] \$\$
+  --eval CREATE FUNCTION f_object() RETURNS $type LANGUAGE JS AS \$\$ return { x: 1, y: "alpha" } \$\$
+  --eval CREATE FUNCTION f_func() RETURNS $type LANGUAGE JS AS \$\$ return function (a) { return 1;} \$\$
+
+  --eval CREATE FUNCTION f_typed_arr() RETURNS $type LANGUAGE JS AS \$\$ return new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE FUNCTION f_data_view() RETURNS $type LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(9), 1, 7); dv.setUint32(0, 1); dv.setUint8(4, 3); dv.setUint16(5, 7); return dv \$\$
+  --eval CREATE FUNCTION f_arr_buff() RETURNS $type LANGUAGE JS AS \$\$ let ab = new ArrayBuffer(9); let dv = new DataView(ab, 1, 7); dv.setUint32(0, 1); dv.setUint8(4, 3); dv.setUint16(5, 7); return ab \$\$
+
+  --eval CREATE FUNCTION f_object_serr() RETURNS $type LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+
+  SELECT f_undefined() AS u, f_null() AS nil;
+  if (`SELECT '$type' LIKE 'BINARY%'`) {
+    --echo # BINARY type does 0-padding so we use HEX to correctly print returned value.
+    SELECT HEX(f_int()) AS i, HEX(f_num()) AS num, HEX(f_bigint()) AS bi, HEX(f_bool()) AS bo;
+    SELECT HEX(f_str_e()) AS se, HEX(f_str_a()) AS sa;
+    SELECT HEX(f_array()) AS a, HEX(f_object()) AS o, HEX(f_func()) AS f;
+  }
+  if (!`SELECT '$type' LIKE 'BINARY%'`) {
+    SELECT f_int() AS i, f_num() AS num, f_bigint() AS bi, f_bool() AS bo;
+    SELECT f_str_e() AS se, f_str_a() AS sa;
+    SELECT f_array() AS a, f_object() AS o, f_func() AS f;
+  }
+  SELECT HEX(f_typed_arr()) AS ta, HEX(f_data_view()) AS dv, HEX(f_arr_buff()) AS ab;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_serr();
+
+  DROP FUNCTION f_undefined;
+  DROP FUNCTION f_null;
+  DROP FUNCTION f_int;
+  DROP FUNCTION f_num;
+  DROP FUNCTION f_bigint;
+  DROP FUNCTION f_bool;
+  DROP FUNCTION f_str_e;
+  DROP FUNCTION f_str_a;
+  DROP FUNCTION f_array;
+  DROP FUNCTION f_object;
+  DROP FUNCTION f_func;
+  DROP FUNCTION f_typed_arr;
+  DROP FUNCTION f_data_view;
+  DROP FUNCTION f_arr_buff;
+  DROP FUNCTION f_object_serr;
+
+  --inc $i
+}
+
+
+--echo #
+--echo # For integer SQL-types conversion works in the following way:
+--echo # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
+--echo # - If JS numeric or BigInt value can be safely converted to SQL-type
+--echo #   we use direct conversion (for performance reasons).
+--echo # - Otherwise, as well as for all other types of JS values conversion
+--echo #   is done through strings (i.e. by doing JS toString() conversion
+--echo #   and trying to store resulting string as SQL integer value).
+
+--echo
+--echo # Maximum BIGINT value can't be represented as exact numeric in JS,
+--echo # so we resort to using 2^53-1 (max safe in JS) instead and reduce
+--echo # testing for it.
+
+--let $int_types='TINYINT,SMALLINT,MEDIUMINT,INT,BIGINT'
+--let $int_max='127,32767,8388607,2147483647,9007199254740991'
+--let $i = 1
+while($i <= 5)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_types,',',$i),',',-1)`
+  --let $max = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_max,',',$i),',',-1)`
+
+  --eval CREATE FUNCTION f_undefined() RETURNS $type LANGUAGE JS AS \$\$ return; \$\$
+  --eval CREATE FUNCTION f_null() RETURNS $type LANGUAGE JS AS \$\$ return null; \$\$
+
+  --eval CREATE FUNCTION f_int_0() RETURNS $type LANGUAGE JS AS \$\$ return 0; \$\$
+  --eval CREATE FUNCTION f_int_1() RETURNS $type LANGUAGE JS AS \$\$ return 1; \$\$
+  --eval CREATE FUNCTION f_int_n() RETURNS $type LANGUAGE JS AS \$\$ return -1; \$\$
+  --eval CREATE FUNCTION f_int_m() RETURNS $type LANGUAGE JS AS \$\$ return $max; \$\$
+  --eval CREATE FUNCTION f_int_m1() RETURNS $type LANGUAGE JS AS \$\$ return $max + 1; \$\$
+  --eval CREATE FUNCTION f_int_nm() RETURNS $type LANGUAGE JS AS \$\$ return -$max - 1; \$\$
+  --eval CREATE FUNCTION f_int_nm1() RETURNS $type LANGUAGE JS AS \$\$ return -$max - 2; \$\$
+  --eval CREATE FUNCTION f_uint_m() RETURNS $type UNSIGNED LANGUAGE JS AS  \$\$ return 2*$max + 1; \$\$
+  --eval CREATE FUNCTION f_uint_m1() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return 2*$max + 2; \$\$
+  --eval CREATE FUNCTION f_uint_n() RETURNS $type UNSIGNED LANGUAGE JS AS  \$\$ return - 1; \$\$
+
+  --eval CREATE FUNCTION f_num_1() RETURNS $type LANGUAGE JS AS \$\$ return 1.25; \$\$
+  --eval CREATE FUNCTION f_num_2() RETURNS $type LANGUAGE JS AS \$\$ return 5e-1; \$\$
+  --eval CREATE FUNCTION f_num_3() RETURNS $type LANGUAGE JS AS \$\$ return 5e-2; \$\$
+  --eval CREATE FUNCTION f_num_4() RETURNS $type LANGUAGE JS AS \$\$ return 1.2345e+2; \$\$
+  --eval CREATE FUNCTION f_num_5() RETURNS $type LANGUAGE JS AS \$\$ return -1.2345e+1; \$\$
+  --eval CREATE FUNCTION f_num_r1() RETURNS $type LANGUAGE JS AS \$\$ return 4.5; \$\$
+  --eval CREATE FUNCTION f_num_r2() RETURNS $type LANGUAGE JS AS \$\$ return 4.5e+0; \$\$
+  --eval CREATE FUNCTION f_num_un() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return -1.5; \$\$
+  --eval CREATE FUNCTION f_num_tb() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return 1e+70; \$\$
+
+  --eval CREATE FUNCTION f_bigint() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(100); \$\$
+  --eval CREATE FUNCTION f_bigint_n() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(-42); \$\$
+  --eval CREATE FUNCTION f_bigint_u() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return BigInt(9007199254740991); \$\$
+  --eval CREATE FUNCTION f_bigint_un() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return BigInt(-42); \$\$
+  --eval CREATE FUNCTION f_bigint_tb() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(1e+25); \$\$
+
+  --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
+  --eval CREATE FUNCTION f_str_a() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
+  --eval CREATE FUNCTION f_str_n1() RETURNS $type LANGUAGE JS AS \$\$ return "123"; \$\$
+  --eval CREATE FUNCTION f_str_n2() RETURNS $type LANGUAGE JS AS \$\$ return "-2"; \$\$
+  --eval CREATE FUNCTION f_str_n3() RETURNS $type LANGUAGE JS AS \$\$ return "12.65"; \$\$
+  --eval CREATE FUNCTION f_str_nu() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return "-1"; \$\$
+  --eval CREATE FUNCTION f_str_nr1() RETURNS $type LANGUAGE JS AS \$\$ return "4.5"; \$\$
+  --eval CREATE FUNCTION f_str_nr2() RETURNS $type LANGUAGE JS AS \$\$ return "4.5e+0"; \$\$
+  --eval CREATE FUNCTION f_str_tb1() RETURNS $type LANGUAGE JS AS \$\$ return "1e+25"; \$\$
+  --eval CREATE FUNCTION f_str_tb2() RETURNS $type LANGUAGE JS AS \$\$ return "18446744073709551616"; \$\$
+
+  --eval CREATE FUNCTION f_array() RETURNS $type LANGUAGE JS AS \$\$ return [1, 2, 3] \$\$
+  --eval CREATE FUNCTION f_object() RETURNS $type LANGUAGE JS AS \$\$ return { x: 1, y: "alpha" } \$\$
+  --eval CREATE FUNCTION f_func() RETURNS $type LANGUAGE JS AS \$\$ return function (a) { return 1;} \$\$
+
+  --eval CREATE FUNCTION f_typed_arr() RETURNS $type LANGUAGE JS AS \$\$ return new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE FUNCTION f_data_view() RETURNS $type LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); return dv \$\$
+
+  --eval CREATE FUNCTION f_object_serr() RETURNS $type LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+  --eval CREATE FUNCTION f_object_userr() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+
+  SELECT f_undefined() AS u, f_null() AS nil;
+  SELECT f_int_0() AS i0, f_int_1() AS i1, f_int_n() AS n, f_int_m() AS im, f_int_nm() AS nm, f_uint_m() AS um;
+  if (!`SELECT '$type' LIKE 'BIGINT'`) {
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    SELECT f_int_m1();
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    SELECT f_int_nm1();
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    SELECT f_uint_m1();
+  }
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_uint_n();
+
+  --echo # When MySQL converts string value with a floating point number to
+  --echo # an integer, it converts string to floating point value first and
+  --echo # then converts it to integer with rounding.
+  SELECT f_num_1() AS n1, f_num_2() AS n2, f_num_3() AS n3, f_num_4() AS n4, f_num_5();
+
+  --echo # MySQL rounds floating-point values differently than decimal values,
+  --echo # floating-point values in strings and decimal values as string when
+  --echo # storing them as integer (for floating-point values rint() rounding
+  --echo # is used, while other use round() style rounding).
+  --echo #
+  --echo # We try to avoid the confusion and stick to round()-style
+  --echo # rounding in all cases.
+  SELECT f_num_r1() AS r1, f_num_r2() AS r2;
+
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_num_un();
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_num_tb();
+
+  SELECT f_bigint() AS bi, f_bigint_n() AS bn;
+  if (`SELECT '$type' LIKE 'BIGINT'`) {
+    SELECT f_bigint_u() AS bu;
+  }
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_bigint_un();
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_bigint_tb();
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_bool() AS bo;
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_str_e() AS se;
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_str_a() AS sa;
+  SELECT f_str_n1() AS n1, f_str_n2() AS n2, f_str_n3() AS n3;
+  SELECT f_str_nr1() AS nr1, f_str_nr2() AS nr2;
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_str_nu();
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_str_tb1();
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_str_tb2();
+
+  --error 1265
+  SELECT f_array() AS a;
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_object() AS o;
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_func() AS f;
+  --error 1265
+  SELECT f_typed_arr() AS ta;
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  SELECT f_data_view() AS dv;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_serr() AS serr;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_userr() AS userr;
+
+  DROP FUNCTION f_undefined;
+  DROP FUNCTION f_null;
+  DROP FUNCTION f_int_0;
+  DROP FUNCTION f_int_1;
+  DROP FUNCTION f_int_n;
+  DROP FUNCTION f_int_m;
+  DROP FUNCTION f_int_m1;
+  DROP FUNCTION f_int_nm;
+  DROP FUNCTION f_int_nm1;
+  DROP FUNCTION f_uint_m;
+  DROP FUNCTION f_uint_m1;
+  DROP FUNCTION f_uint_n;
+  DROP FUNCTION f_num_1;
+  DROP FUNCTION f_num_2;
+  DROP FUNCTION f_num_3;
+  DROP FUNCTION f_num_4;
+  DROP FUNCTION f_num_5;
+  DROP FUNCTION f_num_r1;
+  DROP FUNCTION f_num_r2;
+  DROP FUNCTION f_num_un;
+  DROP FUNCTION f_num_tb;
+  DROP FUNCTION f_bigint;
+  DROP FUNCTION f_bigint_n;
+  DROP FUNCTION f_bigint_u;
+  DROP FUNCTION f_bigint_un;
+  DROP FUNCTION f_bigint_tb;
+  DROP FUNCTION f_bool;
+  DROP FUNCTION f_str_e;
+  DROP FUNCTION f_str_a;
+  DROP FUNCTION f_str_n1;
+  DROP FUNCTION f_str_n2;
+  DROP FUNCTION f_str_n3;
+  DROP FUNCTION f_str_nu;
+  DROP FUNCTION f_str_nr1;
+  DROP FUNCTION f_str_nr2;
+  DROP FUNCTION f_str_tb1;
+  DROP FUNCTION f_str_tb2;
+  DROP FUNCTION f_array;
+  DROP FUNCTION f_object;
+  DROP FUNCTION f_func;
+  DROP FUNCTION f_typed_arr;
+  DROP FUNCTION f_data_view;
+  DROP FUNCTION f_object_serr;
+  DROP FUNCTION f_object_userr;
+
+  --inc $i
+}
+
+
+--echo #
+--echo # For floating point SQL-types conversion works in similar way:
+--echo # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
+--echo # - If JS numeric value can be safely converted to SQL-type we use
+--echo #   direct conversion (for performance reasons).
+--echo # - Otherwise, as well as for all other types of JS values conversion
+--echo #   is done through strings (i.e. by doing JS toString() conversion
+--echo #   and trying to store resulting string as SQL floating-point value).
+
+--let $real_types='FLOAT;DOUBLE'
+--let $real_max='3.4028234e+38,1.7976931348623157e+308'
+--let $i = 1
+while($i <= 2)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($real_types,';',$i),';',-1)`
+  --let $max = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($real_max,',',$i),',',-1)`
+
+  --eval CREATE FUNCTION f_undefined() RETURNS $type LANGUAGE JS AS \$\$ return; \$\$
+  --eval CREATE FUNCTION f_null() RETURNS $type LANGUAGE JS AS \$\$ return null; \$\$
+
+  --eval CREATE FUNCTION f_int_0() RETURNS $type LANGUAGE JS AS \$\$ return 0; \$\$
+  --eval CREATE FUNCTION f_int_1() RETURNS $type LANGUAGE JS AS \$\$ return 1; \$\$
+  --eval CREATE FUNCTION f_int_n() RETURNS $type LANGUAGE JS AS \$\$ return -1; \$\$
+
+  --eval CREATE FUNCTION f_num_1() RETURNS $type LANGUAGE JS AS \$\$ return 1.25; \$\$
+  --eval CREATE FUNCTION f_num_2() RETURNS $type LANGUAGE JS AS \$\$ return 5e-1; \$\$
+  --eval CREATE FUNCTION f_num_3() RETURNS $type LANGUAGE JS AS \$\$ return -5e-2; \$\$
+  --eval CREATE FUNCTION f_num_m() RETURNS $type LANGUAGE JS AS \$\$ return $max; \$\$
+
+  --eval CREATE FUNCTION f_bigint() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(100); \$\$
+  # Value below can't be represented exactly as a single nor as a double precision floating-point
+  --eval CREATE FUNCTION f_bigint_pl() RETURNS $type LANGUAGE JS AS \$\$ return BigInt("36028797018963967"); \$\$
+
+  --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
+  --eval CREATE FUNCTION f_str_a() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
+  --eval CREATE FUNCTION f_str_n1() RETURNS $type LANGUAGE JS AS \$\$ return "123"; \$\$
+  --eval CREATE FUNCTION f_str_n2() RETURNS $type LANGUAGE JS AS \$\$ return "12.65"; \$\$
+  # Value below can't be represented exactly as a single nor as a double precision floating-point
+  --eval CREATE FUNCTION f_str_n_pl() RETURNS $type LANGUAGE JS AS \$\$ return "36028797018963967"; \$\$
+  --eval CREATE FUNCTION f_str_n_tb() RETURNS $type LANGUAGE JS AS \$\$ return "1.1e+400"; \$\$
+
+  --eval CREATE FUNCTION f_array() RETURNS $type LANGUAGE JS AS \$\$ return [1, 2, 3] \$\$
+  --eval CREATE FUNCTION f_object() RETURNS $type LANGUAGE JS AS \$\$ return { x: 1, y: "alpha" } \$\$
+  --eval CREATE FUNCTION f_func() RETURNS $type LANGUAGE JS AS \$\$ return function (a) { return 1;} \$\$
+
+  --eval CREATE FUNCTION f_typed_arr() RETURNS $type LANGUAGE JS AS \$\$ return new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE FUNCTION f_data_view() RETURNS $type LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); return dv \$\$
+
+  --eval CREATE FUNCTION f_object_serr() RETURNS $type LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+
+  SELECT f_undefined() AS u, f_null() AS nil;
+
+  SELECT f_int_0() AS i0, f_int_1() AS i1, f_int_n() AS n, f_num_1() AS n1, f_num_2() AS n2, f_num_3() AS n3, f_num_m() AS nm;
+
+  SELECT f_bigint() AS bi;
+  SELECT f_bigint_pl() AS bipl;
+
+  --error 1265
+  SELECT f_bool() AS bo;
+
+  --error 1265
+  SELECT f_str_e() AS se;
+  --error 1265
+  SELECT f_str_a() AS sa;
+  SELECT f_str_n1() AS n1, f_str_n2() AS n2;
+  SELECT f_str_n_pl() AS spl;
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  SELECT f_str_n_tb() AS stb;
+
+  --error 1265
+  SELECT f_array() AS a;
+  --error 1265
+  SELECT f_object() AS o;
+  --error 1265
+  SELECT f_func() AS f;
+  --error 1265
+  SELECT f_typed_arr() AS ta;
+  --error 1265
+  SELECT f_data_view() AS dv;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_serr() AS serr;
+
+  DROP FUNCTION f_undefined;
+  DROP FUNCTION f_null;
+  DROP FUNCTION f_int_0;
+  DROP FUNCTION f_int_1;
+  DROP FUNCTION f_int_n;
+  DROP FUNCTION f_num_1;
+  DROP FUNCTION f_num_2;
+  DROP FUNCTION f_num_3;
+  DROP FUNCTION f_num_m;
+  DROP FUNCTION f_bigint;
+  DROP FUNCTION f_bigint_pl;
+  DROP FUNCTION f_bool;
+  DROP FUNCTION f_str_e;
+  DROP FUNCTION f_str_a;
+  DROP FUNCTION f_str_n1;
+  DROP FUNCTION f_str_n2;
+  DROP FUNCTION f_str_n_pl;
+  DROP FUNCTION f_str_n_tb;
+  DROP FUNCTION f_array;
+  DROP FUNCTION f_object;
+  DROP FUNCTION f_func;
+  DROP FUNCTION f_typed_arr;
+  DROP FUNCTION f_data_view;
+  DROP FUNCTION f_object_serr;
+
+  --inc $i
+}
+
+--echo #
+--echo # For DECIMAL SQL-type conversion is done through strings (by doing JS
+--echo # toString() conversion and trying to store resulting string as SQL
+--echo # type value). There is no point in optimizing conversion from Number
+--echo # type, like it is done for floating point SQL-types, as SQL core does
+--echo # double -> DECIMAL conversions through strings. As usual JS 'null'
+--echo # and 'undefined' values are mapped to SQL NULL.
+--echo #
+
+CREATE FUNCTION f_undefined() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int_0() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 0 $$;
+CREATE FUNCTION f_int_1() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 1 $$;
+CREATE FUNCTION f_int_n() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return -1 $$;
+CREATE FUNCTION f_int_tb() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 100 $$;
+
+CREATE FUNCTION f_num_1() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 1.25 $$;
+CREATE FUNCTION f_num_2() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 5e-1 $$;
+CREATE FUNCTION f_num_3() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return -5e-2 $$;
+CREATE FUNCTION f_num_m() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 99.99 $$;
+CREATE FUNCTION f_num_tb() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 100.01 $$;
+CREATE FUNCTION f_num_tl() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return 0.0125 $$;
+
+CREATE FUNCTION f_bigint_1() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return BigInt(10) $$;
+CREATE FUNCTION f_bigint_2() RETURNS DECIMAL(20,2) LANGUAGE JS AS $$ return BigInt("10000000000000000") $$;
+CREATE FUNCTION f_bigint_tb() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return BigInt(1000) $$;
+
+CREATE FUNCTION f_bool() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_a() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_str_n1() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "12" $$;
+CREATE FUNCTION f_str_n2() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "12.65" $$;
+CREATE FUNCTION f_str_n3() RETURNS DECIMAL(20,2) LANGUAGE JS AS $$ return "10000000000000000.12" $$;
+CREATE FUNCTION f_str_tb() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "123" $$;
+CREATE FUNCTION f_str_tl() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "12.324" $$;
+CREATE FUNCTION f_str_api() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return "π" $$;
+
+CREATE FUNCTION f_array() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return function (a) { return 1} $$;
+
+CREATE FUNCTION f_object_serr() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return { toString() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+SELECT f_int_0() AS i0, f_int_1() AS i1, f_int_n() AS n;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_int_tb() AS itb;
+
+SELECT f_num_1() AS n1, f_num_2() AS n2, f_num_3() AS n3, f_num_m() AS nm;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_num_tb() AS ntb;
+
+SELECT f_num_tl() AS ntl;
+
+SELECT f_bigint_1() AS bi1, f_bigint_2() AS bi2;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_bigint_tb() AS bitb;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_bool() AS bo;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_str_e() AS se;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_str_a() AS sa;
+
+SELECT f_str_n1() AS n1, f_str_n2() AS n2, f_str_n3() AS n3;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_str_tb() AS stb;
+
+SELECT f_str_tl() AS stl;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_str_api() AS sapi;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_array() AS a;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_object() AS o;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_func() AS f;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_serr();
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int_0;
+DROP FUNCTION f_int_1;
+DROP FUNCTION f_int_n;
+DROP FUNCTION f_int_tb;
+DROP FUNCTION f_num_1;
+DROP FUNCTION f_num_2;
+DROP FUNCTION f_num_3;
+DROP FUNCTION f_num_m;
+DROP FUNCTION f_num_tb;
+DROP FUNCTION f_num_tl;
+DROP FUNCTION f_bigint_1;
+DROP FUNCTION f_bigint_2;
+DROP FUNCTION f_bigint_tb;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_a;
+DROP FUNCTION f_str_n1;
+DROP FUNCTION f_str_n2;
+DROP FUNCTION f_str_n3;
+DROP FUNCTION f_str_tb;
+DROP FUNCTION f_str_tl;
+DROP FUNCTION f_str_api;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_serr;
+
+
+--echo #
+--echo # YEAR return type is handled similarly to integer types.
+--echo #
+CREATE FUNCTION f_undefined() RETURNS YEAR LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS YEAR LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int_0() RETURNS YEAR LANGUAGE JS AS $$ return 0 $$;
+CREATE FUNCTION f_int_1() RETURNS YEAR LANGUAGE JS AS $$ return 7 $$;
+CREATE FUNCTION f_int_2() RETURNS YEAR LANGUAGE JS AS $$ return 69 $$;
+CREATE FUNCTION f_int_3() RETURNS YEAR LANGUAGE JS AS $$ return 70 $$;
+CREATE FUNCTION f_int_o() RETURNS YEAR LANGUAGE JS AS $$ return 123 $$;
+CREATE FUNCTION f_int_mi() RETURNS YEAR LANGUAGE JS AS $$ return 1901 $$;
+CREATE FUNCTION f_int_mx() RETURNS YEAR LANGUAGE JS AS $$ return 2155 $$;
+CREATE FUNCTION f_int_mi1() RETURNS YEAR LANGUAGE JS AS $$ return 1900 $$;
+CREATE FUNCTION f_int_mx1() RETURNS YEAR LANGUAGE JS AS $$ return 2156 $$;
+CREATE FUNCTION f_int_n() RETURNS YEAR LANGUAGE JS AS $$ return -1 $$;
+
+CREATE FUNCTION f_num_1() RETURNS YEAR LANGUAGE JS AS $$ return 1.25 $$;
+CREATE FUNCTION f_num_2() RETURNS YEAR LANGUAGE JS AS $$ return 5e-1 $$;
+CREATE FUNCTION f_num_3() RETURNS YEAR LANGUAGE JS AS $$ return 5e+1 $$;
+CREATE FUNCTION f_num_4() RETURNS YEAR LANGUAGE JS AS $$ return 1.901e+3 $$;
+CREATE FUNCTION f_num_tb() RETURNS YEAR LANGUAGE JS AS $$ return 2.2e+3 $$;
+
+CREATE FUNCTION f_bigint() RETURNS YEAR LANGUAGE JS AS $$ return BigInt(70) $$;
+
+CREATE FUNCTION f_bool() RETURNS YEAR LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS YEAR LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_a() RETURNS YEAR LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_str_1() RETURNS YEAR LANGUAGE JS AS $$ return "12" $$;
+CREATE FUNCTION f_str_2() RETURNS YEAR LANGUAGE JS AS $$ return "75" $$;
+CREATE FUNCTION f_str_3() RETURNS YEAR LANGUAGE JS AS $$ return "7.5" $$;
+CREATE FUNCTION f_str_o() RETURNS YEAR LANGUAGE JS AS $$ return "100" $$;
+CREATE FUNCTION f_str_mi() RETURNS YEAR LANGUAGE JS AS $$ return"1901" $$;
+CREATE FUNCTION f_str_mx() RETURNS YEAR LANGUAGE JS AS $$ return"2155" $$;
+CREATE FUNCTION f_str_n() RETURNS YEAR LANGUAGE JS AS $$ return "-1" $$;
+CREATE FUNCTION f_str_mi1() RETURNS YEAR LANGUAGE JS AS $$ return"1900" $$;
+CREATE FUNCTION f_str_mx1() RETURNS YEAR LANGUAGE JS AS $$ return"2156" $$;
+
+CREATE FUNCTION f_array() RETURNS YEAR LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS YEAR LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS YEAR LANGUAGE JS AS $$ return function (a) { return 1} $$;
+
+CREATE FUNCTION f_object_serr() RETURNS YEAR LANGUAGE JS AS $$ return { toString() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+SELECT f_int_0() AS i0, f_int_1() AS i1, f_int_2() AS i2, f_int_3() AS i3;
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_int_o() AS o;
+SELECT f_int_mi() AS mi, f_int_mx() AS mx;
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_int_mi1();
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_int_mx1();
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_int_n();
+
+SELECT f_num_1() AS n1, f_num_2() AS n2, f_num_3() AS n3, f_num_4() AS n4;
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_num_tb();
+
+SELECT f_bigint() AS bi;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_bool();
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_str_e();
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_str_a();
+SELECT f_str_1() AS s1, f_str_2() AS s2, f_str_3() AS s3;
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_str_o();
+SELECT f_str_mi() AS mi, f_str_mx() AS mx;
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_str_n();
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_str_mi1();
+--error ER_WARN_DATA_OUT_OF_RANGE
+SELECT f_str_mx1();
+
+--error 1265
+SELECT f_array() AS a;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_object() AS o;
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+SELECT f_func() AS f;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_serr() AS serr;
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int_0;
+DROP FUNCTION f_int_1;
+DROP FUNCTION f_int_2;
+DROP FUNCTION f_int_3;
+DROP FUNCTION f_int_o;
+DROP FUNCTION f_int_mi;
+DROP FUNCTION f_int_mx;
+DROP FUNCTION f_int_mi1;
+DROP FUNCTION f_int_mx1;
+DROP FUNCTION f_int_n;
+DROP FUNCTION f_num_1;
+DROP FUNCTION f_num_2;
+DROP FUNCTION f_num_3;
+DROP FUNCTION f_num_4;
+DROP FUNCTION f_num_tb;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_a;
+DROP FUNCTION f_str_1;
+DROP FUNCTION f_str_2;
+DROP FUNCTION f_str_3;
+DROP FUNCTION f_str_o;
+DROP FUNCTION f_str_mi;
+DROP FUNCTION f_str_mx;
+DROP FUNCTION f_str_n;
+DROP FUNCTION f_str_mi1;
+DROP FUNCTION f_str_mx1;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_serr;
+
+
+--echo #
+--echo # For other datetime SQL-types conversion is done through strings
+--echo # (by doing JS toString() conversion and trying to store resulting
+--echo # string as SQL type value). As usual JS 'null' and 'undefined'
+--echo # values which are mapped to SQL NULL.
+--echo #
+
+--let $dt_types='DATE;TIME;TIME(1);DATETIME;DATETIME(2);TIMESTAMP;TIMESTAMP(4)'
+--let $int_vals='20200101,11,11,20200102030405,20200102030405,20231222102000,20231222102000'
+--let $int_mis='10000101,-8385959,-8385959,10000101000000,10000101000000,19700101030001,19700101030001'
+--let $int_mxs='99991231,8385959,8385959,99991231235959,99991231235959,20380119061407,20380119061407'
+--let $num_vals='2.0200101e+7,11.1,11.1,20200102030405.06,20200102030405.06,20231222102000.0123,20231222102000.0123'
+--let $str_vals='2020-01-01,00:11,00:11.1,2020-01-02 03:04:05,2020-01-02 03:04:05.06,2023-12-22 10:20:00,2023-12-22 10:20:00.1234'
+--let $bad_vals='2020-13-01,00:65,01:71.1,2020-01-32 03:04:05,2020-01-02 25:04:05.06,2023-12-22 10:71:00,2023-12-22 10:20:63.1234'
+--let $i = 1
+while($i <= 7)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($dt_types,';',$i),';',-1)`
+  --let $i_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_vals,',',$i),',',-1)`
+  --let $i_mi = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_mis,',',$i),',',-1)`
+  --let $i_mx = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_mxs,',',$i),',',-1)`
+  --let $n_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($num_vals,',',$i),',',-1)`
+  --let $s_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($str_vals,',',$i),',',-1)`
+  --let $b_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($bad_vals,',',$i),',',-1)`
+
+  --eval CREATE FUNCTION f_undefined() RETURNS $type LANGUAGE JS AS \$\$ return; \$\$
+  --eval CREATE FUNCTION f_null() RETURNS $type LANGUAGE JS AS \$\$ return null; \$\$
+
+  --eval CREATE FUNCTION f_int_0() RETURNS $type LANGUAGE JS AS \$\$ return 0; \$\$
+  --eval CREATE FUNCTION f_int_1() RETURNS $type LANGUAGE JS AS \$\$ return $i_val; \$\$
+  --eval CREATE FUNCTION f_int_mi() RETURNS $type LANGUAGE JS AS \$\$ return $i_mi; \$\$
+  --eval CREATE FUNCTION f_int_mx() RETURNS $type LANGUAGE JS AS \$\$ return $i_mx; \$\$
+  --eval CREATE FUNCTION f_int_n() RETURNS $type LANGUAGE JS AS \$\$ return -1; \$\$
+  --eval CREATE FUNCTION f_int_mi1() RETURNS $type LANGUAGE JS AS \$\$ return $i_mi - 1; \$\$
+  --eval CREATE FUNCTION f_int_mx1() RETURNS $type LANGUAGE JS AS \$\$ return $i_mx + 1; \$\$
+
+  --eval CREATE FUNCTION f_num() RETURNS $type LANGUAGE JS AS \$\$ return $n_val; \$\$
+
+  --eval CREATE FUNCTION f_bigint() RETURNS $type LANGUAGE JS AS \$\$ return BigInt($i_val); \$\$
+
+  --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
+  --eval CREATE FUNCTION f_str_a() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
+  --eval CREATE FUNCTION f_str_1() RETURNS $type LANGUAGE JS AS \$\$ return "$s_val"; \$\$
+  --eval CREATE FUNCTION f_str_b() RETURNS $type LANGUAGE JS AS \$\$ return "$b_val"; \$\$
+  --eval CREATE FUNCTION f_str_ax() RETURNS $type LANGUAGE JS AS \$\$ return "\u{1F384}"; \$\$
+
+  --eval CREATE FUNCTION f_date() RETURNS $type LANGUAGE JS AS \$\$ return new Date(2023,11,22,13,0,0,123) \$\$
+
+  --eval CREATE FUNCTION f_array() RETURNS $type LANGUAGE JS AS \$\$ return [1, 2, 3] \$\$
+  --eval CREATE FUNCTION f_object() RETURNS $type LANGUAGE JS AS \$\$ return { x: 1, y: "alpha" } \$\$
+  --eval CREATE FUNCTION f_func() RETURNS $type LANGUAGE JS AS \$\$ return function (a) { return 1;} \$\$
+
+  --eval CREATE FUNCTION f_typed_arr() RETURNS $type LANGUAGE JS AS \$\$ return new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE FUNCTION f_data_view() RETURNS $type LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); return dv \$\$
+
+  --eval CREATE FUNCTION f_object_serr() RETURNS $type LANGUAGE JS AS \$\$ return { toString() { throw "Kaboom!" } } \$\$
+
+  SELECT f_undefined() AS u, f_null() AS nil;
+
+  if (`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --echo # 0 is valid value for TIME type.
+    SELECT f_int_0();
+  }
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    SELECT f_int_0();
+  }
+  SELECT f_int_1() AS i1, f_int_mi() AS imi, f_int_mx() AS imx;
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    SELECT f_int_n();
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_int_mi1();
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_int_mx1();
+
+  SELECT f_num() AS n;
+
+  SELECT f_bigint() AS bi;
+
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_bool();
+
+  if (`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --echo # Empty string is converted to 0 for TIME type.
+    SELECT f_str_e() AS se;
+  }
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    SELECT f_str_e() AS se;
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_str_a();
+  SELECT f_str_1() AS s1;
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_str_b();
+
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_str_ax();
+
+  --echo # Direct string representation of Date type is not compatible with
+  --echo # MySQL datetime values.
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_date() AS d;
+
+  if (!`SELECT '$type' LIKE 'DATE%'`) {
+    --echo # DATE and DATETIME types accept weird literals.
+    --error ER_TRUNCATED_WRONG_VALUE
+    SELECT f_array() AS a;
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_object() AS o;
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_func() AS f;
+  if (!`SELECT '$type' LIKE 'DATE%'`) {
+    --echo # DATE and DATETIME types accept weird literals.
+    --error ER_TRUNCATED_WRONG_VALUE
+    SELECT f_typed_arr() AS ta;
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  SELECT f_data_view() AS dv;
+
+  --error ER_LANGUAGE_COMPONENT
+  SELECT f_object_serr();
+
+  DROP FUNCTION f_undefined;
+  DROP FUNCTION f_null;
+  DROP FUNCTION f_int_0;
+  DROP FUNCTION f_int_1;
+  DROP FUNCTION f_int_mi;
+  DROP FUNCTION f_int_mx;
+  DROP FUNCTION f_int_n;
+  DROP FUNCTION f_int_mi1;
+  DROP FUNCTION f_int_mx1;
+  DROP FUNCTION f_num;
+  DROP FUNCTION f_bigint;
+  DROP FUNCTION f_bool;
+  DROP FUNCTION f_str_e;
+  DROP FUNCTION f_str_a;
+  DROP FUNCTION f_str_1;
+  DROP FUNCTION f_str_b;
+  DROP FUNCTION f_str_ax;
+  DROP FUNCTION f_date;
+  DROP FUNCTION f_array;
+  DROP FUNCTION f_object;
+  DROP FUNCTION f_func;
+  DROP FUNCTION f_typed_arr;
+  DROP FUNCTION f_data_view;
+  DROP FUNCTION f_object_serr;
+
+  --inc $i
+}
+
+
+--echo #
+--echo # ENUM return type is handled similarly to string types.
+--echo #
+CREATE FUNCTION f_undefined() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return 1 $$;
+CREATE FUNCTION f_num() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return 1.25 $$;
+CREATE FUNCTION f_bigint() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return BigInt(100) $$;
+CREATE FUNCTION f_bool() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_0() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return "a" $$;
+CREATE FUNCTION f_str_1() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_str_2() RETURNS ENUM(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251
+  LANGUAGE JS AS $$ return "Додо" $$;
+CREATE FUNCTION f_str_cerr() RETURNS ENUM(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251
+  LANGUAGE JS AS $$ return "\u{1F9A4}" $$;
+
+CREATE FUNCTION f_array() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return function (a) { return 1 } $$;
+
+CREATE FUNCTION f_object_serr() RETURNS ENUM('a','b') LANGUAGE JS AS $$ return { toString() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+SELECT f_int() AS i;
+
+--error 1265
+SELECT f_num() AS num;
+--error 1265
+SELECT f_bigint() AS bi;
+--error 1265
+SELECT f_bool() AS bo;
+
+--error 1265
+SELECT f_str_e() AS se;
+SELECT f_str_0() AS s0;
+# Check that function returns expected value and in correct charset.
+SELECT f_str_2() = X'c4eee4ee' AS s2;
+--error 1265
+SELECT f_str_1() AS s1;
+--error 1265
+SELECT f_str_cerr();
+
+--error 1265
+SELECT f_array() AS a;
+--error 1265
+SELECT f_object() AS o;
+--error 1265
+SELECT f_func() AS f;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_serr();
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int;
+DROP FUNCTION f_num;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_0;
+DROP FUNCTION f_str_1;
+DROP FUNCTION f_str_2;
+DROP FUNCTION f_str_cerr;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_serr;
+
+
+--echo #
+--echo # SET return type is handled similarly to how SQL core interprets
+--echo # integer/floating-point values and strings which are stored in
+--echo # SET columns.
+--echo #
+--echo # Numeric values are converted to integers and treated as bitmaps
+--echo # representing sets. Strings are expected to contain comma-separated
+--echo # lists of SET elements. Additionally strings containing integer
+--echo # values are interpreted as bitmaps.
+CREATE FUNCTION f_undefined() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return 1 $$;
+CREATE FUNCTION f_int_tb() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return 10 $$;
+CREATE FUNCTION f_int_n() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return -1 $$;
+CREATE FUNCTION f_num() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return 1.6 $$;
+
+CREATE FUNCTION f_bigint() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return BigInt(4) $$;
+
+CREATE FUNCTION f_bool() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_0() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "a" $$;
+CREATE FUNCTION f_str_1() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "b,c" $$;
+CREATE FUNCTION f_str_2() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "3" $$;
+CREATE FUNCTION f_str_3() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "1.5" $$;
+CREATE FUNCTION f_str_n() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "-3" $$;
+CREATE FUNCTION f_str_w() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_str_4() RETURNS SET(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251
+  LANGUAGE JS AS $$ return "Додо" $$;
+
+CREATE FUNCTION f_str_cerr() RETURNS SET(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251
+  LANGUAGE JS AS $$ return "\u{1F9A4}" $$;
+
+CREATE FUNCTION f_array() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return function (a) { return 1 } $$;
+
+CREATE FUNCTION f_object_serr() RETURNS SET('a','b','c') LANGUAGE JS AS $$ return { toString() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+SELECT f_int() AS i;
+--error 1265
+SELECT f_int_tb();
+--error 1265
+SELECT f_int_n();
+
+SELECT f_num() AS n;
+
+SELECT f_bigint() AS bi;
+--error 1265
+SELECT f_bool();
+
+SELECT f_str_e() AS se;
+SELECT f_str_0() AS s0;
+SELECT f_str_1() AS s1;
+SELECT f_str_2() AS s2;
+--echo # SQL core doesn't handle non-integer numbers represented as strings
+--echo # and doubles stored in SET columns consistently either.
+--error 1265
+SELECT f_str_3();
+--error 1265
+SELECT f_str_n();
+--error 1265
+SELECT f_str_w();
+SELECT f_str_4() = X'c4eee4ee' AS s;
+
+--error 1265
+SELECT f_str_cerr() AS cerr;
+
+--error 1265
+SELECT f_array() AS a;
+--error 1265
+SELECT f_object() AS o;
+--error 1265
+SELECT f_func() AS f;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_serr() AS serr;
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int;
+DROP FUNCTION f_int_tb;
+DROP FUNCTION f_int_n;
+DROP FUNCTION f_num;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_0;
+DROP FUNCTION f_str_1;
+DROP FUNCTION f_str_2;
+DROP FUNCTION f_str_3;
+DROP FUNCTION f_str_n;
+DROP FUNCTION f_str_w;
+DROP FUNCTION f_str_4;
+DROP FUNCTION f_str_cerr;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_serr;
+
+
+--echo #
+--echo # BIT return type is handled in a special way.
+--echo #
+--echo # JS values are converted to numbers (ultimately integers) and then
+--echo # their binary representation is interpreted as array of bits.
+--echo #
+--echo # We do not support JS values which are not convertible to numbers to
+--echo # avoid confusion caused by different interpretation of 1, "1" and "a".
+--echo #
+CREATE FUNCTION f_undefined() RETURNS BIT(5) LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS BIT(5) LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int_0() RETURNS BIT(5) LANGUAGE JS AS $$ return 0 $$;
+CREATE FUNCTION f_int_1() RETURNS BIT(5) LANGUAGE JS AS $$ return 7 $$;
+CREATE FUNCTION f_int_tb() RETURNS BIT(5) LANGUAGE JS AS $$ return 33 $$;
+CREATE FUNCTION f_int_n() RETURNS BIT(5) LANGUAGE JS AS $$ return -1 $$;
+
+CREATE FUNCTION f_num_1() RETURNS BIT(5) LANGUAGE JS AS $$ return 1.25 $$;
+CREATE FUNCTION f_num_2() RETURNS BIT(5) LANGUAGE JS AS $$ return 7.8 $$;
+CREATE FUNCTION f_num_tb() RETURNS BIT(5) LANGUAGE JS AS $$ return 32.5 $$;
+CREATE FUNCTION f_num_n() RETURNS BIT(5) LANGUAGE JS AS $$ return -1.2 $$;
+
+CREATE FUNCTION f_bigint() RETURNS BIT(5) LANGUAGE JS AS $$ return BigInt(5) $$;
+CREATE FUNCTION f_bigint_n() RETURNS BIT(5) LANGUAGE JS AS $$ return BigInt(-1) $$;
+
+CREATE FUNCTION f_bool() RETURNS BIT(5) LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS BIT(5) LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_a() RETURNS BIT(5) LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_str_1() RETURNS BIT(7) LANGUAGE JS AS $$ return "0" $$;
+CREATE FUNCTION f_str_2() RETURNS BIT(7) LANGUAGE JS AS $$ return "16" $$;
+CREATE FUNCTION f_str_tb() RETURNS BIT(5) LANGUAGE JS AS $$ return "33" $$;
+
+CREATE FUNCTION f_array() RETURNS BIT(5) LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS BIT(5) LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS BIT(5) LANGUAGE JS AS $$ return function (a) { return 1} $$;
+
+CREATE FUNCTION f_object_nerr() RETURNS BIT(5) LANGUAGE JS AS $$ return { valueOf() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+SELECT HEX(f_int_0()) AS i0, HEX(f_int_1()) AS i1;
+--error ER_DATA_TOO_LONG
+SELECT f_int_tb();
+--error ER_DATA_TOO_LONG
+SELECT f_int_n();
+
+SELECT HEX(f_num_1()) AS n1, HEX(f_num_2()) AS n2;
+--error ER_DATA_TOO_LONG
+SELECT f_num_tb();
+--error ER_DATA_TOO_LONG
+SELECT f_num_n();
+
+SELECT HEX(f_bigint()) AS bi;
+--error ER_LANGUAGE_COMPONENT
+SELECT f_bigint_n();
+
+SELECT HEX(f_bool()) AS b;
+
+SELECT HEX(f_str_e());
+--error ER_LANGUAGE_COMPONENT
+SELECT f_str_a();
+SELECT HEX(f_str_1()) AS s1;
+SELECT HEX(f_str_2()) AS s1;
+--error ER_DATA_TOO_LONG
+SELECT f_str_tb();
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_array() AS a;
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object() AS o;
+--error ER_LANGUAGE_COMPONENT
+SELECT f_func() AS f;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_nerr() AS nerr;
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int_0;
+DROP FUNCTION f_int_1;
+DROP FUNCTION f_int_tb;
+DROP FUNCTION f_int_n;
+DROP FUNCTION f_num_1;
+DROP FUNCTION f_num_2;
+DROP FUNCTION f_num_tb;
+DROP FUNCTION f_num_n;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bigint_n;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_a;
+DROP FUNCTION f_str_1;
+DROP FUNCTION f_str_2;
+DROP FUNCTION f_str_tb;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_nerr;
+
+
+--echo #
+--echo # For GEOMETRY return type we only support conversion from
+--echo # ArrayBuffer-based JS values.
+--echo #
+CREATE FUNCTION f_undefined() RETURNS GEOMETRY LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS GEOMETRY LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int() RETURNS GEOMETRY LANGUAGE JS AS $$ return 1 $$;
+CREATE FUNCTION f_num() RETURNS GEOMETRY LANGUAGE JS AS $$ return 1.25 $$;
+CREATE FUNCTION f_bigint() RETURNS GEOMETRY LANGUAGE JS AS $$ return BigInt(100) $$;
+CREATE FUNCTION f_bool() RETURNS GEOMETRY LANGUAGE JS AS $$ return true $$;
+CREATE FUNCTION f_str_e() RETURNS GEOMETRY LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_a() RETURNS GEOMETRY LANGUAGE JS AS $$ return "alpha" $$;
+CREATE FUNCTION f_array() RETURNS GEOMETRY LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS GEOMETRY LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS GEOMETRY LANGUAGE JS AS $$ return function (a) { return 1 } $$;
+
+CREATE FUNCTION f_typed_arr() RETURNS GEOMETRY LANGUAGE JS AS $$ return new Uint8Array([0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 64, 0, 0, 0, 0, 0, 0, 52, 64]) $$;
+DELIMITER |;
+CREATE FUNCTION f_data_view() RETURNS GEOMETRY LANGUAGE JS AS $$
+  let dv = new DataView(new ArrayBuffer(25));
+  dv.setUint32(0, 0, true);     // SRID 0
+  dv.setUint8(4, 1);            // little-endian
+  dv.setUint32(5, 1, true);     // POINT
+  dv.setFloat64(9, 15, true);   // X
+  dv.setFloat64(17, 20, true);  // Y
+  return dv;
+$$|
+DELIMITER ;|
+
+SELECT f_undefined() AS u, f_null() AS nil;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_int();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_num();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_bigint();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_bool();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_str_e();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_str_a();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_array();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object();
+--error ER_LANGUAGE_COMPONENT
+SELECT f_func();
+
+SELECT ST_AsText(f_typed_arr()) AS g;
+SELECT ST_AsText(f_data_view()) AS g;
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int;
+DROP FUNCTION f_num;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_a;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_typed_arr;
+DROP FUNCTION f_data_view;
+
+
+--echo #
+--echo # For JSON return type we apply JSON.stringify() to JS value and
+--echo # then try to store resulting string as return value (of JSON SQL
+--echo # type).
+--echo #
+CREATE FUNCTION f_undefined() RETURNS JSON LANGUAGE JS AS $$ return $$;
+CREATE FUNCTION f_null() RETURNS JSON LANGUAGE JS AS $$ return null $$;
+
+CREATE FUNCTION f_int() RETURNS JSON LANGUAGE JS AS $$ return 1 $$;
+CREATE FUNCTION f_num() RETURNS JSON LANGUAGE JS AS $$ return 1.25 $$;
+
+CREATE FUNCTION f_bigint() RETURNS JSON LANGUAGE JS AS $$ return BigInt(100) $$;
+
+CREATE FUNCTION f_bool() RETURNS JSON LANGUAGE JS AS $$ return true $$;
+
+CREATE FUNCTION f_str_e() RETURNS JSON LANGUAGE JS AS $$ return "" $$;
+CREATE FUNCTION f_str_a() RETURNS JSON LANGUAGE JS AS $$ return "alpha" $$;
+
+CREATE FUNCTION f_array() RETURNS JSON LANGUAGE JS AS $$ return [1, 2, 3] $$;
+CREATE FUNCTION f_object() RETURNS JSON LANGUAGE JS AS $$ return { x: 1, y: "alpha" } $$;
+CREATE FUNCTION f_func() RETURNS JSON LANGUAGE JS AS $$ return function (a) { return 1 } $$;
+
+CREATE FUNCTION f_object_jerr() RETURNS JSON LANGUAGE JS AS $$ return { toJSON() { throw "Kaboom!" } } $$;
+
+SELECT f_undefined() AS u, f_null() AS nil;
+SELECT f_int() AS i, f_num() AS n;
+
+--echo # JSON.stringify() doesn't support BigInt by default.
+--error ER_LANGUAGE_COMPONENT
+SELECT f_bigint() AS bi;
+
+SELECT f_bool() AS b;
+SELECT f_str_e() AS se, f_str_a() AS sa;
+SELECT f_array() AS arr, f_object() AS obj;
+
+--echo # SQL JSON type doesn't accept all JSON values produced by V8.
+--error ER_INVALID_JSON_TEXT
+SELECT f_func() AS func;
+
+--error ER_LANGUAGE_COMPONENT
+SELECT f_object_jerr();
+
+DROP FUNCTION f_undefined;
+DROP FUNCTION f_null;
+DROP FUNCTION f_int;
+DROP FUNCTION f_num;
+DROP FUNCTION f_bigint;
+DROP FUNCTION f_bool;
+DROP FUNCTION f_str_e;
+DROP FUNCTION f_str_a;
+DROP FUNCTION f_array;
+DROP FUNCTION f_object;
+DROP FUNCTION f_func;
+DROP FUNCTION f_object_jerr;
+
+--echo
+--echo #
+--echo # Finally let us test how JS values are converted to SQL types
+--echo # for OUT parameters.
+--echo #
+--echo # These conversion uses the same mechanism as for return values.
+
+--echo #
+--echo # OUT parameters with string SQL types.
+--echo #
+--let $str_types='CHAR(50),VARCHAR(60),TINYTEXT,TEXT,MEDIUMTEXT,LONGTEXT'
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($str_types,',',$i),',',-1)`
+
+  --eval CREATE PROCEDURE p_undefined(OUT r $type) LANGUAGE JS AS \$\$ r = undefined; \$\$
+  --eval CREATE PROCEDURE p_null(OUT r $type) LANGUAGE JS AS \$\$ r = null; \$\$
+
+  --eval CREATE PROCEDURE p_int(OUT r $type) LANGUAGE JS AS \$\$ r = 1; \$\$
+  --eval CREATE PROCEDURE p_num(OUT r $type) LANGUAGE JS AS \$\$ r = 1.25; \$\$
+  --eval CREATE PROCEDURE p_bigint(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(100); \$\$
+  --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
+
+  --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
+  --eval CREATE PROCEDURE p_str_0(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
+  --eval CREATE PROCEDURE p_str_1(OUT r $type CHARACTER SET utf8mb4) LANGUAGE JS AS \$\$ r = "Far over the misty mountains cold"; \$\$
+  --eval CREATE PROCEDURE p_str_2(OUT r $type CHARACTER SET latin1) LANGUAGE JS AS \$\$ r = "Au-delà des montagnes glaciales et embrumées"; \$\$
+  --eval CREATE PROCEDURE p_str_3(OUT r $type CHARACTER SET cp1251) LANGUAGE JS AS \$\$ r = "Там отвъд мъглявите студени планини"; \$\$
+  --eval CREATE PROCEDURE p_str_cerr(OUT r $type CHARACTER SET cp1251) LANGUAGE JS AS \$\$ r = "\u{1F434}\u{1F9D9}\u{26F0}\u{FE0F}"; \$\$
+
+  --eval CREATE PROCEDURE p_array(OUT r $type) LANGUAGE JS AS \$\$ r = [1, 2, 3] \$\$
+  --eval CREATE PROCEDURE p_object(OUT r $type) LANGUAGE JS AS \$\$ r = { x: 1, y: "alpha" } \$\$
+  --eval CREATE PROCEDURE p_func(OUT r $type) LANGUAGE JS AS \$\$ r = function (a) { r = 1;} \$\$
+
+  # Typed Arrays and DataView objects are interesting because they got
+  # special handling for binary string types.
+  --eval CREATE PROCEDURE p_typed_arr(OUT r $type) LANGUAGE JS AS \$\$ r = new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE PROCEDURE p_data_view(OUT r $type) LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); r = dv \$\$
+
+  --eval CREATE PROCEDURE p_object_serr(OUT r $type) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+
+  CALL p_undefined(@r);
+  SELECT @r AS u;
+  CALL p_null(@r);
+  SELECT @r AS nil;
+
+  CALL p_int(@r);
+  SELECT @r AS i;
+  CALL p_num(@r);
+  SELECT @r AS num;
+  CALL p_bigint(@r);
+  SELECT @r AS bi;
+  CALL p_bool(@r);
+  SELECT @r AS bo;
+
+  CALL p_str_e(@r);
+  SELECT @r AS se;
+  CALL p_str_0(@r);
+  SELECT @r AS s0;
+  CALL p_str_1(@r);
+  SELECT @r AS s1;
+  CALL p_str_2(@r);
+  SELECT @r AS s2;
+  CALL p_str_3(@r);
+  SELECT @r AS s3;
+  # Check that values which are returned are expected ones and in expected charset.
+  CALL p_str_1(@r);
+  SELECT @r =  X'466172206F76657220746865206D69737479206D6F756E7461696E7320636F6C64' AS r1;
+  CALL p_str_2(@r);
+  SELECT @r = X'41752D64656CE020646573206D6F6E7461676E657320676C616369616C657320657420656D6272756DE96573' AS r2;
+  CALL p_str_3(@r);
+  SELECT @r = X'D2E0EC20EEF2E2FAE420ECFAE3EBFFE2E8F2E520F1F2F3E4E5EDE820EFEBE0EDE8EDE8' AS r3;
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_str_cerr(@r);
+
+  CALL p_array(@r);
+  SELECT @r AS a;
+  CALL p_object(@r);
+  SELECT @r AS o;
+  CALL p_func(@r);
+  SELECT @r AS f;
+
+  CALL p_typed_arr(@r);
+  SELECT @r AS ta;
+  CALL p_data_view(@r);
+  SELECT @r AS dv;
+
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_serr(@r);
+
+  DROP PROCEDURE p_undefined;
+  DROP PROCEDURE p_null;
+  DROP PROCEDURE p_int;
+  DROP PROCEDURE p_num;
+  DROP PROCEDURE p_bigint;
+  DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_str_e;
+  DROP PROCEDURE p_str_0;
+  DROP PROCEDURE p_str_1;
+  DROP PROCEDURE p_str_2;
+  DROP PROCEDURE p_str_3;
+  DROP PROCEDURE p_str_cerr;
+  DROP PROCEDURE p_array;
+  DROP PROCEDURE p_object;
+  DROP PROCEDURE p_func;
+  DROP PROCEDURE p_typed_arr;
+  DROP PROCEDURE p_data_view;
+  DROP PROCEDURE p_object_serr;
+
+  --inc $i
+}
+
+--echo
+--echo #
+--echo # OUT parameters of binary string/BLOB SQL-types.
+--echo #
+
+--let $bin_types='BINARY(50),VARBINARY(60),TINYBLOB,BLOB,MEDIUMBLOB,LONGBLOB'
+--let $i = 1
+while($i <= 6)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($bin_types,',',$i),',',-1)`
+
+  --eval CREATE PROCEDURE p_undefined(OUT r $type) LANGUAGE JS AS \$\$ r = undefined; \$\$
+  --eval CREATE PROCEDURE p_null(OUT r $type) LANGUAGE JS AS \$\$ r = null; \$\$
+
+  --eval CREATE PROCEDURE p_int(OUT r $type) LANGUAGE JS AS \$\$ r = 1; \$\$
+  --eval CREATE PROCEDURE p_num(OUT r $type) LANGUAGE JS AS \$\$ r = 1.25; \$\$
+  --eval CREATE PROCEDURE p_bigint(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(100); \$\$
+  --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
+
+  --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
+  --eval CREATE PROCEDURE p_str_a(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
+
+  --eval CREATE PROCEDURE p_array(OUT r $type) LANGUAGE JS AS \$\$ r = [1, 2, 3] \$\$
+  --eval CREATE PROCEDURE p_object(OUT r $type) LANGUAGE JS AS \$\$ r = { x: 1, y: "alpha" } \$\$
+  --eval CREATE PROCEDURE p_func(OUT r $type) LANGUAGE JS AS \$\$ r = function (a) { r = 1;} \$\$
+
+  --eval CREATE PROCEDURE p_typed_arr(OUT r $type) LANGUAGE JS AS \$\$ r = new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE PROCEDURE p_data_view(OUT r $type) LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(9), 1, 7); dv.setUint32(0, 1); dv.setUint8(4, 3); dv.setUint16(5, 7); r = dv \$\$
+  --eval CREATE PROCEDURE p_arr_buff(OUT r $type) LANGUAGE JS AS \$\$ let ab = new ArrayBuffer(9); let dv = new DataView(ab, 1, 7); dv.setUint32(0, 1); dv.setUint8(4, 3); dv.setUint16(5, 7); r = ab \$\$
+
+  --eval CREATE PROCEDURE p_object_serr(OUT r $type) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+
+  CALL p_undefined(@r);
+  SELECT @r AS u;
+  CALL p_null(@r);
+  SELECT @r AS nil;
+
+  if (`SELECT '$type' LIKE 'BINARY%'`) {
+    --echo # BINARY type does 0-padding so we use HEX to correctly print value.
+    CALL p_int(@r);
+    SELECT HEX(@r) AS i;
+    CALL p_num(@r);
+    SELECT HEX(@r) AS num;
+    CALL p_bigint(@r);
+    SELECT HEX(@r) AS bi;
+    CALL p_bool(@r);
+    SELECT HEX(@r) AS bo;
+
+    CALL p_str_e(@r);
+    SELECT HEX(@r) AS se;
+    CALL p_str_a(@r);
+    SELECT HEX(@r) AS sa;
+
+    CALL p_array(@r);
+    SELECT HEX(@r) AS a;
+    CALL p_object(@r);
+    SELECT HEX(@r) AS o;
+    CALL p_func(@r);
+    SELECT HEX(@r) AS f;
+  }
+  if (!`SELECT '$type' LIKE 'BINARY%'`) {
+    CALL p_int(@r);
+    SELECT @r AS i;
+    CALL p_num(@r);
+    SELECT @r AS num;
+    CALL p_bigint(@r);
+    SELECT @r AS bi;
+    CALL p_bool(@r);
+    SELECT @r AS bo;
+
+    CALL p_str_e(@r);
+    SELECT @r AS se;
+    CALL p_str_a(@r);
+    SELECT @r AS sa;
+
+    CALL p_array(@r);
+    SELECT @r AS a;
+    CALL p_object(@r);
+    SELECT @r AS o;
+    CALL p_func(@r);
+    SELECT @r AS f;
+  }
+
+  CALL p_typed_arr(@r);
+  SELECT HEX(@r) AS ta;
+  CALL p_data_view(@r);
+  SELECT HEX(@r) AS dv;
+  CALL p_arr_buff(@r);
+  SELECT HEX(@r) AS ab;
+
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_serr(@r);
+
+  DROP PROCEDURE p_undefined;
+  DROP PROCEDURE p_null;
+  DROP PROCEDURE p_int;
+  DROP PROCEDURE p_num;
+  DROP PROCEDURE p_bigint;
+  DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_str_e;
+  DROP PROCEDURE p_str_a;
+  DROP PROCEDURE p_array;
+  DROP PROCEDURE p_object;
+  DROP PROCEDURE p_func;
+  DROP PROCEDURE p_typed_arr;
+  DROP PROCEDURE p_data_view;
+  DROP PROCEDURE p_arr_buff;
+  DROP PROCEDURE p_object_serr;
+
+  --inc $i
+}
+
+--echo #
+--echo # Test conversions for OUT parameters of integer SQL-types.
+--echo #
+--echo # See comments for test coverage for return values.
+
+--let $int_types='TINYINT,SMALLINT,MEDIUMINT,INT,BIGINT'
+--let $int_max='127,32767,8388607,2147483647,9007199254740991'
+--let $i = 1
+while($i <= 5)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_types,',',$i),',',-1)`
+  --let $max = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_max,',',$i),',',-1)`
+
+  --eval CREATE PROCEDURE p_undefined(OUT r $type) LANGUAGE JS AS \$\$ r = undefined; \$\$
+  --eval CREATE PROCEDURE p_null(OUT r $type) LANGUAGE JS AS \$\$ r = null; \$\$
+
+  --eval CREATE PROCEDURE p_int_0(OUT r $type) LANGUAGE JS AS \$\$ r = 0; \$\$
+  --eval CREATE PROCEDURE p_int_1(OUT r $type) LANGUAGE JS AS \$\$ r = 1; \$\$
+  --eval CREATE PROCEDURE p_int_n(OUT r $type) LANGUAGE JS AS \$\$ r = -1; \$\$
+  --eval CREATE PROCEDURE p_int_m(OUT r $type) LANGUAGE JS AS \$\$ r = $max; \$\$
+  --eval CREATE PROCEDURE p_int_m1(OUT r $type) LANGUAGE JS AS \$\$ r = $max + 1; \$\$
+  --eval CREATE PROCEDURE p_int_nm(OUT r $type) LANGUAGE JS AS \$\$ r = -$max - 1; \$\$
+  --eval CREATE PROCEDURE p_int_nm1(OUT r $type) LANGUAGE JS AS \$\$ r = -$max - 2; \$\$
+  --eval CREATE PROCEDURE p_uint_m(OUT r $type UNSIGNED) LANGUAGE JS AS  \$\$ r = 2*$max + 1; \$\$
+  --eval CREATE PROCEDURE p_uint_m1(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = 2*$max + 2; \$\$
+  --eval CREATE PROCEDURE p_uint_n(OUT r $type UNSIGNED) LANGUAGE JS AS  \$\$ r = - 1; \$\$
+
+  --eval CREATE PROCEDURE p_num_1(OUT r $type) LANGUAGE JS AS \$\$ r = 1.25; \$\$
+  --eval CREATE PROCEDURE p_num_2(OUT r $type) LANGUAGE JS AS \$\$ r = 5e-1; \$\$
+  --eval CREATE PROCEDURE p_num_3(OUT r $type) LANGUAGE JS AS \$\$ r = 5e-2; \$\$
+  --eval CREATE PROCEDURE p_num_4(OUT r $type) LANGUAGE JS AS \$\$ r = 1.2345e+2; \$\$
+  --eval CREATE PROCEDURE p_num_5(OUT r $type) LANGUAGE JS AS \$\$ r = -1.2345e+1; \$\$
+  --eval CREATE PROCEDURE p_num_r1(OUT r $type) LANGUAGE JS AS \$\$ r = 4.5; \$\$
+  --eval CREATE PROCEDURE p_num_r2(OUT r $type) LANGUAGE JS AS \$\$ r = 4.5e+0; \$\$
+  --eval CREATE PROCEDURE p_num_un(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = -1.5; \$\$
+  --eval CREATE PROCEDURE p_num_tb(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = 1e+70; \$\$
+
+  --eval CREATE PROCEDURE p_bigint(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(100); \$\$
+  --eval CREATE PROCEDURE p_bigint_n(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(-42); \$\$
+  --eval CREATE PROCEDURE p_bigint_u(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = BigInt(9007199254740991); \$\$
+  --eval CREATE PROCEDURE p_bigint_un(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = BigInt(-42); \$\$
+  --eval CREATE PROCEDURE p_bigint_tb(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(1e+25); \$\$
+
+  --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
+
+  --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
+  --eval CREATE PROCEDURE p_str_a(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
+  --eval CREATE PROCEDURE p_str_n1(OUT r $type) LANGUAGE JS AS \$\$ r = "123"; \$\$
+  --eval CREATE PROCEDURE p_str_n2(OUT r $type) LANGUAGE JS AS \$\$ r = "-2"; \$\$
+  --eval CREATE PROCEDURE p_str_n3(OUT r $type) LANGUAGE JS AS \$\$ r = "12.65"; \$\$
+  --eval CREATE PROCEDURE p_str_nr1(OUT r $type) LANGUAGE JS AS \$\$ r = "4.5"; \$\$
+  --eval CREATE PROCEDURE p_str_nr2(OUT r $type) LANGUAGE JS AS \$\$ r = "4.5e+0"; \$\$
+  --eval CREATE PROCEDURE p_str_nu(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = "-1"; \$\$
+  --eval CREATE PROCEDURE p_str_tb1(OUT r $type) LANGUAGE JS AS \$\$ r = "1e+25"; \$\$
+  --eval CREATE PROCEDURE p_str_tb2(OUT r $type) LANGUAGE JS AS \$\$ r = "18446744073709551616"; \$\$
+
+  --eval CREATE PROCEDURE p_array(OUT r $type) LANGUAGE JS AS \$\$ r = [1, 2, 3] \$\$
+  --eval CREATE PROCEDURE p_object(OUT r $type) LANGUAGE JS AS \$\$ r = { x: 1, y: "alpha" } \$\$
+  --eval CREATE PROCEDURE p_func(OUT r $type) LANGUAGE JS AS \$\$ r = function (a) { r = 1;} \$\$
+
+  --eval CREATE PROCEDURE p_typed_arr(OUT r $type) LANGUAGE JS AS \$\$ r = new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE PROCEDURE p_data_view(OUT r $type) LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); r = dv \$\$
+
+  --eval CREATE PROCEDURE p_object_serr(OUT r $type) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+  --eval CREATE PROCEDURE p_object_userr(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+
+  CALL p_undefined(@r);
+  SELECT @r AS u;
+  CALL p_null(@r);
+  SELECT @r AS nil;
+
+  CALL p_int_0(@r);
+  SELECT @r AS i0;
+  CALL p_int_1(@r);
+  SELECT @r AS i1;
+  CALL p_int_n(@r);
+  SELECT @r AS n;
+  CALL p_int_m(@r);
+  SELECT @r AS im;
+  CALL p_int_nm(@r);
+  SELECT @r AS nm;
+  CALL p_uint_m(@r);
+  SELECT @r AS um;
+  if (!`SELECT '$type' LIKE 'BIGINT'`) {
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    CALL p_int_m1(@r);
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    CALL p_int_nm1(@r);
+    --error ER_WARN_DATA_OUT_OF_RANGE
+    CALL p_uint_m1(@r);
+  }
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_uint_n(@r);
+
+  --echo # When MySQL converts string value with a floating point number to
+  --echo # an integer, it converts string to floating point value first and
+  --echo # then converts it to integer with rounding.
+  CALL p_num_1(@r);
+  SELECT @r AS n1;
+  CALL p_num_2(@r);
+  SELECT @r AS n2;
+  CALL p_num_3(@r);
+  SELECT @r AS n3;
+  CALL p_num_4(@r);
+  SELECT @r AS n4;
+  CALL p_num_5(@r);
+  SELECT @r AS n4;
+
+  --echo # MySQL rounds floating-point values differently than decimal values,
+  --echo # floating-point values in strings and decimal values as string when
+  --echo # storing them as integer (for floating-point values rint() rounding
+  --echo # is used, while other use round() style rounding).
+  --echo #
+  --echo # We try to avoid the confusion and stick to round()-style
+  --echo # rounding in all cases.
+  CALL p_num_r1(@r);
+  SELECT @r AS nr1;
+  CALL p_num_r2(@r);
+  SELECT @r AS nr2;
+
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_num_un(@r);
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_num_tb(@r);
+
+  CALL p_bigint(@r);
+  SELECT @r AS bi;
+  CALL p_bigint_n(@r);
+  SELECT @r AS bn;
+  if (`SELECT '$type' LIKE 'BIGINT'`) {
+    CALL p_bigint_u(@r);
+    SELECT @r AS bu;
+  }
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_bigint_un(@r);
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_bigint_tb(@r);
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_bool(@r);
+
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_str_e(@r);
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_str_a(@r);
+  CALL p_str_n1(@r);
+  SELECT @r AS n1;
+  CALL p_str_n2(@r);
+  SELECT @r AS n2;
+  CALL p_str_n3(@r);
+  SELECT @r AS n3;
+  CALL p_str_nr1(@r);
+  SELECT @r AS nr1;
+  CALL p_str_nr2(@r);
+  SELECT @r AS nr2;
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_str_nu(@r);
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_str_tb1(@r);
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_str_tb2(@r);
+
+  --error 1265
+  CALL p_array(@r);
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_object(@r);
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_func(@r);
+  --error 1265
+  CALL p_typed_arr(@r);
+  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+  CALL p_data_view(@r);
+
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_serr(@r);
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_userr(@r);
+
+  DROP PROCEDURE p_undefined;
+  DROP PROCEDURE p_null;
+  DROP PROCEDURE p_int_0;
+  DROP PROCEDURE p_int_1;
+  DROP PROCEDURE p_int_n;
+  DROP PROCEDURE p_int_m;
+  DROP PROCEDURE p_int_m1;
+  DROP PROCEDURE p_int_nm;
+  DROP PROCEDURE p_int_nm1;
+  DROP PROCEDURE p_uint_m;
+  DROP PROCEDURE p_uint_m1;
+  DROP PROCEDURE p_uint_n;
+  DROP PROCEDURE p_num_1;
+  DROP PROCEDURE p_num_2;
+  DROP PROCEDURE p_num_3;
+  DROP PROCEDURE p_num_4;
+  DROP PROCEDURE p_num_5;
+  DROP PROCEDURE p_num_r1;
+  DROP PROCEDURE p_num_r2;
+  DROP PROCEDURE p_num_un;
+  DROP PROCEDURE p_num_tb;
+  DROP PROCEDURE p_bigint;
+  DROP PROCEDURE p_bigint_n;
+  DROP PROCEDURE p_bigint_u;
+  DROP PROCEDURE p_bigint_un;
+  DROP PROCEDURE p_bigint_tb;
+  DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_str_e;
+  DROP PROCEDURE p_str_a;
+  DROP PROCEDURE p_str_n1;
+  DROP PROCEDURE p_str_n2;
+  DROP PROCEDURE p_str_n3;
+  DROP PROCEDURE p_str_nr1;
+  DROP PROCEDURE p_str_nr2;
+  DROP PROCEDURE p_str_nu;
+  DROP PROCEDURE p_str_tb1;
+  DROP PROCEDURE p_str_tb2;
+  DROP PROCEDURE p_array;
+  DROP PROCEDURE p_object;
+  DROP PROCEDURE p_func;
+  DROP PROCEDURE p_typed_arr;
+  DROP PROCEDURE p_data_view;
+  DROP PROCEDURE p_object_serr;
+  DROP PROCEDURE p_object_userr;
+
+  --inc $i
+}
+
+--echo #
+--echo # OUT parameters of floating point SQL-types.
+--echo #
+
+--let $real_types='FLOAT;DOUBLE'
+--let $real_max='3.4028234e+38,1.7976931348623157e+308'
+--let $i = 1
+while($i <= 2)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($real_types,';',$i),';',-1)`
+  --let $max = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($real_max,',',$i),',',-1)`
+
+  --eval CREATE PROCEDURE p_undefined(OUT r $type) LANGUAGE JS AS \$\$ r = undefined; \$\$
+  --eval CREATE PROCEDURE p_null(OUT r $type) LANGUAGE JS AS \$\$ r = null; \$\$
+
+  --eval CREATE PROCEDURE p_int_0(OUT r $type) LANGUAGE JS AS \$\$ r = 0; \$\$
+  --eval CREATE PROCEDURE p_int_1(OUT r $type) LANGUAGE JS AS \$\$ r = 1; \$\$
+  --eval CREATE PROCEDURE p_int_n(OUT r $type) LANGUAGE JS AS \$\$ r = -1; \$\$
+
+  --eval CREATE PROCEDURE p_num_1(OUT r $type) LANGUAGE JS AS \$\$ r = 1.25; \$\$
+  --eval CREATE PROCEDURE p_num_2(OUT r $type) LANGUAGE JS AS \$\$ r = 5e-1; \$\$
+  --eval CREATE PROCEDURE p_num_3(OUT r $type) LANGUAGE JS AS \$\$ r = -5e-2; \$\$
+  --eval CREATE PROCEDURE p_num_m(OUT r $type) LANGUAGE JS AS \$\$ r = $max; \$\$
+
+  --eval CREATE PROCEDURE p_bigint(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt(100); \$\$
+  # Value below can't be represented exactly as a single nor as a double precision floating-point
+  --eval CREATE PROCEDURE p_bigint_pl(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt("36028797018963967"); \$\$
+
+  --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
+
+  --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
+  --eval CREATE PROCEDURE p_str_a(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
+  --eval CREATE PROCEDURE p_str_n1(OUT r $type) LANGUAGE JS AS \$\$ r = "123"; \$\$
+  --eval CREATE PROCEDURE p_str_n2(OUT r $type) LANGUAGE JS AS \$\$ r = "12.65"; \$\$
+  # Value below can't be represented exactly as a single nor as a double precision floating-point
+  --eval CREATE PROCEDURE p_str_n_pl(OUT r $type) LANGUAGE JS AS \$\$ r = "36028797018963967"; \$\$
+  --eval CREATE PROCEDURE p_str_n_tb(OUT r $type) LANGUAGE JS AS \$\$ r = "1.1e+400"; \$\$
+
+  --eval CREATE PROCEDURE p_array(OUT r $type) LANGUAGE JS AS \$\$ r = [1, 2, 3] \$\$
+  --eval CREATE PROCEDURE p_object(OUT r $type) LANGUAGE JS AS \$\$ r = { x: 1, y: "alpha" } \$\$
+  --eval CREATE PROCEDURE p_func(OUT r $type) LANGUAGE JS AS \$\$ r = function (a) { r = 1;} \$\$
+
+  --eval CREATE PROCEDURE p_typed_arr(OUT r $type) LANGUAGE JS AS \$\$ r = new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE PROCEDURE p_data_view(OUT r $type) LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); r = dv \$\$
+
+  --eval CREATE PROCEDURE p_object_serr(OUT r $type) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+
+  CALL p_undefined(@r);
+  SELECT @r AS u;
+  CALL p_null(@r);
+  SELECT @r AS nil;
+
+  CALL p_int_0(@r);
+  SELECT @r AS i0;
+  CALL p_int_1(@r);
+  SELECT @r AS i1;
+  CALL p_int_n(@r);
+  SELECT @r AS n;
+  CALL p_num_1(@r);
+  SELECT @r AS n1;
+  CALL p_num_2(@r);
+  SELECT @r AS n2;
+  CALL p_num_3(@r);
+  SELECT @r AS n3;
+  CALL p_num_m(@r);
+  SELECT @r AS nm;
+
+  CALL p_bigint(@r);
+  SELECT @r AS bi;
+  --echo # For FLOAT the below call returns different value as compared to
+  --echo # stored function case. This is due to user-variables internally
+  --echo # using double precision for storing floating point values.
+  CALL p_bigint_pl(@r);
+  SELECT @r AS bipl;
+
+  --error 1265
+  CALL p_bool(@r);
+
+  --error 1265
+  CALL p_str_e(@r);
+  --error 1265
+  CALL p_str_a(@r);
+  CALL p_str_n1(@r);
+  SELECT @r AS n1;
+  CALL p_str_n2(@r);
+  SELECT @r AS n2;
+  CALL p_str_n_pl(@r);
+  SELECT @r AS npl;
+  --error ER_WARN_DATA_OUT_OF_RANGE
+  CALL p_str_n_tb(@r);
+
+  --error 1265
+  CALL p_array(@r);
+  --error 1265
+  CALL p_object(@r);
+  --error 1265
+  CALL p_func(@r);
+  --error 1265
+  CALL p_typed_arr(@r);
+  --error 1265
+  CALL p_data_view(@r);
+
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_serr(@r);
+
+  DROP PROCEDURE p_undefined;
+  DROP PROCEDURE p_null;
+  DROP PROCEDURE p_int_0;
+  DROP PROCEDURE p_int_1;
+  DROP PROCEDURE p_int_n;
+  DROP PROCEDURE p_num_1;
+  DROP PROCEDURE p_num_2;
+  DROP PROCEDURE p_num_3;
+  DROP PROCEDURE p_num_m;
+  DROP PROCEDURE p_bigint;
+  DROP PROCEDURE p_bigint_pl;
+  DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_str_e;
+  DROP PROCEDURE p_str_a;
+  DROP PROCEDURE p_str_n1;
+  DROP PROCEDURE p_str_n2;
+  DROP PROCEDURE p_str_n_pl;
+  DROP PROCEDURE p_str_n_tb;
+  DROP PROCEDURE p_array;
+  DROP PROCEDURE p_object;
+  DROP PROCEDURE p_func;
+  DROP PROCEDURE p_typed_arr;
+  DROP PROCEDURE p_data_view;
+  DROP PROCEDURE p_object_serr;
+
+  --inc $i
+}
+
+
+--echo #
+--echo # OUT parameters of DECIMAL type.
+--echo #
+
+CREATE PROCEDURE p_undefined(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int_0(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 0 $$;
+CREATE PROCEDURE p_int_1(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 1 $$;
+CREATE PROCEDURE p_int_n(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r =-1 $$;
+CREATE PROCEDURE p_int_tb(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r =100 $$;
+
+CREATE PROCEDURE p_num_1(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_num_2(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 5e-1 $$;
+CREATE PROCEDURE p_num_3(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = -5e-2 $$;
+CREATE PROCEDURE p_num_m(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 99.99 $$;
+CREATE PROCEDURE p_num_tb(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 100.01 $$;
+CREATE PROCEDURE p_num_tl(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = 0.0125 $$;
+
+CREATE PROCEDURE p_bigint_1(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = BigInt(10) $$;
+CREATE PROCEDURE p_bigint_2(OUT r DECIMAL(20,2)) LANGUAGE JS AS $$ r = BigInt("10000000000000000") $$;
+CREATE PROCEDURE p_bigint_tb(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = BigInt(1000) $$;
+
+CREATE PROCEDURE p_bool(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = true $$;
+
+CREATE PROCEDURE p_str_e(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_a(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_str_n1(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "12" $$;
+CREATE PROCEDURE p_str_n2(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "12.65" $$;
+CREATE PROCEDURE p_str_n3(OUT r DECIMAL(20,2)) LANGUAGE JS AS $$ r = "10000000000000000.12" $$;
+CREATE PROCEDURE p_str_tb(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "123" $$;
+CREATE PROCEDURE p_str_tl(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "12.324" $$;
+CREATE PROCEDURE p_str_api(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = "π" $$;
+
+CREATE PROCEDURE p_array(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = function (a) { r = 1} $$;
+
+CREATE PROCEDURE p_object_serr(OUT r DECIMAL(4,2)) LANGUAGE JS AS $$ r = { toString() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int_0(@r);
+SELECT @r AS i0;
+CALL p_int_1(@r);
+SELECT @r AS i1;
+CALL p_int_n(@r);
+SELECT @r AS n;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_int_tb(@r);
+
+CALL p_num_1(@r);
+SELECT @r AS n1;
+CALL p_num_2(@r);
+SELECT @r AS n2;
+CALL p_num_3(@r);
+SELECT @r AS n3;
+CALL p_num_m(@r);
+SELECT @r AS nm;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_num_tb(@r);
+
+CALL p_num_tl(@r);
+SELECT @r AS ntl;
+
+CALL p_bigint_1(@r);
+SELECT @r AS bi1;
+CALL p_bigint_2(@r);
+SELECT @r AS bi2;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_bigint_tb(@r);
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_bool(@r);
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_str_e(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_str_a(@r);
+
+CALL p_str_n1(@r);
+SELECT @r AS n1;
+CALL p_str_n2(@r);
+SELECT @r AS n2;
+CALL p_str_n3(@r);
+SELECT @r AS n3;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_str_tb(@r);
+
+CALL p_str_tl(@r);
+SELECT @r AS tl;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_str_api(@r);
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_array(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_object(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_serr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int_0;
+DROP PROCEDURE p_int_1;
+DROP PROCEDURE p_int_n;
+DROP PROCEDURE p_int_tb;
+DROP PROCEDURE p_num_1;
+DROP PROCEDURE p_num_2;
+DROP PROCEDURE p_num_3;
+DROP PROCEDURE p_num_m;
+DROP PROCEDURE p_num_tb;
+DROP PROCEDURE p_num_tl;
+DROP PROCEDURE p_bigint_1;
+DROP PROCEDURE p_bigint_2;
+DROP PROCEDURE p_bigint_tb;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_a;
+DROP PROCEDURE p_str_n1;
+DROP PROCEDURE p_str_n2;
+DROP PROCEDURE p_str_n3;
+DROP PROCEDURE p_str_tb;
+DROP PROCEDURE p_str_tl;
+DROP PROCEDURE p_str_api;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_serr;
+
+
+--echo #
+--echo # YEAR OUT parameters are handled similarly to integer types.
+--echo #
+CREATE PROCEDURE p_undefined(OUT r YEAR) LANGUAGE JS AS $$ r =undefined $$;
+CREATE PROCEDURE p_null(OUT r YEAR) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int_0(OUT r YEAR) LANGUAGE JS AS $$ r = 0 $$;
+CREATE PROCEDURE p_int_1(OUT r YEAR) LANGUAGE JS AS $$ r = 7 $$;
+CREATE PROCEDURE p_int_2(OUT r YEAR) LANGUAGE JS AS $$ r = 69 $$;
+CREATE PROCEDURE p_int_3(OUT r YEAR) LANGUAGE JS AS $$ r = 70 $$;
+CREATE PROCEDURE p_int_o(OUT r YEAR) LANGUAGE JS AS $$ r = 123 $$;
+CREATE PROCEDURE p_int_mi(OUT r YEAR) LANGUAGE JS AS $$ r = 1901 $$;
+CREATE PROCEDURE p_int_mx(OUT r YEAR) LANGUAGE JS AS $$ r = 2155 $$;
+CREATE PROCEDURE p_int_mi1(OUT r YEAR) LANGUAGE JS AS $$ r = 1900 $$;
+CREATE PROCEDURE p_int_mx1(OUT r YEAR) LANGUAGE JS AS $$ r = 2156 $$;
+CREATE PROCEDURE p_int_n(OUT r YEAR) LANGUAGE JS AS $$ r = -1 $$;
+
+CREATE PROCEDURE p_num_1(OUT r YEAR) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_num_2(OUT r YEAR) LANGUAGE JS AS $$ r = 5e-1 $$;
+CREATE PROCEDURE p_num_3(OUT r YEAR) LANGUAGE JS AS $$ r = 5e+1 $$;
+CREATE PROCEDURE p_num_4(OUT r YEAR) LANGUAGE JS AS $$ r = 1.901e+3 $$;
+CREATE PROCEDURE p_num_tb(OUT r YEAR) LANGUAGE JS AS $$ r = 2.2e+3 $$;
+
+CREATE PROCEDURE p_bigint(OUT r YEAR) LANGUAGE JS AS $$ r = BigInt(70) $$;
+
+CREATE PROCEDURE p_bool(OUT r YEAR) LANGUAGE JS AS $$ r = true $$;
+
+CREATE PROCEDURE p_str_e(OUT r YEAR) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_a(OUT r YEAR) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_str_1(OUT r YEAR) LANGUAGE JS AS $$ r = "12" $$;
+CREATE PROCEDURE p_str_2(OUT r YEAR) LANGUAGE JS AS $$ r = "75" $$;
+CREATE PROCEDURE p_str_3(OUT r YEAR) LANGUAGE JS AS $$ r = "7.5" $$;
+CREATE PROCEDURE p_str_o(OUT r YEAR) LANGUAGE JS AS $$ r = "100" $$;
+CREATE PROCEDURE p_str_mi(OUT r YEAR) LANGUAGE JS AS $$ r ="1901" $$;
+CREATE PROCEDURE p_str_mx(OUT r YEAR) LANGUAGE JS AS $$ r ="2155" $$;
+CREATE PROCEDURE p_str_n(OUT r YEAR) LANGUAGE JS AS $$ r = "-1" $$;
+CREATE PROCEDURE p_str_mi1(OUT r YEAR) LANGUAGE JS AS $$ r ="1900" $$;
+CREATE PROCEDURE p_str_mx1(OUT r YEAR) LANGUAGE JS AS $$ r ="2156" $$;
+
+CREATE PROCEDURE p_array(OUT r YEAR) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r YEAR) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r YEAR) LANGUAGE JS AS $$ r = function (a) { r = 1} $$;
+
+CREATE PROCEDURE p_object_serr(OUT r YEAR) LANGUAGE JS AS $$ r = { toString() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int_0(@r);
+SELECT @r AS i0;
+CALL p_int_1(@r);
+SELECT @r AS i1;
+CALL p_int_2(@r);
+SELECT @r AS i2;
+CALL p_int_3(@r);
+SELECT @r AS i3;
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_int_o(@r);
+CALL p_int_mi(@r);
+SELECT @r AS mi;
+CALL p_int_mx(@r);
+SELECT @r AS mx;
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_int_mi1(@r);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_int_mx1(@r);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_int_n(@r);
+
+CALL p_num_1(@r);
+SELECT @r AS n1;
+CALL p_num_2(@r);
+SELECT @r AS n2;
+CALL p_num_3(@r);
+SELECT @r AS n3;
+CALL p_num_4(@r);
+SELECT @r AS n4;
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_num_tb(@r);
+
+CALL p_bigint(@r);
+SELECT @r AS bi;
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_bool(@r);
+
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_str_e(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_str_a(@r);
+CALL p_str_1(@r);
+SELECT @r AS s1;
+CALL p_str_2(@r);
+SELECT @r AS s2;
+CALL p_str_3(@r);
+SELECT @r AS s3;
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_str_o(@r);
+CALL p_str_mi(@r);
+SELECT @r AS mi;
+CALL p_str_mx(@r);
+SELECT @r AS mx;
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_str_n(@r);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_str_mi1(@r);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p_str_mx1(@r);
+
+--error 1265
+CALL p_array(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_object(@r);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_serr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int_0;
+DROP PROCEDURE p_int_1;
+DROP PROCEDURE p_int_2;
+DROP PROCEDURE p_int_3;
+DROP PROCEDURE p_int_o;
+DROP PROCEDURE p_int_mi;
+DROP PROCEDURE p_int_mx;
+DROP PROCEDURE p_int_mi1;
+DROP PROCEDURE p_int_mx1;
+DROP PROCEDURE p_int_n;
+DROP PROCEDURE p_num_1;
+DROP PROCEDURE p_num_2;
+DROP PROCEDURE p_num_3;
+DROP PROCEDURE p_num_4;
+DROP PROCEDURE p_num_tb;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_a;
+DROP PROCEDURE p_str_1;
+DROP PROCEDURE p_str_2;
+DROP PROCEDURE p_str_3;
+DROP PROCEDURE p_str_o;
+DROP PROCEDURE p_str_mi;
+DROP PROCEDURE p_str_mx;
+DROP PROCEDURE p_str_n;
+DROP PROCEDURE p_str_mi1;
+DROP PROCEDURE p_str_mx1;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_serr;
+
+--echo #
+--echo # OUT parameters of other datetime SQL-types.
+--echo #
+
+--let $dt_types='DATE;TIME;TIME(1);DATETIME;DATETIME(2);TIMESTAMP;TIMESTAMP(4)'
+--let $int_vals='20200101,11,11,20200102030405,20200102030405,20231222102000,20231222102000'
+--let $int_mis='10000101,-8385959,-8385959,10000101000000,10000101000000,19700101030001,19700101030001'
+--let $int_mxs='99991231,8385959,8385959,99991231235959,99991231235959,20380119061407,20380119061407'
+--let $num_vals='2.0200101e+7,11.1,11.1,20200102030405.06,20200102030405.06,20231222102000.0123,20231222102000.0123'
+--let $str_vals='2020-01-01,00:11,00:11.1,2020-01-02 03:04:05,2020-01-02 03:04:05.06,2023-12-22 10:20:00,2023-12-22 10:20:00.1234'
+--let $bad_vals='2020-13-01,00:65,01:71.1,2020-01-32 03:04:05,2020-01-02 25:04:05.06,2023-12-22 10:71:00,2023-12-22 10:20:63.1234'
+--let $i = 1
+while($i <= 7)
+{
+  --let $type = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($dt_types,';',$i),';',-1)`
+  --let $i_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_vals,',',$i),',',-1)`
+  --let $i_mi = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_mis,',',$i),',',-1)`
+  --let $i_mx = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($int_mxs,',',$i),',',-1)`
+  --let $n_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($num_vals,',',$i),',',-1)`
+  --let $s_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($str_vals,',',$i),',',-1)`
+  --let $b_val = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX($bad_vals,',',$i),',',-1)`
+
+  --eval CREATE PROCEDURE p_undefined(OUT r $type) LANGUAGE JS AS \$\$ r = undefined; \$\$
+  --eval CREATE PROCEDURE p_null(OUT r $type) LANGUAGE JS AS \$\$ r = null; \$\$
+
+  --eval CREATE PROCEDURE p_int_0(OUT r $type) LANGUAGE JS AS \$\$ r = 0; \$\$
+  --eval CREATE PROCEDURE p_int_1(OUT r $type) LANGUAGE JS AS \$\$ r = $i_val; \$\$
+  --eval CREATE PROCEDURE p_int_mi(OUT r $type) LANGUAGE JS AS \$\$ r = $i_mi; \$\$
+  --eval CREATE PROCEDURE p_int_mx(OUT r $type) LANGUAGE JS AS \$\$ r = $i_mx; \$\$
+  --eval CREATE PROCEDURE p_int_n(OUT r $type) LANGUAGE JS AS \$\$ r = -1; \$\$
+  --eval CREATE PROCEDURE p_int_mi1(OUT r $type) LANGUAGE JS AS \$\$ r = $i_mi - 1; \$\$
+  --eval CREATE PROCEDURE p_int_mx1(OUT r $type) LANGUAGE JS AS \$\$ r = $i_mx + 1; \$\$
+
+  --eval CREATE PROCEDURE p_num(OUT r $type) LANGUAGE JS AS \$\$ r = $n_val; \$\$
+
+  --eval CREATE PROCEDURE p_bigint(OUT r $type) LANGUAGE JS AS \$\$ r = BigInt($i_val); \$\$
+
+  --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
+
+  --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
+  --eval CREATE PROCEDURE p_str_a(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
+  --eval CREATE PROCEDURE p_str_1(OUT r $type) LANGUAGE JS AS \$\$ r = "$s_val"; \$\$
+  --eval CREATE PROCEDURE p_str_b(OUT r $type) LANGUAGE JS AS \$\$ r = "$b_val"; \$\$
+  --eval CREATE PROCEDURE p_str_ax(OUT r $type) LANGUAGE JS AS \$\$ r = "\u{1F384}"; \$\$
+
+  --eval CREATE PROCEDURE p_date(OUT r $type) LANGUAGE JS AS \$\$ r = new Date(2023,11,22,13,0,0,123) \$\$
+
+  --eval CREATE PROCEDURE p_array(OUT r $type) LANGUAGE JS AS \$\$ r = [1, 2, 3] \$\$
+  --eval CREATE PROCEDURE p_object(OUT r $type) LANGUAGE JS AS \$\$ r = { x: 1, y: "alpha" } \$\$
+  --eval CREATE PROCEDURE p_func(OUT r $type) LANGUAGE JS AS \$\$ r = function (a) { r = 1;} \$\$
+
+  --eval CREATE PROCEDURE p_typed_arr(OUT r $type) LANGUAGE JS AS \$\$ r = new Uint8Array([0, 1, 2, 3, 5]) \$\$
+  --eval CREATE PROCEDURE p_data_view(OUT r $type) LANGUAGE JS AS \$\$ let dv = new DataView(new ArrayBuffer(1)); dv.setUint8(0, 3); r = dv \$\$
+
+  --eval CREATE PROCEDURE p_object_serr(OUT r $type) LANGUAGE JS AS \$\$ r = { toString() { throw "Kaboom!" } } \$\$
+
+  CALL p_undefined(@r);
+  SELECT @r AS u;
+  CALL p_null(@r);
+  SELECT @r AS nil;
+
+  if (`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --echo # 0 is valid value for TIME type.
+    CALL p_int_0(@r);
+    SELECT @r AS z;
+  }
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    CALL p_int_0(@r);
+  }
+  CALL p_int_1(@r);
+  SELECT @r AS i1;
+  CALL p_int_mi(@r);
+  SELECT @r AS imi;
+  CALL p_int_mx(@r);
+  SELECT @r AS imx;
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    CALL p_int_n(@r);
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_int_mi1(@r);
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_int_mx1(@r);
+
+  CALL p_num(@r);
+  SELECT @r AS n;
+
+  CALL p_bigint(@r);
+  SELECT @r AS bi;
+
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_bool(@r);
+
+  if (`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --echo # Empty string is converted to 0 for TIME type.
+    CALL p_str_e(@r);
+    SELECT @r AS se;
+  }
+  if (!`SELECT '$type' LIKE 'TIME' OR '$type' LIKE 'TIME(1)'`) {
+    --error ER_TRUNCATED_WRONG_VALUE
+    CALL p_str_e(@r);
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_str_a(@r);
+  CALL p_str_1(@r);
+  SELECT @r AS s1;
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_str_b(@r);
+
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_str_ax(@r);
+
+  --echo # Direct string representation of Date type is not compatible with
+  --echo # MySQL datetime values.
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_date(@r);
+
+  if (!`SELECT '$type' LIKE 'DATE%'`) {
+    --echo # DATE and DATETIME types accept weird literals.
+    --error ER_TRUNCATED_WRONG_VALUE
+    CALL p_array(@r);
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_object(@r);
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_func(@r);
+  if (!`SELECT '$type' LIKE 'DATE%'`) {
+    --echo # DATE and DATETIME types accept weird literals.
+    --error ER_TRUNCATED_WRONG_VALUE
+    CALL p_typed_arr(@r);
+  }
+  --error ER_TRUNCATED_WRONG_VALUE
+  CALL p_data_view(@r);
+
+  --error ER_LANGUAGE_COMPONENT
+  CALL p_object_serr(@r);
+
+  DROP PROCEDURE p_undefined;
+  DROP PROCEDURE p_null;
+  DROP PROCEDURE p_int_0;
+  DROP PROCEDURE p_int_1;
+  DROP PROCEDURE p_int_mi;
+  DROP PROCEDURE p_int_mx;
+  DROP PROCEDURE p_int_n;
+  DROP PROCEDURE p_int_mi1;
+  DROP PROCEDURE p_int_mx1;
+  DROP PROCEDURE p_num;
+  DROP PROCEDURE p_bigint;
+  DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_str_e;
+  DROP PROCEDURE p_str_a;
+  DROP PROCEDURE p_str_1;
+  DROP PROCEDURE p_str_b;
+  DROP PROCEDURE p_str_ax;
+  DROP PROCEDURE p_date;
+  DROP PROCEDURE p_array;
+  DROP PROCEDURE p_object;
+  DROP PROCEDURE p_func;
+  DROP PROCEDURE p_typed_arr;
+  DROP PROCEDURE p_data_view;
+  DROP PROCEDURE p_object_serr;
+
+  --inc $i
+}
+
+--echo #
+--echo # ENUM type of OUT parameter is handled similarly to string types.
+--echo #
+CREATE PROCEDURE p_undefined(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = 1 $$;
+CREATE PROCEDURE p_num(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_bigint(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = BigInt(100) $$;
+CREATE PROCEDURE p_bool(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = true $$;
+
+CREATE PROCEDURE p_str_e(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_0(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = "a" $$;
+CREATE PROCEDURE p_str_1(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_str_2(OUT r ENUM(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251)
+  LANGUAGE JS AS $$ r = "Додо" $$;
+CREATE PROCEDURE p_str_cerr(OUT r ENUM(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251)
+  LANGUAGE JS AS $$ r = "\u{1F9A4}" $$;
+
+CREATE PROCEDURE p_array(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = function (a) { r = 1 } $$;
+
+CREATE PROCEDURE p_object_serr(OUT r ENUM('a','b')) LANGUAGE JS AS $$ r = { toString() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int(@r);
+SELECT @r AS i;
+
+--error 1265
+CALL p_num(@r);
+--error 1265
+CALL p_bigint(@r);
+--error 1265
+CALL p_bool(@r);
+
+--error 1265
+CALL p_str_e(@r);
+CALL p_str_0(@r);
+SELECT @r AS s0;
+# Check that routine returns expected value and in correct charset.
+CALL p_str_2(@r);
+SELECT @r = X'c4eee4ee' AS s2;
+--error 1265
+CALL p_str_1(@r);
+--error 1265
+CALL p_str_cerr(@r);
+
+--error 1265
+CALL p_array(@r);
+--error 1265
+CALL p_object(@r);
+--error 1265
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_serr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_num;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_0;
+DROP PROCEDURE p_str_1;
+DROP PROCEDURE p_str_2;
+DROP PROCEDURE p_str_cerr;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_serr;
+
+
+--echo #
+--echo # SET type OUT parameters are handled similarly to how SQL core
+--echo # interprets integer/floating-point values and strings which are
+--echo # stored in SET columns.
+--echo #
+--echo # Numeric values are converted to integers and treated as bitmaps
+--echo # representing sets. Strings are expected to contain comma-separated
+--echo # lists of SET elements. Additionally strings containing integer
+--echo # values are interpreted as bitmaps.
+CREATE PROCEDURE p_undefined(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = 1 $$;
+CREATE PROCEDURE p_int_tb(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = 10 $$;
+CREATE PROCEDURE p_int_n(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = -1 $$;
+CREATE PROCEDURE p_num(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = 1.6 $$;
+
+CREATE PROCEDURE p_bigint(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = BigInt(4) $$;
+
+CREATE PROCEDURE p_bool(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = true $$;
+
+CREATE PROCEDURE p_str_e(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_0(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "a" $$;
+CREATE PROCEDURE p_str_1(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "b,c" $$;
+CREATE PROCEDURE p_str_2(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "3" $$;
+CREATE PROCEDURE p_str_3(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "1.5" $$;
+CREATE PROCEDURE p_str_n(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "-3" $$;
+CREATE PROCEDURE p_str_w(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_str_4(OUT r SET(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251)
+  LANGUAGE JS AS $$ r = "Додо" $$;
+CREATE PROCEDURE p_str_cerr(OUT r SET(X'd2f3e8e4faebe4faec', X'd2f3e8e4faebe4e8', X'c4eee4ee') CHARACTER SET cp1251)
+  LANGUAGE JS AS $$ r = "\u{1F9A4}" $$;
+
+CREATE PROCEDURE p_array(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = function (a) { r = 1 } $$;
+
+CREATE PROCEDURE p_object_serr(OUT r SET('a','b','c')) LANGUAGE JS AS $$ r = { toString() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int(@r);
+SELECT @r AS i;
+--error 1265
+CALL p_int_tb(@r);
+--error 1265
+CALL p_int_n(@r);
+
+CALL p_num(@r);
+SELECT @r AS n;
+
+CALL p_bigint(@r);
+SELECT @r AS bi;
+--error 1265
+CALL p_bool(@r);
+
+CALL p_str_e(@r);
+SELECT @r AS se;
+CALL p_str_0(@r);
+SELECT @r AS s0;
+CALL p_str_1(@r);
+SELECT @r AS s1;
+CALL p_str_2(@r);
+SELECT @r AS s2;
+--echo # SQL core doesn't handle non-integer numbers represented as strings
+--echo # and doubles stored in SET columns consistently either.
+--error 1265
+CALL p_str_3(@r);
+--error 1265
+CALL p_str_n(@r);
+--error 1265
+CALL p_str_w(@r);
+CALL p_str_4(@r);
+SELECT @r = X'c4eee4ee' AS s;
+
+--error 1265
+CALL p_str_cerr(@r);
+
+--error 1265
+CALL p_array(@r);
+--error 1265
+CALL p_object(@r);
+--error 1265
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_serr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_int_tb;
+DROP PROCEDURE p_int_n;
+DROP PROCEDURE p_num;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_0;
+DROP PROCEDURE p_str_1;
+DROP PROCEDURE p_str_2;
+DROP PROCEDURE p_str_3;
+DROP PROCEDURE p_str_n;
+DROP PROCEDURE p_str_w;
+DROP PROCEDURE p_str_4;
+DROP PROCEDURE p_str_cerr;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_serr;
+
+
+--echo #
+--echo # BIT type of OUT parameter is handled in a special way.
+--echo #
+--echo # JS values are converted to numbers (ultimately integers) and then
+--echo # their binary representation is interpreted as array of bits.
+--echo #
+--echo # We do not support JS values which are not convertible to numbers to
+--echo # avoid confusion caused by different interpretation of 1, "1" and "a".
+--echo #
+CREATE PROCEDURE p_undefined(OUT r BIT(5)) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r BIT(5)) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int_0(OUT r BIT(5)) LANGUAGE JS AS $$ r = 0 $$;
+CREATE PROCEDURE p_int_1(OUT r BIT(5)) LANGUAGE JS AS $$ r = 7 $$;
+CREATE PROCEDURE p_int_tb(OUT r BIT(5)) LANGUAGE JS AS $$ r = 33 $$;
+CREATE PROCEDURE p_int_n(OUT r BIT(5)) LANGUAGE JS AS $$ r = -1 $$;
+
+CREATE PROCEDURE p_num_1(OUT r BIT(5)) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_num_2(OUT r BIT(5)) LANGUAGE JS AS $$ r = 7.8 $$;
+CREATE PROCEDURE p_num_tb(OUT r BIT(5)) LANGUAGE JS AS $$ r = 32.5 $$;
+CREATE PROCEDURE p_num_n(OUT r BIT(5)) LANGUAGE JS AS $$ r = -1.2 $$;
+
+CREATE PROCEDURE p_bigint(OUT r BIT(5)) LANGUAGE JS AS $$ r = BigInt(5) $$;
+CREATE PROCEDURE p_bigint_n(OUT r BIT(5)) LANGUAGE JS AS $$ r = BigInt(-1) $$;
+
+CREATE PROCEDURE p_bool(OUT r BIT(5)) LANGUAGE JS AS $$ r = true $$;
+
+CREATE PROCEDURE p_str_e(OUT r BIT(5)) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_a(OUT r BIT(5)) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_str_1(OUT r BIT(7)) LANGUAGE JS AS $$ r = "0" $$;
+CREATE PROCEDURE p_str_2(OUT r BIT(7)) LANGUAGE JS AS $$ r = "16" $$;
+CREATE PROCEDURE p_str_tb(OUT r BIT(5)) LANGUAGE JS AS $$ r = "33" $$;
+
+CREATE PROCEDURE p_array(OUT r BIT(5)) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r BIT(5)) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r BIT(5)) LANGUAGE JS AS $$ r = function (a) { r = 1} $$;
+
+CREATE PROCEDURE p_object_nerr(OUT r BIT(5)) LANGUAGE JS AS $$ r = { valueOf() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int_0(@r);
+SELECT HEX(@r) AS i0;
+CALL p_int_1(@r);
+SELECT HEX(@r) AS i1;
+--error ER_DATA_TOO_LONG
+CALL p_int_tb(@r);
+--error ER_DATA_TOO_LONG
+CALL p_int_n(@r);
+
+CALL p_num_1(@r);
+SELECT HEX(@r) AS n1;
+CALL p_num_2(@r);
+SELECT HEX(@r) AS n2;
+--error ER_DATA_TOO_LONG
+CALL p_num_tb(@r);
+--error ER_DATA_TOO_LONG
+CALL p_num_n(@r);
+
+CALL p_bigint(@r);
+SELECT HEX(@r) AS bi;
+--error ER_LANGUAGE_COMPONENT
+CALL p_bigint_n(@r);
+
+CALL p_bool(@r);
+SELECT HEX(@r) AS b;
+
+CALL p_str_e(@r);
+SELECT HEX(@r) AS se;
+--error ER_LANGUAGE_COMPONENT
+CALL p_str_a(@r);
+CALL p_str_1(@r);
+SELECT HEX(@r) AS s1;
+CALL p_str_2(@r);
+SELECT HEX(@r) AS s2;
+--error ER_DATA_TOO_LONG
+CALL p_str_tb(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_array(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_object(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_nerr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int_0;
+DROP PROCEDURE p_int_1;
+DROP PROCEDURE p_int_tb;
+DROP PROCEDURE p_int_n;
+DROP PROCEDURE p_num_1;
+DROP PROCEDURE p_num_2;
+DROP PROCEDURE p_num_tb;
+DROP PROCEDURE p_num_n;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bigint_n;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_a;
+DROP PROCEDURE p_str_1;
+DROP PROCEDURE p_str_2;
+DROP PROCEDURE p_str_tb;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_nerr;
+
+
+--echo #
+--echo # For GEOMETRY type of OUT parameter we only support conversion from
+--echo # ArrayBuffer-based JS values.
+--echo #
+CREATE PROCEDURE p_undefined(OUT r GEOMETRY) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r GEOMETRY) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int(OUT r GEOMETRY) LANGUAGE JS AS $$ r = 1 $$;
+CREATE PROCEDURE p_num(OUT r GEOMETRY) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_bigint(OUT r GEOMETRY) LANGUAGE JS AS $$ r = BigInt(100) $$;
+CREATE PROCEDURE p_bool(OUT r GEOMETRY) LANGUAGE JS AS $$ r = true $$;
+CREATE PROCEDURE p_str_e(OUT r GEOMETRY) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_a(OUT r GEOMETRY) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_array(OUT r GEOMETRY) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r GEOMETRY) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r GEOMETRY) LANGUAGE JS AS $$ r = function (a) { r = 1 } $$;
+
+CREATE PROCEDURE p_typed_arr(OUT r GEOMETRY) LANGUAGE JS AS $$ r = new Uint8Array([0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 64, 0, 0, 0, 0, 0, 0, 52, 64]) $$;
+DELIMITER |;
+CREATE PROCEDURE p_data_view(OUT r GEOMETRY) LANGUAGE JS AS $$
+  let dv = new DataView(new ArrayBuffer(25));
+  dv.setUint32(0, 0, true);     // SRID 0
+  dv.setUint8(4, 1);            // little-endian
+  dv.setUint32(5, 1, true);     // POINT
+  dv.setFloat64(9, 15, true);   // X
+  dv.setFloat64(17, 20, true);  // Y
+  r = dv;
+$$|
+DELIMITER ;|
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_int(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_num(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_bigint(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_bool(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_str_e(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_str_a(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_array(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_object(@r);
+--error ER_LANGUAGE_COMPONENT
+CALL p_func(@r);
+
+CALL p_typed_arr(@r);
+SELECT ST_AsText(@r) AS g;
+CALL p_data_view(@r);
+SELECT ST_AsText(@r) AS g;
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_num;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_a;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_typed_arr;
+DROP PROCEDURE p_data_view;
+
+
+--echo #
+--echo # For JSON OUT parameters we apply JSON.stringify() to JS value and
+--echo # then try to store resulting string in the OUT parameter (of JSON SQL
+--echo # type).
+--echo #
+CREATE PROCEDURE p_undefined(OUT r JSON) LANGUAGE JS AS $$ r = undefined $$;
+CREATE PROCEDURE p_null(OUT r JSON) LANGUAGE JS AS $$ r = null $$;
+
+CREATE PROCEDURE p_int(OUT r JSON) LANGUAGE JS AS $$ r = 1 $$;
+CREATE PROCEDURE p_num(OUT r JSON) LANGUAGE JS AS $$ r = 1.25 $$;
+CREATE PROCEDURE p_bigint(OUT r JSON) LANGUAGE JS AS $$ r = BigInt(100) $$;
+CREATE PROCEDURE p_bool(OUT r JSON) LANGUAGE JS AS $$ r = true $$;
+CREATE PROCEDURE p_str_e(OUT r JSON) LANGUAGE JS AS $$ r = "" $$;
+CREATE PROCEDURE p_str_a(OUT r JSON) LANGUAGE JS AS $$ r = "alpha" $$;
+CREATE PROCEDURE p_array(OUT r JSON) LANGUAGE JS AS $$ r = [1, 2, 3] $$;
+CREATE PROCEDURE p_object(OUT r JSON) LANGUAGE JS AS $$ r = { x: 1, y: "alpha" } $$;
+CREATE PROCEDURE p_func(OUT r JSON) LANGUAGE JS AS $$ r = function (a) { r = 1 } $$;
+CREATE PROCEDURE p_object_jerr(OUT r JSON) LANGUAGE JS AS $$ r = { toJSON() { throw "Kaboom!" } } $$;
+
+CALL p_undefined(@r);
+SELECT @r AS u;
+CALL p_null(@r);
+SELECT @r AS nil;
+
+CALL p_int(@r);
+SELECT @r AS i;
+CALL p_num(@r);
+SELECT @r AS n;
+
+--echo # JSON.stringify() doesn't support BigInt by default.
+--error ER_LANGUAGE_COMPONENT
+CALL p_bigint(@r);
+
+CALL p_bool(@r);
+SELECT @r AS b;
+
+CALL p_str_e(@r);
+SELECT @r AS se;
+CALL p_str_a(@r);
+SELECT @r AS sa;
+
+CALL p_array(@r);
+SELECT @r AS arr;
+
+CALL p_object(@r);
+SELECT @r AS obj;
+
+--echo # SQL JSON type doesn't accept all JSON values produced by V8.
+--error ER_INVALID_JSON_TEXT
+CALL p_func(@r);
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_object_jerr(@r);
+
+DROP PROCEDURE p_undefined;
+DROP PROCEDURE p_null;
+DROP PROCEDURE p_int;
+DROP PROCEDURE p_num;
+DROP PROCEDURE p_bigint;
+DROP PROCEDURE p_bool;
+DROP PROCEDURE p_str_e;
+DROP PROCEDURE p_str_a;
+DROP PROCEDURE p_array;
+DROP PROCEDURE p_object;
+DROP PROCEDURE p_func;
+DROP PROCEDURE p_object_jerr;
+
+
+--echo #
+--echo # Let us test how JS contexts are handled by our JS routines.
+--echo #
+--echo # JS contexts are created for each connection and each account under
+--echo # which routines are executed.
+--echo #
+--echo # This means:
+--echo # - Different connections get different contexts.
+--echo # - Routines which are executed under different accounts get different
+--echo #   contexts (even if is the same routine, e.g. function with SQL
+--echo #   SECURITY INVOKER attribute used from view and directly).
+--echo # - Any routines which are executed within the same connection under
+--echo #   the same account get the same context.
+--echo #
+--echo # We check whether two calls use same JS context by accessing global
+--echo # object.
+--enable_connect_log
+CREATE PROCEDURE p(i INT) LANGUAGE JS AS $$ globalThis.a = i $$;
+CREATE FUNCTION f() RETURNS INT LANGUAGE JS AS $$ return globalThis.a $$;
+CREATE USER user1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user1@localhost;
+CREATE USER user2@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user2@localhost;
+CREATE DEFINER = user1@localhost FUNCTION g() RETURNS INT LANGUAGE JS AS $$ return globalThis.a $$;
+CREATE FUNCTION h() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return globalThis.a $$;
+--echo # Create SQL SECURITY DEFINER wrapper over h()
+CREATE DEFINER = user2@localhost FUNCTION i() RETURNS INT RETURN h();
+
+--echo #
+--echo # Routine calls within the same connection executed under same
+--echo # account share the context.
+--connection default
+CALL p(1);
+SELECT f();
+
+--echo #
+--echo # Calls in different connections get different contexts.
+--connect (con1, localhost, root,,)
+SELECT f();
+CALL p(2);
+SELECT f();
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT f();
+
+--echo #
+--echo # Calls under different accounts get different contexts.
+--echo #
+--echo # Test this by running SECURITY DEFINER routine with non-root definer.
+SELECT g();
+
+--echo # And also by running SECURITY INVOKER routine from different security
+--echo # contexts.
+SELECT h(), i();
+
+DROP PROCEDURE p;
+DROP FUNCTION f;
+DROP FUNCTION g;
+DROP FUNCTION h;
+DROP FUNCTION i;
+DROP USER user2@localhost;
+DROP USER user1@localhost;
+
+
+--echo #
+--echo # Let us test privilege requirements for JS routine creation and
+--echo # execution.
+--echo #
+CREATE DATABASE mysqltest;
+CREATE USER u_creator@localhost;
+GRANT CREATE ROUTINE ON mysqltest.* TO u_creator@localhost;
+GRANT CREATE_JS_ROUTINE ON *.* TO u_creator@localhost;
+CREATE USER u_caller@localhost;
+GRANT EXECUTE ON mysqltest.* TO u_caller@localhost;
+CREATE USER u_dropper@localhost;
+GRANT ALTER ROUTINE ON mysqltest.* TO u_dropper@localhost;
+
+--echo #
+--echo # Let us show that JS routine can be created iff user has both CREATE
+--echo # ROUTINE privilege on the database and global CREATE_JS_ROUTINE
+--echo # privilege.
+--connect (creator, localhost, u_creator,,)
+CREATE FUNCTION mysqltest.f_suid() RETURNS INT LANGUAGE JS AS $$ return 2*2 $$;
+CREATE FUNCTION mysqltest.f_nosuid() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 2*2 $$;
+
+--connection default
+GRANT ALL PRIVILEGES ON *.* TO u_creator@localhost;
+REVOKE CREATE_JS_ROUTINE ON *.* FROM u_creator@localhost;
+
+--connection creator
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE FUNCTION mysqltest.f_err() RETURNS INT LANGUAGE JS AS $$ return 42 $$;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE FUNCTION mysqltest.f_err() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42 $$;
+
+--connection default
+GRANT CREATE_JS_ROUTINE ON *.* TO u_creator@localhost;
+REVOKE CREATE ROUTINE ON *.* FROM u_creator@localhost;
+REVOKE CREATE ROUTINE ON mysqltest.* FROM u_creator@localhost;
+
+--connection creator
+--error ER_DBACCESS_DENIED_ERROR
+CREATE FUNCTION mysqltest.f_err() RETURNS INT LANGUAGE JS AS $$ return 42 $$;
+--error ER_DBACCESS_DENIED_ERROR
+CREATE FUNCTION mysqltest.f_err() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42 $$;
+
+--connection default
+--echo # Restore status quo for 'creator' user (ignore
+--echo # --sp-automatic-privileges effect for now).
+REVOKE ALL PRIVILEGES ON *.* FROM u_creator@localhost;
+GRANT CREATE ROUTINE ON mysqltest.* TO u_creator@localhost;
+GRANT CREATE_JS_ROUTINE ON *.* TO u_creator@localhost;
+
+--echo #
+--echo # Now show that JS routine can be executed iff user has EXECUTE
+--echo # privilege on it. For SQL SECURITY DEFINER routines routine definer
+--echo # also needs to have EXECUTE privilege at the time of call.
+GRANT EXECUTE ON mysqltest.* TO u_creator@localhost;
+--connect (caller, localhost, u_caller,,)
+SELECT mysqltest.f_suid();
+SELECT mysqltest.f_nosuid();
+
+--connection default
+REVOKE EXECUTE ON mysqltest.* FROM u_creator@localhost;
+
+--connection caller
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT mysqltest.f_suid();
+SELECT mysqltest.f_nosuid();
+
+--connection default
+GRANT EXECUTE ON mysqltest.* TO u_creator@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u_caller@localhost;
+REVOKE EXECUTE ON *.* FROM u_caller@localhost;
+REVOKE EXECUTE ON mysqltest.* FROM u_caller@localhost;
+
+--connection caller
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT mysqltest.f_suid();
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT mysqltest.f_nosuid();
+
+
+--echo #
+--echo # Show that JS routine can be dropped iff user has ALTER ROUTINE
+--echo # privilege on it.
+--connection default
+GRANT ALL PRIVILEGES ON *.* TO u_dropper@localhost;
+REVOKE ALTER ROUTINE ON *.* FROM u_dropper@localhost;
+REVOKE ALTER ROUTINE ON mysqltest.* FROM u_dropper@localhost;
+
+--connect (dropper, localhost, u_dropper,,)
+--error ER_PROCACCESS_DENIED_ERROR
+DROP FUNCTION mysqltest.f1_suid;
+--error ER_PROCACCESS_DENIED_ERROR
+DROP FUNCTION mysqltest.f1_nosuid;
+
+--connection default
+REVOKE ALL PRIVILEGES ON *.* FROM u_dropper@localhost;
+GRANT ALTER ROUTINE ON mysqltest.* TO u_dropper@localhost;
+
+--connection dropper
+DROP FUNCTION mysqltest.f_suid;
+DROP FUNCTION mysqltest.f_nosuid;
+
+--connection creator
+--disconnect creator
+--source include/wait_until_disconnected.inc
+--connection caller
+--disconnect caller
+--source include/wait_until_disconnected.inc
+--connection dropper
+--disconnect dropper
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER u_creator@localhost;
+DROP USER u_caller@localhost;
+DROP USER u_dropper@localhost;
+DROP DATABASE mysqltest;
+
+
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+
+--echo #
+--echo # Test of component uninstallation while having outstanding per
+--echo # connection context and isolate.
+--echo #
+--error ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
+UNINSTALL COMPONENT 'file://component_js_lang';
+
+--echo # Disconnect of default connection frees the only remaining per
+--echo # connection context and isolate. It is safe to uninstall
+--echo # component now.
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+UNINSTALL COMPONENT 'file://component_js_lang';
+
+--echo #
+--echo # UNINSTALL -> INSTALL is not supported without interim restart
+--echo # as V8 doesn't support re-initialization.
+--error ER_LANGUAGE_COMPONENT
+INSTALL COMPONENT 'file://component_js_lang';
+
+--echo # Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+--source include/restart_mysqld.inc
+
+--disable_connect_log

@@ -310,6 +310,7 @@ our @DEFAULT_SUITES = qw(
   percona_rpl
   percona_rpl_gtid
   percona-pam-for-mysql
+  component_js_lang
   component_masking_functions
   procfs
   rocksdb

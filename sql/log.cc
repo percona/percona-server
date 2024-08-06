@@ -512,12 +512,18 @@ bool File_query_log::set_file(const char *new_name) {
   if (name != nullptr) my_free(name);
 
   name = nn;
+  bool res = false;
 
-  mysql_mutex_lock(&LOCK_log);
-  cur_log_ext = 0;
-  last_removed_ext = 0;
-  bool res = set_rotated_name(false) || purge_logs();
-  mysql_mutex_unlock(&LOCK_log);
+  if (m_log_type == QUERY_LOG_SLOW) {
+    mysql_mutex_lock(&LOCK_log);
+    cur_log_ext = 0;
+    last_removed_ext = 0;
+    res = set_rotated_name(false) || purge_logs();
+    mysql_mutex_unlock(&LOCK_log);
+  } else {
+    // We can do this here since we're not actually resolving symlinks etc.
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+  }
 
   return res;
 }
@@ -2145,6 +2151,8 @@ static size_t get_last_extension(const char *const name) {
  */
 bool File_query_log::set_rotated_name(const bool need_lock) {
   DBUG_ENTER("File_query_log::set_rotated_name");
+  assert(m_log_type == QUERY_LOG_SLOW);
+
   if (need_lock) mysql_mutex_assert_owner(&LOCK_log);
 
   if (!max_slowlog_size) {
@@ -2196,6 +2204,8 @@ bool File_query_log::set_rotated_name(const bool need_lock) {
  */
 bool File_query_log::rotate(const ulong max_size) {
   DBUG_ENTER("File_query_log::rotate");
+  assert(m_log_type == QUERY_LOG_SLOW);
+
   mysql_mutex_assert_owner(&LOCK_log);
 
   if (my_b_tell(&log_file) > max_size) {
@@ -2214,6 +2224,8 @@ bool File_query_log::rotate(const ulong max_size) {
  */
 bool File_query_log::purge_logs() {
   DBUG_ENTER("File_query_log::purge_logs");
+  assert(m_log_type == QUERY_LOG_SLOW);
+
   mysql_mutex_assert_owner(&LOCK_log);
 
   if (max_slowlog_files == 0 || cur_log_ext < 1 ||

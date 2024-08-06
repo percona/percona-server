@@ -512,6 +512,9 @@ bool File_query_log::set_file(const char *new_name) {
     bool res = set_rotated_name(false) || purge_logs();
     mysql_mutex_unlock(&LOCK_log);
     return res;
+  } else {
+    // We can do this here since we're not actually resolving symlinks etc.
+    fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
   }
 
   return false;

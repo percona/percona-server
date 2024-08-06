@@ -505,13 +505,16 @@ bool File_query_log::set_file(const char *new_name) {
 
   name = nn;
 
-  mysql_mutex_lock(&LOCK_log);
-  cur_log_ext = 0;
-  last_removed_ext = 0;
-  bool res = set_rotated_name(false) || purge_logs();
-  mysql_mutex_unlock(&LOCK_log);
+  if (m_log_type == QUERY_LOG_SLOW) {
+    mysql_mutex_lock(&LOCK_log);
+    cur_log_ext = 0;
+    last_removed_ext = 0;
+    bool res = set_rotated_name(false) || purge_logs();
+    mysql_mutex_unlock(&LOCK_log);
+    return res;
+  }
 
-  return res;
+  return false;
 }
 
 bool File_query_log::open() {

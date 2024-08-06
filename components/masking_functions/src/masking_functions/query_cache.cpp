@@ -67,6 +67,7 @@ query_cache::query_cache(query_builder_ptr query_builder,
                                 0,
                                 PSI_DOCUMENT_ME};
     mysql_thread_register(psi_category_name, &thread_info, 1);
+    my_thread_attr_init(&flusher_thread_attr_);
 
     const auto res =
         mysql_thread_create(psi_flusher_thread_key_, &flusher_thread_,

@@ -3,6 +3,15 @@
 . /usr/share/debconf/confmodule
 . /usr/share/mysql/mysql-helpers
 
+# Create directory for telemetry
+if [ -d /usr/local/percona/telemetry ]; then
+    mkdir -p /usr/local/percona/telemetry/ps
+    chown mysql:percona-telemetry /usr/local/percona/telemetry/ps
+    chmod 775 /usr/local/percona/telemetry/ps
+    chmod g+s /usr/local/percona/telemetry/ps
+    chmod u+s /usr/local/percona/telemetry/ps
+fi
+
 MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
@@ -32,6 +41,29 @@ check_exit_status() {
                 exit $errcode
         fi
 }
+
+# PKG-40 To check if the apparmor profile has been changed on the user's system
+# If the file has been changed, append telemetry rules to the file
+# If unchanged, install the new apparmor profile
+check_apparmor_files() {
+	if ! diff -q /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/old_apparmor >/dev/null; then
+		sed -i 's:  # Site-specific additions and overrides. See local/README for details.::' /etc/apparmor.d/usr.sbin.mysqld
+                sed -i 's:  #include <local/usr.sbin.mysqld>::' /etc/apparmor.d/usr.sbin.mysqld
+                sed -i '$ s/}//' /etc/apparmor.d/usr.sbin.mysqld
+                echo "# Allow access to PS telemetry directory" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  /usr/local/percona/telemetry/ps/ rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  /usr/local/percona/telemetry/ps/** rw," >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  # Site-specific additions and overrides. See local/README for details." >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "  #include <local/usr.sbin.mysqld>" >> /etc/apparmor.d/usr.sbin.mysqld
+                echo "}" >> /etc/apparmor.d/usr.sbin.mysqld
+                sed -r -i ':a; /^\s*$/ {N;ba}; s/( *\n *){2,}/\n/'  /etc/apparmor.d/usr.sbin.mysqld
+                rm -f /etc/apparmor.d/usr.sbin.mysqld.in2
+        else
+                mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld
+        fi
+}
+
 
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
 TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb')
@@ -123,22 +155,17 @@ case "$1" in
 
 		PROFILE_ACTION="Use NEW AppArmor profile"
 		# If the existing AppArmor module/local profile is the proper file, we back it up
-		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" -o -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
-			db_input high percona-server-server/existing_profile_file || true
-			db_go
-			db_get percona-server-server/existing_config_file && PROFILE_ACTION=${RET}
-		fi
-		if [ "${PROFILE_ACTION}" = "Use NEW AppArmor profile" ]; then
-			DATE=`date +%Y-%m-%d-%H:%m:%S`
-			cp /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-			cp /etc/apparmor.d/local/usr.sbin.mysqld /etc/apparmor.d/local/usr.sbin.mysqld_$DATE.bak 2> /dev/null || true
-
-			mv -f /etc/apparmor.d/usr.sbin.mysqld.in /etc/apparmor.d/usr.sbin.mysqld
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
+			check_apparmor_files
+		else
+			mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true
+                fi
+		if [ -f "/etc/apparmor.d/local/usr.sbin.mysqld" ]; then
+			rm -f /etc/apparmor.d/local/usr.sbin.mysqld.in
+		else
 			mv -f /etc/apparmor.d/local/usr.sbin.mysqld.in /etc/apparmor.d/local/usr.sbin.mysqld
-
 		fi
-		rm -f /etc/apparmor.d/usr.sbin.mysqld.in
-		rm -f /etc/apparmor.d/local/usr.sbin.mysqld.in
+                rm -f /etc/apparmor.d/old_apparmor
 		if aa-status --enabled 2>/dev/null; then
 			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
 		fi
@@ -182,6 +209,14 @@ EOF
 			echo "Please use etc/mysql/mysql.conf.d for any custom configuration settings"
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
+		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
+			check_apparmor_files
+                fi
+		rm -f /etc/apparmor.d/old_apparmor
+		mv -f /etc/apparmor.d/usr.sbin.mysqld.in2 /etc/apparmor.d/usr.sbin.mysqld 2> /dev/null || true
+		if aa-status --enabled 2>/dev/null; then
+			apparmor_parser -r -T -W /etc/apparmor.d/usr.sbin.mysqld 2>/dev/null || true
+                fi
 	fi
 	chmod +x /etc/init.d/mysql || true
 	;;

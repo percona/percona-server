@@ -1,16 +1,17 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -94,10 +95,11 @@ void TransporterFacade::reportError(NodeId nodeId, TransporterError errorCode,
                       (int)nodeId, (int)errorCode, info ? info : "");
 #endif
   if (errorCode & TE_DO_DISCONNECT) {
-    g_eventLogger->info("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
-                        info ? info : "");
+    g_eventLogger->error(
+        "Node %u disconnecting from node %u due to transporter error %u %s",
+        ownId(), nodeId, errorCode, info ? info : "");
     if (nodeId == ownId()) {
-      g_eventLogger->info("Fatal error on Loopback transporter, aborting.");
+      g_eventLogger->info("Error on loopback transporter is fatal.");
       abort();
     }
     DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n", ownId(), nodeId,
@@ -338,10 +340,13 @@ bool TransporterFacade::deliver_signal(SignalHeader *const header,
       theClusterMgr->execDUMP_STATE_ORD(&sig, ptr);
     } else if (header->theVerId_signalNumber != GSN_API_REGREQ) {
       TRP_DEBUG("TransporterFacade received signal to unknown block no.");
-      g_eventLogger->info("BLOCK NO: %u sig %u", tRecBlockNo,
-                          header->theVerId_signalNumber);
-      ndbout << *header << "-- Signal Data --" << endl;
-      ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
+      fprintf(stderr,
+              "%s NDBAPI FATAL ERROR : TransporterFacade received signal to "
+              "unknown block number: %u sig %u",
+              Logger::Timestamp().c_str(), tRecBlockNo,
+              header->theVerId_signalNumber);
+      ndberr << *header << "-- Signal Data --" << endl;
+      ndberr.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
     }
   }
@@ -1142,8 +1147,9 @@ int TransporterFacade::unlock_recv_thread_cpu() {
   if (theReceiveThread) {
     int ret_code = Ndb_UnlockCPU(theReceiveThread);
     if (ret_code) {
-      g_eventLogger->info("Failed to unlock thread %d, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), ret_code);
+      g_eventLogger->info(
+          "TransporterFacade (%u) : Failed to unlock thread %d, ret_code: %d",
+          theOwnId, NdbThread_GetTid(theReceiveThread), ret_code);
       return ret_code;
     }
   }
@@ -1155,8 +1161,10 @@ int TransporterFacade::lock_recv_thread_cpu() {
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread) {
     int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
     if (ret_code) {
-      g_eventLogger->info("Failed to lock thread %d to CPU %u, ret_code: %d",
-                          NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
+      g_eventLogger->info(
+          "TransporterFacade (%u) : Failed to lock thread %d to CPU %u, "
+          "ret_code: %d",
+          theOwnId, NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
       return ret_code;
     }
   }
@@ -1394,6 +1402,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache)
       m_poll_queue_head(nullptr),
       m_poll_queue_tail(nullptr),
       m_poll_waiters(0),
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+      m_poll_owner_region(nullptr),
+#endif
       m_locked_cnt(0),
       m_locked_clients(),
       m_num_active_clients(0),
@@ -1449,6 +1460,10 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache)
 
 #ifdef API_TRACE
   apiSignalLog = nullptr;
+#endif
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  m_poll_owner_region = NdbMutex_CreateSerializedRegion();
 #endif
 
   theClusterMgr = new ClusterMgr(*this);
@@ -1590,7 +1605,8 @@ bool TransporterFacade::configure(NodeId nodeId,
     if (!m_send_buffer.init(total_send_buffer_size_t,
                             reserved_send_buffer_size_t)) {
       g_eventLogger->info(
-          "Unable to allocate %zu bytes of memory for send buffers!!",
+          "TransporterFacade : Unable to allocate %zu bytes of memory for send "
+          "buffers!!",
           total_send_buffer_size_t);
       DBUG_RETURN(false);
     }
@@ -1620,7 +1636,8 @@ bool TransporterFacade::configure(NodeId nodeId,
 
   iter.get(CFG_MIXOLOGY_LEVEL, &mixologyLevel);
   if (mixologyLevel) {
-    g_eventLogger->info("Mixology level set to 0x%x", mixologyLevel);
+    g_eventLogger->info("TransporterFacade Mixology level set to 0x%x",
+                        mixologyLevel);
     theTransporterRegistry->setMixologyLevel(mixologyLevel);
   }
 #endif
@@ -1662,9 +1679,9 @@ void TransporterFacade::for_each(trp_client *sender,
        * We skip sending signal to receive thread. The receive thread
        * have no interest in signals sent as for_each.
        */
-      bool res = clnt->is_locked_for_poll();
-      assert(clnt->check_if_locked() == res);
-      if (res) {
+      const bool client_locked = clnt->is_locked_for_poll();
+      assert(clnt->check_if_locked() == client_locked);
+      if (client_locked) {
         clnt->trp_deliver_signal(aSignal, ptr);
       } else {
         NdbMutex_Lock(clnt->m_mutex);
@@ -1954,6 +1971,9 @@ TransporterFacade::~TransporterFacade() {
   NdbCondition_Destroy(m_wakeup_thread_cond);
 #ifdef API_TRACE
   signalLogger.setOutputStream(nullptr);
+#endif
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  NdbMutex_DestroySerializedRegion(m_poll_owner_region);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2411,12 +2431,18 @@ int TransporterFacade::sendSignal(trp_client *clnt, const NdbApiSignal *aSignal,
  * CONNECTION METHODS  Etc
  ******************************************************************************/
 void TransporterFacade::startConnecting(NodeId aNodeId) {
-  theTransporterRegistry->setIOState(aNodeId, NoHalt);
-  theTransporterRegistry->start_connecting(aNodeId);
+  const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
+  if (trpId != 0) {
+    theTransporterRegistry->setIOState(trpId, NoHalt);
+    theTransporterRegistry->start_connecting(trpId);
+  }
 }
 
 void TransporterFacade::startDisconnecting(NodeId aNodeId) {
-  theTransporterRegistry->start_disconnecting(aNodeId);
+  const TrpId trpId = theTransporterRegistry->get_the_only_base_trp(aNodeId);
+  if (trpId != 0) {
+    theTransporterRegistry->start_disconnecting(trpId);
+  }
 }
 
 /**
@@ -2580,12 +2606,12 @@ void TransporterFacade::propose_poll_owner() {
         (recv_client && recv_client->m_poll.m_poll_queue &&
          recv_client->m_state == ReceiveThreadClient::ACTIVE)
             ? recv_client
-        // Avoid the recv_client as it is not ACTIVE
-        : (m_poll_queue_tail == recv_client &&
-           m_poll_queue_tail->m_poll.m_prev != nullptr)
-            // 'tail' is the recv_client, prefer another
-            ? m_poll_queue_tail->m_poll.m_prev
-            : m_poll_queue_tail;
+            // Avoid the recv_client as it is not ACTIVE
+            : (m_poll_queue_tail == recv_client &&
+               m_poll_queue_tail->m_poll.m_prev != nullptr)
+                  // 'tail' is the recv_client, prefer another
+                  ? m_poll_queue_tail->m_poll.m_prev
+                  : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock
@@ -2683,7 +2709,7 @@ bool TransporterFacade::try_become_poll_owner(trp_client *clnt,
     struct timespec wait_end;
     NdbCondition_ComputeAbsTime(&wait_end, wait_time);
 
-    while (true)  //(m_poll_owner != NULL)
+    while (true)  //(m_poll_owner != nullptr)
     {
       unlock_poll_mutex();  // Release while waiting
       dbg("cond_wait(%p)", clnt);
@@ -2753,6 +2779,12 @@ bool TransporterFacade::try_become_poll_owner(trp_client *clnt,
   assert(m_poll_owner == nullptr);
   m_poll_owner = clnt;
   m_poll_owner_tid = my_thread_self();
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  // We 'own' the poll lock even if we do not hold the poll_mutex itself
+  NdbMutex_EnterSerializedRegion(m_poll_owner_region);
+#endif
+
   unlock_poll_mutex();
 
   assert(clnt->m_poll.m_poll_owner == false);
@@ -2952,6 +2984,9 @@ void TransporterFacade::do_poll(trp_client *clnt, Uint32 wait_time,
      * suspended here.
      */
     if (!stay_poll_owner) {
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+      NdbMutex_LeaveSerializedRegion(m_poll_owner_region);
+#endif
       clnt->m_poll.m_poll_owner = false;
       m_poll_owner = nullptr;
       /**
@@ -3030,6 +3065,10 @@ bool TransporterFacade::check_if_locked(const trp_client *clnt,
   return false;
 }
 
+/**
+ * Note that it is a requirement that we check that 'clnt' is not yet
+ * 'is_locked_for_poll()' before we ::lock_client(), else it may deadlock.
+ */
 void TransporterFacade::lock_client(trp_client *clnt) {
   assert(m_locked_cnt <= MAX_LOCKED_CLIENTS);
   assert(check_if_locked(clnt, 0) == false);
@@ -3390,7 +3429,8 @@ Uint32 TransporterFacade::bytes_sent(TrpId trp_id, Uint32 bytes) {
  * a race in ::open_clnt())
  *
  * Also see comments for these methods in TransporterCallback.hpp,
- * and how ::open_clnt() synchronize its set of enabled nodes. */
+ * and how ::open_clnt() synchronize its set of enabled nodes.
+ */
 void TransporterFacade::enable_send_buffer(TrpId trp_id) {
   assert(is_poll_owner_thread());
 
@@ -3521,7 +3561,7 @@ void TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval) {
 }
 
 ndb_sockaddr TransporterFacade::ext_get_connect_address(NodeId nodeId) {
-  return theTransporterRegistry->get_connect_address(nodeId);
+  return theTransporterRegistry->get_connect_address_node(nodeId);
 }
 
 bool TransporterFacade::ext_isConnected(NodeId aNodeId) {

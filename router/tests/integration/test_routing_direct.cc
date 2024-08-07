@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -3591,7 +3592,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
       EXIT_SUCCESS
 #endif
   };
-  const auto host = shared_router()->host();
+  const auto *host = shared_router()->host();
   const auto port = shared_router()->port(GetParam());
   auto &long_running_query =
       launch_command(ProcessManager::get_origin().join("mysqltest").str(),
@@ -3605,7 +3606,7 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
                      },
                      expected_exit_status, true, -1s);
 
-  // wait until the SLEEP appears in the processlist
+  SCOPED_TRACE("// wait until the SLEEP appears in the processlist");
   for (auto start = clock_type::now();; std::this_thread::sleep_for(100ms)) {
     ASSERT_LT(clock_type::now() - start, 10s);
 
@@ -3620,11 +3621,16 @@ TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
     if (result.size() == 1 && result[0][1] == "Query") break;
   }
 
-  // interrupt the SLEEP() query
-  long_running_query.send_shutdown_event(
-      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+  SCOPED_TRACE("// interrupt the SLEEP() query");
 
-  // wait until it is gone.
+  auto ec = long_running_query.send_shutdown_event(
+      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+  ASSERT_EQ(ec, std::error_code{});
+
+  // throws on timeout.
+  ASSERT_NO_THROW(long_running_query.native_wait_for_exit());
+
+  SCOPED_TRACE("// wait until it is gone.");
   for (auto start = clock_type::now();; std::this_thread::sleep_for(500ms)) {
     // the server will check that the query is killed every 5 seconds since it
     // started to SLEEP()

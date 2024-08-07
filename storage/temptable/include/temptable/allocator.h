@@ -1,15 +1,16 @@
-/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -197,6 +198,9 @@ struct Allocation_scheme {
   static size_t block_size(size_t number_of_blocks, size_t n_bytes_requested) {
     return Block_size_policy::block_size(number_of_blocks, n_bytes_requested);
   }
+  static void block_freed(uint32_t block_size, Source block_source) {
+    Block_source_policy::block_freed(block_size, block_source);
+  }
 };
 
 /* Concrete implementation of Block_source_policy, a type which controls where
@@ -231,6 +235,14 @@ struct Prefer_RAM_over_MMAP_policy {
       }
     }
     throw Result::RECORD_FILE_FULL;
+  }
+
+  static void block_freed(uint32_t block_size, Source block_source) {
+    if (block_source == Source::RAM) {
+      MemoryMonitor::RAM::decrease(block_size);
+    } else {
+      MemoryMonitor::MMAP::decrease(block_size);
+    }
   }
 };
 
@@ -269,6 +281,10 @@ struct Prefer_RAM_over_MMAP_policy_obeying_per_table_limit {
     }
 
     return Prefer_RAM_over_MMAP_policy::block_source(block_size);
+  }
+
+  static void block_freed(uint32_t block_size, Source block_source) {
+    Prefer_RAM_over_MMAP_policy::block_freed(block_size, block_source);
   }
 };
 
@@ -341,7 +357,95 @@ using Exponential_growth_preferring_RAM_over_MMAP =
   guide's recommendation to have clear ownership of objects, but at least it
   avoids the use-after-free.
  */
-struct AllocatorState {
+template <class AllocationScheme>
+class AllocatorState {
+ public:
+  /**
+   * Destroys the state, deallocate the current_block if it was left empty.
+   */
+  ~AllocatorState() noexcept {
+    if (!current_block.is_empty()) {
+      free_block(current_block);
+    }
+    /* User must deallocate all data from all blocks, otherwise the memory will
+     * be leaked.
+     */
+    assert(number_of_blocks == 0);
+  }
+
+  /**
+   * Gets a Block from which a new allocation of the specified size should be
+   * performed. It will use the current Block or create a new one if it is too
+   * small.
+   * [in] Number of bytes that will be allocated from the returned block.
+   */
+  Block *get_block_for_new_allocation(
+      size_t n_bytes_requested, TableResourceMonitor *table_resource_monitor) {
+    if (current_block.is_empty() ||
+        !current_block.can_accommodate(n_bytes_requested)) {
+      /* The current_block may have been left empty during some deallocate()
+       * call. It is the last opportunity to free it before we lose reference to
+       * it.
+       */
+      if (!current_block.is_empty() &&
+          current_block.number_of_used_chunks() == 0) {
+        free_block(current_block);
+      }
+
+      const size_t block_size =
+          AllocationScheme::block_size(number_of_blocks, n_bytes_requested);
+      current_block = Block(
+          block_size,
+          AllocationScheme::block_source(block_size, table_resource_monitor));
+      ++number_of_blocks;
+    }
+    return &current_block;
+  }
+
+  /**
+   * Informs the state object of a block that has no data allocated inside of it
+   * anymore for garbage collection.
+   * [in] The empty block to manage and possibly free.
+   */
+  void block_is_not_used_anymore(Block block) noexcept {
+    if (block == current_block) {
+      /* Do nothing. Keep the last block alive. Some queries are repeatedly
+       * allocating one Row and freeing it, leading to constant allocation and
+       * deallocation of 1MB of memory for the current_block. Let's keep this
+       * block empty ready for a future use.
+       */
+    } else {
+      free_block(block);
+    }
+  }
+
+  /**
+   * Update allocated memory counter.
+   * @param counter Value to be added to the counter
+   */
+  void update_allocated_mem_counter(size_t counter) noexcept {
+    allocated_mem_counter += counter;
+  }
+
+  /**
+   * Get current value of allocated memory counter.
+   * @return Allocated memory counter value
+   */
+  size_t get_allocated_mem_counter() const noexcept {
+    return allocated_mem_counter;
+  }
+
+ private:
+  /**
+   * Frees the specified block and takes care of all accounting.
+   * [in] The empty block to free.
+   */
+  void free_block(Block &block) noexcept {
+    AllocationScheme::block_freed(block.size(), block.type());
+    block.destroy();
+    --number_of_blocks;
+  }
+
   /** Current not-yet-full block to feed allocations from. */
   Block current_block;
 
@@ -493,15 +597,15 @@ class Allocator {
    * before other methods. */
   static void init();
 
-  uint64_t get_allocated_mem_counter() const {
-    return m_state->allocated_mem_counter;
+  uint64_t get_allocated_mem_counter() const noexcept {
+    return m_state->get_allocated_mem_counter();
   }
 
   /**
     Shared state between all the copies and rebinds of this allocator.
     See AllocatorState for details.
    */
-  std::shared_ptr<AllocatorState> m_state;
+  std::shared_ptr<AllocatorState<AllocationScheme>> m_state;
 
   /** A block of memory which is a state external to this allocator and can be
    * shared among different instances of the allocator (not simultaneously). In
@@ -520,7 +624,7 @@ class Allocator {
 template <class T, class AllocationScheme>
 inline Allocator<T, AllocationScheme>::Allocator(
     Block *shared_block, TableResourceMonitor &table_resource_monitor)
-    : m_state(std::make_shared<AllocatorState>()),
+    : m_state(std::make_shared<AllocatorState<AllocationScheme>>()),
       m_shared_block(shared_block),
       m_table_resource_monitor(table_resource_monitor) {}
 
@@ -579,17 +683,9 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   } else if (m_shared_block &&
              m_shared_block->can_accommodate(n_bytes_requested)) {
     block = m_shared_block;
-  } else if (m_state->current_block.is_empty() ||
-             !m_state->current_block.can_accommodate(n_bytes_requested)) {
-    const size_t block_size = AllocationScheme::block_size(
-        m_state->number_of_blocks, n_bytes_requested);
-    m_state->current_block = Block(
-        block_size,
-        AllocationScheme::block_source(block_size, &m_table_resource_monitor));
-    block = &m_state->current_block;
-    ++m_state->number_of_blocks;
   } else {
-    block = &m_state->current_block;
+    block = m_state->get_block_for_new_allocation(n_bytes_requested,
+                                                  &m_table_resource_monitor);
   }
 
   m_table_resource_monitor.increase(n_bytes_requested);
@@ -597,7 +693,7 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   T *chunk_data =
       reinterpret_cast<T *>(block->allocate(n_bytes_requested).data());
   assert(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
-  m_state->allocated_mem_counter += n_bytes_requested;
+  m_state->update_allocated_mem_counter(n_bytes_requested);
   return chunk_data;
 }
 
@@ -619,18 +715,7 @@ inline void Allocator<T, AllocationScheme>::deallocate(T *chunk_data,
     if (m_shared_block && (block == *m_shared_block)) {
       // Do nothing. Keep the last block alive.
     } else {
-      assert(m_state->number_of_blocks > 0);
-      if (block.type() == Source::RAM) {
-        MemoryMonitor::RAM::decrease(block.size());
-      } else {
-        MemoryMonitor::MMAP::decrease(block.size());
-      }
-      if (block == m_state->current_block) {
-        m_state->current_block.destroy();
-      } else {
-        block.destroy();
-      }
-      --m_state->number_of_blocks;
+      m_state->block_is_not_used_anymore(block);
     }
   }
   m_table_resource_monitor.decrease(n_bytes_requested);

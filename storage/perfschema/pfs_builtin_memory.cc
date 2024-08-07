@@ -1,15 +1,16 @@
-/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -121,6 +122,8 @@ PFS_builtin_memory_class builtin_memory_prepared_stmt;
 
 PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
+PFS_builtin_memory_class builtin_memory_data_container;
+
 static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
                                       const char *name,
                                       const char *documentation) {
@@ -137,6 +140,23 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_stat.reset();
 }
 
+static void init_builtin_memory_query(PFS_builtin_memory_class *klass,
+                                      const char *name,
+                                      const char *documentation) {
+  klass->m_class.m_type = PFS_CLASS_MEMORY;
+  klass->m_class.m_enabled = true; /* Immutable */
+  klass->m_class.m_timed = false;  /* N/A */
+  /* Builtin stats are only global, not counting per session usage. */
+  klass->m_class.m_flags = PSI_FLAG_ONLY_GLOBAL_STAT;
+  /* Memory allocated during the query execution. */
+  klass->m_class.m_volatility = PSI_VOLATILITY_INTRA_QUERY;
+  klass->m_class.m_documentation = const_cast<char *>(documentation);
+  klass->m_class.m_event_name_index = 0;
+  klass->m_class.m_name.set(PFS_CLASS_MEMORY, name);
+  assert(klass->m_class.m_name.length() <= klass->m_class.m_name.max_length);
+
+  klass->m_stat.reset();
+}
 #define PREFIX "memory/performance_schema/"
 #define TABLE_DOC(X) PREFIX X, "Memory used for table performance_schema." X
 #define COL_DOC(X, Y) \
@@ -371,6 +391,11 @@ init_all_builtin_memory_class()
 
   init_builtin_memory_class(&builtin_memory_scalable_buffer,
                             GEN_DOC("scalable_buffer", "scalable buffers"));
+
+  init_builtin_memory_query(&builtin_memory_data_container,
+                            PREFIX "data_container",
+                            "Memory used during queries on tables performance_schema.data_locks"
+                            " or performance_schema.data_lock_waits");
 }
 /* clang-format off */
 
@@ -463,6 +488,8 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
   &builtin_memory_prepared_stmt,
 
   &builtin_memory_scalable_buffer,
+
+  &builtin_memory_data_container,
 
   /*
     MAINTAINER:

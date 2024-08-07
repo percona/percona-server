@@ -1,15 +1,16 @@
-/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -439,6 +440,22 @@ void set_field_schema_name(Field *f, const PFS_schema_name *schema) {
   set_field_varchar_utf8mb4(f, schema->ptr(), schema->length());
 }
 
+void set_nullable_field_schema_name(Field *f,
+                                    const PFS_schema_name_view *schema) {
+  assert(f->is_nullable());
+  const size_t len = schema->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_varchar_utf8mb4(f, schema->ptr(), len);
+  }
+}
+
+void set_field_schema_name(Field *f, const PFS_schema_name_view *schema) {
+  assert(!f->is_nullable());
+  set_field_varchar_utf8mb4(f, schema->ptr(), schema->length());
+}
+
 void set_nullable_field_object_name(Field *f, const PFS_object_name *object) {
   assert(f->is_nullable());
   const size_t len = object->length();
@@ -450,6 +467,22 @@ void set_nullable_field_object_name(Field *f, const PFS_object_name *object) {
 }
 
 void set_field_object_name(Field *f, const PFS_object_name *object) {
+  assert(!f->is_nullable());
+  set_field_varchar_utf8mb4(f, object->ptr(), object->length());
+}
+
+void set_nullable_field_object_name(Field *f,
+                                    const PFS_object_name_view *object) {
+  assert(f->is_nullable());
+  const size_t len = object->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_varchar_utf8mb4(f, object->ptr(), len);
+  }
+}
+
+void set_field_object_name(Field *f, const PFS_object_name_view *object) {
   assert(!f->is_nullable());
   set_field_varchar_utf8mb4(f, object->ptr(), object->length());
 }
@@ -876,6 +909,42 @@ void PFS_object_row::set_nullable_field(uint index, Field *f) {
   }
 }
 
+void PFS_object_view_row::set_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* OBJECT_TYPE */
+      set_field_object_type(f, m_object_type);
+      break;
+    case 1: /* SCHEMA_NAME */
+      set_field_schema_name(f, &m_schema_name);
+      break;
+    case 2: /* OBJECT_NAME */
+      set_field_object_name(f, &m_object_name);
+      break;
+    default:
+      assert(false);
+  }
+}
+
+void PFS_object_view_row::set_nullable_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* OBJECT_TYPE */
+      if (m_object_type != NO_OBJECT_TYPE) {
+        set_field_object_type(f, m_object_type);
+      } else {
+        f->set_null();
+      }
+      break;
+    case 1: /* SCHEMA_NAME */
+      set_nullable_field_schema_name(f, &m_schema_name);
+      break;
+    case 2: /* OBJECT_NAME */
+      set_nullable_field_object_name(f, &m_object_name);
+      break;
+    default:
+      assert(false);
+  }
+}
+
 void PFS_column_row::set_nullable_field(uint index, Field *f) {
   switch (index) {
     case 0: /* OBJECT_TYPE */
@@ -979,6 +1048,44 @@ void PFS_index_row::set_nullable_field(uint index, Field *f) {
     case 3: /* INDEX_NAME */
       if (m_index_name_length > 0) {
         set_field_varchar_utf8mb4(f, m_index_name, m_index_name_length);
+      } else {
+        f->set_null();
+      }
+      break;
+    default:
+      assert(false);
+  }
+}
+
+void PFS_index_view_row::set_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* OBJECT_TYPE */
+    case 1: /* SCHEMA_NAME */
+    case 2: /* OBJECT_NAME */
+      m_object_row.set_field(index, f);
+      break;
+    case 3: /* INDEX_NAME */
+      if (m_index_name.length() > 0) {
+        set_field_varchar_utf8mb4(f, m_index_name.ptr(), m_index_name.length());
+      } else {
+        f->set_null();
+      }
+      break;
+    default:
+      assert(false);
+  }
+}
+
+void PFS_index_view_row::set_nullable_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* OBJECT_TYPE */
+    case 1: /* SCHEMA_NAME */
+    case 2: /* OBJECT_NAME */
+      m_object_row.set_nullable_field(index, f);
+      break;
+    case 3: /* INDEX_NAME */
+      if (m_index_name.length() > 0) {
+        set_field_varchar_utf8mb4(f, m_index_name.ptr(), m_index_name.length());
       } else {
         f->set_null();
       }

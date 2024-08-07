@@ -1,17 +1,18 @@
 /*
-   Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2024, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -79,7 +80,7 @@ static BaseString path(const char *first, ...) {
 
 class Mgmd {
  protected:
-  NdbProcess *m_proc;
+  std::unique_ptr<NdbProcess> m_proc;
   int m_nodeid;
   BaseString m_name;
   BaseString m_exe;
@@ -89,13 +90,13 @@ class Mgmd {
   Mgmd(const Mgmd &other) = delete;
 
  public:
-  Mgmd(int nodeid) : m_proc(NULL), m_nodeid(nodeid) {
+  Mgmd(int nodeid) : m_nodeid(nodeid) {
     m_name.assfmt("ndb_mgmd_%d", nodeid);
 
     NDBT_find_ndb_mgmd(m_exe);
   }
 
-  Mgmd() : m_proc(NULL) {
+  Mgmd() {
     no_node_config = no_node_config + 1;
     m_name.assfmt("ndb_mgmd_autonode_%d", no_node_config);
     NDBT_find_ndb_mgmd(m_exe);
@@ -132,7 +133,7 @@ class Mgmd {
       m_proc = NdbProcess::create(name(), BaseString(exe_valgrind), working_dir,
                                   copy);
     }
-    return (m_proc != NULL);
+    return (bool)m_proc;
   }
 
   bool start_from_config_ini(const char *working_dir,
@@ -191,7 +192,7 @@ class Mgmd {
     // Diconnect and close our "builtin" client
     m_mgmd_client.close();
 
-    if (m_proc == 0 || !m_proc->stop()) {
+    if (!m_proc || !m_proc->stop()) {
       fprintf(stderr, "Failed to stop process %s\n", name());
       return false;  // Can't kill with -9 -> fatal error
     }
@@ -210,9 +211,7 @@ class Mgmd {
       fprintf(stderr, "Process %s stopped with ret: %u\n", name(), ret);
     }
 
-    delete m_proc;
-    m_proc = 0;
-
+    m_proc.reset();
     return true;
   }
 
@@ -223,9 +222,8 @@ class Mgmd {
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false;
     }
-    delete m_proc;
-    m_proc = 0;
 
+    m_proc.reset();
     return true;
   }
 

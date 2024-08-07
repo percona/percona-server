@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,12 +28,16 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+
+#define RAPIDJSON_HAVE_STDSTRING
+
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
 #endif
-
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <rapidjson/writer.h>
+
 #include "mysqlrouter/rest_client.h"
 
 #include "rest_api_testutils.h"
@@ -369,6 +374,15 @@ static void verify_swagger_content(
   }
 }
 
+static std::string to_string(const JsonDocument &json_doc) {
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter writer(buffer);
+
+  json_doc.Accept(writer);
+
+  return buffer.GetString();
+}
+
 void RestApiComponentTest::fetch_and_validate_schema_and_resource(
     const RestApiTestParams &test_params, ProcessWrapper &http_server,
     const std::string &http_hostname) {
@@ -467,8 +481,8 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
       // HEAD does not return a body
       if (method != HttpMethod::Head) {
         for (const auto &kv : test_params.value_checks) {
-          ASSERT_NO_FATAL_FAILURE(
-              validate_value(json_doc, kv.first, kv.second));
+          ASSERT_NO_FATAL_FAILURE(validate_value(json_doc, kv.first, kv.second))
+              << to_string(json_doc);
         }
       }
     }

@@ -112,8 +112,8 @@ add_percona_yum_repo(){
 }
 
 switch_to_vault_repo() {
-    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-*
-    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
+    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+    sed -i 's|#\s*baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
     sed -i 's/enabled=0/enabled=1/g' /etc/yum.repos.d/CentOS-Linux-PowerTools.repo
 }
 
@@ -433,27 +433,30 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        if [ "x${RHEL}" = "x8" ]; then
+        if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
-            if [ "${RHEL}" -lt 9 ]; then
+            if [ "${RHEL}" -lt 8 ]; then
                 # add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
-                percona-release enable tools experimental
+                # percona-release enable tools experimental
             else
                 yum -y install yum-utils
-                yum-config-manager --enable ol9_codeready_builder
-           fi
+                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+            fi
         else
-            if [ "x${RHEL}" = "x9" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" ]; then
                 yum -y install yum-utils
                 yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi
         fi
         yum -y update
         yum -y install epel-release
+        if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
+            switch_to_vault_repo
+        fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
@@ -463,6 +466,7 @@ install_deps() {
                 echo "waiting"
                 sleep 1
             done
+            switch_to_vault_repo
             yum -y install gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
             yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
@@ -505,6 +509,7 @@ install_deps() {
         if [ "x$RHEL" = "x8" ]; then
             yum -y install libtirpc-devel
             yum -y install centos-release-stream
+            switch_to_vault_repo
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
@@ -527,28 +532,30 @@ install_deps() {
             yum -y install MySQL-python
         fi
     else
-        apt-get -y install dirmngr || true
-        apt-get update
-        apt-get -y install lsb_release || true
-        apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget git curl
-        wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
-        percona-release enable tools testing
+        until apt-get update; do
+            echo "apt-get update failed. Retrying in 5 seconds..."
+            sleep 5
+        done
         export DEBIAN_FRONTEND="noninteractive"
+        apt-get -y install dirmngr || true
+        apt-get -y install lsb-release || true
+        apt-get -y install wget git curl
         export DIST="$(lsb_release -sc)"
-            until apt-get update; do
-            sleep 1
-            echo "waiting"
+        if [ x"${DIST}" != xnoble ];then
+            wget https://repo.percona.com/apt/percona-release_latest."${DIST}"_all.deb && dpkg -i percona-release_latest."${DIST}"_all.deb
+            percona-release enable tools testing
+        fi
+        until apt-get update; do
+            echo "apt-get update failed. Retrying in 5 seconds..."
+            sleep 5
         done
         apt-get -y purge eatmydata || true
-
-        apt-get update
         apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install copyright-update
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
             apt-get -y install python3-mysqldb
@@ -738,7 +745,7 @@ build_mecab_lib(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_TARBAL="mecab-0.996.tar.gz"
     #MECAB_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_TARBAL}"
-    MECAB_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_TARBAL}"
+    MECAB_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_TARBAL}"
     MECAB_DIR="${WORKDIR}/${MECAB_TARBAL%.tar.gz}"
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -f ${MECAB_TARBAL}
@@ -770,7 +777,7 @@ build_mecab_dict(){
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     MECAB_IPADIC_TARBAL="mecab-ipadic-2.7.0-20070801.tar.gz"
     #MECAB_IPADIC_LINK="http://jenkins.percona.com/downloads/mecab/${MECAB_IPADIC_TARBAL}"
-    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/TESTING/issue-CUSTO83/${MECAB_IPADIC_TARBAL}"
+    MECAB_IPADIC_LINK="https://downloads.percona.com/downloads/packaging/${MECAB_IPADIC_TARBAL}"
     MECAB_IPADIC_DIR="${WORKDIR}/${MECAB_IPADIC_TARBAL%.tar.gz}"
     rm -f ${MECAB_IPADIC_TARBAL}
     rm -rf ${MECAB_IPADIC_DIR}
@@ -1081,6 +1088,8 @@ build_deb(){
     cat call-home.sh >> percona-server-server"${postfix}".postinst
     echo "CALLHOME" >> percona-server-server"${postfix}".postinst
     echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
@@ -1108,6 +1117,13 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
+    if [ ${DEBIAN_VERSION} = "noble" -a ${ARCH} = "aarch64" ]; then
+        sed -i 's:dh_strip --dbg-package=percona-server-dbg:mv debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so /tmp\n\tdh_strip --dbg-package=percona-server-dbg\n\tmv /tmp/authentication_fido.so debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
+        sed -i 's:dh_strip -Xlibprotobuf-lite:dh_strip -Xlibprotobuf-lite --exclude=debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
+    fi
+
+    cat debian/rules
 
     dpkg-buildpackage -rfakeroot -uc -us -b
 

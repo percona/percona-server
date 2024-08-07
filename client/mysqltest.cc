@@ -1,15 +1,16 @@
-// Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+// Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
 // as published by the Free Software Foundation.
 //
-// This program is also distributed with certain software (including
+// This program is designed to work with certain software (including
 // but not limited to OpenSSL) that is licensed under separate terms,
 // as designated in a particular file or component or in included license
 // documentation.  The authors of MySQL hereby grant you an additional
 // permission to link the program and your derivative works with the
-// separately licensed software that they have included with MySQL.
+// separately licensed software that they have either included with
+// the program or referenced in the documentation.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -4949,9 +4950,6 @@ static void do_perl(struct st_command *command) {
     }
     error = pclose(res_file);
 
-    /* Remove the temporary file, but keep it if perl failed */
-    if (!error) my_delete(temp_file_path, MYF(0));
-
     /* Check for error code that indicates perl could not be started */
     int exstat = WEXITSTATUS(error);
 #ifdef _WIN32
@@ -4962,6 +4960,12 @@ static void do_perl(struct st_command *command) {
 #endif
     else
       handle_command_error(command, exstat);
+
+    /*
+      Perl script has ended with expected exit status.
+      Now remove the temporary script file.
+    */
+    my_delete(temp_file_path, MYF(0));
   }
   dynstr_free(&ds_delimiter);
 }
@@ -5669,8 +5673,8 @@ static void do_disable_testcase(struct st_command *command) {
                      sizeof(disable_testcase_args) / sizeof(struct command_arg),
                      ' ');
 
-  /// Check if the bug number argument to disable_testcase is in a
-  /// proper format.
+  // Check if the bug number argument to disable_testcase is in a
+  // proper format.
   if (validate_bug_number_argument(ds_bug_number.str) == 0) {
     free_dynamic_strings(&ds_bug_number);
     die("Bug number mentioned in '%s' command is not in a correct format. "
@@ -5737,10 +5741,19 @@ static bool kill_process(int pid) {
   bool killed = true;
 #ifdef _WIN32
   HANDLE proc;
-  proc = OpenProcess(PROCESS_TERMINATE, false, pid);
+  proc = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, false, pid);
   if (proc == nullptr) return true; /* Process could not be found. */
 
-  if (!TerminateProcess(proc, 201)) killed = false;
+  // The `TerminateProcess()` is asynchronous. After it returns success, the
+  // process may be still being closed and finalized. The `WaitForSingleObject`
+  // is needed to wait for the process object to get into signaled state.
+  if (TerminateProcess(proc, 201)) {
+    // `INFINITE` is used as the process is killed and really need to be closed
+    // very soon.
+    WaitForSingleObject(proc, INFINITE);
+  } else {
+    killed = false;
+  }
 
   CloseHandle(proc);
 #else

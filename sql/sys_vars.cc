@@ -1,15 +1,16 @@
-/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1919,8 +1920,9 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
 
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
     "character_set_server", "The default character set",
-    SESSION_VAR(collation_server), NO_CMD_LINE, DEFAULT(&default_charset_info),
-    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_charset_not_null));
+    PERSIST_AS_READONLY SESSION_VAR(collation_server), NO_CMD_LINE,
+    DEFAULT(&default_charset_info), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_charset_not_null));
 
 static bool check_charset_db(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;
@@ -2514,6 +2516,14 @@ static Sys_var_bool Sys_locked_in_memory(
 static Sys_var_bool Sys_log_bin("log_bin", "Whether the binary log is enabled",
                                 READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log),
                                 NO_CMD_LINE, DEFAULT(true));
+
+#ifdef HAVE_PERCONA_TELEMETRY
+static Sys_var_bool Sys_percona_telemetry_disable(
+    "percona_telemetry_disable",
+    "Whether Percona Telemetry component should be disabled after server start",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_percona_telemetry_disable),
+    CMD_LINE(OPT_ARG), DEFAULT(false));
+#endif
 
 static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;

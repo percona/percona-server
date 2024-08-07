@@ -1,7 +1,7 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2023, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
+Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -14,12 +14,13 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
 as published by the Free Software Foundation.
 
-This program is also distributed with certain software (including
+This program is designed to work with certain software (including
 but not limited to OpenSSL) that is licensed under separate terms,
 as designated in a particular file or component or in included license
 documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -196,23 +197,17 @@ bool os_is_o_direct_supported() {
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 }
 
-/* This specifies the file permissions InnoDB uses when it creates files in
-Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
-my_umask */
-
 #ifndef _WIN32
-/** Umask for creating files */
-static ulint os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+/** This specifies the file permissions InnoDB uses when it creates files in
+Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to my_umask.
+It is a global value and can't be modified once it is set. */
+static mode_t os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 #else
-/** Umask for creating files */
-static ulint os_innodb_umask = 0;
-
-/* On Windows when using native AIO the number of AIO requests
+/** On Windows when using native AIO the number of AIO requests
 that a thread can handle at a given time is limited to 32
 i.e.: SRV_N_PENDING_IOS_PER_THREAD */
 constexpr uint32_t SRV_N_PENDING_IOS_PER_THREAD =
     OS_AIO_N_PENDING_IOS_PER_THREAD;
-
 #endif /* _WIN32 */
 
 /** In simulated aio, merge at most this many consecutive i/os */
@@ -3478,26 +3473,15 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   return (file);
 }
 
-/** NOTE! Use the corresponding macro
-os_file_create_simple_no_error_handling(), not directly this function!
-A simple function to open or create a file.
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      access_type     OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
-                                OS_FILE_READ_ALLOW_DELETE; the last option
-                                is used by a backup program reading the file
-@param[in]      read_only       if true read only mode checks are enforced
-@param[out]     success         true if succeeded
-@return own: handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
-pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
-                                                           ulint create_mode,
-                                                           ulint access_type,
-                                                           bool read_only,
-                                                           bool *success) {
+pfs_os_file_t os_file_create_simple_no_error_handling_func(
+    const char *name, ulint create_mode, ulint access_type, bool read_only,
+    mode_t umask, bool *success) {
   pfs_os_file_t file;
   int create_flag;
+
+  if (umask == os_innodb_umask_default) {
+    umask = os_innodb_umask;
+  }
 
   ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
   ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
@@ -3531,7 +3515,7 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
     return (file);
   }
 
-  file.m_file = ::open(name, create_flag, os_innodb_umask);
+  file.m_file = ::open(name, create_flag, umask);
 
   *success = (file.m_file != -1);
 
@@ -4579,18 +4563,6 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   return (file);
 }
 
-/** NOTE! Use the corresponding macro os_file_create_simple_no_error_handling(),
-not directly this function!
-A simple function to open or create a file.
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      access_type     OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
-                                OS_FILE_READ_ALLOW_DELETE; the last option is
-                                used by a backup program reading the file
-@param[out]     success         true if succeeded
-@return own: handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
 pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
                                                            ulint create_mode,
                                                            ulint access_type,
@@ -6542,7 +6514,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
       return false;
     }
 
-    srv_io_thread_function[++n_segments] = "insert buffer thread";
+    srv_io_thread_function[n_segments++] = "insert buffer thread";
 
   } else {
     s_ibuf = nullptr;
@@ -6557,7 +6529,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 
   for (size_t i = 0; i < n_readers; ++i) {
     ut_a(n_segments < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[++n_segments] = "read thread";
+    srv_io_thread_function[n_segments++] = "read thread";
   }
 
   s_writes =
@@ -6569,7 +6541,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 
   for (size_t i = 0; i < n_writers; ++i) {
     ut_a(n_segments < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[++n_segments] = "write thread";
+    srv_io_thread_function[n_segments++] = "write thread";
   }
 
   ut_ad(n_segments == n_extra + n_readers + n_writers);
@@ -8187,14 +8159,14 @@ void os_aio_print_pending_io(FILE *file) { AIO::print_to_file(file); }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
-/**
-Set the file create umask
-@param[in]      umask           The umask to use for file creation. */
-void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
-
-/** Get the file create umask
-@return the umask to use for file creation. */
-ulint os_file_get_umask() { return (os_innodb_umask); }
+#ifndef _WIN32
+void os_file_set_umask(mode_t umask) {
+  static bool was_already_set{false};
+  ut_a(!was_already_set);
+  was_already_set = true;
+  os_innodb_umask = umask;
+}
+#endif
 
 /** Check if the path is a directory. The file/directory must exist.
 @param[in]      path            The path to check

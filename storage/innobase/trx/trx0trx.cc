@@ -1,17 +1,18 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -272,6 +273,9 @@ struct TrxFactory {
 
     trx->dict_operation_lock_mode = 0;
 
+    ut_a(trx->in_innodb == 0);
+    ut_a(trx->in_depth == 0);
+
     trx->xid = ut::new_withkey<xid_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     trx->detailed_error = reinterpret_cast<char *>(
@@ -508,11 +512,12 @@ static void trx_free(trx_t *&trx) {
 
   ut_ad(trx->read_view == nullptr);
   ut_ad(trx->is_dd_trx == false);
+  ut_ad(trx->in_depth == 0);
 
   /* trx locking state should have been reset before returning trx
   to pool */
   ut_ad(trx->will_lock == 0);
-
+  trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
   trx_pools->mem_free(trx);
 
   trx = nullptr;
@@ -629,6 +634,7 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
   trx->will_lock = 0;
 
+  trx_validate_state_before_free(trx);
   trx_free(trx);
 }
 
@@ -782,6 +788,8 @@ void trx_resurrect_locks(bool all) {
       continue;
     }
 
+    const bool is_prepared = trx_state_eq(trx, TRX_STATE_PREPARED);
+
     const table_id_set &tables = element.second;
 
     for (auto table_id : tables) {
@@ -801,17 +809,13 @@ void trx_resurrect_locks(bool all) {
         continue;
       }
 
-      bool is_XA = false;
-
-      if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
-          !dict_table_is_sdi(table->id)) {
+      if (is_prepared && !dict_table_is_sdi(table->id)) {
         trx->mod_tables.insert(table);
-        is_XA = true;
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
       /* We don't rollback DDL or XA prepared transaction in background */
-      if (!all || is_XA) {
+      if (trx->ddl_operation || is_prepared) {
         lock_table_ix_resurrect(table, trx);
         ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
                  table->name.m_name);

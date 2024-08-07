@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,6 +25,7 @@
 
 #include <gmock/gmock.h>
 
+#include "config_builder.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -463,6 +465,30 @@ INSTANTIATE_TEST_SUITE_P(
             config_sections_t{
                 {keepalive_section(),
                  default_section({{"unknown_config_option", "Warning 4"}})}}}));
+
+TEST_F(RouterConfigTest, RoutingOptionDisabledUnsupported) {
+  const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:test", {{"bind_port", "6064"},
+                       {"destinations", "127.0.0.1:3060"},
+                       {"routing_strategy", "round-robin"},
+                       {"disabled", "1"}});
+
+  TempDirectory conf_dir("conf");
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir.name());
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), mdc_section, &default_section);
+
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_TRUE(wait_log_contains(router,
+                                "main ERROR .* Error: option "
+                                "'routing.disabled' is not supported",
+                                2s));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

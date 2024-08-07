@@ -1,18 +1,19 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+Copyright (c) 1994, 2024, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -3300,6 +3301,25 @@ retry:
 #endif /* UNIV_BTR_DEBUG */
       goto err_exit;
     }
+
+    /* When persistent cursor is used to scan over index in backwards
+    direction it stops on infimum record of its current page and releases
+    all latches it has, before switching from the cursor's current page to
+    the previous one. At this point merge from the previous page to cursor's
+    current one might happen. During this merge records from the previous
+    page will be moved over cursor position/infimum record which is used
+    used to continue iteration in optimistic case, making moved records
+    invisible to the scan.
+    We force such cursor to use pessimistic approach of restoring its
+    position/continuing iteration, which is not affected by this problem
+    (as it relies on looking up user record which was visited by cursor
+    right before the infimum) by incrementing modification clock for page
+    being merged into.
+    The forward iteration seems to be unaffected by this problem as it
+    doesn't release latch on the current page before it acquires latch on
+    the next one when cursor switches pages. So merge from the next page
+    to the current one stays blocked. */
+    buf_block_modify_clock_inc(merge_block);
 
     btr_search_drop_page_hash_index(block);
 

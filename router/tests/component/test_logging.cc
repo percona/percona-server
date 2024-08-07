@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -859,7 +860,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* filelog_expected_level =  */ LogLevel::kSystem)),
     [](auto const &info) { return info.param.test_name; });
 
-#ifndef WIN32
+#ifndef _WIN32
 INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestUnix, RouterLoggingTestConfig,
     ::testing::Values(
@@ -2577,7 +2578,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #define NOT_USED ""
 
-#ifndef WIN32
+#ifndef _WIN32
 #define NULL_DEVICE_NAME "/dev/null"
 #define STDOUT_DEVICE_NAME "/dev/stdout"
 #define STDERR_DEVICE_NAME "/dev/stderr"
@@ -2605,7 +2606,7 @@ TEST_P(RouterLoggingTestConfigFilenameDevices,
       (test_params.filename.compare(NULL_DEVICE_NAME) == 0 ? true : false);
 
   Path destination(test_params.filename);
-#ifndef WIN32
+#ifndef _WIN32
   EXPECT_TRUE(destination.exists());
 #endif
 
@@ -2645,7 +2646,7 @@ TEST_P(RouterLoggingTestConfigFilenameDevices,
   shouldnotexist = Path("/dev").join(DEFAULT_LOGFILE_NAME);
   EXPECT_FALSE(shouldnotexist.exists());
 
-#ifndef WIN32
+#ifndef _WIN32
   EXPECT_TRUE(destination.exists());
 #endif
 }
@@ -2661,7 +2662,7 @@ INSTANTIATE_TEST_SUITE_P(
         /*1*/
         LoggingConfigFilenameOkParams(NOT_USED, STDOUT_DEVICE_NAME, false)));
 
-#ifndef WIN32
+#ifndef _WIN32
 INSTANTIATE_TEST_SUITE_P(
     LoggingTestConsoleDestinationDevicesUnix,
     RouterLoggingTestConfigFilenameDevices,
@@ -2987,7 +2988,7 @@ class TempRelativeDirectory {
  private:
   std::string name_;
 
-#ifndef WIN32
+#ifndef _WIN32
   // mysql_harness::get_tmp_dir() returns a relative path on these platforms
   std::string get_tmp_dir_(const std::string &name) {
     return mysql_harness::get_tmp_dir(name);
@@ -3226,7 +3227,7 @@ TEST_F(RouterLoggingTest, log_console_non_existing_destination) {
   EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::IsEmpty()));
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 /** @test This test verifies that filename may be set to /dev/null the ugly way
  */
 TEST_F(RouterLoggingTest, log_filename_dev_null_ugly) {

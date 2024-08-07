@@ -1,15 +1,16 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -2888,17 +2889,16 @@ class List_process_list : public Do_THD_Impl {
       const bool is_utility_user = acl_is_utility_user(
           inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
 
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-
-        if ((!(inspect_thd->get_protocol() &&
-               inspect_thd->get_protocol()->connection_alive()) &&
-             !inspect_thd->system_thread) ||
-            (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                        strcmp(inspect_sctx_user.str, m_user))) ||
-            is_utility_user) {
-          return;
-        }
+      /*
+        Since we only access a cached value of connection_alive, which is
+        also an atomic, we do not need to lock LOCK_thd_protocol here. We
+        may get a value that is slightly outdated, but we will not get a crash
+        due to reading invalid memory at least.
+      */
+      if (!inspect_thd->is_connected(true) ||
+          (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+           strcmp(inspect_sctx_user.str, m_user))) || is_utility_user) {
+        return;
       }
 
       thd_info = new (m_client_thd->mem_root) thread_info;
@@ -3171,14 +3171,16 @@ class Fill_process_list : public Do_THD_Impl {
               : client_priv_user;
       now_utime = my_micro_time();
 
-      {
-        MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
-        if ((!inspect_thd->get_protocol()->connection_alive() &&
-             !inspect_thd->system_thread) ||
-            (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, user))) ||
-            is_utility_user)
-          return;
+      /*
+        Since we only access a cached value of connection_alive, which is
+        also an atomic, we do not need to lock LOCK_thd_protocol here. We
+        may get a value that is slightly outdated, but we will not get a crash
+        due to reading invalid memory at least.
+      */
+      if (!inspect_thd->is_connected(true) ||
+          (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
+           strcmp(inspect_sctx_user.str, user))) || is_utility_user) {
+        return;
       }
 
       DBUG_EXECUTE_IF(
@@ -6013,7 +6015,7 @@ int finalize_schema_table(st_plugin_int *plugin) {
   if (schema_table) {
     if (plugin->plugin->deinit) {
       DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-      if (plugin->plugin->deinit(nullptr)) {
+      if (plugin->plugin->deinit(plugin)) {
         DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                                plugin->name.str));
       }

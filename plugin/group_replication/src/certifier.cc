@@ -1,15 +1,16 @@
-/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -300,16 +301,19 @@ Certifier::Certifier()
 }
 
 Certifier::~Certifier() {
+  mysql_mutex_lock(&LOCK_certification_info);
+  initialized = false;
   clear_certification_info();
   delete certification_info_sid_map;
 
   delete stable_gtid_set;
   delete stable_sid_map;
   delete stable_gtid_set_lock;
-  delete broadcast_thread;
   delete group_gtid_executed;
   delete group_gtid_extracted;
   delete group_gtid_sid_map;
+  mysql_mutex_unlock(&LOCK_certification_info);
+  delete broadcast_thread;
 
   mysql_mutex_lock(&LOCK_members);
   clear_members();
@@ -566,6 +570,7 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
 }
 
 void Certifier::clear_certification_info() {
+  mysql_mutex_assert_owner(&LOCK_certification_info);
   for (Certification_info::iterator it = certification_info.begin();
        it != certification_info.end(); ++it) {
     // We can only delete the last reference.
@@ -926,6 +931,10 @@ end:
 int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle) {
   DBUG_TRACE;
 
+  if (!is_initialized()) {
+    return 1;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   rpl_sidno sidno = gle->get_sidno(group_gtid_sid_map);
 
@@ -951,6 +960,11 @@ int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle) {
 
 int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno) {
   DBUG_TRACE;
+
+  if (!is_initialized()) {
+    return 1;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, gno);
   mysql_mutex_unlock(&LOCK_certification_info);
@@ -1159,6 +1173,10 @@ int Certifier::get_group_stable_transactions_set_string(char **buffer,
   DBUG_TRACE;
   int error = 1;
 
+  if (!is_initialized()) {
+    return 1;
+  }
+
   /*
     Stable transactions set may not be accurate during recovery,
     thence we do not externalize it on
@@ -1208,6 +1226,11 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set *executed_gtid_set) {
 
 void Certifier::garbage_collect() {
   DBUG_TRACE;
+
+  if (!is_initialized()) {
+    return;
+  }
+
   /*
     This debug option works together with
     `group_replication_certifier_broadcast_thread_big_period`
@@ -1533,6 +1556,11 @@ int Certifier::stable_set_handle() {
 
 void Certifier::handle_view_change() {
   DBUG_TRACE;
+
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_members);
   clear_incoming();
   clear_members();
@@ -1542,6 +1570,11 @@ void Certifier::handle_view_change() {
 void Certifier::get_certification_info(
     std::map<std::string, std::string> *cert_info) {
   DBUG_TRACE;
+
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
 
   for (Certification_info::iterator it = certification_info.begin();
@@ -1573,6 +1606,10 @@ void Certifier::get_certification_info(
 Gtid Certifier::generate_view_change_group_gtid() {
   DBUG_TRACE;
 
+  if (!is_initialized()) {
+    return {-1, -1};
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   rpl_gno result =
       get_next_available_gtid(nullptr, views_sidno_group_representation);
@@ -1592,6 +1629,10 @@ int Certifier::set_certification_info(
     std::map<std::string, std::string> *cert_info) {
   DBUG_TRACE;
   assert(cert_info != nullptr);
+
+  if (!is_initialized()) {
+    return 1;
+  }
 
   if (cert_info->size() == 1) {
     std::map<std::string, std::string>::iterator it =
@@ -1723,6 +1764,10 @@ void Certifier::get_last_conflict_free_transaction(std::string *value) {
   int length = 0;
   char buffer[Gtid::MAX_TEXT_LENGTH + 1];
 
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   if (last_conflict_free_transaction.is_empty()) goto end;
 
@@ -1736,6 +1781,10 @@ end:
 void Certifier::enable_conflict_detection() {
   DBUG_TRACE;
 
+  if (!is_initialized()) {
+    return;
+  }
+
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable = true;
   local_member_info->enable_conflict_detection();
@@ -1745,6 +1794,10 @@ void Certifier::enable_conflict_detection() {
 void Certifier::disable_conflict_detection() {
   DBUG_TRACE;
   assert(local_member_info->in_primary_mode());
+
+  if (!is_initialized()) {
+    return;
+  }
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable = false;
@@ -1756,6 +1809,10 @@ void Certifier::disable_conflict_detection() {
 
 bool Certifier::is_conflict_detection_enable() {
   DBUG_TRACE;
+
+  if (!is_initialized()) {
+    return false;
+  }
 
   mysql_mutex_lock(&LOCK_certification_info);
   bool result = conflict_detection_enable;

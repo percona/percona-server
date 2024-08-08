@@ -2537,6 +2537,7 @@ int log_vmessage(int log_type [[maybe_unused]], va_list fili) {
 
   ll.count = 0;
   ll.seen = 0;
+  ll.flags = 0;
 
   do {
     dedup = false;

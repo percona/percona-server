@@ -1,0 +1,3 @@
+--source include/have_rocksdb.inc
+--let $i_s_plugin=rocksdb_bulk_load_history
+--source suite/rocksdb/include/i_s_basic.inc

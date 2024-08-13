@@ -1124,7 +1124,7 @@ unsigned long long get_partial_index_sort_max_mem(THD *thd);
 
 Rdb_transaction *get_tx_from_thd(THD *const thd);
 
-const rocksdb::ReadOptions &rdb_tx_acquire_snapshot(Rdb_transaction *tx);
+void rdb_tx_acquire_snapshot(Rdb_transaction &tx);
 
 rocksdb::Iterator *rdb_tx_get_iterator(
     THD *thd, rocksdb::ColumnFamilyHandle *const cf, bool skip_bloom_filter,

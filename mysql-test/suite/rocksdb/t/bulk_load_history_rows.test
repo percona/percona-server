@@ -1,0 +1,71 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # ROCKSDB_BULK_LOAD_HISTORY lists sessions in the order they started,
+--echo # and COMPLETED_TIME is NULL until a session completes.
+--echo #
+
+SET @saved_history_size = @@global.rocksdb_bulk_load_history_size;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 30;
+
+SELECT IS_NULLABLE FROM information_schema.columns
+  WHERE TABLE_NAME = 'ROCKSDB_BULK_LOAD_HISTORY'
+  AND COLUMN_NAME = 'COMPLETED_TIME';
+
+--echo # Session ids reach two digits
+--disable_query_log
+--let $i = 0
+while ($i < 12)
+{
+  eval CREATE TABLE tt$i (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+  eval DROP TABLE tt$i;
+  --inc $i
+}
+--enable_query_log
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET SESSION rocksdb_bulk_load = 1;
+INSERT INTO t1 VALUES (1);
+
+--echo # An active session after completed ones
+SELECT TYPE, STATUS, TABLES, COMPLETED_TIME IS NULL AS not_completed
+  FROM information_schema.rocksdb_bulk_load_history
+  ORDER BY CREATED_TIME DESC, SESSION_ID DESC LIMIT 1;
+SET SESSION rocksdb_bulk_load = 0;
+
+--echo # Rows are listed in start order: the bulk load is the last row
+SELECT COUNT(*) AS sessions FROM information_schema.rocksdb_bulk_load_history;
+--disable_query_log
+CREATE TABLE h (n INT AUTO_INCREMENT PRIMARY KEY, id VARCHAR(128),
+                          type VARCHAR(64)) ENGINE=InnoDB;
+INSERT INTO h (id, type)
+  SELECT SESSION_ID, TYPE FROM information_schema.rocksdb_bulk_load_history;
+--enable_query_log
+SELECT type, CAST(SUBSTRING(id, 5) AS UNSIGNED) > 10 AS two_digit_id
+  FROM h WHERE n = (SELECT MAX(n) FROM h);
+SELECT COUNT(*) AS out_of_order FROM h a JOIN h b
+  ON a.n < b.n
+  AND CAST(SUBSTRING(a.id, 5) AS UNSIGNED) > CAST(SUBSTRING(b.id, 5) AS UNSIGNED);
+SELECT COUNT(*) AS completed_without_time FROM information_schema.rocksdb_bulk_load_history
+  WHERE STATUS <> 'ACTIVE' AND COMPLETED_TIME IS NULL;
+DROP TABLE h;
+
+--echo # An active session before completed ones
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 30;
+SET SESSION rocksdb_bulk_load = 1;
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+connect (con1,localhost,root,,);
+DROP TABLE t2;
+disconnect con1;
+connection default;
+SELECT TYPE, STATUS, COMPLETED_TIME IS NULL AS not_completed
+  FROM information_schema.rocksdb_bulk_load_history;
+SET SESSION rocksdb_bulk_load = 0;
+SELECT TYPE, STATUS, COMPLETED_TIME IS NULL AS not_completed
+  FROM information_schema.rocksdb_bulk_load_history;
+
+DROP TABLE t1;
+SET GLOBAL rocksdb_bulk_load_history_size = @saved_history_size;

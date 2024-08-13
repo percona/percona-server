@@ -576,27 +576,20 @@ fts_index_fetch_nodes(
 }
 
 /**********************************************************************//**
-Read a word */
+Extract a given number of bytes into a buffer */
 static
-byte*
-fts_zip_read_word(
+bool
+fts_zip_extract_bytes(
 /*==============*/
 	fts_zip_t*	zip,		/*!< in: Zip state + data */
-	fts_string_t*	word)		/*!< out: uncompressed word */
+	byte *buf,				/*!< out: buffer to be filled */
+	unsigned int size) 		/*!< in: size of buffer */
 {
-	short		len = 0;
+	bool complete = false;
+	zip->zp->next_out = buf;
+	zip->zp->avail_out = size;
 	void*		null = NULL;
-	byte*		ptr = word->f_str;
 	int		flush = Z_NO_FLUSH;
-	bool		read_something = FALSE;
-
-	/* Either there was an error or we are at the Z_STREAM_END. */
-	if (zip->status != Z_OK) {
-		return(NULL);
-	}
-
-	zip->zp->next_out = reinterpret_cast<byte*>(&len);
-	zip->zp->avail_out = sizeof(len);
 
 	while (zip->status == Z_OK && zip->zp->avail_out > 0) {
 
@@ -636,23 +629,26 @@ fts_zip_read_word(
 
 		switch (zip->status = inflate(zip->zp, flush)) {
 		case Z_OK:
-			if (zip->zp->avail_out == 0 && len > 0) {
-
-				ut_a(len <= FTS_MAX_WORD_LEN);
-				ptr[len] = 0;
-
-				zip->zp->next_out = ptr;
-				zip->zp->avail_out = len;
-
-				word->f_len = len;
-				len = 0;
-				read_something = TRUE;
+			if (zip->zp->avail_out == 0) {
+				complete = true;
 			}
 			break;
 
-		case Z_BUF_ERROR:	/* No progress possible. */
 		case Z_STREAM_END:
+			if (zip->zp->avail_out == 0) {
+				complete = true;
+			}
+
+			/* Fallthrough */
+		case Z_BUF_ERROR:	/* No progress possible. */
 			inflateEnd(zip->zp);
+			/* All blocks must be freed at end of inflate. */
+			for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
+				if (ib_vector_getp(zip->blocks, i)) {
+					ut_free(ib_vector_getp(zip->blocks, i));
+					ib_vector_set(zip->blocks, i, &null);
+				}
+			}
 			break;
 
 		case Z_STREAM_ERROR:
@@ -661,22 +657,42 @@ fts_zip_read_word(
 		}
 	}
 
-	/* All blocks must be freed at end of inflate. */
+	return complete;
+}
+
+/**********************************************************************//**
+Read a word */
+static
+bool
+fts_zip_read_word(
+/*==============*/
+	fts_zip_t*	zip,			/*!< in: Zip state + data */
+	fts_string_t*	word)		/*!< out: uncompressed word */
+{
+	/* Either there was an error or we are at the Z_STREAM_END. */
 	if (zip->status != Z_OK) {
-		for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
-			if (ib_vector_getp(zip->blocks, i)) {
-				ut_free(ib_vector_getp(zip->blocks, i));
-				ib_vector_set(zip->blocks, i, &null);
-			}
-		}
+		return false;
 	}
 
-	if (ptr != NULL) {
-		ut_ad(word->f_len == strlen((char*) ptr));
+	ushort len = 0;
+
+	const bool have_len =
+		fts_zip_extract_bytes(zip, reinterpret_cast<byte *>(&len), sizeof(len));
+
+	if (!have_len) {
+		return false;
 	}
 
-	return((zip->status == Z_OK || zip->status == Z_STREAM_END) && read_something)
-		 ? ptr : NULL;
+	ut_a(len <= FTS_MAX_WORD_LEN);
+
+	word->f_len = len;
+	const bool have_word = fts_zip_extract_bytes(zip, word->f_str, len);
+	ut_ad(have_word);
+
+	word->f_str[len] = 0;
+	ut_ad(word->f_len == strlen((char *)word->f_str));
+
+	return have_word;
 }
 
 /**********************************************************************//**

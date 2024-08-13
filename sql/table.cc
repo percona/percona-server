@@ -973,7 +973,8 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   if (field->key_length() == key_part->length &&
       !(field->flags & BLOB_FLAG))
   {
-    if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY)
+    if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
+        !(keyinfo->flags & HA_SPATIAL))
     {
       share->keys_for_keyread.set_bit(key_n);
       field->part_of_key.set_bit(key_n);

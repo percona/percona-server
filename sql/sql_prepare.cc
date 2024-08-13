@@ -230,8 +230,7 @@ private:
 ******************************************************************************/
 
 /**
-  Rewrite the current query (to obfuscate passwords etc.) if needed
-  (i.e. only if we'll be writing the query to any of our logs).
+  Rewrite the current query (to obfuscate passwords etc.)
 
   Side-effect: thd->rewritten_query() may be populated with a rewritten
                query.  If the query is not of a rewritable type,
@@ -239,25 +238,19 @@ private:
 
   @param thd                thread handle
 */
-static inline void rewrite_query_if_needed(THD *thd)
+static inline void rewrite_query(THD *thd)
 {
-  bool general= (opt_general_log &&
-                 !(opt_general_log_raw || thd->slave_thread));
-
-  if ((thd->sp_runtime_ctx == NULL) &&
-      (general || opt_slow_log || opt_bin_log)) {
-    /*
-      thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
-      at this point, so we reset it here so mysql_rewrite_query()
-      won't complain.
-    */
-    thd->reset_rewritten_query();
-    /*
-      Now replace the "PREPARE ..." with the obfuscated version of the
-      actual query were prepare.
-    */
-    mysql_rewrite_query(thd);
-  }
+  /*
+    thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
+    at this point, so we reset it here so mysql_rewrite_query()
+    won't complain.
+  */
+  thd->reset_rewritten_query();
+  /*
+    Now replace the "PREPARE ..." with the obfuscated version of the
+    actual query were prepare.
+  */
+  mysql_rewrite_query(thd);
 }
 
 /**
@@ -3048,11 +3041,11 @@ Execute_sql_statement::execute_server_code(THD *thd)
   thd->m_statement_psi= NULL;
 
   /*
-    Rewrite first (if needed); execution might replace passwords
+    Rewrite first, execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
-  rewrite_query_if_needed(thd);
+  rewrite_query(thd);
   log_execute_line(thd);
 
   error= mysql_execute_command(thd) ;
@@ -3408,7 +3401,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   lex_end(lex);
 
-  rewrite_query_if_needed(thd);
+  rewrite_query(thd);
 
   if (thd->rewritten_query().length())
   {
@@ -4006,8 +3999,25 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
           with hashes in situ without flagging it, and then we'd make
           a hash of that hash.
         */
-        rewrite_query_if_needed(thd);
+        rewrite_query(thd);
         log_execute_line(thd);
+
+        const char *display_query_string;
+        int display_query_length;
+
+        if (thd->rewritten_query().length())
+        {
+          display_query_string = thd->rewritten_query().ptr();
+          display_query_length = thd->rewritten_query().length();
+        }
+        else
+        {
+          display_query_string = thd->query().str;
+          display_query_length = thd->query().length;
+        }
+
+        mysql_thread_set_info(display_query_string, display_query_length);
+
         thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
         error= mysql_execute_command(thd, true);
         MYSQL_QUERY_EXEC_DONE(error);

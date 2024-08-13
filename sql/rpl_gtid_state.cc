@@ -1021,8 +1021,6 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
   */
   if (opt_bin_log)
   {
-    // Needed before is_binlog_cache_empty.
-    thd->binlog_setup_trx_data();
     if (!thd->is_binlog_cache_empty(true))
     {
       *more_trx= true;

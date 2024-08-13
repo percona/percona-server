@@ -1329,6 +1329,15 @@ static inline void mysql_thread_set_peer_port(uint port MY_ATTRIBUTE ((unused)))
 
 #endif
 
+static inline void mysql_thread_set_info(
+  const char *str MY_ATTRIBUTE ((unused)),
+  int len MY_ATTRIBUTE ((unused)))
+{
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_info)(str, len);
+#endif
+}
+
 #endif /* DISABLE_MYSQL_THREAD_H */
 
 /** @} (end of group Thread_instrumentation) */

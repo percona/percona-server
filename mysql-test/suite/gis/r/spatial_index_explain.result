@@ -1,0 +1,13 @@
+CREATE TABLE `tab` (
+`id` INT AUTO_INCREMENT NOT NULL,
+`shape` GEOMETRY NOT NULL /*!80003 SRID 0 */,
+PRIMARY KEY (`id`),
+SPATIAL KEY (`shape`)
+) ENGINE=InnoDB;
+INSERT INTO tab VALUES (2, POINT(1,100));
+EXPLAIN SELECT id FROM tab FORCE INDEX (shape);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tab	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tab`.`id` AS `id` from `test`.`tab` FORCE INDEX (`shape`)
+DROP TABLE tab;

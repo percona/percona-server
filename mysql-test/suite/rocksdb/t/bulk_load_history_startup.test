@@ -1,0 +1,23 @@
+--source include/have_rocksdb.inc
+SELECT @@global.rocksdb_bulk_load_history_size;
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+
+--let $restart_parameters = restart: --rocksdb-bulk-load-history-size=2
+--source include/restart_mysqld.inc
+SELECT @@global.rocksdb_bulk_load_history_size;
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (1);
+SET rocksdb_bulk_load=OFF;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (2);
+SET rocksdb_bulk_load=OFF;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (3);
+SET rocksdb_bulk_load=OFF;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+SET GLOBAL rocksdb_bulk_load_history_size=0;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+DROP TABLE t;

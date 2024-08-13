@@ -1,0 +1,61 @@
+#
+# ROCKSDB_BULK_LOAD_HISTORY lists sessions in the order they started,
+# and COMPLETED_TIME is NULL until a session completes.
+#
+SET @saved_history_size = @@global.rocksdb_bulk_load_history_size;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 30;
+SELECT IS_NULLABLE FROM information_schema.columns
+WHERE TABLE_NAME = 'ROCKSDB_BULK_LOAD_HISTORY'
+  AND COLUMN_NAME = 'COMPLETED_TIME';
+IS_NULLABLE
+YES
+# Session ids reach two digits
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET SESSION rocksdb_bulk_load = 1;
+INSERT INTO t1 VALUES (1);
+# An active session after completed ones
+SELECT TYPE, STATUS, TABLES, COMPLETED_TIME IS NULL AS not_completed
+FROM information_schema.rocksdb_bulk_load_history
+ORDER BY CREATED_TIME DESC, SESSION_ID DESC LIMIT 1;
+TYPE	STATUS	TABLES	not_completed
+SST_FILE_WRITER	ACTIVE	test.t1	1
+SET SESSION rocksdb_bulk_load = 0;
+# Rows are listed in start order: the bulk load is the last row
+SELECT COUNT(*) AS sessions FROM information_schema.rocksdb_bulk_load_history;
+sessions
+13
+SELECT type, CAST(SUBSTRING(id, 5) AS UNSIGNED) > 10 AS two_digit_id
+FROM h WHERE n = (SELECT MAX(n) FROM h);
+type	two_digit_id
+SST_FILE_WRITER	1
+SELECT COUNT(*) AS out_of_order FROM h a JOIN h b
+ON a.n < b.n
+AND CAST(SUBSTRING(a.id, 5) AS UNSIGNED) > CAST(SUBSTRING(b.id, 5) AS UNSIGNED);
+out_of_order
+0
+SELECT COUNT(*) AS completed_without_time FROM information_schema.rocksdb_bulk_load_history
+WHERE STATUS <> 'ACTIVE' AND COMPLETED_TIME IS NULL;
+completed_without_time
+0
+DROP TABLE h;
+# An active session before completed ones
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 30;
+SET SESSION rocksdb_bulk_load = 1;
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t2;
+SELECT TYPE, STATUS, COMPLETED_TIME IS NULL AS not_completed
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	not_completed
+SST_FILE_WRITER	ACTIVE	1
+DDL	COMPLETED	0
+SET SESSION rocksdb_bulk_load = 0;
+SELECT TYPE, STATUS, COMPLETED_TIME IS NULL AS not_completed
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	not_completed
+SST_FILE_WRITER	COMPLETED	0
+DDL	COMPLETED	0
+DROP TABLE t1;
+SET GLOBAL rocksdb_bulk_load_history_size = @saved_history_size;

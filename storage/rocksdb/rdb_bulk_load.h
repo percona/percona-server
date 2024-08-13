@@ -23,8 +23,10 @@
 
 namespace myrocks {
 
-void rdb_bulk_load_init();
+void rdb_bulk_load_init(uint history_size);
 void rdb_bulk_load_deinit();
+constexpr uint RDB_BULK_LOAD_HISTORY_DEFAULT_SIZE = 10;
+void rdb_set_bulk_load_history_size(uint size);
 
 enum class Rdb_bulk_load_status { NONE, ACTIVE, COMPLETED, FAILED, ABORTED };
 enum class Rdb_bulk_load_type {
@@ -37,6 +39,9 @@ enum class Rdb_bulk_load_type {
   // using the sst file writer to write the data.
   SST_FILE_WRITER
 };
+
+std::string_view rdb_bulk_load_status_to_string(Rdb_bulk_load_status status);
+std::string_view rdb_bulk_load_type_to_string(Rdb_bulk_load_type type);
 
 class Rdb_bulk_load_worker {
  public:
@@ -89,10 +94,11 @@ class Rdb_bulk_load_session {
     m_workers.begin()->second.set_curr_table(table_name);
   }
 
-  void complete(Rdb_bulk_load_status status, int rtn_code) {
+  void complete(Rdb_bulk_load_status status, int rtn_code, uint num_sst_files) {
     m_workers.begin()->second.complete(status, rtn_code);
     m_rtn_code = rtn_code;
     m_status = status;
+    m_num_sst_files = num_sst_files;
     m_completed_micro = my_micro_time();
   }
 
@@ -100,7 +106,11 @@ class Rdb_bulk_load_session {
 
   Rdb_bulk_load_type type() const { return m_type; }
 
+  int rtn_code() const { return m_rtn_code; }
+
   Rdb_bulk_load_status status() const { return m_status; }
+
+  uint num_sst_files() const { return m_num_sst_files; }
 
   std::uint64_t created_micro() const { return m_created_micro; }
 
@@ -109,6 +119,13 @@ class Rdb_bulk_load_session {
   const std::set<std::string> &tables() const { return m_tables; }
 
   bool is_table_active(const std::string &table_name) const {
+    if (m_type == Rdb_bulk_load_type::DDL) {
+      // for ddl, the 'active' table might be the temp table
+      // created for copying, so we need to check if the table
+      // appears in the full list of tables.
+      return m_status == Rdb_bulk_load_status::ACTIVE &&
+             m_tables.find(table_name) != m_tables.end();
+    }
     return std::any_of(m_workers.cbegin(), m_workers.cend(), [&](auto &entry) {
       return entry.second.is_table_active(table_name);
     });
@@ -122,9 +139,12 @@ class Rdb_bulk_load_session {
   int m_rtn_code = 0;
   Rdb_bulk_load_status m_status = Rdb_bulk_load_status::NONE;
   std::set<std::string> m_tables;
+  uint m_num_sst_files = 0;
   std::uint64_t m_created_micro = 0;
   std::uint64_t m_completed_micro = 0;
 };
+
+std::vector<Rdb_bulk_load_session> rdb_dump_bulk_load_sessions();
 
 /**
   holds state of bulk load for the current thread.
@@ -202,6 +222,8 @@ class Rdb_bulk_load_context {
 
   bool active() const { return m_active; }
 
+  void increment_num_commited_sst_files(uint count);
+
  private:
   THD *m_thd;
   bool m_active = false;
@@ -211,6 +233,7 @@ class Rdb_bulk_load_context {
   std::map<GL_INDEX_ID, std::unique_ptr<Rdb_sst_info>> m_curr_bulk_load;
   std::string m_curr_table_name;
   std::string m_curr_db_name;
+  uint m_num_commited_sst_files = 0;
 
   /* External merge sorts for bulk load: key ID -> merge sort instance */
   std::map<GL_INDEX_ID, Rdb_index_merge> m_key_merge;

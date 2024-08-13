@@ -778,6 +778,7 @@ static int32_t rocksdb_table_stats_background_thread_nice_value =
     THREAD_PRIO_MAX;
 static unsigned long long rocksdb_table_stats_max_num_rows_scanned = 0ul;
 static bool rocksdb_enable_bulk_load_api = true;
+static uint rocksdb_bulk_load_history_size = RDB_BULK_LOAD_HISTORY_DEFAULT_SIZE;
 static bool rocksdb_enable_remove_orphaned_dropped_cfs = true;
 static bool rpl_skip_tx_api_var = false;
 static bool rocksdb_enable_udt_in_mem = false;
@@ -1197,6 +1198,14 @@ static int rocksdb_validate_protection_bytes_per_key(
   return HA_EXIT_SUCCESS;
 }
 
+static void rocksdb_set_bulk_load_history_size(
+    THD *thd MY_ATTRIBUTE((unused)), struct SYS_VAR *var MY_ATTRIBUTE((unused)),
+    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+  const uint32_t new_val = *static_cast<const uint32_t *>(save);
+  rocksdb_bulk_load_history_size = new_val;
+  rdb_set_bulk_load_history_size(new_val);
+}
+
 static int rocksdb_compact_column_family(THD *const thd,
                                          struct SYS_VAR *const var,
                                          void *const var_ptr,
@@ -1497,6 +1506,13 @@ static MYSQL_THDVAR_BOOL(
     bulk_load_partial_index, PLUGIN_VAR_RQCMDARG,
     "Materialize partial index during bulk load, instead of leaving it empty.",
     nullptr, nullptr, true);
+
+static MYSQL_SYSVAR_UINT(
+    bulk_load_history_size, rocksdb_bulk_load_history_size, PLUGIN_VAR_RQCMDARG,
+    "the number of completed bulk load sessions to be kept", nullptr,
+    rocksdb_set_bulk_load_history_size,
+    RDB_BULK_LOAD_HISTORY_DEFAULT_SIZE /* default value */, 0 /* min value */,
+    1024 /* max value */, 0);
 
 static MYSQL_THDVAR_ULONGLONG(
     merge_buf_size, PLUGIN_VAR_RQCMDARG,
@@ -2727,6 +2743,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(bulk_load_use_sst_partitioner),
     MYSQL_SYSVAR(bulk_load_enable_unique_key_check),
     MYSQL_SYSVAR(bulk_load_compression_parallel_threads),
+    MYSQL_SYSVAR(bulk_load_history_size),
     MYSQL_SYSVAR(trace_sst_api),
     MYSQL_SYSVAR(commit_in_the_middle),
     MYSQL_SYSVAR(blind_delete_primary_key),
@@ -3599,7 +3616,7 @@ class Rdb_transaction {
   /* Finish bulk loading for all table handlers belongs to one connection */
   int commit_bulk_load(bool *is_critical_error = nullptr,
                        bool print_client_error = true,
-                       TABLE *table_arg = nullptr) {
+                       TABLE *table_arg = nullptr, uint *dup_keyno = nullptr) {
     auto ctx = get_bulk_load_ctx();
     if (ctx->num_bulk_load() == 0) {
       if (is_critical_error) {
@@ -3888,6 +3905,9 @@ class Rdb_transaction {
               if (is_critical_error) {
                 *is_critical_error = false;
               }
+              if (dup_keyno) {
+                *dup_keyno = keydef->get_keyno();
+              }
 
               if (THDVAR(m_thd, bulk_load_enable_unique_key_check)) {
                 my_printf_error(
@@ -3895,7 +3915,9 @@ class Rdb_transaction {
                     "Duplicate entry found for key name: %s, key:%s", MYF(0),
                     keydef->get_name().c_str(),
                     sk_info.sk_memcmp_key.ToString(true).c_str());
-                *is_critical_error = true;
+                if (is_critical_error) {
+                  *is_critical_error = true;
+                }
               }
               break;
             }
@@ -4007,6 +4029,8 @@ class Rdb_transaction {
           dump_ingest_external_file_options((*args.cbegin()).options).c_str());
 
       return HA_ERR_ROCKSDB_BULK_LOAD;
+    } else {
+      ctx->increment_num_commited_sst_files(file_count);
     }
 
     // COMMIT phase: mark everything as completed. This avoids SST file
@@ -7210,7 +7234,7 @@ static int rocksdb_init_internal(void *const p) {
   rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(max_timestamp_uint64),
                           std::numeric_limits<uint64_t>::max());
 
-  rdb_bulk_load_init();
+  rdb_bulk_load_init(rocksdb_bulk_load_history_size);
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -13253,12 +13277,12 @@ bool ha_rocksdb::check_if_incompatible_data(HA_CREATE_INFO *const info,
 }
 
 /**
-  @return
-    HA_EXIT_SUCCESS  OK
+  @return 0 on success
 */
 int ha_rocksdb::extra(enum ha_extra_function operation) {
-  DBUG_ENTER_FUNC();
-
+  DBUG_TRACE;
+  myrocks::Rdb_transaction *tx = nullptr;
+  int rtn = HA_EXIT_SUCCESS;
   switch (operation) {
     case HA_EXTRA_KEYREAD:
       m_keyread_only = true;
@@ -13285,12 +13309,32 @@ int ha_rocksdb::extra(enum ha_extra_function operation) {
       // that indicates the end of REPLACE / INSERT ON DUPLICATE KEY
       m_insert_with_update = false;
       break;
-
+    case HA_EXTRA_END_ALTER_COPY: {
+      tx = get_tx_from_thd(ha_thd());
+      // Pass the table, so that a new unique key is checked for duplicates as
+      // in an in-place ALTER, also with
+      // rocksdb_bulk_load_enable_unique_key_check off.
+      uint dup_keyno = MAX_KEY;
+      rtn = tx->commit_bulk_load(nullptr, true, table, &dup_keyno);
+      if (rtn == ER_DUP_ENTRY && !ha_thd()->is_error()) {
+        // The table is the intermediate one: name the key after the ALTERed
+        // table.
+        const Table_ref *const altered =
+            ha_thd()->lex->query_block->get_table_list();
+        print_keydup_error(
+            table,
+            dup_keyno < table->s->keys ? &table->key_info[dup_keyno] : nullptr,
+            MYF(0), altered != nullptr ? altered->table_name : nullptr);
+      }
+      DBUG_EXECUTE_IF("myrocks_end_alter_copy_failure",
+                      { rtn = HA_EXIT_FAILURE; });
+      break;
+    }
     default:
       break;
   }
 
-  DBUG_RETURN(HA_EXIT_SUCCESS);
+  return rtn;
 }
 
 /*
@@ -17700,5 +17744,5 @@ mysql_declare_plugin(rocksdb_se){
     myrocks::rdb_i_s_global_info, myrocks::rdb_i_s_ddl,
     myrocks::rdb_i_s_sst_props, myrocks::rdb_i_s_index_file_map,
     myrocks::rdb_i_s_lock_info, myrocks::rdb_i_s_trx_info,
-    myrocks::rdb_i_s_deadlock_info,
-    myrocks::rdb_i_s_live_files_metadata mysql_declare_plugin_end;
+    myrocks::rdb_i_s_deadlock_info, myrocks::rdb_i_s_live_files_metadata,
+    myrocks::rdb_i_s_bulk_load_history_config mysql_declare_plugin_end;

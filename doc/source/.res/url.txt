@@ -1,1 +1,0 @@
-.. _`Percona downloads`: http://www.percona.com/downloads/Percona-Server-8.0/

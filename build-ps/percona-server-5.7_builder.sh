@@ -77,6 +77,11 @@ parse_arguments() {
     done
 }
 
+switch_to_vault_repo() {
+    sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+    sed -i 's|#\s*baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+}
+
 check_workdir(){
     if [ "x$WORKDIR" = "x$CURDIR" ]
     then
@@ -339,6 +344,9 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
+            switch_to_vault_repo
+        fi
         if [ "${RHEL}" -lt 9 ]; then
             #add_percona_yum_repo
             yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
@@ -374,6 +382,7 @@ install_deps() {
                 fi
             elif [[ ${RHEL} = 7 ]]; then
                 yum -y install centos-release-scl
+                switch_to_vault_repo
                 yum -y install devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
                 yum -y install devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
                 source /opt/rh/devtoolset-8/enable

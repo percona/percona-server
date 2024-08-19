@@ -1,3 +1,4 @@
+--source include/not_as_root.inc
 --source include/have_rocksdb.inc
 
 select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";

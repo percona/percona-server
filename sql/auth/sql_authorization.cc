@@ -2931,6 +2931,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
     max_length--;                               // Reserve place for end-zero
     for (pos=0 ; access ; pos++, access>>=1)
     {
+      if (pos >= array_elements(command_lengths)) break;
       if ((access & 1) &&
           command_lengths[pos] + (uint) (to-start) < max_length)
       {

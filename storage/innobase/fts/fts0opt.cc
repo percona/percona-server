@@ -554,7 +554,6 @@ static byte *fts_zip_read_word(
   void *null = nullptr;
   byte *ptr = word->f_str;
   int flush = Z_NO_FLUSH;
-  bool read_something = false;
 
   /* Either there was an error or we are at the Z_STREAM_END. */
   if (zip->status != Z_OK) {
@@ -605,7 +604,6 @@ static byte *fts_zip_read_word(
 
           word->f_len = len;
           len = 0;
-          read_something = true;
         }
         break;
 
@@ -634,9 +632,7 @@ static byte *fts_zip_read_word(
     ut_ad(word->f_len == strlen((char *)ptr));
   }
 
-  return ((zip->status == Z_OK || zip->status == Z_STREAM_END) && read_something
-              ? ptr
-              : nullptr);
+  return (zip->status == Z_OK || zip->status == Z_STREAM_END ? ptr : nullptr);
 }
 
 /** Callback function to fetch and compress the word in an FTS

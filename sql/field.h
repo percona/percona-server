@@ -777,6 +777,15 @@ class Field {
   LEX_CSTRING zip_dict_name;  // associated compression dictionary name
   LEX_CSTRING zip_dict_data;  // associated compression dictionary data
   /**
+    If true, it's a Create_field_wrapper (a sub-class of Field used during
+    CREATE/ALTER that we mustn't cast to other sub-classes of Field that
+    aren't on a direct path of inheritance, e.g. Field_enum).
+
+    @see Create_field_wrapper::is_wrapper_field
+  */
+  virtual bool is_wrapper_field() const { return false; }
+
+  /**
      True if this field belongs to some index (unlike part_of_key, the index
      might have only a prefix).
   */
@@ -1960,6 +1969,7 @@ class Create_field_wrapper final : public Field {
   Field *clone(MEM_ROOT *mem_root) const final {
     return new (mem_root) Create_field_wrapper(*this);
   }
+  bool is_wrapper_field() const final { return true; }
   /* purecov: end */
 };
 

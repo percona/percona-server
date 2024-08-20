@@ -12289,6 +12289,21 @@ ER_GRP_RPL_MEMBER_INFO_DOES_NOT_EXIST
 ER_USAGE_DEPRECATION_COUNTER
   eng "Deprecated '%s' used %s times, last time used '%s'."
 
+ER_WAITING_FOR_NO_CONNECTIONS
+  eng "Waiting for %u connections to be closed."
+
+ER_WAITING_FOR_NO_THDS
+  eng "Waiting for THDs in partition %u to be closed, %u still left. %u THDs left in total for all partitions."
+
+ER_IB_INDEX_PART_TOO_LONG
+  eng "Index %s of %s.%s exceeds limit of %lu bytes per column."
+
+ER_DD_UPDATE_DATADIR_FLAG_FAIL
+  eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
+
+ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

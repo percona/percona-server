@@ -231,7 +231,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   const bool check_privs = !thd->derived_tables_processing ||
                            master_query_expression()->item != nullptr;
   thd->mark_used_columns = check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
-  ulonglong want_privilege_saved = thd->want_privilege;
+  Access_bitmask want_privilege_saved = thd->want_privilege;
   thd->want_privilege = check_privs ? SELECT_ACL : 0;
 
   /*
@@ -1126,9 +1126,10 @@ static Table_ref **make_leaf_tables(Table_ref **list, Table_ref *tables) {
   @returns false if success, true if error.
 */
 
-bool Query_block::check_view_privileges(THD *thd, ulong want_privilege_first,
-                                        ulong want_privilege_next) {
-  ulong want_privilege = want_privilege_first;
+bool Query_block::check_view_privileges(THD *thd,
+                                        Access_bitmask want_privilege_first,
+                                        Access_bitmask want_privilege_next) {
+  Access_bitmask want_privilege = want_privilege_first;
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, true, leaf_tables);
 
@@ -4438,14 +4439,16 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   thd->lex->current_query_block()->group_fix_field = save_group_fix_field;
   if (ret) return true; /* Wrong field. */
 
-  order_item->increment_ref_count();
-
-  assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
-
   uint el = fields->size();
-  order_item->hidden = true;
-  fields->push_front(order_item); /* Add new field to field list. */
-  ref_item_array[el] = order_item;
+
+  if (!order_item->const_for_execution()) {
+    order_item->increment_ref_count();
+    assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
+
+    order_item->hidden = true;
+    fields->push_front(order_item); /* Add new field to field list. */
+    ref_item_array[el] = order_item;
+  }
   /*
     If the order_item is a SUM_FUNC_ITEM, when fix_fields is called
     referenced_by is set to order->item which is the address of order_item.
@@ -4464,7 +4467,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     with clean_up_after_removal() on the old order->item.
   */
   assert(order_item == *order->item);
-  order->item = &ref_item_array[el];
+  if (!order_item->const_for_execution()) {
+    order->item = &ref_item_array[el];
+  }
   return false;
 }
 

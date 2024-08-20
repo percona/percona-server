@@ -26,7 +26,7 @@ var defaults = {
   innodb_cluster_user_hosts: [],
   bootstrap_report_host_pattern: ".*",
   account_host_pattern: ".*",
-  account_user_pattern: "mysql_router1_[0-9a-z]{12}",
+  account_user_pattern: "mysql_router1_[0-9a-z]{7}",
   account_pass_pattern: ".*",
   create_user_warning_count: 0,
   create_user_show_warnings_results: [],
@@ -95,6 +95,7 @@ var defaults = {
   gr_members_all: 3,
   gr_members_recovering: 0,
   gr_members_online: 3,
+  last_insert_id: 1,
 };
 
 function ensure_type(options, field, expected_type) {
@@ -439,10 +440,10 @@ function get_response(stmt_key, options) {
     case "router_select_router_id":
       return {
         stmt_regex:
-            "SELECT router_id FROM mysql_innodb_cluster_metadata.v2_routers WHERE router_name = .*",
+            "SELECT router_id FROM mysql_innodb_cluster_metadata.v2_routers WHERE router_name = .* and address = .*",
         result: {
           columns: [{"type": "LONG", "name": "router_id"}],
-          rows: [options.router_id]
+          rows: [[options.router_id]]
         }
       };
     case "router_select_hosts_v1":
@@ -491,7 +492,7 @@ function get_response(stmt_key, options) {
     case "router_insert_into_routers":
       return {
         "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.v2_routers.*",
-        "ok": {"last_insert_id": 1}
+        "ok": {"last_insert_id": options.last_insert_id}
       };
     case "router_delete_old_accounts":
       return {

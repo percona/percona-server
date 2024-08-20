@@ -911,7 +911,7 @@ IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()
 IF(NOT WITHOUT_SERVER)
-  IF(FPROFILE_GENERATE OR FPROFILE_USE)
+  IF(FPROFILE_GENERATE)
     # Do not use data from unit testing when optimizing.
     OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" OFF)
   ELSE()
@@ -1270,6 +1270,7 @@ ENDIF()
 # You need to install the 'lld' RPM/DEB package.
 # LTO build fails with lld, so turn it off by default.
 IF(LINUX AND NOT ALTERNATIVE_LD AND
+    NOT ${CMAKE_LINKER} MATCHES "ld\.lld" AND
     NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
@@ -2075,6 +2076,12 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
+# The bundled version must be set up after all the configure stuff above.
+IF(LINUX AND WITH_TCMALLOC STREQUAL "bundled")
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/gperftools)
+  SET(MALLOC_LIBRARY "${CMAKE_BINARY_DIR}/lib/libtcmalloc.so")
+ENDIF()
+
 # Cannot use system tirpc with custom OpenSSL
 IF(WITH_SSL_PATH AND (LINUX_RHEL8 OR LINUX_RHEL9))
   SET(WITH_TIRPC "bundled")
@@ -2252,6 +2259,10 @@ ADD_SUBDIRECTORY(sql-common/oci)
 IF(NOT WITHOUT_SERVER)
   IF(WITH_UNIT_TESTS)
     IF(WIN32)
+      # static thread_local objects are not allowed in a .dll
+      SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
+    ELSEIF(APPLE AND WITH_SOME_SANITIZER)
+      # several down_cast<Json_something> will assert()
       SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
     ELSE()
       SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT ON)
@@ -2689,6 +2700,7 @@ ENDIF(DOXYGEN_FOUND)
 
 MYSQL_ADD_EXECUTABLE(stack_direction
   ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+  EXCLUDE_FROM_PGO
   SKIP_INSTALL
   )
 

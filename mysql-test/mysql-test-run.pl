@@ -177,11 +177,16 @@ my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
+<<<<<<< HEAD
 my $opt_mtr_term_args      = env_or_val(MTR_TERM => "xterm -title %title% -e");
 my $opt_lldb_cmd           = env_or_val(MTR_LLDB => "lldb");
 our $opt_junit_output      = undef;
 our $opt_junit_package     = undef;
 my $opt_fs_cleanup_hook = undef;
+||||||| 6dcee9fa4b1
+=======
+my $opt_accept_fail        = 0;
+>>>>>>> mysql-8.0.39
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -207,6 +212,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
+my $tmpdir_path_updated= 0;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -537,6 +543,11 @@ sub main {
     lock_order_prepare($bindir);
   }
 
+  if ($opt_accept_fail and not $opt_force) {
+    $opt_force = 1;
+    mtr_report("accept-test-fail turned on: enabling --force");
+  }
+
   # Collect test cases from a file and put them into '@opt_cases'.
   if ($opt_do_test_list) {
     collect_test_cases_from_list(\@opt_cases, $opt_do_test_list, \$opt_ctest);
@@ -836,6 +847,7 @@ sub main {
       if ($opt_parallel > 1) {
         set_vardir("$opt_vardir/$child_num");
         $opt_tmpdir = "$opt_tmpdir/$child_num";
+        $tmpdir_path_updated = 1;
       }
 
       init_timers();
@@ -1009,7 +1021,13 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
+<<<<<<< HEAD
   report_stats("Completed", $completed);
+||||||| 6dcee9fa4b1
+  mtr_report_stats("Completed", $completed);
+=======
+  mtr_report_stats("Completed", $completed, $opt_accept_fail);
+>>>>>>> mysql-8.0.39
 
   remove_vardir_subs() if $opt_clean_vardir;
 
@@ -1870,7 +1888,12 @@ sub command_line_setup {
     'vardir=s'        => \$opt_vardir,
 
     # Misc
+<<<<<<< HEAD
     'fs-cleanup-hook=s'     => \$opt_fs_cleanup_hook,
+||||||| 6dcee9fa4b1
+=======
+    'accept-test-fail'      => \$opt_accept_fail,
+>>>>>>> mysql-8.0.39
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
     'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,
@@ -2190,7 +2213,7 @@ sub command_line_setup {
     $opt_tmpdir = "$opt_vardir/tmp" unless $opt_tmpdir;
 
     my $res =
-      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
 
     if ($res) {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
@@ -3714,7 +3737,7 @@ sub setup_vardir() {
   # UNIX domain socket's path far below PATH_MAX. Don't allow that
   # to happen.
   my $res =
-    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
   if ($res) {
     mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
               "truncated and thus not possible to use for connection to ",
@@ -8262,6 +8285,9 @@ Options for valgrind
 
 Misc options
 
+  accept-test-fail      Do not print an error and do not give exit 1 if
+                        some tests failed, but test run was completed.
+                        This option also turns on --force.
   charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
   colored-diff          Colorize the diff part of the output.
   comment=STR           Write STR to the output.

@@ -61,6 +61,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <time.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <memory>
 
 #include <sql_table.h>
 #include "mysql/components/services/system_variable_source.h"
@@ -3595,8 +3597,7 @@ class Validate_files {
  public:
   /** Constructor */
   Validate_files()
-      : m_mutex(),
-        m_space_max_id(),
+      : m_space_max_id(),
         m_n_to_check(),
         m_n_threads(),
         m_start_time(std::chrono::steady_clock::time_point{}),
@@ -3636,11 +3637,8 @@ class Validate_files {
   space_id_t get_space_max_id() const { return (m_space_max_id); }
 
  private:
-  /** Mutex protecting the parallel check. */
-  std::mutex m_mutex;
-
   /** Maximum tablespace ID found. */
-  space_id_t m_space_max_id;
+  std::atomic<space_id_t> m_space_max_id;
 
   /** Number of tablespaces to check. */
   size_t m_n_to_check;
@@ -3675,8 +3673,6 @@ class Validate_files {
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                            size_t thread_id) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
-
-  auto heap = mem_heap_create(FN_REFLEN * 2 + 1, UT_LOCATION_HERE);
 
   /* Validate all tablespaces if innodb_validate_tablespace_paths=ON OR
   server is in recovery  OR Change buffer is not empty. Change buffer
@@ -3776,14 +3772,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       break;
     }
 
-    {
-      std::lock_guard<std::mutex> guard(m_mutex);
-
-      if (!dict_sys_t::is_reserved(space_id) && space_id > m_space_max_id) {
-        /* Currently try to find the max space_id only.
-        It should be able to reuse the deleted smaller ones later */
-        m_space_max_id = space_id;
-      }
+    if (!dict_sys_t::is_reserved(space_id)) {
+      /* Currently try to find the max space_id only.
+      It should be able to reuse the deleted smaller ones later */
+      auto current_max = m_space_max_id.load();
+      while (current_max < space_id &&
+             !m_space_max_id.compare_exchange_weak(current_max, space_id))
+        ;
     }
 
     /* System and temp files are tracked and opened separately.
@@ -3797,6 +3792,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     const auto file = *dd_tablespace->files().begin();
     std::string dd_path{file->filename().c_str()};
     const char *filename = dd_path.c_str();
+
+    uint32_t fsp_flags = 0;
+    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
+      /* Failed to fetch the tablespace flags. */
+      ++m_n_errors;
+      break;
+    }
 
     /* If the trunc log file is still around, this undo tablespace needs to be
     rebuilt now. */
@@ -3838,15 +3840,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
 
-    uint32_t fsp_flags = 0;
-    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
-      /* Failed to fetch the tablespace flags. */
-      ++m_n_errors;
-      break;
-    }
-
-    std::lock_guard<std::mutex> guard(m_mutex);
-
     state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
                                        &new_path);
 
@@ -3860,20 +3853,25 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     bool file_name_changed = false;
     bool file_path_changed = (state == Fil_state::MOVED);
 
-    if (state == Fil_state::MATCHES || state == Fil_state::MOVED) {
+    if (state == Fil_state::MATCHES || state == Fil_state::MOVED ||
+        state == Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
       /* We need to update space name and table name for partitioned tables
       if letter case is different. */
       if (fil_update_partition_name(space_id, fsp_flags, true, space_str,
                                     new_path)) {
         file_name_changed = true;
-        state = Fil_state::MOVED;
+        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+          state = Fil_state::MOVED;
+        }
       }
 
       /* Update DD if tablespace name is corrected. */
       if (space_str.compare(space_name) != 0) {
         old_space.assign(space_name);
         space_name = space_str.c_str();
-        state = Fil_state::MOVED;
+        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+          state = Fil_state::MOVED;
+        }
       }
     }
 
@@ -3906,7 +3904,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
       case Fil_state::MOVED:
         fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
-                            new_path);
+                            new_path, false);
         ++m_n_moved;
 
         if (m_n_moved > MOVED_FILES_PRINT_THRESHOLD) {
@@ -3940,6 +3938,20 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
           ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
         }
+        break;
+
+      case Fil_state::MOVED_PREV_OR_HAS_DATADIR:
+        fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
+                            new_path, true);
+        ++m_n_moved;
+
+        if (!old_space.empty()) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CORRECTED, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), old_space.c_str(),
+                   space_name);
+        }
+
         break;
 
       case Fil_state::RENAMED:
@@ -4018,8 +4030,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         ++m_n_missing;
     }
   }
-
-  mem_heap_free(heap);
 }
 
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
@@ -19103,7 +19113,7 @@ int ha_innobase::extra(enum ha_extra_function operation)
       m_prebuilt->no_autoinc_locking = true;
       break;
     default: /* Do nothing */
-             ;
+        ;
   }
 
   return (0);
@@ -22953,7 +22963,7 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_ULONG(
     io_capacity, srv_io_capacity, PLUGIN_VAR_RQCMDARG,
     "Number of IOPs the server can do. Tunes the background IO rate", nullptr,
-    innodb_io_capacity_update, 200, 100, ~0UL, 0);
+    innodb_io_capacity_update, 200, 100, SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
                           PLUGIN_VAR_RQCMDARG,
@@ -23126,7 +23136,7 @@ static MYSQL_SYSVAR_ULONG(
 static MYSQL_SYSVAR_ULONG(
     max_purge_lag, srv_max_purge_lag, PLUGIN_VAR_RQCMDARG,
     "Desired maximum length of the purge queue (0 = no limit)", nullptr,
-    nullptr, 0, 0, ~0UL, 0);
+    nullptr, 0, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
                           PLUGIN_VAR_RQCMDARG,
@@ -23201,7 +23211,7 @@ static MYSQL_SYSVAR_ULONG(
     replication_delay, srv_replication_delay, PLUGIN_VAR_RQCMDARG,
     "Replication thread delay (ms) on the slave server if"
     " innodb_thread_concurrency is reached (0 by default)",
-    nullptr, nullptr, 0, 0, ~0UL, 0);
+    nullptr, nullptr, 0, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_UINT(
     compression_level, page_zip_level, PLUGIN_VAR_RQCMDARG,
@@ -23461,7 +23471,7 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
                           PLUGIN_VAR_RQCMDARG,
                           "How deep to scan LRU to keep it clean", nullptr,
-                          nullptr, 1024, 100, ~0UL, 0);
+                          nullptr, 1024, 100, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(flush_neighbors, srv_flush_neighbors,
                           PLUGIN_VAR_OPCMDARG,
@@ -23481,7 +23491,7 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
                           "Number of times a thread is allowed to enter InnoDB "
                           "within the same SQL query after it has once got the "
                           "ticket",
-                          nullptr, nullptr, 5000L, 1L, UINT_MAX, 0);
+                          nullptr, nullptr, 5000L, 1L, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_BOOL(
     deadlock_detect, innobase_deadlock_detect, PLUGIN_VAR_NOCMDARG,
@@ -23647,7 +23657,7 @@ static MYSQL_SYSVAR_UINT(
     log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
     "Minimum value of cpu time for which spin-delay is used."
     " Expressed in percentage of single cpu core.",
-    nullptr, nullptr, INNODB_LOG_SPIN_CPU_ABS_LWM_DEFAULT, 0, UINT_MAX, 0);
+    nullptr, nullptr, INNODB_LOG_SPIN_CPU_ABS_LWM_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_UINT(
     log_spin_cpu_pct_hwm, srv_log_spin_cpu_pct_hwm, PLUGIN_VAR_RQCMDARG,
@@ -23661,7 +23671,7 @@ static MYSQL_SYSVAR_ULONG(
     "Maximum value of average log flush time for which spin-delay is used."
     " When flushing takes longer, user threads no longer spin when waiting for"
     "flushed redo. Expressed in microseconds.",
-    nullptr, nullptr, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, ULONG_MAX,
+    nullptr, nullptr, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, UINT32_MAX,
     0);
 
 #ifdef ENABLE_EXPERIMENT_SYSVARS
@@ -23699,89 +23709,89 @@ static MYSQL_SYSVAR_ULONG(
     "Number of spin iterations, when spinning and waiting for log buffer"
     " written up to given LSN, before we fallback to loop with sleeps."
     " This is not used when user thread has to wait for log flushed to disk.",
-    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
     PLUGIN_VAR_RQCMDARG,
     "Timeout used when waiting for redo write (microseconds).", NULL, NULL,
-    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_flush_spin_delay, srv_log_wait_for_flush_spin_delay,
     PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, when spinning and waiting for log flushed.",
-    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_flush_timeout, srv_log_wait_for_flush_timeout,
     PLUGIN_VAR_RQCMDARG,
     "Timeout used when waiting for redo flush (microseconds).", NULL, NULL,
-    INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+    INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_write_max_size, srv_log_write_max_size, PLUGIN_VAR_RQCMDARG,
     "Size available for next write, which satisfies log_writer thread"
     " when it follows links in recent written buffer.",
-    NULL, NULL, INNODB_LOG_WRITE_MAX_SIZE_DEFAULT, 0, ULONG_MAX,
+    NULL, NULL, INNODB_LOG_WRITE_MAX_SIZE_DEFAULT, 0, UINT32_MAX,
     OS_FILE_LOG_BLOCK_SIZE);
 
 static MYSQL_SYSVAR_ULONG(
     log_writer_spin_delay, srv_log_writer_spin_delay, PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log writer thread is waiting"
     " for new data to write without sleeping.",
-    NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_writer_timeout, srv_log_writer_timeout, PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log writer thread (microseconds)",
-    NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_checkpoint_every, srv_log_checkpoint_every, PLUGIN_VAR_RQCMDARG,
     "Checkpoints are executed at least every that many milliseconds.", NULL,
-    NULL, INNODB_LOG_CHECKPOINT_EVERY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, INNODB_LOG_CHECKPOINT_EVERY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_flusher_spin_delay, srv_log_flusher_spin_delay, PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log flusher thread is waiting"
     " for new data to flush, without sleeping.",
-    NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
                           PLUGIN_VAR_RQCMDARG,
                           "Initial timeout used to wait on event in log "
                           "flusher thread (microseconds)",
                           NULL, NULL, INNODB_LOG_FLUSHER_TIMEOUT_DEFAULT, 0,
-                          ULONG_MAX, 0);
+                          UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_write_notifier_spin_delay, srv_log_write_notifier_spin_delay,
     PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log write notifier thread is waiting"
     " for advanced write_lsn, without sleeping.",
-    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_write_notifier_timeout, srv_log_write_notifier_timeout,
     PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log write notifier thread"
     " (microseconds)",
-    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_TIMEOUT_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_flush_notifier_spin_delay, srv_log_flush_notifier_spin_delay,
     PLUGIN_VAR_RQCMDARG,
     "Number of spin iterations, for which log flush notifier thread is waiting"
     " for advanced flushed_to_disk_lsn, without sleeping.",
-    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_flush_notifier_timeout, srv_log_flush_notifier_timeout,
     PLUGIN_VAR_RQCMDARG,
     "Initial timeout used to wait on event in log flush notifier thread"
     " (microseconds)",
-    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, UINT32_MAX, 0);
 
 #endif /* ENABLE_EXPERIMENT_SYSVARS */
 
@@ -23795,17 +23805,17 @@ static MYSQL_SYSVAR_UINT(
     "Move blocks to the 'new' end of the buffer pool if the first access"
     " was at least this many milliseconds ago."
     " The timeout is disabled if 0.",
-    nullptr, nullptr, 1000, 0, UINT_MAX32, 0);
+    nullptr, nullptr, 1000, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(
     open_files, innobase_open_files, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "How many files at the maximum InnoDB keeps open at the same time.",
-    nullptr, nullptr, 0L, 0L, LONG_MAX, 0);
+    nullptr, nullptr, 0L, 0L, INT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     sync_spin_loops, srv_n_spin_wait_rounds, PLUGIN_VAR_RQCMDARG,
     "Count of spin-loop rounds in InnoDB mutexes (30 by default)", nullptr,
-    nullptr, 30L, 0L, ~0UL, 0);
+    nullptr, 30L, 0L, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     spin_wait_delay, srv_spin_wait_delay, PLUGIN_VAR_OPCMDARG,
@@ -24142,7 +24152,7 @@ static MYSQL_SYSVAR_UINT(
     limit_optimistic_insert_debug, btr_cur_limit_optimistic_insert_debug,
     PLUGIN_VAR_RQCMDARG,
     "Artificially limit the number of records per B-tree page (0=unlimited).",
-    nullptr, nullptr, 0, 0, UINT_MAX32, 0);
+    nullptr, nullptr, 0, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
                          srv_purge_view_update_only_debug, PLUGIN_VAR_NOCMDARG,
@@ -24157,12 +24167,12 @@ static MYSQL_SYSVAR_ULONG(
         fil_make_page_dirty_debug,
         srv_fil_make_page_dirty_debug, PLUGIN_VAR_OPCMDARG,
         "Make the first page of the given tablespace dirty.",
-        nullptr, innodb_make_page_dirty, UINT_MAX32, 0, UINT_MAX32, 0);
+        nullptr, innodb_make_page_dirty, UINT32_MAX, 0, UINT32_MAX, 0);
 // clang-format on
 
 static MYSQL_SYSVAR_ULONG(saved_page_number_debug, srv_saved_page_number_debug,
                           PLUGIN_VAR_OPCMDARG, "An InnoDB page number.",
-                          nullptr, innodb_save_page_no, 0, 0, UINT_MAX32, 0);
+                          nullptr, innodb_save_page_no, 0, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_BOOL(page_cleaner_disabled_debug,
                          innodb_page_cleaner_disabled_debug,
@@ -24214,8 +24224,16 @@ static MYSQL_THDVAR_STR(interpreter, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
 /** When testing commands are executed in the innodb_interpreter variable, the
 output is stored in this innodb_interpreter_output variable. */
 static MYSQL_THDVAR_STR(interpreter_output,
+<<<<<<< HEAD
                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
                             PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
+||||||| 6dcee9fa4b1
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_NOPERSIST,
+=======
+                        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
+                            PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NOPERSIST,
+>>>>>>> mysql-8.0.39
                         "Output from InnoDB testing module (ut0test).", nullptr,
                         nullptr, "The Default Value");
 

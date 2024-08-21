@@ -177,16 +177,12 @@ my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
-<<<<<<< HEAD
 my $opt_mtr_term_args      = env_or_val(MTR_TERM => "xterm -title %title% -e");
 my $opt_lldb_cmd           = env_or_val(MTR_LLDB => "lldb");
 our $opt_junit_output      = undef;
 our $opt_junit_package     = undef;
 my $opt_fs_cleanup_hook = undef;
-||||||| 6dcee9fa4b1
-=======
 my $opt_accept_fail        = 0;
->>>>>>> mysql-8.0.39
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -1021,13 +1017,7 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-<<<<<<< HEAD
-  report_stats("Completed", $completed);
-||||||| 6dcee9fa4b1
-  mtr_report_stats("Completed", $completed);
-=======
-  mtr_report_stats("Completed", $completed, $opt_accept_fail);
->>>>>>> mysql-8.0.39
+  report_stats("Completed", $completed, $opt_accept_fail);
 
   remove_vardir_subs() if $opt_clean_vardir;
 
@@ -1888,12 +1878,8 @@ sub command_line_setup {
     'vardir=s'        => \$opt_vardir,
 
     # Misc
-<<<<<<< HEAD
     'fs-cleanup-hook=s'     => \$opt_fs_cleanup_hook,
-||||||| 6dcee9fa4b1
-=======
     'accept-test-fail'      => \$opt_accept_fail,
->>>>>>> mysql-8.0.39
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
     'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,

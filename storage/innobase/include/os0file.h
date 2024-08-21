@@ -1088,49 +1088,9 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_delete_if_exists(key, name, exist) \
   pfs_os_file_delete_if_exists_func(key, name, exist, UT_LOCATION_HERE)
 
-<<<<<<< HEAD
 #define os_file_set_eof_at_pfs(file, new_len) \
   pfs_os_file_set_eof_at_func(file, new_len, UT_LOCATION_HERE)
 
-/** NOTE! Please use the corresponding macro os_file_create_simple(),
-not directly this function!
-A performance schema instrumented wrapper function for
-os_file_create_simple() which opens or creates a file.
-@param[in]      key             Performance Schema Key
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]      read_only       if true read only mode checks are enforced
-@param[out]     success         true if succeeded
-@param[in]      src_location    location where func invoked
-@return own: handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
-    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, ut::Location src_location);
-
-||||||| 6dcee9fa4b1
-/** NOTE! Please use the corresponding macro os_file_create_simple(),
-not directly this function!
-A performance schema instrumented wrapper function for
-os_file_create_simple() which opens or creates a file.
-@param[in]      key             Performance Schema Key
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]      read_only       if true read only mode checks are enforced
-@param[out]     success         true if succeeded
-@param[in]      src_location    location where func invoked
-@return own: handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
-    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only, bool *success, ut::Location src_location);
-
-=======
->>>>>>> mysql-8.0.39
 /** NOTE! Please use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
 A performance schema instrumented wrapper function for

@@ -1428,17 +1428,9 @@ void get_sp_access_map(
     */
 
     if (!strcmp(acl_user_user, user) &&
-<<<<<<< HEAD
         hosts_match_for_grants(grant_proc->host, acl_user_host, host,
                                effective_grants)) {
-      ulong proc_access = grant_proc->privs;
-||||||| 6dcee9fa4b1
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
-      ulong proc_access = grant_proc->privs;
-=======
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
       Access_bitmask proc_access = grant_proc->privs;
->>>>>>> mysql-8.0.39
       if (proc_access != 0) {
         String key;
         append_identifier(&key, grant_proc->db, strlen(grant_proc->db));
@@ -1471,17 +1463,9 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map,
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, user) &&
-<<<<<<< HEAD
         hosts_match_for_grants(grant_table->host, acl_user_host, host,
                                effective_grants)) {
-      ulong table_access = grant_table->privs;
-||||||| 6dcee9fa4b1
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
-      ulong table_access = grant_table->privs;
-=======
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
       Access_bitmask table_access = grant_table->privs;
->>>>>>> mysql-8.0.39
       if ((table_access | grant_table->cols) != 0) {
         String q_name;
         const THD *thd = table_map->get_thd();
@@ -1566,17 +1550,9 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, acl_db_user) &&
-<<<<<<< HEAD
         hosts_match_for_grants(acl_db->host, acl_user_host, acl_db_host,
                                effective_grants)) {
-      ulong want_access = acl_db->access;
-||||||| 6dcee9fa4b1
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
-      ulong want_access = acl_db->access;
-=======
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
       const Access_bitmask want_access = acl_db->access;
->>>>>>> mysql-8.0.39
       if (want_access) {
         if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)})) {
           (*db_wild_map)[std::string(acl_db->db)] |= want_access;
@@ -1597,25 +1573,12 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
 */
 class Get_access_maps : public boost::default_bfs_visitor {
  public:
-<<<<<<< HEAD
-  Get_access_maps(ACL_USER *acl_user, ulong *access, Db_access_map *db_map,
-                  Db_access_map *db_wild_map, Table_access_map *table_map,
-                  SP_access_map *sp_map, SP_access_map *func_map,
-                  Grant_acl_set *with_admin_acl, Dynamic_privileges *dyn_acl,
-                  Restrictions *restrictions, bool effective_grants)
-||||||| 6dcee9fa4b1
-  Get_access_maps(ACL_USER *acl_user, ulong *access, Db_access_map *db_map,
-                  Db_access_map *db_wild_map, Table_access_map *table_map,
-                  SP_access_map *sp_map, SP_access_map *func_map,
-                  Grant_acl_set *with_admin_acl, Dynamic_privileges *dyn_acl,
-                  Restrictions *restrictions)
-=======
   Get_access_maps(ACL_USER *acl_user, Access_bitmask *access,
                   Db_access_map *db_map, Db_access_map *db_wild_map,
                   Table_access_map *table_map, SP_access_map *sp_map,
                   SP_access_map *func_map, Grant_acl_set *with_admin_acl,
-                  Dynamic_privileges *dyn_acl, Restrictions *restrictions)
->>>>>>> mysql-8.0.39
+                  Dynamic_privileges *dyn_acl, Restrictions *restrictions,
+                  bool effective_grants)
       : m_access(access),
         m_db_map(db_map),
         m_db_wild_map(db_wild_map),

@@ -43,13 +43,7 @@
 #include <string>
 #include <string_view>
 
-<<<<<<< HEAD
-#include "lex_string.h"
 #include "my_aes.h"
-||||||| 6dcee9fa4b1
-#include "lex_string.h"
-=======
->>>>>>> mysql-8.0.39
 #include "libbinlogevents/include/binlog_event.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/load_data_events.h"

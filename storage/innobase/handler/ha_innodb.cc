@@ -24224,16 +24224,8 @@ static MYSQL_THDVAR_STR(interpreter, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
 /** When testing commands are executed in the innodb_interpreter variable, the
 output is stored in this innodb_interpreter_output variable. */
 static MYSQL_THDVAR_STR(interpreter_output,
-<<<<<<< HEAD
-                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
-                            PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
-||||||| 6dcee9fa4b1
-                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
-                            PLUGIN_VAR_NOPERSIST,
-=======
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
                             PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NOPERSIST,
->>>>>>> mysql-8.0.39
                         "Output from InnoDB testing module (ut0test).", nullptr,
                         nullptr, "The Default Value");
 

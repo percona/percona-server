@@ -2168,7 +2168,7 @@ remove_file $file;
 --echo #
 --echo # PS-9314: Signal 11 when using JSON_TABLE
 --echo # (https://perconadev.atlassian.net/browse/PS-9314)
---error ER_INVALID_TYPE_FOR_JSON
+--error ER_WRONG_ARGUMENTS
 SELECT ele AS domain FROM JSON_TABLE('["TEST' + (SELECT LOAD_FILE('test')) + '"]', "$[*]" COLUMNS (ele VARCHAR(70) PATH "$" )) AS json_elements;
 
 --echo #

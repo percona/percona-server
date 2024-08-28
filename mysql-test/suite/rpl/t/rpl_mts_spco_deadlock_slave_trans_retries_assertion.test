@@ -53,7 +53,7 @@
 
 --echo #
 --echo # 1. Create source-replica topolgy.
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --echo #
 --echo # 2. Setup testing environment.
@@ -63,8 +63,8 @@
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave_sql.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_applier.inc
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
@@ -81,7 +81,7 @@ SET GLOBAL innodb_lock_wait_timeout = 1000;
 --echo #
 --echo # 3. Execute transactions on source server that would generate deadlock on the
 --echo #    replica server.
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 # There is a bug that the first two transactions cannot be applied parallel.
 # So we need to an extra transaction here.
@@ -95,13 +95,13 @@ DELETE FROM t1 WHERE c2 <= 3;
 
 # Start a local transaction on replica to block the INSERT statement coming
 # through the replication channel.
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 BEGIN;
 INSERT INTO t1 VALUES(11, 11);
 
 # Wait till DELETE statement(w2) waits for the the preceding transaction(w1) to commit.
---source include/rpl_connection_slave1.inc
---source include/start_slave_sql.inc
+--source include/rpl/connection_replica1.inc
+--source include/rpl/start_applier.inc
 --let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition.inc
 
@@ -115,38 +115,38 @@ INSERT INTO t1 VALUES(11, 11);
 --source include/add_debug_point.inc
 
 # Resume the INSERT statement and trigger the deadlock
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 ROLLBACK;
 
 --echo #
 --echo # 5. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
 --let $slave_sql_errno = convert_error(ER_LOCK_DEADLOCK)
---source include/wait_for_slave_sql_error.inc
+--source include/rpl/wait_for_applier_error.inc
 
 # Remove the debug point
 --source include/remove_debug_point.inc
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 --echo #
 --echo # 6. Restart replication threads, sync the replica and verify that table
 --echo #    data is consistent.
---source include/rpl_connection_master.inc
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $rpl_diff_statement= SELECT * FROM t1;
---source include/rpl_diff.inc
+--source include/rpl/diff.inc
 
 --echo #
 --echo # 7. Cleanup.
 
---source include/rpl_connection_slave.inc
---source include/stop_slave_sql.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
---source include/start_slave_sql.inc
+--source include/rpl/start_applier.inc
 
 # Add suppressions on replica server.
 CALL mtr.add_suppression("Consider raising the value of the replica_transaction_retries variable");
@@ -154,6 +154,6 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 CALL mtr.add_suppression("Worker .* failed executing transaction");
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

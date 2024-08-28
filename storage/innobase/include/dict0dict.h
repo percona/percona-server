@@ -1,18 +1,19 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -1641,26 +1642,9 @@ static inline bool dict_table_is_partition(const dict_table_t *table);
 @param[in]      index   index object */
 static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index);
 
-/** Evict all tables that are loaded for applying purge.
-Since we move the offset of all table ids during upgrade,
-these tables cannot exist in cache. Also change table_ids
-of SYS_* tables if they are upgraded from earlier versions */
-void dict_upgrade_evict_tables_cache();
-
 /** @return true if table is InnoDB SYS_* table
 @param[in]      table_id        table id  */
 bool dict_table_is_system(table_id_t table_id);
-
-/** Build the table_id array of SYS_* tables. This
-array is used to determine if a table is InnoDB SYSTEM
-table or not.
-@return true if successful, false otherwise */
-bool dict_sys_table_id_build();
-
-/** Change the table_id of SYS_* tables if they have been created after
-an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
-*/
-void dict_table_change_id_sys_tables();
 
 /** Get the tablespace data directory if set, otherwise empty string.
 @return the data directory */
@@ -1706,13 +1690,10 @@ This can happen if Percona Server is bootstrapped with
 upgrade, mysql.ibd should be encrpted.
 In no upgrade scenario it fetches encryption flag from first page of mysql.ibd
 to check whether it is encrypted.
-@param[in]  dict_init_mode      initalization mode
-@param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
-                                during upgrade
-@param[out] encrypt_mysql       true if encrypted, false if not encrypted
+@param[in]  dict_init_mode  initalization mode
+@param[out] encrypt_mysql   true if encrypted, false if not encrypted
 @return true if success, false if failure */
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
-                                         space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql);
 
 /** Set the compression type for the tablespace of a table

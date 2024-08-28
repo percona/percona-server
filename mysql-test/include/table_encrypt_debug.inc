@@ -9,12 +9,15 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+--source include/have_component_keyring_file.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
 # innodb-force-recovery-crash needs debug
 --source include/have_debug.inc
+
+--source suite/component_keyring_file/inc/setup_component.inc
 
 --disable_query_log
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
@@ -50,9 +53,7 @@ USE tde_db;
 -- send_shutdown
 -- source include/wait_until_disconnected.inc
 --exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --echo #
 --echo # Set encryption ON for table `mysql`
@@ -82,9 +83,7 @@ INSERT INTO tde_db.t1 VALUES(3, "ddddd");
 --exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_encryption_rotate_crash";
 let SEARCH_PATTERN = ib_encryption_rotate_crash;
 --source include/search_pattern.inc
@@ -115,9 +114,7 @@ INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 SET SESSION DEBUG="+d,ib_encryption_rotate_crash";
 --error 2013
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_encryption_rotate_crash";
 let SEARCH_PATTERN = ib_encryption_rotate_crash;
 --source include/search_pattern.inc
@@ -157,9 +154,7 @@ SET SESSION DEBUG="+d,ib_crash_during_create_for_encryption";
 --echo # Execute the statement that causes the crash
 --error 2013
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_crash_during_create_for_encryption";
 
 --echo # Show encrypted tables.
@@ -193,9 +188,7 @@ SET SESSION DEBUG="+d,ib_crash_during_decrypt_page";
 --echo # Execute the statement that causes the crash
 --error 2013
 eval ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 SET SESSION DEBUG="-d,ib_crash_during_decrypt_page";
 
 --error ER_TABLESPACE_DISCARDED
@@ -203,11 +196,10 @@ INSERT INTO tde_db.t1 VALUES(7, "hhhhh");
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t1;
+--source include/keyring_tests/helper/instance_backup_manifest.inc
 
---exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--exec echo "restart: $keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --remove_files_wildcard $MYSQLD_DATADIR/tde_db/ t1.*
 DROP DATABASE tde_db;
@@ -220,6 +212,7 @@ DROP DATABASE tde_db;
 CREATE DATABASE tde_db;
 
 # Write file to make mysql-test-run.pl start up the server again
+--source include/keyring_tests/helper/instance_restore_manifest.inc
 --exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
@@ -227,14 +220,13 @@ CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 # keyring_file specific
 if ($keyring_file_test)
 {
+  # Write file to make mysql-test-run.pl start up the server again
   # Crash the server while executing ALTER INSTANCE ROTATE
-  SET SESSION DEBUG="+d,keyring_file_backup_fail";
-  --error 2013
-  ALTER INSTANCE ROTATE INNODB MASTER KEY;
-  --enable_reconnect
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
-  SET SESSION DEBUG="-d,keyring_file_backup_fail";
+  #SET SESSION DEBUG="+d,keyring_file_backup_fail";
+  #--error 2013
+  #ALTER INSTANCE ROTATE INNODB MASTER KEY;
+  #--source include/wait_until_connected_again.inc
+  #SET SESSION DEBUG="-d,keyring_file_backup_fail";
 }
 
 SELECT COUNT(*) FROM tde_db.test_tbl;
@@ -259,6 +251,7 @@ if ($keyring_file_data)
 --let $restart_parameters=$keyring_restart_param
 --let $do_not_echo_parameters=1
 --source include/start_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component.inc
 
 # Verify normal operation
 CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

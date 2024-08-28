@@ -1,15 +1,16 @@
-# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
 #
-# This program is also distributed with certain software (including
+# This program is designed to work with certain software (including
 # but not limited to OpenSSL) that is licensed under separate terms,
 # as designated in a particular file or component or in included license
 # documentation.  The authors of MySQL hereby grant you an additional
 # permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -161,7 +162,6 @@ SET(TESTS
   pattern_matcher
   prealloced_array
   priority_queue
-  pump_object_filter
   record_buffer
   sql_class_header
   sql_list
@@ -181,7 +181,6 @@ SET(TESTS
   timespec
   unhex
   val_int_compare
-  varlen_sort
   )
 
 SET(ALL_SMALL_TESTS)
@@ -196,6 +195,7 @@ ENDIF()
 
 # Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
+  authentication_policy
   bgc_ticket_manager
   character_set_deprecation
   compare_access_paths
@@ -302,6 +302,14 @@ SET(SERVER_TESTS
   xid_extract
   log_event_status_size
 )
+# Hangs forever.
+IF(LINUX_ARM AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  LIST(REMOVE_ITEM SERVER_TESTS bgc_ticket_manager)
+ENDIF()
+# Endless loop in FatalSignalDeathTest
+IF(LINUX_ALPINE)
+  LIST(REMOVE_ITEM SERVER_TESTS segfault)
+ENDIF()
 
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
   ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
@@ -320,6 +328,11 @@ ENDIF()
 # Suppress warnings for gcc-10 or newer
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES integer_digits-t.cc)
+ENDIF()
+
+# Suppress warnings for gcc-14 or newer
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
+  ADD_COMPILE_FLAGS(hypergraph_optimizer-t.cc COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
 
 # Avoid 'requires dynamic R_X86_64_PC32 reloc' linker error for dd_sdi-t.cc
@@ -441,7 +454,6 @@ MYSQL_ADD_EXECUTABLE(rpl_event_ctx-t rpl_event_ctx-t.cc
 
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
-ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)
 ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(components/keyring_vault)

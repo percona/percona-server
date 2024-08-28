@@ -27,6 +27,7 @@
 #include "partition_base.h"
 #include "mysql/psi/mysql_file.h"
 #include "pfs_file_provider.h"
+#include "scope_guard.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -40,7 +41,6 @@
 #include "sql/sql_show.h"    // append_identifier
 #include "sql/sql_table.h"   // tablename_to_filename
 #include "sql/thd_raii.h"
-#include "varlen_sort.h"
 
 #include "sql/dd/dd.h"
 #include "sql/dd/dictionary.h"
@@ -58,8 +58,6 @@
 
 #include "mysql/psi/mysql_file.h"
 #include "pfs_file_provider.h"
-
-#include <boost/scope_exit.hpp>
 
 using std::max;
 using std::min;
@@ -638,12 +636,14 @@ int Partition_base::create(const char *name, TABLE *table_arg,
           old_index_file_name = create_info->data_file_name;
           create_info->index_file_name = part_elem->index_file_name;
         }
-        BOOST_SCOPE_EXIT_ALL(&) {
+
+        Scope_guard file_context_reset_guard([&]() {
           if (part_elem->data_file_name)
             create_info->data_file_name = old_data_file_name;
           if (part_elem->index_file_name)
             create_info->index_file_name = old_index_file_name;
-        };
+        });
+
         if ((error = (*file)->ha_create(name_buff, table_arg, create_info,
                                         table_def)))
           return false;
@@ -2990,14 +2990,14 @@ int Partition_base::info(uint flag) {
       i++;
     } while (*(++file_array));
     /*
-      Sort the array of part_ids by number of records in
-      in descending order.
+      Sort the array of part_ids by number of records in descending order.
     */
-    varlen_sort(m_part_ids_sorted_by_num_of_records,
-                m_part_ids_sorted_by_num_of_records + m_tot_parts,
-                sizeof(uint32), [this](const uint32 *a, const uint32 *b) {
-                  return m_file[*a]->stats.records < m_file[*b]->stats.records;
-                });
+    std::sort(m_part_ids_sorted_by_num_of_records,
+              m_part_ids_sorted_by_num_of_records + m_tot_parts,
+              [this](const uint32 &a, const uint32 &b) {
+                return m_file[a]->stats.records > m_file[b]->stats.records;
+              });
+
     file = m_file[handler_instance];
     res = file->info(HA_STATUS_CONST | no_lock_flag);
     if (res && !error) {

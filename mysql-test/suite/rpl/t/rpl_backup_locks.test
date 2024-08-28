@@ -1,2 +1,2 @@
 --let $engine= innodb
---source extra/rpl_tests/rpl_backup_locks.inc
+--source common/rpl/rpl_backup_locks.inc

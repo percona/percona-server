@@ -26,7 +26,7 @@ script_template: &SCRIPT_TEMPLATE
   install_dependencies_script: |
     export DEBIAN_FRONTEND=noninteractive
     PACKAGES_TO_INSTALL="lz4 unzip ca-certificates git pkg-config dpkg-dev make cmake cmake-curses-gui ccache bison npm"
-    PACKAGES_LIBS="libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
+    PACKAGES_LIBS="libtirpc-dev libgflags-dev libxml-simple-perl libeatmydata1 libfido2-dev libicu-dev libevent-dev libudev-dev libaio-dev libmecab-dev libnuma-dev liblz4-dev libzstd-dev libedit-dev libpam-dev libssl-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit"
     PACKAGES_PROTOBUF="protobuf-compiler libprotobuf-dev libprotoc-dev"
     apt update
     apt -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES_TO_INSTALL $PACKAGES_LIBS $PACKAGES_PROTOBUF $SELECTED_CXX
@@ -129,7 +129,7 @@ task:
     # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
     type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
     region: us-east-1
-    architecture: arm64 # defautls to amd64
+    architecture: arm64 # defaults to amd64
     spot: true
   env:
     OS_TYPE: ubuntu-22.04-arm64
@@ -155,6 +155,39 @@ task:
     df -Th
   << : *SCRIPT_TEMPLATE
 
+
+task:
+  << : *FILTER_TEMPLATE
+  # run only on "percona/percona-server" but not on "trunk" as we have nightly cron builds for "trunk" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != 'trunk' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-2024061*"
+    image: ami-0d3d400c0ff21c982 # Ubuntu 24.04 x86-64 with gcc-14
+    type: c6i.4xlarge  # 16 vCPUs, 32 GB, no SSD
+    region: us-east-1
+    architecture: amd64 # defaults to amd64
+    spot: true
+  env:
+    OS_TYPE: ubuntu-24.04-x86_64
+  matrix:
+    - name: (x86_64) gcc-14 Debug [Ubuntu 24.04 Noble]
+      env:
+        SELECTED_CC: gcc-14
+        SELECTED_CXX: g++-14
+        BUILD_TYPE: Debug
+        BUILD_PARAMS_TYPE: normal
+    - name: (x86_64) gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: gcc-14
+        SELECTED_CXX: g++-14
+        BUILD_TYPE: RelWithDebInfo
+        BUILD_PARAMS_TYPE: normal
+  mount_disk_script: |
+    lsblk
+    lsblk -f
+  << : *SCRIPT_TEMPLATE
 
 
 task:

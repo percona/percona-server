@@ -1,3 +1,6 @@
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
 create tablespace ts_unencrypted1 add datafile 'ts_unencrypted1.ibd' engine=innodb;
 create tablespace ts_encrypted1 add datafile 'ts_encrypted1.ibd' engine=innodb encryption="Y";
 create tablespace ts_encrypted2 add datafile 'ts_encrypted2.ibd' engine=innodb encryption="Y";
@@ -210,3 +213,5 @@ SET GLOBAL table_encryption_privilege_check = default;
 DROP USER u1@localhost;
 DROP DATABASE db1;
 --source include/wait_until_count_sessions.inc
+
+--source suite/component_keyring_file/inc/teardown_component.inc

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CREATE TABLE t1(a INT);
 DROP TABLE t1;
 connection slave
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_replica= @@global.init_replica;
 SET NAMES utf8;
@@ -27,10 +27,10 @@ SELECT @@global.init_replica = 'SET @@global.max_connections = @@global.max_conn
 1
 Expect 1
 include/assert.inc [@@global.max_connections = @start_max_connections]
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 include/assert.inc [@@global.max_connections = @start_max_connections + 1]
 SET @@global.init_replica = "SET @a=5";
-include/restart_slave.inc
+include/rpl/restart_applier.inc
 SHOW VARIABLES LIKE 'init_replica';
 Variable_name	Value
 init_replica	SET @a=5
@@ -40,4 +40,4 @@ NULL
 Expect NULL
 SET @@global.max_connections= @start_max_connections;
 SET @@global.init_replica= @start_init_replica;
-include/rpl_end.inc
+include/rpl/deinit.inc

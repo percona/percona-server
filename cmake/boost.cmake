@@ -1,15 +1,16 @@
-# Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2024, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
 #
-# This program is also distributed with certain software (including
+# This program is designed to work with certain software (including
 # but not limited to OpenSSL) that is licensed under separate terms,
 # as designated in a particular file or component or in included license
 # documentation.  The authors of MySQL hereby grant you an additional
 # permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
+# separately licensed software that they have either included with
+# the program or referenced in the documentation.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(BOOST_PACKAGE_NAME "boost_1_77_0")
+SET(BOOST_PACKAGE_NAME "boost_1_84_0")
 
 # Always use the bundled version.
 SET(BOOST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/extra/boost)
@@ -37,12 +38,14 @@ SET(BOOST_PATCHES_DIR
 # Each time bundled boost gets updated we must update those Percona Server specific sources as well.
 # Actual list of Percona Server specific boost sources is the following:
 #   boost/dynamic_bitset.hpp
+#   boost/dynamic_bitset_fwd.hpp
 #   boost/dynamic_bitset/*
+#   boost/io_fwd.hpp
 #   boost/io/*
 #   boost/random/*
 #   boost/tti/*
 #   boost/uuid/*
-SET(EXPECTED_BOOST_VERSION 107700)
+SET(EXPECTED_BOOST_VERSION 108400)
 IF(EXISTS "${BOOST_INCLUDE_DIR}/boost/version.hpp")
   FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp" BOOST_VERSION_HPP_CONTENTS REGEX "#define BOOST_VERSION ")
   IF("${BOOST_VERSION_HPP_CONTENTS}" MATCHES "#define BOOST_VERSION ([0-9]+)")

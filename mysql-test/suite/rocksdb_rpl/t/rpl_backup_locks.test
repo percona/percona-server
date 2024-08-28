@@ -2,4 +2,4 @@
 --source include/have_rocksdb.inc
 
 --let $engine= rocksdb
---source extra/rpl_tests/rpl_backup_locks.inc
+--source common/rpl/rpl_backup_locks.inc

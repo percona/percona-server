@@ -10,6 +10,7 @@
 --source include/no_valgrind_without_big.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+--source include/have_component_keyring_file.inc
 
 #suppress warning
 -- disable_query_log
@@ -32,14 +33,8 @@ call mtr.add_suppression("\\[ERROR\\] .* Table tde_db/t_encrypt.* in the InnoDB 
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
---echo # Starting server with keyring plugin
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "$keyring_restart_param" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--echo # Starting server with keyring component
+--source suite/component_keyring_file/inc/setup_component.inc
 
 
 #------------------------------------------------------------------------------
@@ -184,9 +179,7 @@ send call tde_db.populate_t_non_encrypt();
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 --disconnect con1
 --disconnect con2
@@ -243,9 +236,7 @@ send call tde_db.delete_t_encrypt();
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
---enable_reconnect
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 
 --disconnect con1
@@ -341,6 +332,6 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --echo # restart server without keyring
---let $restart_parameters = restart:
---source include/restart_mysqld.inc
+--source suite/component_keyring_file/inc/teardown_component.inc
+
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

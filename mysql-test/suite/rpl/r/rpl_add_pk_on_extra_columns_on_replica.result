@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -14,7 +14,7 @@ UPDATE t1 SET field1 = "row1-updated" WHERE field1 = "row1";
 DELETE FROM t1 where field1="row2";
 RETURN 0;
 END|
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 
 ##############################################
@@ -32,7 +32,7 @@ CREATE TABLE t1 (field1 char(15));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -42,12 +42,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -62,7 +62,7 @@ row1-updated	1
 row3	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -84,7 +84,7 @@ CREATE TABLE t1 (field1 char(15));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -94,12 +94,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL AUTO_INCREMENT PRIMARY KEY;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -114,7 +114,7 @@ row1-updated	1
 row3	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -136,7 +136,7 @@ CREATE TABLE t1 (field1 char(15));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -146,12 +146,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1, ADD PRIMARY KEY (fie
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -166,7 +166,7 @@ row1-updated	1
 row3	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -188,7 +188,7 @@ CREATE TABLE t1 (field1 char(15));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -198,12 +198,12 @@ ALTER TABLE t1 ADD COLUMN extra_col1 INT NOT NULL DEFAULT 100, ADD COLUMN extra_
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -218,7 +218,7 @@ row1-updated	100	1
 row3	100	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -240,7 +240,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -250,12 +250,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -270,7 +270,7 @@ row1-updated	1010	1
 row3	1010	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -292,7 +292,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -302,12 +302,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL AUTO_INCREMENT PRIMARY KEY;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -322,7 +322,7 @@ row1-updated	1010	1
 row3	1010	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -344,7 +344,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -354,12 +354,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1, ADD PRIMARY KEY (fie
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -374,7 +374,7 @@ row1-updated	1010	1
 row3	1010	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -396,7 +396,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1));;
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -406,12 +406,12 @@ ALTER TABLE t1 ADD COLUMN extra_col1 INT NOT NULL DEFAULT 100, ADD COLUMN extra_
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -426,7 +426,7 @@ row1-updated	1010	100	1
 row3	1010	100	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -448,7 +448,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1, fiel
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -458,12 +458,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -478,7 +478,7 @@ row1-updated	1010	1
 row3	1010	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -500,7 +500,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1, fiel
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -510,12 +510,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL AUTO_INCREMENT PRIMARY KEY;;
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -530,7 +530,7 @@ row1-updated	1010	1
 row3	1010	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -552,7 +552,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1, fiel
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -562,12 +562,12 @@ ALTER TABLE t1 ADD COLUMN extra_col INT NOT NULL DEFAULT 1, ADD PRIMARY KEY (fie
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -582,7 +582,7 @@ row1-updated	1010	1
 row3	1010	1
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -604,7 +604,7 @@ CREATE TABLE t1 (field1 CHAR(15), field2 INT DEFAULT 1010, KEY idx (field1, fiel
 #
 # 2. Sync the replica server with source server.
 #
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 3. Execute ALTER TABLE on replica server.
 #
@@ -614,12 +614,12 @@ ALTER TABLE t1 ADD COLUMN extra_col1 INT NOT NULL DEFAULT 100, ADD COLUMN extra_
 #
 [connection master]
 INSERT INTO t1(field1) VALUES ('row1'); INSERT INTO t1(field1) VALUES ('row2'); INSERT INTO t1(field1) VALUES ('row3');;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SELECT update_and_delete_some_rows();
 update_and_delete_some_rows()
 0
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 include/assert.inc [There are exactly 2 rows on replica server]
 include/diff_tables.inc [master:t1, slave:t1]
 [connection master]
@@ -634,7 +634,7 @@ row1-updated	1010	100	1
 row3	1010	100	3
 [connection master]
 TRUNCATE TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 #
 # 5. Cleanup
 #
@@ -646,4 +646,4 @@ SET SQL_LOG_BIN=0;
 DROP TABLE queries;
 SET SQL_LOG_BIN=1;
 [connection slave]
-include/rpl_end.inc
+include/rpl/deinit.inc

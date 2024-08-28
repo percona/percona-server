@@ -1,3 +1,6 @@
+# This test relies on real session IDs. They are different if Percona Telemetry
+# is built in, so it is better to disable this test than mask IDs in result
+--source include/not_have_percona_telemetry.inc
 
 CREATE TABLE t1(id INT NOT NULL);
 
@@ -11,7 +14,6 @@ CREATE TABLE t1(id INT NOT NULL);
 --echo # Restart
 --echo ##########################################
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --echo ##########################################

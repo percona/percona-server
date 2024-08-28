@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
  * as published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
+ * This program is designed to work with certain software (including
  * but not limited to OpenSSL) that is licensed under separate terms,
  * as designated in a particular file or component or in included license
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
- * separately licensed software that they have included with MySQL.
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -55,6 +56,25 @@
 #include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
 
 namespace ngs {
+namespace {
+
+std::unique_ptr<xpl::Sql_data_context> build_sql_data_context() noexcept {
+  auto ctx = std::make_unique<xpl::Sql_data_context>();
+  const bool admin_session = true;
+  ngs::Error_code error = ctx->init(admin_session);
+
+  if (error) {
+    log_error(ER_XPLUGIN_STARTUP_FAILED, error.message.c_str());
+    return nullptr;
+  }
+
+  ctx->switch_to_local_user(MYSQL_SESSION_USER);
+  ctx->attach();
+
+  return ctx;
+}
+
+}  // namespace
 
 Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
                std::shared_ptr<Scheduler_dynamic> work_scheduler,
@@ -115,33 +135,35 @@ void Server::delayed_start_tasks() {
             [this]() { return is_terminating(); })) {
       SYNC_POINT_CHECK("xplugin_init_wait");
 
-      xpl::Sql_data_context sql_context;
-      const bool admin_session = true;
-      ngs::Error_code error = sql_context.init(admin_session);
+      auto sql_context = build_sql_data_context();
 
-      if (error) {
-        log_error(ER_XPLUGIN_STARTUP_FAILED, error.message.c_str());
+      if (sql_context == nullptr) {
         return;
       }
-      sql_context.switch_to_local_user(MYSQL_SESSION_USER);
-      sql_context.attach();
 
       /* This method is executed inside a worker thread, thus
          its better not to swap another thread, this one can handle
          a task. */
-      start_tasks();
+      start_tasks(sql_context.get());
     }
   });
 }
 
 void Server::reload_ssl_context() {
-  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
+  auto sql_context = build_sql_data_context();
+
+  if (sql_context == nullptr) {
+    return;
+  }
+
+  m_ssl_context =
+      xpl::Ssl_context_builder(sql_context.get()).get_result_context();
 }
 
-void Server::start_tasks() {
+void Server::start_tasks(xpl::iface::Sql_session *sql_session) {
   // We can't fetch the servers ssl config at plugin-load
   // this method allows to setup it at better time.
-  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
+  m_ssl_context = xpl::Ssl_context_builder(sql_session).get_result_context();
 
   if (m_state.exchange(State::State_initializing, State_running)) {
     for (auto task : m_tasks) {

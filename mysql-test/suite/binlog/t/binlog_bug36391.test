@@ -15,7 +15,7 @@
 #
 
 --source include/have_log_bin.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_row.inc
 
 RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(id INT);

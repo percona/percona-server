@@ -9,7 +9,7 @@
 -- source include/not_ndb_default.inc
 -- source include/have_rocksdb.inc
 -- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+-- source include/rpl/init_source_replica.inc
 let $engine_type=ROCKSDB;
--- source extra/rpl_tests/rpl_row_sp003.test
--- source include/rpl_end.inc
+-- source common/rpl/rpl_row_sp003.test
+-- source include/rpl/deinit.inc

@@ -45,7 +45,7 @@ FLUSH BINARY LOGS;
 --let $stage = 1
 while($stage <= $number_of_stages)
 {
-  --let $binlog_file_name = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file_name = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
   --let $substage = 1
   while($substage <= $number_of_substages)

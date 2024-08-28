@@ -1,15 +1,16 @@
-/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
+   This program is designed to work with certain software (including
    but not limited to OpenSSL) that is licensed under separate terms,
    as designated in a particular file or component or in included license
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -482,7 +483,6 @@ struct System_variables {
   */
   bool transaction_read_only;
   bool low_priority_updates;
-  bool new_mode;
   bool keep_files_on_create;
 
   bool old_alter_table;
@@ -568,13 +568,6 @@ struct System_variables {
     the row format in the output even if the table uses default row format.
   */
   bool show_create_table_verbosity;
-
-  /**
-    Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
-    the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
-    'COLUMN_TYPE' field.
-  */
-  bool show_old_temporals;
 
   bool ft_query_extra_word_chars;
 
@@ -716,6 +709,12 @@ struct System_variables {
 #ifndef NDEBUG
   char *debug_set_operations_secondary_overflow_at;
 #endif
+
+  /**
+    Restrict foreign keys on non-unique or partial keys.
+    @sa Sys_restrict_fk_on_non_standard_key
+  */
+  bool restrict_fk_on_non_standard_key;
 };
 
 static_assert(std::is_trivially_copyable<System_variables>::value);

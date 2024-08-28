@@ -2,7 +2,7 @@
 # PS-7599 : Node inconsistency seen in PS during update on compressed column table
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 CREATE TABLE t1 (f1 INT, f2 BLOB COLUMN_FORMAT COMPRESSED) ENGINE=INNODB PARTITION BY HASH (f1) PARTITIONS 2;
 
@@ -10,13 +10,13 @@ REPLACE INTO t1 (f1,f2) VALUES(0,'1234567890123456789012345678901234567890123456
 
 UPDATE t1 SET f1=1 WHERE f1 = 0;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

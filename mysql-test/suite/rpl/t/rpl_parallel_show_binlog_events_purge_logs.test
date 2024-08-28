@@ -12,10 +12,10 @@
 # mysql_show_binlog_events function scope.
 #
 --source include/have_debug_sync.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_slave.inc
---source include/only_mts_replica_parallel_workers.inc
+--source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_workers.inc
 SET DEBUG_SYNC= 'after_show_binlog_events SIGNAL on_show_binlog_events WAIT_FOR end';
 --send SHOW BINLOG EVENTS
 
@@ -34,4 +34,4 @@ SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'RESET';
 
 --connection master
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

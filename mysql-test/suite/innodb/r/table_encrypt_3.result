@@ -6,12 +6,17 @@ SELECT @@innodb_file_per_table;
 DROP TABLE IF EXISTS t_encrypt;
 CREATE TABLE t_encrypt(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
-UNINSTALL PLUGIN keyring_file;
-ERROR 42000: PLUGIN keyring_file does not exist
+UNINSTALL PLUGIN keyring_aws;
+ERROR 42000: PLUGIN keyring_aws does not exist
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Starting server with keyring plugin
-# restart:<hidden args>
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db.t_encrypt;
 CREATE DATABASE tde_db;
@@ -1420,5 +1425,12 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
 DROP USER encryption_admin@localhost;
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------
 # restart:<hidden args>
 SET GLOBAL innodb_file_per_table=1;

@@ -1,10 +1,10 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(a BIGINT AUTO_INCREMENT PRIMARY KEY, b INT DEFAULT NULL) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ALTER TABLE t1 MODIFY COLUMN b BIGINT DEFAULT NULL;
 BEGIN;
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -13,9 +13,9 @@ INSERT INTO t1 VALUES (NULL, NULL);
 INSERT INTO t1 VALUES (NULL, NULL);
 INSERT INTO t1 VALUES (NULL, NULL);
 COMMIT;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

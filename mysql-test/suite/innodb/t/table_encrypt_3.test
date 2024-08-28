@@ -1,8 +1,7 @@
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=15000
 
---let $keyring_plugin_name=keyring_file
---let $keyring_restart_param=restart: $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $keyring_plugin_name=keyring_aws
+--let $keyring_restart_param=restart: $PLUGIN_DIR_OPT
 --let $number_of_MK_rotations=500
 --source include/table_encrypt_3.inc
---remove_file $MYSQL_TMP_DIR/mysecret_keyring

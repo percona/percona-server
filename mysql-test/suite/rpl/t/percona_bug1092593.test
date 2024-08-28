@@ -12,7 +12,7 @@
 
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --disable_query_log
 call mtr.add_suppression("Recovery from source pos");
@@ -40,8 +40,8 @@ sync_slave_with_master;
 # updated.
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --log-slave-updates=FALSE
---source include/rpl_restart_server.inc
---source include/start_slave.inc
+--source include/rpl/restart_server.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 
@@ -57,7 +57,7 @@ SELECT a FROM x ORDER BY a;
 
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --log-slave-updates=FALSE
---source include/rpl_start_server.inc
+--source include/rpl/start_server.inc
 
 # This will fail if the bug is present: the binlog coordinates
 # at "prepare" point have been last updated before the server
@@ -65,7 +65,7 @@ SELECT a FROM x ORDER BY a;
 # --log-slave-updates, skipping the "prepare" point update.  Thus
 # on startup slave will read the obsolete position and fail.
 # After the fix the "prepare" point will be current.
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 
@@ -77,4 +77,4 @@ connection master;
 
 DROP TABLE x;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

@@ -273,6 +273,7 @@ fi
         -DFORCE_INSOURCE_BUILD=1 \
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
+	-DWITH_PERCONA_TELEMETRY=ON \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
@@ -300,7 +301,8 @@ fi
 )
 
 (
-    LIBLIST="libgssapi.so libldap_r-2.4.so.2 libldap.so.2 liblber-2.4.so.2 liblber.so.2 libtinfo.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libsmime3.so libnss3.so libnssutil3.so libplc4.so libnspr4.so libplds4.so libncurses.so.5 libtinfo.so.5 component_encryption_udf.so component_keyring_kms.so component_masking_functions.so"
+
+    LIBLIST="libaio.so.1 libnuma.so.1 libgssapi.so libldap_r-2.4.so.2 libldap.so.2 liblber-2.4.so.2 liblber.so.2 libtinfo.so libsasl2.so libbrotlidec.so libbrotlicommon.so librtmp.so libgssapi_krb5.so libkrb5.so libk5crypto.so libsmime3.so libnss3.so libssl3.so libnssutil3.so libplc4.so libnspr4.so libplds4.so libncurses.so.5 libtinfo.so.5 component_encryption_udf.so component_uuid_vx_udf.so component_keyring_kms.so component_masking_functions.so"
     DIRLIST="bin lib lib/private lib/plugin lib/mysqlrouter/plugin lib/mysqlrouter/private"
 
     LIBPATH=""

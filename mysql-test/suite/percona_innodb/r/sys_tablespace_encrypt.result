@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 call mtr.add_suppression("Found 1 prepared XA transactions");
 SET @save_default_table_encryption=@@default_table_encryption;
 CREATE DATABASE db1;
@@ -74,14 +80,12 @@ DROP TABLESPACE tb01;
 # Stop the instance which was created by MTR
 # create bootstrap file
 # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
+# Taking backup of global manifest file for MySQL server
 Pattern found.
+# Restore global manifest file for MySQL server from backup
 # Bootstrap new instance with encrypted system tablespace
 # Check Encryption header of ibdata1
 # Start encrypted system with --innodb-sys-tablespace-encrypt=OFF
-Pattern found.
-# Start encrypted system without early-plugin-load and only --plugin-load
-Pattern found.
-# Start encrypted system without keyring_data
 Pattern found.
 # Start the instance with encrypted system tablespace
 # restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
@@ -316,3 +320,9 @@ SET PERSIST innodb_sys_tablespace_encrypt = ON;
 ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
 SET PERSIST innodb_sys_tablespace_encrypt = OFF;
 ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------

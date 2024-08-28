@@ -29,7 +29,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 
 --echo # First step
@@ -44,7 +44,7 @@ CREATE TABLE ils_copy (
 # Table to be listed at FLUSH TABLES <table list> WITH READ LOCK
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 # Create a new channel, so we can test a non-empty channel name on results
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 
@@ -54,18 +54,18 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 {
   --let $use_gtids= 1
 }
---source include/save_master_pos.inc
+--source include/rpl/save_server_position.inc
 
 # Sleep before collecting positions
 --sleep 5
 
 # Save current slave relay log coordinates
---let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
---let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
---let $ch1_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 2)
---let $relay_master_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
---let $relay_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
---let $ch1_master_relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 2)
+--let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
+--let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
+--let $ch1_relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 2)
+--let $relay_source_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
+--let $relay_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $ch1_source_relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 2)
 
 # As we do not start ch1, we cannot verify its positions accurately for this
 # test case purposes. That is fine as the objective is to test a non-empty
@@ -141,14 +141,14 @@ if ($rpl_debug)
 --let $assert_cond= $ils_relay_log_pos = $relay_log_pos
 --source include/assert.inc
 
---let $assert_text= Collected default replication channel relay master log file name is correct
---let $ils_relay_master_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_master_log_file") FROM ils_copy`
---let $assert_cond= $ils_relay_master_log_file = "$relay_master_log_file"
+--let $assert_text= Collected default replication channel relay source log file name is correct
+--let $ils_relay_source_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_master_log_file") FROM ils_copy`
+--let $assert_cond= $ils_relay_source_log_file = "$relay_source_log_file"
 --source include/assert.inc
 
---let $assert_text= Collected default replication channel relay master log file position is correct
---let $ils_relay_master_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].exec_master_log_position") FROM ils_copy`
---let $assert_cond= $ils_relay_master_log_pos = $relay_master_log_pos
+--let $assert_text= Collected default replication channel relay source log file position is correct
+--let $ils_relay_source_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].exec_master_log_position") FROM ils_copy`
+--let $assert_cond= $ils_relay_source_log_pos = $relay_source_log_pos
 --source include/assert.inc
 
 --let $assert_text= Collected replication channel name for ch1 is correct
@@ -161,9 +161,9 @@ if ($rpl_debug)
 --let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
 --source include/assert.inc
 
---let $assert_text= Collected replication channel relay master log file name for ch1 is correct
---let $ils_ch1_relay_master_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_master_log_file") FROM ils_copy`
---let $assert_cond= $ils_ch1_relay_master_log_file = "$ch1_relay_master_log_file"
+--let $assert_text= Collected replication channel relay source log file name for ch1 is correct
+--let $ils_ch1_relay_source_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_master_log_file") FROM ils_copy`
+--let $assert_cond= $ils_ch1_relay_source_log_file = "$ch1_relay_source_log_file"
 --source include/assert.inc
 
 --let $assert_text= Collected InnoDB LSN is in correct boundaries
@@ -200,10 +200,10 @@ SELECT COUNT(*) FROM performance_schema.global_variables;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 --query_vertical SELECT * FROM performance_schema.log_status
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --disconnect user1
 DROP USER user1@'%';
-RESET SLAVE ALL FOR CHANNEL 'ch1';
+RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 
 --echo # Third step
@@ -213,23 +213,23 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 # even when MySQL instance is locked for backup and
 # FLUSH TABLES <table list> WITH READ LOCK is in place.
 #
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 LOCK INSTANCE FOR BACKUP;
 FLUSH TABLES test.t1 WITH READ LOCK;
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 # The content of the result is not important in this step
 --disable_result_log
 SELECT * FROM performance_schema.log_status;
 --enable_result_log
---source include/rpl_connection_slave1.inc
+--source include/rpl/connection_replica1.inc
 UNLOCK TABLES;
 UNLOCK INSTANCE;
 
 
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 --remove_file $ils_dump
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE ils_copy, t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

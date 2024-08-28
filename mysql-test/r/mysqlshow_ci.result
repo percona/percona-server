@@ -156,7 +156,6 @@ Database: information_schema
 | TABLE_STATISTICS                      |
 | TABLES                                |
 | TABLES_EXTENSIONS                     |
-| TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TEMPORARY_TABLES                      |
 | THREAD_STATISTICS                     |
@@ -249,7 +248,6 @@ Database: INFORMATION_SCHEMA
 | TABLE_STATISTICS                      |
 | TABLES                                |
 | TABLES_EXTENSIONS                     |
-| TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TEMPORARY_TABLES                      |
 | THREAD_STATISTICS                     |

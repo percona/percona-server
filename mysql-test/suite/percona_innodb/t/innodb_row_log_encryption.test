@@ -1,9 +1,9 @@
 --source include/have_debug_sync.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
 
-call mtr.add_suppression("Function 'keyring_file' already exists");
-call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
-call mtr.add_suppression("Plugin keyring_file reported");
-
---let $keyring_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-sort-buffer-size=64k --innodb_encrypt_online_alter_logs=ON
+--let $keyring_restart_param=restart: --innodb-sort-buffer-size=64k --innodb_encrypt_online_alter_logs=ON
 
 --source include/innodb_row_log_encryption.inc
+
+--source suite/component_keyring_file/inc/teardown_component.inc

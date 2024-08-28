@@ -18,16 +18,17 @@ exec $MYSQLD_BOOTSTRAP_CMD --datadir=$TMP_DATADIR --symbolic-links=0 --lower-cas
 
 perl;
   # Variables which we don't want to display in the result file since
-  # their paths may vary:
+  # their paths may vary or their value is machine specific:
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
                language lc-messages-dir
                datadir replica-load-tmpdir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
-               tls-version admin-tls-version secure-file-priv/;
+               tls-version admin-tls-version secure-file-priv temptable-max-ram/;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build
-  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops version-suffix/;
+  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops version-suffix
+                     percona-telemetry-disable/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file

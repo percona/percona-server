@@ -2,4 +2,4 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed.inc
 
---source extra/binlog_tests/percona_binlog_consistent.test
+--source common/binlog/percona_binlog_consistent.test

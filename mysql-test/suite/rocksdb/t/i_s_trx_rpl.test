@@ -2,7 +2,7 @@
 
 --let rpl_skip_start_slave=1
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 connection master;
 create table t1 (a int) engine=rocksdb;
@@ -16,11 +16,11 @@ while ($aa < 1000) {
 
 connection slave;
 show variables like 'rocksdb_rpl_skip_tx_api';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $wait_condition = select count(*) > 0 from information_schema.rocksdb_trx;
 --source include/wait_condition.inc
 
 connection master;
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

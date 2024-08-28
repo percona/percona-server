@@ -28,7 +28,7 @@
 #                                                                             #
 ###############################################################################
 
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 
 # Since a part of slave SQL thread initialisation happens after Slave_SQL_Running
 # has been set to Yes, there is a race condition between initialisation above and
@@ -37,7 +37,7 @@ CREATE TABLE t1(a INT);
 DROP TABLE t1;
 
 --echo connection slave
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -77,7 +77,7 @@ let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
 --let $assert_debug= SELECT @@global.max_connections, @start_max_connections
 --source include/assert.inc
 
---source include/restart_slave_sql.inc
+--source include/rpl/restart_applier.inc
 
 #
 # wait for the slave threads have set the global variable.
@@ -92,7 +92,7 @@ let $wait_condition= SELECT @@global.max_connections = @start_max_connections + 
 # Setting a variable(which is local to a session) and must not be visible
 SET @@global.init_replica = "SET @a=5";
 #
---source include/restart_slave_sql.inc
+--source include/rpl/restart_applier.inc
 #
 SHOW VARIABLES LIKE 'init_replica';
 # expect NULL
@@ -106,4 +106,4 @@ SET @@global.init_replica= @start_init_replica;
 # End of functionality Testing for init_replica    #
 ##################################################
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

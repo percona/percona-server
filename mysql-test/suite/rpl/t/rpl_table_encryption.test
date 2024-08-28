@@ -2,24 +2,30 @@
 --echo # WL#12261 - Test in replication environment.
 --echo #
 
---let $rpl_skip_start_slave = 1
---source include/master-slave.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/rpl_setup_component.inc
 
---let $rpl_server_number = 1
---let $rpl_server_parameters = $KEYRING_PLUGIN_OPT --early-plugin-load=keyring_file=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring1 --default-table-encryption=OFF --table-encryption-privilege-check=OFF
---let $rpl_omit_print_server_parameters = 1
---source include/rpl_restart_server.inc
+# Restart source and replica with keyring
 
---let $rpl_server_number = 2
---let $rpl_server_parameters = $KEYRING_PLUGIN_OPT --early-plugin-load=keyring_file=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --default-table-encryption=ON --table-encryption-privilege-check=ON
---let $rpl_omit_print_server_parameters = 1
---source include/rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl/stop_server.inc
+--let $rpl_server_error= 0
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters= --default-table-encryption=OFF --table-encryption-privilege-check=OFF
+--source include/rpl/start_server.inc
 
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
+--let $rpl_server_number= 2
+--source include/rpl/stop_server.inc
+--let $rpl_server_error= 0
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters= --default-table-encryption=ON --table-encryption-privilege-check=ON
+--source include/rpl/start_server.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
 
 --echo # Start the master with default_table_encryption=off
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE DATABASE db1;
 CREATE DATABASE db2 DEFAULT ENCRYPTION='n';
 CREATE DATABASE db3 DEFAULT ENCRYPTION='y';
@@ -43,7 +49,7 @@ SHOW CREATE TABLE db3.t1;
 --echo # Start the slave with default_table_encryption=on
 --echo # The 'table_encryption_privilege_check' setting does not affect the
 --echo # slave thread operations.
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 --echo # Make sure encryption type for following objects are same as master.
 SHOW CREATE DATABASE db1;
@@ -55,7 +61,7 @@ SHOW CREATE TABLE db1.t1;
 SHOW CREATE TABLE db2.t1;
 SHOW CREATE TABLE db3.t1;
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
@@ -63,27 +69,17 @@ DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts3;
 
---source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
 
 --let $rpl_server_number = 1
 --let $rpl_server_parameters =
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters =
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
---source include/rpl_end.inc
-
-# keyring backup files might have been generated
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring1"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring1.backup"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring2"
---error 0,1
---remove_file "$MYSQL_TMP_DIR/mysecret_keyring2.backup"
+--source suite/component_keyring_file/inc/rpl_teardown_component.inc

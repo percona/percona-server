@@ -1,7 +1,7 @@
 # This test checks if compressed columns extensions (including compression
 # dictionaries) work properly in different replication modes.
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --let $dict_word= long
 --let $short_value= short
@@ -31,14 +31,14 @@ eval INSERT INTO t2 VALUES(1, '$short_value');
 eval INSERT INTO t2 VALUES(1, '$long_value');
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
 --source include/diff_tables.inc
 
 connection master;
 DROP TABLE t1, t2;
 DROP COMPRESSION_DICTIONARY dict;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # master:zip -> slave:non-zip 
@@ -57,7 +57,7 @@ CREATE TABLE t2(
   a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
 ) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
 ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT DEFAULT;
@@ -70,14 +70,14 @@ eval INSERT INTO t2 VALUES(1, '$short_value');
 eval INSERT INTO t2 VALUES(1, '$long_value');
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
 --source include/diff_tables.inc
 
 connection master;
 DROP TABLE t1, t2;
 DROP COMPRESSION_DICTIONARY dict;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 #
 # master:non-zip -> slave:zip 
@@ -96,7 +96,7 @@ CREATE TABLE t2(
   a BLOB
 ) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 connection slave;
 ALTER TABLE t1 MODIFY a BLOB COLUMN_FORMAT COMPRESSED;
 ALTER TABLE t2 MODIFY a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict;
@@ -109,13 +109,13 @@ eval INSERT INTO t2 VALUES(1, '$short_value');
 eval INSERT INTO t2 VALUES(1, '$long_value');
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 --let $diff_tables= master:t1,master:t2,slave:t1,slave:t2
 --source include/diff_tables.inc
 
 connection master;
 DROP TABLE t1, t2;
 DROP COMPRESSION_DICTIONARY dict;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

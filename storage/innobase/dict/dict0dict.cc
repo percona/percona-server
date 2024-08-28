@@ -1,18 +1,19 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
 
-This program is also distributed with certain software (including but not
-limited to OpenSSL) that is licensed under separate terms, as designated in a
-particular file or component or in included license documentation. The authors
-of MySQL hereby grant you an additional permission to link the program and
-your derivative works with the separately licensed software that they have
-included with MySQL.
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -5879,131 +5880,6 @@ void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
   }
 }
 
-/** Change the table_id of SYS_* tables if they have been created after
-an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
-*/
-void dict_table_change_id_sys_tables() {
-  ut_ad(dict_sys_mutex_own());
-
-  /* On upgrading from 5.6 to 5.7, new system table SYS_VIRTUAL is given table
-   id after the last created user table. So, if last user table was created
-   with table_id as 1027, SYS_VIRTUAL would get id 1028. On upgrade to 8.0,
-   all these tables are shifted by 1024. On 5.7, the SYS_FIELDS has table id
-   4, which gets updated to 1028 on upgrade. This would later assert when we
-   try to open the SYS_VIRTUAL table (having id 1028) for upgrade. Hence, we
-   need to upgrade system tables in reverse order to avoid that.
-   These tables are created on boot. And hence this issue can only be caused by
-   a new table being added at a later stage - the SYS_VIRTUAL table being added
-   on upgrading to 5.7. */
-
-  for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
-    dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
-
-    ut_a(system_table != nullptr || i == SYS_ZIP_DICT ||
-         i == SYS_ZIP_DICT_COLS);
-
-    /* SYS_ZIP_DICT and SYS_ZIP_DICT_COLS can be missing when mysql-5.7 to
-    PS-8.0 upgrade */
-    if (system_table == nullptr &&
-        (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS)) {
-      ut_ad(dict_upgrade_zip_dict_missing);
-      continue;
-    }
-    ut_ad(dict_sys_table_id[i] == system_table->id);
-
-    /* During upgrade, table_id of user tables is also
-    moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
-    table_id_t new_table_id = system_table->id + DICT_MAX_DD_TABLES;
-
-    dict_table_change_id_in_cache(system_table, new_table_id);
-
-    dict_sys_table_id[i] = system_table->id;
-
-    dict_table_prevent_eviction(system_table);
-  }
-}
-
-/** Evict all tables that are loaded for applying purge.
-Since we move the offset of all table ids during upgrade,
-these tables cannot exist in cache. Also change table_ids
-of SYS_* tables if they are upgraded from earlier versions */
-void dict_upgrade_evict_tables_cache() {
-  dict_table_t *table;
-
-  rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
-  dict_sys_mutex_enter();
-
-  ut_ad(dict_lru_validate());
-  ut_ad(srv_is_upgrade_mode);
-
-  /* Move all tables from non-LRU to LRU */
-  for (table = UT_LIST_GET_LAST(dict_sys->table_non_LRU); table != nullptr;) {
-    dict_table_t *prev_table;
-
-    prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-    if (!dict_table_is_system(table->id)) {
-      DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_185)
-                                        << "Moving table " << table->name
-                                        << " from non-LRU to LRU";);
-
-      dict_table_move_from_non_lru_to_lru(table);
-    }
-
-    table = prev_table;
-  }
-
-  for (table = UT_LIST_GET_LAST(dict_sys->table_LRU); table != nullptr;) {
-    dict_table_t *prev_table;
-
-    prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-    ut_ad(dict_table_can_be_evicted(table));
-
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_186)
-                                      << "Evicting table: LRU: "
-                                      << table->name;);
-
-    dict_table_remove_from_cache_low(table, true);
-
-    table = prev_table;
-  }
-
-  dict_table_change_id_sys_tables();
-
-  dict_sys_mutex_exit();
-  rw_lock_x_unlock(dict_operation_lock);
-}
-
-/** Build the table_id array of SYS_* tables. This
-array is used to determine if a table is InnoDB SYSTEM
-table or not.
-@return true if successful, false otherwise */
-bool dict_sys_table_id_build() {
-  dict_sys_mutex_enter();
-  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
-    dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
-
-    if (system_table == nullptr) {
-      /* When upgrading from mysql-5.7 to PS-8.0, these system tables may not
-      be present. Do not abort upgrade */
-      if (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS) {
-        dict_upgrade_zip_dict_missing = true;
-        continue;
-      }
-
-      /* Cannot find a system table, this happens only if user trying
-      to boot server earlier than 5.7 */
-      dict_sys_mutex_exit();
-      LogErr(ERROR_LEVEL, ER_IB_MSG_1271);
-      return (false);
-    }
-    dict_sys_table_id[i] = system_table->id;
-  }
-  dict_sys_mutex_exit();
-  return (true);
-}
-
 /** @return true if table is InnoDB SYS_* table
 @param[in]      table_id        table id  */
 bool dict_table_is_system(table_id_t table_id) {
@@ -6157,7 +6033,6 @@ void dict_validate_no_purge_rollback_threads() {
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
-
 /** Get single compression dictionary id for the given
 (table id, column pos) pair.
 @param[in]	table_id	table id
@@ -6214,33 +6089,6 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   trx_free_for_background(trx);
 
   return err;
-}
-
-/** Detect if database has encrypted mysql plugin space. This is
- *  indication that system tablespace was encrypted.
-@param[in] mysql_plugin_space   space_id of mysql/plugin table.
-@return true if encrypted, false if not (or fail to open mysql/plugin table) */
-static bool dict_is_mysql_plugin_space_encrypted(
-    space_id_t mysql_plugin_space) {
-  /* It is possible that plugin table was created with
-  innodb_file_per_table == false, then this tablespace
-  will reside in system tablespace */
-  if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
-    return (srv_sys_space.is_encrypted());
-  }
-
-  space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
-  if (space_id == SPACE_UNKNOWN) {
-    return (false);
-  }
-
-  const fil_space_t *space = fil_space_get(space_id);
-  ut_ad(space != nullptr);
-
-  if (space == nullptr) {
-    return false;
-  }
-  return FSP_FLAGS_GET_ENCRYPTION(space->flags);
 }
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
@@ -6336,7 +6184,6 @@ static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
 }
 
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
-                                         space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql) {
   enum_default_table_encryption default_enc =
       static_cast<enum_default_table_encryption>(
@@ -6346,9 +6193,6 @@ bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
   switch (dict_init_mode) {
     case DICT_INIT_CREATE_FILES:
       encrypt_mysql = (default_enc == DEFAULT_TABLE_ENC_ON);
-      return true;
-    case DICT_INIT_UPGRADE_57_FILES:
-      encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);
       return true;
     case DICT_INIT_CHECK_FILES:
       std::tie(success, encrypt_mysql) =

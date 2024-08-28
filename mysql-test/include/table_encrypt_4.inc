@@ -2,7 +2,11 @@
 # This test case will test export/import encrypted tablespace.
 
 --source include/no_valgrind_without_big.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
 --source include/have_debug.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
 
 --let $restart_parameters = $keyring_restart_param
 --let $do_not_echo_parameters = 1
@@ -96,7 +100,6 @@ if($source_db != $dest_db) {
 --source include/restart_mysqld.inc
 
 --source include/wait_until_connected_again.inc
---disable_reconnect
 
 eval SELECT * FROM $dest_db.t1 LIMIT 10;
 
@@ -184,3 +187,4 @@ eval DROP TABLE IF EXISTS $source_db.t1;
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back
+--source suite/component_keyring_file/inc/teardown_component_customized.inc

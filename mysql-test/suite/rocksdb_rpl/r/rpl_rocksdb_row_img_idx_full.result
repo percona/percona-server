@@ -1,37 +1,37 @@
-include/rpl_init.inc [topology=1->2->3]
+include/rpl/init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-CON: 'server_1', IMG: 'FULL', RESTART SLAVE: 'N'
+CON: 'server_1', IMG: 'FULL', RESTART REPLICA: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
-CON: 'server_2', IMG: 'FULL', RESTART SLAVE: 'Y'
+CON: 'server_2', IMG: 'FULL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
-CON: 'server_3', IMG: 'FULL', RESTART SLAVE: 'Y'
+CON: 'server_3', IMG: 'FULL', RESTART REPLICA: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
-include/stop_slave.inc
-include/start_slave.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
 ### engines: RocksDB, RocksDB, RocksDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -45,20 +45,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -72,20 +72,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -99,20 +99,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -126,20 +126,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -153,20 +153,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -180,20 +180,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -207,20 +207,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -234,20 +234,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -261,20 +261,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -288,20 +288,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -315,20 +315,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -342,20 +342,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -369,20 +369,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -396,20 +396,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -423,20 +423,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -450,22 +450,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: RocksDB, RocksDB, InnoDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -479,20 +479,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -506,20 +506,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -533,20 +533,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -560,20 +560,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -587,20 +587,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -614,20 +614,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -641,20 +641,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -668,20 +668,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -695,20 +695,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -722,20 +722,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -749,20 +749,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -776,20 +776,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -803,20 +803,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -830,20 +830,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -857,20 +857,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -884,22 +884,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: RocksDB, InnoDB, RocksDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -913,20 +913,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -940,20 +940,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -967,20 +967,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -994,20 +994,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1021,20 +1021,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1048,20 +1048,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1075,20 +1075,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1102,20 +1102,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1129,20 +1129,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1156,20 +1156,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1183,20 +1183,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1210,20 +1210,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1237,20 +1237,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1264,20 +1264,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1291,20 +1291,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1318,22 +1318,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: RocksDB, InnoDB, InnoDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1347,20 +1347,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1374,20 +1374,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1401,20 +1401,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1428,20 +1428,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1455,20 +1455,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1482,20 +1482,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1509,20 +1509,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1536,20 +1536,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1563,20 +1563,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1590,20 +1590,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1617,20 +1617,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1644,20 +1644,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1671,20 +1671,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1698,20 +1698,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1725,20 +1725,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1752,22 +1752,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: InnoDB, RocksDB, RocksDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1781,20 +1781,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1808,20 +1808,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1835,20 +1835,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1862,20 +1862,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1889,20 +1889,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1916,20 +1916,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1943,20 +1943,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1970,20 +1970,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1997,20 +1997,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2024,20 +2024,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2051,20 +2051,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2078,20 +2078,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2105,20 +2105,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2132,20 +2132,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2159,20 +2159,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2186,22 +2186,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: InnoDB, RocksDB, InnoDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2215,20 +2215,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2242,20 +2242,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2269,20 +2269,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2296,20 +2296,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2323,20 +2323,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2350,20 +2350,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2377,20 +2377,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2404,20 +2404,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2431,20 +2431,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2458,20 +2458,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2485,20 +2485,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2512,20 +2512,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2539,20 +2539,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2566,20 +2566,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2593,20 +2593,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2620,22 +2620,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: InnoDB, InnoDB, RocksDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2649,20 +2649,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2676,20 +2676,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2703,20 +2703,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2730,20 +2730,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2757,20 +2757,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2784,20 +2784,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2811,20 +2811,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2838,20 +2838,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2865,20 +2865,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2892,20 +2892,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2919,20 +2919,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2946,20 +2946,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2973,20 +2973,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3000,20 +3000,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3027,20 +3027,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3054,22 +3054,22 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 ### engines: InnoDB, InnoDB, InnoDB
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3083,20 +3083,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3110,20 +3110,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3137,20 +3137,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3164,20 +3164,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3191,20 +3191,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3218,20 +3218,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3245,20 +3245,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3272,20 +3272,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3299,20 +3299,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3326,20 +3326,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3353,20 +3353,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3380,20 +3380,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3407,20 +3407,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3434,20 +3434,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3461,20 +3461,20 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3488,18 +3488,18 @@ SET SQL_LOG_BIN=1;
 INSERT INTO t VALUES (1, "a", 10);
 INSERT INTO t VALUES (2, "b", 20);
 INSERT INTO t VALUES (3, "c", 30);
-include/rpl_sync.inc
+include/rpl/sync.inc
 UPDATE t SET c1=10 WHERE c2="a";
 UPDATE t SET c1=20 WHERE c1=2;
 UPDATE t SET c1=30 WHERE c3=30;
 UPDATE t SET c3=40 WHERE c1=30;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c2="a";
 DELETE FROM t WHERE c1=20;
 DELETE FROM t;
-include/rpl_sync.inc
+include/rpl/sync.inc
 include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

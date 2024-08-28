@@ -1,6 +1,6 @@
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 # MDEV-382: multiple SQL injections in replication code.
 
@@ -23,7 +23,7 @@ rollback to savepoint `a``; create database couldbebadthingshere; savepoint ``du
 insert into t1 values (3);
 commit;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 # This failed due to syntax error in query when the bug was not fixed.
 sync_slave_with_master;
@@ -31,7 +31,7 @@ connection slave;
 
 # Test some more combinations of ANSI_QUOTES and sql_quote_show_create
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 BEGIN;
 insert into t1 values(10);
 set sql_mode = 'ANSI_QUOTES';
@@ -59,11 +59,11 @@ insert into t1 values(18);
 COMMIT;
 set sql_quote_show_create = 1;
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --echo *** Test correct USE statement in SHOW BINLOG EVENTS ***
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 set sql_mode = 'ANSI_QUOTES';
 CREATE DATABASE "db1`; select 'oops!'";
 use "db1`; select 'oops!'";
@@ -72,12 +72,12 @@ INSERT INTO t1 VALUES (1);
 set sql_mode = '';
 INSERT INTO t1 VALUES (2);
 set sql_mode = 'ANSI_QUOTES';
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 set sql_mode = '';
 set sql_quote_show_create = 0;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 set sql_quote_show_create = 1;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 DROP TABLE t1;
 
 use test;
@@ -90,7 +90,7 @@ use test;
 EOF
 
 use `db1``; select 'oops!'`;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 set timestamp=1000000000;
 CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
     `c``3` VARCHAR(7));
@@ -111,12 +111,12 @@ eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/f''le.txt'
   LINES TERMINATED BY '\\n'
   (`a``1`, `b``2`) SET `c``3` = concat('|', "b""a'z", "!");
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
-let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $pos2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $mysqlbinlog_parameters=--short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
 
 sync_slave_with_master;
@@ -139,7 +139,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(1000));
 2,A
 EOF
 
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 # The bug was that the SET expression was truncated to 256 bytes, so test with
 # an expression longer than that.
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -148,7 +148,7 @@ eval LOAD DATA INFILE '$load_file' INTO TABLE t1
   (a, @b) SET b = CONCAT(@b, '| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|', @b);
 
 SELECT * FROM t1 ORDER BY a;
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 sync_slave_with_master;
 connection slave;
@@ -161,17 +161,17 @@ DROP TABLE t1;
 
 --echo *** Test user variables whose names require correct quoting ***
 use `db1``; select 'oops!'`;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100));
 INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100));
 SELECT @`a``1`:=a1, @`a``2`:=a2, @`a``3`:=a3, @`a``4`:=a4, @`b```:=b, @```c`:=c, @```d```:=d FROM t1;
 INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98));
-let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $pos2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 --let $mysqlbinlog_parameters=--short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
---source include/mysqlbinlog.inc
+--source include/rpl/mysqlbinlog.inc
 
 sync_slave_with_master;
 connection slave;
@@ -196,7 +196,7 @@ DROP TABLE `t``1`;
 # Let's keep the slave stopped during master restart, to avoid any potential
 # races between slave reconnect and master restart.
 connection slave;
---source include/stop_slave.inc
+--source include/rpl/stop_replica.inc
 
 connection master;
 CREATE TABLE `db1``; select 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
@@ -207,19 +207,19 @@ SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
 # This will cause an implicit truncation of the memory-based table, which will
 # cause logging of an explicit DELETE FROM to binlog.
 --let $rpl_server_number=1
---source include/rpl_restart_server.inc
+--source include/rpl/restart_server.inc
 set timestamp=1000000000;
 
 --echo # The table should be empty on the master.
 let $binlog_file= master-bin.000002;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 
 --echo # The DELETE statement should be correctly quoted
---source include/show_binlog_events.inc
+--source include/rpl/deprecated/show_binlog_events.inc
 
 connection slave;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 connection master;
 sync_slave_with_master;
@@ -236,4 +236,4 @@ connection master;
 use test;
 DROP DATABASE `db1``; select 'oops!'`;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

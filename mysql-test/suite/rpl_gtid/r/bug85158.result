@@ -1,4 +1,4 @@
-include/rpl_init.inc [topology=1->2,2->3,1->3]
+include/rpl/init.inc [topology=1->2,2->3,1->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -21,7 +21,7 @@ CREATE TABLE t1(f1 INT, f2 BLOB);
 ###
 # SYNC 1->3
 ######
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 ###
 # MEASURE 3
 ######
@@ -39,8 +39,8 @@ START REPLICA;
 # SYNC 1->2,2->3
 ######
 [connection server_1]
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
+include/rpl/sync_to_replica.inc
 ###
 # MEASURE 3
 ######
@@ -56,4 +56,4 @@ SET enabled='no', timed='no'
   WHERE object_schema='mysql';
 [connection server_1]
 DROP TABLE t1;
-include/rpl_end.inc
+include/rpl/deinit.inc

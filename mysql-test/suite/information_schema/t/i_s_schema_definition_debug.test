@@ -320,6 +320,12 @@ INSERT INTO I_S_published_schema
 INSERT INTO I_S_published_schema
   VALUES ('80200', '80200', 1,
         'ba0d3c4433b39df52abda9fe0285caddb4f971aaed0bd0d5b6a62ef0fa045ba1');
+INSERT INTO I_S_published_schema
+  VALUES ('80400', '80400', 0,
+        '773402e5ce6945f2b5645b3a7530544ae2c9f67035d7786655d37aedf2629ec8');
+INSERT INTO I_S_published_schema
+  VALUES ('80400', '80400', 1,
+        'e9e8a30f4a2f1c66309b713d35c4a256aa6aa00affce84b713146f1d05fa1fa1');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w
@@ -401,7 +407,7 @@ let $assert_cond = "[SELECT COUNT(i_s_version)
                        AND lctn = @@global.lower_case_file_system
                        AND i_s_version = \'$current_i_s_version\']" >= 1;
 let $assert_text = The schema checksum corresponds to
-                       IS_VERSION $current_i_s_version stored on on disk.;
+                       IS_VERSION $current_i_s_version stored on disk.;
 --source include/assert.inc
 
 # Make sure that the I_S version stored on disk is the latest known I_S version

@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -18,7 +18,7 @@ INSERT INTO t4 VALUES(1, '1');
 UPDATE t2, t3, t4 SET t2.b='tt2', t3.b='tt3', t4.b='tt4' WHERE t2.a=t3.a and t2.a=t4.a;
 set global DEBUG='-d,dbug_table_map_id_6B_UINT_MAX';
 set global DEBUG=@saved_debug;
-include/start_slave.inc
+include/rpl/start_replica.inc
 SELECT * FROM t2;
 a	b
 1	tt2
@@ -40,4 +40,4 @@ a	b
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
-include/rpl_end.inc
+include/rpl/deinit.inc

@@ -151,7 +151,6 @@ Database: information_schema
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
-| TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TABLES_EXTENSIONS                     |
 | TABLE_CONSTRAINTS                     |
@@ -244,7 +243,6 @@ Database: INFORMATION_SCHEMA
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
-| TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TABLES_EXTENSIONS                     |
 | TABLE_CONSTRAINTS                     |

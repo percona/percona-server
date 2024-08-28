@@ -3,10 +3,10 @@
 
 --let rpl_skip_start_slave=1
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 --source include/count_sessions.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 create table t1 (a int, b int, primary key (a), unique key (b)) engine=rocksdb;
 --disable_query_log
 --let $aa= 0
@@ -16,9 +16,9 @@ while ($aa < 1000) {
 }
 --enable_query_log
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 show variables like 'rocksdb_rpl_skip_tx_api';
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --let $it=0
 --let $stop=0
@@ -37,13 +37,13 @@ let $count= query_get_value(select count(*) as Value from information_schema.roc
   --inc $it
 }
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 delete from t1 where a = 1;
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 DROP TABLE t1;
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc
 --source include/wait_until_count_sessions.inc

@@ -1,7 +1,7 @@
 # Hangs both master and slave processes during shutdown.
 
 --source include/have_debug.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 SET @@session.debug = "+d,shutdown_hang";
@@ -9,4 +9,4 @@ SET @@session.debug = "+d,shutdown_hang";
 --connection slave
 SET @@session.debug = "+d,shutdown_hang";
 
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

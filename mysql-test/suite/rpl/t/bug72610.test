@@ -3,13 +3,13 @@
 # transactions and slave type conversions)
 #
 --source include/have_binlog_format_row.inc
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection master
 
 CREATE TABLE t1(a BIGINT AUTO_INCREMENT PRIMARY KEY, b INT DEFAULT NULL) ENGINE=InnoDB;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 ALTER TABLE t1 MODIFY COLUMN b BIGINT DEFAULT NULL;
 
@@ -23,10 +23,10 @@ INSERT INTO t1 VALUES (NULL, NULL);
 INSERT INTO t1 VALUES (NULL, NULL);
 COMMIT;
 
---source include/sync_slave_sql_with_master.inc
+--source include/rpl/sync_to_replica.inc
 
 SELECT COUNT(*) FROM t1;
 
 --connection master
 DROP TABLE t1;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

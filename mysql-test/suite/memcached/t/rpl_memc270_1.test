@@ -6,7 +6,7 @@ source include/have_log_bin.inc;
 #
 source include/not_windows.inc;
 --disable_warnings
-source include/master-slave.inc;
+source include/rpl/init_source_replica.inc;
 --enable_warnings
 
 --disable_query_log
@@ -246,5 +246,5 @@ DROP DATABASE innodb_memcache;
  
 SET @@global.transaction_isolation= @transaction_isolation;
 sync_slave_with_master;
-source include/rpl_end.inc;
+source include/rpl/deinit.inc;
 

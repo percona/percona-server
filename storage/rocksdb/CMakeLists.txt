@@ -225,6 +225,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
     append_cflags_if_supported(-Wno-maybe-uninitialized -Wno-uninitialized)
   ENDIF()
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES rocksdb/db/blob/blob_file_reader.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-restrict FILES rocksdb/table/iterator.cc rocksdb/table/unique_id.cc)
+ENDIF()
+
+# Suppress warnings for gcc-14 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-declarations FILES rocksdb/db/memtable.cc)
 ENDIF()
 
 # Suppress warnings for gcc ASan build

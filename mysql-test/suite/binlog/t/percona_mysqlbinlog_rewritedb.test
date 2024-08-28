@@ -25,8 +25,8 @@ eval CREATE DATABASE $DB4; eval USE $DB4; CREATE TABLE t1(f INT);
 RESET BINARY LOGS AND GTIDS;
 --let MYSQLD_DATA_DIR=`select @@datadir`
 --let LOAD_DATA_FILE=$MYSQLD_DATA_DIR/table.values
---let BIN_LOG_FILE_NAME=query_get_value(show master status, File,    1)
---let BIN_LOG_START_POSITION=query_get_value(show master status, Position, 1)
+--let BIN_LOG_FILE_NAME=query_get_value(show binary log status, File,    1)
+--let BIN_LOG_START_POSITION=query_get_value(show binary log status, Position, 1)
 eval USE $DB1; INSERT INTO t1 VALUES(0); INSERT INTO t1 VALUES(0);
 eval USE $DB2; INSERT INTO t1 VALUES(1); INSERT INTO t1 VALUES(1);
 write_file $LOAD_DATA_FILE;
@@ -35,7 +35,7 @@ write_file $LOAD_DATA_FILE;
 EOF
 eval USE $DB3;
 --eval LOAD DATA INFILE "$LOAD_DATA_FILE" INTO TABLE t1
---let BIN_LOG_STOP_POSITION=query_get_value(show master status, Position, 1)
+--let BIN_LOG_STOP_POSITION=query_get_value(show binary log status, Position, 1)
 FLUSH LOGS;
 
 --let BIN_LOG_FULL_PATH=`SELECT CONCAT("$MYSQLD_DATA_DIR", "$BIN_LOG_FILE_NAME")`

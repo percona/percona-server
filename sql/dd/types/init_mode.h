@@ -30,8 +30,6 @@
 enum dict_init_mode_t {
   DICT_INIT_CREATE_FILES,      ///< Create all required SE files
   DICT_INIT_CHECK_FILES,       ///< Verify existence of expected files
-  DICT_INIT_UPGRADE_57_FILES,  ///< Used for upgrade from mysql-5.7
-  DICT_INIT_IGNORE_FILES       ///< Don't care about files at all
 };
 
 #endif  // DD_INIT_MODE_T_H_INCLUDED

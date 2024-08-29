@@ -1,0 +1,6 @@
+select @@global.slow_query_log_file;
+@@global.slow_query_log_file
+mysqld.slowlog
+select @@global.general_log_file;
+@@global.general_log_file
+mysqld.general

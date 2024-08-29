@@ -1,0 +1,6 @@
+--slow_query_log=ON
+--general_log=ON
+--slow_query_log_file=mysqld.slowlog
+--general_log_file=mysqld.general
+--max_slowlog_files=10
+--max_slowlog_size=5000

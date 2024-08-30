@@ -53,7 +53,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_mysql
   PUBLIC
   harness_stdx
   harness-library  # log_debug
-  mysqlclient
+  perconaserverclient
   )
 
 ROUTER_ADD_SHARED_LIBRARY(router_cluster
@@ -92,15 +92,9 @@ ROUTER_ADD_SHARED_LIBRARY(router_lib
   harness-library
   harness_stdx
   harness_tls
-<<<<<<< HEAD
-  perconaserverclient
-||||||| merged common ancestors
-  mysqlclient
-=======
   router_utils
   router_cluster
   # router_mysql
->>>>>>> mysql-8.4.2
   OpenSSL::SSL OpenSSL::Crypto
   io_component
   extra::rapidjson

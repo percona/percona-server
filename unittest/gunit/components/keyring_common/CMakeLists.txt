@@ -59,34 +59,16 @@ IF(COMPONENT_COMPILE_VISIBILITY)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
-<<<<<<< HEAD
- ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
- ${COMPILE_OPTIONS_ARG}
- ENABLE_EXPORTS
- ADD_TEST merge_component_keyring_common_tests
- LINK_LIBRARIES
- ${KEYRING_COMPONENT_LIBS}
- gunit_large
- server_unittest_library
- )
-||||||| merged common ancestors
   ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
   ${COMPILE_OPTIONS_ARG}
   ENABLE_EXPORTS
   ADD_TEST merge_component_keyring_common_tests
   LINK_LIBRARIES
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
- )
-=======
-  ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
-  ${COMPILE_OPTIONS_ARG}
-  ENABLE_EXPORTS
-  ADD_TEST merge_component_keyring_common_tests
-  LINK_LIBRARIES
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
+  ${KEYRING_COMPONENT_LIBS}
+  gunit_large
+  server_unittest_library
   )
 DOWNGRADE_STRINGOP_WARNINGS(merge_component_keyring_common_tests-t)
->>>>>>> mysql-8.4.2
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
   MYSQL_ADD_EXECUTABLE(keyring_common_${test}-t ${test}-t.cc

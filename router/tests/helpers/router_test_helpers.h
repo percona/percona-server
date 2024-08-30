@@ -35,30 +35,12 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/attribute.h"
 
-<<<<<<< HEAD
 #ifdef HAVE_DEBUG_EXTNAME
 #define MYSQLD_BIN "mysqld-debug"
 #else
 #define MYSQLD_BIN "mysqld"
 #endif
 
-#define SKIP_GIT_TESTS(COND)                                       \
-  if (COND) {                                                      \
-    std::cout << "[  SKIPPED ] Tests using Git repository skipped" \
-              << std::endl;                                        \
-    return;                                                        \
-  }
-
-||||||| merged common ancestors
-#define SKIP_GIT_TESTS(COND)                                       \
-  if (COND) {                                                      \
-    std::cout << "[  SKIPPED ] Tests using Git repository skipped" \
-              << std::endl;                                        \
-    return;                                                        \
-  }
-
-=======
->>>>>>> mysql-8.4.2
 #define HARNESS_TEST_THROW_LIKE_(statement, expected_exception,                \
                                  expected_message, fail)                       \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \

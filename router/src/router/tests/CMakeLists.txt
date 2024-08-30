@@ -100,20 +100,8 @@ SET_TARGET_PROPERTIES(
 ADD_HARNESS_TEST_FILE(test_mysql_session.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-<<<<<<< HEAD
-    test-helpers perconaserverclient
-  EXTRA_SOURCES
-    ../src/common/mysql_session.cc
-    ../src/common/log_filter.cc
-||||||| merged common ancestors
-    test-helpers mysqlclient
-  EXTRA_SOURCES
-    ../src/common/mysql_session.cc
-    ../src/common/log_filter.cc
-=======
     test-helpers
     router_mysql
->>>>>>> mysql-8.4.2
   INCLUDE_DIRS
     ../src/
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
@@ -124,13 +112,7 @@ FOREACH(test_file
   ADD_HARNESS_TEST_FILE(${test_file}
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
-<<<<<<< HEAD
-      test-helpers perconaserverclient router_lib
-||||||| merged common ancestors
-      test-helpers mysqlclient router_lib
-=======
       test-helpers router_cluster
->>>>>>> mysql-8.4.2
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_cluster,INCLUDE_DIRECTORIES>
       ../src/
@@ -141,13 +123,7 @@ ENDFOREACH()
 ADD_HARNESS_TEST_FILE(test_windows_service.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS
-<<<<<<< HEAD
-    test-helpers perconaserverclient
-||||||| merged common ancestors
-    test-helpers mysqlclient
-=======
     test-helpers
->>>>>>> mysql-8.4.2
   EXTRA_SOURCES
     ../src/windows/main-windows.cc
     ../src/windows/nt_servc.cc

@@ -27,14 +27,6 @@ MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient extra::rapidjson)
 
 IF(WITH_UNIT_TESTS)
-<<<<<<< HEAD
-  MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
-||||||| merged common ancestors
-  MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
-=======
   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL EXCLUDE_FROM_PGO)
-  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
->>>>>>> mysql-8.4.2
+  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
 ENDIF()

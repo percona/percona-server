@@ -84,14 +84,11 @@ MYSQL_ADD_COMPONENT(keyring_file
   LINK_LIBRARIES ${KEYRING_FILE_LIBRARIES}
   MODULE_ONLY
 )
-<<<<<<< HEAD
+
+DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
+
 IF(APPLE)
   SET_TARGET_PROPERTIES(component_keyring_file PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
 
-||||||| merged common ancestors
-=======
-
-DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
->>>>>>> mysql-8.4.2

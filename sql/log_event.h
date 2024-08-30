@@ -44,13 +44,7 @@
 #include <string>
 #include <string_view>
 
-<<<<<<< HEAD
-#include "lex_string.h"
 #include "my_aes.h"
-||||||| merged common ancestors
-#include "lex_string.h"
-=======
->>>>>>> mysql-8.4.2
 #include "m_string.h"     // native_strncasecmp
 #include "my_bitmap.h"    // MY_BITMAP
 #include "my_checksum.h"  // ha_checksum

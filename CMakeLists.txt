@@ -2208,7 +2208,6 @@ OPTION(WITH_SHOW_PARSE_TREE
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
 
-<<<<<<< HEAD
 OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
 IF(WITH_ENCRYPTION_UDF)
   ADD_SUBDIRECTORY(extra/opensslpp)
@@ -2216,39 +2215,6 @@ ENDIF()
 
 option(WITH_PERCONA_TELEMETRY "Build Percona Telemetry component" OFF)
 
-# Utility target to build every executable tagged with ADD_TEST.
-ADD_CUSTOM_TARGET(unittest_all)
-
-# Utility target to build every target added with MYSQL_ADD_PLUGIN.
-ADD_CUSTOM_TARGET(plugin_all)
-
-# Utility target to build every target added with MYSQL_ADD_COMPONENT.
-ADD_CUSTOM_TARGET(component_all)
-
-# Utility target to generate all sources from .proto files.
-ADD_CUSTOM_TARGET(protobuf_generated_all)
-
-# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
-ADD_CUSTOM_TARGET(executable_all)
-
-||||||| merged common ancestors
-# Utility target to build every executable tagged with ADD_TEST.
-ADD_CUSTOM_TARGET(unittest_all)
-
-# Utility target to build every target added with MYSQL_ADD_PLUGIN.
-ADD_CUSTOM_TARGET(plugin_all)
-
-# Utility target to build every target added with MYSQL_ADD_COMPONENT.
-ADD_CUSTOM_TARGET(component_all)
-
-# Utility target to generate all sources from .proto files.
-ADD_CUSTOM_TARGET(protobuf_generated_all)
-
-# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
-ADD_CUSTOM_TARGET(executable_all)
-
-=======
->>>>>>> mysql-8.4.2
 # We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
 # To generate entries for header files in compile_commands.json:
 # make clang_tidy_prerequisites, see below.

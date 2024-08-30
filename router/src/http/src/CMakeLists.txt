@@ -171,17 +171,8 @@ TARGET_INCLUDE_DIRECTORIES(http_server
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
 
-<<<<<<< HEAD
-ADD_LIBRARY(http_client
-  SHARED
-||||||| merged common ancestors
-
-ADD_LIBRARY(http_client
-  SHARED
-=======
 
 ROUTER_ADD_SHARED_LIBRARY(http_client
->>>>>>> mysql-8.4.2
   rest_client.cc
   http/client/client.cc
   http/client/error_code.cc

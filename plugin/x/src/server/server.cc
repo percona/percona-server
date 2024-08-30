@@ -56,25 +56,6 @@
 #include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
 
 namespace ngs {
-namespace {
-
-std::unique_ptr<xpl::Sql_data_context> build_sql_data_context() noexcept {
-  auto ctx = std::make_unique<xpl::Sql_data_context>();
-  const bool admin_session = true;
-  ngs::Error_code error = ctx->init(admin_session);
-
-  if (error) {
-    log_error(ER_XPLUGIN_STARTUP_FAILED, error.message.c_str());
-    return nullptr;
-  }
-
-  ctx->switch_to_local_user(MYSQL_SESSION_USER);
-  ctx->attach();
-
-  return ctx;
-}
-
-}  // namespace
 
 Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
                std::shared_ptr<Scheduler_dynamic> work_scheduler,
@@ -135,44 +116,30 @@ void Server::delayed_start_tasks() {
             [this]() { return is_terminating(); })) {
       SYNC_POINT_CHECK("xplugin_init_wait");
 
-      auto sql_context = build_sql_data_context();
+      xpl::Sql_data_context sql_context;
+      const bool admin_session = true;
+      ngs::Error_code error = sql_context.init(admin_session);
 
-      if (sql_context == nullptr) {
+      if (error) {
+        log_error(ER_XPLUGIN_STARTUP_FAILED, error.message.c_str());
         return;
       }
+      sql_context.switch_to_local_user(MYSQL_SESSION_USER);
+      sql_context.attach();
 
       /* This method is executed inside a worker thread, thus
          its better not to swap another thread, this one can handle
          a task. */
-<<<<<<< HEAD
-      start_tasks(sql_context.get());
-||||||| merged common ancestors
-      start_tasks(&sql_context);
-=======
       start_tasks();
->>>>>>> mysql-8.4.2
     }
   });
 }
 
-<<<<<<< HEAD
 void Server::reload_ssl_context() {
-  auto sql_context = build_sql_data_context();
-
-  if (sql_context == nullptr) {
-    return;
-  }
-
-  m_ssl_context =
-      xpl::Ssl_context_builder(sql_context.get()).get_result_context();
+  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
 }
 
-void Server::start_tasks(xpl::iface::Sql_session *sql_session) {
-||||||| merged common ancestors
-void Server::start_tasks(xpl::iface::Sql_session *sql_session) {
-=======
 void Server::start_tasks() {
->>>>>>> mysql-8.4.2
   // We can't fetch the servers ssl config at plugin-load
   // this method allows to setup it at better time.
   m_ssl_context = xpl::Ssl_context_builder().get_result_context();

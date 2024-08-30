@@ -2686,7 +2686,28 @@ int MYSQL_BIN_LOG::write_xa_to_cache(THD *thd) {
   return this->write_event(&qinfo);
 }
 
-<<<<<<< HEAD
+bool MYSQL_BIN_LOG::write_incident_commit(THD *thd,
+                                          std::string_view incident_message) {
+  DBUG_TRACE;
+  if (incident_message.empty()) return true;
+
+  if (thd->binlog_setup_trx_data()) return true;
+
+  binlog_cache_data *const cache = &thd_get_cache_mngr(thd)->trx_cache;
+
+  // Mark the transaction as having an incident
+  cache->set_incident(incident_message);
+
+  // Write a dummy event to form the transaction which will be committed, this
+  // event will never end up in the binlog since cache is marked as having an
+  // incident and thus it will be replaced with an Incident_log_event
+  Query_log_event qinfo(thd, STRING_WITH_LEN("INCIDENT"), true, false, true, 0,
+                        true);
+  if (cache->write_event(&qinfo) || commit(thd, true)) return true;
+
+  return false;
+}
+
 static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
   DBUG_ENTER("binlog_start_consistent_snapshot");
 
@@ -2746,31 +2767,6 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
   DBUG_RETURN(err);
 }
 
-||||||| merged common ancestors
-=======
-bool MYSQL_BIN_LOG::write_incident_commit(THD *thd,
-                                          std::string_view incident_message) {
-  DBUG_TRACE;
-  if (incident_message.empty()) return true;
-
-  if (thd->binlog_setup_trx_data()) return true;
-
-  binlog_cache_data *const cache = &thd_get_cache_mngr(thd)->trx_cache;
-
-  // Mark the transaction as having an incident
-  cache->set_incident(incident_message);
-
-  // Write a dummy event to form the transaction which will be committed, this
-  // event will never end up in the binlog since cache is marked as having an
-  // incident and thus it will be replaced with an Incident_log_event
-  Query_log_event qinfo(thd, STRING_WITH_LEN("INCIDENT"), true, false, true, 0,
-                        true);
-  if (cache->write_event(&qinfo) || commit(thd, true)) return true;
-
-  return false;
-}
-
->>>>>>> mysql-8.4.2
 /**
   When a fatal error occurs due to which binary logging becomes impossible and
   the user specified binlog_error_action= ABORT_SERVER the following function is
@@ -3801,16 +3797,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
       is_relay_log(relay_log),
       checksum_alg_reset(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
       relay_log_checksum_alg(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
-<<<<<<< HEAD
       previous_gtid_set_relaylog(nullptr),
-      snapshot_lock_acquired(false),
-      is_rotating_caused_by_incident(false) {
-||||||| merged common ancestors
-      previous_gtid_set_relaylog(nullptr),
-      is_rotating_caused_by_incident(false) {
-=======
-      previous_gtid_set_relaylog(nullptr) {
->>>>>>> mysql-8.4.2
+      snapshot_lock_acquired(false) {
   /*
     We don't want to initialize locks here as such initialization depends on
     safe_mutex (when using safe_mutex) which depends on MY_INIT(), which is
@@ -7544,6 +7532,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
             thd->first_successful_insert_id_in_prev_stmt_for_binlog,
             event_info->event_cache_type, event_info->event_logging_type);
         if (cache_data->write_event(&e)) goto err;
+        if (event_info->is_using_immediate_logging())
+          thd->binlog_bytes_written += e.header()->data_written;
       }
       if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0) {
         DBUG_PRINT(
@@ -7555,12 +7545,16 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
             thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
             event_info->event_cache_type, event_info->event_logging_type);
         if (cache_data->write_event(&e)) goto err;
+        if (event_info->is_using_immediate_logging())
+          thd->binlog_bytes_written += e.header()->data_written;
       }
       if (thd->rand_used) {
         Rand_log_event e(thd, thd->rand_saved_seed1, thd->rand_saved_seed2,
                          event_info->event_cache_type,
                          event_info->event_logging_type);
         if (cache_data->write_event(&e)) goto err;
+        if (event_info->is_using_immediate_logging())
+          thd->binlog_bytes_written += e.header()->data_written;
       }
       if (!thd->user_var_events.empty()) {
         for (size_t i = 0; i < thd->user_var_events.size(); i++) {
@@ -7581,86 +7575,6 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
           if (event_info->is_using_immediate_logging())
             thd->binlog_bytes_written += e.header()->data_written;
         }
-<<<<<<< HEAD
-        if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0) {
-          DBUG_PRINT(
-              "info",
-              ("number of auto_inc intervals: %u",
-               thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
-          Intvar_log_event e(
-              thd, (uchar)mysql::binlog::event::Intvar_event::INSERT_ID_EVENT,
-              thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
-              event_info->event_cache_type, event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-          if (event_info->is_using_immediate_logging())
-            thd->binlog_bytes_written += e.header()->data_written;
-        }
-        if (thd->rand_used) {
-          Rand_log_event e(thd, thd->rand_saved_seed1, thd->rand_saved_seed2,
-                           event_info->event_cache_type,
-                           event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-          if (event_info->is_using_immediate_logging())
-            thd->binlog_bytes_written += e.header()->data_written;
-        }
-        if (!thd->user_var_events.empty()) {
-          for (size_t i = 0; i < thd->user_var_events.size(); i++) {
-            Binlog_user_var_event *user_var_event = thd->user_var_events[i];
-
-            /* setting flags for user var log event */
-            uchar flags = User_var_log_event::UNDEF_F;
-            if (user_var_event->unsigned_flag)
-              flags |= User_var_log_event::UNSIGNED_F;
-
-            User_var_log_event e(
-                thd, user_var_event->user_var_event->entry_name.ptr(),
-                user_var_event->user_var_event->entry_name.length(),
-                user_var_event->value, user_var_event->length,
-                user_var_event->type, user_var_event->charset_number, flags,
-                event_info->event_cache_type, event_info->event_logging_type);
-            if (cache_data->write_event(&e)) goto err;
-            if (event_info->is_using_immediate_logging())
-              thd->binlog_bytes_written += e.header()->data_written;
-          }
-        }
-||||||| merged common ancestors
-        if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0) {
-          DBUG_PRINT(
-              "info",
-              ("number of auto_inc intervals: %u",
-               thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
-          Intvar_log_event e(
-              thd, (uchar)mysql::binlog::event::Intvar_event::INSERT_ID_EVENT,
-              thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
-              event_info->event_cache_type, event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-        }
-        if (thd->rand_used) {
-          Rand_log_event e(thd, thd->rand_saved_seed1, thd->rand_saved_seed2,
-                           event_info->event_cache_type,
-                           event_info->event_logging_type);
-          if (cache_data->write_event(&e)) goto err;
-        }
-        if (!thd->user_var_events.empty()) {
-          for (size_t i = 0; i < thd->user_var_events.size(); i++) {
-            Binlog_user_var_event *user_var_event = thd->user_var_events[i];
-
-            /* setting flags for user var log event */
-            uchar flags = User_var_log_event::UNDEF_F;
-            if (user_var_event->unsigned_flag)
-              flags |= User_var_log_event::UNSIGNED_F;
-
-            User_var_log_event e(
-                thd, user_var_event->user_var_event->entry_name.ptr(),
-                user_var_event->user_var_event->entry_name.length(),
-                user_var_event->value, user_var_event->length,
-                user_var_event->type, user_var_event->charset_number, flags,
-                event_info->event_cache_type, event_info->event_logging_type);
-            if (cache_data->write_event(&e)) goto err;
-          }
-        }
-=======
->>>>>>> mysql-8.4.2
       }
     }
 
@@ -9299,9 +9213,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
       binlog_error_action=IGNORE_ERROR, clear the error
       and allow the commit to happen in storage engine.
     */
-<<<<<<< HEAD
-    if (check_write_error(thd) &&
-        DBUG_EVALUATE_IF("simulate_cache_creation_failure", false, true)) {
+    if (check_write_error(thd)) {
       /* we have DA_ERROR */
       thd->clear_error(); /* sets thd->get_stmt_da()->status() to DA_EMPTY */
       /* For SQLCOM_COMMIT, ROLLBACK, ROLLBACK TO SAVEPOINT, there is already
@@ -9313,13 +9225,6 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
         my_ok(thd); /* sets thd->get_stmt_da()->status() to DA_OK */
       }
     }
-||||||| merged common ancestors
-    if (check_write_error(thd) &&
-        DBUG_EVALUATE_IF("simulate_cache_creation_failure", false, true))
-      thd->clear_error();
-=======
-    if (check_write_error(thd)) thd->clear_error();
->>>>>>> mysql-8.4.2
 
     if (need_lock_log) mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");

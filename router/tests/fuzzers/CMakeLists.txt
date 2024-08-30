@@ -35,14 +35,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
-<<<<<<< HEAD
-    perconaserverclient
-    OpenSSL::SSL OpenSSL::Crypto
-||||||| merged common ancestors
-    mysqlclient
-    OpenSSL::SSL OpenSSL::Crypto
-=======
->>>>>>> mysql-8.4.2
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
@@ -69,14 +61,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
-<<<<<<< HEAD
-    perconaserverclient
-    OpenSSL::SSL OpenSSL::Crypto
-||||||| merged common ancestors
-    mysqlclient
-    OpenSSL::SSL OpenSSL::Crypto
-=======
->>>>>>> mysql-8.4.2
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL

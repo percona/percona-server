@@ -32,6 +32,7 @@
 #include <gmock/gmock-matchers.h>
 #include <google/protobuf/io/tokenizer.h>
 #include <google/protobuf/message.h>
+#include <google/protobuf/stubs/common.h>
 #include <google/protobuf/text_format.h>
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
@@ -127,15 +128,27 @@ query_one_result(MysqlClient &cli, std::string_view stmt) {
  */
 class StringErrorCollector : public google::protobuf::io::ErrorCollector {
  public:
+#if (GOOGLE_PROTOBUF_VERSION >= 4024000)
+  void RecordError(int line, google::protobuf::io::ColumnNumber column,
+                   absl::string_view msg) override
+#else
   void AddError(int line, google::protobuf::io::ColumnNumber column,
-                const std::string &msg) override {
+                const std::string &msg) override
+#endif  // (GOOGLE_PROTOBUF_VERSION >= 4024000)
+  {
     std::ostringstream ss;
 
     ss << "ERROR: " << line << ":" << column << ": " << msg;
     lines_.push_back(ss.str());
   }
+#if (GOOGLE_PROTOBUF_VERSION >= 4024000)
+  void RecordWarning(int line, google::protobuf::io::ColumnNumber column,
+                     absl::string_view msg) override
+#else
   void AddWarning(int line, google::protobuf::io::ColumnNumber column,
-                  const std::string &msg) override {
+                  const std::string &msg) override
+#endif  // (GOOGLE_PROTOBUF_VERSION >= 4024000)
+  {
     std::ostringstream ss;
 
     ss << "WARN: " << line << ":" << column << ": " << msg;
@@ -290,12 +303,13 @@ class SharedServer {
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     try {
       proc.wait_for_exit(90s);
+
+      if (proc.exit_code() != 0) mysqld_failed_to_start_ = true;
     } catch (const std::exception &) {
       process_manager().dump_logs();
 
       mysqld_failed_to_start_ = true;
     }
-    if (proc.exit_code() != 0) mysqld_failed_to_start_ = true;
   }
 
   void spawn_server() {

@@ -564,14 +564,17 @@ dberr_t fts_index_fetch_nodes(
   return (error);
 }
 
-/** Read a word */
-static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
-                              fts_string_t *word) /*!< out: uncompressed word */
+/** Extract a given number of bytes into a buffer */
+static bool fts_zip_extract_bytes(fts_zip_t *zip, /*!< in: Zip state + data */
+                                  byte *buf, /*!< out: buffer to be filled */
+                                  unsigned int size) /*!< in: size of buffer */
 {
-  short len = 0;
+  bool complete = false;
+  zip->zp->next_out = buf;
+  zip->zp->avail_out = size;
   void *null = nullptr;
-  byte *ptr = word->f_str;
   int flush = Z_NO_FLUSH;
+<<<<<<< HEAD
   bool read_something = false;
 
   /* Either there was an error or we are at the Z_STREAM_END. */
@@ -582,6 +585,18 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
   zip->zp->next_out = reinterpret_cast<byte *>(&len);
   zip->zp->avail_out = sizeof(len);
 
+||||||| merged common ancestors
+
+  /* Either there was an error or we are at the Z_STREAM_END. */
+  if (zip->status != Z_OK) {
+    return false;
+  }
+
+  zip->zp->next_out = reinterpret_cast<byte *>(&len);
+  zip->zp->avail_out = sizeof(len);
+
+=======
+>>>>>>> mysql-8.4.2
   while (zip->status == Z_OK && zip->zp->avail_out > 0) {
     /* Finished decompressing block. */
     if (zip->zp->avail_in == 0) {
@@ -589,7 +604,7 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
       if (zip->pos > 0) {
         ulint prev = zip->pos - 1;
 
-        ut_a(zip->pos < ib_vector_size(zip->blocks));
+        ut_a_lt(zip->pos, ib_vector_size(zip->blocks));
 
         ut::free(ib_vector_getp(zip->blocks, prev));
         ib_vector_set(zip->blocks, prev, &null);
@@ -614,6 +629,7 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
 
     switch (zip->status = inflate(zip->zp, flush)) {
       case Z_OK:
+<<<<<<< HEAD
         if (zip->zp->avail_out == 0 && len > 0) {
           ut_a(len <= FTS_MAX_WORD_LEN);
           ptr[len] = 0;
@@ -624,12 +640,38 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
           word->f_len = len;
           len = 0;
           read_something = true;
+||||||| merged common ancestors
+        if (zip->zp->avail_out == 0 && len > 0) {
+          ut_a(len <= FTS_MAX_WORD_LEN);
+          ptr[len] = 0;
+
+          zip->zp->next_out = ptr;
+          zip->zp->avail_out = len;
+
+          word->f_len = len;
+          len = 0;
+=======
+        if (zip->zp->avail_out == 0) {
+          complete = true;
+>>>>>>> mysql-8.4.2
         }
         break;
 
-      case Z_BUF_ERROR: /* No progress possible. */
       case Z_STREAM_END:
+        if (zip->zp->avail_out == 0) {
+          complete = true;
+        }
+
+        [[fallthrough]];
+      case Z_BUF_ERROR: /* No progress possible. */
         inflateEnd(zip->zp);
+        /* All blocks must be freed at end of inflate. */
+        for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
+          if (ib_vector_getp(zip->blocks, i)) {
+            ut::free(ib_vector_getp(zip->blocks, i));
+            ib_vector_set(zip->blocks, i, &null);
+          }
+        }
         break;
 
       case Z_STREAM_ERROR:
@@ -638,22 +680,49 @@ static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
     }
   }
 
-  /* All blocks must be freed at end of inflate. */
-  if (zip->status != Z_OK) {
-    for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
-      if (ib_vector_getp(zip->blocks, i)) {
-        ut::free(ib_vector_getp(zip->blocks, i));
-        ib_vector_set(zip->blocks, i, &null);
-      }
-    }
-  }
+  return complete;
+}
 
+<<<<<<< HEAD
   if ((zip->status == Z_OK || zip->status == Z_STREAM_END) && read_something) {
     ut_ad(word->f_len == strlen((char *)ptr));
     return true;
   } else {
+||||||| merged common ancestors
+  if (zip->status == Z_OK || zip->status == Z_STREAM_END) {
+    ut_ad(word->f_len == strlen((char *)ptr));
+    return true;
+  } else {
+=======
+/** Read a word */
+static bool fts_zip_read_word(fts_zip_t *zip,     /*!< in: Zip state + data */
+                              fts_string_t *word) /*!< out: uncompressed word */
+{
+  /* Either there was an error or we are at the Z_STREAM_END. */
+  if (zip->status != Z_OK) {
+>>>>>>> mysql-8.4.2
     return false;
   }
+
+  ushort len = 0;
+
+  const bool have_len =
+      fts_zip_extract_bytes(zip, reinterpret_cast<byte *>(&len), sizeof(len));
+
+  if (!have_len) {
+    return false;
+  }
+
+  ut_a_le(len, FTS_MAX_WORD_LEN);
+
+  word->f_len = len;
+  const bool have_word = fts_zip_extract_bytes(zip, word->f_str, len);
+  ut_ad(have_word);
+
+  word->f_str[len] = 0;
+  ut_ad_eq(word->f_len, strlen((char *)word->f_str));
+
+  return have_word;
 }
 
 /** Callback function to fetch and compress the word in an FTS
@@ -1674,6 +1743,7 @@ static void fts_optimize_words(
 
     /* Read the index records to optimize. */
     fetch.total_memory = 0;
+
     error = fts_index_fetch_nodes(trx, &graph, &optim->fts_index_table, word,
                                   &fetch, true);
     ut_ad(fetch.total_memory < fts_result_cache_limit);

@@ -47,14 +47,18 @@
 #include "router_config.h"
 #include "router_test_helpers.h"
 #include "socket_operations.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
-using mysqlrouter::MetadataSchemaVersion;
-using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class GRStateTest : public RouterComponentMetadataTest {
  protected:
@@ -164,26 +168,30 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
   }
 
   // now promote first SECONDARY to become new PRIMARY
-  // make the old PRIMARY offline (static metadata does not change)
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    if (i == 0) {
-      // old PRIMARY sees itself as OFFLINE, does not see other nodes
-      const auto gr_nodes = std::vector<GRNode>{
-          {md_servers_classic_ports[0], "uuid-1", "OFFLINE", "PRIMARY"}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, 0,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    } else {
-      // remaining nodes see the previous SECONDARY-1 as new primary
-      // they do not see old PRIMARY (it was expelled from the group)
-      const auto gr_nodes = std::vector<GRNode>{
-          {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
-           {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, i - 1,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    }
+    if (i == 0) continue;  // skip the PRIMARY for now.
+
+    // remaining nodes see the previous SECONDARY-1 as new primary
+    // they do not see old PRIMARY (it was expelled from the group)
+    const auto gr_nodes = std::vector<GRNode>{
+        {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
+         {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, i - 1,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
+  }
+
+  // ... make the old PRIMARY offline (static metadata does not change) _after_
+  // the SECONDARIES changed to get a consistent view when the metadata-cache
+  // queries the PRIMARY (and _then_ the SECONDARY)
+  {
+    auto http_port = md_servers_http_ports[0];
+
+    // old PRIMARY sees itself as OFFLINE, does not see other nodes
+    const auto gr_nodes = std::vector<GRNode>{
+        {md_servers_classic_ports[0], "uuid-1", "OFFLINE", "PRIMARY"}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, 0,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
@@ -199,8 +207,20 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
                      1);
 
   // new connections are now handled by new primary and the secon secondary
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+  {
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, md_servers_classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, md_servers_classic_ports[2]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -265,28 +285,34 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
   // now promote first SECONDARY to become new PRIMARY
   // make the old PRIMARY see other as OFFLINE and claim it is ONLINE
   // (static metadata does not change)
+  //
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    if (i == 0) {
-      // old PRIMARY still sees itself as ONLINE, but it lost quorum, do not
-      // see other GR members
-      const auto gr_nodes = std::vector<GRNode>{
-          {md_servers_classic_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
-          {md_servers_classic_ports[1], "uuid-2", "UNREACHABLE", "SECONDARY"},
-          {md_servers_classic_ports[2], "uuid-3", "UNREACHABLE", "SECONDARY"}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, 0,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    } else {
-      // remaining nodes see the previous SECONDARY-1 as new primary
-      // they do not see old PRIMARY (it was expelled from the group)
-      const auto gr_nodes = std::vector<GRNode>{
-          {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
-           {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
-      set_mock_metadata(
-          http_port, "uuid", gr_nodes, i - 1,
-          classic_ports_to_cluster_nodes(md_servers_classic_ports));
-    }
+    if (i == 0) continue;  // skip the PRIMARY.
+
+    // remaining nodes see the previous SECONDARY-1 as new primary
+    // they do not see old PRIMARY (it was expelled from the group)
+    const auto gr_nodes = std::vector<GRNode>{
+        {{md_servers_classic_ports[1], "uuid-2", "ONLINE", "PRIMARY"},
+         {md_servers_classic_ports[2], "uuid-3", "ONLINE", "SECONDARY"}}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, i - 1,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
+  }
+
+  // update the PRIMARY _after_ the SECONDARIES to ensure that the
+  // metadata-cache sees the same state all nodes once it switches
+  // from PRIMARY to SECONDARY
+  {
+    auto http_port = md_servers_http_ports[0];
+
+    // old PRIMARY still sees itself as ONLINE, but it lost quorum, do not
+    // see other GR members
+    const auto gr_nodes = std::vector<GRNode>{
+        {md_servers_classic_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {md_servers_classic_ports[1], "uuid-2", "UNREACHABLE", "SECONDARY"},
+        {md_servers_classic_ports[2], "uuid-3", "UNREACHABLE", "SECONDARY"}};
+    set_mock_metadata(http_port, "uuid", gr_nodes, 0,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
@@ -301,9 +327,22 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
                          " is not a member of quorum group - skipping.",
                      1);
 
-  // new connections are now handled by new primary and the secon secondary
-  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
-  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+  // new connections are now handled by new primary and the second secondary
+  {
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, md_servers_classic_ports[1]);
+  }
+
+  {
+    auto conn_res = make_new_connection(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, md_servers_classic_ports[2]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -454,13 +493,21 @@ TEST_P(QuorumTest, Verify) {
 
   for (int i = 0; i < 2; i++) {
     if (expect_rw_ok) {
-      make_new_connection_ok(router_rw_port, param.expected_rw_endpoints);
+      auto conn_res = make_new_connection(router_rw_port);
+      ASSERT_NO_ERROR(conn_res);
+      auto port_res = select_port(conn_res->get());
+      ASSERT_NO_ERROR(port_res);
+      EXPECT_THAT(param.expected_rw_endpoints, ::testing::Contains(*port_res));
     } else {
       verify_new_connection_fails(router_rw_port);
     }
 
     if (expect_ro_ok) {
-      make_new_connection_ok(router_ro_port, param.expected_ro_endpoints);
+      auto conn_res = make_new_connection(router_ro_port);
+      ASSERT_NO_ERROR(conn_res);
+      auto port_res = select_port(conn_res->get());
+      ASSERT_NO_ERROR(port_res);
+      EXPECT_THAT(param.expected_ro_endpoints, ::testing::Contains(*port_res));
     } else {
       verify_new_connection_fails(router_ro_port);
     }
@@ -719,8 +766,20 @@ TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
 
   // check that the new rw and rw-split connections don't go to the node that is
   // gone
-  make_new_connection_ok(router_rw_port, classic_ports[1]);
-  make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+  {
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[2]);
+  }
 }
 
 struct AccessToPartitionWithNoQuorumTestParam {
@@ -807,20 +866,31 @@ TEST_P(AccessToPartitionWithNoQuorum, Spec) {
   }
 
   if (GetParam().expect_rw_connection_ok) {
-    make_new_connection_ok(router_rw_port, classic_ports[2]);
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_rw_port);
   }
 
   if (GetParam().expect_ro_connection_ok) {
-    make_new_connection_ok(router_ro_port, classic_ports[2]);
-
+    auto conn_res = make_new_connection(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_ro_port);
   }
 
   if (GetParam().expect_rw_split_connection_ok) {
-    make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+    auto conn_res = make_new_connection(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[2]);
   } else {
     verify_new_connection_fails(router_rw_split_port);
   }
@@ -958,9 +1028,27 @@ TEST_P(AccessToBothPartitions, Spec) {
   // Regardless of the unreachable_quorum_allowed_traffic option setting, the
   // Router should always use the partition with the quorum for the traffic as
   // it has an access to it
-  make_new_connection_ok(router_rw_port, classic_ports[1]);
-  make_new_connection_ok(router_ro_port, classic_ports[2]);
-  make_new_connection_ok(router_rw_split_port, classic_ports[1]);
+  {
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[1]);
+  }
+  {
+    auto conn_res = make_new_connection(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[2]);
+  }
+  {
+    auto conn_res = make_new_connection(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, classic_ports[1]);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1154,27 +1242,37 @@ TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
   }
 
   if (GetParam().expect_rw_connection_ok) {
-    make_new_connection_ok(
-        router_rw_port,
+    auto conn_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(
+        *port_res,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
   } else {
     verify_new_connection_fails(router_rw_port);
   }
 
   if (GetParam().expect_ro_connection_ok) {
-    make_new_connection_ok(
-        router_ro_port,
+    auto conn_res = make_new_connection(router_ro_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(
+        *port_res,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
-
   } else {
     verify_new_connection_fails(router_ro_port);
   }
 
   if (GetParam().expect_rw_split_connection_ok) {
-    make_new_connection_ok(
-        router_rw_split_port,
+    auto conn_res = make_new_connection(router_rw_split_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(
+        *port_res,
         cs_options.topology.clusters[target_cluster_id].nodes[0].classic_port);
-
   } else {
     verify_new_connection_fails(router_rw_split_port);
   }

@@ -528,6 +528,9 @@ INCLUDE(mysql_version)
 PROJECT(${MYSQL_PROJECT_NAME}
   VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
 
+# Ninja only: List of available pools.
+SET_PROPERTY(GLOBAL PROPERTY JOB_POOLS one_job=1)
+
 GET_FILENAME_COMPONENT(REALPATH_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR} REALPATH)
 GET_FILENAME_COMPONENT(REALPATH_CMAKE_BINARY_DIR ${CMAKE_BINARY_DIR} REALPATH)
 
@@ -839,7 +842,7 @@ IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
 ENDIF()
 IF(NOT WITHOUT_SERVER)
-  IF(FPROFILE_GENERATE OR FPROFILE_USE)
+  IF(FPROFILE_GENERATE)
     # Do not use data from unit testing when optimizing.
     OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" OFF)
   ELSE()
@@ -1586,17 +1589,6 @@ ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
 ADD_DEFINITIONS(-DLZ4_DISABLE_DEPRECATE_WARNINGS) # C++14 deprecation warnings in LZ4.
 
-# Force the same macro definition MYSQL_PROJECT for all source files being
-# compiled as a part of the MySQL server, client tools, libraries etc.
-# The MYSQL_PROJECT macro helps to distinguish when e.g. some C++ header file
-# is included by the MySQL project source file or by the external project
-# source file.
-# For example, MYSQL_PROJECT helps to detect when include/mysql/strings/api.h
-# is used to a) build a static library, or b) build a Windows DLL, or
-# c) reference the server strings API from plugins (DLLs) loaded by the
-# MySQL server, or d) reference the libstrings DLL from external executables.
-ADD_DEFINITIONS(-DMYSQL_PROJECT)
-
 OPTION(ENABLE_EXPERIMENT_SYSVARS "Expose ussually hidden system variables to allow experiments" OFF)
 IF(ENABLE_EXPERIMENT_SYSVARS)
   ADD_DEFINITIONS(-DENABLE_EXPERIMENT_SYSVARS)
@@ -1695,6 +1687,21 @@ IF(APPLE)
   OPTION(WITH_DEVELOPER_ENTITLEMENTS "Add developer entitlements" OFF)
 ENDIF()
 
+# Utility target to build every executable tagged with ADD_TEST.
+ADD_CUSTOM_TARGET(unittest_all)
+
+# Utility target to build every target added with MYSQL_ADD_PLUGIN.
+ADD_CUSTOM_TARGET(plugin_all)
+
+# Utility target to build every target added with MYSQL_ADD_COMPONENT.
+ADD_CUSTOM_TARGET(component_all)
+
+# Utility target to generate all sources from .proto files.
+ADD_CUSTOM_TARGET(protobuf_generated_all)
+
+# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
+ADD_CUSTOM_TARGET(executable_all)
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
 # RapidJSON is also excluded, since the latest released version does not
@@ -1725,6 +1732,8 @@ IF(APPLE)
   ELSE()
     SET(HOMEBREW_HOME "/usr/local/opt")
   ENDIF()
+  # The Xcode version is 1.2.12 which is too old
+  LIST(REMOVE_ITEM SYSTEM_LIBRARIES ZLIB)
 ENDIF()
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
@@ -2055,6 +2064,12 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
+# The bundled version must be set up after all the configure stuff above.
+IF(LINUX AND WITH_TCMALLOC STREQUAL "bundled")
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/gperftools)
+  SET(MALLOC_LIBRARY "${CMAKE_BINARY_DIR}/lib/libtcmalloc.so")
+ENDIF()
+
 # Cannot use system tirpc with custom OpenSSL
 IF((WITH_SSL_PATH OR ALTERNATIVE_SYSTEM_SSL) AND (LINUX_RHEL8 OR LINUX_RHEL9))
   SET(WITH_TIRPC "bundled")
@@ -2193,6 +2208,7 @@ OPTION(WITH_SHOW_PARSE_TREE
   ${WITH_SHOW_PARSE_TREE_DEFAULT}
   )
 
+<<<<<<< HEAD
 OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
 IF(WITH_ENCRYPTION_UDF)
   ADD_SUBDIRECTORY(extra/opensslpp)
@@ -2215,6 +2231,24 @@ ADD_CUSTOM_TARGET(protobuf_generated_all)
 # Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
 ADD_CUSTOM_TARGET(executable_all)
 
+||||||| merged common ancestors
+# Utility target to build every executable tagged with ADD_TEST.
+ADD_CUSTOM_TARGET(unittest_all)
+
+# Utility target to build every target added with MYSQL_ADD_PLUGIN.
+ADD_CUSTOM_TARGET(plugin_all)
+
+# Utility target to build every target added with MYSQL_ADD_COMPONENT.
+ADD_CUSTOM_TARGET(component_all)
+
+# Utility target to generate all sources from .proto files.
+ADD_CUSTOM_TARGET(protobuf_generated_all)
+
+# Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
+ADD_CUSTOM_TARGET(executable_all)
+
+=======
+>>>>>>> mysql-8.4.2
 # We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
 # To generate entries for header files in compile_commands.json:
 # make clang_tidy_prerequisites, see below.
@@ -2261,6 +2295,10 @@ ADD_SUBDIRECTORY(sql-common/oci)
 IF(NOT WITHOUT_SERVER)
   IF(WITH_UNIT_TESTS)
     IF(WIN32)
+      # static thread_local objects are not allowed in a .dll
+      SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
+    ELSEIF(APPLE AND WITH_SOME_SANITIZER)
+      # several down_cast<Json_something> will assert()
       SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
     ELSE()
       SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT ON)
@@ -2723,6 +2761,7 @@ ENDIF(DOXYGEN_FOUND)
 
 MYSQL_ADD_EXECUTABLE(stack_direction
   ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+  EXCLUDE_FROM_PGO
   SKIP_INSTALL
   )
 

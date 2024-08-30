@@ -137,6 +137,7 @@ my $opt_platform_exclude;
 my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
+my $opt_skip_suite;
 my $opt_skip_test_list;
 my $opt_sp_protocol;
 my $opt_start;
@@ -210,6 +211,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
+my $tmpdir_path_updated= 0;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -648,6 +650,19 @@ sub main {
     $opt_suites =~ s/,$//;
   }
 
+  # Skip suites which match the --skip-suite filter
+  if ($opt_skip_suite) {
+    my $opt_skip_suite_reg = init_pattern($opt_skip_suite, "--skip-suite");
+    for my $suite (split(",", $opt_suites)) {
+      if ($opt_skip_suite_reg and $suite =~ /$opt_skip_suite_reg/) {
+        remove_suite_from_list($suite);
+      }
+    }
+
+    # Removing ',' at the end of $opt_suites if exists
+    $opt_suites =~ s/,$//;
+  }
+
   if ($opt_skip_sys_schema) {
     remove_suite_from_list("sysschema");
   }
@@ -853,6 +868,7 @@ sub main {
       if ($opt_parallel > 1) {
         set_vardir("$opt_vardir/$child_num");
         $opt_tmpdir = "$opt_tmpdir/$child_num";
+        $tmpdir_path_updated = 1;
       }
 
       init_timers();
@@ -1783,6 +1799,7 @@ sub command_line_setup {
     'skip-im'                            => \&ignore_option,
     'skip-ndbcluster|skip-ndb'           => \$opt_skip_ndbcluster,
     'skip-rpl'                           => \&collect_option,
+    'skip-suite=s'                       => \$opt_skip_suite,
     'skip-sys-schema'                    => \$opt_skip_sys_schema,
     'skip-test=s'                        => \&collect_option,
     'start-from=s'                       => \&collect_option,
@@ -2204,7 +2221,7 @@ sub command_line_setup {
     $opt_tmpdir = "$opt_vardir/tmp" unless $opt_tmpdir;
 
     my $res =
-      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+      check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
 
     if ($res) {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
@@ -3734,7 +3751,7 @@ sub setup_vardir() {
   # UNIX domain socket's path far below PATH_MAX. Don't allow that
   # to happen.
   my $res =
-    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel);
+    check_socket_path_length("$opt_tmpdir/mysqld.NN.sock", $opt_parallel, $tmpdir_path_updated);
   if ($res) {
     mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
               "truncated and thus not possible to use for connection to ",

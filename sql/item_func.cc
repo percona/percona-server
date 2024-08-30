@@ -3063,9 +3063,8 @@ longlong Item_func_shift::eval_int_op() {
   return 0;
 }
 
-/// Instantiations of the above
-template longlong Item_func_shift::eval_int_op<true>();
-template longlong Item_func_shift::eval_int_op<false>();
+longlong Item_func_shift_left::int_op() { return eval_int_op<true>(); }
+longlong Item_func_shift_right::int_op() { return eval_int_op<false>(); }
 
 /*
   Template function that evaluates the bitwise shift operation over binary
@@ -3138,9 +3137,13 @@ String *Item_func_shift::eval_str_op(String *) {
   return &tmp_value;
 }
 
-/// Instantiations of the above
-template String *Item_func_shift::eval_str_op<true>(String *);
-template String *Item_func_shift::eval_str_op<false>(String *);
+String *Item_func_shift_left::str_op(String *str) {
+  return eval_str_op<true>(str);
+}
+
+String *Item_func_shift_right::str_op(String *str) {
+  return eval_str_op<false>(str);
+}
 
 // Bit negation ('~')
 
@@ -4370,6 +4373,8 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
       args[0]->may_eval_const_item(thd)) {
     Field *field = down_cast<Item_field *>(args[1])->field;
+    // Bail during CREATE TABLE/INDEX so we don't look for absent typelib.
+    if (field->is_wrapper_field()) return false;
     if (field->real_type() == MYSQL_TYPE_SET) {
       String *find = args[0]->val_str(&value);
       if (thd->is_error()) return true;
@@ -7753,6 +7758,13 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
                                             arg_count, 0);
 }
 
+void Item_func_match::update_used_tables() {
+  Item_func::update_used_tables();
+  against->update_used_tables();
+  used_tables_cache |= against->used_tables();
+  add_accum_properties(against);
+}
+
 bool Item_func_match::fix_index(const THD *thd) {
   TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts = 0, keynr;
@@ -8753,7 +8765,7 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
   }
 
   // Check access
-  ulong db_access = 0;
+  Access_bitmask db_access = 0;
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(), &db_access, nullptr,
                    false, true))
     return false;

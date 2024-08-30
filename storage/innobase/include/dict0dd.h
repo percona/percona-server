@@ -407,6 +407,16 @@ in dd::Table
 bool dd_instant_columns_consistent(const dd::Table &dd_table);
 #endif /* UNIV_DEBUG */
 
+/** Scan through all the keys to identify the key parts which are
+greater than the maximum size supported by the table record format.
+@param table         MySQL table definition.
+@param max_part_len  Maximum index part length allowed.
+@param visitor       Function wrapper to invoke lambda expression.
+*/
+void dd_visit_keys_with_too_long_parts(
+    const TABLE *table, const size_t max_part_len,
+    std::function<void(const KEY &)> visitor);
+
 /** Determine if a dd::Table has any INSTANT ADD column(s) in V1
 @param[in]      table   dd::Table
 @return true if table has instant column(s) in V1, false otherwise */
@@ -1240,6 +1250,13 @@ operation.
 @retval DB_SUCCESS on success. */
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
+
+/** Update the data directory flag in dd::Table key strings
+@param[in]      object_id       dd tablespace object id
+@param[in]      path            path where the ibd file is located currently
+@retval DB_SUCCESS on success. */
+dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
+                                                        std::string path);
 
 /** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client

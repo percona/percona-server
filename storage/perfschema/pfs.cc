@@ -230,6 +230,13 @@ static void adjust_collect_flags(PSI_statement_locker_state *state) {
 */
 #undef PFS_PARANOID
 
+/*
+  This is a development tool to investigate
+  the statement instrumentation,
+  do not use in production.
+*/
+#undef PFS_INFO_PARANOID
+
 #ifdef PFS_PARANOID
 static void report_memory_accounting_error(const char *api_name,
                                            PFS_thread *new_thread, size_t size,
@@ -3037,7 +3044,10 @@ static void *pfs_spawn_thread(void *arg) {
   }
   my_thread_set_THR_PFS(pfs);
 
-  pfs_notify_thread_create((PSI_thread *)pfs);
+  if (pfs) {
+    pfs_notify_thread_create(pfs);
+  }
+
   /*
     Secondly, free the memory allocated in spawn_thread_v1().
     It is preferable to do this before invoking the user
@@ -3124,7 +3134,7 @@ PSI_thread *pfs_new_thread_vc(PSI_thread_key key, PSI_thread_seqnum seqnum,
   }
 
   if (pfs) {
-    pfs_notify_thread_create((PSI_thread *)pfs);
+    pfs_notify_thread_create(pfs);
   }
 
   return reinterpret_cast<PSI_thread *>(pfs);
@@ -3432,6 +3442,12 @@ void pfs_set_thread_info_vc(const char *info, uint info_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
+#ifdef PFS_INFO_PARANOID
+  if (info != nullptr) {
+    fprintf(stderr, "THREAD.INFO = %.*s\n", info_len, info);
+  }
+#endif
+
   if (likely(pfs != nullptr)) {
     if (info_len > sizeof(pfs->m_processlist_info)) {
       info_len = sizeof(pfs->m_processlist_info);
@@ -3514,38 +3530,16 @@ int pfs_set_thread_resource_group_by_id_vc(PSI_thread *thread,
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
 }
 
-/**
-  Get the system and session attributes for a given PFS_thread.
-  @param pfs thread instrumentation
-  @param current_thread true if pfs refers to the current thread
-  @param thread_attrs thread attribute structure
-  @return 0 if successful, non-zero otherwise
-*/
-int get_thread_attributes(PFS_thread *pfs, bool current_thread,
-                          PSI_thread_attrs *thread_attrs)
-
-{
-  size_t len;
-  int result = 0;
-  pfs_optimistic_state lock = pfs_optimistic_state();
-  pfs_optimistic_state session_lock = pfs_optimistic_state();
-
-  assert(thread_attrs != nullptr);
-
+void pfs_get_thread_system_attrs(PFS_thread *pfs,
+                                 PSI_thread_attrs *thread_attrs) {
   static_assert(PSI_NAME_LEN == NAME_LEN);
   static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH);
   static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH);
 
-  if (unlikely(pfs == nullptr)) {
-    return 1;
-  }
+  assert(pfs != nullptr);
+  assert(thread_attrs != nullptr);
 
-  if (!current_thread) {
-    /* Protect this reader against a thread delete. */
-    pfs->m_lock.begin_optimistic_lock(&lock);
-    /* Protect this reader against writing on session attributes */
-    pfs->m_session_lock.begin_optimistic_lock(&session_lock);
-  }
+  size_t len;
 
   thread_attrs->m_thread_internal_id = pfs->m_thread_internal_id;
   thread_attrs->m_processlist_id = pfs->m_processlist_id;
@@ -3580,6 +3574,37 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
     memcpy(thread_attrs->m_groupname, pfs->m_groupname,
            pfs->m_groupname_length);
   }
+}
+
+/**
+  Get the system and session attributes for a given PFS_thread.
+  @param pfs thread instrumentation
+  @param current_thread true if pfs refers to the current thread
+  @param thread_attrs thread attribute structure
+  @return 0 if successful, non-zero otherwise
+*/
+int get_thread_attributes(PFS_thread *pfs, bool current_thread,
+                          PSI_thread_attrs *thread_attrs)
+
+{
+  int result = 0;
+  pfs_optimistic_state lock = pfs_optimistic_state();
+  pfs_optimistic_state session_lock = pfs_optimistic_state();
+
+  assert(thread_attrs != nullptr);
+
+  if (unlikely(pfs == nullptr)) {
+    return 1;
+  }
+
+  if (!current_thread) {
+    /* Protect this reader against a thread delete. */
+    pfs->m_lock.begin_optimistic_lock(&lock);
+    /* Protect this reader against writing on session attributes */
+    pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+  }
+
+  pfs_get_thread_system_attrs(pfs, thread_attrs);
 
   if (!current_thread) {
     if (!pfs->m_session_lock.end_optimistic_lock(&session_lock)) {
@@ -3639,23 +3664,32 @@ int pfs_unregister_notification_vc(int handle) {
   @sa PSI_v2::notify_session_connect.
 */
 void pfs_notify_session_connect_vc(PSI_thread *thread) {
-  pfs_notify_session_connect(thread);
+  auto *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs) {
+    pfs_notify_session_connect(pfs);
+  }
 }
 
 /**
   Implementation of the thread instrumentation interface.
   @sa PSI_v2::notify_session_disconnect.
 */
-void pfs_notify_session_disconnect_vc(PSI_thread *thread [[maybe_unused]]) {
-  pfs_notify_session_disconnect(thread);
+void pfs_notify_session_disconnect_vc(PSI_thread *thread) {
+  auto *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs) {
+    pfs_notify_session_disconnect(pfs);
+  }
 }
 
 /**
   Implementation of the thread instrumentation interface.
   @sa PSI_v2::notify_session_change_user.
 */
-void pfs_notify_session_change_user_vc(PSI_thread *thread [[maybe_unused]]) {
-  pfs_notify_session_change_user(thread);
+void pfs_notify_session_change_user_vc(PSI_thread *thread) {
+  auto *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs) {
+    pfs_notify_session_change_user(pfs);
+  }
 }
 
 /**
@@ -3698,7 +3732,7 @@ void pfs_delete_current_thread_vc() {
   if (thread != nullptr) {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
     my_thread_set_THR_PFS(nullptr);
-    pfs_notify_thread_destroy((PSI_thread *)thread);
+    pfs_notify_thread_destroy(thread);
     destroy_thread(thread);
   }
 }
@@ -3712,7 +3746,7 @@ void pfs_delete_thread_vc(PSI_thread *thread) {
 
   if (pfs != nullptr) {
     aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
-    pfs_notify_thread_destroy(thread);
+    pfs_notify_thread_destroy(pfs);
     destroy_thread(pfs);
   }
 }
@@ -6754,6 +6788,12 @@ void pfs_set_statement_text_vc(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   auto *state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   assert(state != nullptr);
+
+#ifdef PFS_INFO_PARANOID
+  if (text != nullptr) {
+    fprintf(stderr, "STATEMENT.TEXT = %.*s\n", text_len, text);
+  }
+#endif
 
   if (!(state->m_collect_flags & STATE_FLAG_EVENT)) {
     return;

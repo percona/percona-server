@@ -2649,8 +2649,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
              !is_mts_db_partitioned(rli));
 
       if (is_s_event || is_any_gtid_event(this)) {
-        Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                   rli->get_event_start_pos()};
+        Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+        if (rli->get_event_relay_log_name())
+          strcpy(job_item.event_relay_log_name,
+                 rli->get_event_relay_log_name());
         // B-event is appended to the Deferred Array associated with GCAP
         rli->curr_group_da.push_back(job_item);
 
@@ -2685,8 +2687,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
        TODO: Make GITD event as B-event that is starts_group() to
        return true.
       */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_relay_log_pos()};
+      Slave_job_item job_item = {this, rli->get_event_relay_log_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
 
       // B-event is appended to the Deferred Array associated with GCAP
       rli->curr_group_da.push_back(job_item);
@@ -2714,8 +2717,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         rli, &rli->workers, this);
     if (ret_worker == nullptr) {
       /* get_least_occupied_worker may return NULL if the thread is killed */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_start_pos()};
+      Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
       rli->curr_group_da.push_back(job_item);
 
       assert(thd->killed);
@@ -2866,8 +2870,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         Their association with relay-log physical coordinates is provided
         by the same mechanism that applies to a regular event.
       */
-      Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
-                                 rli->get_event_start_pos()};
+      Slave_job_item job_item = {this, rli->get_event_start_pos(), {'\0'}};
+      if (rli->get_event_relay_log_name())
+        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
       rli->curr_group_da.push_back(job_item);
 
       assert(!ret_worker);
@@ -8085,6 +8090,13 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
             if (field->is_field_for_functional_index())  // Always exclude
                                                          // functional indexes
               return true;
+            if (!is_after_image &&
+                !bitmap_is_subset(
+                    &field->gcol_info->base_columns_map,
+                    &this->m_local_cols))  // Exclude generated columns for
+                                           // which the base columns are
+                                           // unavailable
+              return true;
             if (!is_after_image &&  // Always exclude virtual generated columns
                 field->is_virtual_gcol())  // if not processing after-image
               return true;
@@ -9930,7 +9942,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     Applier_security_context_guard security_context{rli, thd};
     const char *privilege_missing = nullptr;
     if (!security_context.skip_priv_checks()) {
-      std::vector<std::tuple<ulong, const TABLE *, Rows_log_event *>> l;
+      std::vector<std::tuple<Access_bitmask, const TABLE *, Rows_log_event *>>
+          l;
       switch (get_general_type_code()) {
         case mysql::binlog::event::WRITE_ROWS_EVENT: {
           l.push_back(std::make_tuple(INSERT_ACL, this->m_table, this));

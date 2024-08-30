@@ -33,11 +33,18 @@
 #include "mysql/harness/string_utils.h"  // split_string
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 using testing::StartsWith;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class RouterConfigOwerwriteTest : public RouterComponentBootstrapTest {
  protected:
@@ -273,7 +280,13 @@ TEST_F(RouterConfigOwerwriteTest, OverwriteRoutingPort) {
 
   launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
 
-  make_new_connection_ok(router_port_overwrite, server_port);
+  {
+    auto conn_res = make_new_connection(router_port_overwrite);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_port);
+  }
   verify_new_connection_fails(router_port);
 }
 
@@ -329,7 +342,13 @@ TEST_P(OverwriteIgnoreUnknownOptionTest, OverwriteIgnoreUnknownOption) {
                  "--DEFAULT.unknown_config_option", "warning"},
                 EXIT_SUCCESS, 5s);
 
-  make_new_connection_ok(router_port1, server_port);
+  {
+    auto conn_res = make_new_connection(router_port1);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_port);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -375,6 +375,7 @@ class AllocatorState {
    * Update allocated memory counter.
    * @param counter Value to be added to the counter
    */
+<<<<<<< HEAD
   void update_allocated_mem_counter(size_t counter) noexcept {
     allocated_mem_counter += counter;
   }
@@ -398,6 +399,98 @@ class AllocatorState {
     --number_of_blocks;
   }
 
+||||||| merged common ancestors
+  void free_block(Block &block) noexcept {
+    AllocationScheme::block_freed(block.size(), block.type());
+    block.destroy();
+    --number_of_blocks;
+  }
+
+||||||||| a61adf6ebd5
+struct AllocatorState {
+=========
+template <class AllocationScheme>
+class AllocatorState {
+ public:
+  /**
+   * Destroys the state, deallocate the current_block if it was left empty.
+   */
+  ~AllocatorState() noexcept {
+    if (!current_block.is_empty()) {
+      free_block(current_block);
+    }
+    /* User must deallocate all data from all blocks, otherwise the memory will
+     * be leaked.
+     */
+    assert(number_of_blocks == 0);
+  }
+
+  /**
+   * Gets a Block from which a new allocation of the specified size should be
+   * performed. It will use the current Block or create a new one if it is too
+   * small.
+   * [in] Number of bytes that will be allocated from the returned block.
+   */
+  Block *get_block_for_new_allocation(
+      size_t n_bytes_requested, TableResourceMonitor *table_resource_monitor) {
+    if (current_block.is_empty() ||
+        !current_block.can_accommodate(n_bytes_requested)) {
+      /* The current_block may have been left empty during some deallocate()
+       * call. It is the last opportunity to free it before we lose reference to
+       * it.
+       */
+      if (!current_block.is_empty() &&
+          current_block.number_of_used_chunks() == 0) {
+        free_block(current_block);
+      }
+
+      const size_t block_size =
+          AllocationScheme::block_size(number_of_blocks, n_bytes_requested);
+      current_block = Block(
+          block_size,
+          AllocationScheme::block_source(block_size, table_resource_monitor));
+      ++number_of_blocks;
+    }
+    return &current_block;
+  }
+
+  /**
+   * Informs the state object of a block that has no data allocated inside of it
+   * anymore for garbage collection.
+   * [in] The empty block to manage and possibly free.
+   */
+  void block_is_not_used_anymore(Block block) noexcept {
+    if (block == current_block) {
+      /* Do nothing. Keep the last block alive. Some queries are repeatedly
+       * allocating one Row and freeing it, leading to constant allocation and
+       * deallocation of 1MB of memory for the current_block. Let's keep this
+       * block empty ready for a future use.
+       */
+    } else {
+      free_block(block);
+    }
+  }
+
+ private:
+  /**
+   * Frees the specified block and takes care of all accounting.
+   * [in] The empty block to free.
+   */
+  void free_block(Block &block) noexcept {
+    AllocationScheme::block_freed(block.size(), block.type());
+    block.destroy();
+    --number_of_blocks;
+  }
+
+>>>>>>>>> Temporary merge branch 2
+=======
+  void free_block(Block &block) noexcept {
+    AllocationScheme::block_freed(block.size(), block.type());
+    block.destroy();
+    --number_of_blocks;
+  }
+
+>>>>>>> mysql-8.4.2
   /** Current not-yet-full block to feed allocations from. */
   Block current_block;
 

@@ -767,20 +767,11 @@ for each entry.
 bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
                             bool is_drop);
 
-/** NOTE! Use the corresponding macro os_file_create_simple(), not directly
-this function!
-A simple function to open or create a file.
-@param[in]      name            name of the file or path as a null-terminated
-                                string
-@param[in]      create_mode     create mode
-@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
-@param[in]      read_only       if true, read only checks are enforced
-@param[out]     success         true if succeed, false if error
-@return handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
-os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
-                                     ulint access_type, bool read_only,
-                                     bool *success);
+/** Clang on Windows warns about umask not found. */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+#ifdef _WIN32
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+#endif
 
 /** NOTE! Use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
@@ -798,12 +789,16 @@ null-terminated string
 @param[out]     success         true if succeeded
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] pfs_os_file_t os_file_create_simple_no_error_handling_func(
-    const char *name, ulint create_mode, ulint access_type, bool read_only,
+[[nodiscard]] pfs_os_file_t
+    os_file_create_simple_no_error_handling_func(const char *name,
+                                                 ulint create_mode,
+                                                 ulint access_type,
+                                                 bool read_only,
 #ifndef _WIN32
-    mode_t umask,
+                                                 mode_t umask,
 #endif
-    bool *success);
+                                                 bool *success);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]      fd              file descriptor to alter
@@ -982,7 +977,6 @@ schema instrumented if "UNIV_PFS_IO" is defined. They would point to
 wrapper functions with performance schema instrumentation in such case.
 
 os_file_create
-os_file_create_simple
 os_file_create_simple_no_error_handling
 os_file_close
 os_file_close_no_error_handling
@@ -999,10 +993,6 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_create(key, name, create, purpose, type, read_only, success) \
   pfs_os_file_create_func(key, name, create, purpose, type, read_only,       \
                           success, UT_LOCATION_HERE)
-
-#define os_file_create_simple(key, name, create, access, read_only, success) \
-  pfs_os_file_create_simple_func(key, name, create, access, read_only,       \
-                                 success, UT_LOCATION_HERE)
 
 #ifndef _WIN32
 #define os_file_create_simple_no_error_handling(key, name, create_mode,     \
@@ -1076,6 +1066,7 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_delete_if_exists(key, name, exist) \
   pfs_os_file_delete_if_exists_func(key, name, exist, UT_LOCATION_HERE)
 
+<<<<<<< HEAD
 #define os_file_set_eof_at_pfs(file, new_len) \
   pfs_os_file_set_eof_at_func(file, new_len, UT_LOCATION_HERE)
 
@@ -1096,6 +1087,31 @@ os_file_create_simple() which opens or creates a file.
 [[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
     mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
     bool read_only, bool *success, ut::Location src_location);
+||||||| merged common ancestors
+/** NOTE! Please use the corresponding macro os_file_create_simple(),
+not directly this function!
+A performance schema instrumented wrapper function for
+os_file_create_simple() which opens or creates a file.
+@param[in]      key             Performance Schema Key
+@param[in]      name            name of the file or path as a null-terminated
+                                string
+@param[in]      create_mode     create mode
+@param[in]      access_type     OS_FILE_READ_ONLY or OS_FILE_READ_WRITE
+@param[in]      read_only       if true read only mode checks are enforced
+@param[out]     success         true if succeeded
+@param[in]      src_location    location where func invoked
+@return own: handle to the file, not defined if error, error number
+        can be retrieved with os_file_get_last_error */
+[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_simple_func(
+    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
+    bool read_only, bool *success, ut::Location src_location);
+=======
+/** Clang on Windows warns about umask not found. */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+#ifdef _WIN32
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+#endif
+>>>>>>> mysql-8.4.2
 
 /** NOTE! Please use the corresponding macro
 os_file_create_simple_no_error_handling(), not directly this function!
@@ -1118,13 +1134,14 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
 [[nodiscard]] static inline pfs_os_file_t
-pfs_os_file_create_simple_no_error_handling_func(
-    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint access_type,
-    bool read_only,
+    pfs_os_file_create_simple_no_error_handling_func(
+        mysql_pfs_key_t key, const char *name, ulint create_mode,
+        ulint access_type, bool read_only,
 #ifndef _WIN32
-    mode_t umask,
+        mode_t umask,
 #endif
-    bool *success, ut::Location src_location);
+        bool *success, ut::Location src_location);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** NOTE! Please use the corresponding macro os_file_create(), not directly
 this function!
@@ -1146,9 +1163,11 @@ Add instrumentation to monitor file creation/open.
 @param[in]      src_location    location where func invoked
 @return own: handle to the file, not defined if error, error number
         can be retrieved with os_file_get_last_error */
-[[nodiscard]] static inline pfs_os_file_t pfs_os_file_create_func(
-    mysql_pfs_key_t key, const char *name, ulint create_mode, ulint purpose,
-    ulint type, bool read_only, bool *success, ut::Location src_location);
+[[nodiscard]] static inline pfs_os_file_t
+    pfs_os_file_create_func(mysql_pfs_key_t key, const char *name,
+                            ulint create_mode, ulint purpose, ulint type,
+                            bool read_only, bool *success,
+                            ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_close(), not directly
 this function!
@@ -1398,10 +1417,6 @@ static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
 to original un-instrumented file I/O APIs */
 #define os_file_create(key, name, create, purpose, type, read_only, success) \
   os_file_create_func(name, create, purpose, type, read_only, success)
-
-#define os_file_create_simple(key, name, create_mode, access, read_only, \
-                              success)                                   \
-  os_file_create_simple_func(name, create_mode, access, read_only, success)
 
 #ifndef _WIN32
 

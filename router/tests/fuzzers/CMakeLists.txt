@@ -35,15 +35,21 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
+<<<<<<< HEAD
     perconaserverclient
     OpenSSL::SSL OpenSSL::Crypto
+||||||| merged common ancestors
+    mysqlclient
+    OpenSSL::SSL OpenSSL::Crypto
+=======
+>>>>>>> mysql-8.4.2
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_router_uri
     PRIVATE
-    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:router_utils,INCLUDE_DIRECTORIES>
     )
   LIBFUZZER_ADD_TEST(routertest_fuzz_router_uri
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri
@@ -63,15 +69,21 @@ IF(LIBFUZZER_COMPILE_FLAGS)
 
     LINK_LIBRARIES
     harness-library
+<<<<<<< HEAD
     perconaserverclient
     OpenSSL::SSL OpenSSL::Crypto
+||||||| merged common ancestors
+    mysqlclient
+    OpenSSL::SSL OpenSSL::Crypto
+=======
+>>>>>>> mysql-8.4.2
 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
   TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_router_uri_tostring
     PRIVATE
-    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:router_utils,INCLUDE_DIRECTORIES>
     )
   LIBFUZZER_ADD_TEST(routertest_fuzz_router_uri_tostring
     INITIAL_CORPUS_DIR

@@ -1120,7 +1120,6 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   }
 
   int fld_idx = func_args->col_index;
-  assert(fld_idx > -1);
 
   /*
     Don't allow the GC (or default expression) to refer itself or another GC
@@ -1129,7 +1128,7 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   if ((func_args->source != VGS_CHECK_CONSTRAINT) &&
       (field->is_gcol() ||
        field->has_insert_default_general_value_expression()) &&
-      field->field_index() >= fld_idx) {
+      (fld_idx >= 0 && field->field_index() >= fld_idx)) {
     func_args->err_code = (func_args->source == VGS_GENERATED_COLUMN)
                               ? ER_GENERATED_COLUMN_NON_PRIOR
                               : ER_DEFAULT_VAL_GENERATED_NON_PRIOR;

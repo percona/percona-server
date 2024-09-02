@@ -6992,6 +6992,29 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
+/*******************************************
+ * Reduced the reference count for the innobase_share
+ * This function is ONLY applicable when a thread that does not
+ * own a temporary table accesses the temporary table. This 
+ * access causes the reference count of the temporary table to
+ * be increased. INNODB was originally written with the
+ * assumption that a none owning thread will not accesss a 
+ * temporary table owned by another thread. But use cases
+ * have been observed that cause this access to happen.
+ * This increase of the refcount by the none-owning thread
+ * can cause the engine to crash if the innobase share is 
+ * recycled to be used to access a differrent table from
+ * within the owning thread
+ */
+void ha_innobase::reduce_share_refcount(){
+	mysql_mutex_lock(&innobase_share_mutex);
+	if (m_share->use_count > 0)
+	{
+		--m_share->use_count;
+	}
+	mysql_mutex_unlock(&innobase_share_mutex);
+}
+
 /*****************************************************************//**
 Creates and opens a handle to a table which already exists in an InnoDB
 database.

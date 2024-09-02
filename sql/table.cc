@@ -3144,6 +3144,11 @@ parse_err:
   DBUG_RETURN(TRUE);
 }
 
+void reduce_se_share_ref_count(TABLE *table_arg)
+{
+  table_arg->file->reduce_share_refcount();
+}
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 */

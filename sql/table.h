@@ -2974,6 +2974,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
+void reduce_se_share_ref_count(TABLE *table_arg);
 
 
 /**

@@ -3403,7 +3403,7 @@ bool trx_is_strict(trx_t *trx) /*!< in: transaction */
 {
   /* Relax strict check if table is in truncate create table */
   return (trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode) &&
-          (!trx->in_truncate));
+          (!trx->in_truncate) && !thd_slave_thread(trx->mysql_thd));
 }
 
 /** Resets some fields of a m_prebuilt struct. The template is used in fast

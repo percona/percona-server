@@ -454,6 +454,14 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_host= sctx->host();
   event.general_external_user= sctx->external_user();
   event.general_rows= thd->get_stmt_da()->current_row_for_condition();
+  event.general_database= thd->db();
+  event.general_examined_row_count= thd->get_examined_row_count();
+  if (thd->get_row_count_func() < 0) {
+    event.general_affected_row_count= 0;
+  } else {
+    event.general_affected_row_count= thd->get_row_count_func();
+  }
+  event.general_return_row_count= thd->get_sent_row_count();
   if (thd->lex->sql_command == SQLCOM_END && msg_len > 0 && error_code == 0)
   {
     int found_index= -1;

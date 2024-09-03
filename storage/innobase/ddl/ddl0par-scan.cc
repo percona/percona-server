@@ -237,6 +237,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
             thread_ctx->get_state() != Parallel_reader::State::THREAD) {
           thread_ctx->savepoint();
           latches_released = true;
+          DEBUG_SYNC_C("ddl_bulk_inserter_latches_released");
         }
         return DB_SUCCESS;
       });

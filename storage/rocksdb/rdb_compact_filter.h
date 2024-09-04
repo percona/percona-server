@@ -21,9 +21,8 @@
 #endif
 
 /* C++ system header files */
-#ifndef NDEBUG
+#include <algorithm>
 #include <ctime>
-#endif
 #include <string>
 
 /* RocksDB includes */
@@ -76,15 +75,29 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
         }
 
         if (m_ttl_duration != 0 && m_snapshot_timestamp == 0) {
-          /*
-            For efficiency reasons, we lazily call GetIntProperty to get the
-            oldest snapshot time (occurs once per compaction).
-          */
-          rocksdb::DB *const rdb = rdb_get_rocksdb_db();
-          if (!rdb->GetIntProperty(rocksdb::DB::Properties::kOldestSnapshotTime,
-                                   &m_snapshot_timestamp) ||
-              m_snapshot_timestamp == 0) {
-            m_snapshot_timestamp = static_cast<uint64_t>(std::time(nullptr));
+          // Capture the cutoff before inspecting snapshots so snapshots
+          // acquired after these checks cannot observe rows expired by this
+          // compaction.
+          m_snapshot_timestamp = static_cast<uint64_t>(std::time(nullptr));
+          uint64_t oldest_snapshot = 0;
+          if (!rdb_get_rocksdb_db()->GetIntProperty(
+                  rocksdb::DB::Properties::kOldestSnapshotTime,
+                  &oldest_snapshot)) {
+            // Without the snapshot information, retain TTL rows conservatively.
+            m_snapshot_timestamp = 1;
+          } else if (oldest_snapshot != 0) {
+            m_snapshot_timestamp =
+                std::min(m_snapshot_timestamp, oldest_snapshot);
+          }
+          // Read the transaction list AFTER RocksDB's snapshot list: a snapshot
+          // is registered there before snapshot_created() publishes it here,
+          // and cannot be released before that publication. The transaction
+          // timestamp also protects earlier snapshots released by a statement
+          // rollback. Do not hold either list's lock while reading the other.
+          const auto oldest_transaction = oldest_transaction_timestamp();
+          if (oldest_transaction != 0) {
+            m_snapshot_timestamp =
+                std::min(m_snapshot_timestamp, oldest_transaction);
           }
 
 #if !defined(NDEBUG)

@@ -220,8 +220,10 @@ a	b
 1	1
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 a	b
+1	1
 SELECT * FROM t1 FORCE INDEX (kb);
 a	b
+1	1
 # Switching to connection 2
 # compaction doesn't do anything since con1 snapshot is still open
 set global rocksdb_debug_ttl_ignore_pk = 1;
@@ -238,13 +240,17 @@ a	b
 # Switching to connection 1
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 a	b
+1	1
 SELECT * FROM t1 FORCE INDEX (kb);
 a	b
+1	1
 UPDATE t1 set a = a + 1;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 a	b
+2	1
 SELECT * FROM t1 FORCE INDEX (kb);
 a	b
+2	1
 COMMIT;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 a	b

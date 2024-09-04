@@ -1,0 +1,23 @@
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB
+COMMENT='ttl_duration=10;';
+INSERT INTO t VALUES (1);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+SET DEBUG_SYNC='rocksdb_snapshot_before_publication SIGNAL acquired WAIT_FOR published';
+BEGIN;
+SELECT * FROM t;
+SET DEBUG_SYNC='now WAIT_FOR acquired';
+SET GLOBAL rocksdb_compact_cf='default';
+SET DEBUG_SYNC='now SIGNAL published';
+id
+1
+SELECT * FROM t;
+id
+1
+COMMIT;
+SET GLOBAL rocksdb_compact_cf='default';
+SET GLOBAL rocksdb_enable_ttl_read_filtering=OFF;
+SELECT * FROM t;
+id
+SET GLOBAL rocksdb_enable_ttl_read_filtering=ON;
+DROP TABLE t;
+SET DEBUG_SYNC='RESET';

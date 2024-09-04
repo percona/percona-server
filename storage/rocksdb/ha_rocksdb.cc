@@ -99,6 +99,7 @@
 #include "./rdb_sst_partitioner_factory.h"
 #include "./rdb_threads.h"
 #include "./sql_dd.h"
+#include "rdb_compact_filter.h"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 // MySQL 8.0 logger service interface
@@ -3177,26 +3178,47 @@ class Rdb_snapshot_notifier : public rocksdb::TransactionNotifier {
 }
 
 // The global list of currently-active MyRocks transactions, implemented as a
-// doubly-linked intrusive linked list.
+// doubly-linked intrusive linked list. The list is sorted with the oldest
+// snapshot timestamp transaction at the head. The tail of the list contains
+// transactions that did not have yet a snapshot opened and there is a pointer
+// to the newest transaction with a snapshot in the middle of the list.
+// Transactions without snapshots are inserted to the tail, and reinserted to
+// the middle as they acquire their first snapshots.
 class [[nodiscard]] Rdb_transaction_list final {
  private:
   static Rds_mysql_mutex mutex;
   static Rdb_transaction *head;
+  static Rdb_transaction *tail;
+  static Rdb_transaction *newest_tx_with_snapshot;
+
+  static void do_erase(Rdb_transaction *tx);
+  static void fixup_newest_snapshot_after_erase(
+      const Rdb_transaction *erased_tx);
+  static void do_insert_without_snapshot(Rdb_transaction *tx);
+  [[nodiscard]] static std::int64_t oldest_timestamp_locked();
 
  public:
   static void init() { mutex.init(key_mutex_tx_list, MY_MUTEX_INIT_FAST); }
 
   static void shutdown() {
     assert(head == nullptr);
+    assert(tail == nullptr);
+    assert(newest_tx_with_snapshot == nullptr);
     mutex.destroy();
   }
 
-  static void insert(Rdb_transaction *tx);
+  static void insert_without_snapshot(Rdb_transaction *tx);
   static void erase(Rdb_transaction *tx);
+  static void reinsert_with_snapshot(Rdb_transaction *tx, std::int64_t ts);
+  static void reinsert_without_snapshot(Rdb_transaction *tx);
+
   static void for_each(Rdb_tx_list_walker &walker);
 
+  [[nodiscard]] static std::int64_t oldest_timestamp();
+
 #ifndef NDEBUG
-  [[nodiscard]] static bool contains(Rdb_transaction *tx);
+  static std::int64_t check_node(const Rdb_transaction *tx, std::int64_t ts);
+  [[nodiscard]] static bool contains(const Rdb_transaction *tx);
 #endif
 
   Rdb_transaction_list() = delete;
@@ -3209,6 +3231,8 @@ class [[nodiscard]] Rdb_transaction_list final {
 
 Rds_mysql_mutex Rdb_transaction_list::mutex;
 Rdb_transaction *Rdb_transaction_list::head{nullptr};
+Rdb_transaction *Rdb_transaction_list::tail{nullptr};
+Rdb_transaction *Rdb_transaction_list::newest_tx_with_snapshot{nullptr};
 
 /* This is the base class for transactions when interacting with rocksdb.
  */
@@ -3239,6 +3263,14 @@ class Rdb_transaction {
 
   bool m_ddl_transaction = false;
 
+  /** The timestamp of the earliest snapshot in the transaction, which does not
+  change even if the snapshot gets renewed or released. It is used to ensure
+  that the TTL filtering returns the same set of the rows throughout the
+  transaction lifetime. Zero if the transaction hasn't acquired a snapshot
+  yet. Writes and reads from other threads are protected by
+  Rdb_transaction_list::mutex. */
+  std::int64_t m_earliest_snapshot_ts = 0;
+
  protected:
   THD *m_thd = nullptr;
 
@@ -3256,8 +3288,6 @@ class Rdb_transaction {
   std::shared_ptr<Rdb_snapshot_notifier> m_notifier;
 
   rocksdb::ReadOptions m_read_opts;
-
-  std::int64_t m_snapshot_timestamp = 0;
 
   // This should be used only when updating binlog information.
   virtual rocksdb::WriteBatchBase *get_write_batch() = 0;
@@ -3418,8 +3448,22 @@ class Rdb_transaction {
 
   [[nodiscard]] bool is_ddl_transaction() const { return m_ddl_transaction; }
 
-  [[nodiscard]] std::int64_t get_snapshot_timestamp() const noexcept {
-    return m_snapshot_timestamp;
+  [[nodiscard]] std::int64_t get_earliest_snapshot_ts() const noexcept {
+    const auto result = m_earliest_snapshot_ts;
+    // Once it is safe to call get_snapshot_ts from different threads, assert
+    // that its value is not less than the earliest timestamp.
+    assert(result >= 0);
+    return result;
+  }
+
+  [[nodiscard]] std::int64_t get_snapshot_ts() const {
+    const auto *const snapshot = m_read_opts.snapshot;
+    const auto result = snapshot != nullptr ? snapshot->GetUnixTime() : 0;
+
+    assert(result >= 0);
+    assert(m_earliest_snapshot_ts >= 0);
+
+    return result;
   }
 
   virtual void set_lock_timeout(int timeout_sec_arg) = 0;
@@ -3430,6 +3474,7 @@ class Rdb_transaction {
 
   void incr_row_lock_count() {
     assert(!is_ac_nl_ro_rc_transaction());
+    assert(get_snapshot_ts() != 0);
 
     ++m_row_lock_count;
   }
@@ -3493,15 +3538,14 @@ class Rdb_transaction {
     assert(snapshot != nullptr);
 
     m_read_opts.snapshot = snapshot;
-    // TODO: Use snapshot timestamp from rocksdb Snapshot object itself. This
-    // saves the extra call to fetch current time, and allows TTL compaction
-    // (which uses rocksdb timestamp) to be consistent with TTL read filtering
-    // (which uses this timestamp).
-    //
-    // There is no correctness problem though since m_snapshot_timestamp is
-    // generally set after the snapshot has been created, so compaction is
-    // not dropping anything that should have been visible.
-    rdb->GetEnv()->GetCurrentTime(&m_snapshot_timestamp);
+
+    DEBUG_SYNC(m_thd, "rocksdb_snapshot_before_publication");
+    const auto earliest_ts = get_earliest_snapshot_ts();
+    // Keep the first snapshot's time, even if the wall clock went back.
+    if (earliest_ts == 0) {
+      const auto new_earliest_ts = snapshot->GetUnixTime();
+      Rdb_transaction_list::reinsert_with_snapshot(this, new_earliest_ts);
+    }
     m_is_delayed_snapshot = false;
   }
 
@@ -4299,7 +4343,11 @@ class Rdb_transaction {
   virtual bool set_name() = 0;
 
  private:
-  void on_finish() noexcept { modified_tables.clear(); }
+  void on_finish() noexcept {
+    modified_tables.clear();
+
+    Rdb_transaction_list::reinsert_without_snapshot(this);
+  }
 
  protected:
   // Non-virtual functions with actions to be done on transaction rollback and
@@ -4633,7 +4681,6 @@ class Rdb_transaction_impl : public Rdb_transaction {
     bool need_clear = m_is_delayed_snapshot;
 
     if (has_snapshot()) {
-      m_snapshot_timestamp = 0;
       if (is_tx_read_only()) {
         rdb->ReleaseSnapshot(m_read_opts.snapshot);
         need_clear = false;
@@ -4864,12 +4911,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
 
       const rocksdb::Snapshot *const cur_snapshot = m_rocksdb_tx->GetSnapshot();
       if (org_snapshot != cur_snapshot) {
-        if (org_snapshot != nullptr) m_snapshot_timestamp = 0;
-
         m_read_opts.snapshot = cur_snapshot;
-        if (cur_snapshot != nullptr) {
-          rdb->GetEnv()->GetCurrentTime(&m_snapshot_timestamp);
-        } else {
+        if (cur_snapshot == nullptr) {
           m_rocksdb_tx->SetSnapshotOnNextOperation(m_notifier);
           m_is_delayed_snapshot = true;
         }
@@ -4884,11 +4927,11 @@ class Rdb_transaction_impl : public Rdb_transaction {
   }
 
   virtual ~Rdb_transaction_impl() override {
+    rollback();
+
     // Remove from the global list before all other processing is started.
     // Otherwise, information_schema.rocksdb_trx can crash on this object.
     Rdb_transaction::remove_from_global_trx_list();
-
-    rollback();
 
     // Theoretically the notifier could outlive the Rdb_transaction_impl
     // (because of the shared_ptr), so let it know it can't reference
@@ -5116,43 +5159,163 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   virtual ~Rdb_writebatch_impl() override {
+    rollback();
+
     // Remove from the global list before all other processing is started.
     // Otherwise, information_schema.rocksdb_trx can crash on this object.
     Rdb_transaction::remove_from_global_trx_list();
 
-    rollback();
     delete m_batch;
   }
 };
 
-void Rdb_transaction_list::insert(Rdb_transaction *tx) {
-  tx->prev = nullptr;
+void Rdb_transaction_list::do_insert_without_snapshot(Rdb_transaction *tx) {
+  assert(tx->get_earliest_snapshot_ts() == 0);
+  assert(tx->next == nullptr);
+  assert((head == nullptr) == (tail == nullptr));
+
+  if (likely(tail != nullptr)) {
+    assert(tail->next == nullptr);
+    tail->next = tx;
+  }
+  tx->prev = tail;
+  tail = tx;
+  if (unlikely(head == nullptr)) {
+    assert(tx->prev == nullptr);
+    head = tx;
+  }
+#ifndef NDEBUG
+  check_node(head, head->get_earliest_snapshot_ts());
+  check_node(tx, 0);
+  check_node(tail, 0);
+  if (newest_tx_with_snapshot != nullptr) {
+    check_node(newest_tx_with_snapshot,
+               newest_tx_with_snapshot->get_earliest_snapshot_ts());
+  }
+#endif
+}
+
+void Rdb_transaction_list::insert_without_snapshot(Rdb_transaction *tx) {
+  assert(tx->get_earliest_snapshot_ts() == 0);
+  tx->next = nullptr;
 
   RDB_MUTEX_LOCK_CHECK(mutex);
-  if (head != nullptr) {
-    assert(head->prev == nullptr);
-    head->prev = tx;
-  }
-  tx->next = head;
-  head = tx;
+  do_insert_without_snapshot(tx);
   RDB_MUTEX_UNLOCK_CHECK(mutex);
 }
 
-void Rdb_transaction_list::erase(Rdb_transaction *tx) {
-  RDB_MUTEX_LOCK_CHECK(mutex);
+void Rdb_transaction_list::do_erase(Rdb_transaction *tx) {
+#ifndef NDEBUG
+  const auto ts = tx->get_earliest_snapshot_ts();
+  check_node(tx, ts);
+  assert(ts == 0 || oldest_timestamp_locked() <= ts);
+#endif
 
-  assert(head->prev == nullptr);
-  assert(tx->prev != nullptr || tx == head);
-
-  if (tx->prev != nullptr) {
+  if (likely(tx->prev != nullptr)) {
     tx->prev->next = tx->next;
   } else {
     head = tx->next;
   }
-  if (tx->next != nullptr) {
+  if (likely(tx->next != nullptr)) {
     tx->next->prev = tx->prev;
+  } else {
+    tail = tx->prev;
+  }
+}
+
+void Rdb_transaction_list::fixup_newest_snapshot_after_erase(
+    const Rdb_transaction *erased_tx) {
+  if (unlikely(erased_tx == newest_tx_with_snapshot)) {
+    assert(erased_tx->get_earliest_snapshot_ts() != 0);
+    newest_tx_with_snapshot = erased_tx->prev;
+    assert(newest_tx_with_snapshot == nullptr ||
+           newest_tx_with_snapshot->get_earliest_snapshot_ts() != 0);
+  }
+#ifndef NDEBUG
+  if (newest_tx_with_snapshot != nullptr) {
+    check_node(newest_tx_with_snapshot,
+               newest_tx_with_snapshot->get_earliest_snapshot_ts());
+  }
+#endif
+}
+
+void Rdb_transaction_list::erase(Rdb_transaction *tx) {
+  RDB_MUTEX_LOCK_CHECK(mutex);
+  do_erase(tx);
+  fixup_newest_snapshot_after_erase(tx);
+  RDB_MUTEX_UNLOCK_CHECK(mutex);
+}
+
+void Rdb_transaction_list::reinsert_with_snapshot(Rdb_transaction *tx,
+                                                  std::int64_t ts) {
+  assert(ts != 0);
+  assert(tx->get_earliest_snapshot_ts() == 0);
+
+  RDB_MUTEX_LOCK_CHECK(mutex);
+
+  assert(newest_tx_with_snapshot != tx);
+  assert(newest_tx_with_snapshot == nullptr ||
+         newest_tx_with_snapshot->get_earliest_snapshot_ts() != 0);
+
+  do_erase(tx);
+
+  tx->m_earliest_snapshot_ts = ts;
+
+  auto *preceding_tx = newest_tx_with_snapshot;
+  // In regular thread scheduling, the threads are expected to acquire snapshots
+  // and get reinserted in the same order, in which case the list will not be
+  // traversed.
+  while (unlikely(preceding_tx != nullptr &&
+                  preceding_tx->get_earliest_snapshot_ts() >
+                      tx->get_earliest_snapshot_ts())) {
+#ifndef NDEBUG
+    check_node(preceding_tx, preceding_tx->get_earliest_snapshot_ts());
+#endif
+    preceding_tx = preceding_tx->prev;
   }
 
+  if (unlikely(preceding_tx == nullptr)) {
+    tx->prev = nullptr;
+    if (likely(head != nullptr)) head->prev = tx;
+    tx->next = head;
+    head = tx;
+    if (unlikely(tail == nullptr)) tail = tx;
+  } else {
+    tx->next = preceding_tx->next;
+    tx->prev = preceding_tx;
+    if (likely(preceding_tx->next != nullptr)) {
+      preceding_tx->next->prev = tx;
+    } else {
+      tail = tx;
+    }
+    preceding_tx->next = tx;
+  }
+
+  if (preceding_tx == newest_tx_with_snapshot) {
+    newest_tx_with_snapshot = tx;
+  }
+
+#ifndef NDEBUG
+  check_node(tx, ts);
+  check_node(head, head->get_earliest_snapshot_ts());
+  check_node(newest_tx_with_snapshot,
+             newest_tx_with_snapshot->get_earliest_snapshot_ts());
+  check_node(tail, tail->get_earliest_snapshot_ts());
+  assert(oldest_timestamp_locked() <= ts);
+#endif
+
+  RDB_MUTEX_UNLOCK_CHECK(mutex);
+}
+
+void Rdb_transaction_list::reinsert_without_snapshot(Rdb_transaction *tx) {
+  if (tx->get_earliest_snapshot_ts() == 0) return;
+
+  RDB_MUTEX_LOCK_CHECK(mutex);
+  do_erase(tx);
+  fixup_newest_snapshot_after_erase(tx);
+  tx->m_earliest_snapshot_ts = 0;
+  tx->next = nullptr;
+  do_insert_without_snapshot(tx);
   RDB_MUTEX_UNLOCK_CHECK(mutex);
 }
 
@@ -5160,11 +5323,15 @@ void Rdb_transaction_list::for_each(Rdb_tx_list_walker &walker) {
   RDB_MUTEX_LOCK_CHECK(mutex);
 
   auto *tx = head;
-  assert(tx == nullptr || tx->prev == nullptr);
+
+#ifndef NDEBUG
+  auto ts = oldest_timestamp_locked();
+#endif
 
   while (tx != nullptr) {
-    assert(tx->prev == nullptr || tx->prev->next == tx);
-    assert(tx->next == nullptr || tx->next->prev == tx);
+#ifndef NDEBUG
+    ts = check_node(tx, ts);
+#endif
 
     walker.process_tran(tx);
     tx = tx->next;
@@ -5173,17 +5340,83 @@ void Rdb_transaction_list::for_each(Rdb_tx_list_walker &walker) {
   RDB_MUTEX_UNLOCK_CHECK(mutex);
 }
 
+std::int64_t Rdb_transaction_list::oldest_timestamp_locked() {
+  if (unlikely(head == nullptr)) {
+    assert(tail == nullptr);
+    assert(newest_tx_with_snapshot == nullptr);
+    return 0;
+  }
+
+  const auto result = head->get_earliest_snapshot_ts();
+
+  assert(head->prev == nullptr);
+  assert(tail != nullptr);
+  assert((result == 0) == (newest_tx_with_snapshot == nullptr));
+  assert(newest_tx_with_snapshot == nullptr ||
+         newest_tx_with_snapshot->get_earliest_snapshot_ts() != 0);
+
+  return result;
+}
+
+std::int64_t Rdb_transaction_list::oldest_timestamp() {
+  std::int64_t result;
+  RDB_MUTEX_LOCK_CHECK(mutex);
+  result = oldest_timestamp_locked();
+  RDB_MUTEX_UNLOCK_CHECK(mutex);
+  return result;
+}
+
+std::uint64_t oldest_transaction_timestamp() {
+  return Rdb_transaction_list::oldest_timestamp();
+}
+
 #ifndef NDEBUG
-[[nodiscard]] bool Rdb_transaction_list::contains(Rdb_transaction *tx) {
+std::int64_t Rdb_transaction_list::check_node(const Rdb_transaction *tx,
+                                              std::int64_t ts) {
+  assert(ts == tx->get_earliest_snapshot_ts());
+  assert(ts >= 0);
+  assert(head != nullptr);
+  assert(tail != nullptr);
+
+  if (tx == head) {
+    assert(tx->prev == nullptr);
+    if (ts == 0) {
+      assert(newest_tx_with_snapshot == nullptr);
+    } else {
+      assert(newest_tx_with_snapshot != nullptr);
+    }
+  } else {
+    assert(tx->prev->next == tx);
+  }
+
+  if (tx == tail) {
+    assert(tx->next == nullptr);
+    if (ts != 0) {
+      assert(tx == newest_tx_with_snapshot);
+    }
+    return -1;
+  }
+
+  assert(tx->next->prev == tx);
+  const auto next_ts = tx->next->get_earliest_snapshot_ts();
+  if (tx == newest_tx_with_snapshot) {
+    assert(ts > 0);
+    assert(next_ts == 0);
+  } else {
+    assert(ts <= next_ts);
+  }
+  ts = next_ts;
+  return next_ts;
+}
+
+[[nodiscard]] bool Rdb_transaction_list::contains(const Rdb_transaction *tx) {
   RDB_MUTEX_LOCK_CHECK(mutex);
 
   auto *list_tx = head;
-  assert(list_tx == nullptr || list_tx->prev == nullptr);
+  auto ts = oldest_timestamp_locked();
 
   while (list_tx != nullptr) {
-    assert(list_tx->prev == nullptr || list_tx->prev->next == list_tx);
-    assert(list_tx->next == nullptr || list_tx->next->prev == list_tx);
-
+    ts = check_node(list_tx, ts);
     if (list_tx == tx) {
       RDB_MUTEX_UNLOCK_CHECK(mutex);
       return true;
@@ -5331,7 +5564,7 @@ static Rdb_transaction *get_or_create_tx(THD *const thd) {
     set_tx_on_thd(thd, tx);
     // Add the transaction to the global list of transactions
     // once it is fully constructed.
-    Rdb_transaction_list::insert(tx);
+    Rdb_transaction_list::insert_without_snapshot(tx);
   } else {
     tx->set_params(thd);
     if (!tx->is_tx_started()) {
@@ -5862,21 +6095,43 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
   void process_tran(const Rdb_transaction *const tx) override {
     assert(tx != nullptr);
 
-    /* Calculate the duration the snapshot has existed */
-    const auto snapshot_timestamp = tx->get_snapshot_timestamp();
-    if (snapshot_timestamp != 0) {
+    const auto earliest_snapshot_timestamp = tx->get_earliest_snapshot_ts();
+    if (earliest_snapshot_timestamp != 0) {
       int64_t curr_time;
       rdb->GetEnv()->GetCurrentTime(&curr_time);
+      const auto earliest_snapshot_age =
+          curr_time - earliest_snapshot_timestamp;
+
+      const auto snapshot_ts = tx->get_snapshot_ts();
+      if (snapshot_ts == 0) {
+        // The transaction had a snapshot, but does not have one at the moment
+        m_data += format_string("---NO ACTIVE SNAPSHOT\n");
+      } else {
+        m_data += format_string("---SNAPSHOT, ACTIVE %" PRId64 " sec\n",
+                                curr_time - snapshot_ts);
+      }
 
       THD *thd = tx->get_thd();
       char buffer[1024];
       thd_security_context(thd, buffer, sizeof buffer, 0);
-      m_data += format_string("---SNAPSHOT, ACTIVE %" PRId64
-                              " sec\n"
-                              "%s\n"
-                              "lock count %llu, write count %llu\n",
-                              curr_time - snapshot_timestamp, buffer,
-                              tx->get_row_lock_count(), tx->get_write_count());
+      m_data += format_string(
+          "%s\n"
+          "earliest snapshot created %" PRId64
+          " sec ago\n"
+          "lock count %llu, write count %llu\n",
+          buffer, earliest_snapshot_age, tx->get_row_lock_count(),
+          tx->get_write_count());
+    } else {
+      m_data += format_string("---NO ACTIVE SNAPSHOT\n");
+
+      THD *thd = tx->get_thd();
+      char buffer[1024];
+      thd_security_context(thd, buffer, sizeof buffer, 0);
+      m_data += format_string(
+          "%s\n"
+          "earliest snapshot never created\n"
+          "lock count %llu, write count %llu\n",
+          buffer, tx->get_row_lock_count(), tx->get_write_count());
     }
   }
 
@@ -7880,7 +8135,7 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
   assert(kd.has_ttl());
   assert(kd.m_ttl_rec_offset != UINT_MAX);
   THD *thd = tx->get_thd();
-  const int64_t curr_ts = tx->get_snapshot_timestamp();
+  const int64_t curr_ts = tx->get_earliest_snapshot_ts();
 
   /*
     Curr_ts can only be 0 if there are no snapshots open.

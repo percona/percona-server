@@ -262,6 +262,29 @@ a
 7
 set global rocksdb_enable_ttl_read_filtering=1;
 DROP TABLE t1;
+#
+# Statement rollbacks should not expire additional rows in transactions
+#
+CREATE TABLE t16 (pk INT PRIMARY KEY, a CHAR(8)) ENGINE=ROCKSDB
+COMMENT='ttl_duration=5;';
+INSERT INTO t16 VALUES (1, 'a'), (2, 'b');
+BEGIN;
+SELECT * FROM t16;
+pk	a
+1	a
+2	b
+SELECT * FROM t16;
+pk	a
+1	a
+2	b
+UPDATE t16 SET pk = 2, a = 'updated' WHERE pk = 1;
+ERROR 23000: Duplicate entry '2' for key 't16.PRIMARY'
+SELECT * FROM t16;
+pk	a
+1	a
+2	b
+COMMIT;
+DROP TABLE t16;
 set @@global.rocksdb_debug_ttl_rec_ts = @orig_rocksdb_debug_ttl_rec_ts;
 set @@global.rocksdb_debug_ttl_read_filter_ts = @orig_rocksdb_debug_ttl_read_filter_ts;
 set @@global.rocksdb_enable_ttl_read_filtering = @orig_rocksdb_enable_ttl_read_filtering;

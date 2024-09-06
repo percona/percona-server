@@ -312,7 +312,15 @@ IF(LINUX_ALPINE)
 ENDIF()
 
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
-  ADD_COMPILE_FLAGS(regexp_engine-t.cc COMPILE_FLAGS "-Wno-restrict")
+  ADD_COMPILE_FLAGS(
+    regexp_engine-t.cc
+    gis_area-t.cc
+    gis_is_simple-t.cc
+    gis_isvalid-t.cc
+    gis_relops-t.cc
+    gis_setops-t.cc
+    COMPILE_FLAGS "-Wno-restrict"
+  )
 ENDIF()
 
 IF(WIN32)

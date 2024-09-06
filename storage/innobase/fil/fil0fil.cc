@@ -3212,10 +3212,7 @@ static bool fil_space_free(space_id_t space_id, bool x_latched) {
     rw_lock_x_unlock(&space->latch);
   }
 
-  shard->mutex_acquire();
   Fil_shard::space_free_low(space);
-  shard->mutex_release();
-
   ut_a(space == nullptr);
 
   return true;
@@ -4576,9 +4573,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     fil_op_write_log(MLOG_FILE_DELETE, space_id, path, nullptr, 0, &mtr);
 
     mtr.commit();
-
-    DBUG_EXECUTE_IF("delete_crash", log_buffer_flush_to_disk();
-                    DBUG_SUICIDE(););
 
     /* Even if we got killed shortly after deleting the
     tablespace file, the record must have already been

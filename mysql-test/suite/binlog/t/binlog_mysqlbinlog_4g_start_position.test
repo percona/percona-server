@@ -37,6 +37,8 @@
 --source include/not_asan.inc
 --source include/big_test.inc
 --source include/have_binlog_format_row.inc
+# Do not run in parallel with other tests as requires lots of disk space/memory.
+--source include/not_parallel.inc
 
 --echo #
 --echo # 1) Prepare a sample table and insert values.

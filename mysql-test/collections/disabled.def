@@ -28,6 +28,7 @@ audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 
 # binlog suite tests
 binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debug client binary and fails consistently.
+binlog.binlog_mysqlbinlog_4g_start_position       : BUG#0000 PS-9381 Requires too much memory/space in Jenkins
 binlog_gtid.binlog_xa_select_gtid_executed_explicitly_crash : Bug#28588717 Fails both on FreeBSD and other platforms
 # func1 suite tests
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
@@ -88,6 +89,9 @@ perfschema.idx_compare_events_waits_current : BUG#27865960
 perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 perfschema.idx_compare_ews_by_instance : BUG#31791537
 perfschema.idx_compare_rwlock_instances : BUG#31791537
+
+# rocksdb_stress suite tests
+rocksdb_stress.drop_cf_stress : BUG#0000 PS-9381 Often fails in Jenkins due to races.
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_async_conn_failover_restart @windows : BUG#34132168 Disabled until bug is fixed

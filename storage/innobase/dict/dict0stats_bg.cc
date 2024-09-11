@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread-create.h"
 #include "row0mysql.h"
 #include "sql/histograms/histogram.h"
+#include "sql/mysqld.h"  // get_server_state()
 #include "srv0start.h"
 #include "ut0new.h"
 
@@ -405,7 +406,18 @@ void dict_stats_thread() {
       break;
     }
 
-    dict_stats_process_entry_from_recalc_pool(thd);
+    /* Some steps of server start-up process which are performed after this
+    thread starts (e.g., Percona Telemetry setup step) might update tables and
+    thus trigger request to recalculate statistics and update histograms.
+    However, the latter might be problematic before server becames fully
+    operational, as it involves usage of global optimizer cost model object,
+    which at the same time is  concurrently inited/destroyed/reloaded by the
+    main thread performing start-up. Hence we delay handling of requests
+    to update statistics/histogram until server is fully operational (and thus
+    global optimizer cost model object is initialized and stable). */
+    if (get_server_state() == SERVER_OPERATING) {
+      dict_stats_process_entry_from_recalc_pool(thd);
+    }
 
     os_event_reset(dict_stats_event);
   }

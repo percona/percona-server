@@ -51,10 +51,10 @@ LOCK INSTANCE FOR BACKUP;
 --echo # Unblock applier
 --echo #
 
-SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
-
 --let $debug_point = syncpoint_purge_applied_logs_after_backup_lock
 --source include/remove_debug_point.inc
+
+SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
 
 --echo #
 --echo # Wait for replica to process the rest of the binlog

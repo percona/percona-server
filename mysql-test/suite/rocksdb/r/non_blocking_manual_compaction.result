@@ -6,7 +6,7 @@ key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 DELETE FROM t1;
 SET GLOBAL rocksdb_max_manual_compactions = 2;
-SET GLOBAL rocksdb_debug_manual_compaction_delay = 10;
+SET GLOBAL rocksdb_debug_manual_compaction_delay = 30;
 SET GLOBAL rocksdb_compact_cf='cf1';
 SET GLOBAL rocksdb_compact_cf='rev:cf2';
 SET GLOBAL rocksdb_compact_cf='cf1';

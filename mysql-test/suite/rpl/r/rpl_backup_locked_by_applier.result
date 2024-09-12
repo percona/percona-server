@@ -23,8 +23,8 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 #
 # Unblock applier
 #
-SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
 # Removing debug point 'syncpoint_purge_applied_logs_after_backup_lock' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
 #
 # Wait for replica to process the rest of the binlog
 #

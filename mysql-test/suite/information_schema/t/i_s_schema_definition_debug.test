@@ -98,7 +98,7 @@
 SET debug = '+d,skip_dd_table_access_check';
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 50;
+let $expected_system_view_count = 52;
 
 --echo ########################################################################
 --echo # PART 1
@@ -328,40 +328,40 @@ INSERT INTO I_S_published_schema
         'fedb1d31841a81321ec0c95d672b80929c0772fc357e30eedfb561a755f8c137');
 INSERT INTO I_S_published_schema
   VALUES ('90000', '90000', 0,
-        'fce2482b7736ab8689aef1d66bd20615dd8b869ef2295c60f90627f662d891a9');
+        '108170a8e121916cdffdba98a74e5ceb5e6a150dd4e7c6f4ef59b8a7647f1142');
 INSERT INTO I_S_published_schema
   VALUES ('90000', '90000', 1,
-        '891156b623ed2e309b26109f8dcfbd4084ac6f094639b3249087a4597431667c');
+        'ecff60129121ab6899cb57b3a5982d8034341c91accc6068c3afbbcc9da2d454');
 INSERT INTO I_S_published_schema
   VALUES ('90100', '90100', 0,
-        'fc80d54974ad6e864c9779b45f1692da35f99d9d55252ad701f81e0ebe991e62');
+        'a56fc79fa3f89917c73d98db0caf677de807e2c125a775939fe4a85aa77e5b09');
 INSERT INTO I_S_published_schema
   VALUES ('90100', '90100', 1,
-        '4401b727bf9ec5e1e56f8c114f9da8d7a5ee35f6fedb72b3335a0bf7e5ea6f4e');
+        '861f363b762cdc63f0152eb0cbc59d1cf3230e3679d357cdfdf498182721cc9e');
 INSERT INTO I_S_published_schema
   VALUES ('90200', '90200', 0,
-        'e5e697e8d1047c52c799820e39aad1b3557c8691563defe4af3d9869a3db6e16');
+        '9b40e8c258946e16a8d4a5d00d3513ea02e7518cb0bbecde6daea99d576729f0');
 INSERT INTO I_S_published_schema
   VALUES ('90200', '90200', 1,
-        'c6bac6a1f2b4d7fd42aadffd69df5b51f17629714fd83a3666f6ff79874889f2');
+        'c0e3128a44fc321626d7f08dc9e9514d8df574c51ef682780ad55c53a16ec286');
 INSERT INTO I_S_published_schema
   VALUES ('90300', '90300', 0,
-        'a9269cec4c139c7cbe62d694b03a243e6e9d3a18d1d8af9bef823dffc74be336');
+        '83b9b10280e7eb64c75581493315ed22f0a1105efaceaf1ae23ff569c616a9d0');
 INSERT INTO I_S_published_schema
   VALUES ('90300', '90300', 1,
         '94cc97ea64544ac65cb61abbe760c3b5b08254ab7dc01f825cc118d0570db199');
 INSERT INTO I_S_published_schema
   VALUES ('90400', '90400', 0,
-        'd5c7a6c854f676b1f8e096728c7d178225a745d172a4bcbca6536a7e807ffe26');
+        'e52da18c23a6d0b580978000c63ee9219b97289164876c0baba11d694f816993');
 INSERT INTO I_S_published_schema
   VALUES ('90400', '90400', 1,
         '027170b29c123596a675415c0e95542856cdd7bb837da87a74ce3c9bff8103fd');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 0,
-        '7d93c94a2e79e52648902f8cd51988bfe4dc9627b9f477ef82440bbff17c12c8');
+        '951c2fa76ae5d55325aa10bf4cf98ee269b965b6506b43bc16259db3bed566b5');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 1,
-        'e54f1c2000a1cfa10c19c96ff6482620c125acc59a9fd15e8a2acd26a794dfda');
+        'd7cc59e70244b25c5587aafb2da1a3d2e0a0ec8a7a072f0e66a213f94d29fdf6');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

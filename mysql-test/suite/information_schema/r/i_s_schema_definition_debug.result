@@ -103,8 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 46 system views.]
-include/assert.inc [There are 46 I_S system views in total.]
+include/assert.inc [There are 48 system views.]
+include/assert.inc [There are 48 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################

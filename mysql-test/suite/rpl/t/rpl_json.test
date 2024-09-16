@@ -271,7 +271,7 @@ INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
 --echo # Check whether tables were created on the slave
 
 SELECT * FROM json_data;
-SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
+SELECT /*+ JOIN_ORDER(t1, t2) */ JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
 SELECT JSON_ARRAYAGG(jcol) FROM json_data;
 
 --let $diff_tables = master:json_data, slave:json_data

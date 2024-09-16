@@ -305,7 +305,7 @@
      ENDIF()
 --- testclients/CMakeLists.txt
 +++ testclients/CMakeLists.txt
-@@ -23,9 +23,9 @@
+@@ -24,11 +24,11 @@
  ADD_WSHADOW_WARNING()
 
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
@@ -313,9 +313,11 @@
 +TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
 
  IF(WITH_UNIT_TESTS)
-   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
--  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
-+  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
+   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc
+     SKIP_INSTALL
+     EXCLUDE_FROM_PGO
+-    LINK_LIBRARIES perconaserverclient)
++    LINK_LIBRARIES mysqlclient)
  ENDIF()
 --- unittest/gunit/group_replication/CMakeLists.txt
 +++ unittest/gunit/group_replication/CMakeLists.txt

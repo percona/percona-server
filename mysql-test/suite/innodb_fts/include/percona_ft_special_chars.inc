@@ -50,7 +50,7 @@ OPTIMIZE TABLE t1;
 
 --echo
 --echo *** updating the table with another record also containing the '%' character
-SET @special_string = 'sd%he%ff';
+SET @special_string = 'sda%he%ff';
 --let $special_string = `SELECT @special_string`
 --let $old_expected_number_of_records = $expected_number_of_records
 # for both default and mecab parser

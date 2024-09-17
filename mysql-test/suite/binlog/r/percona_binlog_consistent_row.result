@@ -19,6 +19,8 @@ CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam;
 BEGIN;
 INSERT INTO t1 VALUES (2, "first");
 INSERT INTO t2 VALUES (2);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 INSERT INTO t1 VALUES (2, "second");
 # Connection default
 COMMIT;
@@ -28,6 +30,8 @@ START TRANSACTION WITH CONSISTENT SNAPSHOT;
 BEGIN;
 INSERT INTO t1 VALUES (3, "");
 INSERT INTO t2 VALUES (3);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 # Connection con4
 BEGIN;
 INSERT INTO t1 VALUES (4, "");

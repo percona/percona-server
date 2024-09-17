@@ -21,6 +21,7 @@ BEGIN;
 INSERT INTO t1 VALUES (2, "first");
 INSERT INTO t2 VALUES (2);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO t1 VALUES (2, "second");
 # Connection default
@@ -32,6 +33,7 @@ BEGIN;
 INSERT INTO t1 VALUES (3, "");
 INSERT INTO t2 VALUES (3);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 # Connection con4
 BEGIN;

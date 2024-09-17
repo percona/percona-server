@@ -13,6 +13,7 @@ savepoint `a``; create database couldbebadthingshere; savepoint ``dummy`;
 insert into t1 values (2);
 insert into t2 values (1);
 Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 SET sql_mode = '';
 rollback to savepoint `a``; create database couldbebadthingshere; savepoint ``dummy`;

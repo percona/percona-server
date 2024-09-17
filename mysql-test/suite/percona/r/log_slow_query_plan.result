@@ -136,7 +136,7 @@ COUNT(*)
 [log_grep.inc] lines:   0
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	21
+Select_scan	20
 SET SESSION log_slow_filter=default;
 CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1), (2), (3);

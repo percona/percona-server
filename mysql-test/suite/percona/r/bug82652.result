@@ -35,7 +35,7 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 INSERT INTO t2 VALUES(4000000000000000, CURRENT_TIMESTAMP, '');
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c3' at row 1
+Warning	1366	Incorrect FLOAT value: '' for column 'c3' at row 1
 ALTER TABLE t3 MODIFY c3 TINYTEXT CHARACTER SET "latin1" COLLATE "latin1_bin";
 INSERT INTO t3 SELECT * FROM t2;
 Warnings:

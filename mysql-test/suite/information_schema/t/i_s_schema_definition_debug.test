@@ -325,7 +325,19 @@ INSERT INTO I_S_published_schema
         '773402e5ce6945f2b5645b3a7530544ae2c9f67035d7786655d37aedf2629ec8');
 INSERT INTO I_S_published_schema
   VALUES ('80400', '80400', 1,
+<<<<<<< HEAD
         'e9e8a30f4a2f1c66309b713d35c4a256aa6aa00affce84b713146f1d05fa1fa1');
+||||||| 0e33d640d4f
+        'fedb1d31841a81321ec0c95d672b80929c0772fc357e30eedfb561a755f8c137');
+=======
+        'fedb1d31841a81321ec0c95d672b80929c0772fc357e30eedfb561a755f8c137');
+INSERT INTO I_S_published_schema
+  VALUES ('90000', '90000', 0,
+        'fce2482b7736ab8689aef1d66bd20615dd8b869ef2295c60f90627f662d891a9');
+INSERT INTO I_S_published_schema
+  VALUES ('90000', '90000', 1,
+        '891156b623ed2e309b26109f8dcfbd4084ac6f094639b3249087a4597431667c');
+>>>>>>> mysql-9.0.1
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

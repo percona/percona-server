@@ -6903,13 +6903,24 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
           Secondary_engine_optimization::PRIMARY_ONLY);
     }
   }
+  // Cannot reach here with secondary execution mode if offload is impossible:
+  assert(thd->secondary_engine_optimization() !=
+             Secondary_engine_optimization::SECONDARY ||
+         offload_possible);
+
   // Only open secondary engine tables if use of a secondary engine
   // has been requested, and access has not been disabled previously.
   if (sql_cmd->secondary_storage_engine_disabled() ||
       thd->secondary_engine_optimization() !=
-          Secondary_engine_optimization::SECONDARY)
+          Secondary_engine_optimization::SECONDARY) {
+    // If offload is not possible, set execution to primary only:
+    if (thd->secondary_engine_optimization() ==
+            Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
+        !offload_possible)
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
     return false;
-
+  }
   // If the statement cannot be executed in a secondary engine because
   // of a property of the statement, do not attempt to open the
   // secondary tables. Also disable use of secondary engines for
@@ -8103,7 +8114,7 @@ Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
           return WRONG_GRANT;
       } else {
         assert(ref && *ref && (*ref)->fixed);
-        assert(*actual_table == (down_cast<Item_ident *>(*ref))->cached_table);
+        assert(*actual_table == down_cast<Item_ident *>(*ref)->m_table_ref);
 
         const Column_privilege_tracker tracker(thd, want_privilege);
         if ((*ref)->walk(&Item::check_column_privileges, enum_walk::PREFIX,
@@ -8212,7 +8223,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
 
   allow_rowid = table_name || (first_table && !first_table->next_local);
 
-  if (item->cached_table) {
+  if (item->m_table_ref != nullptr) {
     /*
       This shortcut is used by prepared statements. We assume that
       Table_ref *first_table is not changed during query execution (which
@@ -8222,21 +8233,18 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
       field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
-    Table_ref *table_ref = item->cached_table;
+    Table_ref *table_ref = item->m_table_ref;
 
     /*
       @todo WL#6570 - is this reasonable???
-      Also refactor this code to replace "cached_table" with "table_ref" -
-      as there is no longer need for more than one resolving, hence
-      no "caching" as well.
     */
     if (item->type() == Item::FIELD_ITEM)
       field_index = down_cast<Item_field *>(item)->field_index;
 
     /*
-      The condition (table_ref->view == NULL) ensures that we will call
+      The condition (m_table_ref->view == NULL) ensures that we will call
       find_field_in_table even in the case of information schema tables
-      when table_ref->field_translation != NULL.
+      when m_table_ref->field_translation != NULL.
     */
 
     if (table_ref->table && !table_ref->is_view()) {
@@ -8299,18 +8307,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
     if ((cur_field == nullptr && thd->is_error()) || cur_field == WRONG_GRANT)
       return nullptr;
 
-    if (cur_field) {
-      /*
-        Store the original table of the field, which may be different from
-        cur_table in the case of NATURAL/USING join.
-      */
-      item->cached_table =
-          (!actual_table->cacheable_table || found) ? nullptr : actual_table;
-
-      // @todo WL#6570 move this assignment to a more strategic place?
-      if (item->type() == Item::FIELD_ITEM)
-        down_cast<Item_field *>(item)->field_index = field_index;
-
+    if (cur_field != nullptr) {
       assert(thd->where);
       /*
         If we found a fully qualified field we return it directly as it can't
@@ -8323,7 +8320,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
           my_error(ER_NON_UNIQ_ERROR, MYF(0),
                    table_name ? item->full_name() : name, thd->where);
-        return (Field *)nullptr;
+        return nullptr;
       }
       found = cur_field;
     }
@@ -8453,7 +8450,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
              (item_field->db_name != nullptr &&
               !strcmp(item_field->db_name, find_ident->db_name)))) {
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, false)) continue;
+            if ((*found_unaliased)->eq(item)) continue;
             /*
               Two matching fields in select list.
               We already can bail out because we are searching through
@@ -8480,7 +8477,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
             non-aliased field was found.
           */
           if (*found != nullptr) {
-            if ((**found)->eq(item, false)) continue;  // Same field twice
+            if ((**found)->eq(item)) continue;  // Same field twice
             my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
             return true;
           }
@@ -8496,8 +8493,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
             we should prefer fields from select list.
           */
           if (found_unaliased) {
-            if ((*found_unaliased)->eq(item, false))
-              continue;  // Same field twice
+            if ((*found_unaliased)->eq(item)) continue;  // Same field twice
             found_unaliased_non_uniq = true;
           }
           found_unaliased = &*it;
@@ -8515,7 +8511,7 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
-      } else if (find->eq(item, false)) {
+      } else if (find->eq(item)) {
         *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
@@ -8615,10 +8611,12 @@ static bool test_if_string_in_list(const char *find, List<String> *str_list) {
 
 static bool set_new_item_local_context(THD *thd, Item_ident *item,
                                        Table_ref *table_ref) {
-  Name_resolution_context *context;
-  if (!(context = new (thd->mem_root) Name_resolution_context))
-    return true; /* purecov: inspected */
-  context->init();
+  Name_resolution_context *context =
+      new (thd->mem_root) Name_resolution_context;
+  if (context == nullptr) {
+    /* purecov: inspected */
+    return true;
+  }
   context->first_name_resolution_table = context->last_name_resolution_table =
       table_ref;
   context->query_block = table_ref->query_block;
@@ -9348,7 +9346,7 @@ bool setup_fields(THD *thd, Access_bitmask want_privilege, bool allow_sum_func,
         my_error(ER_INVALID_ASSIGNMENT_TARGET, MYF(0), str.c_ptr());
         return true;
       }
-      Table_ref *tr = field->table_ref;
+      Table_ref *tr = field->m_table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable()) {
         /*
           The base table of the column may have beeen referenced through a view
@@ -9666,7 +9664,7 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
         if (is_hidden) continue;
 
         /* cache the table for the Item_fields inserted by expanding stars */
-        if (tables->cacheable_table) field->cached_table = tables;
+        if (tables->cacheable_table) field->m_table_ref = tables;
       }
 
       if (!found) {
@@ -9812,7 +9810,7 @@ bool fill_record(THD *thd, TABLE *table, const mem_root_deque<Item *> &fields,
   auto value_it = VisibleFields(values).begin();
   for (Item *fld : VisibleFields(fields)) {
     Item_field *const field = fld->field_for_view_update();
-    assert(field != nullptr && field->table_ref->table == table);
+    assert(field != nullptr && field->m_table_ref->table == table);
 
     Field *const rfield = field->field;
     Item *value = *value_it++;
@@ -10593,7 +10591,7 @@ int setup_ftfuncs(const THD *thd, Query_block *query_block) {
       is used as master for a "late" one, and not the other way around.
     */
     while ((ftf2 = lj++) != ftf) {
-      if (ftf->eq(ftf2, true) && !ftf->master) ftf2->set_master(ftf);
+      if (ftf->eq(ftf2) && !ftf->master) ftf2->set_master(ftf);
     }
   }
 

@@ -335,7 +335,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
         ENDIF()
       ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
-        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-12")
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-13")
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -397,9 +397,9 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           ENDIF()
         ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
           SET(DEV_PACKAGES
-            "gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils")
-          STRING_APPEND(DEV_PACKAGES " gcc-toolset-12-annobin-annocheck")
-          STRING_APPEND(DEV_PACKAGES " gcc-toolset-12-annobin-plugin-gcc")
+            "gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-annocheck")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-plugin-gcc")
         ENDIF()
         MESSAGE(WARNING
           "Could not find devtoolset compiler/linker in ${ALTERNATIVE_PATHS}")
@@ -1751,6 +1751,10 @@ IF(LINUX_UBUNTU)
   IF(LINUX_UBUNTU_VERSION_ID VERSION_LESS "23.04")
     LIST(REMOVE_ITEM SYSTEM_LIBRARIES ZLIB)
   ENDIF()
+  # Ubuntu 22.04 has too old grpc
+  IF(WITH_INTERNAL AND LINUX_UBUNTU_VERSION_ID VERSION_LESS "24.04")
+    LIST(REMOVE_ITEM SYSTEM_LIBRARIES PROTOBUF)
+  ENDIF()
 ENDIF()
 # Do not change it back to "system"
 IF(WITH_FIDO AND WITH_FIDO STREQUAL "none")
@@ -2158,6 +2162,11 @@ INCLUDE(maintainer)
 INCLUDE(msvc_cppcheck)
 DO_MSVC_CPPCHECK()
 
+# We know that 3.12 generates extra-semi, and that 3.19 does not:
+IF(WITH_PROTOBUF STREQUAL "system" AND "${PROTOBUF_VERSION}" VERSION_LESS 3.19)
+  STRING(REPLACE "-Wextra-semi" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
+
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   INCLUDE(googletest)
@@ -2188,25 +2197,26 @@ ENDIF()
 
 # The hypergraph optimizer is default on only for debug builds.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT ON)
+  OPTION(WITH_HYPERGRAPH_OPTIMIZER
+    "Allow use of the hypergraph join optimizer" ON)
+ELSEIF(BUILD_IS_SINGLE_CONFIG)
+  OPTION(WITH_HYPERGRAPH_OPTIMIZER
+    "Allow use of the hypergraph join optimizer" OFF)
 ELSE()
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT OFF)
+  # Do not initialize the option, set it ON for $<CONFIG:Debug>
+  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
-OPTION(WITH_HYPERGRAPH_OPTIMIZER
-  "Allow use of the hypergraph join optimizer"
-  ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
-  )
 
 # Allow SHOW PARSE_TREE on debug build by default.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
-  SET(WITH_SHOW_PARSE_TREE_DEFAULT ON)
+  OPTION(WITH_SHOW_PARSE_TREE "Allow showing the parse tree" ON)
+ELSEIF(BUILD_IS_SINGLE_CONFIG)
+  OPTION(WITH_SHOW_PARSE_TREE "Allow showing the parse tree" OFF)
 ELSE()
-  SET(WITH_SHOW_PARSE_TREE_DEFAULT OFF)
+  SET(WITH_SHOW_PARSE_TREE_DEFAULT "default")
+  # Do not initialize the option, set it ON for $<CONFIG:Debug>
+  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
-OPTION(WITH_SHOW_PARSE_TREE
-  "Allow showing the parse tree"
-  ${WITH_SHOW_PARSE_TREE_DEFAULT}
-  )
 
 OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)
 IF(WITH_ENCRYPTION_UDF)

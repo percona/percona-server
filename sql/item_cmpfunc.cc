@@ -771,9 +771,16 @@ bool Item_bool_func2::resolve_type(THD *thd) {
     the GEOMETRY byte string rather than doing a geometric equality comparison.
   */
   const Functype func_type = functype();
+
+  uint nvector_args = num_vector_args();
+  if (func_type == EQ_FUNC && nvector_args != 0 && nvector_args != arg_count) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+
   if ((func_type == LT_FUNC || func_type == LE_FUNC || func_type == GE_FUNC ||
        func_type == GT_FUNC || func_type == FT_FUNC) &&
-      reject_geometry_args(arg_count, args, this))
+      (reject_geometry_args() || reject_vector_args()))
     return true;
 
   // Make a special case of compare with fields to get nicer DATE comparisons
@@ -813,7 +820,8 @@ bool Item_func_like::resolve_type(THD *thd) {
     }
   }
 
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_geometry_args()) return true;
+  if (reject_vector_args()) return true;
 
   // LIKE is always carried out as a string operation
   args[0]->cmp_context = STRING_RESULT;
@@ -882,8 +890,7 @@ void Arg_comparator::cleanup() {
   value2.mem_free();
 }
 
-bool Arg_comparator::set_compare_func(Item_result_field *item,
-                                      Item_result type) {
+bool Arg_comparator::set_compare_func(Item_func *item, Item_result type) {
   m_compare_type = type;
   owner = item;
   func = comparator_matrix[type];
@@ -920,7 +927,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        const char *func_name = owner ? owner->func_name() : "";
+        const char *func_name = owner != nullptr ? owner->func_name() : "";
         my_coll_agg_error((*left)->collation, (*right)->collation, func_name);
         return true;
       }
@@ -1250,7 +1257,7 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **, const Item *,
     Here we override the chosen result type for certain expression
     containing date or time or decimal expressions.
  */
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, Item_result type) {
   m_compare_type = type;
   owner = owner_arg;
@@ -1337,7 +1344,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
       DTCollation::set() may have chosen a charset that's a superset of both
       and "left" and "right", so we need to convert both items.
      */
-    const char *func_name = owner ? owner->func_name() : "";
+    const char *func_name = owner != nullptr ? owner->func_name() : "";
     if (agg_item_set_converter(coll, func_name, left, 1, MY_COLL_CMP_CONV, 1,
                                true) ||
         agg_item_set_converter(coll, func_name, right, 1, MY_COLL_CMP_CONV, 1,
@@ -1370,7 +1377,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   return set_compare_func(owner_arg, type);
 }
 
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, bool set_null_arg) {
   set_null = set_null_arg;
   const Item_result item_result =
@@ -1378,7 +1385,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   return set_cmp_func(owner_arg, left_arg, right_arg, item_result);
 }
 
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
                                   Item **right_arg, bool set_null_arg,
                                   Item_result type) {
   set_null = set_null_arg;
@@ -1598,7 +1605,7 @@ static Item **cache_converted_constant(THD *thd, Item **value,
   return value;
 }
 
-void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
+void Arg_comparator::set_datetime_cmp_func(Item_func *owner_arg,
                                            Item **left_arg, Item **right_arg) {
   owner = owner_arg;
   left = left_arg;
@@ -2097,7 +2104,7 @@ int Arg_comparator::compare_row() {
     /* Aggregate functions don't need special null handling. */
     if (owner->null_value && owner->type() == Item::FUNC_ITEM) {
       // NULL was compared
-      switch (((Item_func *)owner)->functype()) {
+      switch (owner->functype()) {
         case Item_func::NE_FUNC:
           break;  // NE never aborts on NULL even if abort_on_null is set
         case Item_func::LT_FUNC:
@@ -2157,7 +2164,9 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     return have_null_items;
   }
   const bool a_null = a->is_nullable() && a->is_null();
+  if (current_thd->is_error()) return false;
   const bool b_null = b->is_nullable() && b->is_null();
+  if (current_thd->is_error()) return false;
   if (a_null || b_null) {
     *result = a_null == b_null;
     return true;
@@ -2576,6 +2585,11 @@ longlong Item_func_eq::val_int() {
 
 bool Item_func_equal::resolve_type(THD *thd) {
   if (Item_bool_func2::resolve_type(thd)) return true;
+  uint nvector_args = num_vector_args();
+  if (nvector_args != 0 && nvector_args != arg_count) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
   set_nullable(false);
   null_value = false;
   return false;
@@ -2585,6 +2599,7 @@ longlong Item_func_equal::val_int() {
   assert(fixed);
   // Perform regular equality check first:
   const int value = cmp.compare();
+  if (current_thd->is_error()) return 0;
   // If comparison is not NULL, we have a result:
   if (!null_value) return value == 0 ? 1 : 0;
   null_value = false;
@@ -2754,7 +2769,7 @@ float Item_func_equal::get_filtering_effect(THD *thd,
   return GetEqualSelectivity(thd, this, *fld, rows_in_table);
 }
 
-float Item_func_inequality::get_filtering_effect(
+float Item_func_comparison::get_filtering_effect(
     THD *thd, table_map filter_for_table, table_map read_tables,
     const MY_BITMAP *fields_to_ignore, double rows_in_table) {
   // For comparing MATCH(...), generally reuse the same selectivity as for
@@ -2869,16 +2884,10 @@ longlong Item_func_strcmp::val_int() {
   return value == 0 ? 0 : value < 0 ? -1 : 1;
 }
 
-bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
-  /* Assume we don't have rtti */
-  if (this == item) return true;
-  if (item->type() != FUNC_ITEM) return false;
-  const Item_func *item_func = down_cast<const Item_func *>(item);
-  if (arg_count != item_func->arg_count || functype() != item_func->functype())
+bool Item_func_opt_neg::eq_specific(const Item *item) const {
+  if (negated != down_cast<const Item_func_opt_neg *>(item)->negated)
     return false;
-  if (negated != down_cast<const Item_func_opt_neg *>(item_func)->negated)
-    return false;
-  return AllItemsAreEqual(args, item_func->arguments(), arg_count, binary_cmp);
+  return true;
 }
 
 bool Item_func_interval::do_itemize(Parse_context *pc, Item **res) {
@@ -3098,14 +3107,22 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   update_not_null_tables();
 
   // if 'high' and 'low' are same, convert this to a _eq function
-  if (!negated && args[1]->const_item() && args[2]->const_item() &&
-      args[1]->eq(args[2], true)) {
-    Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
-    if (item == nullptr) return true;
-    item->item_name = item_name;
-    if (item->fix_fields(thd, ref)) return true;
-    *ref = item;
+  if (negated || !args[1]->const_item() || !args[2]->const_item()) {
+    return false;
   }
+  // Ensure that string values are compared using BETWEEN's effective collation
+  if (args[1]->result_type() == STRING_RESULT &&
+      args[2]->result_type() == STRING_RESULT) {
+    if (!args[1]->eq_by_collation(args[2], args[0]->collation.collation))
+      return false;
+  } else {
+    if (!args[1]->eq(args[2])) return false;
+  }
+  Item *item = new (thd->mem_root) Item_func_eq(args[0], args[1]);
+  if (item == nullptr) return true;
+  item->item_name = item_name;
+  if (item->fix_fields(thd, ref)) return true;
+  *ref = item;
 
   return false;
 }
@@ -3138,7 +3155,8 @@ bool Item_func_between::resolve_type(THD *thd) {
     See comments for the code block doing similar checks in
     Item_bool_func2::resolve_type().
   */
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_geometry_args()) return true;
+  if (reject_vector_args()) return true;
 
   /*
     JSON values will be compared as strings, and not with the JSON
@@ -3870,6 +3888,7 @@ Item *Item_func_case::find_item(String *) {
     for (uint i = 0; i < ncases; i += 2) {
       // No expression between CASE and the first WHEN
       if (args[i]->val_bool()) return args[i + 1];
+      if (current_thd->is_error()) return nullptr;
       continue;
     }
   } else {
@@ -5929,7 +5948,7 @@ void Item_cond::fix_after_pullout(Query_block *parent_query_block,
   }
 }
 
-bool Item_cond::eq(const Item *item, bool binary_cmp) const {
+bool Item_cond::eq(const Item *item) const {
   if (this == item) return true;
   if (item->type() != COND_ITEM) return false;
   const Item_cond *item_cond = down_cast<const Item_cond *>(item);
@@ -5939,10 +5958,9 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
     return false;
   // Item_cond never uses "args". Inspect "list" instead.
   assert(arg_count == 0 && item_cond->arg_count == 0);
-  return std::equal(list.begin(), list.end(), item_cond->list.begin(),
-                    [binary_cmp](const Item &i1, const Item &i2) {
-                      return ItemsAreEqual(&i1, &i2, binary_cmp);
-                    });
+  return std::equal(
+      list.begin(), list.end(), item_cond->list.begin(),
+      [](const Item &i1, const Item &i2) { return ItemsAreEqual(&i1, &i2); });
 }
 
 bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg) {
@@ -6909,83 +6927,83 @@ bool Item_func_comparison::cast_incompatible_args(uchar *) {
   return cmp.inject_cast_nodes();
 }
 
-Item_equal::Item_equal(Item_field *f1, Item_field *f2) : Item_bool_func() {
-  fields.push_back(f1);
-  fields.push_back(f2);
+Item_multi_eq::Item_multi_eq(Item_field *lhs_field, Item_field *rhs_field)
+    : Item_bool_func() {
+  fields.push_back(lhs_field);
+  fields.push_back(rhs_field);
 }
 
-Item_equal::Item_equal(Item *c, Item_field *f) : Item_bool_func() {
-  fields.push_back(f);
-  m_const_arg = c;
-  compare_as_dates = f->is_temporal_with_date();
+Item_multi_eq::Item_multi_eq(Item *const_item, Item_field *field)
+    : Item_bool_func(),
+      m_const_arg(const_item),
+      compare_as_dates(field->is_temporal_with_date()) {
+  fields.push_back(field);
 }
 
-Item_equal::Item_equal(Item_equal *item_equal) : Item_bool_func() {
-  List_iterator_fast<Item_field> li(item_equal->fields);
+Item_multi_eq::Item_multi_eq(Item_multi_eq *item_multi_eq) : Item_bool_func() {
+  List_iterator_fast<Item_field> li(item_multi_eq->fields);
   Item_field *item;
   while ((item = li++)) {
     fields.push_back(item);
   }
-  m_const_arg = item_equal->m_const_arg;
-  compare_as_dates = item_equal->compare_as_dates;
-  cond_false = item_equal->cond_false;
+  m_const_arg = item_multi_eq->m_const_arg;
+  compare_as_dates = item_multi_eq->compare_as_dates;
+  m_always_false = item_multi_eq->m_always_false;
 }
 
-bool Item_equal::compare_const(THD *thd, Item *c) {
+bool Item_multi_eq::compare_const(THD *thd, Item *const_item) {
   if (compare_as_dates) {
-    cmp.set_datetime_cmp_func(this, &c, &m_const_arg);
-    cond_false = cmp.compare();
+    cmp.set_datetime_cmp_func(this, &const_item, &m_const_arg);
+    m_always_false = (cmp.compare() != 0);
   } else {
-    Item_func_eq *func = new Item_func_eq(c, m_const_arg);
-    if (func == nullptr) return true;
-    if (func->set_cmp_func()) return true;
-    func->quick_fix_field();
-    cond_false = !func->val_int();
+    Item_func_eq *eq_func = new Item_func_eq(const_item, m_const_arg);
+    if (eq_func == nullptr) return true;
+    if (eq_func->set_cmp_func()) return true;
+    eq_func->quick_fix_field();
+    m_always_false = (eq_func->val_int() == 0);
   }
   if (thd->is_error()) return true;
-  if (cond_false) used_tables_cache = 0;
+  if (m_always_false) used_tables_cache = 0;
 
   return false;
 }
 
-bool Item_equal::add(THD *thd, Item *c, Item_field *f) {
-  if (cond_false) return false;
+bool Item_multi_eq::add(THD *thd, Item *const_item, Item_field *field) {
+  if (m_always_false) return false;
   if (m_const_arg == nullptr) {
-    assert(f);
-    m_const_arg = c;
-    compare_as_dates = f->is_temporal_with_date();
+    assert(field != nullptr);
+    m_const_arg = const_item;
+    compare_as_dates = field->is_temporal_with_date();
     return false;
   }
-  return compare_const(thd, c);
+  return compare_const(thd, const_item);
 }
 
-bool Item_equal::add(THD *thd, Item *c) {
-  if (cond_false) return false;
+bool Item_multi_eq::add(THD *thd, Item *const_item) {
+  if (m_always_false) return false;
   if (m_const_arg == nullptr) {
-    m_const_arg = c;
+    m_const_arg = const_item;
     return false;
   }
-  return compare_const(thd, c);
+  return compare_const(thd, const_item);
 }
 
-void Item_equal::add(Item_field *f) { fields.push_back(f); }
+void Item_multi_eq::add(Item_field *field) { fields.push_back(field); }
 
-uint Item_equal::members() { return fields.elements; }
+uint Item_multi_eq::members() { return fields.elements; }
 
 /**
   Check whether a field is referred in the multiple equality.
 
-  The function checks whether field is occurred in the Item_equal object .
+  The function checks whether field is occurred in the Item_multi_eq object .
 
   @param field   field whose occurrence is to be checked
 
-  @retval
-    true       if multiple equality contains a reference to field
-  @retval
-    false      otherwise
+  @returns true if multiple equality contains a reference to field, false
+  otherwise.
 */
 
-bool Item_equal::contains(const Field *field) const {
+bool Item_multi_eq::contains(const Field *field) const {
   for (const Item_field &item : fields) {
     if (field->eq(item.field)) return true;
   }
@@ -6993,13 +7011,13 @@ bool Item_equal::contains(const Field *field) const {
 }
 
 /**
-  Join members of another Item_equal object.
+  Add members of another Item_multi_eq object.
 
-    The function actually merges two multiple equalities.
-    After this operation the Item_equal object additionally contains
-    the field items of another item of the type Item_equal.
-    If the optional constant items are not equal the cond_false flag is
-    set to 1.
+    The function merges two multiple equalities.
+    After this operation the Item_multi_eq object additionally contains
+    the field items of another item of the type Item_multi_eq.
+    If the optional constant items are not equal the m_always_false flag is
+    set to true.
 
   @param thd     thread handler
   @param item    multiple equality whose members are to be joined
@@ -7007,19 +7025,19 @@ bool Item_equal::contains(const Field *field) const {
   @returns false if success, true if error
 */
 
-bool Item_equal::merge(THD *thd, Item_equal *item) {
+bool Item_multi_eq::merge(THD *thd, Item_multi_eq *item) {
   fields.concat(&item->fields);
   Item *c = item->m_const_arg;
   if (c) {
     /*
-      The flag cond_false will be set to 1 after this, if
+      The flag m_always_false will be set to true after this, if
       the multiple equality already contains a constant and its
-      value is  not equal to the value of c.
+      value is not equal to the value of c.
     */
     if (add(thd, c)) return true;
   }
-  cond_false |= item->cond_false;
-  if (cond_false) used_tables_cache = 0;
+  m_always_false |= item->m_always_false;
+  if (m_always_false) used_tables_cache = 0;
 
   return false;
 }
@@ -7038,7 +7056,7 @@ bool Item_equal::merge(THD *thd, Item_equal *item) {
   @returns false if success, true if error
 */
 
-bool Item_equal::update_const(THD *thd) {
+bool Item_multi_eq::update_const(THD *thd) {
   List_iterator<Item_field> it(fields);
   Item *item;
   while ((item = it++)) {
@@ -7048,13 +7066,13 @@ bool Item_equal::update_const(THD *thd) {
           Such a constant status here is a result of:
             a) empty outer-joined table: in this case such a column has a
                value of NULL; but at the same time other arguments of
-               Item_equal don't have to be NULLs and the value of the whole
+               Item_multi_eq don't have to be NULLs and the value of the whole
                multiple equivalence expression doesn't have to be NULL or FALSE
                because of the outer join nature;
           or
             b) outer-joined table contains only 1 row: the result of
                this column is equal to a row field value *or* NULL.
-          Both values are inacceptable as Item_equal constants.
+          Both values are inacceptable as Item_multi_eq constants.
         */
         !item->is_outer_field()) {
       it.remove();
@@ -7064,7 +7082,7 @@ bool Item_equal::update_const(THD *thd) {
   return false;
 }
 
-bool Item_equal::fix_fields(THD *thd, Item **) {
+bool Item_multi_eq::fix_fields(THD *thd, Item **) {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache = used_tables_cache = 0;
@@ -7096,10 +7114,10 @@ bool Item_equal::fix_fields(THD *thd, Item **) {
   'filter_for_table', the predicates on all these fields will
   contribute to the filtering effect.
 */
-float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
-                                       table_map read_tables,
-                                       const MY_BITMAP *fields_to_ignore,
-                                       double rows_in_table) {
+float Item_multi_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table) {
   // This predicate does not refer to a column in 'filter_for_table'
   if (!(used_tables() & filter_for_table)) return COND_FILTER_ALLPASS;
 
@@ -7194,11 +7212,11 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
   return found_comparable ? filter : COND_FILTER_ALLPASS;
 }
 
-void Item_equal::update_used_tables() {
+void Item_multi_eq::update_used_tables() {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache = used_tables_cache = 0;
-  if (cond_false) return;
+  if (m_always_false) return;
   m_accum_properties = 0;
   while ((item = li++)) {
     item->update_used_tables();
@@ -7209,9 +7227,9 @@ void Item_equal::update_used_tables() {
   if (m_const_arg != nullptr) used_tables_cache |= m_const_arg->used_tables();
 }
 
-longlong Item_equal::val_int() {
+longlong Item_multi_eq::val_int() {
   Item_field *item_field;
-  if (cond_false) return 0;
+  if (m_always_false) return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item = m_const_arg != nullptr ? m_const_arg : it++;
   eval_item->store_value(item);
@@ -7227,14 +7245,14 @@ longlong Item_equal::val_int() {
   return 1;
 }
 
-Item_equal::~Item_equal() {
+Item_multi_eq::~Item_multi_eq() {
   if (eval_item != nullptr) {
     ::destroy_at(eval_item);
     eval_item = nullptr;
   }
 }
 
-bool Item_equal::resolve_type(THD *thd) {
+bool Item_multi_eq::resolve_type(THD *thd) {
   Item *item;
   // As such item is created during optimization, types of members are known:
 #ifndef NDEBUG
@@ -7250,7 +7268,7 @@ bool Item_equal::resolve_type(THD *thd) {
   return eval_item == nullptr;
 }
 
-bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
+bool Item_multi_eq::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   List_iterator_fast<Item_field> it(fields);
@@ -7262,8 +7280,8 @@ bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
-void Item_equal::print(const THD *thd, String *str,
-                       enum_query_type query_type) const {
+void Item_multi_eq::print(const THD *thd, String *str,
+                          enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
 
@@ -7278,16 +7296,12 @@ void Item_equal::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_equal::eq(const Item *item, bool binary_cmp) const {
-  if (!is_function_of_type(item, Item_func::MULT_EQUAL_FUNC)) {
-    return false;
-  }
-  const Item_equal *item_eq = down_cast<const Item_equal *>(item);
+bool Item_multi_eq::eq_specific(const Item *item) const {
+  const Item_multi_eq *item_eq = down_cast<const Item_multi_eq *>(item);
   if ((m_const_arg != nullptr) != (item_eq->m_const_arg != nullptr)) {
     return false;
   }
-  if (m_const_arg != nullptr &&
-      !m_const_arg->eq(item_eq->m_const_arg, binary_cmp)) {
+  if (m_const_arg != nullptr && !m_const_arg->eq(item_eq->m_const_arg)) {
     return false;
   }
 
@@ -7432,7 +7446,7 @@ void Item_func_trig_cond::print(const THD *thd, String *str,
      the first field in the multiple equality is returned.
 */
 
-Item_field *Item_equal::get_subst_item(const Item_field *field) {
+Item_field *Item_multi_eq::get_subst_item(const Item_field *field) {
   assert(field != nullptr);
 
   const JOIN_TAB *field_tab = field->field->table->reginfo.join_tab;
@@ -7463,7 +7477,7 @@ Item_field *Item_equal::get_subst_item(const Item_field *field) {
       Note that subquery materialization does not have the same problem:
       even though IN->EXISTS has injected equalities involving outer query's
       expressions, it has wrapped those expressions in variants of Item_ref,
-      never Item_field, so they can be part of an Item_equal only if they are
+      never Item_field, so they can be part of an Item_multi_eq only if they are
       constant (in which case there is no problem with choosing them below);
       @see check_simple_equality().
     */
@@ -7506,18 +7520,18 @@ Item_field *Item_equal::get_subst_item(const Item_field *field) {
 }
 
 /**
-  Transform an Item_equal object after having added a table that
+  Transform an Item_multi_eq object after having added a table that
   represents a materialized semi-join.
 
   @details
-    If the multiple equality represented by the Item_equal object contains
+    If the multiple equality represented by the Item_multi_eq object contains
     a field from the subquery that was used to create the materialized table,
     add the corresponding key field from the materialized table to the
     multiple equality.
     @see JOIN::update_equalities_for_sjm() for the reason.
 */
 
-Item *Item_equal::equality_substitution_transformer(uchar *arg) {
+Item *Item_multi_eq::equality_substitution_transformer(uchar *arg) {
   Table_ref *sj_nest = reinterpret_cast<Table_ref *>(arg);
   List_iterator<Item_field> it(fields);
   List<Item_field> added_fields;
@@ -7531,7 +7545,7 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
     // Iterate over the fields selected from the subquery
     uint fieldno = 0;
     for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-      if (existing->real_item()->eq(item, false))
+      if (existing->real_item()->eq(item))
         added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
       fieldno++;
     }
@@ -7562,7 +7576,7 @@ Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   // Iterate over the fields selected from the subquery
   uint fieldno = 0;
   for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-    if (existing->real_item()->eq(args[1], false) &&
+    if (existing->real_item()->eq(args[1]) &&
         (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
       current_thd->change_item_tree(
           args + 1, sj_nest->nested_join->sjm.mat_fields[fieldno]);

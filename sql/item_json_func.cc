@@ -49,6 +49,7 @@
 #include "sql-common/json_diff.h"
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
+#include "sql-common/json_schema.h"
 #include "sql-common/json_syntax_check.h"
 #include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"  // current_thd
@@ -58,7 +59,6 @@
 #include "sql/field_common_properties.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_create.h"
-#include "sql/json_schema.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD
@@ -71,6 +71,7 @@
 #include "sql/table_function.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
+#include "sql_string.h"  // stringcmp
 #include "string_with_len.h"
 #include "template_utils.h"  // down_cast
 
@@ -642,9 +643,7 @@ longlong Item_func_json_valid::val_int() {
 }
 
 static bool evaluate_constant_json_schema(
-    THD *thd, Item *json_schema,
-    unique_ptr_destroy_only<const Json_schema_validator>
-        *cached_schema_validator,
+    THD *thd, Item *json_schema, Json_schema_validator *cached_schema_validator,
     Item **ref) {
   assert(is_convertible_to_json(json_schema));
   const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
@@ -656,11 +655,10 @@ static bool evaluate_constant_json_schema(
       *ref = new (thd->mem_root) Item_null((*ref)->item_name);
       if (*ref == nullptr) return true;
     } else {
-      *cached_schema_validator =
-          create_json_schema_validator(thd->mem_root, schema_string->ptr(),
-                                       schema_string->length(), func_name);
-
-      if (*cached_schema_validator == nullptr) {
+      const JsonSchemaDefaultErrorHandler error_handler(func_name);
+      if (cached_schema_validator->initialize(
+              thd->mem_root, schema_string->ptr(), schema_string->length(),
+              error_handler, JsonDepthErrorHandler)) {
         return true;
       }
     }
@@ -689,7 +687,7 @@ Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
 
 static bool do_json_schema_validation(
     const THD *thd, Item *json_schema, Item *json_document,
-    const char *func_name, const Json_schema_validator *cached_schema_validator,
+    const char *func_name, const Json_schema_validator &cached_schema_validator,
     bool *null_value, bool *validation_result,
     Json_schema_validation_report *validation_report) {
   assert(is_convertible_to_json(json_document));
@@ -702,11 +700,12 @@ static bool do_json_schema_validation(
     return false;
   }
 
-  if (cached_schema_validator != nullptr) {
+  if (cached_schema_validator.is_initialized()) {
     assert(json_schema->const_item());
-    if (cached_schema_validator->is_valid_json_schema(
-            document_string->ptr(), document_string->length(), func_name,
-            validation_result, validation_report)) {
+    const JsonSchemaDefaultErrorHandler error_handler(func_name);
+    if (cached_schema_validator.is_valid(
+            document_string->ptr(), document_string->length(), error_handler,
+            JsonDepthErrorHandler, validation_result, validation_report)) {
       return true;
     }
   } else {
@@ -718,7 +717,7 @@ static bool do_json_schema_validation(
     assert(!json_schema->const_item() ||
            (json_schema->real_item()->type() == Item::FIELD_ITEM &&
             down_cast<const Item_field *>(json_schema->real_item())
-                ->table_ref->table->const_table));
+                ->m_table_ref->table->const_table));
 
     assert(is_convertible_to_json(json_schema));
 
@@ -730,9 +729,11 @@ static bool do_json_schema_validation(
       return false;
     }
 
+    const JsonSchemaDefaultErrorHandler error_handler(func_name);
     if (is_valid_json_schema(document_string->ptr(), document_string->length(),
                              schema_string->ptr(), schema_string->length(),
-                             func_name, validation_result, validation_report)) {
+                             error_handler, JsonDepthErrorHandler,
+                             validation_result, validation_report)) {
       return true;
     }
   }
@@ -748,7 +749,7 @@ bool Item_func_json_schema_valid::val_bool() {
   if (m_in_check_constraint_exec_ctx) {
     Json_schema_validation_report validation_report;
     if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                  m_cached_schema_validator.get(), &null_value,
+                                  m_cached_schema_validator, &null_value,
                                   &validation_result, &validation_report)) {
       return error_bool();
     }
@@ -759,7 +760,7 @@ bool Item_func_json_schema_valid::val_bool() {
     }
   } else {
     if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                  m_cached_schema_validator.get(), &null_value,
+                                  m_cached_schema_validator, &null_value,
                                   &validation_result, nullptr)) {
       return error_bool();
     }
@@ -797,7 +798,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   bool validation_result = false;
   Json_schema_validation_report validation_report;
   if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
-                                m_cached_schema_validator.get(), &null_value,
+                                m_cached_schema_validator, &null_value,
                                 &validation_result, &validation_report)) {
     return error_json();
   }
@@ -1040,6 +1041,7 @@ bool get_json_wrapper(Item **args, uint arg_idx, String *str,
 
 bool Item_func_json_type::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+  if (reject_vector_args()) return true;
   set_nullable(true);
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(kMaxJsonTypeNameLength + 1, &my_charset_utf8mb4_bin);
@@ -1694,7 +1696,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
   return false;
 }
 
-bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
+bool Item_func_json_extract::eq(const Item *item) const {
   if (this == item) return true;
   if (item->type() != FUNC_ITEM) return false;
   const auto item_func = down_cast<const Item_func *>(item);
@@ -1702,24 +1704,35 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
       strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
-  auto cmp = [binary_cmp](const Item *arg1, const Item *arg2) {
-    /*
-      JSON_EXTRACT doesn't care about the collation of its arguments. String
-      literal arguments are considered equal if they have the same character
-      set and binary contents, even if their collations differ.
-    */
-    const bool ignore_collation =
-        binary_cmp ||
-        (arg1->type() == STRING_ITEM &&
-         my_charset_same(arg1->collation.collation, arg2->collation.collation));
-    return ItemsAreEqual(arg1, arg2, ignore_collation);
-  };
+  /*
+    JSON_EXTRACT doesn't care about the collation of its arguments. String
+    literal arguments are considered equal if they have the same character
+    set and binary contents, even if their collations differ.
+  */
   const auto item_json = down_cast<const Item_func_json_extract *>(item);
-  return std::equal(args, args + arg_count, item_json->args, cmp);
+
+  for (uint i = 0; i < arg_count; i++) {
+    const Item *a = args[i]->unwrap_for_eq();
+    const Item *b = item_json->args[i]->unwrap_for_eq();
+    if (a->type() == STRING_ITEM && b->type() == STRING_ITEM &&
+        a->const_item() && b->const_item()) {
+      if (!my_charset_same(a->collation.collation, b->collation.collation))
+        return false;
+      String str1, str2;
+      if (stringcmp(const_cast<Item *>(a)->val_str(&str1),
+                    const_cast<Item *>(b)->val_str(&str2))) {
+        return false;
+      }
+    } else {
+      if (!a->eq(b)) return false;
+    }
+  }
+  return true;
 }
 
 bool Item_func_modify_json_in_path::resolve_type(THD *thd) {
   if (Item_json_func::resolve_type(thd)) return true;
+  if (reject_vector_args()) return true;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
   if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
   if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
@@ -3360,7 +3373,8 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
       item->set_data_type_datetime(decimals);
       return;
     case ITEM_CAST_DECIMAL:
-      item->set_data_type_decimal(length, decimals);
+      item->set_data_type_decimal(
+          std::min<unsigned>(length, DECIMAL_MAX_PRECISION), decimals);
       return;
     case ITEM_CAST_CHAR:
       // If no character set is specified, the JSON default character set is
@@ -3561,6 +3575,7 @@ void Item_func_array_cast::add_json_info(Json_object *obj) {
 }
 
 bool Item_func_array_cast::resolve_type(THD *) {
+  if (reject_vector_args()) return true;
   set_nullable(true);
   return false;
 }
@@ -4020,6 +4035,14 @@ enum Item_result Item_func_json_value::result_type() const {
   return json_cast_result_type(m_cast_target);
 }
 
+Json_on_response_type Item_func_json_value::on_empty_response_type() const {
+  return m_on_empty;
+}
+
+Json_on_response_type Item_func_json_value::on_error_response_type() const {
+  return m_on_error;
+}
+
 bool Item_func_json_value::resolve_type(THD *) {
   // The path must be a character literal, so it's never NULL.
   assert(!args[1]->is_nullable());
@@ -4319,9 +4342,7 @@ static bool same_response_type(Json_on_response_type type1,
                              type2 == Json_on_response_type::NULL_VALUE));
 }
 
-bool Item_func_json_value::eq(const Item *item, bool binary_cmp) const {
-  if (!Item_func::eq(item, binary_cmp)) return false;
-
+bool Item_func_json_value::eq_specific(const Item *item) const {
   const auto other = down_cast<const Item_func_json_value *>(item);
 
   if (other->m_cast_target != m_cast_target) return false;

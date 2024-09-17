@@ -812,6 +812,10 @@ class Query_expression {
 
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
+
+  /* For IN/EXISTS predicates, we may not push down LIMIT 1 safely if true*/
+  bool m_contains_except_all{false};
+
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
   /**
@@ -882,7 +886,7 @@ class Query_expression {
 
   /**
     Ensures that there are iterators created for the access paths created
-    by optimize(), even if it was called with create_access_paths = false.
+    by optimize(), even if it is not a top-level Query_expression.
     If there are already iterators, it is a no-op. optimize() must have
     been called earlier.
 
@@ -893,6 +897,14 @@ class Query_expression {
     optimization.
    */
   bool force_create_iterators(THD *thd);
+
+  /**
+    Creates iterators for the access paths created by optimize(). Usually called
+    on a top-level Query_expression, but can also be called on non-top level
+    expressions from force_create_iterators(). See force_create_iterators() for
+    details.
+   */
+  bool create_iterators(THD *thd);
 
   /// See optimize().
   bool unfinished_materialization() const { return !m_operands.empty(); }
@@ -942,10 +954,6 @@ class Query_expression {
     @param materialize_destination What table to try to materialize into,
       or nullptr if the caller does not intend to materialize the result.
 
-    @param create_iterators If false, only access paths are created,
-      not iterators. Only top level query blocks (these that we are to call
-      exec() on) should have iterators. See also force_create_iterators().
-
     @param finalize_access_paths Relevant for the hypergraph optimizer only.
       If false, the given access paths will _not_ be finalized, so you cannot
       create iterators from it before finalize() is called (see
@@ -955,7 +963,7 @@ class Query_expression {
       allowed to finalize a query block once. "Fake" query blocks (see
       query_term.h) are always finalized.
    */
-  bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
+  bool optimize(THD *thd, TABLE *materialize_destination,
                 bool finalize_access_paths);
 
   /**
@@ -964,6 +972,10 @@ class Query_expression {
     (ie., after any calls to change_to_access_path_without_in2exists()).
    */
   bool finalize(THD *thd);
+
+#ifndef NDEBUG
+  void DebugPrintQueryPlan(THD *thd, const char *keyword) const;
+#endif
 
   /**
     Do everything that would be needed before running Init() on the root
@@ -2030,7 +2042,8 @@ class Query_block : public Query_term {
   Item *select_limit{nullptr};
   /// LIMIT ... OFFSET clause, NULL if no offset is given
   Item *offset_limit{nullptr};
-
+  /// Whether we have LIMIT 1 and no OFFSET.
+  bool m_limit_1{false};
   /**
     Circular linked list of aggregate functions in nested query blocks.
     This is needed if said aggregate functions depend on outer values
@@ -2261,7 +2274,7 @@ class Query_block : public Query_term {
                                      Query_expression *subs_query_expression,
                                      Item_subselect *subq, bool use_inner_join,
                                      bool reject_multiple_rows,
-                                     Item *join_condition,
+                                     Item::Css_info *subquery,
                                      Item *lifted_where_cond);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
@@ -2279,12 +2292,15 @@ class Query_block : public Query_term {
       bool *selected_expr_added_to_group_by,
       mem_root_deque<Item *> *exprs_added_to_group_by);
   bool decorrelate_derived_scalar_subquery_pre(
-      THD *thd, Table_ref *derived, Item *lifted_where,
-      Lifted_expressions_map *lifted_where_expressions, bool *added_card_check,
-      size_t *added_window_card_checks);
+      THD *thd, Table_ref *derived, Item::Css_info *subquery,
+      Item *lifted_where, Lifted_expressions_map *lifted_where_expressions,
+      bool *added_card_check, size_t *added_window_card_checks);
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_expressions_map *lifted_exprs,
       bool added_card_check, size_t added_window_card_checks);
+  /// Replace the first visible item in the select list with a wrapping
+  /// MIN or MAX aggregate function.
+  bool replace_first_item_with_min_max(THD *thd, int item_no, bool use_min);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
   void mark_item_as_maybe_null_if_non_primitive_grouped(Item *item) const;
@@ -4349,8 +4365,6 @@ struct LEX : public Query_tables_list {
 
  public:
   st_sp_chistics sp_chistics;
-
-  Event_parse_data *event_parse_data;
 
   bool only_view; /* used for SHOW CREATE TABLE/VIEW */
   /*

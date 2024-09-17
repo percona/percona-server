@@ -101,8 +101,15 @@ bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
+<<<<<<< HEAD
 void dispatch_sql_command(THD *thd, Parser_state *parser_state,
                           bool update_userstat);
+||||||| 0e33d640d4f
+void dispatch_sql_command(THD *thd, Parser_state *parser_state);
+=======
+void dispatch_sql_command(THD *thd, Parser_state *parser_state,
+                          bool is_retry = false);
+>>>>>>> mysql-9.0.1
 void mysql_reset_thd_for_next_command(THD *thd);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level = false);
@@ -295,6 +302,8 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_collation(HA_CREATE_INFO *create_info,
                            const CHARSET_INFO *value);
+
+bool sp_process_definer(THD *);
 
 /* Bits in sql_command_flags */
 

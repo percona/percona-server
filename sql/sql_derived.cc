@@ -62,6 +62,7 @@
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/thd_raii.h"
+#include "strfunc.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
@@ -519,15 +520,12 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
     Name_resolution_context *m_field_context{nullptr};
     Table_ref *m_table_ref{nullptr};
     Query_block *m_depended_from{nullptr};
-    Table_ref *m_cached_table{nullptr};
     Field *m_field{nullptr};
     Field_info(Name_resolution_context *field_context, Table_ref *table_ref,
-               Query_block *depended_from, Table_ref *cached_table,
-               Field *field)
+               Query_block *depended_from, Field *field)
         : m_field_context(field_context),
           m_table_ref(table_ref),
           m_depended_from(depended_from),
-          m_cached_table(cached_table),
           m_field(field) {}
   };
   mem_root_deque<Field_info> field_info(thd->mem_root);
@@ -535,49 +533,49 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
   Name_resolution_context *context = nullptr;
   bool in_outer_ref = false;
   // Collect information for fields from the original expression
-  if (WalkItem(orig_expr, enum_walk::PREFIX,
-               [&field_info, &depended_from, &context,
-                &in_outer_ref](Item *inner_item) {
-                 Query_block *saved_depended_from = depended_from;
-                 Name_resolution_context *saved_context = context;
-                 if (inner_item->type() == Item::REF_ITEM ||
-                     inner_item->type() == Item::FIELD_ITEM) {
-                   Item_ident *ident = down_cast<Item_ident *>(inner_item);
-                   // An Item_outer_ref always references
-                   // a Item_ref object which has the reference to
-                   // the original expression. Item_outer_ref
-                   // and the original expression are updated with the
-                   // "depended_from" information but not the Item_ref.
-                   // So we skip the checks for Item_ref.
-                   assert(in_outer_ref || depended_from == nullptr ||
-                          depended_from == ident->depended_from ||
-                          depended_from == ident->context->query_block);
-                   in_outer_ref =
-                       inner_item->type() == Item::REF_ITEM &&
-                       down_cast<Item_ref *>(inner_item)->ref_type() ==
-                           Item_ref::OUTER_REF;
-                   if (ident->depended_from != nullptr)
-                     depended_from = ident->depended_from;
-                   if (context == nullptr ||
-                       ident->context->query_block->nest_level >=
-                           context->query_block->nest_level)
-                     context = ident->context;
-                 }
-                 if (inner_item->type() == Item::FIELD_ITEM) {
-                   Item_field *field = down_cast<Item_field *>(inner_item);
-                   if (field_info.push_back(
-                           Field_info(context, field->table_ref, depended_from,
-                                      field->cached_table, field->field)))
-                     return true;
-                   // In case of Item_ref object with multiple fields
-                   // having different depended_from and context information,
-                   // we always need to take care to restore the depended_from
-                   // and context to that of the Item_ref object.
-                   depended_from = saved_depended_from;
-                   context = saved_context;
-                 }
-                 return false;
-               }))
+  if (WalkItem(
+          orig_expr, enum_walk::PREFIX,
+          [&field_info, &depended_from, &context,
+           &in_outer_ref](Item *inner_item) {
+            Query_block *saved_depended_from = depended_from;
+            Name_resolution_context *saved_context = context;
+            if (inner_item->type() == Item::REF_ITEM ||
+                inner_item->type() == Item::FIELD_ITEM) {
+              Item_ident *ident = down_cast<Item_ident *>(inner_item);
+              // An Item_outer_ref always references an Item_ref object
+              // which has the reference to the original expression.
+              // Item_outer_ref and the original expression are updated
+              // with the "depended_from" information but not the Item_ref.
+              // So we skip the checks for Item_ref.
+              assert(in_outer_ref || depended_from == nullptr ||
+                     depended_from == ident->depended_from ||
+                     depended_from == ident->context->query_block);
+              in_outer_ref = inner_item->type() == Item::REF_ITEM &&
+                             down_cast<Item_ref *>(inner_item)->ref_type() ==
+                                 Item_ref::OUTER_REF;
+              if (ident->depended_from != nullptr) {
+                depended_from = ident->depended_from;
+              }
+              if (context == nullptr ||
+                  ident->context->query_block->nest_level >=
+                      context->query_block->nest_level) {
+                context = ident->context;
+              }
+            }
+            if (inner_item->type() == Item::FIELD_ITEM) {
+              Item_field *field = down_cast<Item_field *>(inner_item);
+              if (field_info.push_back(Field_info(context, field->m_table_ref,
+                                                  depended_from, field->field)))
+                return true;
+              // In case of Item_ref object with multiple fields having
+              // different depended_from and context information, we always
+              // need to take care to restore the depended_from and context
+              // to that of the Item_ref object.
+              depended_from = saved_depended_from;
+              context = saved_context;
+            }
+            return false;
+          }))
     return true;
   // Copy the information to the fields in the cloned expression.
   WalkItem(cloned_expr, enum_walk::PREFIX, [&field_info](Item *inner_item) {
@@ -585,9 +583,8 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
       assert(!field_info.empty());
       Item_field *field = down_cast<Item_field *>(inner_item);
       field->context = field_info[0].m_field_context;
-      field->table_ref = field_info[0].m_table_ref;
+      field->m_table_ref = field_info[0].m_table_ref;
       field->depended_from = field_info[0].m_depended_from;
-      field->cached_table = field_info[0].m_cached_table;
       field->field = field_info[0].m_field;
       field_info.pop_front();
     }
@@ -627,17 +624,19 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   // Also do not write a cloned stored procedure variable to query logs.
   thd->lex->reparse_derived_table_condition = true;
   // Get the printout of the expression
-  StringBuffer<1024> str(thd->charset());
+  StringBuffer<1024> str_buf(thd->charset());
   // For printing parameters we need to specify the flag QT_NO_DATA_EXPANSION
   // because for a case when statement gets reprepared during execution, we
   // still need Item_param::print() to print the '?' rather than the actual data
   // specified for the parameter.
   // The flag QT_TO_ARGUMENT_CHARSET is required for printing character string
   // literals with correct character set introducer.
-  item->print(thd, &str,
+  item->print(thd, &str_buf,
               enum_query_type(QT_NO_DATA_EXPANSION | QT_TO_ARGUMENT_CHARSET));
-  str.append('\0');
+  str_buf.append('\0');
 
+  String str;
+  if (copy_string(thd->mem_root, &str, &str_buf)) return nullptr;
   Derived_expr_parser_state parser_state;
   parser_state.init(thd, str.ptr(), str.length());
 
@@ -1651,7 +1650,7 @@ bool Table_ref::optimize_derived(THD *thd) {
     }
   }
 
-  if (unit->optimize(thd, table, /*create_iterators=*/false,
+  if (unit->optimize(thd, table,
                      /*finalize_access_paths=*/true) ||
       thd->is_error())
     return true;

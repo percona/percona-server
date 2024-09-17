@@ -229,6 +229,7 @@ our $opt_client_ddd;
 our $opt_client_debugger;
 our $opt_client_gdb;
 our $opt_client_lldb;
+our $opt_ctest_filter;
 our $opt_ctest_report;
 our $opt_dbx;
 our $opt_ddd;
@@ -756,6 +757,17 @@ sub main {
     exit(0);
   }
 
+  if ($secondary_engine_support) {
+    # Enable mTLS in Heatwave-AutoML by setting up certificates and keys.
+    # - Paths are pre-set in the environment for accurate server initialization.
+    # - Certificates and keys are generated after the Python virtual environment
+    #   setup.
+    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
+    if ($oci_instance_id) {
+      $ENV{'ML_CERTIFICATES'} = "$::opt_vardir/" . "hwaml_cert_files/";
+    }
+  }
+
   initialize_servers();
 
   # Run unit tests in parallel with the same number of workers as
@@ -813,6 +825,22 @@ sub main {
     secondary_engine_offload_count_report_init();
     # Create virtual environment
     find_ml_driver($bindir);
+
+    # Generate mTLS certificates & keys for Heatwave-AutoML post Python
+    # virtual environment setup and path pre-setting (referenced earlier).
+    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
+    my $aws_key_store      = $ENV{'OLRAPID_KEYSTORE'} || "";
+    if ($oci_instance_id) {
+      if($aws_key_store)
+      {
+        extract_certs_from_pfx($aws_key_store, $ENV{'ML_CERTIFICATES'});
+      }
+      else
+      {
+        create_cert_keys($ENV{'ML_CERTIFICATES'});
+      }
+    }
+    
     reserve_secondary_ports();
   }
 
@@ -1937,6 +1965,7 @@ sub command_line_setup {
     'timer!'                => \&report_option,
     'timestamp'             => \&report_option,
     'unit-tests!'           => \$opt_ctest,
+    'unit-tests-filter=s'    => \$opt_ctest_filter,
     'unit-tests-report!'    => \$opt_ctest_report,
     'user-args'             => \$opt_user_args,
     'user=s'                => \$opt_user,
@@ -2314,8 +2343,8 @@ sub command_line_setup {
 
   # Set default values for opt_ctest (--unit-tests)
   if ($opt_ctest == -1) {
-    if (defined $opt_ctest_report && $opt_ctest_report) {
-      # Turn on --unit-tests by default if --unit-tests-report is used
+    if ((defined $opt_ctest_report && $opt_ctest_report) || defined $opt_ctest_filter) {
+      # Turn on --unit-tests by default if --unit-tests-report or --unit-tests-filter is used
       $opt_ctest = 1;
     } elsif ($opt_suites || @opt_cases) {
       # Don't run ctest if tests or suites named
@@ -2557,8 +2586,10 @@ sub create_manifest_file {
   my $exe_mysqld = find_mysqld($basedir);
   my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
   my $manifest_file_path = $path.$exename.$manifest_file_ext;
-  open(my $mh, "> $manifest_file_path") or die;
-  print $mh $config_content or die;
+  open(my $mh, "> $manifest_file_path") or
+    die "Could not create manifest file $manifest_file_path";
+  print $mh $config_content or
+    die "Could not write manifest file $manifest_file_path";
   close($mh);
 }
 
@@ -2580,8 +2611,10 @@ sub create_one_config($$) {
   my $config_content = "{ \"read_local_config\": true }";
   my $config_file_ext = ".cnf";
   my $config_file_path = $location."\/".$component.$config_file_ext;
-  open(my $mh, "> $config_file_path") or die;
-  print $mh $config_content or die;
+  open(my $mh, "> $config_file_path") or
+    die "Could not create config file $config_file_path";
+  print $mh $config_content or
+    die "Could not write config file $config_file_path";
   close($mh);
 }
 
@@ -7341,6 +7374,10 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--logdir=%s/tmp",  $opt_vardir);
 
+  if ($opt_hypergraph) {
+    mtr_add_arg($args, "--hypergraph");
+  }
+
   if (IS_WINDOWS) {
     mtr_add_arg($args, "--protocol=pipe");
   }
@@ -7970,8 +8007,21 @@ sub run_ctest() {
     # Skip tests with label NDB
     $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
   }
+<<<<<<< HEAD
   my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs $ctest_memcheck 2>&1`;
 
+||||||| 0e33d640d4f
+  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+=======
+  my $ctest_out = "";
+  if (defined $opt_ctest_filter) {
+    $ctest_out =
+      `ctest -R $opt_ctest_filter $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  } else {
+    $ctest_out =
+      `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  }
+>>>>>>> mysql-9.0.1
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
@@ -8368,6 +8418,8 @@ Misc options
   timer                 Show test case execution time.
   timestamp             Print timestamp before each test report line.
   unit-tests            Run unit tests even if they would otherwise not be run.
+  unit-tests-filter=    Execute only a specific subset of unit tests that matches
+                        a given regular expression.
   unit-tests-report     Include report of every test included in unit tests.
   user-args             In combination with start* and no test name, drops
                         arguments to mysqld except those specified with

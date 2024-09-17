@@ -101,6 +101,7 @@ usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/authentication_webauthn_client.so
 usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
 usr/lib/mysql/plugin/debug/authentication_oci_client.so
+usr/lib/mysql/plugin/debug/mysql_native_password.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
@@ -180,6 +181,7 @@ usr/lib/mysql/plugin/debug/component_test_sys_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_same.so
 usr/lib/mysql/plugin/debug/component_pfs_example_component_population.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_str.so
+usr/lib/mysql/plugin/debug/component_test_session_var_service.so
 usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
@@ -219,8 +221,10 @@ usr/lib/mysql/plugin/debug/component_keyring_oci.so
 usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 usr/lib/mysql/plugin/debug/component_masking.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
+usr/lib/mysql/plugin/debug/component_mle.so
 usr/lib/mysql/plugin/debug/component_scheduler.so
 usr/lib/mysql/plugin/debug/component_telemetry.so
+usr/lib/mysql/plugin/debug/component_option_tracker.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so
 ")
   ENDIF()
@@ -232,6 +236,7 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
   SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
 usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/debug/component_test_page_track_component.so
+usr/lib/mysql/plugin/debug/component_test_option_tracker.so
 ")
 
 ENDIF()

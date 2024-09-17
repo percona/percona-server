@@ -396,6 +396,7 @@ MySQL clients support the protocol:
   @subpage page_event_tracking_services
   @subpage PAGE_MYSQL_SERVER_METRICS_INSTRUMENT_SERVICE
   @subpage PAGE_MYSQL_SERVER_TELEMETRY_METRICS_SERVICE
+  @subpage PAGE_MYSQL_GLOBAL_VARIABLE_ATTRIBUTES_SERVICE
 */
 
 
@@ -721,6 +722,8 @@ MySQL clients support the protocol:
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
+#include "mysql/components/util/weak_service_reference.h"
+#include "mysql/components/services/mysql_option_tracker.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -1311,10 +1314,17 @@ mysql_mutex_t LOCK_partial_revokes;
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 bool trust_function_creators = false;
+<<<<<<< HEAD
 bool check_proxy_users = false, mysql_native_password_proxy_users = false,
      sha256_password_proxy_users = false;
 bool opt_userstat = false;
 bool opt_thread_statistics = false;
+||||||| 0e33d640d4f
+bool check_proxy_users = false, mysql_native_password_proxy_users = false,
+     sha256_password_proxy_users = false;
+=======
+bool check_proxy_users = false, sha256_password_proxy_users = false;
+>>>>>>> mysql-9.0.1
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -1491,7 +1501,7 @@ const char *relay_ext = "-relay-bin";
 bool log_bin_supplied = false;
 
 time_t server_start_time, flush_status_time;
-
+std::atomic<time_t> last_mixed_non_transactional_engine_warning = 0;
 char server_uuid[UUID_LENGTH + 1];
 const char *server_uuid_ptr;
 #if defined(HAVE_BUILD_ID_SUPPORT)
@@ -2042,6 +2052,10 @@ SERVICE_TYPE(mysql_psi_system_v1) * system_service;
 SERVICE_TYPE(mysql_rwlock_v1) * rwlock_service;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
+SERVICE_TYPE_NO_CONST(registry_registration) * srv_registry_registration{
+                                                   nullptr};
+SERVICE_TYPE_NO_CONST(registry_registration) *
+    srv_registry_registration_no_lock{nullptr};
 SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 using runtime_error_type_t = SERVICE_TYPE_NO_CONST(mysql_runtime_error);
@@ -2090,15 +2104,20 @@ static bool component_infrastructure_init() {
                         reinterpret_cast<my_h_service *>(
                             const_cast<loader_type_t **>(&dynamic_loader_srv)));
 
-  my_service<SERVICE_TYPE(registry_registration)> registrator(
-      "registry_registration", srv_registry);
+  srv_registry->acquire(
+      "registry_registration",
+      reinterpret_cast<my_h_service *>(&srv_registry_registration));
+
+  srv_registry->acquire(
+      "registry_registration.mysql_minimal_chassis_no_lock",
+      reinterpret_cast<my_h_service *>(&srv_registry_registration_no_lock));
 
   // Sets default file scheme loader for MySQL server.
-  registrator->set_default(
+  srv_registry_registration->set_default(
       "dynamic_loader_scheme_file.mysql_server_path_filter");
 
   // Sets default rw_lock for MySQL server.
-  registrator->set_default("mysql_rwlock_v1.mysql_server");
+  srv_registry_registration->set_default("mysql_rwlock_v1.mysql_server");
   srv_registry->acquire("mysql_rwlock_v1.mysql_server",
                         reinterpret_cast<my_h_service *>(
                             const_cast<rwlock_type_t **>(&rwlock_service)));
@@ -2106,7 +2125,7 @@ static bool component_infrastructure_init() {
       reinterpret_cast<SERVICE_TYPE(mysql_rwlock_v1) *>(rwlock_service);
 
   // Sets default psi_system event service for MySQL server.
-  registrator->set_default("mysql_psi_system_v1.mysql_server");
+  srv_registry_registration->set_default("mysql_psi_system_v1.mysql_server");
   srv_registry->acquire("mysql_psi_system_v1.mysql_server",
                         reinterpret_cast<my_h_service *>(
                             const_cast<psi_system_type_t **>(&system_service)));
@@ -2115,7 +2134,7 @@ static bool component_infrastructure_init() {
       reinterpret_cast<SERVICE_TYPE(mysql_psi_system_v1) *>(system_service);
 
   // Sets default mysql_runtime_error for MySQL server.
-  registrator->set_default("mysql_runtime_error.mysql_server");
+  srv_registry_registration->set_default("mysql_runtime_error.mysql_server");
   srv_registry->acquire(
       "mysql_runtime_error.mysql_server",
       reinterpret_cast<my_h_service *>(
@@ -2128,12 +2147,22 @@ static bool component_infrastructure_init() {
   return retval;
 }
 
+static const std::string c_name("mysql_server"),
+    s_name("mysql_option_tracker_option");
+typedef weak_service_reference<SERVICE_TYPE(mysql_option_tracker_option),
+                               c_name, s_name>
+    srv_weak_option_option;
 /**
   This function is used to initialize the mysql_server component services.
 */
 static void server_component_init() {
   mysql_comp_sys_var_services_init();
   init_thd_store_service();
+  srv_weak_option_option::init(
+      srv_registry, srv_registry_registration,
+      [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        return 0 != opt->define("MySQL Server", "mysql_server", 1);
+      });
 }
 
 /**
@@ -2188,6 +2217,12 @@ static bool component_infrastructure_deinit(bool print_message) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START);
     sysd::notify("Shutdown of components in progress\n");
   }
+
+  srv_weak_option_option::deinit(
+      srv_registry_no_lock, srv_registry_registration_no_lock,
+      [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        return 0 != opt->undefine("MySQL Server");
+      });
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -2202,6 +2237,10 @@ static bool component_infrastructure_deinit(bool print_message) {
       const_cast<psi_system_type_t *>(system_service)));
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<rwlock_type_t *>(rwlock_service)));
+  srv_registry->release(
+      reinterpret_cast<my_h_service>(srv_registry_registration));
+  srv_registry->release(
+      reinterpret_cast<my_h_service>(srv_registry_registration_no_lock));
 
   if (deinitialize_minimal_chassis(srv_registry)) {
     if (print_message)
@@ -2869,6 +2908,14 @@ static void clean_up(bool print_message) {
   deinit_srv_event_tracking_handles();
   Singleton_event_tracking_service_to_plugin_mapping::remove_instance();
   component_infrastructure_deinit(print_message);
+  /*
+    The component unregister_variable() api for session string type variables
+    depends on global_system_variables. So we yank cleanup of
+    global_system_variables and max_system_variables from plugin_shutdown()
+    code and calling after component_infrastructure_deinit()
+  */
+  cleanup_global_system_variables();
+
   /*
     component unregister_variable() api depends on system_variable_hash.
     component_infrastructure_deinit() interns calls the deinit function
@@ -9139,17 +9186,19 @@ static void calculate_mysql_home_from_my_progname() {
   This helper class sets them temporarily by reading configurations
   and resets them in destructor.
 */
-class Plugin_and_data_dir_option_parser final {
+class Manifest_file_option_parser_helper final {
  public:
-  Plugin_and_data_dir_option_parser(int argc, char **argv)
+  Manifest_file_option_parser_helper(int argc, char **argv)
       : datadir_(nullptr),
         plugindir_(nullptr),
         save_homedir_{0},
         save_plugindir_{0},
         valid_(false) {
-    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr;
+    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr,
+                      *basedir = nullptr;
     char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0},
-         local_plugindir_buffer[FN_REFLEN] = {0};
+         local_plugindir_buffer[FN_REFLEN] = {0},
+         local_basedir_buffer[FN_REFLEN] = {0};
     const char *dirs = nullptr;
 
     my_option datadir_options[] = {
@@ -9157,6 +9206,8 @@ class Plugin_and_data_dir_option_parser final {
          0, nullptr, 0, nullptr},
         {"plugin_dir", 0, "", &plugindir, nullptr, nullptr, GET_STR, OPT_ARG, 0,
          0, 0, nullptr, 0, nullptr},
+        {"basedir", 0, "", &basedir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0,
+         0, nullptr, 0, nullptr},
         {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0,
          0, 0, nullptr, 0, nullptr}};
 
@@ -9181,6 +9232,8 @@ class Plugin_and_data_dir_option_parser final {
     }
     my_getopt_skip_unknown = false;
 
+    if (basedir) convert_dirname(local_basedir_buffer, basedir, NullS);
+
     if (!datadir) {
       /* mysql_real_data_home must be initialized at this point */
       assert(mysql_real_data_home[0]);
@@ -9189,7 +9242,13 @@ class Plugin_and_data_dir_option_parser final {
         See calculate_mysql_home_from_my_progname() for details
       */
       assert(mysql_home_ptr && mysql_home_ptr[0]);
-      convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+      if (basedir)
+        convert_dirname(
+            local_datadir_buffer,
+            (std::string{local_basedir_buffer} + mysql_real_data_home).c_str(),
+            NullS);
+      else
+        convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
       (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
                          mysql_home_ptr);
       datadir = local_datadir_buffer;
@@ -9199,9 +9258,15 @@ class Plugin_and_data_dir_option_parser final {
     datadir_ = my_strdup(PSI_INSTRUMENT_ME, dir, MYF(0));
     memset(dir, 0, FN_REFLEN);
 
-    convert_dirname(local_plugindir_buffer,
-                    plugindir ? plugindir : get_relative_path(PLUGINDIR),
-                    NullS);
+    if (plugindir)
+      convert_dirname(local_plugindir_buffer, plugindir, NullS);
+    else if (basedir)
+      convert_dirname(
+          local_plugindir_buffer,
+          (std::string{basedir} + get_relative_path(PLUGINDIR)).c_str(), NullS);
+    else
+      convert_dirname(local_plugindir_buffer, get_relative_path(PLUGINDIR),
+                      NullS);
     (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
                        mysql_home);
     plugindir_ = my_strdup(PSI_INSTRUMENT_ME, local_plugindir_buffer, MYF(0));
@@ -9222,7 +9287,7 @@ class Plugin_and_data_dir_option_parser final {
     valid_ = true;
   }
 
-  ~Plugin_and_data_dir_option_parser() {
+  ~Manifest_file_option_parser_helper() {
     valid_ = false;
     if (datadir_ != nullptr) {
       memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
@@ -9387,7 +9452,8 @@ int mysqld_main(int argc, char **argv)
           &psi_cond_hook, &psi_file_hook, &psi_socket_hook, &psi_table_hook,
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
-          &psi_data_lock_hook, &psi_system_hook, &psi_tls_channel_hook);
+          &psi_data_lock_hook, &psi_system_hook, &psi_tls_channel_hook,
+          &psi_metric_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -9595,7 +9661,7 @@ int mysqld_main(int argc, char **argv)
   {
     /* Must be initialized early because it is required by dynamic loader */
     files_charset_info = &my_charset_utf8mb3_general_ci;
-    auto keyring_helper = std::make_unique<Plugin_and_data_dir_option_parser>(
+    auto keyring_helper = std::make_unique<Manifest_file_option_parser_helper>(
         remaining_argc, remaining_argv);
 
     if (keyring_helper->valid() == false) {
@@ -14694,6 +14760,8 @@ static void init_server_psi_keys(void) {
   init_vio_psi_keys();
   /* TLS interfaces */
   init_tls_psi_keys();
+  /* Statement handle interface PSI keys */
+  init_statement_handle_interface_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -137,6 +137,7 @@
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
+#include "sql/statement/statement.h"  // STMT_HANDLE_PSI_STATEMENT_INFO_COUNT
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/threadpool.h"
@@ -923,6 +924,7 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - CLONE_PSI_STATEMENT_COUNT for "statement/clone/...".
   - 1 for "statement/rpl/relay_log", for replicated statements.
   - 1 for "statement/scheduler/event", for scheduled events.
+  - STMT_HANDLE_PSI_STATEMENT_INFO_COUNT for "statement/stmt_handle/...".
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
     "performance_schema_max_statement_classes",
@@ -930,7 +932,8 @@ static Sys_var_ulong Sys_pfs_max_statement_classes(
     READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
     DEFAULT((ulong)SQLCOM_END + (ulong)COM_END + 5 +
-            SP_PSI_STATEMENT_INFO_COUNT + CLONE_PSI_STATEMENT_COUNT),
+            SP_PSI_STATEMENT_INFO_COUNT + CLONE_PSI_STATEMENT_COUNT +
+            STMT_HANDLE_PSI_STATEMENT_INFO_COUNT),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
@@ -2479,18 +2482,6 @@ static Sys_var_bool Sys_check_proxy_users(
     "GRANT PROXY privilege definition.",
     GLOBAL_VAR(check_proxy_users), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static Sys_var_bool Sys_mysql_native_password_proxy_users(
-    "mysql_native_password_proxy_users",
-    "If set to FALSE (the default), then the mysql_native_password "
-    "plugin will not signal for authenticated users to be checked for "
-    "mapping "
-    "to proxy users.  When set to TRUE, the plugin will flag associated "
-    "authenticated accounts to be mapped to proxy users when the server "
-    "option "
-    "check_proxy_users is enabled.",
-    GLOBAL_VAR(mysql_native_password_proxy_users), CMD_LINE(OPT_ARG),
-    DEFAULT(false));
-
 static Sys_var_bool Sys_sha256_password_proxy_users(
     "sha256_password_proxy_users",
     "If set to FALSE (the default), then the sha256_password authentication "
@@ -3375,32 +3366,19 @@ void update_optimizer_switch() {
 }
 
 static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
-                                   set_var *var) {
+                                   set_var *var [[maybe_unused]]) {
+#ifndef WITH_HYPERGRAPH_OPTIMIZER
   const bool current_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
   const bool want_hypergraph_optimizer =
       var->save_result.ulonglong_value & OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
 
-  if (current_hypergraph_optimizer && !want_hypergraph_optimizer) {
-    // Don't turn off the hypergraph optimizer on set optimizer_switch=DEFAULT.
-    // This is so that mtr --hypergraph should not be easily cancelled in the
-    // middle of a test, unless the test explicitly meant it.
-    if (var->value == nullptr) {
-      var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
-    }
-  } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
-#ifdef WITH_HYPERGRAPH_OPTIMIZER
-    // Allow, with a warning.
-    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                 ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL));
-    return false;
-#else
-    // Disallow; the hypergraph optimizer is not ready for production yet.
+  if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "use in non-debug builds");
     return true;
-#endif
   }
+#endif
   return false;
 }
 
@@ -8195,10 +8173,14 @@ static Sys_var_ulonglong Sys_set_operations_buffer_size(
 //   a) set index, cf. explanation in comments for class SpillState
 //   b) chunk index
 //   c) row number
+//   d) optional string: "right_operand"
 // Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
 //         <row_no:integer 1-based>
 // Example:
 //       SET SESSION debug_set_operations_secondary_overflow_at = '1 5 7';
+//       SET SESSION debug_set_operations_secondary_overflow_at =
+//           '1 5 7 right_operand';
+//
 // If the numbers given are outside range on the high side, they will never
 // trigger any secondary spill.
 static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
@@ -8236,6 +8218,7 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     NON_PERSIST SESSION_VAR(restrict_fk_on_non_standard_key), CMD_LINE(OPT_ARG),
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
+<<<<<<< HEAD
 }  // namespace
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
@@ -8268,3 +8251,8 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
+||||||| 0e33d640d4f
+}  // namespace
+=======
+}  // namespace
+>>>>>>> mysql-9.0.1

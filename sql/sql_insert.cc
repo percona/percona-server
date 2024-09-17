@@ -239,7 +239,7 @@ static bool check_insert_fields(THD *thd, Table_ref *table_list,
         const Item *item1 = *i;
         for (auto j = std::next(i); j != fields->cend(); ++j) {
           const Item *item2 = *j;
-          if (item1->eq(item2, true)) {
+          if (item1->eq(item2)) {
             my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1->item_name.ptr());
             return true;
           }
@@ -399,6 +399,7 @@ static bool mysql_prepare_blob_values(THD *thd,
     Field *lhs_field = field->field;
 
     if (lhs_field->type() == MYSQL_TYPE_BLOB ||
+        lhs_field->type() == MYSQL_TYPE_VECTOR ||
         lhs_field->type() == MYSQL_TYPE_GEOMETRY)
       blob_update_field_set.insert_unique(down_cast<Field_blob *>(lhs_field));
   }

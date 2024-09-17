@@ -185,8 +185,10 @@ DEFINE_BOOL_METHOD(mysql_stmt_metadata_imp::param_metadata,
   } else if (strcmp(metadata, "is_unsigned") == 0) {
     *static_cast<bool *>(data) = param->unsigned_flag;
     return MYSQL_SUCCESS;
+  } else if (strcmp(metadata, "charset") == 0) {
+    *static_cast<const char **>(data) = param->collation.collation->csname;
+    return MYSQL_SUCCESS;
   }
-
   return MYSQL_FAILURE;
 }
 
@@ -608,6 +610,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_resultset_metadata_imp::field_info,
         get_collation_name(column->charsetnr);
   } else if (strcmp(name, "flags") == 0) {
     *reinterpret_cast<uint *>(value) = column->flags;
+  } else if (strcmp(name, "length") == 0) {
+    *reinterpret_cast<ulong *>(value) = column->length;
   } else if (strcmp(name, "decimals") == 0) {
     *reinterpret_cast<uint *>(value) = column->decimals;
   } else if (strcmp(name, "is_unsigned") == 0) {
@@ -621,7 +625,6 @@ DEFINE_BOOL_METHOD(mysql_stmt_resultset_metadata_imp::field_info,
     if (enum_type == MYSQL_SP_ARG_TYPE_INVALID) return MYSQL_FAILURE;
     *reinterpret_cast<uint64_t *>(value) = enum_type;
   } else {
-    assert(false);
     return MYSQL_FAILURE;
   }
   return MYSQL_SUCCESS;
@@ -645,9 +648,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_diagnostics_imp::error,
       reinterpret_cast<Service_statement *>(resource_handle)->stmt;
   if (statement == nullptr) return MYSQL_FAILURE;
   if (!statement->is_error()) return MYSQL_FAILURE;
-
-  *error_message = {statement->get_last_error(),
-                    strlen(statement->get_last_error())};
+  auto last_error = statement->get_last_error();
+  *error_message = {last_error.str, last_error.length};
   return MYSQL_SUCCESS;
 }
 
@@ -658,9 +660,8 @@ DEFINE_BOOL_METHOD(mysql_stmt_diagnostics_imp::sqlstate,
       reinterpret_cast<Service_statement *>(resource_handle)->stmt;
   if (statement == nullptr) return MYSQL_FAILURE;
   if (!statement->is_error()) return MYSQL_FAILURE;
-
-  *sqlstate_error_message = {statement->get_mysql_state(),
-                             strlen(statement->get_mysql_state())};
+  auto state = statement->get_mysql_state();
+  *sqlstate_error_message = {state.str, state.length};
   return MYSQL_SUCCESS;
 }
 
@@ -739,7 +740,7 @@ DEFINE_BOOL_METHOD(mysql_stmt_diagnostics_imp::warning_message,
   auto *warn = reinterpret_cast<Warning *>(warning);
   if (warn == nullptr) return MYSQL_FAILURE;
 
-  *error_message = {warn->m_message, strlen(warn->m_message)};
+  *error_message = {warn->m_message.str, warn->m_message.length};
   return MYSQL_SUCCESS;
 }
 
@@ -852,9 +853,9 @@ DEFINE_BOOL_METHOD(mysql_stmt_get_string_imp::get,
   auto *column = row->get_column(column_index);
   if (column == nullptr) return MYSQL_FAILURE;
 
-  auto *value = std::get_if<char *>(column);
+  auto *value = std::get_if<LEX_CSTRING>(column);
   if (value != nullptr) {
-    *data = {*value, strlen(*value)};
+    *data = {value->str, value->length};
     *is_null = false;
   } else {
     *is_null = true;

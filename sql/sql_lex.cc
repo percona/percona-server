@@ -453,7 +453,6 @@ void LEX::reset() {
 
   name.str = nullptr;
   name.length = 0;
-  event_parse_data = nullptr;
   profile_options = PROFILE_NONE;
   select_number = 0;
   allow_sum_func = 0;
@@ -2275,7 +2274,6 @@ Query_block::Query_block(MEM_ROOT *mem_root, Item *where, Item *having)
 */
 
 bool Query_block::set_context(Name_resolution_context *outer_context) {
-  context.init();
   context.query_block = this;
   context.outer_context = outer_context;
   /*
@@ -3811,7 +3809,7 @@ bool LEX::can_not_use_merged() {
 */
 
 bool LEX::need_correct_ident() {
-  if (is_explain() && explain_format->is_iterator_based()) return true;
+  if (is_explain() && explain_format->is_iterator_based(thd, thd)) return true;
   switch (sql_command) {
     case SQLCOM_SHOW_CREATE:
     case SQLCOM_SHOW_TABLES:

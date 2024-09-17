@@ -75,7 +75,6 @@ class Histogram;
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-class COND_EQUAL;
 class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
@@ -110,6 +109,7 @@ enum enum_stats_auto_recalc : int;
 enum Value_generator_source : short;
 enum row_type : int;
 struct AccessPath;
+struct COND_EQUAL;
 struct HA_CREATE_INFO;
 struct LEX;
 struct NESTED_JOIN;
@@ -918,12 +918,21 @@ struct TABLE_SHARE {
   */
   uint db_options_in_use{0};
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
+<<<<<<< HEAD
   /* Primary key index number, used in TABLE::key_info[] */
   /*
     By default, when a new object is created, there should be no PK
     configured.
   */
   uint primary_key{MAX_KEY};
+||||||| 0e33d640d4f
+  /* Primary key index number, used in TABLE::key_info[] */
+  uint primary_key{0};
+=======
+  // Primary key index number, used in TABLE::key_info[]. See
+  // is_missing_primary_key() for more details.
+  uint primary_key{0};
+>>>>>>> mysql-9.0.1
   uint next_number_index{0};      /* autoincrement key number */
   uint next_number_key_offset{0}; /* autoinc keypart offset in a key */
   uint next_number_keypart{0};    /* autoinc keypart number in a key */
@@ -1502,8 +1511,14 @@ struct TABLE {
   Record_buffer m_record_buffer{0, 0, nullptr};
 
   /*
-    Map of keys that can be used to retrieve all data from this table
-    needed by the query without reading the row.
+    Map of keys that can be used to retrieve all data from this table needed by
+    the query without reading the row.
+
+    Note that the primary clustered key is treated as any other key, so for a
+    table t with a primary key column p and a second column c, the primary key
+    will be marked as covering for the query "SELECT p FROM t", but will not be
+    marked as covering for the query "SELECT p, c FROM t" (even though we can in
+    some sense retrieve the data from the index).
   */
   Key_map covering_keys;
   Key_map quick_keys;

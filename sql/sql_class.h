@@ -161,7 +161,7 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-struct LOG_INFO;
+struct Log_info;
 
 extern bool opt_log_slow_admin_statements;
 extern ulong opt_log_slow_sp_statements;
@@ -1291,6 +1291,11 @@ class THD : public MDL_context_owner,
           mark at once with this check.
   */
   bool is_engine_ha_data_detached() const;
+
+  /// Iterates over the table and call check_and_registered_engine
+  /// and emits error for non-composable engines
+  /// @param[in] table_ref Tables involved in the query
+  void check_and_emit_warning_for_non_composable_engines(Table_ref *table_ref);
 
   void reset_for_next_command();
   /*
@@ -5169,6 +5174,9 @@ class THD : public MDL_context_owner,
   /// Flag indicating whether this session incremented the number of sessions
   /// with GTID_NEXT set to AUTOMATIC:tag
   bool has_incremented_gtid_automatic_count;
+
+  /// Count of Regular Statement Handles in use.
+  unsigned short m_regular_statement_handle_count{0};
 };
 
 /**
@@ -5257,6 +5265,20 @@ inline void THD::set_connection_admin(bool connection_admin_flag) {
 */
 inline bool is_xa_tran_detached_on_prepare(const THD *thd) {
   return thd->variables.xa_detach_on_prepare;
+}
+
+/**
+   Return if source replication node is older than the given version.
+   @param thd       thread context
+   @param version   version number to compare
+
+   @retval true     if source version is older
+   @retval false    otherwise
+ */
+inline bool is_rpl_source_older(const THD *thd, uint version) {
+  return thd->is_applier_thread() &&
+         (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
+          thd->variables.original_server_version < version);
 }
 
 #endif /* SQL_CLASS_INCLUDED */

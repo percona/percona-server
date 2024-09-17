@@ -789,7 +789,8 @@ SELECT DISTINCT REF_ID FROM t1 WHERE ID= (SELECT DISTINCT REF_ID FROM t1 WHERE I
 DROP TABLE t1;
 
 #
-# uninterruptable update
+# uninterruptable update (now that ER_SUBQUERY_NO_1_ROW is no longer ignoreable,
+# this test case has lost its significance).
 #
 create table t1 (a int, b int);
 create table t2 (a int, b int);
@@ -797,6 +798,7 @@ create table t2 (a int, b int);
 insert into t1 values (1,0), (2,0), (3,0);
 insert into t2 values (1,1), (2,1), (3,1), (2,2);
 
+--error ER_SUBQUERY_NO_1_ROW
 update ignore t1 set b=(select b from t2 where t1.a=t2.a);
 select * from t1;
 
@@ -2036,6 +2038,7 @@ SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
 
 --sorted_result
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
+--skip_if_hypergraph   # Prunes away the subquery item, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
@@ -2148,6 +2151,7 @@ CREATE TABLE t3 ( c3 integer );
 INSERT INTO t3 VALUES ( 7 );
 INSERT INTO t3 VALUES ( 8 );
 
+--sorted_result
 SELECT c1,c2 FROM t1 LEFT JOIN t2 ON c1 = c2
   WHERE EXISTS (SELECT c3 FROM t3 WHERE c2 IS NULL );
 

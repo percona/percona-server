@@ -1207,6 +1207,7 @@ struct AccessPath {
     } aggregate;
     struct {
       AccessPath *subquery_path;
+      JOIN *join;
       Temp_table_param *temp_table_param;
       TABLE *table;
       AccessPath *table_path;
@@ -1526,11 +1527,13 @@ inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
 }
 
 inline AccessPath *NewTemptableAggregateAccessPath(
-    THD *thd, AccessPath *subquery_path, Temp_table_param *temp_table_param,
-    TABLE *table, AccessPath *table_path, int ref_slice) {
+    THD *thd, AccessPath *subquery_path, JOIN *join,
+    Temp_table_param *temp_table_param, TABLE *table, AccessPath *table_path,
+    int ref_slice) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::TEMPTABLE_AGGREGATE;
   path->temptable_aggregate().subquery_path = subquery_path;
+  path->temptable_aggregate().join = join;
   path->temptable_aggregate().temp_table_param = temp_table_param;
   path->temptable_aggregate().table = table;
   path->temptable_aggregate().table_path = table_path;
@@ -1639,7 +1642,9 @@ inline AccessPath *NewMaterializeAccessPath(
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
     AccessPath *table_path, Common_table_expr *cte, Query_expression *unit,
     int ref_slice, bool rematerialize, ha_rows limit_rows,
-    bool reject_multiple_rows) {
+    bool reject_multiple_rows,
+    MaterializePathParameters::DedupType dedup_reason =
+        MaterializePathParameters::NO_DEDUP) {
   MaterializePathParameters *param =
       new (thd->mem_root) MaterializePathParameters;
   param->m_operands = std::move(operands);
@@ -1662,6 +1667,7 @@ inline AccessPath *NewMaterializeAccessPath(
                            // see its constructor
                            HA_POS_ERROR);
   param->reject_multiple_rows = reject_multiple_rows;
+  param->deduplication_reason = dedup_reason;
 
 #ifndef NDEBUG
   for (MaterializePathParameters::Operand &operand : param->m_operands) {
@@ -1807,6 +1813,23 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
 /**
   Modifies "path" and the paths below it so that they provide row IDs for
   all tables.
+
+  This also figures out how the row IDs should be retrieved for each table in
+  the input to the path. If the handler of the table is positioned on the
+  correct row while reading the input, handler::position() can be called to get
+  the row ID from the handler. However, if the input iterator returns rows
+  without keeping the position of the underlying handlers in sync, calling
+  handler::position() will not be able to provide the row IDs. Specifically,
+  hash join and BKA join do not keep the underlying handlers positioned on the
+  right row. Therefore, this function will instruct every hash join or BKA join
+  below "path" to maintain row IDs in the join buffer, and updating handler::ref
+  in every input table for each row they return. Then "path" does not need to
+  call handler::position() to get it (nor should it, since calling it would
+  overwrite the correct row ID with a stale one).
+
+  The tables on which "path" should call handler::position() are stored in a
+  `tables_to_get_rowid_for` bitset in "path". For all the other tables, it can
+  assume that handler::ref already contains the correct row ID.
  */
 void FindTablesToGetRowidFor(AccessPath *path);
 
@@ -1909,5 +1932,19 @@ const Mem_root_array<Item *> *GetExtraHashJoinConditions(
     MEM_ROOT *mem_root, bool using_hypergraph_optimizer,
     const std::vector<HashJoinCondition> &equijoin_conditions,
     const Mem_root_array<Item *> &other_conditions);
+
+/**
+  Update status variables which count how many scans of various types are used
+  in a query plan.
+
+  The following status variables are updated: Select_scan, Select_full_join,
+  Select_range, Select_full_range_join, Select_range_check. They are also stored
+  as performance schema statement events with the same names.
+
+  In addition, the performance schema statement events NO_INDEX_USED and
+  NO_GOOD_INDEX_USED are updated, if appropriate.
+ */
+void CollectStatusVariables(THD *thd, const JOIN *top_join,
+                            const AccessPath &top_path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

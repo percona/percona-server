@@ -98,7 +98,9 @@ int Certifier_broadcast_thread::initialize() {
 
   while (broadcast_thd_state.is_alive_not_running()) {
     DBUG_PRINT("sleep", ("Waiting for certifier broadcast thread to start"));
-    mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&broadcast_run_cond, &broadcast_run_lock, &abstime);
   }
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -126,7 +128,10 @@ int Certifier_broadcast_thread::terminate() {
 
     broadcast_thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&broadcast_thd->LOCK_thd_data);
-    mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
+
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&broadcast_run_cond, &broadcast_run_lock, &abstime);
   }
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -813,10 +818,10 @@ void Certifier::update_transaction_dependency_timestamps(
   }
 }
 
+#ifndef NDEBUG
 void debug_print_group_gtid_sets(const Gtid_set &group_gtid_executed,
                                  const Gtid_set &group_gtid_extracted,
                                  bool set_value) {
-#ifndef NDEBUG
   char *group_gtid_executed_string = nullptr;
   char *group_gtid_extracted_string = nullptr;
   group_gtid_executed.to_string(&group_gtid_executed_string, true);
@@ -828,8 +833,8 @@ void debug_print_group_gtid_sets(const Gtid_set &group_gtid_executed,
        set_value, group_gtid_executed_string, group_gtid_extracted_string));
   my_free(group_gtid_executed_string);
   my_free(group_gtid_extracted_string);
-#endif
 }
+#endif  // NDEBUG
 
 Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
                                   std::list<const char *> *write_set,
@@ -893,8 +898,10 @@ Certified_gtid Certifier::certify(Gtid_set *snapshot_version,
       !group_gtid_extracted->is_subset_not_equals(group_gtid_executed)) {
     certifying_already_applied_transactions = false;
 
+#ifndef NDEBUG
     debug_print_group_gtid_sets(*group_gtid_executed, *group_gtid_extracted,
                                 false);
+#endif
   }
 
   mysql::utils::Return_status certification_state;
@@ -2056,8 +2063,10 @@ int Certifier::set_certification_info(
     certifying_already_applied_transactions = true;
     gtid_generator.recompute(*get_group_gtid_set());
 
+#ifndef NDEBUG
     debug_print_group_gtid_sets(*group_gtid_executed, *group_gtid_extracted,
                                 true);
+#endif
   }
 
   return 0;

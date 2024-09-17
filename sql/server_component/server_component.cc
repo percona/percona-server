@@ -69,6 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "log_sink_perfschema_imp.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql_audit_print_service_double_data_source_imp.h"
 #include "mysql_audit_print_service_longlong_data_source_imp.h"
@@ -79,6 +80,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_command_services_imp.h"
 #include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
+#include "mysql_global_variable_attributes_service_imp.h"
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "mysql_page_track_imp.h"
 #include "mysql_runtime_error_imp.h"
@@ -91,6 +93,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_status_variable_reader_imp.h"
 #include "mysql_stored_program_imp.h"
 #include "mysql_string_service_imp.h"
+#include "mysql_system_variable_reader_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
 #include "mysql_thd_store_imp.h"
@@ -298,9 +301,19 @@ mysql_udf_metadata_imp::argument_get, mysql_udf_metadata_imp::result_get,
     mysql_udf_metadata_imp::argument_set,
     mysql_udf_metadata_imp::result_set END_SERVICE_IMPLEMENTATION();
 
+/*
+ Here the new mysql_service_mysql_system_variable_reader->get() service cannot
+ be used instead of get_variable because the below code is for the
+ implementation of the old get_variable() service. Hence adding below
+ suppression deprecated warning code to skip the deprecation warning while
+ compiling the code.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
+MY_COMPILER_DIAGNOSTIC_POP()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_connection_attributes_iterator)
 mysql_connection_attributes_iterator_imp::init,
@@ -339,7 +352,8 @@ Bulk_data_convert::mysql_format, Bulk_data_convert::mysql_format_from_raw,
     Bulk_data_convert::get_row_metadata END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_load)
-Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::end,
+Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::open_blob,
+    Bulk_data_load::write_blob, Bulk_data_load::close_blob, Bulk_data_load::end,
     Bulk_data_load::is_table_supported, Bulk_data_load::get_se_memory_size,
     END_SERVICE_IMPLEMENTATION();
 
@@ -478,6 +492,9 @@ mysql_system_variable_update_imp::set_signed,
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_default)
 mysql_system_variable_update_imp::set_default END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_reader)
+mysql_system_variable_reader_imp::get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
 mysql_thd_attributes_imp::get,
@@ -724,6 +741,11 @@ mysql_stored_program_runtime_argument_string_imp::get,
     mysql_stored_program_runtime_argument_string_imp::set
     END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(
+    mysql_server, mysql_stored_program_runtime_argument_string_charset)
+mysql_stored_program_runtime_argument_string_charset_imp::set
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_runtime_argument_int)
 mysql_stored_program_runtime_argument_int_imp::get,
@@ -771,6 +793,11 @@ mysql_stored_program_return_value_null_imp::set, END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_return_value_string)
 mysql_stored_program_return_value_string_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_string_charset)
+mysql_stored_program_return_value_string_charset_imp::set
+END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_return_value_int)
@@ -980,6 +1007,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_metric_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
 
+    PROVIDES_SERVICE(mysql_server, mysql_global_variable_attributes),
+    PROVIDES_SERVICE(mysql_server, mysql_global_variable_attributes_iterator),
+
     PROVIDES_SERVICE(mysql_server, pfs_notification_v3),
     PROVIDES_SERVICE(mysql_server, pfs_resource_group_v3),
 
@@ -998,6 +1028,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_string),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_integer),
     PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_default),
+    PROVIDES_SERVICE(mysql_server, mysql_system_variable_reader),
 
     PROVIDES_SERVICE(mysql_server, table_access_factory_v1),
     PROVIDES_SERVICE(mysql_server, table_access_v1),
@@ -1054,6 +1085,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_null),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_runtime_argument_string),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_string_charset),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_int),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_runtime_argument_unsigned_int),
@@ -1065,6 +1098,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_timestamp),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_null),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_string),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_return_value_string_charset),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_int),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_return_value_unsigned_int),
@@ -1090,7 +1125,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_debug_sync_service),
 #endif
     PROVIDES_SERVICE(mysql_server, dynamic_privilege_deprecation),
-    PROVIDES_SERVICE(mysql_server, my_signal_handler), END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, my_signal_handler),
+
+    PROVIDES_SERVICE(mysql_server, table_access_binlog),
+    END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

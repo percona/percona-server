@@ -232,8 +232,7 @@ bool AggregateIterator::Init() {
   // the slice coming from there might be wrongly set on Read(), and thus,
   // we need to properly restore it before returning any rows.
   //
-  // This is a hack. It would be good to get rid of the slice system altogether
-  // (the hypergraph join optimizer does not use it).
+  // This is a hack. It would be good to get rid of the slice system altogether.
   if (!(m_join->implicit_grouping || m_join->group_optimized_away) &&
       !thd()->lex->using_hypergraph_optimizer()) {
     m_output_slice = m_join->get_ref_item_slice();
@@ -618,6 +617,13 @@ class ImmutableStringHasher {
 
 using materialize_iterator::Operand;
 using Operands = Mem_root_array<Operand>;
+using hash_map_type = ankerl::unordered_dense::segmented_map<
+    ImmutableStringWithLength, LinkedImmutableString, ImmutableStringHasher>;
+
+void reset_hash_map(hash_map_type *hash_map) {
+  std::destroy_at(hash_map);
+  std::construct_at(hash_map);
+}
 
 /**
   Contains spill state for set operations' use of in-memory hash map.
@@ -864,28 +870,20 @@ class SpillState {
   bool spill() { return m_spill_read_state != ReadingState::SS_NONE; }
 
 #ifndef NDEBUG
-  bool simulated_secondary_overflow(bool *spill);
+  /// If left operand overflow simulation, spill will get set, if right
+  /// operand overflow simulation, \c rop_overflow will get set.
+  bool simulated_secondary_overflow(bool *spill, bool *rop_overflow);
 
  private:
   size_t m_simulated_set_idx{std::numeric_limits<size_t>::max()};
   size_t m_simulated_chunk_idx{std::numeric_limits<size_t>::max()};
   size_t m_simulated_row_no{std::numeric_limits<size_t>::max()};
+  bool m_right_hf{false};
 
  public:
 #endif
 
   void set_secondary_overflow() { m_secondary_overflow = true; }
-
-  using hash_map_type = ankerl::unordered_dense::segmented_map<
-      ImmutableStringWithLength, LinkedImmutableString, ImmutableStringHasher>;
-
-  static void reset_hash_map(hash_map_type *hash_map) {
-    hash_map->~hash_map_type();
-    auto *map = new (hash_map) hash_map_type();
-    if (map == nullptr) {
-      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
-    }
-  }
 
   /// Getter, cf. comment for \c m_secondary_overflow
   bool secondary_overflow() const { return m_secondary_overflow; }
@@ -1385,8 +1383,6 @@ class MaterializeIterator final : public TableRowIterator {
   MEM_ROOT *m_overflow_mem_root{nullptr};
   size_t m_row_size_upper_bound;
 
-  using hash_map_type = SpillState::hash_map_type;
-
   // The hash map where the rows are stored.
   std::unique_ptr<hash_map_type> m_hash_map;
 
@@ -1437,14 +1433,14 @@ class MaterializeIterator final : public TableRowIterator {
                                     bool *spill);
   void backup_or_restore_blob_pointers(bool backup);
   void update_row_in_hash_map();
-  enum Operand_type { LEFT_OPERAND, RIGHT_OPERAND };
-  bool store_row_in_hash_map(Operand_type type = LEFT_OPERAND);
+  bool store_row_in_hash_map();
   bool handle_hash_map_full(const Operand &operand, ha_rows *stored_rows);
   bool process_row(const Operand &operand, Operands &operands, TABLE *t,
                    uchar *set_counter_0, uchar *set_counter_1, bool *read_next);
   bool process_row_hash(const Operand &operand, TABLE *t, ha_rows *stored_rows);
   bool materialize_hash_map(TABLE *t, ha_rows *stored_rows);
   bool load_HF_row_into_hash_map();
+  void init_hash_map_for_new_exec();
   friend class SpillState;
 };
 
@@ -1576,6 +1572,7 @@ bool MaterializeIterator<Profiler>::Init() {
   } else {
     table()->file->ha_index_or_rnd_end();  // @todo likely unneeded => remove
     table()->file->ha_delete_all_rows();
+    if (m_use_hash_map) init_hash_map_for_new_exec();
   }
 
   if (m_query_expression != nullptr)
@@ -1964,7 +1961,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     return true;
   }
 
-  spill = store_row_in_hash_map(RIGHT_OPERAND);
+  spill = store_row_in_hash_map();
   if (spill) {
     // It fit before, should fit now
     assert(false);
@@ -1974,6 +1971,14 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
   }
 
   return false;
+}
+
+template <typename Profiler>
+void MaterializeIterator<Profiler>::init_hash_map_for_new_exec() {
+  if (m_hash_map == nullptr) return;  // not used yet
+  reset_hash_map(m_hash_map.get());
+  m_mem_root->ClearForReuse();
+  m_rows_in_hash_map = 0;
 }
 
 /**
@@ -2028,19 +2033,18 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
                                                                  bool *found,
                                                                  bool *spill) {
   const size_t max_mem_available = thd()->variables.set_operations_buffer_size;
-
   *spill = false;
 
 #ifndef NDEBUG
+  bool right_op_overflow = false;
   if (m_spill_state.spill()) {
-    if (write &&  // Only inject error for left operand: can only happen there
-        m_spill_state.read_state() ==
-            SpillState::ReadingState::SS_READING_LEFT_IF &&
-        m_spill_state.simulated_secondary_overflow(spill))
+    if (write &&
+        m_spill_state.simulated_secondary_overflow(spill, &right_op_overflow))
       return true;
     if (*spill) return false;
   }
 #endif
+
   if (m_mem_root == nullptr) {
     assert(write);
     m_mem_root = make_unique_destroy_only<MEM_ROOT>(
@@ -2083,17 +2087,52 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
     m_mem_root->ForceNewBlock(required_key_bytes);
     block = m_mem_root->Peek();
   }
+
   size_t bytes_to_commit = 0;
-  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes) {
+
+  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes
+#ifndef NDEBUG
+      && !right_op_overflow
+#endif
+  ) {
+    // Normal case, we have enough space
     char *ptr = block.first;
     secondary_hash_key = ImmutableStringWithLength::Encode(
         pointer_cast<const char *>(&primary_hash), sizeof(primary_hash), &ptr);
     assert(ptr < block.second);
     bytes_to_commit = ptr - block.first;
   } else if (write) {
-    // spill to disk
-    *spill = true;
-    return false;
+    // out of space in dedicated mem_root
+    if (m_spill_state.read_state() ==
+        SpillState::ReadingState::SS_READING_RIGHT_HF) {
+      // When re-reading chunk rows, different row order may cause heap
+      // fragmentation to differ so even though chunk fit in m_mem_root the
+      // first time (as left operand chunk), it may fail to fit when we
+      // re-read.  This should typically only affect the last (few) rows in a
+      // chunk, so use m_overflow_mem_root.
+      char *ptr =
+          static_cast<char *>(m_overflow_mem_root->Alloc(required_key_bytes));
+      if (ptr == nullptr) {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 thd()->variables.set_operations_buffer_size);
+        return true;
+      }
+      secondary_hash_key = ImmutableStringWithLength::Encode(
+          pointer_cast<const char *>(&primary_hash), sizeof(primary_hash),
+          &ptr);
+#ifndef NDEBUG
+      if (right_op_overflow) {
+        Opt_trace_context *trace = &thd()->opt_trace;
+        Opt_trace_object trace_wrapper(trace);
+        Opt_trace_object trace_exec(trace,
+                                    "injected overflow: SS_READING_RIGHT_HF");
+      }
+#endif
+    } else {
+      // spill to disk
+      *spill = true;
+      return false;
+    }
   }
 
   *found = false;
@@ -2225,12 +2264,10 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(const Operand &operand,
   positioned on it.  Links any existing entry behind it, i.e. we insert at
   front of the hash bucket, cf.  StoreLinkedImmutableStringFromTableBuffers.
   Update \c m_rows_in_hash_map.
-  @param type indicates whether we are processing the left operand or one of the
-              right operands in the set operation
   @returns true on error
  */
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::store_row_in_hash_map(Operand_type type) {
+bool MaterializeIterator<Profiler>::store_row_in_hash_map() {
   // Save the contents of all columns and make the hash map iterator's value
   // field ("->second") point to it.
   bool dummy = false;
@@ -2247,12 +2284,14 @@ bool MaterializeIterator<Profiler>::store_row_in_hash_map(Operand_type type) {
   // processing the left operand, this would only happen for a minority of
   // chunks and then typically only for the last row.
   assert(m_overflow_mem_root != nullptr);
+  const bool is_right_operand = m_spill_state.read_state() ==
+                                SpillState::ReadingState::SS_READING_RIGHT_HF;
+
   LinkedImmutableString last_row_stored =
       StoreLinkedImmutableStringFromTableBuffers(
-          m_mem_root.get(),
-          (type == RIGHT_OPERAND ? m_overflow_mem_root : nullptr),
+          m_mem_root.get(), (is_right_operand ? m_overflow_mem_root : nullptr),
           m_table_collection, m_next_ptr, m_row_size_upper_bound,
-          (type == RIGHT_OPERAND ? &dummy : nullptr));
+          (is_right_operand ? &dummy : nullptr));
   if (last_row_stored == nullptr) {
     return true;
   }
@@ -3343,7 +3382,11 @@ bool SpillState::write_completed_HFs(THD *thd, const Operands &operands,
 }
 
 #ifndef NDEBUG
-bool SpillState::simulated_secondary_overflow(bool *spill) {
+bool SpillState::simulated_secondary_overflow(bool *spill, bool *rop_overflow) {
+  if (read_state() != SpillState::ReadingState::SS_READING_LEFT_IF &&
+      read_state() != SpillState::ReadingState::SS_READING_RIGHT_HF)
+    return false;
+
   const char *const common_msg =
       "in debug_set_operations_secondary_overflow_at too high: should be "
       "lower than or equal to:";
@@ -3352,12 +3395,13 @@ bool SpillState::simulated_secondary_overflow(bool *spill) {
       m_simulated_set_idx == std::numeric_limits<size_t>::max()) {
     // Parse out variables with
     // syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
-    // <row_no:integer 1-based>
-    int tokens [[maybe_unused]] =
-        sscanf(m_thd->variables.debug_set_operations_secondary_overflow_at,
-               "%zu %zu %zu", &m_simulated_set_idx, &m_simulated_chunk_idx,
-               &m_simulated_row_no);
-    if (tokens != 3 || m_simulated_row_no < 1 ||
+    // <row_no:integer 1-based> [ right_operand ]
+    int tokens = 0;
+    char buff[31];
+    tokens = sscanf(m_thd->variables.debug_set_operations_secondary_overflow_at,
+                    "%zu %zu %zu %30s", &m_simulated_set_idx,
+                    &m_simulated_chunk_idx, &m_simulated_row_no, buff);
+    if (tokens < 3 || m_simulated_row_no < 1 ||
         m_simulated_chunk_idx >= m_chunk_files.size()) {
       my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Chunk number", common_msg,
                m_chunk_files.size() - 1);
@@ -3369,23 +3413,40 @@ bool SpillState::simulated_secondary_overflow(bool *spill) {
                m_no_of_chunk_file_sets - 1);
       return true;
     }
+    m_right_hf = tokens == 4;
+    if (m_right_hf && read_state() == ReadingState::SS_READING_LEFT_IF)
+      return false;
   }
 
   if (m_simulated_set_idx <
       std::numeric_limits<size_t>::max()) {  // initialized
     if (m_current_chunk_file_set == m_simulated_set_idx &&
         m_current_chunk_idx == m_simulated_chunk_idx) {
-      if (m_simulated_row_no >
-          m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
-              .IF_count) {
-        my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Row number", common_msg,
-                 m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
-                     .IF_count);
-        return true;
+      const size_t chunk_rows =
+          (!m_right_hf
+               ? m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                     .IF_count
+               :
+
+               m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                   .HF_count);
+      if ((m_right_hf &&
+           read_state() == SpillState::ReadingState::SS_READING_RIGHT_HF) ||
+          !m_right_hf) {
+        if (m_simulated_row_no > chunk_rows) {
+          my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Row number",
+                   common_msg, chunk_rows);
+          return true;
+        }
       }
 
       if (m_current_row_in_chunk == static_cast<size_t>(m_simulated_row_no)) {
-        *spill = true;
+        if (!m_right_hf) {
+          *spill = true;
+        } else if (read_state() ==
+                   SpillState::ReadingState::SS_READING_RIGHT_HF) {
+          *rop_overflow = true;
+        }
       }
     }
   }

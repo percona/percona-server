@@ -85,6 +85,7 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
 ENDIF()
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MLE=ON")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
   SET (DEB_PRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Enterprise")
@@ -113,14 +114,18 @@ usr/lib/mysql/plugin/component_keyring_oci.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_masking.so
 usr/lib/mysql/plugin/component_masking_functions.so
+usr/lib/mysql/plugin/component_mle.so
 usr/lib/mysql/plugin/component_scheduler.so
 usr/lib/mysql/plugin/component_telemetry.so
+usr/lib/mysql/plugin/component_option_tracker.so
+usr/lib/mysql/private/libpolyglot.so
 ")
 
    SET (DEB_INSTALL_TEST_PLUGINS
 "
 usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
+usr/lib/mysql/plugin/component_test_option_tracker.so
 ")
 
   SET (DEB_INSTALL_CLIENT_PLUGINS

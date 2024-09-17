@@ -102,8 +102,8 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
-  mysqlxclient_lite
-  mysqlxmessages_lite
+  router_mysqlxclient
+  router_mysqlxmessages
   router_cluster
 
   DEPENDS
@@ -141,8 +141,8 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   $<TARGET_PROPERTY:routing_connections,INCLUDE_DIRECTORIES>
 
   LIB_DEPENDS
-  mysqlxclient_lite
-  mysqlxmessages_lite
+  router_mysqlxclient
+  router_mysqlxmessages
 
   DEPENDS
   http_auth_backend
@@ -162,6 +162,14 @@ add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   routing
   )
 ENDFOREACH()
+
+# the mock-server test needs the mysql_native_password client plugin,
+# if it built (depends on WITH_AUTHENTICATION_CLIENT_PLUGINS)
+IF(TARGET mysql_native_password)
+  ADD_DEPENDENCIES(routertest_component_mock_server
+    mysql_native_password)
+ENDIF()
+
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.

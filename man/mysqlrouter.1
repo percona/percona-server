@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2024
+.\"      Date: 05/23/2024
 .\"    Manual: MySQL Router
-.\"    Source: MySQL 8.4
+.\"    Source: MySQL 9.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "06/01/2024" "MySQL 8\&.4" "MySQL Router"
+.TH "MYSQLROUTER" "1" "05/23/2024" "MySQL 9\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 $> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.4\&.0 on Linux (64\-bit) (GPL community edition)
+MySQL Router v9\&.0\&.0 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -2965,33 +2965,6 @@ This option is only available on Windows, and refers to its password vault\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-disable\-rw\-split\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---disable-rw-split
-T}
-.TE
-.sp 1
-By default, a
-[router:read_write_split]
-section is added to the generated
-mysqlrouter\&.conf
-at bootstrap; and this parameter means those details are not added\&. For additional information, see
-the section called \(lqBootstrapping\(rq\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-disable\-rest\fR
 .TS
 allbox tab(:);
@@ -3074,12 +3047,12 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Connecting Using URI-Like Connection Strings
 .RS 4
-\%https://dev.mysql.com/doc/refman/8.4/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
+\%https://dev.mysql.com/doc/refman/9.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
 .RE
 .IP " 2." 4
 ClusterSet
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.4/en/innodb-clusterset.html
+\%https://dev.mysql.com/doc/mysql-shell/9.0/en/innodb-clusterset.html
 .RE
 .SH AUTHOR
 Oracle Corporation (http://dev.mysql.com/).

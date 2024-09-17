@@ -49,6 +49,7 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk
+innodb.row_format                                 : Bug#36687409 innodb.row_format is failing after removal of mysql_native_password
 
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
@@ -57,6 +58,62 @@ innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
 innodb.mysql_ts_alter_encrypt_1                 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
 component_keyring_file.mysql_ts_alter_encrypt_1 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
 
+# Tests disabled because they don't accept the 9.0 version
+innodb.check_table                         : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.discarded_partition_upgrade_from_80 : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.innodb_autoextend_upgrade           : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_recovery_old_2          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade                 : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_debug           : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_metadata        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_metadata_debug  : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_part            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_part_debug      : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_part_metadata       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_part_metadata_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_rollback        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.instant_ddl_upgrade_update          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_8_0_11_case1                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_8_0_19_case1                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_deprecated_params_upgrade       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8013              : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8013_debug        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8015              : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8015_debug        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8017              : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8017_debug        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_lin_lctn_0   : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_lin_lctn_0_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_lin_lctn_1       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_lin_lctn_1_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_mac_lctn_1       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_mac_lctn_1_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_mac_lctn_2       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_mac_lctn_2_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_win_lctn_1       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_win_lctn_1_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_win_lctn_2       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_upgrade_8019_win_lctn_2_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.portability_tablespace_linux         : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.portability_tablespace_windows       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.bug33788578                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.bug33788578_ddl                      : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.bug33788578_online_ddl               : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_upgrade_empty_disabled_log_normal_shutdown : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_upgrade_empty_log_fast_shutdown            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.log_upgrade                                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.partition_prefixkey_upgrade            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_error_cs                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_cs                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_error_ci                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_ci                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_upgrade_error_debug                 : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.dd_schema_definition_after_upgrade_80_debug : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.mysql_inplace_upgrade                  : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.mysql_80_inplace_upgrade               : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.upgrade_with_float_auto_increment      : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+main.read_only_ddl                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+encryption.upgrade                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
@@ -114,9 +171,17 @@ rpl_nogtid.rpl_nogtid_encryption_read             : Bug#36172046 Update rpl_nogt
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
 rpl.rpl_writeset_add_unique_key : Bug#33134835 RPL_WRITESET_ADD_UNIQUE_KEY FAILS SPORADICALLY
+<<<<<<< HEAD
 
 # secondary_engine tests
 secondary_engine.query_preparation : BUG#36306426 Disabled until bug is fixed
+||||||| 0e33d640d4f
+rpl.rpl_replication_observers_example_plugin_ongoing_transaction : Bug#35982448	rpl_replication_observers_example_plugin_ongoing_transaction fails 
+
+# secondary_engine tests
+secondary_engine.query_preparation : BUG#36306426 Disabled until bug is fixed
+=======
+>>>>>>> mysql-9.0.1
 
 # sys_vars tests
 sys_vars.max_execution_time_basic @freebsd : BUG#31041720

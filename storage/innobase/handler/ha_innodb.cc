@@ -5394,6 +5394,16 @@ static void get_metric_simple_integer(void *measurement_context,
                                       void *delivery_context) {
   assert(measurement_context != nullptr);
   assert(delivery != nullptr);
+
+  // InnoDB counter values must be refreshed explicitly, like done by "SHOW
+  // STATUS" SQL handler. To keep the performance reasonable, we only call the
+  // function that refreshes the data for 1st InnoDB metric being defined (tests
+  // show that its callback always gets called first). The same call will also
+  // refresh data for all other InnoDB metrics being called subsequentently.
+  if (measurement_context == &export_vars.innodb_dblwr_pages_written) {
+    srv_export_innodb_status();
+  }
+
   // OTEL only supports int64_t integer counters, clamp wider types
   const T measurement = *(T *)measurement_context;
   const int64_t value = ut::clamp<int64_t>(measurement);
@@ -8693,6 +8703,7 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_JSON:  // JSON fields are stored as BLOBs
       return (DATA_BLOB);
     case MYSQL_TYPE_NULL:
@@ -8830,6 +8841,7 @@ ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
     case dd::enum_column_types::MEDIUM_BLOB:
     case dd::enum_column_types::BLOB:
     case dd::enum_column_types::LONG_BLOB:
+    case dd::enum_column_types::VECTOR:
       *charset_no = field_charset->number;
       if (field_charset != &my_charset_bin) *binary_type = 0;
       return (DATA_BLOB);
@@ -23845,12 +23857,13 @@ static MYSQL_SYSVAR_ULONG(
     INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
-    log_recent_closed_size, srv_log_recent_closed_size,
+    buf_flush_list_added_size, srv_buf_flush_list_added_size,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Size of a small buffer, which allows to break requirement for total order"
+    "Size of the window, which allows to break requirement for total order"
     " of dirty pages, when they are added to flush lists.",
-    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
-    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
+    NULL, NULL, INNODB_BUF_FLUSH_LIST_ADDED_SIZE_DEFAULT,
+    INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MIN, INNODB_BUF_FLUSH_LIST_ADDED_SIZE_MAX,
+    0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
@@ -24506,7 +24519,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_write_events),
     MYSQL_SYSVAR(log_flush_events),
     MYSQL_SYSVAR(log_recent_written_size),
-    MYSQL_SYSVAR(log_recent_closed_size),
+    MYSQL_SYSVAR(buf_flush_list_added_size),
     MYSQL_SYSVAR(log_wait_for_write_spin_delay),
     MYSQL_SYSVAR(log_wait_for_write_timeout),
     MYSQL_SYSVAR(log_wait_for_flush_spin_delay),

@@ -2,12 +2,12 @@
 .\"     Title: ndb_sign_keys
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/31/2024
+.\"      Date: 05/25/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.4
+.\"    Source: MySQL 9.0
 .\"  Language: English
 .\"
-.TH "NDB_SIGN_KEYS" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "NDB_SIGN_KEYS" "1" "05/25/2024" "MySQL 9\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -243,62 +243,6 @@ T}
 .TE
 .sp 1
 Use the name passed to this option for the CA Certificate file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-CA\-days\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---CA-days=#
-T}
-T{
-Introduced
-T}:T{
-8.4.1
-T}
-T{
-Type
-T}:T{
-Integer
-T}
-T{
-Default Value
-T}:T{
-1461
-T}
-T{
-Minimum Value
-T}:T{
--1
-T}
-T{
-Maximum Value
-T}:T{
-2147483647
-T}
-.TE
-.sp 1
-Set the lifetime of the certificate to this many days\&. The default is equivalent to 4 years plus 1 day\&.
-\-1
-means the certificate never expires\&.
-.sp
-This option was added in NDB 8\&.4\&.1\&.
 .RE
 .sp
 .RS 4
@@ -644,6 +588,56 @@ T}
 .TE
 .sp 1
 Create the CA key and certificate\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-CA\-days\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--CA-days=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+1461
+T}
+T{
+Minimum Value
+T}:T{
+-1
+T}
+T{
+Maximum Value
+T}:T{
+2147483647
+T}
+.TE
+.sp 1
+Set the lifetime of the certificate to this many days\&. The default is equivalent to 4 years plus 1 day\&.
+\-1
+means the certificate never expires\&.
+.sp
+This option was added in NDB 8\&.4\&.1\&.
 .RE
 .sp
 .RS 4

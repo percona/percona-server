@@ -807,7 +807,7 @@ int initialize_plugin_and_join(
    deadlock issues.
   */
   if (!lv.plugin_is_auto_starting_on_install) {
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode("(GR) start")) {
       /* purecov: begin inspected */
       error = 1;
       LogPluginErr(ERROR_LEVEL,
@@ -1358,7 +1358,7 @@ int plugin_group_replication_stop(char **error_message) {
   // Enable super_read_only.
   if (!lv.server_shutdown_status && !lv.plugin_is_being_uninstalled &&
       server_engine_initialized()) {
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode("(GR) leave group")) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_ENABLE_READ_ONLY_MODE_ON_SHUTDOWN);
@@ -5364,8 +5364,7 @@ bool get_preemptive_garbage_collection_var() {
   return ov.preemptive_garbage_collection_var;
 }
 
-static int check_preemptive_garbage_collection(MYSQL_THD thd, SYS_VAR *,
-                                               void *save,
+static int check_preemptive_garbage_collection(MYSQL_THD, SYS_VAR *, void *save,
                                                struct st_mysql_value *value) {
   DBUG_TRACE;
   bool in_val;

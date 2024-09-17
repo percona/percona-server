@@ -7519,8 +7519,13 @@ static void test_explain_bug() {
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 
-  stmt =
-      mysql_simple_prepare(mysql, "explain select id, name FROM test_explain");
+  stmt = mysql_simple_prepare(
+      mysql,
+      // Force use of the old optimizer, since the hypergraph optimizer does not
+      // support the tabular EXPLAIN format.
+      "explain select "
+      "/*+set_var(optimizer_switch='hypergraph_optimizer=off')*/"
+      " id, name FROM test_explain");
   check_stmt(stmt);
 
   rc = mysql_stmt_execute(stmt);
@@ -16540,131 +16545,6 @@ static void test_bug31418() {
 }
 
 /**
-  Bug#31669 Buffer overflow in mysql_change_user()
-*/
-
-#define LARGE_BUFFER_SIZE 2048
-
-static void test_bug31669() {
-  int rc;
-  static char buff[LARGE_BUFFER_SIZE + 1];
-  static char user[USERNAME_CHAR_LENGTH + 1];
-  static char db[NAME_CHAR_LEN + 1];
-  static char query[LARGE_BUFFER_SIZE * 2];
-  MYSQL *l_mysql;
-
-  DBUG_TRACE;
-  myheader("test_bug31669");
-
-  l_mysql = mysql_client_init(nullptr);
-  DIE_UNLESS(l_mysql != nullptr);
-
-  l_mysql = mysql_real_connect(l_mysql, opt_host, opt_user, opt_password,
-                               current_db, opt_port, opt_unix_socket, 0);
-  DIE_UNLESS(l_mysql != nullptr);
-
-  rc = mysql_change_user(l_mysql, nullptr, nullptr, nullptr);
-  DIE_UNLESS(rc);
-
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(l_mysql, "", "", "");
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  memset(buff, 'a', sizeof(buff));
-  buff[sizeof(buff) - 1] = '\0';
-
-  rc = mysql_change_user(l_mysql, buff, buff, buff);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
-  DIE_UNLESS(!rc);
-
-  memset(db, 'a', sizeof(db));
-  db[NAME_CHAR_LEN] = 0;
-  strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  memset(user, 'b', sizeof(user));
-  user[USERNAME_CHAR_LENGTH] = 0;
-  memset(buff, 'c', sizeof(buff));
-  buff[LARGE_BUFFER_SIZE] = 0;
-
-  strxmov(query, "CREATE USER '", user,
-          "'@'%' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'",
-          NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user,
-          "'@'%' WITH GRANT OPTION", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query, "CREATE USER '", user,
-          "'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY '", buff,
-          "'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user,
-          "'@'localhost' WITH GRANT OPTION", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  rc = mysql_query(mysql, "FLUSH PRIVILEGES");
-  myquery(rc);
-
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(!rc);
-
-  user[USERNAME_CHAR_LENGTH - 1] = 'a';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  user[USERNAME_CHAR_LENGTH - 1] = 'b';
-  buff[LARGE_BUFFER_SIZE - 1] = 'd';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  buff[LARGE_BUFFER_SIZE - 1] = 'c';
-  db[NAME_CHAR_LEN - 1] = 'e';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  db[NAME_CHAR_LEN - 1] = 'a';
-  rc = mysql_change_user(l_mysql, user, buff, db);
-  DIE_UNLESS(!rc);
-
-  rc = mysql_change_user(l_mysql, user + 1, buff + 1, db + 1);
-  DIE_UNLESS(rc);
-  reconnect(&l_mysql);
-
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
-  DIE_UNLESS(!rc);
-
-  strxmov(query, "DROP DATABASE ", db, NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query, "DROP USER '", user, "'@'localhost'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
-
-  strxmov(query, "DROP USER '", user, "'@'%'", NullS);
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 0);
-
-  mysql_close(l_mysql);
-}
-
-/**
   Bug#28386 the general log is incomplete
 */
 
@@ -23124,11 +23004,97 @@ static void test_wl15633(void) {
   mysql_close(mysql_local);
 }
 
+/**
+  Run single prepared statement. The statement must have 2 result fields
+  and 1 parameter.
+
+  @param stmt_text -the statement text
+*/
+static void test_bug34951115_run_one_ps(const char *stmt_text) {
+  MYSQL_BIND bind_params[1], bind_fields[2];
+  memset(bind_params, 0, sizeof(bind_params));
+  memset(bind_fields, 0, sizeof(bind_fields));
+  long param = 2;
+  long n = 3;
+  long id = 0;
+
+  bind_params[0].buffer_type = MYSQL_TYPE_LONG;
+  bind_params[0].buffer = &param;
+  bind_params[0].length = nullptr;
+  bind_params[0].buffer_length = sizeof(n);
+  bind_params[0].is_null = nullptr;
+
+  bind_fields[0].buffer_type = MYSQL_TYPE_LONG;
+  bind_fields[0].buffer = &id;
+  bind_fields[0].buffer_length = sizeof(id);
+  bind_fields[0].length = nullptr;
+  bind_fields[1].buffer_type = MYSQL_TYPE_LONG;
+  bind_fields[1].buffer = &n;
+  bind_fields[1].buffer_length = sizeof(n);
+  bind_fields[1].length = nullptr;
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+
+  int rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_named_param(stmt, bind_params, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, bind_fields);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent) {
+    printf("\n id |  n\n----+----\n");
+    while (mysql_stmt_fetch(stmt) == 0) {
+      printf("  %ld |  %ld\n", id, n);
+    }
+  }
+  mysql_stmt_close(stmt);
+}
+
+static void test_bug34951115(void) {
+  myheader("test_bug34951115");
+
+  /* Create and fill test table */
+  const char *stmt_text = "DROP TABLE IF EXISTS t";
+  int rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, n INT)";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "INSERT INTO t VALUES(1,5),(2,4),(3,3),(4,2),(5,1)";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  /* Run PS with ? replacing identifier in ORDER BY.
+     This is not a valid usage, the parameter will be ignored,
+     but the test proves the preparation and execution not hanging. */
+  test_bug34951115_run_one_ps("SELECT id,n FROM t ORDER BY ?");
+
+  /* Run PS with ? replacing value in SELECT. This is a valid use,
+     the test must succeed.*/
+  test_bug34951115_run_one_ps("SELECT id,n+? FROM t");
+
+  stmt_text = "DROP TABLE IF EXISTS t";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+}
+
 static void finish_with_error(MYSQL *con) {
   fprintf(stderr, "[%i] %s\n", mysql_errno(con), mysql_error(con));
   mysql_close(con);
   exit(1);
 }
+
 static bool send_query(MYSQL *mysql_con, const char *query) {
   printf("Sending query: %s\n", query);
   int res = mysql_query(mysql_con, query);
@@ -23211,8 +23177,10 @@ static void test_wl16221_set_ssl() {
 
   if (!mysql_ssl_set(mysql, nullptr, nullptr, nullptr, nullptr, nullptr))
     printf("\nmysql_ssl_set passed!\n");
-  else
+  else {
     fprintf(stderr, "\nmysql_ssl_set_failed!\n");
+    finish_with_error(mysql);
+  }
   mysql_close(mysql);
 }
 
@@ -23251,8 +23219,10 @@ static void test_wl16221_processes() {
   if (res) {
     printf("\nmysql_list_processes test succeded!\n");
     mysql_free_result(res);
-  } else
+  } else {
     fprintf(stderr, "\nmysql_list_processes test failed!\n");
+    finish_with_error(mysql);
+  }
   mysql_close(mysql);
 }
 
@@ -23311,8 +23281,10 @@ static void test_wl16221_refresh() {
   int rc = mysql_refresh(mysql, REFRESH_GRANT | REFRESH_LOG);
   if (!rc)
     printf("\nmysql_refresh passed!\n");
-  else
+  else {
     printf("\nmysql_refresh failed!\n");
+    finish_with_error(mysql);
+  }
 
   mysql_close(mysql);
 }
@@ -23331,8 +23303,10 @@ static void test_wl16221_reload() {
   int rc = mysql_reload(mysql);
   if (!rc)
     printf("\nmysql_reload passed!\n");
-  else
+  else {
     printf("\nmysql_reload failed!\n");
+    finish_with_error(mysql);
+  }
 
   mysql_close(mysql);
 }
@@ -23394,21 +23368,21 @@ static void test_wl16221_bind_param() {
      to specify buffer_length */
   bind[0].buffer_type = MYSQL_TYPE_LONG;
   bind[0].buffer = (char *)&int_data;
-  bind[0].is_null = 0;
-  bind[0].length = 0;
+  bind[0].is_null = nullptr;
+  bind[0].length = nullptr;
 
   /* STRING PARAM */
   bind[1].buffer_type = MYSQL_TYPE_STRING;
   bind[1].buffer = (char *)str_data;
   bind[1].buffer_length = STRING_SIZE;
-  bind[1].is_null = 0;
+  bind[1].is_null = nullptr;
   bind[1].length = &str_length;
 
   /* SMALLINT PARAM */
   bind[2].buffer_type = MYSQL_TYPE_SHORT;
   bind[2].buffer = (char *)&small_data;
   bind[2].is_null = &is_null;
-  bind[2].length = 0;
+  bind[2].length = nullptr;
 
   /* Bind the buffers */
   if (mysql_stmt_bind_param(stmt, bind)) {
@@ -23477,91 +23451,6 @@ static void test_wl16221_bind_param() {
     fprintf(stderr, " failed while closing the statement\n");
     finish_with_error(mysql);
   }
-}
-
-/**
-  Run single prepared statement. The statement must have 2 result fields
-  and 1 parameter.
-
-  @param stmt_text -the statement text
-*/
-static void test_bug34951115_run_one_ps(const char *stmt_text) {
-  MYSQL_BIND bind_params[1], bind_fields[2];
-  memset(bind_params, 0, sizeof(bind_params));
-  memset(bind_fields, 0, sizeof(bind_fields));
-  long param = 2;
-  long n = 3;
-  long id = 0;
-
-  bind_params[0].buffer_type = MYSQL_TYPE_LONG;
-  bind_params[0].buffer = &param;
-  bind_params[0].length = NULL;
-  bind_params[0].buffer_length = sizeof(n);
-  bind_params[0].is_null = 0;
-
-  bind_fields[0].buffer_type = MYSQL_TYPE_LONG;
-  bind_fields[0].buffer = &id;
-  bind_fields[0].buffer_length = sizeof(id);
-  bind_fields[0].length = NULL;
-  bind_fields[1].buffer_type = MYSQL_TYPE_LONG;
-  bind_fields[1].buffer = &n;
-  bind_fields[1].buffer_length = sizeof(n);
-  bind_fields[1].length = NULL;
-
-  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
-
-  int rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_bind_named_param(stmt, bind_params, 1, nullptr);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_bind_result(stmt, bind_fields);
-  check_execute(stmt, rc);
-
-  rc = mysql_stmt_store_result(stmt);
-  check_execute(stmt, rc);
-
-  if (!opt_silent) {
-    printf("\n id |  n\n----+----\n");
-    while (mysql_stmt_fetch(stmt) == 0) {
-      printf("  %ld |  %ld\n", id, n);
-    }
-  }
-  mysql_stmt_close(stmt);
-}
-
-static void test_bug34951115(void) {
-  myheader("test_bug34951115");
-
-  /* Create and fill test table */
-  const char *stmt_text = "DROP TABLE IF EXISTS t";
-  int rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  stmt_text = "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, n INT)";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  stmt_text = "INSERT INTO t VALUES(1,5),(2,4),(3,3),(4,2),(5,1)";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
-
-  /* Run PS with ? replacing identifier in ORDER BY.
-     This is not a valid usage, the parameter will be ignored,
-     but the test proves the preparation and execution not hanging. */
-  test_bug34951115_run_one_ps("SELECT id,n FROM t ORDER BY ?");
-
-  /* Run PS with ? replacing value in SELECT. This is a valid use,
-     the test must succeed.*/
-  test_bug34951115_run_one_ps("SELECT id,n+? FROM t");
-
-  stmt_text = "DROP TABLE IF EXISTS t";
-  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
-  myquery(rc);
 }
 
 static struct my_tests_st my_tests[] = {
@@ -23786,7 +23675,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug20023", test_bug20023},
     {"test_bug45010", test_bug45010},
     {"test_bug31418", test_bug31418},
-    {"test_bug31669", test_bug31669},
     {"test_bug28386", test_bug28386},
     {"test_wl4166_1", test_wl4166_1},
     {"test_wl4166_2", test_wl4166_2},
@@ -23868,6 +23756,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl15633", test_wl15633},
     {"test_server_telemetry_traces_prepared",
      test_server_telemetry_traces_prepared},
+    {"test_bug34951115", test_bug34951115},
     {"test_wl16221_reconnect", test_wl16221_reconnect},
     {"test_wl16221_set_ssl", test_wl16221_set_ssl},
     {"test_wl16221_kill", test_wl16221_kill},
@@ -23876,7 +23765,6 @@ static struct my_tests_st my_tests[] = {
     {"test_wl16221_refresh", test_wl16221_refresh},
     {"test_wl16221_reload", test_wl16221_reload},
     {"test_wl16221_bind_param", test_wl16221_bind_param},
-    {"test_bug34951115", test_bug34951115},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

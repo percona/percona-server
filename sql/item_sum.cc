@@ -54,6 +54,7 @@
 #include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql-common/json_dom.h"
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/create_field.h"
@@ -491,8 +492,14 @@ bool Item_sum::resolve_type(THD *thd) {
 
   // None except these 4 types are allowed for geometry arguments.
   if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC ||
-        t == GEOMETRY_AGGREGATE_FUNC))
-    return reject_geometry_args(arg_count, args, this);
+        t == GEOMETRY_AGGREGATE_FUNC)) {
+    if (reject_geometry_args()) return true;
+  }
+
+  if (t != COUNT_FUNC && t != COUNT_DISTINCT_FUNC) {
+    if (reject_vector_args()) return true;
+  }
+
   return false;
 }
 
@@ -596,13 +603,13 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
   return false;
 }
 
-/// @note Please keep in sync with Item_func::eq().
-bool Item_sum::eq(const Item *item, bool binary_cmp) const {
-  /* Assume we don't have rtti */
+/**
+  @todo Remove this function when rollup wrappers are removed.
+        Item_func::eq() works for all Item_sum functions.
+*/
+bool Item_sum::eq(const Item *item) const {
   if (this == item) return true;
-  if (item->type() != type() ||
-      item->m_is_window_function != m_is_window_function)
-    return false;
+  if (item->type() != type()) return false;
   const Item_sum *item_sum = down_cast<const Item_sum *>(item);
   const enum Sumfunctype my_sum_func = sum_func();
   if (item_sum->sum_func() != my_sum_func || item_sum->m_window != m_window)
@@ -612,16 +619,23 @@ bool Item_sum::eq(const Item *item, bool binary_cmp) const {
     // we want to compare underlying Item_sums
     const Item_sum *this_real_sum = unwrap_sum();
     const Item_sum *item_real_sum = item_sum->unwrap_sum();
-    return this_real_sum->eq(item_real_sum, binary_cmp);
+    return this_real_sum->eq(item_real_sum);
   }
 
   if (arg_count != item_sum->arg_count ||
-      (my_sum_func != Item_sum::UDF_SUM_FUNC &&
-       strcmp(func_name(), item_sum->func_name()) != 0) ||
-      (my_sum_func == Item_sum::UDF_SUM_FUNC &&
-       my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
+      my_strcasecmp(system_charset_info, func_name(), item_sum->func_name()) ||
+      !eq_specific(item))
     return false;
-  return AllItemsAreEqual(args, item_sum->args, arg_count, binary_cmp);
+  if (arg_count == 0) return true;
+  return AllItemsAreEqual(args, item_sum->args, arg_count);
+}
+
+bool Item_sum::eq_specific(const Item *item) const {
+  const Item_sum *item_sum = down_cast<const Item_sum *>(item);
+  if (item->m_is_window_function != m_is_window_function ||
+      item_sum->sum_func() != sum_func() || item_sum->m_window != m_window)
+    return false;
+  return true;
 }
 
 bool Item_sum::aggregate_check_distinct(uchar *arg) {
@@ -1325,8 +1339,13 @@ bool Aggregator_distinct::add() {
     }
     return false;
   } else {
+    const enum_check_fields saved_value = thd->check_for_truncated_fields;
+    auto reset_check_truncated_fields = create_scope_guard(
+        [thd, saved_value] { thd->check_for_truncated_fields = saved_value; });
+    thd->check_for_truncated_fields = CHECK_FIELD_WARN;
+
     item_sum->get_arg(0)->save_in_field(table->field[0], false);
-    if (current_thd->is_error()) {
+    if (thd->is_error()) {
       return true;
     }
     if (table->field[0]->is_null()) return false;
@@ -1480,6 +1499,8 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_sum_bit::resolve_type(THD *thd) {
+  if (reject_vector_args()) return true;
+
   // Assume varbinary; if integer is provided then re-prepare.
   if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
     if (args[0]->propagate_type(
@@ -1532,7 +1553,7 @@ bool Item_sum_bit::resolve_type(THD *thd) {
   decimals = 0;
   unsigned_flag = true;
 
-  return reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args();
 }
 
 void Item_sum_bit::remove_bits(const String *s1, ulonglong b1) {
@@ -1894,7 +1915,8 @@ void Item_sum_sum::no_rows_in_result() { clear(); }
 bool Item_sum_sum::resolve_type(THD *thd) {
   DBUG_TRACE;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_vector_args()) return true;
+  if (reject_geometry_args()) return true;
 
   set_nullable(true);
   null_value = true;
@@ -1913,7 +1935,8 @@ bool Item_sum_sum::resolve_type(THD *thd) {
     case DECIMAL_RESULT: {
       // SUM result cannot be longer than length(arg) + length(MAX_ROWS)
       const int precision =
-          args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
+          min<uint>(args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS,
+                    DECIMAL_MAX_PRECISION);
       set_data_type_decimal(precision, args[0]->decimals);
       curr_dec_buff = 0;
       my_decimal_set_zero(dec_buffs);
@@ -2248,7 +2271,8 @@ bool Item_sum_avg::resolve_type(THD *thd) {
   null_value = true;
   prec_increment = thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT) {
-    const int precision = args[0]->decimal_precision() + prec_increment;
+    const int precision = min<uint>(
+        args[0]->decimal_precision() + prec_increment, DECIMAL_MAX_PRECISION);
     int scale =
         min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
     set_data_type_decimal(precision, scale);
@@ -2643,8 +2667,8 @@ bool Item_sum_variance::resolve_type(THD *thd) {
   */
   set_data_type_double();
   hybrid_type = REAL_RESULT;
-
-  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (reject_vector_args()) return true;
+  if (reject_geometry_args()) return true;
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
   return false;
 }
@@ -2811,7 +2835,7 @@ bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
     ORDER *o = order->value.first;
     // The logic below (see class's doc) makes sense only for MIN and MAX
     assert(sum_func() == MIN_FUNC || sum_func() == MAX_FUNC);
-    if ((*o->item)->real_item()->eq(args[0]->real_item(), false)) {
+    if ((*o->item)->real_item()->eq(args[0]->real_item())) {
       if (r->row_optimizable || r->range_optimizable) {
         m_optimize = true;
         value->setup(args[0]);  // no comparisons needed
@@ -5141,6 +5165,7 @@ bool Item_first_last_value::resolve_type(THD *thd) {
   set_nullable(true);  // if empty frame, notwithstanding nullability of arg
   null_value = true;
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   set_data_type_from_item(args[0]);
   m_hybrid_type = args[0]->result_type();
 
@@ -5294,6 +5319,7 @@ String *Item_first_last_value::val_str(String *str) {
 
 bool Item_nth_value::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
+  if (reject_vector_args()) return true;
   if (args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
 
   set_nullable(true);
@@ -5526,6 +5552,7 @@ bool Item_lead_lag::resolve_type(THD *thd) {
     arg_count--;
   }
 
+  if (reject_vector_args()) return true;
   if (param_type_uses_non_param(thd)) return true;
 
   if (aggregate_type(func_name(), args, arg_count)) return true;
@@ -6036,7 +6063,7 @@ bool Item_sum_json_object::check_wf_semantics1(
   const PT_order_list *order = m_window->effective_order_by();
   if (order != nullptr) {
     ORDER *o = order->value.first;
-    if (o->item[0]->real_item()->eq(args[0]->real_item(), false)) {
+    if (o->item[0]->real_item()->eq(args[0]->real_item())) {
       r->needs_last_peer_in_frame = true;
       m_optimize = true;
     }
@@ -6242,7 +6269,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   */
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
-    if ((*arg)->type() == Item::INT_ITEM && (*arg)->basic_const_item()) {
+    if ((*arg)->type() == Item::INT_ITEM) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "GROUPING function");
       return true;
     }

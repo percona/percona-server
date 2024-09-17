@@ -81,6 +81,7 @@
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/replace_item.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/key.h"  // key_cmp
@@ -472,8 +473,8 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
     }
   } else if (cond->type() == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
-                 Item_func::MULT_EQUAL_FUNC) {
-    Item_equal *item_equal = (Item_equal *)cond;
+                 Item_func::MULTI_EQ_FUNC) {
+    Item_multi_eq *item_equal = down_cast<Item_multi_eq *>(cond);
     const bool contained_const = item_equal->const_arg() != nullptr;
     if (item_equal->update_const(thd)) return true;
     if (!contained_const && item_equal->const_arg()) {
@@ -494,7 +495,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
         if (!possible_keys.is_clear_all()) {
           TABLE *const table = field->table;
           for (Key_use *use = stat->keyuse();
-               use && use->table_ref == item_field.table_ref; use++) {
+               use && use->table_ref == item_field.m_table_ref; use++) {
             if (possible_keys.is_set(use->key) &&
                 table->key_info[use->key].key_part[use->keypart].field == field)
               table->const_key_parts[use->key] |= use->keypart_map;
@@ -859,7 +860,7 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
       }
     } else if (item->type() == Item::FIELD_ITEM) {
       bool dummy;
-      Item_equal *item_eq = find_item_equal(
+      Item_multi_eq *item_eq = find_item_equal(
           table_list->cond_equal, down_cast<Item_field *>(item), &dummy);
       if (item_eq == nullptr) {
         // Didn't come from a multi-equality.
@@ -3251,8 +3252,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewTemptableAggregateAccessPath(
-          thd, path, qep_tab->tmp_table_param, qep_tab->table(), table_path,
-          qep_tab->ref_item_slice);
+          thd, path, /*join=*/this, qep_tab->tmp_table_param, qep_tab->table(),
+          table_path, qep_tab->ref_item_slice);
       if (qep_tab->having != nullptr) {
         path = NewFilterAccessPath(thd, path, qep_tab->having);
       }
@@ -3366,14 +3367,28 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(
     path = add_filter_access_path(thd, path, having_cond, query_block);
   }
 
+  Query_expression *const qe = query_expression();
+
+  // For IN/EXISTS subqueries, it's ok to optimize with limit 1 for top level
+  // of set operation in the presence of EXCEPT ALL, but in not nested set
+  // operands lest we lose rows significant to the result of the EXCEPT ALL.
+  const bool skip_limit =
+      (qe->m_contains_except_all &&
+       // check that qe inside subquery: no user given
+       // limit/offset can interfere,
+       // cf. ER_NOT_SUPPORTED_YET("LIMIT & IN/ALL/ANY/SOME
+       // subquery"), so safe to assume the limit is the
+       // optimization we want to suppress
+       qe->item != nullptr && qe->query_term()->query_block() != query_block);
+
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
   // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
-  if (query_expression()->select_limit_cnt != HA_POS_ERROR ||
-      query_expression()->offset_limit_cnt != 0) {
-    path = NewLimitOffsetAccessPath(
-        thd, path, query_expression()->select_limit_cnt,
-        query_expression()->offset_limit_cnt, calc_found_rows, false,
-        /*send_records_override=*/nullptr);
+  if ((qe->select_limit_cnt != HA_POS_ERROR && !skip_limit) ||
+      qe->offset_limit_cnt != 0) {
+    path =
+        NewLimitOffsetAccessPath(thd, path, qe->select_limit_cnt,
+                                 qe->offset_limit_cnt, calc_found_rows, false,
+                                 /*send_records_override=*/nullptr);
   }
 
   return path;
@@ -3586,7 +3601,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
     if (thd->is_error()) return 1;
   }
 
-  /* Check appearance of new constant items in Item_equal objects */
+  /* Check appearance of new constant items in Item_multi_eq objects */
   JOIN *const join = tab->join();
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
     return 1;
@@ -4196,8 +4211,8 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
 
 /// Compute the position mapping from fields to ref_item_array, cf.
 /// detailed explanation in change_to_use_tmp_fields_except_sums
-static size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
-                              size_t added_non_hidden_fields, size_t border) {
+size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
+                       size_t added_non_hidden_fields, size_t border) {
   const size_t num_select_elements = fields.size() - border;
   const size_t orig_num_select_elements =
       num_select_elements - added_non_hidden_fields;
@@ -4260,7 +4275,7 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
     for (Item *other_item : *fields) {
-      if (other_item->eq(sub_item, false)) {
+      if (other_item->eq(sub_item)) {
         Field *field = other_item->get_tmp_table_field();
         Item *item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
@@ -4320,22 +4335,13 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
       field = item->get_tmp_table_field();
       if (field != nullptr) {
         /*
-          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
-          would re-evaluate <expression>, and if expression were a subquery,
-          this would access already-unlocked tables.
+          Replace "@:=<expr>" with "@:=<tmp_table_column>" rather than
+          "<tmp_table_column>".
           We do not perform the special handling for tmp tables used for
           windowing, though.
-          TODO: remove this code cf. deprecated setting of variable in
-          expressions when it is finally disallowed.
         */
-        Item_func_set_user_var *suv =
-            new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
-        Item_field *new_field = new Item_field(field);
-        if (!suv || !new_field) return true;  // Fatal error
-        mem_root_deque<Item *> list(thd->mem_root);
-        if (list.push_back(new_field)) return true;
-        if (suv->set_arguments(&list, true)) return true;
-        new_item = suv;
+        new_item = ReplaceSetVarItem(thd, item, new Item_field(field));
+        if (new_item == nullptr) return true;
       } else
         new_item = item;
     } else if ((field = item->get_tmp_table_field())) {
@@ -4382,7 +4388,7 @@ static Item_rollup_group_item *find_rollup_item_in_group_list(
     // (E.g. GROUP BY f1,f1,f2), rollup_item is set only for
     // the first field.
     if (rollup_item != nullptr) {
-      if (item->eq(rollup_item, /*binary_cmp=*/false)) {
+      if (item->eq(rollup_item)) {
         return rollup_item;
       }
     }

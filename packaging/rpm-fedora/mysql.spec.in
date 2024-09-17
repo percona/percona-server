@@ -1102,6 +1102,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_native_password.so
 
 %files test
 %doc %{?license_files_server}
@@ -1156,6 +1157,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_int.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_reg_only.so
@@ -1219,6 +1221,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_native_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
@@ -1257,6 +1260,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_int.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_reg_only.so
@@ -1380,12 +1384,13 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_server.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysql.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing_connections.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
-%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.24.4.0
+%{_libdir}/mysqlrouter/private/libprotobuf.so.24.4.0
 %{_libdir}/mysqlrouter/private/libabsl_*.so
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
@@ -1395,6 +1400,9 @@ fi
 %endif # with_router
 
 %changelog
+* Mon May 20 2024 Murthy Sidagam <venkata.sidagam@oracle.com> - 9.0
+- Added component_test_session_var_service.so component
+
 * Mon Feb 12 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.4.0-1
 - Removed keyring_file plugin
 

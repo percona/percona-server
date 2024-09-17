@@ -32,8 +32,7 @@
 
 #include <rapidjson/document.h>
 
-namespace keyring_common {
-namespace config {
+namespace keyring_common::config {
 
 class Config_reader {
  public:
@@ -44,7 +43,13 @@ class Config_reader {
 
     @param [in] config_file_path Full path to configuration file
   */
+<<<<<<< HEAD
   inline explicit Config_reader(const std::string config_file_path);
+||||||| 0e33d640d4f
+  explicit Config_reader(const std::string config_file_path);
+=======
+  explicit Config_reader(std::string config_file_path);
+>>>>>>> mysql-9.0.1
 
   /**
     Get an element value from JSON document.
@@ -59,7 +64,7 @@ class Config_reader {
       @retval true  Element missing.
   */
   template <typename T>
-  bool get_element(const std::string element_name, T &element_value) {
+  bool get_element(const std::string &element_name, T &element_value) {
     if (!valid_ || !data_.HasMember(element_name)) return true;
     element_value = data_[element_name].Get<T>();
     return false;
@@ -108,8 +113,7 @@ class Config_reader {
   bool valid_;
 };
 
-}  // namespace config
-}  // namespace keyring_common
+}  // namespace keyring_common::config
 
 #endif  // !CONFIG_READER_INCLUDED
 

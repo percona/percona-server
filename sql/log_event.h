@@ -2495,8 +2495,17 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
     assert(m_colcnt > 0);
+    uint vector_column_count =
+        table_def::vector_column_count(m_coltype, m_colcnt);
+    std::vector<unsigned int> vector_dimensionality;
+    if (vector_column_count > 0) {
+      const Optional_metadata_fields fields(m_optional_metadata,
+                                            m_optional_metadata_len);
+      vector_dimensionality = fields.m_vector_dimensionality;
+    }
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
-                         m_field_metadata_size, m_null_bits, m_flags);
+                         m_field_metadata_size, m_null_bits, m_flags,
+                         vector_dimensionality);
   }
   static bool rewrite_db_in_buffer(
       char **buf, ulong *event_len,
@@ -2636,6 +2645,7 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
   bool init_geometry_type_field();
   bool init_primary_key_field();
   bool init_column_visibility_field();
+  bool init_vector_dimensionality_field();
 #endif
 
 #ifndef MYSQL_SERVER
@@ -3768,11 +3778,24 @@ class Rows_query_log_event : public Ignorable_log_event,
       : Ignorable_log_event(thd_arg) {
     DBUG_TRACE;
     common_header->type_code = mysql::binlog::event::ROWS_QUERY_LOG_EVENT;
+    m_rows_query_length = query_len;
     if (!(m_rows_query =
               (char *)my_malloc(key_memory_Rows_query_log_event_rows_query,
-                                query_len + 1, MYF(MY_WME))))
+                                m_rows_query_length, MYF(MY_WME))))
       return;
-    snprintf(m_rows_query, query_len + 1, "%s", query);
+    memcpy(m_rows_query, query, m_rows_query_length);
+    DBUG_EXECUTE_IF(
+        "rows_query_alter", size_t i = 0; while (i < m_rows_query_length) {
+          if (m_rows_query[i] == '\\') {
+            m_rows_query[i] = '\0';
+            i++;
+            for (auto j = i; j < m_rows_query_length - 1; j++) {
+              m_rows_query[j] = m_rows_query[j + 1];
+            }
+            m_rows_query_length -= 1;
+          } else
+            i++;
+        });
     DBUG_PRINT("enter", ("%s", m_rows_query));
     return;
   }
@@ -3799,7 +3822,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 #endif
   size_t get_data_size() override {
     return mysql::binlog::event::Binary_log_event::IGNORABLE_HEADER_LEN + 1 +
-           strlen(m_rows_query);
+           m_rows_query_length;
   }
 };
 
@@ -4114,6 +4137,9 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
   rpl_sidno get_sidno(Tsid_map *tsid_map) { return tsid_map->add_tsid(tsid); }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const override { return spec.gtid.gno; }
+
+  /// @returns The GTID event specification
+  Gtid_specification get_gtid_spec();
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;

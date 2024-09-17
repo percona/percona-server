@@ -6691,6 +6691,19 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   return 1; /* Connected */
 }
 
+/**
+   Enable the hypergraph optimizer in a connection. Set it as a session variable
+   in order to take effect in the current session, but also as a global variable
+   so that a test case can do "SET optimizer_switch = DEFAULT;" without
+   switching to the old optimizer for the rest of the session.
+*/
+static bool enable_hypergraph_optimizer(st_connection *con) {
+  const char *set_stmt =
+      "SET @@session.optimizer_switch='hypergraph_optimizer=on', "
+      "@@global.optimizer_switch='hypergraph_optimizer=on';";
+  return mysql_query_wrapper(&con->mysql, set_stmt) != 0;
+}
+
 /*
   Open a new connection to MySQL Server with the parameters
   specified. Make the new connection the current connection.
@@ -6799,6 +6812,9 @@ static void do_connect(struct st_command *command) {
       revert_properties();
       if (ds_connection_name.length) set_current_connection(con_slot);
       assert(con_slot != next_con);
+      if (opt_hypergraph) {
+        enable_hypergraph_optimizer(con_slot);
+      }
     }
     /* mysql_reconnect changes this setting to true. We really want it to be
     false at all times. */
@@ -8370,6 +8386,30 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
   }
 #endif
 
+  const size_t temp_val_max_width = (1 << 14);
+  char temp_val[temp_val_max_width];
+  DYNAMIC_STRING ds_temp = {.str = nullptr, .length = 0, .max_length = 0};
+  if (field->type == MYSQL_TYPE_VECTOR && !is_null) {
+    /* Do a binary to hex conversion for vector type */
+    size_t orig_len = len;
+    len = 2 + orig_len * 2;
+    char *destination = temp_val;
+    if (len > temp_val_max_width) {
+      init_dynamic_string(&ds_temp, "", len + 1);
+      destination = ds_temp.str;
+    }
+    const char *ptr = val;
+    const char *end = ptr + orig_len;
+    val = destination;
+    int written = sprintf(destination, "0x");
+    destination += written;
+    for (; ptr < end; ptr++, destination += written) {
+      written = sprintf(
+          destination, "%02X",
+          *(static_cast<const uchar *>(static_cast<const void *>(ptr))));
+    }
+  }
+
   if (!display_result_vertically) {
     if (col_idx) dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_mem(ds, val, len);
@@ -8378,6 +8418,10 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
     dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_mem(ds, val, len);
     dynstr_append_mem(ds, "\n", 1);
+  }
+
+  if (ds_temp.str != nullptr) {
+    dynstr_free(&ds_temp);
   }
 }
 
@@ -9792,9 +9836,7 @@ int main(int argc, char **argv) {
   set_current_connection(con);
 
   if (opt_hypergraph) {
-    const int error = mysql_query_wrapper(
-        &con->mysql, "SET optimizer_switch='hypergraph_optimizer=on';");
-    if (error != 0) {
+    if (enable_hypergraph_optimizer(con)) {
       die("--hypergraph was given, but the server does not support the "
           "hypergraph optimizer. (errno=%d)",
           my_errno());

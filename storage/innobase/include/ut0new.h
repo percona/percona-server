@@ -441,6 +441,7 @@ static constexpr const char *auto_event_names[] = {
     "ut0mem",
     "ut0mutex",
     "ut0new",
+    "ut0object_cache",
     "ut0pool",
     "ut0rbt",
     "ut0rnd",

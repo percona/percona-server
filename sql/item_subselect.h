@@ -180,11 +180,6 @@ class Item_subselect : public Item_result_field {
   bool inform_item_in_cond_of_tab(uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
 
-  const char *func_name() const override {
-    assert(0);
-    return "subquery";
-  }
-
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -322,20 +317,38 @@ class Item_singlerow_subselect : public Item_subselect {
     Argument for walk method replace_scalar_subquery
   */
   struct Scalar_subquery_replacement {
-    Item_singlerow_subselect *m_target;  ///< subquery to be replaced with field
-    Field *m_field;                      ///< the replacement field
-    Query_block *m_outer_query_block;    ///< The transformed query block.
-    Query_block *m_inner_query_block;    ///< The immediately surrounding query
-                                       ///< block. This will be the transformed
-                                       ///< block or a subquery of it
+    ///< subquery to be replaced with field from derived table
+    Item_singlerow_subselect *m_target;
+    ///< The derived table of the transform
+    TABLE *m_derived;
+    ///< the replacement field
+    Field *m_field;
+    ///< The transformed query block.
+    Query_block *m_outer_query_block;
+    ///< The immediately surrounding query block. This will be the transformed
+    ///< block or a subquery of it
+    Query_block *m_inner_query_block;
+    ///< True if subquery's selected item contains a COUNT aggregate
     bool m_add_coalesce{false};
-    Scalar_subquery_replacement(Item_singlerow_subselect *target, Field *field,
-                                Query_block *select, bool add_coalesce)
+    ///< Presence of HAVING clause in subquery: Only relevant if
+    ///< \c m_add_coalesce is true
+    bool m_add_having_compensation{false};
+    ///< Index of field holding value of having clause in derived table's list
+    ///< of fields. Only relevant if \c m_add_coalesce is true
+    uint m_having_idx{0};
+
+    Scalar_subquery_replacement(Item_singlerow_subselect *target,
+                                TABLE *derived, Field *field,
+                                Query_block *select, bool add_coalesce,
+                                bool add_having_compensation, uint having_idx)
         : m_target(target),
+          m_derived(derived),
           m_field(field),
           m_outer_query_block(select),
           m_inner_query_block(select),
-          m_add_coalesce(add_coalesce) {}
+          m_add_coalesce(add_coalesce),
+          m_add_having_compensation(add_having_compensation),
+          m_having_idx(having_idx) {}
   };
 
   Item *replace_scalar_subquery(uchar *arge) override;

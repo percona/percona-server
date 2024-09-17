@@ -480,6 +480,7 @@ err:
   return ret;
 }
 
+<<<<<<< HEAD
 bool Relay_log_info::mts_workers_queue_empty() const {
   ulong ret = 0;
 
@@ -517,6 +518,11 @@ bool Relay_log_info::cannot_safely_rollback() const {
 }
 
 static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
+||||||| 0e33d640d4f
+static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
+=======
+static inline int add_relay_log(Relay_log_info *rli, Log_info *linfo) {
+>>>>>>> mysql-9.0.1
   MY_STAT s;
   DBUG_TRACE;
   mysql_mutex_assert_owner(&rli->log_space_lock);
@@ -534,7 +540,7 @@ static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
 }
 
 int Relay_log_info::count_relay_log_space() {
-  LOG_INFO flinfo;
+  Log_info flinfo;
   DBUG_TRACE;
   MUTEX_LOCK(lock, &log_space_lock);
   log_space_total = 0;
@@ -555,7 +561,7 @@ int Relay_log_info::count_relay_log_space() {
 }
 
 bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
-  LOG_INFO linfo;
+  Log_info linfo;
 
   mysql_mutex_assert_owner(&data_lock);
 
@@ -572,7 +578,7 @@ bool Relay_log_info::is_group_relay_log_name_invalid(const char **errmsg) {
   DBUG_TRACE;
   const char *errmsg_fmt = nullptr;
   static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
-  LOG_INFO linfo;
+  Log_info linfo;
 
   *errmsg = nullptr;
   if (relay_log.find_log_pos(&linfo, group_relay_log_name, true)) {

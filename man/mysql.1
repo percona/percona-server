@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/31/2024
+.\"      Date: 05/24/2024
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.4
+.\"    Source: MySQL 9.0
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "05/31/2024" "MySQL 8\&.4" "MySQL Database System"
+.TH "MYSQL" "1" "05/24/2024" "MySQL 9\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -3134,7 +3134,7 @@ T}
 .sp 1
 The path name to a file in PEM format containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. This option applies to clients that authenticate with the
 sha256_password
-(deprecated) or
+or
 caching_sha2_password
 authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
@@ -3144,8 +3144,7 @@ is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
 For
-sha256_password
-(deprecated), this option applies only if MySQL was built using OpenSSL\&.
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
@@ -6530,27 +6529,27 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Shell 8.4
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.4/en/
+\%https://dev.mysql.com/doc/mysql-shell/9.0/en/
 .RE
 .IP " 2." 4
 C API Basic Data Structures
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-data-structures.html
+\%https://dev.mysql.com/doc/c-api/9.0/en/c-api-data-structures.html
 .RE
 .IP " 3." 4
 Multiple Statement Execution Support
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-multiple-queries.html
+\%https://dev.mysql.com/doc/c-api/9.0/en/c-api-multiple-queries.html
 .RE
 .IP " 4." 4
 mysql_change_user()
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.4/en/mysql-change-user.html
+\%https://dev.mysql.com/doc/c-api/9.0/en/mysql-change-user.html
 .RE
 .IP " 5." 4
 Automatic Reconnection Control
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.4/en/c-api-auto-reconnect.html
+\%https://dev.mysql.com/doc/c-api/9.0/en/c-api-auto-reconnect.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

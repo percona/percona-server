@@ -537,6 +537,8 @@ class Item_sum : public Item_func {
   /// Copy constructor, need to perform subqueries with temporary tables
   Item_sum(THD *thd, const Item_sum *item);
 
+  ~Item_sum() override { assert(aggr == nullptr); }
+
   bool do_itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;
@@ -597,7 +599,8 @@ class Item_sum : public Item_func {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool eq(const Item *item, bool binary_cmp) const override;
+  bool eq(const Item *item) const override;
+  bool eq_specific(const Item *item) const override;
   /**
     Mark an aggregate as having no rows.
 
@@ -1145,7 +1148,7 @@ class Item_sum_hybrid_field : public Item_result_field {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->banned_function_name = func_name();
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
   void cleanup() override {
@@ -1184,10 +1187,6 @@ class Item_avg_field : public Item_sum_num_field {
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override { return false; }
-  const char *func_name() const override {
-    assert(0);
-    return "avg_field";
-  }
 };
 
 /// This is used in connection with an Item_sum_bit, @see Item_sum_hybrid_field
@@ -1206,10 +1205,6 @@ class Item_sum_bit_field : public Item_sum_hybrid_field {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   enum Type type() const override { return AGGR_FIELD_ITEM; }
-  const char *func_name() const override {
-    assert(0);
-    return "sum_bit_field";
-  }
 };
 
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
@@ -1368,10 +1363,6 @@ class Item_variance_field : public Item_sum_num_field {
     return val_decimal_from_real(dec_buf);
   }
   bool resolve_type(THD *) override { return false; }
-  const char *func_name() const override {
-    assert(0);
-    return "variance_field";
-  }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -1499,10 +1490,6 @@ class Item_std_field final : public Item_variance_field {
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return REAL_RESULT; }
-  const char *func_name() const override {
-    assert(0);
-    return "std_field";
-  }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);

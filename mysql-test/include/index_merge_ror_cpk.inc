@@ -345,13 +345,9 @@ analyze table t2;
 -- enable_result_log
 
 --disable_warnings
-<<<<<<< HEAD
 if (!$skip_ror_EXPLAIN_for_MyRocks)
 {
-||||||| 0e33d640d4f
-=======
 --replace_regex $elide_costs
->>>>>>> mysql-9.0.1
 EXPLAIN UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
   SELECT col_int_key, col_int_key

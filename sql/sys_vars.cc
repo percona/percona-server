@@ -8218,7 +8218,6 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     NON_PERSIST SESSION_VAR(restrict_fk_on_non_standard_key), CMD_LINE(OPT_ARG),
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
-<<<<<<< HEAD
 }  // namespace
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
@@ -8251,8 +8250,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| 0e33d640d4f
-}  // namespace
-=======
-}  // namespace
->>>>>>> mysql-9.0.1

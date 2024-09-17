@@ -202,14 +202,6 @@ if ($engine == 'innodb' )
   set optimizer_switch = default;
   DROP TABLE t1;
 }
-<<<<<<< HEAD
-
-if ($engine==rocksdb)
-{
-     set global rocksdb_pause_background_work=@save_rocksdb_pause_background_work;
-}
-||||||| 0e33d640d4f
-=======
 
 --echo #
 --echo # Bug#28089360 WL#11322: SIG11 AT QEP_SHARED_OWNER::JOIN | SQL/SQL_OPT_EXEC_SHARED.H:458
@@ -293,4 +285,8 @@ EXPLAIN FORMAT=tree SELECT c1, c2 FROM t1 WHERE c2 > 40;
 
 DROP TABLE t1;
 SET OPTIMIZER_SWITCH = default;
->>>>>>> mysql-9.0.1
+
+if ($engine==rocksdb)
+{
+     set global rocksdb_pause_background_work=@save_rocksdb_pause_background_work;
+}

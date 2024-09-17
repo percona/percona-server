@@ -167,12 +167,8 @@ When one supplies long data for a placeholder:
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
-<<<<<<< HEAD
-#include "sql/sql_connect.h"  // update_global_user_stats
-||||||| 0e33d640d4f
-=======
 #include "sql/sql_cmd_dml.h"
->>>>>>> mysql-9.0.1
+#include "sql/sql_connect.h"  // update_global_user_stats
 #include "sql/sql_const.h"
 #include "sql/sql_cursor.h"  // Server_side_cursor
 #include "sql/sql_db.h"      // mysql_change_db
@@ -2988,14 +2984,7 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
     DEBUG_SYNC(thd, "before_statement_execute");
     error = execute(thd, expanded_query, open_cursor);
 
-<<<<<<< HEAD
-  DEBUG_SYNC(thd, "before_statement_execute");
-  error = execute(thd, expanded_query, open_cursor) || thd->is_error();
-||||||| 0e33d640d4f
-  error = execute(thd, expanded_query, open_cursor) || thd->is_error();
-=======
     assert(error == thd->is_error());
->>>>>>> mysql-9.0.1
 
     thd->pop_reprepare_observer();
     /*

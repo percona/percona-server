@@ -26,6 +26,7 @@
 
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 
 #include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
@@ -40,6 +41,7 @@
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 
 namespace {
 
@@ -62,14 +64,16 @@ std::string_view extract_sys_var_value(std::string_view component_name,
   void *ptr = ub.first.data();
   std::size_t length = ub.first.size() - 1;
 
-  if (mysql_service_component_sys_variable_register->get_variable(
-          component_name.data(), variable_name.data(), &ptr, &length) == 0)
+  if (mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", component_name.data(), variable_name.data(), &ptr,
+          &length) == 0)
     return {static_cast<char *>(ptr), length};
 
   ub.second.resize(length + 1);
   ptr = ub.second.data();
-  if (mysql_service_component_sys_variable_register->get_variable(
-          component_name.data(), variable_name.data(), &ptr, &length) != 0)
+  if (mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", component_name.data(), variable_name.data(), &ptr,
+          &length) != 0)
     throw std::runtime_error("Cannot get sys_var value");
 
   if (ptr == nullptr) throw std::runtime_error("The value of sys_var is null");
@@ -666,6 +670,7 @@ END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(udf_registration),
   REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(mysql_system_variable_reader),
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)

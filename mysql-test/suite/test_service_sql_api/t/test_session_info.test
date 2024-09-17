@@ -1,13 +1,10 @@
-<<<<<<< HEAD
-# This test relies on real session IDs. They are different if Percona Telemetry
-# is built in, so it is better to disable this test than mask IDs in result
---source include/not_have_percona_telemetry.inc
-||||||| 0e33d640d4f
-=======
 # Slightly different output when the hypergraph optimizer is used,
 # due to different query plans in SHOW TABLES.
 --source include/not_hypergraph.inc
->>>>>>> mysql-9.0.1
+
+# This test relies on real session IDs. They are different if Percona Telemetry
+# is built in, so it is better to disable this test than mask IDs in result
+--source include/not_have_percona_telemetry.inc
 
 CREATE TABLE t1(id INT NOT NULL);
 

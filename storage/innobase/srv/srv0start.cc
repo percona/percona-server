@@ -2997,15 +2997,8 @@ static lsn_t srv_shutdown_log() {
     auto err = fil_write_flushed_lsn(lsn);
     ut_a(err == DB_SUCCESS);
   }
-<<<<<<< HEAD
-  buf_must_be_all_freed();
-||||||| 0e33d640d4f
-
-  buf_must_be_all_freed();
-=======
 
   buf_assert_all_are_replaceable();
->>>>>>> mysql-9.0.1
   ut_a(lsn == log_get_lsn(*log_sys));
 
   if (srv_downgrade_logs) {

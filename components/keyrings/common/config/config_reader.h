@@ -43,13 +43,7 @@ class Config_reader {
 
     @param [in] config_file_path Full path to configuration file
   */
-<<<<<<< HEAD
-  inline explicit Config_reader(const std::string config_file_path);
-||||||| 0e33d640d4f
-  explicit Config_reader(const std::string config_file_path);
-=======
-  explicit Config_reader(std::string config_file_path);
->>>>>>> mysql-9.0.1
+  inline explicit Config_reader(std::string config_file_path);
 
   /**
     Get an element value from JSON document.

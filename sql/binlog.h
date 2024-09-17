@@ -174,47 +174,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   std::atomic<my_off_t> atomic_binlog_end_pos;
   ulonglong bytes_written;
-<<<<<<< HEAD
   ulonglong binlog_space_total;
-  IO_CACHE index_file;
-  char index_file_name[FN_REFLEN];
-  /*
-    crash_safe_index_file is temp file used for guaranteeing
-    index file crash safe when master server restarts.
-  */
-  IO_CACHE crash_safe_index_file;
-  char crash_safe_index_file_name[FN_REFLEN];
-  /*
-    purge_file is a temp file used in purge_logs so that the index file
-    can be updated before deleting files from disk, yielding better crash
-    recovery. It is created on demand the first time purge_logs is called
-    and then reused for subsequent calls. It is cleaned up in cleanup().
-  */
-  IO_CACHE purge_index_file;
-  char purge_index_file_name[FN_REFLEN];
-||||||| 0e33d640d4f
-  IO_CACHE index_file;
-  char index_file_name[FN_REFLEN];
-  /*
-    crash_safe_index_file is temp file used for guaranteeing
-    index file crash safe when master server restarts.
-  */
-  IO_CACHE crash_safe_index_file;
-  char crash_safe_index_file_name[FN_REFLEN];
-  /*
-    purge_file is a temp file used in purge_logs so that the index file
-    can be updated before deleting files from disk, yielding better crash
-    recovery. It is created on demand the first time purge_logs is called
-    and then reused for subsequent calls. It is cleaned up in cleanup().
-  */
-  IO_CACHE purge_index_file;
-  char purge_index_file_name[FN_REFLEN];
-=======
 
   /** Concurrent access to binlog index file */
   Binlog_index_monitor m_binlog_index_monitor;
 
->>>>>>> mysql-9.0.1
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -1073,19 +1037,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   mysql_mutex_t LOCK_log_info;
-<<<<<<< HEAD
-  // Set of log info objects that are in usage and might prevent some other
-  // operations from executing.
-  std::set<LOG_INFO *> log_info_set;
 
  private:
   void publish_coordinates_for_global_status(void) const;
-||||||| 0e33d640d4f
-  // Set of log info objects that are in usage and might prevent some other
-  // operations from executing.
-  std::set<LOG_INFO *> log_info_set;
-=======
->>>>>>> mysql-9.0.1
 };
 
 struct LOAD_FILE_INFO {

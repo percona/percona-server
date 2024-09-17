@@ -29,17 +29,13 @@
 # added, it is the responsibility of the Dev to edit $total_persistent_vars.
 ################################################################################
 
-<<<<<<< HEAD
-# Percona Server has further restricted the platform to Linux-only due to some
-# Linux-specific InnoDB system variables
-||||||| 0e33d640d4f
-=======
 # When running with --hypergraph, mysqltest sets hypergraph_optimizer
 # in each session. The expected number of variables with
 # variable_source='PERSISTED' will therefore be different.
 --source include/not_hypergraph.inc
 
->>>>>>> mysql-9.0.1
+# Percona Server has further restricted the platform to Linux-only due to some
+# Linux-specific InnoDB system variables
 --echo ***********************************************************************
 --echo * Run only on debug build,non-windows as few server variables are not
 --echo * available on all platforms.
@@ -61,13 +57,7 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-<<<<<<< HEAD
-let $total_persistent_vars=489;
-||||||| 0e33d640d4f
-let $total_persistent_vars=441;
-=======
-let $total_persistent_vars=440;
->>>>>>> mysql-9.0.1
+let $total_persistent_vars=488;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

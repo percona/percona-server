@@ -480,7 +480,6 @@ err:
   return ret;
 }
 
-<<<<<<< HEAD
 bool Relay_log_info::mts_workers_queue_empty() const {
   ulong ret = 0;
 
@@ -517,12 +516,7 @@ bool Relay_log_info::cannot_safely_rollback() const {
   return ret;
 }
 
-static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
-||||||| 0e33d640d4f
-static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
-=======
 static inline int add_relay_log(Relay_log_info *rli, Log_info *linfo) {
->>>>>>> mysql-9.0.1
   MY_STAT s;
   DBUG_TRACE;
   mysql_mutex_assert_owner(&rli->log_space_lock);

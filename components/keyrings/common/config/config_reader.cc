@@ -34,16 +34,8 @@
 
 namespace keyring_common::config {
 
-<<<<<<< HEAD
-inline Config_reader::Config_reader(const std::string config_file_path)
-    : config_file_path_(config_file_path), data_(), valid_(false) {
-||||||| 0e33d640d4f
-Config_reader::Config_reader(const std::string config_file_path)
-    : config_file_path_(config_file_path), data_(), valid_(false) {
-=======
-Config_reader::Config_reader(std::string config_file_path)
+inline Config_reader::Config_reader(std::string config_file_path)
     : config_file_path_(std::move(config_file_path)), valid_(false) {
->>>>>>> mysql-9.0.1
   std::ifstream file_stream(config_file_path_);
   if (!file_stream.is_open()) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NO_CONFIG,
@@ -61,7 +53,6 @@ Config_reader::Config_reader(std::string config_file_path)
   file_stream.close();
 }
 
-<<<<<<< HEAD
 bool Config_reader::has_element(const std::string &element_name) {
   return !valid_ || !data_.HasMember(element_name);
 }
@@ -76,11 +67,4 @@ bool Config_reader::is_string(const std::string &element_name) {
          !data_[element_name].IsString();
 }
 
-}  // namespace config
-}  // namespace keyring_common
-||||||| 0e33d640d4f
-}  // namespace config
-}  // namespace keyring_common
-=======
 }  // namespace keyring_common::config
->>>>>>> mysql-9.0.1

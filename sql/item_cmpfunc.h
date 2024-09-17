@@ -2484,14 +2484,8 @@ class Item_cond : public Item_bool_func {
 
   Type type() const override { return COND_ITEM; }
   List<Item> *argument_list() { return &list; }
-<<<<<<< HEAD
   const List<Item> *argument_list() const { return &list; }
-  bool eq(const Item *item, bool binary_cmp) const override;
-||||||| 0e33d640d4f
-  bool eq(const Item *item, bool binary_cmp) const override;
-=======
   bool eq(const Item *item) const override;
->>>>>>> mysql-9.0.1
   table_map used_tables() const override { return used_tables_cache; }
   void update_used_tables() override;
   void print(const THD *thd, String *str,
@@ -2513,24 +2507,12 @@ class Item_cond : public Item_bool_func {
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
 
-<<<<<<< HEAD
 #ifdef MYSQL_SERVER
 
-/*
-  The class Item_equal is used to represent conjunctions of equality
-  predicates of the form field1 = field2, and field=const in where
-  conditions and on expressions.
-||||||| 0e33d640d4f
-/*
-  The class Item_equal is used to represent conjunctions of equality
-  predicates of the form field1 = field2, and field=const in where
-  conditions and on expressions.
-=======
 /**
   The class Item_multi_eq is used to represent conjunctions of equality
   predicates of the form field1 = field2, and field = const in where
   conditions and on join conditions.
->>>>>>> mysql-9.0.1
 
   All equality predicates of the form field1=field2 contained in a
   conjunction are substituted for a sequence of items of this class.

@@ -10637,7 +10637,7 @@ static bool is_cond_equal(const Item *cond) noexcept {
 
 static bool is_cond_mult_equal(const Item *cond) noexcept {
   return (cond->type() == Item::FUNC_ITEM &&
-          (((const Item_func *)cond)->functype() == Item_func::MULT_EQUAL_FUNC));
+          (((const Item_func *)cond)->functype() == Item_func::MULTI_EQ_FUNC));
 }
 
 /*
@@ -10974,7 +10974,7 @@ void Join_node::add_const_equi_columns(Item *cond) {
     return;
   }
   if (is_cond_mult_equal(cond)) {
-    auto equal = down_cast<Item_equal *>(cond);
+    auto equal = down_cast<Item_multi_eq *>(cond);
 
     if (equal->const_arg()) {
       for (Item_field &field : equal->get_fields()) {

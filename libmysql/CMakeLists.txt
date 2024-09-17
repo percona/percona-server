@@ -301,19 +301,11 @@ ADD_SUBDIRECTORY(authentication_oci_client)
 # Fido and Webauthn clients
 ADD_SUBDIRECTORY(fido_client)
 
-<<<<<<< HEAD
-# Merge several convenience libraries into one big perconaserverclient
-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
-||||||| 0e33d640d4f
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
-=======
 # authentication mysql_native_password client plug-in
 ADD_SUBDIRECTORY(authentication_native_password)
 
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
->>>>>>> mysql-9.0.1
+# Merge several convenience libraries into one big perconaserverclient
+MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
   COMPONENT Development
   LINK_LIBRARIES ${LIBS_TO_LINK}
   )

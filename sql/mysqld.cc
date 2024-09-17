@@ -1314,17 +1314,9 @@ mysql_mutex_t LOCK_partial_revokes;
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 bool trust_function_creators = false;
-<<<<<<< HEAD
-bool check_proxy_users = false, mysql_native_password_proxy_users = false,
-     sha256_password_proxy_users = false;
+bool check_proxy_users = false, sha256_password_proxy_users = false;
 bool opt_userstat = false;
 bool opt_thread_statistics = false;
-||||||| 0e33d640d4f
-bool check_proxy_users = false, mysql_native_password_proxy_users = false,
-     sha256_password_proxy_users = false;
-=======
-bool check_proxy_users = false, sha256_password_proxy_users = false;
->>>>>>> mysql-9.0.1
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is

@@ -5512,8 +5512,7 @@ static SHOW_VAR gr_flow_control_status_variables[] = {
     // end of the array marker
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
-static void update_gr_flow_control_status_vars(THD *thd, SHOW_VAR *var,
-                                               char *buff) {
+static void update_gr_flow_control_status_vars(THD *, SHOW_VAR *, char *) {
   if (applier_module && plugin_is_group_replication_running()) {
     group_replication_fc_stats tmp;
     applier_module->get_flow_control_stats(tmp);

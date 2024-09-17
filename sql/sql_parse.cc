@@ -1680,19 +1680,7 @@ static void check_secondary_engine_statement(THD *thd,
   parser_state->reset(query_string, query_length);
 
   // Restart the statement.
-<<<<<<< HEAD
-  dispatch_sql_command(thd, parser_state, true);
-
-  // Restore the original option bits.
-  thd->variables.option_bits = saved_option_bits;
-||||||| 0e33d640d4f
-  dispatch_sql_command(thd, parser_state);
-
-  // Restore the original option bits.
-  thd->variables.option_bits = saved_option_bits;
-=======
-  dispatch_sql_command(thd, parser_state, /*is_retry=*/true);
->>>>>>> mysql-9.0.1
+  dispatch_sql_command(thd, parser_state, true, /*is_retry=*/true);
 
   // Check if the restarted statement failed, and if so, if it needs
   // another restart/fallback to the primary storage engine.
@@ -5465,14 +5453,8 @@ void statement_id_to_session(THD *thd) {
                       already logged in the first round.
 */
 
-<<<<<<< HEAD
 void dispatch_sql_command(THD *thd, Parser_state *parser_state,
-                          bool update_userstat) {
-||||||| 0e33d640d4f
-void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
-=======
-void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
->>>>>>> mysql-9.0.1
+                          bool update_userstat, bool is_retry) {
   DBUG_TRACE;
   DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
   statement_id_to_session(thd);

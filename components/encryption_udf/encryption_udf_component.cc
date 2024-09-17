@@ -32,6 +32,7 @@
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error.h>
+#include <mysql/components/services/mysql_system_variable.h>
 #include <mysql/components/services/udf_registration.h>
 
 #include <mysqlpp/udf_registration.hpp>
@@ -61,6 +62,7 @@ REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_system_variable_reader);
 
 namespace {
 
@@ -146,9 +148,9 @@ bool check_if_bits_in_range(udf_int_arg_raw_type value,
   void *var_buffer_ptr = var_buffer.data();
   std::size_t var_length = var_buffer_length;
 
-  if (mysql_service_component_sys_variable_register->get_variable(
-          CURRENT_COMPONENT_NAME_STR, threshold.var_name, &var_buffer_ptr,
-          &var_length) == 0) {
+  if (mysql_service_mysql_system_variable_reader->get(
+          nullptr, "GLOBAL", CURRENT_COMPONENT_NAME_STR, threshold.var_name,
+          &var_buffer_ptr, &var_length) == 0) {
     std::size_t extracted_var_value = 0;
     if (boost::conversion::try_lexical_convert(
             static_cast<char *>(var_buffer_ptr), var_length,
@@ -791,6 +793,7 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(component_sys_variable_register),
   REQUIRES_SERVICE(component_sys_variable_unregister),
   REQUIRES_SERVICE(mysql_current_thread_reader),
+  REQUIRES_SERVICE(mysql_system_variable_reader),
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)

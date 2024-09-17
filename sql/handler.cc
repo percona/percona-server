@@ -2590,7 +2590,7 @@ int ha_store_binlog_info(THD *thd) {
 
   assert(tc_log == &mysql_bin_log);
 
-  LOG_INFO li;
+  Log_info li;
   bool warn = true;
 
   /* Block commits to get consistent binlog coordinates */

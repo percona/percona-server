@@ -2062,32 +2062,12 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
-<<<<<<< HEAD
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
 @return DB_SUCCESS on success, DB_ERROR on failure */
 MY_NODISCARD
 dberr_t fil_temp_update_encryption(fil_space_t *space);
 
-#ifdef UNIV_LINUX
-/**
-Try and enable FusionIO atomic writes.
-@param[in] file         OS file handle
-@return true if successful */
-[[nodiscard]] bool fil_fusionio_enable_atomic_write(pfs_os_file_t file);
-#endif /* UNIV_LINUX */
-
-||||||| 0e33d640d4f
-#ifdef UNIV_LINUX
-/**
-Try and enable FusionIO atomic writes.
-@param[in] file         OS file handle
-@return true if successful */
-[[nodiscard]] bool fil_fusionio_enable_atomic_write(pfs_os_file_t file);
-#endif /* UNIV_LINUX */
-
-=======
->>>>>>> mysql-9.0.1
 /** Note that the file system where the file resides doesn't support PUNCH HOLE.
 Called from AIO handlers when IO returns DB_IO_NO_PUNCH_HOLE
 @param[in,out]  file            file to set */

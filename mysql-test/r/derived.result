@@ -4734,7 +4734,20 @@ Cat2	5
 Cat2	7
 NULL	NULL
 DROP TABLE t1;
-<<<<<<< HEAD
+# Bug#36557029: Recent failure in check_column_grant_in_table_ref
+CREATE TABLE t (
+a INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
+KEY (a)
+) ENGINE = InnoDB;
+WITH cte1 AS (
+SELECT (SELECT a) AS a
+FROM t AS r
+WHERE a > 0
+GROUP BY r.a, r.a
+)
+SELECT a, a FROM cte1 WHERE cte1.a <= r.a;
+ERROR 42S22: Unknown column 'r.a' in 'where clause'
+DROP TABLE t;
 #
 # PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
 # Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
@@ -4752,20 +4765,3 @@ column_0
 3
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch= @optimizer_switch_saved;
-||||||| 0e33d640d4f
-=======
-# Bug#36557029: Recent failure in check_column_grant_in_table_ref
-CREATE TABLE t (
-a INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
-KEY (a)
-) ENGINE = InnoDB;
-WITH cte1 AS (
-SELECT (SELECT a) AS a
-FROM t AS r
-WHERE a > 0
-GROUP BY r.a, r.a
-)
-SELECT a, a FROM cte1 WHERE cte1.a <= r.a;
-ERROR 42S22: Unknown column 'r.a' in 'where clause'
-DROP TABLE t;
->>>>>>> mysql-9.0.1

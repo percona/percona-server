@@ -229,18 +229,10 @@ extern const char *opt_secure_log_path;
 extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool trust_function_creators;
-<<<<<<< HEAD
-extern bool check_proxy_users, mysql_native_password_proxy_users,
-    sha256_password_proxy_users;
+extern bool check_proxy_users, sha256_password_proxy_users;
 extern bool opt_userstat, opt_thread_statistics;
 extern ulonglong opt_slow_query_log_use_global_control;
 extern ulong opt_slow_query_log_rate_type;
-||||||| 0e33d640d4f
-extern bool check_proxy_users, mysql_native_password_proxy_users,
-    sha256_password_proxy_users;
-=======
-extern bool check_proxy_users, sha256_password_proxy_users;
->>>>>>> mysql-9.0.1
 #ifdef _WIN32
 extern const char *shared_memory_base_name;
 #endif

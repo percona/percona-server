@@ -8007,21 +8007,15 @@ sub run_ctest() {
     # Skip tests with label NDB
     $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
   }
-<<<<<<< HEAD
-  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs $ctest_memcheck 2>&1`;
-
-||||||| 0e33d640d4f
-  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
-=======
   my $ctest_out = "";
   if (defined $opt_ctest_filter) {
     $ctest_out =
-      `ctest -R $opt_ctest_filter $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+      `ctest -R $opt_ctest_filter $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs $ctest_memcheck 2>&1`;
   } else {
     $ctest_out =
-      `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+      `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs $ctest_memcheck 2>&1`;
   }
->>>>>>> mysql-9.0.1
+
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

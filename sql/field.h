@@ -3967,11 +3967,6 @@ class Field_blob : public Field_longstr {
   int do_save_field_metadata(uchar *first_byte) const override;
 };
 
-<<<<<<< HEAD
-void store_blob_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
-
-||||||| 0e33d640d4f
-=======
 class Field_vector : public Field_blob {
  public:
   static const uint32 max_dimensions = 16383;
@@ -4016,7 +4011,7 @@ class Field_vector : public Field_blob {
     return new (mem_root) Field_vector(*this);
   }
   uint32 max_data_length() const override { return field_length; }
-  uint32 char_length() const override { return field_length; }
+  uint32 char_length() const noexcept override { return field_length; }
   enum_field_types type() const final { return MYSQL_TYPE_VECTOR; }
   enum_field_types real_type() const final { return MYSQL_TYPE_VECTOR; }
   void make_send_field(Send_field *field) const override;
@@ -4030,7 +4025,8 @@ class Field_vector : public Field_blob {
   String *val_str(String *, String *) const override;
 };
 
->>>>>>> mysql-9.0.1
+void store_blob_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
+
 class Field_geom final : public Field_blob {
  private:
   const std::optional<gis::srid_t> m_srid;

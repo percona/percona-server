@@ -1038,47 +1038,6 @@ void plugin_opt_set_limits(struct my_option *options, const SYS_VAR *opt) {
   if (opt->flags & PLUGIN_VAR_NOCMDARG) options->arg_type = NO_ARG;
   if (opt->flags & PLUGIN_VAR_OPCMDARG) options->arg_type = OPT_ARG;
 }
-<<<<<<< HEAD
-
-static Item *alloc_and_copy_string(const char *str) {
-  if (str != nullptr) {
-    char *tmp_str = sql_strmake(str, strlen(str));
-    return new Item_string(tmp_str, strlen(tmp_str), system_charset_info);
-  } else {
-    return new Item_null();
-  }
-}
-
-Item *sys_var_pluginvar::copy_value(THD *thd) {
-  const auto *val_ptr = session_value_ptr(thd, thd, {});
-
-  switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
-    case PLUGIN_VAR_BOOL:
-      return new Item_int(*(const bool *)val_ptr);
-    case PLUGIN_VAR_INT:
-      return new Item_int(*(const int *)val_ptr);
-    case PLUGIN_VAR_LONG:
-      return new Item_int((longlong) * (const long *)val_ptr);
-    case PLUGIN_VAR_LONGLONG:
-      return new Item_int(*(const longlong *)val_ptr);
-    case PLUGIN_VAR_SET:
-    case PLUGIN_VAR_ENUM: {
-      const auto *val_str = pointer_cast<const char *>(val_ptr);
-      return (alloc_and_copy_string(val_str));
-    }
-    case PLUGIN_VAR_STR: {
-      const auto *val_str = *pointer_cast<const char *const *>(val_ptr);
-      return (alloc_and_copy_string(val_str));
-    }
-    case PLUGIN_VAR_DOUBLE:
-      return new Item_float(*(const double *)val_ptr, DECIMAL_NOT_SPECIFIED);
-    default:
-      assert(0);
-  }
-  return (nullptr);
-}
-||||||| 0e33d640d4f
-=======
 
 /****************************************************************************
   System Variables support
@@ -1230,4 +1189,41 @@ char **mysql_sys_var_str(THD *thd, int offset) {
 double *mysql_sys_var_double(THD *thd, int offset) {
   return (double *)intern_sys_var_ptr(thd, offset, true);
 }
->>>>>>> mysql-9.0.1
+
+static Item *alloc_and_copy_string(const char *str) {
+  if (str != nullptr) {
+    char *tmp_str = sql_strmake(str, strlen(str));
+    return new Item_string(tmp_str, strlen(tmp_str), system_charset_info);
+  } else {
+    return new Item_null();
+  }
+}
+
+Item *sys_var_pluginvar::copy_value(THD *thd) {
+  const auto *val_ptr = session_value_ptr(thd, thd, {});
+
+  switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+    case PLUGIN_VAR_BOOL:
+      return new Item_int(*(const bool *)val_ptr);
+    case PLUGIN_VAR_INT:
+      return new Item_int(*(const int *)val_ptr);
+    case PLUGIN_VAR_LONG:
+      return new Item_int((longlong) * (const long *)val_ptr);
+    case PLUGIN_VAR_LONGLONG:
+      return new Item_int(*(const longlong *)val_ptr);
+    case PLUGIN_VAR_SET:
+    case PLUGIN_VAR_ENUM: {
+      const auto *val_str = pointer_cast<const char *>(val_ptr);
+      return (alloc_and_copy_string(val_str));
+    }
+    case PLUGIN_VAR_STR: {
+      const auto *val_str = *pointer_cast<const char *const *>(val_ptr);
+      return (alloc_and_copy_string(val_str));
+    }
+    case PLUGIN_VAR_DOUBLE:
+      return new Item_float(*(const double *)val_ptr, DECIMAL_NOT_SPECIFIED);
+    default:
+      assert(0);
+  }
+  return (nullptr);
+}

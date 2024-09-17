@@ -241,62 +241,6 @@ namespace {
 void finish_transaction_in_engines(THD *thd, bool all, bool run_after_commit);
 }  // namespace
 
-<<<<<<< HEAD
-bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
-  DBUG_TRACE;
-  bool error = false;
-  char buff[FN_REFLEN];
-  char *ptr = const_cast<char *>(from);
-  char *opt_name = is_relay_log ? opt_relay_logname : opt_bin_logname;
-
-  assert(from);
-
-  /* opt_name is not null and not empty and from is a relative path */
-  if (opt_name && opt_name[0] && from && !test_if_hard_path(from)) {
-    // take the path from opt_name
-    // take the filename from from
-    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
-    size_t log_dirpart_len, log_dirname_len;
-    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
-    dirname_part(log_dirname, from, &log_dirname_len);
-
-    /* log may be empty => relay-log or log-bin did not
-        hold paths, just filename pattern */
-    if (log_dirpart_len > 0) {
-      /* create the new path name */
-      if (fn_format(buff, from + log_dirname_len, log_dirpart, "",
-                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
-        error = true;
-        goto end;
-      }
-
-      ptr = buff;
-    }
-  }
-
-  assert(ptr);
-  if (ptr) {
-    size_t length = strlen(ptr);
-
-    // Strips the CR+LF at the end of log name and \0-terminates it.
-    if (length && ptr[length - 1] == '\n') {
-      ptr[length - 1] = 0;
-      length--;
-      if (length && ptr[length - 1] == '\r') {
-        ptr[length - 1] = 0;
-        length--;
-      }
-    }
-    if (!length) {
-      error = true;
-      goto end;
-    }
-    strmake(to, ptr, length);
-  }
-end:
-  return error;
-}
-
 static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
                                             THD *from_thd);
@@ -319,64 +263,6 @@ static SHOW_VAR binlog_status_vars_detail[] = {
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
-||||||| 0e33d640d4f
-bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
-  DBUG_TRACE;
-  bool error = false;
-  char buff[FN_REFLEN];
-  char *ptr = const_cast<char *>(from);
-  char *opt_name = is_relay_log ? opt_relay_logname : opt_bin_logname;
-
-  assert(from);
-
-  /* opt_name is not null and not empty and from is a relative path */
-  if (opt_name && opt_name[0] && from && !test_if_hard_path(from)) {
-    // take the path from opt_name
-    // take the filename from from
-    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
-    size_t log_dirpart_len, log_dirname_len;
-    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
-    dirname_part(log_dirname, from, &log_dirname_len);
-
-    /* log may be empty => relay-log or log-bin did not
-        hold paths, just filename pattern */
-    if (log_dirpart_len > 0) {
-      /* create the new path name */
-      if (fn_format(buff, from + log_dirname_len, log_dirpart, "",
-                    MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == nullptr) {
-        error = true;
-        goto end;
-      }
-
-      ptr = buff;
-    }
-  }
-
-  assert(ptr);
-  if (ptr) {
-    size_t length = strlen(ptr);
-
-    // Strips the CR+LF at the end of log name and \0-terminates it.
-    if (length && ptr[length - 1] == '\n') {
-      ptr[length - 1] = 0;
-      length--;
-      if (length && ptr[length - 1] == '\r') {
-        ptr[length - 1] = 0;
-        length--;
-      }
-    }
-    if (!length) {
-      error = true;
-      goto end;
-    }
-    strmake(to, ptr, length);
-  }
-end:
-  return error;
-}
-
-=======
->>>>>>> mysql-9.0.1
 /**
   @brief Checks whether purge conditions are met to be able to run purge
          for binary log files.
@@ -1411,7 +1297,7 @@ class binlog_cache_mngr {
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
 
-  LOG_INFO binlog_info;
+  Log_info binlog_info;
   std::string snapshot_gtid_executed;
 
  private:
@@ -3741,12 +3627,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
       m_binlog_file(new Binlog_ofile()),
       m_key_LOCK_log(key_LOG_LOCK_log),
       bytes_written(0),
-<<<<<<< HEAD
       binlog_space_total(0),
-||||||| 0e33d640d4f
-=======
       m_binlog_index_monitor(relay_log),
->>>>>>> mysql-9.0.1
       file_id(1),
       sync_period_ptr(sync_period),
       sync_counter(0),
@@ -5029,21 +4911,9 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   DBUG_PRINT("info", ("generated filename: %s", log_file_name));
 
-<<<<<<< HEAD
-  if (open_purge_index_file(true) ||
-      register_create_index_entry(log_file_name) || sync_purge_index_file() ||
-||||||| 0e33d640d4f
-  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
-
-  if (open_purge_index_file(true) ||
-      register_create_index_entry(log_file_name) || sync_purge_index_file() ||
-=======
-  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
-
   if (m_binlog_index_monitor.open_purge_index_file(true) ||
       m_binlog_index_monitor.register_create_index_entry(log_file_name) ||
       m_binlog_index_monitor.sync_purge_index_file() ||
->>>>>>> mysql-9.0.1
       DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0)) {
     /**
       @todo: although this was introduced to appease valgrind
@@ -5539,14 +5409,8 @@ err:
   if (name == nullptr)
     name = const_cast<char *>(save_name);  // restore old file-name
   tsid_lock->unlock();
-<<<<<<< HEAD
   count_binlog_space(false);
-  mysql_mutex_unlock(&LOCK_index);
-||||||| 0e33d640d4f
-  mysql_mutex_unlock(&LOCK_index);
-=======
   m_binlog_index_monitor.unlock();
->>>>>>> mysql-9.0.1
   mysql_mutex_unlock(&LOCK_log);
   return error;
 }
@@ -5692,14 +5556,8 @@ err:
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index",
                   DBUG_SUICIDE(););
 
-<<<<<<< HEAD
   count_binlog_space(false);
-  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
-||||||| 0e33d640d4f
-  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
-=======
   if (need_lock_index) m_binlog_index_monitor.unlock();
->>>>>>> mysql-9.0.1
 
   /*
     Error codes from purge logs take precedence.
@@ -5738,12 +5596,12 @@ int MYSQL_BIN_LOG::count_binlog_space(bool need_lock_index) {
   if (is_relay_log) DBUG_RETURN(0);
 
   if (need_lock_index)
-    mysql_mutex_lock(&LOCK_index);
+    m_binlog_index_monitor.lock();
   else
-    mysql_mutex_assert_owner(&LOCK_index);
+    m_binlog_index_monitor.assert_owner();
 
   int error;
-  LOG_INFO log_info;
+  Log_info log_info;
   binlog_space_total = 0;
   if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
     goto done;
@@ -5770,9 +5628,10 @@ int MYSQL_BIN_LOG::count_binlog_space(bool need_lock_index) {
   error = 0;
 
 done:
-  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
+  if (need_lock_index) m_binlog_index_monitor.unlock();
   DBUG_RETURN(error);
 }
+
 
 /**
   Purge old logs so that we have a total size lower than binlog_space_limit.
@@ -5785,7 +5644,7 @@ done:
     only purge logs up to this one.
 
   @retval
-    0				ok
+    0       ok
   @retval
     LOG_INFO_FATAL      if any other than ENOENT error from
                         mysql_file_stat() or mysql_file_delete()
@@ -5799,12 +5658,12 @@ int MYSQL_BIN_LOG::purge_logs_by_size(bool need_lock_index) {
   if (is_relay_log || !binlog_space_limit) DBUG_RETURN(0);
 
   if (need_lock_index)
-    mysql_mutex_lock(&LOCK_index);
+    m_binlog_index_monitor.lock();
   else
-    mysql_mutex_assert_owner(&LOCK_index);
+    m_binlog_index_monitor.assert_owner();
 
   int error = 0;
-  LOG_INFO log_info;
+  Log_info log_info;
   const auto binlog_pos = m_binlog_file->position();
   count_binlog_space(false);
 
@@ -5872,7 +5731,7 @@ int MYSQL_BIN_LOG::purge_logs_by_size(bool need_lock_index) {
                      : 0);
 
 done:
-  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
+  if (need_lock_index) m_binlog_index_monitor.unlock();
   DBUG_RETURN(error);
 }
 
@@ -8724,10 +8583,8 @@ static void set_binlog_snapshot_file(const char *src) {
           sizeof(binlog_snapshot_file) - 1);
 }
 
-
-
 void MYSQL_BIN_LOG::report_missing_purged_gtids(
-  const Gtid_set *slave_executed_gtid_set, std::string &errmsg) {
+    const Gtid_set *slave_executed_gtid_set, std::string &errmsg) {
   DBUG_TRACE;
   THD *thd = current_thd;
   Gtid_set gtid_missing(gtid_state->get_lost_gtids()->get_tsid_map());

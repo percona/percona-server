@@ -12734,21 +12734,6 @@ ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS
 ER_IB_MSG_INNODB_FLUSH_METHOD
   eng "Using innodb_flush_method=%s"
 
-<<<<<<< HEAD
-ER_BULK_SCANNER_INFO
-  eng "Bulk Scanner: %s"
-
-ER_LOG_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
-  eng "Combining the storage engines %.64s and %.64s is deprecated, but the statement or transaction updates both the %.64s table %.64s.%.64s and the %.64s table %.64s.%.64s."
-
-ER_DD_UPDATE_DATADIR_FLAG_FAIL
-  eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
-
-ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
-  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
-
-||||||| 0e33d640d4f
-=======
 ER_BULK_SCANNER_INFO
   eng "Bulk Scanner: %s"
 
@@ -12767,7 +12752,6 @@ ER_LOAD_BULK_JSON_ERROR
 ER_IB_BULK_LOAD_STATS_INFO
   eng "%s: %s: Saving statistics for table=%s err=%zu trx_err=%zu"
 
->>>>>>> mysql-9.0.1
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -12783,7 +12767,14 @@ ER_IB_BULK_LOAD_STATS_INFO
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
-<<<<<<< HEAD
+#
+# Start of 9.0 error messages intended to be written to the server error log.
+# Append 8.x error log messages to the end of the _previous_ section.
+# Messages intended to be sent to _clients_ go in messages_to_clients.txt!
+#
+
+start-error-number 15500
+
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -12885,7 +12876,7 @@ ER_KEYRING_COMPONENT_NO_CONFIG
 ER_KEYRING_COMPONENT_CONFIG_PARSE_FAILED
   eng "Keyring configuration JSON parse error: %s (%lu)"
 
-ER_PERCONA_UNSUPPORTED_ENGINE 
+ER_PERCONA_UNSUPPORTED_ENGINE
   eng "Table '%s.%s' requires the '%s' storage engine, which was removed in Percona Server 8.0.28"
 
 ER_SEC_LOG_PATH_NULL
@@ -13144,17 +13135,7 @@ ER_SSL_FIPS_MODE_ENABLED
 # End of Percona Server 8.0 server error log messages
 #
 
-||||||| 0e33d640d4f
-=======
-#
-# Start of 9.0 error messages intended to be written to the server error log.
-# Append 8.x error log messages to the end of the _previous_ section.
-# Messages intended to be sent to _clients_ go in messages_to_clients.txt!
-#
 
-start-error-number 15500
-
->>>>>>> mysql-9.0.1
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

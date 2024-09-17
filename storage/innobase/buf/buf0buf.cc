@@ -1177,25 +1177,6 @@ static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
         break;
       case BUF_BLOCK_FILE_PAGE:
         buf_page_mutex_enter(block);
-<<<<<<< HEAD
-        auto ready = buf_flush_ready_for_replace(&block->page);
-        buf_page_mutex_exit(block);
-
-        if (UNIV_UNLIKELY(block->page.is_corrupt)) {
-          /* corrupt page may remain, it can be
-          skipped */
-          break;
-        }
-
-        if (!ready) {
-          return (block);
-||||||| 0e33d640d4f
-        auto ready = buf_flush_ready_for_replace(&block->page);
-        buf_page_mutex_exit(block);
-
-        if (!ready) {
-          return (block);
-=======
         const auto &bpage = block->page;
         if (!buf_flush_ready_for_replace(&bpage)) {
           ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_83)
@@ -1204,7 +1185,6 @@ static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
               << " buf_fix_count = " << bpage.buf_fix_count.load()
               << " oldest_lsn = " << bpage.get_oldest_lsn()
               << " type = " << fil_page_get_type(block->frame);
->>>>>>> mysql-9.0.1
         }
         buf_page_mutex_exit(block);
         break;

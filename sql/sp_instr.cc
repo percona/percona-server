@@ -805,18 +805,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     if (my_errno == ER_NEED_REPREPARE) {
       /*
-<<<<<<< HEAD
-        Reprepare observer is not set for the first execution of the stored
-        routine. This is because the first execution will both prepare and
-        execute the statement. However, when executing a prepared statement, we
-        can expect ER_NEED_REPREPARE to be set during the first execution of the
-        stored routine. In this case, we would need to report the error to the
-        user.
-      */
-      if (stmt_reprepare_observer == nullptr) return true;
-      /*
-||||||| 0e33d640d4f
-=======
         Reprepare observer is not set for the first execution of the stored
         routine. This is because the first execution will both prepare and
         execute the statement. However, when executing a prepared statement, we
@@ -826,7 +814,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       */
       if (stmt_reprepare_observer == nullptr) break;
       /*
->>>>>>> mysql-9.0.1
         Reprepare_observer ensures that the statement is retried
         a maximum number of times, to avoid an endless loop.
       */

@@ -299,11 +299,11 @@ void Protocol_local_v2::start_row() {
     m_current_row = row->get_column_array();
   } else {
     /* Start a new row. */
-    m_current_row = static_cast<value_t *>(
-        m_result_set_mem_root.Alloc(sizeof(value_t) * m_column_count));
+    m_current_row = m_result_set_mem_root.ArrayAlloc<value_t>(m_column_count);
   }
 
-  memset((void *)m_current_row, 0, sizeof(value_t) * m_column_count);
+  for (size_t i = 0; i < m_column_count; ++i)
+    m_current_row[i] = std::monostate{};
   m_current_column = m_current_row;
 
   m_current_row_index++;

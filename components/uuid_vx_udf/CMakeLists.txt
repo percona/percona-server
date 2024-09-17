@@ -33,26 +33,6 @@ MYSQL_ADD_COMPONENT(uuid_vx_udf
 
 target_include_directories(component_uuid_vx_udf SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
-# Check if -latomic is required or not
-if (NOT MSVC)
-  include(CheckCXXSourceCompiles)
-  set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-# Adding "-w" compiler option to suppres all possible warnings
-  set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} -std=c++17 -w)
-  check_cxx_source_compiles("
-   #include <atomic>
-   std::atomic<uint64_t> x(0);
-   int main() {
-     uint64_t i = x.load(std::memory_order_relaxed);
-     bool b = x.is_lock_free();
-     return 0;
-  }
-  " uuid_vx_HAVE_BUILTIN_ATOMICS)
-  set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
-  if (uuid_vx_HAVE_BUILTIN_ATOMICS)
-    message(STATUS "Building UUID_VX UDF component without libatomic")
-  else()
-    message(STATUS "Building UUID_VX UDF component with libatomic")
-    target_link_libraries(component_uuid_vx_udf PRIVATE atomic)
-  endif()
+if(NOT APPLE)
+  target_link_libraries(component_uuid_vx_udf PRIVATE atomic)
 endif()

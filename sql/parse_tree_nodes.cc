@@ -718,6 +718,7 @@ bool PT_update::contextualize(Parse_context *pc)
   lex->duplicates= DUP_ERROR;
 
   lex->set_ignore(opt_ignore);
+  lex->set_force(opt_force);
   if (join_table_list->contextualize(pc))
     return true;
   pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;

@@ -1436,7 +1436,7 @@ END_OF_INPUT
 %type <xa_option_type> opt_suspend;
 %type <xa_option_type> opt_one_phase;
 
-%type <is_not_empty> opt_convert_xid opt_ignore
+%type <is_not_empty> opt_convert_xid opt_ignore opt_force
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -8622,6 +8622,11 @@ opt_ignore:
         | IGNORE_SYM  { $$= true; }
         ;
 
+opt_force:
+          /* empty */ { $$= false; }
+        | FORCE_SYM  { $$= true; }
+        ;
+
 opt_restrict:
           /* empty */ { Lex->drop_mode= DROP_DEFAULT; }
         | RESTRICT    { Lex->drop_mode= DROP_RESTRICT; }
@@ -11854,15 +11859,16 @@ update_stmt:
           UPDATE_SYM            /* #1 */
           opt_low_priority      /* #2 */
           opt_ignore            /* #3 */
-          join_table_list       /* #4 */
-          SET                   /* #5 */
-          update_list           /* #6 */
-          opt_where_clause      /* #7 */
-          opt_order_clause      /* #8 */
-          opt_simple_limit      /* #9 */
+          opt_force             /* #4 */
+          join_table_list       /* #5 */
+          SET                   /* #6 */
+          update_list           /* #7 */
+          opt_where_clause      /* #8 */
+          opt_order_clause      /* #9 */
+          opt_simple_limit      /* #10 */
           {
-            $$= NEW_PTN PT_update($1, $2, $3, $4, $6.column_list, $6.value_list,
-                                  $7, $8, $9);
+            $$= NEW_PTN PT_update($1, $2, $3, $4, $5, $7.column_list, $7.value_list,
+                                  $8, $9, $10);
           }
         ;
 

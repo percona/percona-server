@@ -3258,9 +3258,12 @@ public:
   bool subqueries;
 private:
   bool ignore;
+  bool force;
 public:
   bool is_ignore() const { return ignore; }
+  bool is_force() const { return force; }
   void set_ignore(bool ignore_param) { ignore= ignore_param; }
+  void set_force(bool force_param) { force= force_param; }
   st_parsing_options parsing_options;
   Alter_info alter_info;
   /*

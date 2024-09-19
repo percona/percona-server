@@ -511,6 +511,7 @@ install_deps() {
             yum -y install centos-release-stream
             switch_to_vault_repo
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
+            yum -y install gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
@@ -519,6 +520,7 @@ install_deps() {
             yum -y install libtirpc-devel
             yum -y install gflags-devel
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc
+            yum -y install gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
                 ln -s annobin.so gcc-annobin.so
@@ -557,6 +559,7 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
+        apt-get -y install libatomic1
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
             apt-get -y install python3-mysqldb
         else

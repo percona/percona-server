@@ -214,8 +214,9 @@ if [ -n "$(command -v rpm)" ]; then
   if test "x$CMAKE_BUILD_TYPE" = "xDebug"
   then
     COMMON_FLAGS=`echo " ${COMMON_FLAGS} " | \
-              sed -e 's/ -O[0-9]* / /' \
-                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+              sed -e 's/-Wall/-Wall -Wno-error=stringop-overflow -Wno-error=restrict -Wno-error=maybe-uninitialized -Wno-error=array-bounds -Wno-error=alloc-size-larger-than= -Wno-error=stringop-truncation/' \
+            #  sed -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2//' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \

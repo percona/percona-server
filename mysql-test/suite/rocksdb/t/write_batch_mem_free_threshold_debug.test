@@ -1,0 +1,62 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+#
+# rocksdb_write_batch_mem_free_threshold frees the write batch of a large
+# transaction instead of keeping it for the next one. It counts the memory the
+# batch keeps, also after a rollback to a savepoint, and applies to write
+# batches of rocksdb_master_skip_tx_api too.
+#
+
+SET @saved_threshold = @@GLOBAL.rocksdb_write_batch_mem_free_threshold;
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(200)) ENGINE=ROCKSDB;
+SET GLOBAL rocksdb_write_batch_mem_free_threshold = 16384;
+SET SESSION debug = '+d,myrocks_trace_write_batch_mem_free';
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Freeing a write batch of
+--let $assert_only_after = CURRENT_TEST: rocksdb.write_batch_mem_free_threshold_debug
+
+--echo # A small transaction keeps its write batch
+INSERT INTO t1 VALUES (1, 'a');
+--let $assert_text = A small write batch is kept
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--echo # A large transaction frees it
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 2 UNION ALL SELECT n+1 FROM seq WHERE n<500)
+SELECT n, REPEAT('b', 200) FROM seq;
+--let $assert_text = A large write batch is freed
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # A large statement rolled back to a savepoint leaves a large buffer
+BEGIN;
+SAVEPOINT s;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 2001 UNION ALL SELECT n+1 FROM seq WHERE n<2500)
+SELECT n, REPEAT('c', 200) FROM seq;
+ROLLBACK TO SAVEPOINT s;
+INSERT INTO t1 VALUES (1000, 'd');
+COMMIT;
+--let $assert_text = A write batch shrunk by a rollback to a savepoint is freed
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--echo # A write batch of rocksdb_master_skip_tx_api
+connect (con1,localhost,root,,test);
+SET SESSION rocksdb_master_skip_tx_api = 1;
+SET SESSION debug = '+d,myrocks_trace_write_batch_mem_free';
+INSERT INTO t1 VALUES (1001, 'e');
+UPDATE t1 SET v = REPEAT('f', 200);
+INSERT INTO t1 VALUES (1002, 'g');
+disconnect con1;
+connection default;
+--let $assert_text = A large write batch of rocksdb_master_skip_tx_api is freed
+--let $assert_count = 3
+--source include/assert_grep.inc
+
+SELECT COUNT(*), MIN(v), MAX(v) FROM t1;
+SET SESSION debug = '-d,myrocks_trace_write_batch_mem_free';
+SET GLOBAL rocksdb_write_batch_mem_free_threshold = @saved_threshold;
+DROP TABLE t1;

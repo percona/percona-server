@@ -55,6 +55,31 @@ Table	Create Table
 t10	CREATE TABLE `t10` (
   `a` json /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# confirm that compressed columns are not supported for VECTOR
+CREATE TABLE v1 (v VECTOR(128) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ERROR HY000: Can not define column 'v' in compressed format
+CREATE TABLE v2 (a TEXT COLUMN_FORMAT COMPRESSED, v VECTOR(1) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ERROR HY000: Can not define column 'v' in compressed format
+CREATE TABLE v3 (
+id BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p1 VALUES LESS THAN (100),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+ERROR HY000: Can not define column 'v' in compressed format
+CREATE TABLE v4 (v VECTOR(128)) ENGINE=InnoDB;
+SHOW CREATE TABLE v4;
+Table	Create Table
+v4	CREATE TABLE `v4` (
+  `v` vector(128) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE v4 MODIFY COLUMN v VECTOR(128) COLUMN_FORMAT COMPRESSED;
+ERROR HY000: Can not define column 'v' in compressed format
+ALTER TABLE v4 ADD COLUMN c VECTOR COLUMN_FORMAT COMPRESSED;
+ERROR HY000: Can not define column 'c' in compressed format
+DROP TABLE v4;
 # test index creation
 # compressed columns are not allowed to defined as a part or a key
 CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED, KEY(a(10)));

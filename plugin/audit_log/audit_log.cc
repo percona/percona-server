@@ -746,7 +746,7 @@ struct query_stack_frame {
   /* number of accessed databases */
   int databases_accessed;
   /* query */
-  const char *query;
+  MYSQL_LEX_CSTRING query;
 };
 
 struct query_stack {
@@ -977,8 +977,12 @@ static bool audit_log_update_thd_local(MYSQL_THD thd,
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS) {
       local->skip_query = false;
 
-      if (local->stack.frames[local->stack.top].query ==
-          event_general->general_query.str) {
+      if (event_general->general_query.length != 0 &&
+          local->stack.frames[local->stack.top].query.length ==
+              event_general->general_query.length &&
+          strncmp(local->stack.frames[local->stack.top].query.str,
+                  event_general->general_query.str,
+                  event_general->general_query.length) == 0) {
         local->skip_query |=
             audit_log_include_databases &&
             local->stack.frames[local->stack.top].databases_accessed > 0 &&
@@ -993,7 +997,8 @@ static bool audit_log_update_thd_local(MYSQL_THD thd,
         local->stack.frames[local->stack.top].databases_included = 0;
         local->stack.frames[local->stack.top].databases_accessed = 0;
         local->stack.frames[local->stack.top].databases_excluded = 0;
-        local->stack.frames[local->stack.top].query = nullptr;
+        local->stack.frames[local->stack.top].query.str = nullptr;
+        local->stack.frames[local->stack.top].query.length = 0;
 
         if (local->stack.top > 0) --local->stack.top;
       }
@@ -1060,12 +1065,15 @@ static bool audit_log_update_thd_local(MYSQL_THD thd,
     const mysql_event_table_access *event_table =
         (const mysql_event_table_access *)event;
 
-    if (local->stack.frames[local->stack.top].query != event_table->query.str &&
-        local->stack.frames[local->stack.top].query != nullptr) {
+    if (event_table->query.length != 0 &&
+        (local->stack.frames[local->stack.top].query.length !=
+             event_table->query.length ||
+         strncmp(local->stack.frames[local->stack.top].query.str,
+                 event_table->query.str, event_table->query.length) != 0)) {
       if (++local->stack.top >= local->stack.size)
         realloc_stack_frames(thd, local->stack.size * 2);
     }
-    local->stack.frames[local->stack.top].query = event_table->query.str;
+    local->stack.frames[local->stack.top].query = event_table->query;
 
     ++local->stack.frames[local->stack.top].databases_accessed;
 

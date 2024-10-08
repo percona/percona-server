@@ -87,6 +87,9 @@ perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 perfschema.idx_compare_ews_by_instance : BUG#31791537
 perfschema.idx_compare_rwlock_instances : BUG#31791537
 
+# rocksdb suite tests
+rocksdb.non_blocking_manual_compaction : BUG#0000 PS-9381 Often fails in Jenkins due to races.
+
 # rocksdb_stress suite tests
 rocksdb_stress.drop_cf_stress : BUG#0000 PS-9381 Often fails in Jenkins due to races.
 

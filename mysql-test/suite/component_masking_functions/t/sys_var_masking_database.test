@@ -1,0 +1,51 @@
+--source include/have_masking_functions_component.inc
+--source include/count_sessions.inc
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL masking_functions.masking_database=dict_db;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION masking_functions.masking_database=dict_db;
+
+# Empty DB name
+--let $error_log_file = $MYSQLTEST_VARDIR/tmp/masking_functions_error.err
+--let $do_not_echo_parameters = 1
+--let $restart_parameters="restart: --log-error=$error_log_file --masking-functions.masking-database=''"
+--source include/restart_mysqld.inc
+
+--let $assert_text = Bad masking_functions.masking_database value
+--let $assert_file = $error_log_file
+--let $assert_select = Bad masking_functions.masking_database value
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+CREATE DATABASE dict_db;
+CREATE TABLE dict_db.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+--let $restart_parameters="restart: --log-error=$error_log_file --masking-functions.masking-database='dict_db'"
+--source include/restart_mysqld.inc
+
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+--connect(con_priv,localhost,udftest_priv,,)
+
+SELECT masking_dictionary_term_add('single_dict', 'entry');
+SELECT gen_dictionary('single_dict');
+
+--connection default
+--disconnect con_priv
+
+#
+# Cleanup
+UNINSTALL COMPONENT 'file://component_masking_functions';
+DROP DATABASE dict_db;
+DROP USER udftest_priv@localhost;
+
+--remove_file $error_log_file
+--source include/wait_until_count_sessions.inc

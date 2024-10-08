@@ -18,12 +18,14 @@
 
 #include <mysql/components/component_implementation.h>
 
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_command_services.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/mysql_string.h>
+#include <mysql/components/services/psi_thread.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
@@ -33,9 +35,13 @@
 #include <mysqld_error.h>
 
 #include "masking_functions/command_service_tuple.hpp"
+#include "masking_functions/component_sys_variable_service_tuple.hpp"
 #include "masking_functions/primitive_singleton.hpp"
+#include "masking_functions/query_builder.hpp"
+#include "masking_functions/query_cache.hpp"
 #include "masking_functions/registration_routines.hpp"
 #include "masking_functions/string_service_tuple.hpp"
+#include "masking_functions/sys_vars.hpp"
 
 // defined as a macro because needed both raw and stringized
 #define CURRENT_COMPONENT_NAME masking_functions
@@ -54,8 +60,11 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_compare);
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query_result);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_command_field_info);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_factory);
+
+REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
@@ -65,6 +74,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
@@ -108,8 +119,15 @@ static mysql_service_status_t component_init() {
           // TODO: convert this to designated initializers in c++20
           mysql_service_mysql_command_query,
           mysql_service_mysql_command_query_result,
+          mysql_service_mysql_command_field_info,
           mysql_service_mysql_command_options,
           mysql_service_mysql_command_factory};
+  masking_functions::primitive_singleton<
+      masking_functions::component_sys_variable_service_tuple>::instance() =
+      masking_functions::component_sys_variable_service_tuple{
+          // TODO: convert this to designated initializers in c++20
+          mysql_service_component_sys_variable_register,
+          mysql_service_component_sys_variable_unregister};
 
   // here we use a custom error reporting function
   // 'masking_functions_my_error()' based on the
@@ -125,11 +143,33 @@ static mysql_service_status_t component_init() {
     return 1;
   }
 
+  if (!masking_functions::register_sys_vars()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot register system variables");
+    component_deinit();
+    return 1;
+  }
+
+  std::string check_error_message;
+  if (!masking_functions::check_sys_vars(check_error_message)) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    check_error_message.c_str());
+    component_deinit();
+    return 1;
+  }
+
   if (!masking_functions::register_udfs()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot register UDFs");
     component_deinit();
     return 1;
   }
+
+  auto builder{std::make_unique<masking_functions::query_builder>(
+      masking_functions::get_dict_database_name())};
+  masking_functions::primitive_singleton<
+      masking_functions::query_cache_ptr>::instance() =
+      std::make_unique<masking_functions::query_cache>(
+          std::move(builder), masking_functions::get_flush_interval_seconds());
 
   LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Component successfully initialized");
@@ -138,8 +178,19 @@ static mysql_service_status_t component_init() {
 
 static mysql_service_status_t component_deinit() {
   int result = 0;
+
+  masking_functions::primitive_singleton<
+      masking_functions::query_cache_ptr>::instance()
+      .reset();
+
   if (!masking_functions::unregister_udfs()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot unregister UDFs");
+    result = 1;
+  }
+
+  if (!masking_functions::unregister_sys_vars()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot unregister system variables");
     result = 1;
   }
 
@@ -174,8 +225,11 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_string_substr),
   REQUIRES_SERVICE(mysql_string_compare),
 
+  REQUIRES_PSI_THREAD_SERVICE,
+
   REQUIRES_SERVICE(mysql_command_query),
   REQUIRES_SERVICE(mysql_command_query_result),
+  REQUIRES_SERVICE(mysql_command_field_info),
   REQUIRES_SERVICE(mysql_command_options),
   REQUIRES_SERVICE(mysql_command_factory),
 
@@ -187,6 +241,8 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_current_thread_reader),
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(global_grants_check),
+  REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(component_sys_variable_unregister),
 
   REQUIRES_SERVICE(log_builtins),
   REQUIRES_SERVICE(log_builtins_string),

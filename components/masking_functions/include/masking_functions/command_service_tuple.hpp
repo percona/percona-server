@@ -35,6 +35,7 @@ namespace masking_functions {
 //   mysql_command_query{
 //     mysql_service_mysql_command_query,
 //     mysql_service_mysql_command_query_result,
+//     mysql_service_mysql_command_field_info,
 //     mysql_service_mysql_command_options,
 //     mysql_service_mysql_command_factory
 //   };
@@ -43,6 +44,7 @@ namespace masking_functions {
 struct command_service_tuple {
   SERVICE_TYPE(mysql_command_query) * query;
   SERVICE_TYPE(mysql_command_query_result) * query_result;
+  SERVICE_TYPE(mysql_command_field_info) * field_info;
   SERVICE_TYPE(mysql_command_options) * options;
   SERVICE_TYPE(mysql_command_factory) * factory;
 };

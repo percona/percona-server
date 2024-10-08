@@ -16,7 +16,10 @@
 #ifndef MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 #define MASKING_FUNCTIONS_SQL_CONTEXT_HPP
 
-#include <optional>
+#include <algorithm>
+#include <array>
+#include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -30,7 +33,12 @@ namespace masking_functions {
 // construction.
 class sql_context {
  public:
-  using optional_string = std::optional<std::string>;
+  template <std::size_t NumberOfFields>
+  using field_value_container = std::array<std::string_view, NumberOfFields>;
+
+  template <std::size_t NumberOfFields>
+  using row_callback =
+      std::function<void(const field_value_container<NumberOfFields> &)>;
 
   explicit sql_context(const command_service_tuple &services);
 
@@ -46,11 +54,23 @@ class sql_context {
     return *impl_.get_deleter().services;
   }
 
-  // Executes a query where we either expect a single result (one row one
-  // column), or nothing
-  optional_string query_single_value(std::string_view query);
+  template <std::size_t NumberOfFields>
+  void execute_select(std::string_view query,
+                      const row_callback<NumberOfFields> &callback) {
+    execute_select_internal(
+        query, NumberOfFields,
+        [&callback](char **field_values, std::size_t *lengths) {
+          field_value_container<NumberOfFields> wrapped_field_values;
+          std::transform(field_values, field_values + NumberOfFields, lengths,
+                         std::begin(wrapped_field_values),
+                         [](char *str, std::size_t len) {
+                           return std::string_view{str, len};
+                         });
+          callback(wrapped_field_values);
+        });
+  }
 
-  bool execute(std::string_view query);
+  bool execute_dml(std::string_view query);
 
  private:
   struct deleter {
@@ -59,6 +79,11 @@ class sql_context {
   };
   using impl_type = std::unique_ptr<void, deleter>;
   impl_type impl_;
+
+  using row_internal_callback = std::function<void(char **, std::size_t *)>;
+  void execute_select_internal(std::string_view query,
+                               std::size_t number_of_fields,
+                               const row_internal_callback &callback);
 };
 
 }  // namespace masking_functions

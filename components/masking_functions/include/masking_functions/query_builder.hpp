@@ -16,10 +16,10 @@
 #ifndef MASKING_FUNCTIONS_QUERY_BUILDER_HPP
 #define MASKING_FUNCTIONS_QUERY_BUILDER_HPP
 
+#include "masking_functions/query_builder_fwd.hpp"
+
 #include <string>
 #include <string_view>
-
-#include "masking_functions/charset_string_fwd.hpp"
 
 namespace masking_functions {
 
@@ -29,14 +29,13 @@ class query_builder {
  public:
   static constexpr std::string_view default_result_character_set = "utf8mb4";
 
-  static constexpr std::string_view default_database_name = "mysql";
   static constexpr std::string_view default_table_name = "masking_dictionaries";
   static constexpr std::string_view default_dictionary_field_name =
       "Dictionary";
   static constexpr std::string_view default_term_field_name = "Term";
 
-  query_builder(
-      std::string_view database_name = default_database_name,
+  explicit query_builder(
+      std::string_view database_name,
       std::string_view table_name = default_table_name,
       std::string_view dictionary_field_name = default_dictionary_field_name,
       std::string_view term_field_name = default_term_field_name)
@@ -56,26 +55,18 @@ class query_builder {
     return term_field_name_;
   }
 
-  std::string select_random_term_for_dictionary(
-      const charset_string &dictionary_name) const {
-    return select_term_for_dictionary_internal(dictionary_name, nullptr);
-  }
-  std::string check_term_presence_in_dictionary(
-      const charset_string &dictionary_name, const charset_string &term) const {
-    return select_term_for_dictionary_internal(dictionary_name, &term);
-  }
+  std::string select_all_from_dictionary() const;
 
-  std::string insert_ignore_record(const charset_string &dictionary_name,
-                                   const charset_string &term) const;
+  std::string insert_ignore_record(const std::string &dictionary_name,
+                                   const std::string &term) const;
 
-  std::string delete_for_dictionary(
-      const charset_string &dictionary_name) const {
+  std::string delete_for_dictionary(const std::string &dictionary_name) const {
     return delete_for_dictionary_and_opt_term_internal(dictionary_name,
                                                        nullptr);
   }
 
-  std::string delete_for_dictionary_and_term(
-      const charset_string &dictionary_name, const charset_string &term) const {
+  std::string delete_for_dictionary_and_term(const std::string &dictionary_name,
+                                             const std::string &term) const {
     return delete_for_dictionary_and_opt_term_internal(dictionary_name, &term);
   }
 
@@ -85,13 +76,8 @@ class query_builder {
   std::string dictionary_field_name_;
   std::string term_field_name_;
 
-  std::string select_term_for_dictionary_internal(
-      const charset_string &dictionary_name,
-      const charset_string *opt_term) const;
-
   std::string delete_for_dictionary_and_opt_term_internal(
-      const charset_string &dictionary_name,
-      const charset_string *opt_term) const;
+      const std::string &dictionary_name, const std::string *opt_term) const;
 };
 
 }  // namespace masking_functions

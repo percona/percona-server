@@ -1,0 +1,25 @@
+INSTALL COMPONENT 'file://component_masking_functions';
+SET GLOBAL masking_functions.masking_database=dict_db;
+ERROR HY000: Variable 'masking_functions.masking_database' is a read only variable
+SET SESSION masking_functions.masking_database=dict_db;
+ERROR HY000: Variable 'masking_functions.masking_database' is a read only variable
+# restart:<hidden args>
+include/assert_grep.inc [Bad masking_functions.masking_database value]
+CREATE DATABASE dict_db;
+CREATE TABLE dict_db.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+# restart:<hidden args>
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+SELECT masking_dictionary_term_add('single_dict', 'entry');
+masking_dictionary_term_add('single_dict', 'entry')
+1
+SELECT gen_dictionary('single_dict');
+gen_dictionary('single_dict')
+entry
+UNINSTALL COMPONENT 'file://component_masking_functions';
+DROP DATABASE dict_db;
+DROP USER udftest_priv@localhost;

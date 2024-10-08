@@ -1,0 +1,47 @@
+--source include/have_masking_functions_component.inc
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+# No running flusher thread with default settings
+SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
+SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL masking_functions.dictionaries_flush_interval_seconds=100;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION masking_functions.dictionaries_flush_interval_seconds=100;
+
+--let $restart_parameters="restart: --masking-functions.dictionaries-flush-interval-seconds=100"
+--source include/restart_mysqld.inc
+
+SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
+
+# Make sure dict flusher process is running
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+--connect(con_priv,localhost,udftest_priv,,)
+
+SELECT masking_dictionary_term_add('single_dict_1', 'entry_1');
+
+# Flusher thread is active
+--connection default
+SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+
+#
+# Cleanup
+--disconnect con_priv
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+DROP USER udftest_priv@localhost;
+DROP TABLE mysql.masking_dictionaries;
+
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc

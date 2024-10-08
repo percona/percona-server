@@ -1,0 +1,67 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_masking_functions_component.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_master.inc
+SET GLOBAL DEBUG='+d, masking_functions_signal_on_cache_reload';
+INSTALL COMPONENT 'file://component_masking_functions';
+--source include/rpl_connection_slave.inc
+SET GLOBAL DEBUG='+d, masking_functions_signal_on_cache_reload';
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--source include/rpl_connection_master.inc
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+--connect(con_priv,localhost,udftest_priv,,)
+
+SELECT masking_dictionary_term_add('single_dict_1', 'entry_1');
+SELECT masking_dictionary_term_add('single_dict_2', 'entry_2');
+SELECT gen_dictionary('single_dict_1');
+SELECT gen_dictionary('single_dict_2');
+
+--source include/rpl_sync.inc
+--source include/rpl_connection_slave.inc
+
+SELECT * FROM mysql.masking_dictionaries;
+SELECT gen_dictionary('single_dict_1');
+SELECT gen_dictionary('single_dict_2');
+
+--source include/rpl_connection_master.inc
+INSERT INTO mysql.masking_dictionaries VALUES ('single_dict_3', 'entry_3');
+SET DEBUG_SYNC='now WAIT_FOR masking_functions_cache_reload_done';
+
+# Will fail to get data from single_dict_3 at this point if no dictionary flusher thread is running
+SELECT gen_dictionary('single_dict_3');
+
+--source include/rpl_sync.inc
+--source include/rpl_connection_slave.inc
+
+SELECT * FROM mysql.masking_dictionaries;
+SET DEBUG_SYNC='now WAIT_FOR masking_functions_cache_reload_done';
+
+# Will fail to get data from single_dict_3 at this point if no dictionary flusher thread is running
+SELECT gen_dictionary('single_dict_3');
+
+#
+# Cleanup
+--disconnect con_priv
+
+--source include/rpl_connection_slave.inc
+SET GLOBAL DEBUG='-d, masking_functions_signal_on_cache_reload';
+UNINSTALL COMPONENT 'file://component_masking_functions';
+--source include/rpl_connection_master.inc
+SET GLOBAL DEBUG='-d, masking_functions_signal_on_cache_reload';
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+DROP USER udftest_priv@localhost;
+DROP TABLE mysql.masking_dictionaries;
+
+--source include/rpl_sync.inc
+--source include/rpl_end.inc

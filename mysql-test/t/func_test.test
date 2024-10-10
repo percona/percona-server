@@ -571,3 +571,16 @@ SELECT GREATEST(enum_col, NULL) AS col1,
 FROM t UNION SELECT 1, 2, 3, 4;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#37083848: virtual longlong Item_func_min_max::int_op():
+--echo # Assertion `!unsigned_flag || !arg_val.is_negative()' failed
+--echo #
+
+CREATE TABLE t1 (
+  id INT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES(1);
+SELECT id FROM t1 WHERE LEAST(id, id) AND -1 = id;
+
+DROP TABLE t1;

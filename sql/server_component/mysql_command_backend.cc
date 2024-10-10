@@ -75,6 +75,21 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   my_h_service h_command_consumer_srv = nullptr;
 
   MYSQL_SESSION mysql_session = nullptr;
+
+  /* We need to handle the failure in this function.
+     Setting mcs_extn->session_svc right after session open is not enough
+     to handle user lookup errors (and following errors as well)
+     because in case of this function returns error, mysql->extension is
+     cleaned up immediately by the caller. The caller does not take care of
+     session_svc, because it is not aware of this structure.
+  */
+  std::shared_ptr<MYSQL_SESSION> mysql_session_close_guard(
+      &mysql_session, [mcs_extn](MYSQL_SESSION *mysql_session_ptr) {
+        if (*mysql_session_ptr == nullptr) return;
+        mcs_extn->session_svc = nullptr;
+        srv_session_close(*mysql_session_ptr);
+      });
+
   if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
     /*
      Avoid possibility of nested txn in the current thd.
@@ -239,6 +254,7 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   }
   mysql->client_flag = 0; /* For handshake */
   mysql->server_status = SERVER_STATUS_AUTOCOMMIT;
+  mysql_session = nullptr;  // disable delete quard
   return STATE_MACHINE_DONE;
 }
 

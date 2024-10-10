@@ -83,6 +83,11 @@ SET sql_log_bin = @sql_log_bin_saved;
 
 --echo # check that mysql.user table has same values in both servers
 --let $diff_tables=master:test.user_1, slave:test.user_1
+
+# percona.telemetry user is created at the server startup, so different servers have different timestamps
+if (`SELECT COUNT(*) = 1 FROM mysql.component WHERE component_urn='file://component_percona_telemetry'`) {
+  --let $mask_column_list = password_last_changed
+}
 --source include/diff_tables.inc
 
 --echo # REVOKE FROM USER statement test

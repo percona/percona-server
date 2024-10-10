@@ -2,7 +2,7 @@ set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 CREATE USER 'kristofer';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 user	plugin
 kristofer	sha256_password
 mysql.infoschema	caching_sha2_password

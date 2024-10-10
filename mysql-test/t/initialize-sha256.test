@@ -78,7 +78,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string) > 0
-  FROM mysql.user ORDER BY user;
+  FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 
 CREATE DATABASE test;
 

@@ -932,3 +932,14 @@ col1	col2	col3	col4
 NULL	NULL	d	d
 NULL	NULL	e	e
 DROP TABLE t;
+#
+# Bug#37083848: virtual longlong Item_func_min_max::int_op():
+# Assertion `!unsigned_flag || !arg_val.is_negative()' failed
+#
+CREATE TABLE t1 (
+id INT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES(1);
+SELECT id FROM t1 WHERE LEAST(id, id) AND -1 = id;
+id
+DROP TABLE t1;

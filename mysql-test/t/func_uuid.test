@@ -222,6 +222,6 @@ DROP TABLE t2;
 -- echo #
 -- echo #  Bug#26395601 DIFFERENT BEHAVIOR BETWEEN CLASSIC AND NODE SESSION WITH UUID()
 -- echo #
-CREATE TABLE t as SELECT replace(uuid(), '-', '=') as v from mysql.user;
+CREATE TABLE t as SELECT replace(uuid(), '-', '=') as v from mysql.user WHERE User != 'percona.telemetry';
 SELECT COUNT(DISTINCT v) FROM t;
 DROP TABLE t;

@@ -13,7 +13,7 @@ CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS
 CREATE USER userX, userY, userZ;
 --source include/save_binlog_position.inc
 
-SELECT user, authentication_string FROM mysql.user;
+SELECT user, authentication_string FROM mysql.user WHERE user != 'percona.telemetry';
 
 --echo # Case 1 : Modify multiple users
 ALTER USER userX IDENTIFIED BY 'abcd',
@@ -75,7 +75,7 @@ FLUSH PRIVILEGES;
 ALTER USER root@localhost, userW PASSWORD EXPIRE;
 
 --echo # Must succeed
-SELECT user FROM mysql.user;
+SELECT user FROM mysql.user WHERE user != 'percona.telemetry';
 
 --let $invert= 1
 --let $event= !Q(ALTER USER.*root.*userW.*)
@@ -142,7 +142,7 @@ connection conn_userY;
 --echo # Must throw warning
 ALTER USER IF EXISTS userY IDENTIFIED BY 'abcd', userW IDENTIFIED BY 'haha';
 
-SELECT user FROM mysql.user;
+SELECT user FROM mysql.user WHERE user != 'percona.telemetry';
 --let $event= !Q(ALTER USER.*userY.*userW.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 

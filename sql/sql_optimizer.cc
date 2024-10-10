@@ -4045,6 +4045,12 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       return false;
 
     if (const_item && field_item->result_type() == const_item->result_type()) {
+      // Do not substitute possibly negative constants for unsigned fields.
+      if (field_item->result_type() == INT_RESULT &&
+          const_item->type() != Item::INT_ITEM &&
+          field_item->unsigned_flag != const_item->unsigned_flag) {
+        return false;
+      }
       if (field_item->result_type() == STRING_RESULT) {
         const CHARSET_INFO *cs = field_item->field->charset();
         if (!item) {

@@ -1,6 +1,6 @@
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 user	plugin
 kristofer	sha256_password
 mysql.infoschema	caching_sha2_password
@@ -54,7 +54,7 @@ ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user  WHERE user != 'percona.telemetry' ORDER BY user;
 user	plugin
 kristofer	sha256_password
 mysql.infoschema	caching_sha2_password

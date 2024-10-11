@@ -3,14 +3,14 @@ schedules:
   displayName: Daily 1:00 AM UTC build
   branches:
     include:
-    - trunk
+    - 8.4
 
 trigger:
   branches:
     include:
     - '*'
     exclude:
-    - trunk
+    - 8.4
   paths:
     exclude:
     - doc
@@ -47,8 +47,8 @@ jobs:
     fetchDepth: 32
 
   - script: |
-      git fetch origin trunk
-      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/trunk -- . | tr '\n' ' ')
+      git fetch origin 8.4
+      CHANGED_FILES=$(git diff --name-only --relative --diff-filter AMR origin/8.4 -- . | tr '\n' ' ')
 
       if [ -z "${CHANGED_FILES}" ]; then
           echo --- No changed files
@@ -70,7 +70,7 @@ jobs:
     CCACHE_CPP2: 1
     CCACHE_MAXSIZE: 2G
     OS_NAME: $(Agent.OS)
-    PARENT_BRANCH: trunk
+    PARENT_BRANCH: 8.4
     BUILD_PARAMS_TYPE: normal
 
   strategy:
@@ -207,11 +207,24 @@ jobs:
         BuildType: Debug
 
       # gcc-10 and newer compilers
-      gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
+      gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
         Compiler: gcc
-        CompilerVer: 13
+        CompilerVer: 14
         BuildType: RelWithDebInfo
+
+      gcc-14 Debug [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        Compiler: gcc
+        CompilerVer: 14
+        BuildType: Debug
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        gcc-13 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
+          Compiler: gcc
+          CompilerVer: 13
+          BuildType: RelWithDebInfo
 
       gcc-13 Debug [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
@@ -294,7 +307,7 @@ jobs:
         sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
         sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
 
-        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $PACKAGES cmake cmake-curses-gui ccache bison libtirpc-dev libudev-dev libaio-dev libmecab-dev libnuma-dev libssl-dev libedit-dev libpam-dev libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev libsasl2-modules-gssapi-mit || exit 1;
         `# SYSTEM_LIBRARIES = CURL EDITLINE ICU LIBEVENT LZ4 PROTOBUF SSL ZSTD FIDO (Ubuntu 21.04+)`
         if [[ "$(BUILD_PARAMS_TYPE)" != "inverted" ]]; then
           sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libicu-dev libevent-dev liblz4-dev zlib1g-dev protobuf-compiler libprotobuf-dev libprotoc-dev libzstd-dev libfido2-dev || exit 1;

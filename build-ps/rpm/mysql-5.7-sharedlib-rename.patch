@@ -119,9 +119,9 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt
 +++ libmysql/CMakeLists.txt
-@@ -301,15 +301,15 @@
- # Fido and Webauthn clients
- ADD_SUBDIRECTORY(fido_client)
+@@ -304,15 +304,15 @@
+ # authentication mysql_native_password client plug-in
+ ADD_SUBDIRECTORY(authentication_native_password)
 
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
@@ -208,35 +208,15 @@
    ext::libprotobuf
 --- router/src/router/src/CMakeLists.txt
 +++ router/src/router/src/CMakeLists.txt
-@@ -62,7 +62,7 @@
-   harness-library
+@@ -53,7 +53,7 @@
+   PUBLIC
    harness_stdx
-   harness_tls
+   harness-library  # log_debug
 -  perconaserverclient
 +  mysqlclient
-   OpenSSL::SSL OpenSSL::Crypto
-   io_component
-   extra::rapidjson
---- router/tests/fuzzers/CMakeLists.txt
-+++ router/tests/fuzzers/CMakeLists.txt
-@@ -34,7 +34,7 @@
+   )
 
-     LINK_LIBRARIES
-     harness-library
--    perconaserverclient
-+    mysqlclient
-     OpenSSL::SSL OpenSSL::Crypto
-
-     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-@@ -62,7 +62,7 @@
-
-     LINK_LIBRARIES
-     harness-library
--    perconaserverclient
-+    mysqlclient
-     OpenSSL::SSL OpenSSL::Crypto
-
-     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+ ROUTER_ADD_SHARED_LIBRARY(router_cluster
 --- scripts/CMakeLists.txt
 +++ scripts/CMakeLists.txt
 @@ -302,7 +302,7 @@ ELSE()
@@ -291,7 +271,7 @@
      ENDIF()
 --- testclients/CMakeLists.txt
 +++ testclients/CMakeLists.txt
-@@ -23,9 +23,9 @@
+@@ -24,9 +24,9 @@
  ADD_WSHADOW_WARNING()
 
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
@@ -299,7 +279,7 @@
 +TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
 
  IF(WITH_UNIT_TESTS)
-   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
+   MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL EXCLUDE_FROM_PGO)
 -  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
 +  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
  ENDIF()
@@ -369,35 +349,6 @@
    gunit_small)
 
  IF (WITH_CS_PROTOBUF)
---- router/src/router/tests/CMakeLists.txt	2023-10-21 17:32:54.840887994 +0300
-+++ router/src/router/tests/CMakeLists.txt      2023-10-21 17:33:39.216867406 +0300
-@@ -128,7 +128,7 @@
- ADD_HARNESS_TEST_FILE(test_mysql_session.cc
-   MODULE ${TEST_MODULE}
-   LIB_DEPENDS
--    test-helpers perconaserverclient
-+    test-helpers mysqlclient
-   EXTRA_SOURCES
-     ../src/common/mysql_session.cc
-     ../src/common/log_filter.cc
-@@ -147,7 +147,7 @@
-   ADD_HARNESS_TEST_FILE(${test_file}
-     MODULE ${TEST_MODULE}
-     LIB_DEPENDS
--      test-helpers perconaserverclient router_lib
-+      test-helpers mysqlclient router_lib
-     INCLUDE_DIRS
-       $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
-       ../src/
-@@ -158,7 +158,7 @@
- ADD_HARNESS_TEST_FILE(test_windows_service.cc
-   MODULE ${TEST_MODULE}
-   LIB_DEPENDS
--    test-helpers perconaserverclient
-+    test-helpers mysqlclient
-   EXTRA_SOURCES
-     ../src/windows/main-windows.cc
-     ../src/windows/nt_servc.cc
 --- libchangestreams/src/tests/CMakeLists.txt   2023-10-21 17:41:00.756660313 +0300
 +++ libchangestreams/src/tests/CMakeLists.txt   2023-10-21 17:41:14.344653893 +0300
 @@ -38,7 +38,7 @@

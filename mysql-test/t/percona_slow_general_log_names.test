@@ -1,0 +1,3 @@
+--replace_regex /\.\d+//
+select @@global.slow_query_log_file;
+select @@global.general_log_file;

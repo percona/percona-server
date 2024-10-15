@@ -2970,12 +2970,12 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   if (lower_case_table_names == 1 ||
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used())) {
-    if (table_name_arg && table_name_arg[0]) {
+    if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0]) {
       my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name = t_name_buff;
     }
-    if (db_name_arg && db_name_arg[0]) {
+    if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0]) {
       my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name = d_name_buff;
@@ -5177,11 +5177,9 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
   if (select_ref == nullptr) return false;
 
-  if ((*select_ref)->has_wf()) {
-    /*
-      We can't reference an alias to a window function expr from within
-      a subquery or a HAVING clause
-    */
+  if ((*select_ref)->has_wf() && (thd->lex->deny_window_function(select))) {
+    // E.g. SELECT wf() AS x .. grouped-aggregate-function( ..x.. )
+    //      SELECT wf() AS x .., (SELECT ... x FROM..)
     my_error(ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE, MYF(0), ref->field_name);
     return true;
   }
@@ -5778,8 +5776,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
             intermediate value to resolve referenced item only.
             In this case the new Item_ref item is unused.
           */
-          if (resolution == RESOLVED_AGAINST_ALIAS)
+          if (resolution == RESOLVED_AGAINST_ALIAS) {
             res = &qb->base_ref_items[counter];
+
+            if ((*res)->has_wf() && thd->lex->deny_window_function(qb)) {
+              // SELECT wf() AS x .. ORDER BY grouped-aggregate-function(..x..)
+              my_error(ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE, MYF(0),
+                       field_name);
+              return true;
+            }
+          }
 
           Item_ref *rf =
               new Item_ref(context, res, db_name, table_name, field_name,
@@ -7406,6 +7412,7 @@ bool Item::send(Protocol *protocol, String *buffer) {
   }
 
   assert(null_value);
+  if (current_thd->is_error()) return true;
   return protocol->store_null();
 }
 
@@ -7575,6 +7582,7 @@ bool Item::clean_up_after_removal(uchar *arg) {
 
   if (reference_count() > 1) {
     (void)decrement_ref_count();
+    ctx->stop_at(this);
   }
   return false;
 }

@@ -1,0 +1,89 @@
+--echo #
+--echo # PS-9306 : MySQL 8.0.38, 8.4.1 and 9.0.0 crashes on restart if database has 10K tables or more
+--echo #
+
+CREATE DATABASE test_8k;
+--source include/count_sessions.inc
+--source include/big_test.inc
+
+DELIMITER |;
+CREATE PROCEDURE create_tables(start_index INT, end_index INT)
+BEGIN
+    DECLARE i INT;
+    SET i = start_index;
+    WHILE i < end_index DO
+        SET @table_name = CONCAT('table_', i);
+        SET @create_stmt = CONCAT('CREATE TABLE IF NOT EXISTS test_8k.', @table_name, ' (id INT PRIMARY KEY AUTO_INCREMENT, data VARCHAR(255));');
+        PREPARE stmt FROM @create_stmt;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SET i = i + 1;
+    END WHILE;
+END|
+DELIMITER ;|
+
+let $connections=8;
+let $i=0;
+while ($i < $connections) {
+  --connect(C$i,localhost,root,,test)
+  --send_eval CALL create_tables($i*1024,($i+1)*1024)
+  inc $i;
+}
+
+let $i=0;
+while ($i < $connections) {
+  --connection C$i
+  reap;
+  --disconnect C$i
+  --source include/wait_until_disconnected.inc
+  inc $i;
+}
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--source include/restart_mysqld.inc
+
+--assert(`SELECT COUNT(*)=8192 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'test_8k'`)
+
+--source include/count_sessions.inc
+
+DELIMITER |;
+CREATE PROCEDURE drop_tables(start_index INT, end_index INT)
+BEGIN
+    DECLARE i INT;
+    SET i = start_index;
+    WHILE i < end_index DO
+        SET @table_name = CONCAT('table_', i);
+        SET @create_stmt = CONCAT('DROP TABLE test_8k.', @table_name, ';');
+        PREPARE stmt FROM @create_stmt;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SET i = i + 1;
+    END WHILE;
+END|
+DELIMITER ;|
+
+let $connections=8;
+let $i=0;
+while ($i < $connections) {
+  --connect(C$i,localhost,root,,test)
+  --send_eval CALL drop_tables($i*1024,($i+1)*1024)
+  inc $i;
+}
+
+let $i=0;
+while ($i < $connections) {
+  --connection C$i
+  reap;
+  --disconnect C$i
+  --source include/wait_until_disconnected.inc
+  inc $i;
+}
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--assert(`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'test_8k'`)
+
+DROP DATABASE test_8k;
+DROP PROCEDURE create_tables;
+DROP PROCEDURE drop_tables;

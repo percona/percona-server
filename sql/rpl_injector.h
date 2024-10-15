@@ -25,9 +25,8 @@
 #define INJECTOR_H
 
 #include <stddef.h>
+#include <string_view>
 
-#include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/table.h"  // TABLE
@@ -148,8 +147,6 @@ class injector {
             m_is_transactional(is_transactional),
             m_skip_hash(skip_hash) {}
 
-      char const *db_name() const { return m_table->s->db.str; }
-      char const *table_name() const { return m_table->s->table_name.str; }
       TABLE *get_table() const { return m_table; }
       bool is_transactional() const { return m_is_transactional; }
       bool skip_hash() const { return m_skip_hash; }
@@ -378,8 +375,7 @@ class injector {
    */
   void new_trans(THD *, transaction *);
 
-  int record_incident(THD *, binary_log::Incident_event::enum_incident incident,
-                      LEX_CSTRING const message);
+  int record_incident(THD *, std::string_view message);
 
  private:
   explicit injector();

@@ -98,6 +98,7 @@
 #include "../suma/Suma.hpp"
 #include "DblqhCommon.hpp"
 #include "portlib/mt-asm.h"
+#include "portlib/ndb_file.h"
 
 #include "../backup/Backup.hpp"
 #include "../dbtux/Dbtux.hpp"
@@ -2107,6 +2108,8 @@ void Dblqh::execREAD_CONFIG_REQ(Signal *signal) {
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
+  if (!ndb_file::have_direct_io_support())
+    c_o_direct = 0;  // Message in NDBFS::execREAD_CONFIG
 
   Uint32 encrypted_filesystem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM,
@@ -13024,62 +13027,62 @@ void Dblqh::lqhTransNextLab(Signal *signal, TcNodeFailRecordPtr tcNodeFailPtr) {
   TcConnectionrecPtr tcConnectptr;
   tcConnectptr.i = tcNodeFailPtr.p->tcRecNow;
   for (Uint32 i = 0; i < 100; i++) {
-    bool found = getNextTcConRec(tcNodeFailPtr.p->tcRecNow, tcConnectptr, 10);
-    if (tcNodeFailPtr.p->tcRecNow != RNIL && !found) {
-      /**
-       * We scanned without finding any records for a long
-       * time, thus we will treat this as looping 10 times
-       * in this loop.
-       */
-      jam();
-      i += 10;
-      continue;
-    } else if (tcNodeFailPtr.p->tcRecNow == RNIL) {
-      jam();
-      /**
-       * Finished with scanning operation record
-       *
-       * now scan markers
-       */
+    if (!getNextTcConRec(tcNodeFailPtr.p->tcRecNow, tcConnectptr, 10)) {
+      if (tcNodeFailPtr.p->tcRecNow != RNIL) {
+        /**
+         * We scanned without finding any records for a long
+         * time, thus we will treat this as looping 10 times
+         * in this loop.
+         */
+        jam();
+        i += 10;
+        continue;
+      } else {
+        jam();
+        /**
+         * Finished with scanning operation record
+         *
+         * now scan markers
+         */
 #ifdef ERROR_INSERT
-      if (ERROR_INSERTED(5061)) {
-        CLEAR_ERROR_INSERT_VALUE;
-        for (Uint32 i = 0; i < cnoOfNodes; i++) {
-          Uint32 node = cnodeData[i];
-          if (node != getOwnNodeId() && cnodeStatus[i] == ZNODE_UP) {
-            g_eventLogger->info("clearing ERROR_INSERT in LQH:%u", node);
-            signal->theData[0] = 0;
-            sendSignal(numberToRef(getDBLQH(), node), GSN_NDB_TAMPER, signal, 1,
-                       JBB);
+        if (ERROR_INSERTED(5061)) {
+          for (Uint32 i = 0; i < cnoOfNodes; i++) {
+            Uint32 node = cnodeData[i];
+            if (cnodeStatus[i] == ZNODE_UP) {
+              g_eventLogger->info("clearing ERROR_INSERT in LQH:%u", node);
+              CLEAR_ERROR_INSERT_VALUE3(signal, node, getDBLQH());
+            }
           }
+
+          signal->theData[0] = ZSCAN_MARKERS;
+          signal->theData[1] = tcNodeFailPtr.i;
+          signal->theData[2] = 0;
+          sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 3);
+          return;
         }
 
-        signal->theData[0] = ZSCAN_MARKERS;
-        signal->theData[1] = tcNodeFailPtr.i;
-        signal->theData[2] = 0;
-        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 3);
-        return;
-      }
+        if (ERROR_INSERTED(5050)) {
+          g_eventLogger->info(
+              "send ZSCAN_MARKERS with 5s delay and killing master: %u",
+              c_master_node_id);
+          CLEAR_ERROR_INSERT_VALUE;
+          signal->theData[0] = ZSCAN_MARKERS;
+          signal->theData[1] = tcNodeFailPtr.i;
+          signal->theData[2] = 0;
+          sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 3);
 
-      if (ERROR_INSERTED(5050)) {
-        g_eventLogger->info(
-            "send ZSCAN_MARKERS with 5s delay and killing master: %u",
-            c_master_node_id);
-        CLEAR_ERROR_INSERT_VALUE;
-        signal->theData[0] = ZSCAN_MARKERS;
-        signal->theData[1] = tcNodeFailPtr.i;
-        signal->theData[2] = 0;
-        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 3);
-
-        signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, c_error_insert_extra), GSN_NDB_TAMPER,
-                   signal, 1, JBB);
-        return;
-      }
+          signal->theData[0] = 9999;
+          sendSignal(numberToRef(CMVMI, c_error_insert_extra), GSN_NDB_TAMPER,
+                     signal, 1, JBB);
+          return;
+        }
 #endif
-      scanMarkers(signal, tcNodeFailPtr.i, 0);
-      return;
-    }  // if
+        scanMarkers(signal, tcNodeFailPtr.i, 0);
+        return;
+      }  // if
+    }    // if (!getNextTcConRec())
+
+    /* Found an operation record */
     if (tcConnectptr.p->transactionState != TcConnectionrec::IDLE) {
       if (tcConnectptr.p->transactionState !=
           TcConnectionrec::TC_NOT_CONNECTED) {
@@ -19197,15 +19200,18 @@ void Dblqh::scanTcConnectLab(Signal *signal, Uint32 tstartTcConnect,
   TcConnectionrecPtr tcConnectptr;
   Uint32 next = tstartTcConnect;
   for (Uint32 i = 0; i < 200; i++) {
-    bool found = getNextTcConRec(next, tcConnectptr, 10);
-    if (next != RNIL && !found) {
-      jam();
-      i += 10;
-      continue;
-    } else if (next == RNIL) {
-      jam();
-      break;
+    if (!getNextTcConRec(next, tcConnectptr, 10)) {
+      if (next != RNIL) {
+        jam();
+        i += 10;
+        continue;
+      } else {
+        /* Scan done */
+        jam();
+        break;
+      }
     }
+    /* Examine next record */
     if (tcConnectptr.p->transactionState != TcConnectionrec::IDLE) {
       switch (tcConnectptr.p->logWriteState) {
         case TcConnectionrec::NOT_WRITTEN:
@@ -23124,7 +23130,7 @@ void Dblqh::initLogfile(LogFileRecordPtr logFilePtr, Uint32 partNo,
   logFilePtr.p->fileName[0] = (UintR)-1;
   logFilePtr.p->fileName[1] = (UintR)-1; /* = H'FFFFFFFF = -1 */
   logFilePtr.p->fileName[2] = fileNo;    /* Sfile_no */
-  tilTmp = 1;                            /* VERSION 1 OF FILE NAME */
+  tilTmp = FsOpenReq::V_BLOCK;           /* VERSION 1 OF FILE NAME */
   tilTmp = (tilTmp << 8) + 1; /* FRAGMENT LOG => .FRAGLOG AS EXTENSION */
   tilTmp = (tilTmp << 8) + (8 + partNo); /* DIRECTORY = D(8+Part)/DBLQH */
   tilTmp = (tilTmp << 8) + 255;          /* IGNORE Pxx PART OF FILE NAME */
@@ -23230,7 +23236,7 @@ void Dblqh::openFileRw(Signal *signal, LogFileRecordPtr olfLogFilePtr,
     LinearSectionPtr lsptr[3];
 
     // Use a dummy file name
-    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != FsOpenReq::V_FILENAME);
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
@@ -23295,7 +23301,7 @@ void Dblqh::openLogfileInit(Signal *signal, LogFileRecordPtr logFilePtr) {
     LinearSectionPtr lsptr[3];
 
     // Use a dummy file name
-    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+    ndbrequire(FsOpenReq::getVersion(req->fileNumber) != FsOpenReq::V_FILENAME);
     lsptr[FsOpenReq::FILENAME].p = nullptr;
     lsptr[FsOpenReq::FILENAME].sz = 0;
 
@@ -23442,7 +23448,8 @@ void Dblqh::openNextLogfile(Signal *signal, LogFileRecord *logFilePtrP,
       LinearSectionPtr lsptr[3];
 
       // Use a dummy file name
-      ndbrequire(FsOpenReq::getVersion(req->fileNumber) != 4);
+      ndbrequire(FsOpenReq::getVersion(req->fileNumber) !=
+                 FsOpenReq::V_FILENAME);
       lsptr[FsOpenReq::FILENAME].p = nullptr;
       lsptr[FsOpenReq::FILENAME].sz = 0;
 

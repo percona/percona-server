@@ -89,6 +89,7 @@ usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/component_test_mysql_command_services.so
 usr/lib/mysql/plugin/component_test_status_var_reader.so
 usr/lib/mysql/plugin/test_services_command_services.so
+usr/lib/mysql/plugin/component_test_session_var_service.so
 usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/debug/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/debug/auth.so
@@ -170,6 +171,7 @@ usr/lib/mysql/plugin/debug/conflicting_variables.so
 usr/lib/mysql/plugin/debug/component_test_mysql_command_services.so
 usr/lib/mysql/plugin/debug/component_test_status_var_reader.so
 usr/lib/mysql/plugin/debug/test_services_command_services.so
+usr/lib/mysql/plugin/debug/component_test_session_var_service.so
 usr/lib/mysql/plugin/component_test_event_tracking_consumer.so
 usr/lib/mysql/plugin/component_test_event_tracking_producer_a.so
 usr/lib/mysql/plugin/component_test_event_tracking_producer_b.so

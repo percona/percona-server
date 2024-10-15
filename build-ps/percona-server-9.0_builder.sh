@@ -19,11 +19,6 @@ Usage: $0 [OPTIONS]
         --install_deps              Install build dependencies(root previlages are required)
         --branch                    Branch for build
         --repo                      Repo for build
-	--build_tokudb_tokubackup   If it is 1 tokudb and tokudback packages will be build (default = 0)
-	--perconaft_repo            PerconaFT repo (The TokuDB storage has no longer supported since 8.0.28)
-        --perconaft_branch          Branch for PerconaFT
-	--tokubackup_repo           TokuBackup repo (The TokuDB storage has no longer supported since 8.0.28)
-        --tokubackup_branch         Branch for TokuBackup
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
@@ -140,10 +135,10 @@ get_sources(){
     ls
     if [ -f VERSION ]; then
         source VERSION
-        cat VERSION > ../percona-server-8.0.properties
+        cat VERSION > ../percona-server-9.0.properties
     elif [ -f MYSQL_VERSION ]; then
         source MYSQL_VERSION
-        cat MYSQL_VERSION > ../percona-server-8.0.properties
+        cat MYSQL_VERSION > ../percona-server-9.0.properties
     else
         echo "VERSION file does not exist"
 	exit 1
@@ -186,32 +181,32 @@ get_sources(){
             fi
         fi
     fi
-    echo >> ../percona-server-8.0.properties
-    echo "REVISION=${REVISION}" >> ../percona-server-8.0.properties
+    echo >> ../percona-server-9.0.properties
+    echo "REVISION=${REVISION}" >> ../percona-server-9.0.properties
     BRANCH_NAME="${BRANCH}"
-    echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-8.0.properties
+    echo "BRANCH_NAME=${BRANCH_NAME}" >> ../percona-server-9.0.properties
     export PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}
-    echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-8.0.properties
+    echo "PRODUCT=Percona-Server-${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}" >> ../percona-server-9.0.properties
     export PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
-    echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
-    echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-8.0.properties
-    echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-8.0.properties
-    echo "BUILD_TOKUDB_TOKUBACKUP=${BUILD_TOKUDB_TOKUBACKUP}" >> ../percona-server-8.0.properties
-    echo "PERCONAFT_REPO=${PERCONAFT_REPO}" >> ../percona-server-8.0.properties
-    echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-8.0.properties
-    echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-8.0.properties
-    echo "TOKUBACKUP_BRANCH=${TOKUBACKUP_BRANCH}" >> ../percona-server-8.0.properties
+    echo "PRODUCT_FULL=${PRODUCT}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-9.0.properties
+    echo "BUILD_NUMBER=${BUILD_NUMBER}" >> ../percona-server-9.0.properties
+    echo "BUILD_ID=${BUILD_ID}" >> ../percona-server-9.0.properties
+    echo "BUILD_TOKUDB_TOKUBACKUP=${BUILD_TOKUDB_TOKUBACKUP}" >> ../percona-server-9.0.properties
+    echo "PERCONAFT_REPO=${PERCONAFT_REPO}" >> ../percona-server-9.0.properties
+    echo "PERCONAFT_BRANCH=${PERCONAFT_BRANCH}" >> ../percona-server-9.0.properties
+    echo "TOKUBACKUP_REPO=${TOKUBACKUP_REPO}" >> ../percona-server-9.0.properties
+    echo "TOKUBACKUP_BRANCH=${TOKUBACKUP_BRANCH}" >> ../percona-server-9.0.properties
     export TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}
-    echo "TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-8.0.properties
-    echo "RPM_RELEASE=${RPM_RELEASE}" >> ../percona-server-8.0.properties
-    echo "DEB_RELEASE=${DEB_RELEASE}" >> ../percona-server-8.0.properties
+    echo "TOKUDB_VERSION=${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA}" >> ../percona-server-9.0.properties
+    echo "RPM_RELEASE=${RPM_RELEASE}" >> ../percona-server-9.0.properties
+    echo "DEB_RELEASE=${DEB_RELEASE}" >> ../percona-server-9.0.properties
 
     if [ -z "${DESTINATION:-}" ]; then
         export DESTINATION=experimental
     fi
     TIMESTAMP=$(date "+%Y%m%d-%H%M%S")
-    echo "DESTINATION=${DESTINATION}" >> ../percona-server-8.0.properties
-    echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-8.0.properties
+    echo "DESTINATION=${DESTINATION}" >> ../percona-server-9.0.properties
+    echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-9.0.properties
 
     rm -rf storage/tokudb/PerconaFT
     rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
@@ -274,7 +269,7 @@ get_sources(){
     tar xzf ${EXPORTED_TAR}
     rm -f ${EXPORTED_TAR}
 
-    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 9.0.28 packages
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         git submodule deinit -f storage/tokudb/PerconaFT/
         rm -rf .git/modules/PerconaFT/
@@ -297,7 +292,7 @@ get_sources(){
     #
     cd ${PSDIR}
 
-    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 9.0.28 packages
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         rm -rf storage/tokudb
         rm -rf plugin/tokudb-backup-plugin
@@ -349,7 +344,7 @@ get_system(){
 
 apply_workaround_bug_304121(){
     cat > /tmp/bugzilla_bug_304121.patch <<- EOF
---- /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:38.582288603 +0000
+--- /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:38.582289.03 +0000
 +++ /usr/lib/rpm/find-debuginfo.sh	2022-07-29 11:43:17.089255640 +0000
 @@ -309,7 +309,7 @@
 
@@ -452,20 +447,20 @@ install_deps() {
             yum -y install libtirpc-devel
             yum -y install centos-release-stream
             switch_to_vault_repo
-            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
+            yum -y install gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-annocheck gcc-toolset-13-annobin-plugin-gcc gcc-toolset-13-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
         fi
         if [ "x$RHEL" = "x9" ]; then
             yum -y install libtirpc-devel
-            yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
+            yum -y install gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-annocheck gcc-toolset-13-annobin-plugin-gcc gcc-toolset-13-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
-                pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
+                pushd /opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13/plugin/
                 ln -s annobin.so gcc-annobin.so
                 popd
             else
-                pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/aarch64-redhat-linux/12/plugin/
+                pushd /opt/rh/gcc-toolset-13/root/usr/lib/gcc/aarch64-redhat-linux/13/plugin/
                 ln -s annobin.so gcc-annobin.so
                 popd
             fi
@@ -503,7 +498,7 @@ install_deps() {
         if [ x"${DIST}" = xbionic ]; then
             apt-get -y install gcc-8 g++-8
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 9.0 --slave /usr/bin/g++ g++ /usr/bin/g++-8
         elif [ x"${DIST}" = xnoble ]; then
             apt-get -y install gcc-13 g++-13
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
@@ -735,8 +730,8 @@ build_rpm(){
     RHEL=$(rpm --eval %rhel)
     ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     #
-    echo "RHEL=${RHEL}" >> percona-server-8.0.properties
-    echo "ARCH=${ARCH}" >> percona-server-8.0.properties
+    echo "RHEL=${RHEL}" >> percona-server-9.0.properties
+    echo "ARCH=${ARCH}" >> percona-server-9.0.properties
     #
     SRCRPM=$(basename $(find . -name '*.src.rpm' | sort | tail -n1))
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
@@ -861,9 +856,9 @@ build_deb(){
     ARCH=$(uname -m)
     export EXTRAVER=${MYSQL_VERSION_EXTRA#-}
     #
-    echo "ARCH=${ARCH}" >> percona-server-8.0.properties
-    echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> percona-server-8.0.properties
-    echo "VERSION=${VERSION}" >> percona-server-8.0.properties
+    echo "ARCH=${ARCH}" >> percona-server-9.0.properties
+    echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> percona-server-9.0.properties
+    echo "VERSION=${VERSION}" >> percona-server-9.0.properties
     #
 
     dpkg-source -x ${DSC}
@@ -1004,7 +999,7 @@ build_tarball(){
 #main
 
 CURDIR=$(pwd)
-VERSION_FILE=$CURDIR/percona-server-8.0.properties
+VERSION_FILE=$CURDIR/percona-server-9.0.properties
 args=
 WORKDIR=
 SRPM=0
@@ -1024,20 +1019,18 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.30-22"
+BRANCH="release-9.0.1-1"
 RPM_RELEASE=1
 DEB_RELEASE=1
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
 REPO="https://github.com/percona/percona-server.git"
-PRODUCT=Percona-Server-8.0
-MYSQL_VERSION_MAJOR=8
+PRODUCT=Percona-Server-9.0
+MYSQL_VERSION_MAJOR=9
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=30
-MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-8.0.30
+MYSQL_VERSION_PATCH=1
+MYSQL_VERSION_EXTRA=-1
+PRODUCT_FULL=Percona-Server-9.0.1
 BUILD_TOKUDB_TOKUBACKUP=0
-PERCONAFT_BRANCH=Percona-Server-8.0.30-22
-TOKUBACKUP_BRANCH=Percona-Server-8.0.30-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

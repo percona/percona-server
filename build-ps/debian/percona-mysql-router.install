@@ -41,7 +41,7 @@ usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 # private shared libraries
-usr/lib/mysqlrouter/private/libprotobuf-lite.so.*
+#usr/lib/mysqlrouter/private/libprotobuf-lite.so.*
 usr/lib/mysqlrouter/private/libabsl_*.so
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
@@ -58,6 +58,11 @@ usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing_connections.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_destination_status.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_cluster.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_utils.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_server.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_mysql.so.1
 
 usr/share/mysqlrouter/docs/sample_mysqlrouter.conf
 usr/share/mysqlrouter/mysqlrouter-systemd-start

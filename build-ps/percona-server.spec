@@ -143,7 +143,7 @@ Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
 License:        Copyright (c) 2000, %{build_timestamp}, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
-Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
+Source0:        http://www.percona.com/downloads/Percona-Server-9.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -797,7 +797,7 @@ echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
-echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html for more details"
+echo "See http://www.percona.com/doc/percona-server/9.0/management/udf_percona_toolkit.html for more details"
 
 %preun -n percona-server-server
 %if 0%{?systemd}
@@ -1138,6 +1138,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_prepared_statement.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_regular_statement.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_signal_handler.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_session_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_native_password.so
 
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -1187,6 +1189,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_session_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_native_password.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
@@ -1595,14 +1599,20 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
-%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+#%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf.so.*
 %{_libdir}/mysqlrouter/private/libabsl_*.so
-%{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.1
+%{_libdir}/mysqlrouter/private/libmysqlrouter_io_component.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_metadata_cache.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing_connections.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_destination_status.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_cluster.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_server.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysql.so.*
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so

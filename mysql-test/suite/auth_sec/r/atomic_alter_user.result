@@ -4,7 +4,7 @@ CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS
 # Begin : Tests for ALTER USER
 CREATE USER userX, userY, userZ;
 include/rpl/save_binlog_file_position.inc
-SELECT user, authentication_string FROM mysql.user;
+SELECT user, authentication_string FROM mysql.user WHERE user != 'percona.telemetry';
 user	authentication_string
 userX	
 userY	
@@ -69,7 +69,7 @@ userZ@%
 ALTER USER root@localhost, userW PASSWORD EXPIRE;
 ERROR HY000: Operation ALTER USER failed for 'userW'@'%'
 # Must succeed
-SELECT user FROM mysql.user;
+SELECT user FROM mysql.user WHERE user != 'percona.telemetry';
 user
 userY
 userZ
@@ -126,7 +126,7 @@ include/rpl/save_binlog_file_position.inc
 ALTER USER IF EXISTS userY IDENTIFIED BY 'abcd', userW IDENTIFIED BY 'haha';
 Warnings:
 Note	3162	Authorization ID 'userW'@'%' does not exist.
-SELECT user FROM mysql.user;
+SELECT user FROM mysql.user WHERE user != 'percona.telemetry';
 user
 userY
 mysql.infoschema

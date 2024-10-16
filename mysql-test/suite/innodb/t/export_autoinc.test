@@ -1,0 +1,53 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(i serial);
+INSERT INTO t1 VALUES(null);
+
+CREATE TABLE t2(i int , j serial);
+INSERT INTO t2 VALUES(1, null);
+--source suite/innodb/include/import.inc
+
+--echo # Flush the table and put IBD/CFG files aside for later import.
+FLUSH TABLE t1 FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+--echo "copy done"
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
+
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t1.cfg
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+INSERT INTO t1 VALUES(null);
+
+FLUSH TABLE t2 FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/t2.ibd_back
+--echo "copy done"
+--copy_file $MYSQLD_DATADIR/test/t2.cfg $MYSQLD_DATADIR/t2.cfg_back
+
+UNLOCK TABLES;
+
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t2.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+--copy_file $MYSQLD_DATADIR/t2.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+
+ALTER TABLE t2 IMPORT TABLESPACE;
+
+INSERT INTO t2 VALUES(1, null);
+
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 VALUES(null);
+DROP TABLE t1;
+
+INSERT INTO t2 VALUES(3,null);
+DROP TABLE t2;

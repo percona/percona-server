@@ -10,7 +10,7 @@
 SELECT current_user;
 current_user
 root@localhost
-SELECT user, plugin FROM mysql.user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry';
 user	plugin
 mysql.infoschema	caching_sha2_password
 mysql.session	caching_sha2_password

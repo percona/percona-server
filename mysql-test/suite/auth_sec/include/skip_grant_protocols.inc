@@ -30,7 +30,7 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --datadir=$MYSQLD_DATA
 --source include/restart_mysqld.inc
 
 SELECT current_user;
-SELECT user, plugin FROM mysql.user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry';
 
 --echo
 --echo # Set the password for the root user

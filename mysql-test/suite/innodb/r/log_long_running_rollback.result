@@ -57,7 +57,7 @@ SELECT MAX(LOGGED) INTO @pfs_errlog_latest FROM performance_schema.error_log;
 SET @@SESSION.debug="+d,crash_after_flush_engine_log";
 DELETE FROM t;
 ERROR HY000: Lost connection to MySQL server during query
-# restart: --debug=d,log_long_rollback --log-error-verbosity=3
+# restart: --debug=d,log_long_rollback --log-error-verbosity=3 --loose-percona-telemetry-disable=1
 SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA
 FROM performance_schema.error_log
 WHERE ERROR_CODE IN ('MY-013032', 'MY-010232', 'MY-LNGRB1', 'MY-LNGRB2')

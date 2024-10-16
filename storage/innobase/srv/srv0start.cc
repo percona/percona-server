@@ -2581,8 +2581,6 @@ files_checked:
 		if (err != DB_SUCCESS)
 			return(srv_init_abort(err));
 
-		purge_queue = trx_sys_init_at_db_start();
-
 		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			/* Apply the hashed log records to the
 			respective file pages, for the last batch of
@@ -2591,9 +2589,13 @@ files_checked:
 			recv_apply_hashed_log_recs(TRUE);
 			DBUG_PRINT("ib_log", ("apply completed"));
 
+            purge_queue = trx_sys_init_at_db_start();
+
 			if (recv_needed_recovery) {
 				trx_sys_print_mysql_binlog_offset();
 			}
+		} else {
+			purge_queue = trx_sys_init_at_db_start();
 		}
 
 		if (recv_sys->found_corrupt_log) {

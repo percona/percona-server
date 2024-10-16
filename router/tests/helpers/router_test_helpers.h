@@ -41,13 +41,6 @@
 #define MYSQLD_BIN "mysqld"
 #endif
 
-#define SKIP_GIT_TESTS(COND)                                       \
-  if (COND) {                                                      \
-    std::cout << "[  SKIPPED ] Tests using Git repository skipped" \
-              << std::endl;                                        \
-    return;                                                        \
-  }
-
 #define HARNESS_TEST_THROW_LIKE_(statement, expected_exception,                \
                                  expected_message, fail)                       \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \

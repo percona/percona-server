@@ -1567,6 +1567,20 @@ bool auth_plugin_supports_expiration(const char *plugin_name) {
 }
 
 /**
+  a helper function to report cannot proxy error in all the proper places
+*/
+static void cannot_proxy_error(THD *thd, const MPVIO_EXT &mpvio,
+                               int server_error, int client_error) {
+  my_error(client_error, MYF(0), mpvio.auth_info.user_name,
+           mpvio.auth_info.host_or_ip, mpvio.auth_info.authenticated_as);
+  query_logger.general_log_print(thd, COM_CONNECT, ER_DEFAULT(client_error),
+                                 mpvio.auth_info.user_name,
+                                 mpvio.auth_info.host_or_ip);
+  LogErr(INFORMATION_LEVEL, server_error, mpvio.auth_info.user_name,
+         mpvio.auth_info.host_or_ip, mpvio.auth_info.authenticated_as);
+}
+
+/**
   a helper function to report an access denied error in all the proper places
 */
 static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
@@ -4143,7 +4157,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
           Host_errors errors;
           errors.m_proxy_user = 1;
           inc_host_errors(mpvio.ip, &errors);
-          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          cannot_proxy_error(thd, mpvio,
+                             ER_ACCESS_DENIED_NO_PROXY_GRANT_WITH_NAME,
+                             ER_ACCESS_DENIED_NO_PROXY_GRANT);
           goto end;
         }
 
@@ -4162,7 +4178,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
           Host_errors errors;
           errors.m_proxy_user_acl = 1;
           inc_host_errors(mpvio.ip, &errors);
-          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          cannot_proxy_error(thd, mpvio, ER_ACCESS_DENIED_NO_PROXY_WITH_NAME,
+                             ER_ACCESS_DENIED_NO_PROXY);
           goto end;
         }
         if (acl_is_utility_user(acl_proxy_user->user,
@@ -4351,7 +4368,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
     DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                         "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                        "Access: %lu  db: '%s'",
+                        "Access: %" PRIu32 "  db: '%s'",
                         thd->get_protocol()->get_client_capabilities(),
                         thd->max_client_packet_length, sctx->host_or_ip().str,
                         sctx->user().str, sctx->priv_user().str,

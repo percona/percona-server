@@ -68,6 +68,12 @@ std::ostream &operator<<(std::ostream &os,
 
 }  // namespace std
 
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
+
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::MySQLSession;
 
@@ -452,7 +458,13 @@ TEST_F(RouterRoutingTest, ConnectTimeoutTimerCanceledCorrectly) {
   launch_router({"-c", conf_file}, EXIT_SUCCESS);
 
   // make the connection and close it right away
-  { auto con = make_new_connection_ok(router_port, server_port); }
+  {
+    auto conn_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(conn_res);
+    auto port_res = select_port(conn_res->get());
+    ASSERT_NO_ERROR(port_res);
+    EXPECT_EQ(*port_res, server_port);
+  }
 
   // wait longer than connect timeout, the process manager will check at exit
   // that the Router exits cleanly
@@ -2057,7 +2069,7 @@ TEST_F(RouterRoutingTest, ConnectionDebugLogsTcp) {
 
   {
     // open and close classic connection
-    make_new_connection_ok(router_classic_rw_port);
+    make_new_connection(router_classic_rw_port);
 
     // open and close x connection
     XProtocolSession x_session;
@@ -2149,7 +2161,7 @@ TEST_F(RouterRoutingTest, ConnectionDebugLogsSocket) {
 
   {
     // open and close classic connection
-    make_new_connection_ok(classic_socket);
+    make_new_connection(classic_socket);
 
     // open and close x connection
     XProtocolSession x_session;

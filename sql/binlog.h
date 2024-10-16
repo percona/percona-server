@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <string_view>
 #include <utility>
 
 #include "my_dbug.h"
@@ -59,7 +60,6 @@ class Format_description_log_event;
 class Gtid_monitoring_info;
 class Gtid_set;
 class Ha_trx_info;
-class Incident_log_event;
 class Log_event;
 class Master_info;
 class Relay_log_info;
@@ -610,17 +610,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param[out] total_bytes_var Pointer to variable that will be set to total
                                 number of bytes flushed, or NULL.
 
-    @param[out] rotate_var Pointer to variable that will be set to true if
-                           binlog rotation should be performed after releasing
-                           locks. If rotate is not necessary, the variable will
-                           not be touched.
-
     @param[out] out_queue_var  Pointer to the sessions queue in flush stage.
 
     @return Error code on error, zero on success
   */
-  int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
-                                THD **out_queue_var);
+  int process_flush_stage_queue(my_off_t *total_bytes_var, THD **out_queue_var);
 
   /**
     Flush and commit the transaction.
@@ -718,6 +712,13 @@ class MYSQL_BIN_LOG : public TC_LOG {
 #endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
+  /// @brief Adds bytes written in the current relay log into the variable
+  /// handling the total number of bytes acquired by the replica. Resets the
+  /// counter of bytes written. If requested by caller,
+  /// acquires relay log space lock
+  /// @param rli Pointer to the applier metadata object
+  /// @param need_log_space_lock Information on whether to acquire the
+  /// lock protecting data responsible for keeping the relay log space at bay
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
 
 #ifdef MYSQL_SERVER
@@ -810,7 +811,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool assign_automatic_gtids_to_flush_group(THD *first_seen);
   bool write_transaction(THD *thd, binlog_cache_data *cache_data,
-                         Binlog_event_writer *writer);
+                         Binlog_event_writer *writer,
+                         bool parallelization_barrier);
 
   /**
      Write a dml into statement cache and then flush it into binlog. It writes
@@ -832,12 +834,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);
-  bool write_incident(THD *thd, bool need_lock_log, const char *err_msg,
-                      bool do_flush_and_sync = true);
-  bool write_incident(Incident_log_event *ev, THD *thd, bool need_lock_log,
-                      const char *err_msg, bool do_flush_and_sync = true);
   bool write_event_to_binlog(Log_event *ev);
-  bool write_event_to_binlog_and_flush(Log_event *ev);
   bool write_event_to_binlog_and_sync(Log_event *ev);
   void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
@@ -862,6 +859,22 @@ class MYSQL_BIN_LOG : public TC_LOG {
      @return error code, 0 success
   */
   int write_xa_to_cache(THD *thd);
+
+  ///
+  /// Write an incident and call commit.
+  ///
+  /// The incident is written by marking the transaction cache as having an
+  /// incident and then commit it to binlog. During commit, the flush stage will
+  /// write and Incident_log_event and preceding Gtid_log_event to give the
+  /// incident a proper GTID. The incident will also cause the binlog to be
+  /// rotated and check if some purge is applicable.
+  ///
+  /// @param[in] thd the THD object of current thread.
+  /// @param[in] incident_message A message describing the incident.
+  ///
+  /// @return Returns false if succeeds, otherwise true is returned.
+  ///
+  bool write_incident_commit(THD *thd, std::string_view incident_message);
 
  private:
   bool after_write_to_relay_log(Master_info *mi);
@@ -1079,11 +1092,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   int get_gtid_executed(Tsid_map *tsid_map, Gtid_set *gtid_set);
 
-  /*
-    True while rotating binlog, which is caused by logging Incident_log_event.
-  */
-  bool is_rotating_caused_by_incident;
-
  public:
   /**
     Register LOG_INFO so that log_in_use and adjust_linfo_offsets can
@@ -1201,7 +1209,6 @@ bool mysql_show_binlog_events(THD *thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
-void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(const THD *thd, bool not_killed);
 
 extern const char *log_bin_index;

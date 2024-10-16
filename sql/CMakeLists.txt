@@ -1182,6 +1182,12 @@ LIST(APPEND MYSQLD_SOURCE partitioning/partition_base.cc)
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
+
+# With Ninja, link huge executables one-by-one.
+IF(WIN32)
+  SET_PROPERTY(TARGET mysqld PROPERTY JOB_POOL_LINK one_job)
+ENDIF()
+
 # You may want to redirect output for this one,
 # the list of exported symbols is loooong.
 ADD_OBJDUMP_TARGET(show_mysqld "$<TARGET_FILE:mysqld>" DEPENDS mysqld)
@@ -1229,7 +1235,10 @@ IF(NOT mysqld_link_flags)
   SET(mysqld_link_flags)
 ENDIF()
 
-IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR LINUX_INSTALL_RPATH_ORIGIN)
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
+    OR LINUX_INSTALL_RPATH_ORIGIN
+    OR TARGET my_tcmalloc
+    )
   # Because of INSTALL_DEBUG_TARGET which does INSTALL(FILES ...)
   IF(UNIX AND NOT APPLE AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     STRING_APPEND(mysqld_link_flags
@@ -1412,6 +1421,7 @@ MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(
     gen_lex_hash.cc
+    binlog/log_sanitizer.cc
     COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 

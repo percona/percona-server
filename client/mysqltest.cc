@@ -4886,6 +4886,9 @@ static void do_change_user(struct st_command *command) {
       if (cur_con->stmt) mysql_stmt_close(cur_con->stmt);
       cur_con->stmt = nullptr;
       mysql_reconnect(&cur_con->mysql);
+      /* mysql_reconnect changes this setting to true. We really want it to be
+        false at all times. */
+      cur_con->mysql.reconnect = false;
     }
   } else
     handle_no_error(command);
@@ -6797,6 +6800,9 @@ static void do_connect(struct st_command *command) {
       if (ds_connection_name.length) set_current_connection(con_slot);
       assert(con_slot != next_con);
     }
+    /* mysql_reconnect changes this setting to true. We really want it to be
+    false at all times. */
+    con_slot->mysql.reconnect = false;
     goto free_options;
   }
 

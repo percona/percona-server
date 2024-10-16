@@ -4,7 +4,7 @@ set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 
 CREATE USER 'kristofer';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 connect(con1,localhost,kristofer,secret,,,,SSL);
 connection con1;
 SELECT USER(),CURRENT_USER();

@@ -101,7 +101,16 @@ SET @@SESSION.debug="+d,crash_after_flush_engine_log";
 --error CR_SERVER_LOST
 DELETE FROM t;
 
---let $restart_parameters="restart: --debug=d,log_long_rollback --log-error-verbosity=3"
+# During the server startup, PS installs Percona Telemetry Component. The part of this process is
+# INSERT IGNORE ... into mysql.tables_priv. If this is next consecutive start of the server, the row
+# already exists. Internally, InnoDB detects row duplication, inserts nothing and does not advance
+# undo log position. This results in empty safepoint rollback.
+# However, INSERT IGNORE ... is not a single statement transaction. We operate in
+# a scope of a bigger transaction. Failed insert calls trx_rollback_to_savepoint_low(), which detects
+# that redo segment is updated (trx_is_rseg_updated()) and triggers safepoint rollback of the INSERT.
+# This MTR bypassess work of internal log throttler, so the transaction will be visible in the error log.
+# Restart the server without Percona Telemetry, just to avoid having above Percona Telemetry-related rollbacks logged. 
+--let $restart_parameters="restart: --debug=d,log_long_rollback --log-error-verbosity=3 --loose-percona-telemetry-disable=1"
 --source include/start_mysqld.inc
 
 --disable_query_log
@@ -123,3 +132,4 @@ SET GLOBAL debug="-d,log_long_rollback";
 --disable_query_log
 eval SET GLOBAL log_error_verbosity=$old_verbosity;
 --enable_query_log
+

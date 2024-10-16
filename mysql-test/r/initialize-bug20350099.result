@@ -17,7 +17,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-FROM mysql.user ORDER BY user;
+FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 user	host	plugin	LENGTH(authentication_string)
 mysql.infoschema	localhost	caching_sha2_password	70
 mysql.session	localhost	caching_sha2_password	70

@@ -98,7 +98,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-  FROM mysql.user ORDER by user;
+  FROM mysql.user WHERE user != 'percona.telemetry' ORDER by user;
 
 --echo # Check the sys schema exists with the right object counts
 --echo #
@@ -196,7 +196,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-  FROM mysql.user ORDER BY user;
+  FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 
 --echo # check the result of running --init-file
 SELECT a FROM t1 ORDER BY a;

@@ -23,6 +23,20 @@
 namespace {
 inline const char *b2s(bool val) { return val ? "1" : "0"; }
 
+/*
+  mysql.session user is mostly enough, but it lacks the following privileges:
+
+  1. REPLICATION SLAVE
+  2. REPLICATION CLIENT
+  3. SELECT on mysql.component
+  4. SELECT on performance_schema.replication_group_members
+
+  These privileges are added at server startup in setup_percona_telemetry()
+  if Percona telemetry is enabled.
+*/
+constexpr const char default_command_user_name[] = "mysql.session";
+constexpr const char default_command_host_name[] = "localhost";
+
 namespace JSONKey {
 const char *pillar_version = "pillar_version";
 const char *db_instance_id = "db_instance_id";
@@ -120,24 +134,28 @@ bool DataProvider::do_query(const std::string &query, QueryResult *result,
   }
   result->clear();
 
+  /* command_factory_service_.init() allocates memory for mysql_h
+    We need to call close() always.
+    Even if init() fails, becaues it doesn't allocate anything, calling close()
+    is safe, because internally it checks if provided pointer is valid
+  */
+  std::shared_ptr<MYSQL_H> mysql_h_close_guard(
+      &mysql_h, [&srv = command_factory_service_](MYSQL_H *ptr) {
+        srv.close(*ptr);
+      });
+
   mysql_service_status_t sstatus = command_factory_service_.init(&mysql_h);
+
   if (!sstatus)
     sstatus |=
         command_options_service_.set(mysql_h, MYSQL_COMMAND_PROTOCOL, nullptr);
   if (!sstatus)
-    sstatus |=
-        command_options_service_.set(mysql_h, MYSQL_COMMAND_USER_NAME, "root");
+    sstatus |= command_options_service_.set(mysql_h, MYSQL_COMMAND_USER_NAME,
+                                            default_command_user_name);
   if (!sstatus)
-    sstatus |=
-        command_options_service_.set(mysql_h, MYSQL_COMMAND_HOST_NAME, nullptr);
+    sstatus |= command_options_service_.set(mysql_h, MYSQL_COMMAND_HOST_NAME,
+                                            default_command_host_name);
   if (!sstatus) sstatus |= command_factory_service_.connect(mysql_h);
-
-  // starting from this point, if the above succeeded we need to close mysql_h.
-  std::shared_ptr<void> mysql_h_close_guard(
-      mysql_h,
-      [&srv = command_factory_service_, do_close = !sstatus](void *ptr) {
-        if (do_close && ptr) srv.close(static_cast<MYSQL_H>(ptr));
-      });
 
   // if any of the above failed, just exit
   if (sstatus) {
@@ -212,7 +230,7 @@ bool DataProvider::collect_db_instance_id_info(rapidjson::Document *document) {
         so the SQL query failed. It will recover next time.
      2. Some other reason that caused selecting server_id to fail. */
   if (id.length() == 0) {
-    logger_.warning(
+    logger_.info(
         "Collecting db_instance_id failed. It may be caused by server still "
         "initializing.");
     return true;
@@ -346,7 +364,7 @@ bool DataProvider::collect_se_usage_info(rapidjson::Document *document) {
   QueryResult result;
   if (do_query("SELECT DISTINCT ENGINE FROM information_schema.tables WHERE "
                "table_schema NOT IN('mysql', 'information_schema', "
-               "'performance_schema', 'sys');",
+               "'performance_schema', 'sys')",
                &result)) {
     return true;
   }

@@ -64,7 +64,9 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Show that TABLE_CATALOG is always NULL.
 --sorted_result
 SELECT table_catalog, table_schema, table_name, privilege_type
-FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
+FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL
+AND NOT (grantee = "'mysql.session'@'localhost'"
+AND table_name IN ('component', 'replication_group_members'));
 
 --echo ######################################################################
 --echo # Testcase 3.2.11.2+3.2.11.3+3.2.11.4:

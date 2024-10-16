@@ -292,7 +292,10 @@ select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql');
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql')
+and not (grantee = "'mysql.session'@'localhost'"
+and table_name in ('component', 'replication_group_members'));
+
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';

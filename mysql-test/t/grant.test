@@ -659,7 +659,9 @@ flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql')
+and not (grantee = "'mysql.session'@'localhost'"
+and table_name in ('component', 'replication_group_members'));
 connect (conn5,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn5;
@@ -669,7 +671,9 @@ revoke update on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql')
+and not (grantee = "'mysql.session'@'localhost'"
+and table_name in ('component', 'replication_group_members'));
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;

@@ -11,7 +11,7 @@ call mtr.add_suppression("Found invalid password for user:*");
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 connect(con1,localhost,kristofer,secret,,);
 connection con1;
 SELECT USER(),CURRENT_USER();
@@ -80,7 +80,7 @@ DROP USER 'kristofer'@'33.33.33.33';
 #
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user, plugin FROM mysql.user  WHERE user != 'percona.telemetry' ORDER BY user;
 --disable_query_log
 connect(con1,localhost,kristofer,secret);
 --enable_query_log

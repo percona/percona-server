@@ -12,7 +12,7 @@ CREATE ROLE 'administrator', 'qa', 'developer', 'manager';
 --echo # Grant roles to the created users
 GRANT 'administrator', 'qa', 'developer', 'manager' to userX, userY, userZ;
 --echo # Check the number of the roles and users created.
-SELECT COUNT(*) FROM mysql.user;
+SELECT COUNT(*) FROM mysql.user WHERE user != 'percona.telemetry';
 --echo # Check the number of default roles.
 SELECT COUNT(*) FROM mysql.default_roles;
 --echo

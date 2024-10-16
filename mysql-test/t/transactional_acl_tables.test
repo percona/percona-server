@@ -2181,7 +2181,7 @@ call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28")
 --echo
 --echo # Starting mysqld in the regular mode...
 --echo
---let $restart_parameters =
+--let $restart_parameters = restart:--loose-percona-telemetry-disable=1
 
 --source include/start_mysqld.inc
 
@@ -2218,7 +2218,7 @@ ORDER BY table_name;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---let $restart_parameters = restart:--upgrade=FORCE
+--let $restart_parameters = restart:--upgrade=FORCE --loose-percona-telemetry-disable=1
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

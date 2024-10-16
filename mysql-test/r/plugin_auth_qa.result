@@ -1,33 +1,33 @@
 CREATE DATABASE test_user_db;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 ========== test 1.1 ======================================================
 CREATE USER plug IDENTIFIED WITH test_plugin_server;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
@@ -64,49 +64,49 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ========== test 1.1  combinations ==========================
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ========== test 1.1.1.6/1.1.2.5 ============================
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 plug_dest	caching_sha2_password
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug_dest	caching_sha2_password
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug_dest	caching_sha2_password
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 plug_dest	test_plugin_server
@@ -116,12 +116,12 @@ SET NAMES utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg	test_plugin_server
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
@@ -130,7 +130,7 @@ CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 Warnings:
 Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8mb3
 Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8mb3
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 pl??g	test_plugin_server
 DROP USER 'plüg';
@@ -139,7 +139,7 @@ Warning	1300	Cannot convert string 'pl\xC3\xBCg' from ascii to utf8mb3
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 Warnings:
 Warning	1300	Cannot convert string 'pl\xC3\xBCg_...' from ascii to utf8mb3
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 pl??g_dest	caching_sha2_password
 DROP USER 'plüg_dest';
@@ -150,12 +150,12 @@ SET NAMES latin1;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
 ERROR HY000: Plugin 'test_plügin_server' is not loaded
 CREATE USER 'plug' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER 'plug';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
@@ -165,22 +165,22 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg	test_plugin_server
 DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg	test_plugin_server
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
@@ -195,12 +195,12 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE USER plug IDENTIFIED WITH 'hh''s_test_plugin_server' AS 'plug_dest';
 ERROR HY000: Plugin 'hh's_test_plugin_server' is not loaded
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'hh''s_plug_dest';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug	test_plugin_server
 DROP USER plug;
 CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 hh's_plug_dest	caching_sha2_password
 DROP USER 'hh''s_plug_dest';

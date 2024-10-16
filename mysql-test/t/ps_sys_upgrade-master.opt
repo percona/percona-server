@@ -1,1 +1,6 @@
 --testcase-timeout=60
+
+# This test truncates 'user' column length in mysql.test table
+# percona.telemetry user length is 17, so the truncation would case warning
+# which will be recored in the test result.
+--loose-percona-telemetry-disable=ON

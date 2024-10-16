@@ -17,7 +17,7 @@ SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string) > 0
-FROM mysql.user ORDER BY user;
+FROM mysql.user WHERE user != 'percona.telemetry' ORDER BY user;
 user	host	plugin	LENGTH(authentication_string) > 0
 mysql.infoschema	localhost	caching_sha2_password	1
 mysql.session	localhost	caching_sha2_password	1

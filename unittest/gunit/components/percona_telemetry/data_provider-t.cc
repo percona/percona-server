@@ -287,7 +287,7 @@ TEST_F(DataProviderTest, collect_se_usage_info_test) {
   const std::string query(
       std::string("SELECT DISTINCT ENGINE FROM information_schema.tables WHERE "
                   "table_schema NOT IN('mysql', 'information_schema', "
-                  "'performance_schema', 'sys');"));
+                  "'performance_schema', 'sys')"));
   const std::string expected_json_key("se_engines_in_use");
   collect_array_info_common(query, expected_json_key,
                             &MockDataProvider::collect_se_usage_info);

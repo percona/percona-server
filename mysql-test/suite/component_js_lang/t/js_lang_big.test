@@ -1,0 +1,97 @@
+#
+# JS language component tests which require lot of memory or CPU.
+#
+--source include/have_js_lang_component.inc
+
+--echo # Global prepare of playground.
+--enable_connect_log
+
+INSTALL COMPONENT 'file://component_js_lang';
+
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+
+--echo #
+--echo # Test what happens if one tries to create JS routine which body which
+--echo # exceeds V8 string length limit (2^29 - 24 on 64-bit systems).
+--echo #
+--let $v8_max_string_length = `SELECT 512*1024*1024 - 24`
+
+--echo # Temporarily raise max_allowed_packet value so we can easily produce
+--echo # strings exceeding V8 limit. It should be multiply of 1024.
+SET @save_max_allowed_packet = @@global.max_allowed_packet;
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--eval SET @@global.max_allowed_packet= $v8_max_string_length + 24 + 1024
+
+--echo # Use new connection so new max_allowed_packet value takes effect.
+--connect (con_big_packet, localhost, root,,)
+
+--echo # Try to create function with body exceeding JS string length limit.
+--echo # Note that auxiliary huge_string string we use for this still fits
+--echo # within the limit.
+--echo # Also note that attempt to create routine which is below the limit,
+--echo # but is huge enough, might pass but will make InnoDB complain in
+--echo # the error log about too big rows/tuples.
+--let $huge_string = `SELECT REPEAT('a', $v8_max_string_length - 30)`
+--disable_query_log
+--echo # Executing: CREATE FUNCTION f_huge() RETURNS LONGBLOB LANGUAGE JS AS \$\$ let too_lengthy_body_we_get = 1; return "HUGE_STRING_HERE" \$\$
+--error ER_LANGUAGE_COMPONENT
+--eval CREATE FUNCTION f_huge() RETURNS LONGBLOB LANGUAGE JS AS \$\$ let too_lengthy_body_we_get = 1; return "$huge_string" \$\$
+--enable_query_log
+
+--echo #
+--echo # Test coverage for SQL to JS parameter conversion failures due to
+--echo # exceeding V8 string length limit/ 2^29 - 24.
+--echo #
+
+--echo # Create functions with parameter types which values can exceed
+--echo # the limit.
+CREATE FUNCTION f_json(s JSON) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longtext(s LONGTEXT) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longtext_cs(s LONGTEXT CHARACTER SET cp1251) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longblob(b LONGBLOB) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return b.byteLength $$;
+
+
+--echo # Passing too long JSON and LONGTEXT values should cause error with
+--echo # appropriate message.
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--error ER_LANGUAGE_COMPONENT
+--eval SELECT f_json(JSON_ARRAY(REPEAT('a', $v8_max_string_length - 100 ), REPEAT('b', 200 )))
+
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--error ER_LANGUAGE_COMPONENT
+--eval SELECT f_longtext(REPEAT('a', $v8_max_string_length + 200))
+
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--error ER_LANGUAGE_COMPONENT
+--eval SELECT f_longtext_cs(REPEAT(X'fa', $v8_max_string_length + 200))
+
+--echo # This should not apply to LONGBLOB parameters however, as their
+--echo # values are directly converted to JS ArrayBuffer/DataView objects.
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--eval SELECT f_longblob(REPEAT(X'ff', $v8_max_string_length + 200)) = $v8_max_string_length + 200 AS length_is_correct
+
+DROP FUNCTION f_json;
+DROP FUNCTION f_longtext;
+DROP FUNCTION f_longtext_cs;
+DROP FUNCTION f_longblob;
+
+--disconnect con_big_packet
+--source include/wait_until_disconnected.inc
+--connection default
+SET @@global.max_allowed_packet = @save_max_allowed_packet;
+
+--echo # Global clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+
+--echo # Disconnect of default connection to free the only remaining
+--echo # connection context and isolate, so we can uninstall component.
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+
+UNINSTALL COMPONENT 'file://component_js_lang';
+
+--echo # Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+--source include/restart_mysqld.inc
+
+--disable_connect_log

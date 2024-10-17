@@ -22,11 +22,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_stored_program_imp.h"
-#include <cstring>    // strcmp
+#include <cstring>  // strcmp
+#include "my_sys.h"
 #include "my_time.h"  // check_datetime_range
 #include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
+#include "mysql/components/services/mysql_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/current_thd.h"
+#include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_time_literal
 #include "sql/sp_cache.h"       // sp_cache
 #include "sql/sp_head.h"        // sp_head
@@ -114,6 +118,8 @@ DEFINE_BOOL_METHOD(mysql_stored_program_metadata_query_imp::get,
   "byte_length"   -> uint64_t
   "char_length"   -> uint64_t (Applicable to string data types)
   "charset"       -> char const *
+  "collation"     -> char const *
+  "max_display_length" -> uint64_t
   @note Have the key at least 7 characters long, with unique first 8 characters.
 
   @returns status of get operation
@@ -246,8 +252,13 @@ static int get_field_metadata_internal(Create_field &field, bool input,
     *reinterpret_cast<size_t *>(value) = field.key_length();
   else if (strcmp("charset", key) == 0)
     *reinterpret_cast<char const **>(value) = field.charset->csname;
+  else if (strcmp("collation", key) == 0)
+    *reinterpret_cast<char const **>(value) = field.charset->m_coll_name;
   else if (strcmp("decimals", key) == 0)
     *reinterpret_cast<uint32_t *>(value) = field.decimals;
+  else if (strcmp("max_display_length", key) == 0)
+    *reinterpret_cast<size_t *>(value) =
+        field.max_display_width_in_codepoints();
   else
     return MYSQL_FAILURE;
   return MYSQL_SUCCESS;
@@ -826,12 +837,16 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
   if (*is_null) return MYSQL_SUCCESS;
   auto temp = String{};
   auto string = item->val_str(&temp);
-  // HCS-8941: fix the bug when service called for non-string types: in case
-  // this string owns the buffer, the buffer will be freed when this function
-  // exits
+
   if (string->is_alloced()) {
-    *value = nullptr;
-    return MYSQL_FAILURE;
+    // During execution, current_thd mem_root points to execute_mem_root (check
+    // sp_head::execute) and it is reset to caller mem_root after execution.
+    // Execute_mem_root is deallocated after execution
+    auto copied_string =
+        strmake_root(current_thd->mem_root, string->ptr(), string->length());
+    *value = copied_string;
+    *length = string->length();
+    return MYSQL_SUCCESS;
   }
   *value = string->c_ptr();
   *length = string->length();
@@ -855,7 +870,17 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::get,
 DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint16_t index, char const *string, size_t length)) {
-  auto item = new Item_string(string, length, &my_charset_bin);
+  auto item = new Item_string(NAME_STRING(""), string, length,
+                              &my_charset_utf8mb4_0900_ai_ci);
+  return set_variable(sp_runtime_context, item, index);
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_stored_program_runtime_argument_string_charset_imp::set,
+    (stored_program_runtime_context sp_runtime_context, uint16_t index,
+     char const *string, size_t length, CHARSET_INFO_h charset)) {
+  const CHARSET_INFO *src_cs = reinterpret_cast<const CHARSET_INFO *>(charset);
+  auto item = new Item_string(NAME_STRING(""), string, length, src_cs);
   return set_variable(sp_runtime_context, item, index);
 }
 
@@ -1223,7 +1248,17 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_null_imp::set,
 DEFINE_BOOL_METHOD(mysql_stored_program_return_value_string_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     char const *string, size_t length)) {
-  auto item = new Item_string(string, length, &my_charset_bin);
+  auto item = new Item_string(NAME_STRING(""), string, length,
+                              &my_charset_utf8mb4_0900_ai_ci);
+  return set_return_value(sp_runtime_context, item);
+}
+
+DEFINE_BOOL_METHOD(mysql_stored_program_return_value_string_charset_imp::set,
+                   (stored_program_runtime_context sp_runtime_context,
+                    char const *string, size_t length,
+                    CHARSET_INFO_h charset)) {
+  const CHARSET_INFO *src_cs = reinterpret_cast<const CHARSET_INFO *>(charset);
+  auto item = new Item_string(NAME_STRING(""), string, length, src_cs);
   return set_return_value(sp_runtime_context, item);
 }
 

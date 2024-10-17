@@ -516,7 +516,11 @@ if ($eval_before_analyze)
 {
   eval $eval_before_analyze;
 }
-analyze table t0;
+# We use OPTIMIZE instead of ANALYZE here to handle the case when InnoDB
+# purge threads do not manage to keep up and completely remove records which
+# were marked for deletion earlier, which affects row count estimations in
+# EXPLAIN below.
+optimize table t0;
 -- enable_result_log
 -- enable_query_log
 

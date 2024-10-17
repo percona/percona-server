@@ -27,6 +27,10 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
+  ADD_COMPILE_FLAGS(test_next_available.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()
+
 # routing-library as object-lib for testing
 STATICLIB_FROM_TARGET(routing_export_all routing)
 TARGET_COMPILE_DEFINITIONS(routing_export_all
@@ -63,6 +67,7 @@ FOREACH(test_file ${test_files})
       ${CMAKE_CURRENT_SOURCE_DIR}/../../harness/tests  # mock_io_service.h
   )
 ENDFOREACH()
+DOWNGRADE_STRINGOP_WARNINGS(routertest_routing_setup_tcp_service)
 
 ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   MODULE "routing"

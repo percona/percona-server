@@ -28,6 +28,7 @@ audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 
 # binlog suite tests
 binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debug client binary and fails consistently.
+binlog.binlog_mysqlbinlog_4g_start_position       : BUG#0000 PS-9381 Requires too much memory/space in Jenkins
 binlog_gtid.binlog_xa_select_gtid_executed_explicitly_crash : Bug#28588717 Fails both on FreeBSD and other platforms
 # func1 suite tests
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
@@ -89,6 +90,12 @@ perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 perfschema.idx_compare_ews_by_instance : BUG#31791537
 perfschema.idx_compare_rwlock_instances : BUG#31791537
 
+# rocksdb suite tests
+rocksdb.non_blocking_manual_compaction : BUG#0000 PS-9381 Often fails in Jenkins due to races.
+
+# rocksdb_stress suite tests
+rocksdb_stress.drop_cf_stress : BUG#0000 PS-9381 Often fails in Jenkins due to races.
+
 # rpl_gtid suite tests
 rpl_gtid.rpl_async_conn_failover_restart @windows : BUG#34132168 Disabled until bug is fixed
 rpl_gtid.rpl_gtid_truncate_memory_table_after_start_server : BUG#24351040
@@ -107,7 +114,6 @@ rpl_nogtid.rpl_nogtid_encryption_read             : Bug#36172046 Update rpl_nogt
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
 rpl.rpl_writeset_add_unique_key : Bug#33134835 RPL_WRITESET_ADD_UNIQUE_KEY FAILS SPORADICALLY
-rpl.rpl_replication_observers_example_plugin_ongoing_transaction : Bug#35982448	rpl_replication_observers_example_plugin_ongoing_transaction fails 
 
 # secondary_engine tests
 secondary_engine.query_preparation : BUG#36306426 Disabled until bug is fixed

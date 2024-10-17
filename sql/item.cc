@@ -3107,12 +3107,12 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   if (lower_case_table_names == 1 ||
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used())) {
-    if (table_name_arg && table_name_arg[0]) {
+    if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0]) {
       my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name = t_name_buff;
     }
-    if (db_name_arg && db_name_arg[0]) {
+    if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0]) {
       my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name = d_name_buff;
@@ -7793,6 +7793,7 @@ bool Item::clean_up_after_removal(uchar *arg) {
 
   if (reference_count() > 1) {
     (void)decrement_ref_count();
+    ctx->stop_at(this);
   }
   return false;
 }
@@ -8325,12 +8326,17 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
           // Add the view reference to the select expression list as hidden
           // item.
           m_ref_item = qb->add_hidden_item(*reference);
+          // Increment the reference count as the expression is now part
+          // of the select list. The call to link_referenced_item()
+          // later will account for the reference from this Item_ref object.
+          (*reference)->increment_ref_count();
           *reference = this;
         } else {
           Item_field *fld = new Item_field(
               thd, context, from_field->table->pos_in_table_list, from_field);
           if (fld == nullptr) return true;
           m_ref_item = qb->add_hidden_item(fld);
+          fld->increment_ref_count();
         }
       }
     }

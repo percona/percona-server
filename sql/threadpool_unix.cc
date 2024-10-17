@@ -1197,6 +1197,7 @@ bool Thread_pool_connection_handler::add_connection(
 
   if (unlikely(!thd)) {
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 
@@ -1206,6 +1207,7 @@ bool Thread_pool_connection_handler::add_connection(
     thd->get_protocol_classic()->end_net();
     delete thd;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 

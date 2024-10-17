@@ -1342,7 +1342,9 @@ SELECT host, db, user, table_name, column_name, column_priv FROM mysql.columns_p
 host	db	user	table_name	column_name	column_priv
 h	test	u1	t1	a	Select,Insert,Update,References
 h	test	u1	t2	a	Insert
-SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv;
+SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv
+WHERE NOT (user = 'mysql.session'
+AND table_name IN ('component', 'replication_group_members'));
 host	db	user	table_name	grantor	table_priv	column_priv
 h	test	u1	t1	root@localhost		Select,Insert,Update,References
 h	test	u1	t2	root@localhost		Insert
@@ -1354,7 +1356,9 @@ COMMIT;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
 SELECT host, db, user, table_name, column_name, column_priv FROM mysql.columns_priv;
 host	db	user	table_name	column_name	column_priv
-SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv;
+SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv
+WHERE NOT (user = 'mysql.session'
+AND table_name IN ('component', 'replication_group_members'));
 host	db	user	table_name	grantor	table_priv	column_priv
 localhost	mysql	mysql.session	user	root@localhost	Select	
 localhost	sys	mysql.sys	sys_config	root@localhost	Select	

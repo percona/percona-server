@@ -1,0 +1,31 @@
+SELECT * FROM information_schema.table_privileges WHERE grantee = "'mysql.session'@'localhost'" ORDER BY table_schema, table_name;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysql.session'@'localhost'	def	mysql	component	SELECT	NO
+'mysql.session'@'localhost'	def	mysql	user	SELECT	NO
+'mysql.session'@'localhost'	def	performance_schema	replication_group_members	SELECT	NO
+SHOW GRANTS FOR 'mysql.session'@'localhost';
+Grants for mysql.session@localhost
+GRANT SHUTDOWN, SUPER, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO `mysql.session`@`localhost`
+GRANT AUDIT_ABORT_EXEMPT,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,FIREWALL_EXEMPT,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `mysql`.`component` TO `mysql.session`@`localhost`
+GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.`replication_group_members` TO `mysql.session`@`localhost`
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
+RENAME USER 'root'@'localhost' to 'root.tmp'@'localhost';
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
+'root' user used by component's 1st verison does not exist. Telemetry dir should contain 1 file.
+1
+RENAME USER 'root.tmp'@'localhost' to 'root'@'localhost';
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
+RENAME USER 'mysql.session'@'localhost' to 'mysql.session.tmp'@'localhost';
+include/assert.inc [No orphaned sessions expected in processlist]
+'mysql.session' user used by component does not exist. Telemetry dir should still contain 1 file.
+1
+RENAME USER 'mysql.session.tmp'@'localhost' to 'mysql.session'@'localhost';
+# restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>

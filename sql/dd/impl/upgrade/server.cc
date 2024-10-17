@@ -1277,6 +1277,15 @@ bool upgrade_system_schemas(THD *thd) {
 /* 1. We INSERT INTO, because prepared statements do not support
       INSTALL COMPONENT
    2. We use stored procedure to be able to do conditional action.
+   3. Percona Telemetry Component uses mysql.session user. For the component to
+      be fully functional, mysql.session user lacks the following privileges:
+        1. REPLICATION SLAVE
+        2. REPLICATION CLIENT
+        3. SELECT on mysql.component
+        4. SELECT on performance_schema.replication_group_members
+      GRANT does not work yet as ACL is not initialized yet. Use UPDATES.
+      For 3 and 4 we could set Select_priv = 'Y' in mysql.user table for
+      mysql.session user, but let's allow only minimal required privileges.
 */
 static const char *percona_telemetry_install[] = {
     "USE mysql;\n",
@@ -1295,6 +1304,15 @@ static const char *percona_telemetry_install[] = {
     "PREPARE stmt FROM @str;\n",
     "EXECUTE stmt;\n",
     "DROP PREPARE stmt;\n",
+    "UPDATE mysql.user SET Repl_slave_priv = 'Y' WHERE User = 'mysql.session' "
+    "AND Host = 'localhost';\n",
+    "UPDATE mysql.user SET Repl_client_priv = 'Y' WHERE User = 'mysql.session' "
+    "AND Host = 'localhost';\n",
+    "INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', "
+    "'mysql.session', 'component', 'root@localhost', NOW(), 'Select', '');\n",
+    "INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', "
+    "'performance_schema', 'mysql.session', 'replication_group_members', "
+    "'root@localhost', NOW(), 'Select', '');\n",
     NULL};
 
 static const char *percona_telemetry_uninstall[] = {

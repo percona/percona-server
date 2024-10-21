@@ -60,6 +60,20 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
     invalid_creation_ctx = true;
   }
 
+  // if 'default_collation_for_utf8mb4' is set to something other than
+  // default 'utf8mb4' collation ('utf8mb4_0900_ai_ci') and if the value
+  // returned by 'resolve_charset()' is also default 'utf8mb4'
+  // collation ('utf8mb4_0900_ai_ci'), meaning that we were trying to resolve
+  // 'utf8mb4', we need to fix the returned value depending on the value of
+  // 'default_collation_for_utf8mb4' (currently, only 'utf8mb4_general_ci'
+  // is possible)
+  if (thd->variables.default_collation_for_utf8mb4 !=
+      &my_charset_utf8mb4_0900_ai_ci) {
+    if (client_cs == &my_charset_utf8mb4_0900_ai_ci) {
+      client_cs = thd->variables.default_collation_for_utf8mb4;
+    }
+  }
+
   if (resolve_collation(connection_cl_name.str,
                         thd->variables.collation_connection, &connection_cl)) {
     LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,

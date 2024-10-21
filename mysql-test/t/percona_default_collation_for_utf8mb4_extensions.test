@@ -82,11 +82,19 @@ CREATE TABLE t4(id BIGINT UNSIGNED);
 SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE TABLE t5(id BIGINT UNSIGNED);
 # Note that 'SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci' will generate
-# character_set_client=45 in the binary log
+# character_set_client=255 in the binary log.
 SET CHARACTER SET DEFAULT;
 CREATE TABLE t6(id BIGINT UNSIGNED);
 SET CHARACTER SET utf8mb4;
 CREATE TABLE t7(id BIGINT UNSIGNED);
+SET collation_connection = utf8mb4_general_ci;
+CREATE TABLE t8(id BIGINT UNSIGNED);
+# Note that 'SET collation_connection = utf8mb4_0900_ai_ci' will generate
+# character_set_client=255 in the binary log.
+# Also statements like 'SET collation_connection = utf8mb4' when we try to
+# assign a character set name to a collation variable are considered
+# syntactically incorrect, so we do not include such checks into the test
+# plan.
 
 
 --echo

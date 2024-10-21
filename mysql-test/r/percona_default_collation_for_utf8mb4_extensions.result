@@ -109,6 +109,8 @@ SET CHARACTER SET DEFAULT;
 CREATE TABLE t6(id BIGINT UNSIGNED);
 SET CHARACTER SET utf8mb4;
 CREATE TABLE t7(id BIGINT UNSIGNED);
+SET collation_connection = utf8mb4_general_ci;
+CREATE TABLE t8(id BIGINT UNSIGNED);
 
 
 *** Making sure that binlog events created implicitly via stored procedures

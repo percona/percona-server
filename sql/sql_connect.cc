@@ -679,11 +679,9 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   // we need to fix 'cs_number' here by setting it to the corresponding number
   // of 'default_collation_for_utf8mb4' (currently only 'utf8mb4_general_ci',
   // number 45, is supported)
-  const auto *primary_utf8mb4_collation =
-      get_charset_by_csname("utf8mb4", MY_CS_PRIMARY, MYF(0));
   if (thd->variables.default_collation_for_utf8mb4 !=
-      primary_utf8mb4_collation) {
-    if (cs_number == primary_utf8mb4_collation->number) {
+      &my_charset_utf8mb4_0900_ai_ci) {
+    if (cs_number == my_charset_utf8mb4_0900_ai_ci.number) {
       cs_number = thd->variables.default_collation_for_utf8mb4->number;
     }
   }

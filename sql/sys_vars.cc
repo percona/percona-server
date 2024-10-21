@@ -1872,15 +1872,13 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
       // if 'default_collation_for_utf8mb4' is set to something other than
       // default 'utf8mb4' collation ('utf8mb4_0900_ai_ci') and if the value
       // returned by 'get_charset_by_csname()' is also default 'utf8mb4'
-      // collation ('utf8mb4_0900_ai_ci'), meaning that were requesting for
-      // 'utf8mb4', we need to fix the returned value depending on the value of
-      // 'default_collation_for_utf8mb4' (currently, only 'utf8mb4_general_ci'
-      // is possible)
-      const auto *primary_utf8mb4_collation =
-          get_charset_by_csname("utf8mb4", MY_CS_PRIMARY, MYF(0));
+      // collation ('utf8mb4_0900_ai_ci'), meaning that we were calling this
+      // function with 'utf8mb4', we need to fix the returned value depending
+      // on the value of 'default_collation_for_utf8mb4' (currently, only
+      // 'utf8mb4_general_ci' is possible)
       if (thd->variables.default_collation_for_utf8mb4 !=
-          primary_utf8mb4_collation) {
-        if (var->save_result.ptr == primary_utf8mb4_collation) {
+          &my_charset_utf8mb4_0900_ai_ci) {
+        if (var->save_result.ptr == &my_charset_utf8mb4_0900_ai_ci) {
           var->save_result.ptr = thd->variables.default_collation_for_utf8mb4;
         }
       }

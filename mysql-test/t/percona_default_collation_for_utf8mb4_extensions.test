@@ -61,6 +61,7 @@ eval $global_col_stmt;
 eval $session_col_stmt;
 
 --echo
+--echo
 --echo *** Variables from the new connection established via MySQL command line client to a fresh database
 --echo *** (values for all collation variables are expected to be utf8mb4_general_ci)
 --exec $MYSQL -e "$global_col_stmt; $session_col_stmt;" $fresh_database
@@ -71,9 +72,28 @@ eval $session_col_stmt;
 --echo
 --echo
 --echo *** Creating tables in the fresh database from the default connection
-CREATE TABLE tbl_internal_before(id BIGINT UNSIGNED);
+CREATE TABLE t1(id BIGINT UNSIGNED);
 SET character_set_client = utf8mb4;
-CREATE TABLE tbl_internal_after(id BIGINT UNSIGNED);
+CREATE TABLE t2(id BIGINT UNSIGNED);
+
+--echo
+--echo
+--echo *** Making sure that binlog events created implicitly via stored procedures
+--echo *** and triggers have character_set_client = 45
+delimiter |;
+CREATE TRIGGER test_trigger BEFORE INSERT ON t2 FOR EACH ROW
+BEGIN
+  INSERT INTO t1 SET id = NEW.id;
+END|
+
+CREATE PROCEDURE proc()
+BEGIN
+  INSERT INTO t2 VALUES (42);
+END|
+delimiter ;|
+
+INSERT INTO t2 VALUES(1);
+CALL proc();
 
 --echo
 --echo

@@ -99,6 +99,16 @@ default_collation_for_utf8mb4	utf8mb4_general_ci
 CREATE TABLE t1(id BIGINT UNSIGNED);
 SET character_set_client = utf8mb4;
 CREATE TABLE t2(id BIGINT UNSIGNED);
+SET NAMES DEFAULT;
+CREATE TABLE t3(id BIGINT UNSIGNED);
+SET NAMES utf8mb4;
+CREATE TABLE t4(id BIGINT UNSIGNED);
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t5(id BIGINT UNSIGNED);
+SET CHARACTER SET DEFAULT;
+CREATE TABLE t6(id BIGINT UNSIGNED);
+SET CHARACTER SET utf8mb4;
+CREATE TABLE t7(id BIGINT UNSIGNED);
 
 
 *** Making sure that binlog events created implicitly via stored procedures

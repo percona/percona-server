@@ -1,0 +1,70 @@
+# Test that lack of the user used by Percona Telemetry Component
+# doesn't cause hangs during server restart and no orphaned sessions are created.
+
+--source include/have_percona_telemetry.inc
+
+--let $telemetry_root_dir = $MYSQL_TMP_DIR/telemetry_dir
+--let $grace_interval = 30
+--let $scrape_interval = 30
+
+--mkdir $telemetry_root_dir
+
+# Record mysql.session user privileges
+SELECT * FROM information_schema.table_privileges WHERE grantee = "'mysql.session'@'localhost'" ORDER BY table_schema, table_name;
+SHOW GRANTS FOR 'mysql.session'@'localhost';
+
+# restart the server with custom telemetry file path and timeouts
+--let $restart_parameters = "restart:--percona_telemetry.grace_interval=$grace_interval --percona_telemetry.scrape_interval=$scrape_interval --percona_telemetry.telemetry_root_dir=$telemetry_root_dir"
+--replace_regex /telemetry_root_dir=.*telemetry_dir/telemetry_root_dir=<telemetry_root_dir>/
+--source include/restart_mysqld.inc
+
+# Rename 'root' user (1st version of Percona Telemetry Component used 'root' user)
+# 1st version will not collect any data and will not create telemetry file and the restart will hang.
+# Fixed version will work properly as it doesn't use 'root' user.
+RENAME USER 'root'@'localhost' to 'root.tmp'@'localhost';
+
+# sleep more than grace_interval and check that telemetry file was created
+--let $timeout = `select $grace_interval + 10`
+--sleep $timeout
+
+--echo 'root' user used by component's 1st verison does not exist. Telemetry dir should contain 1 file.
+--exec ls -1 $telemetry_root_dir | wc -l
+
+#
+# It should be possible to restart the server.
+#
+RENAME USER 'root.tmp'@'localhost' to 'root'@'localhost';
+--let $restart_parameters = "restart:--percona_telemetry.grace_interval=$grace_interval --percona_telemetry.scrape_interval=$scrape_interval --percona_telemetry.telemetry_root_dir=$telemetry_root_dir"
+--replace_regex /telemetry_root_dir=.*telemetry_dir/telemetry_root_dir=<telemetry_root_dir>/
+--source include/restart_mysqld.inc
+
+
+#
+# Now rename the user used by component
+#
+RENAME USER 'mysql.session'@'localhost' to 'mysql.session.tmp'@'localhost';
+
+# Wait a few cycles and ensure that SHOW PROCESSLIST does not contain rows related to orphaned sessions.
+--let $timeout = `select $grace_interval + 3 * $scrape_interval`
+--sleep $timeout
+
+--let $assert_text = No orphaned sessions expected in processlist
+--let $assert_cond = [SELECT COUNT(*) as Result FROM performance_schema.processlist WHERE user = "mysql.session";, Result, 1] = 0
+--source include/assert.inc
+
+# Check that no new telemetry file was created
+--echo 'mysql.session' user used by component does not exist. Telemetry dir should still contain 1 file.
+--exec ls -1 $telemetry_root_dir | wc -l
+
+
+#
+# It should be still possible to restart the server.
+#
+RENAME USER 'mysql.session.tmp'@'localhost' to 'mysql.session'@'localhost';
+--let $restart_parameters = "restart:--percona_telemetry.grace_interval=$grace_interval --percona_telemetry.scrape_interval=$scrape_interval --percona_telemetry.telemetry_root_dir=$telemetry_root_dir"
+--replace_regex /telemetry_root_dir=.*telemetry_dir/telemetry_root_dir=<telemetry_root_dir>/
+--source include/restart_mysqld.inc
+
+# cleanup
+--force-rmdir $telemetry_root_dir
+

@@ -191,6 +191,15 @@ bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
   const CHARSET_INFO *cs2;
   cs2 =
       opt_charset ? opt_charset : global_system_variables.character_set_client;
+  // Fixing cs2 in case when default_collation_for_utf8mb4 is set to non-default
+  // value
+  if (thd->variables.default_collation_for_utf8mb4 !=
+      &my_charset_utf8mb4_0900_ai_ci) {
+    if (cs2 == &my_charset_utf8mb4_0900_ai_ci) {
+      cs2 = thd->variables.default_collation_for_utf8mb4;
+    }
+  }
+
   set_var_collation_client *var;
   var = new (thd->mem_root) set_var_collation_client(
       flags, cs2, thd->variables.collation_database, cs2);

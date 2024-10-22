@@ -4235,7 +4235,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
     DBUG_PRINT("info", ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                         "Login user: '%s' Priv_user: '%s'  Using password: %s "
-                        "Access: %lu  db: '%s'",
+                        "Access: %" PRIu32 "  db: '%s'",
                         thd->get_protocol()->get_client_capabilities(),
                         thd->max_client_packet_length, sctx->host_or_ip().str,
                         sctx->user().str, sctx->priv_user().str,
@@ -4311,6 +4311,10 @@ bool is_secure_transport(int vio_type) {
 }
 
 static void native_password_authentication_deprecation_warning() {
+  static std::atomic<bool> warning_logged = false;
+
+  if (warning_logged) return;
+
   /*
     Deprecate message for mysql_native_password plugin.
   */
@@ -4319,6 +4323,8 @@ static void native_password_authentication_deprecation_warning() {
                    PLUGIN_MYSQL_NATIVE_PASSWORD),
                Cached_authentication_plugins::get_plugin_name(
                    PLUGIN_CACHING_SHA2_PASSWORD));
+
+  warning_logged = true;
 }
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,

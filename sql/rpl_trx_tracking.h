@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <atomic>
-#include <map>
+#include <unordered_map>
 
 #include "libbinlogevents/include/binlog_event.h"
 
@@ -87,10 +87,13 @@ class Commit_order_trx_dependency_tracker {
     Main function that gets the dependencies using the COMMIT_ORDER tracker.
 
     @param [in]     thd             THD of the caller.
+    @param[in]      parallelization_barrier  Transaction is blocking and
+                                    subseqent transactions should depend on it.
     @param [in,out] sequence_number sequence_number initialized and returned.
     @param [in,out] commit_parent   commit_parent to be returned.
    */
-  void get_dependency(THD *thd, int64 &sequence_number, int64 &commit_parent);
+  void get_dependency(THD *thd, bool parallelization_barrier,
+                      int64 &sequence_number, int64 &commit_parent);
 
   void update_max_committed(int64 sequence_number);
 
@@ -157,7 +160,7 @@ class Writeset_trx_dependency_tracker {
     Track the last transaction sequence number that changed each row
     in the database, using row hashes from the writeset as the index.
   */
-  typedef std::map<uint64, int64> Writeset_history;
+  typedef std::unordered_map<uint64, int64> Writeset_history;
   Writeset_history m_writeset_history;
 };
 
@@ -220,7 +223,8 @@ class Transaction_dependency_tracker {
       : m_opt_tracking_mode(DEPENDENCY_TRACKING_COMMIT_ORDER),
         m_writeset(25000) {}
 
-  void get_dependency(THD *thd, int64 &sequence_number, int64 &commit_parent);
+  void get_dependency(THD *thd, bool parallelization_barrier,
+                      int64 &sequence_number, int64 &commit_parent);
 
   void tracking_mode_changed();
 

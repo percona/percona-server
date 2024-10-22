@@ -37,11 +37,11 @@ PREPARE stmt1 FROM 'SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_
 # as well (it didn't before the fix).
 EXECUTE stmt1;
 processlist_info	resource_group
-EXECUTE stmt1	r1
+SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r1
 # Check that hint applies in case of re-execution.
 EXECUTE stmt1;
 processlist_info	resource_group
-EXECUTE stmt1	r1
+SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r1
 # Check that further statements in the connection are not affected.
 SELECT processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id();
 processlist_info	resource_group
@@ -53,25 +53,25 @@ PREPARE stmt3 FROM 'SELECT processlist_info, resource_group FROM performance_sch
 # The first statement should still use 'r1',
 EXECUTE stmt1;
 processlist_info	resource_group
-EXECUTE stmt1	r1
+SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r1
 # The second statement should use 'r2',
 EXECUTE stmt2;
 processlist_info	resource_group
-EXECUTE stmt2	r2
+SELECT /*+ RESOURCE_GROUP(r2) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r2
 # The third one should used default group.
 EXECUTE stmt3;
 processlist_info	resource_group
-EXECUTE stmt3	USR_default
+SELECT processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	USR_default
 # Ditto for case of re-execution.
 EXECUTE stmt1;
 processlist_info	resource_group
-EXECUTE stmt1	r1
+SELECT /*+ RESOURCE_GROUP(r1) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r1
 EXECUTE stmt2;
 processlist_info	resource_group
-EXECUTE stmt2	r2
+SELECT /*+ RESOURCE_GROUP(r2) */ processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	r2
 EXECUTE stmt3;
 processlist_info	resource_group
-EXECUTE stmt3	USR_default
+SELECT processlist_info, resource_group FROM performance_schema.threads WHERE processlist_id = connection_id()	USR_default
 # Clean-up.
 DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;

@@ -1172,6 +1172,7 @@ class Query_block : public Query_term {
   Query_block *query_block() const override {
     return const_cast<Query_block *>(this);
   }
+  void label_children() override {}
   void destroy_tree() override { m_parent = nullptr; }
 
   bool open_result_tables(THD *, int) override;
@@ -1373,8 +1374,8 @@ class Query_block : public Query_term {
   auto visible_fields() const { return VisibleFields(fields); }
 
   /// Check privileges for views that are merged into query block
-  bool check_view_privileges(THD *thd, ulong want_privilege_first,
-                             ulong want_privilege_next);
+  bool check_view_privileges(THD *thd, Access_bitmask want_privilege_first,
+                             Access_bitmask want_privilege_next);
   /// Check privileges for all columns referenced from query block
   bool check_column_privileges(THD *thd);
 
@@ -3651,8 +3652,8 @@ class Lex_input_stream {
 class LEX_COLUMN {
  public:
   String column;
-  uint rights;
-  LEX_COLUMN(const String &x, const uint &y) : column(x), rights(y) {}
+  Access_bitmask rights;
+  LEX_COLUMN(const String &x, const Access_bitmask &y) : column(x), rights(y) {}
 };
 
 enum class role_enum;
@@ -3919,9 +3920,14 @@ struct LEX : public Query_tables_list {
   */
   nesting_map allow_sum_func;
   /**
-    Windowing functions are not allowed in HAVING - in contrast to group
-    aggregates - then we need to be stricter than allow_sum_func.
-    One bit per query block, as allow_sum_func.
+    Windowing functions are not allowed in HAVING - in contrast to grouped
+    aggregate functions, since windowing in SQL logically follows after all
+    grouping operations. Nor are they allowed inside grouped aggregate
+    function arguments.  One bit per query block, as also \c allow_sum_func. For
+    ORDER BY and QUALIFY predicates, window functions \em are allowed unless
+    they are contained in arguments of a grouped aggregate function.  Nor are
+    references to outer window functions (via alias) allowed in subqueries, but
+    that is checked separately.
   */
   nesting_map m_deny_window_func;
 
@@ -4143,6 +4149,20 @@ struct LEX : public Query_tables_list {
   bool is_metadata_used() const {
     return query_tables != nullptr || has_udf() ||
            (sroutines != nullptr && !sroutines->empty());
+  }
+
+  /// We have detected the presence of an alias of a window function with a
+  /// window on query block qb. Check if the reference is illegal at this point
+  /// during resolution.
+  /// @param qb  The query block of the window function
+  /// @return true if window function is referenced from another query block
+  /// than its window, or if window functions are disallowed at the current
+  /// point during prepare, cf. also documentation of \c m_deny_window_func.
+  bool deny_window_function(Query_block *qb) const {
+    return qb != current_query_block() ||
+           ((~allow_sum_func | m_deny_window_func) >>
+            current_query_block()->nest_level) &
+               0x1;
   }
 
  public:

@@ -803,7 +803,7 @@ bool check_privileges_for_join(THD *thd, mem_root_deque<Table_ref *> *tables);
 
 /// Check privileges for all columns referenced from an expression list
 bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
-                               ulong privileges);
+                               Access_bitmask privileges);
 
 /** class to copying an field/item to a key struct */
 
@@ -920,7 +920,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                               ha_rows select_limit, int *new_key,
                               int *new_key_direction, ha_rows *new_select_limit,
                               uint *new_used_key_parts = nullptr,
-                              uint *saved_best_key_parts = nullptr);
+                              uint *saved_best_key_parts = nullptr,
+                              double *new_read_time = nullptr);
 /**
   Calculate properties of ref key: key length, number of used key parts,
   dependency map, possibility of null. After calling this function

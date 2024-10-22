@@ -557,7 +557,6 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   String with names of SYSTEM time zone.
 */
 static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
-static const String tz_UTC_name("UTC", 3, &my_charset_latin1);
 
 Time_zone *my_tz_find(const int64 displacement);
 
@@ -819,10 +818,19 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
   SYNOPSIS
     get_name()
 
+  DESCRIPTION
+    Since Time_zone_utc is used only internally by SQL's UTC_* functions it
+    is not accessible directly, and hence this function of Time_zone
+    interface is not implemented for this class and should not be called.
+
   RETURN VALUE
-    Name of time zone as String
+    0
 */
-const String *Time_zone_utc::get_name() const { return &tz_UTC_name; }
+const String *Time_zone_utc::get_name() const {
+  /* Should be never called */
+  assert(0);
+  return nullptr;
+}
 
 /*
   Instance of this class represents some time zone which is

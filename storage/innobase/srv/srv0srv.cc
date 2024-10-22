@@ -80,6 +80,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0log.h"
 #include "row0mysql.h"
 #include "sql/current_thd.h"
+#include "sql/sql_class.h"
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 
@@ -3437,6 +3438,9 @@ void srv_purge_coordinator_thread() {
   srv_slot_t *slot;
 
   THD *thd = create_internal_thd();
+
+  // Allow purge in read only mode as well.
+  thd->set_skip_readonly_check();
 
   purge_sys->is_this_a_purge_thread = true;
 

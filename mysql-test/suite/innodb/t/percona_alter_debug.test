@@ -1,0 +1,78 @@
+# Tests in this file use both debug-only facilities as well as debug sync point.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--enable_connect_log
+
+--echo #
+--echo # Test for PS-9144 : Missing rows after ALGORITHM=INPLACE ALTER under
+--echo #                    same workload as PS-9092.
+--echo #
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('bbbcc'), ('ccccc'), ('ddddd'), ('eeeee');
+
+set global innodb_purge_stop_now=ON;
+DELETE FROM t1 WHERE pk = 'bbbcc';
+
+--connect (con1, localhost, root,,)
+SET DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--reap
+
+--echo # Before the fix row 'ddddd' was missing from the table after ALTER.
+SELECT * FROM t1;
+
+SET DEBUG='-d,ddl_buf_add_two';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Cleanup.
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+--echo #
+--echo # Test for PS-9214 : Alter table online results in "duplicate key"
+--echo #                    error on the primary key (only index).
+--echo #
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('ccccc'), ('ddddd'), ('eeeee');
+
+--connect (con1, localhost, root,,)
+SET DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+--echo # Send ALTER TABLE INPLACE which rebuilds table.
+--send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+INSERT INTO t1 VALUES ('ccaaa');
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection con1
+--echo # Reap ALTER TABLE
+--echo # Before fix it failed with duplicate key error.
+--reap
+
+SET DEBUG='-d,ddl_buf_add_two';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Cleanup.
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+--disable_connect_log

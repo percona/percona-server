@@ -1869,6 +1869,19 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
         my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
         return true;
       }
+      // if 'default_collation_for_utf8mb4' is set to something other than
+      // default 'utf8mb4' collation ('utf8mb4_0900_ai_ci') and if the value
+      // returned by 'get_charset_by_csname()' is also default 'utf8mb4'
+      // collation ('utf8mb4_0900_ai_ci'), meaning that we were calling this
+      // function with 'utf8mb4', we need to fix the returned value depending
+      // on the value of 'default_collation_for_utf8mb4' (currently, only
+      // 'utf8mb4_general_ci' is possible)
+      if (thd->variables.default_collation_for_utf8mb4 !=
+          &my_charset_utf8mb4_0900_ai_ci) {
+        if (var->save_result.ptr == &my_charset_utf8mb4_0900_ai_ci) {
+          var->save_result.ptr = thd->variables.default_collation_for_utf8mb4;
+        }
+      }
       warn_on_deprecated_charset(
           thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
           err.ptr());

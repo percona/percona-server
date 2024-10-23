@@ -22,4 +22,4 @@ call mtr.add_suppression("Attempting backtrace. You can use the following inform
 --source include/search_pattern_in_file.inc
 
 --let $restart_parameters=restart:
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc

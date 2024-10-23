@@ -12,6 +12,7 @@ insert into t values ();
 set debug="+d,crash_commit_before";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 TABLE_SCHEMA	TABLE_NAME	auto_increment > @row_max
@@ -23,6 +24,7 @@ insert into t values ();
 set debug="+d,crash_commit_after_prepare";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 TABLE_SCHEMA	TABLE_NAME	auto_increment > @row_max
@@ -34,6 +36,7 @@ insert into t values ();
 set debug="+d,crash_commit_after_log";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 TABLE_SCHEMA	TABLE_NAME	auto_increment > @row_max
@@ -45,6 +48,7 @@ insert into t values ();
 set debug="+d,crash_commit_after";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 TABLE_SCHEMA	TABLE_NAME	auto_increment > @row_max

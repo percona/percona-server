@@ -209,6 +209,17 @@ BEGIN
       AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
+  -- During the installation of Percona Telemetry Component we grant 'mysql.session' user with additional privileges.
+  -- It happens during the server startup, so servers started during the test will have related timestamps different in general.
+  -- Some tests (e.g. clone plugin related) restore the clone instance state by cloning the donor. In such a case restored
+  -- instance will have different timestamps at the beginning and the end of the test and MTR check will complain because of
+  -- different tables checksums.
+  -- Workaround this problem by excluding mysql.tables_priv from checksum calculation. 
+  -- Instead, dump all tables privileges but without TIMESTAMP column.
+  -- This is the same approach as for INFORMATION_SCHEMA.ROUTINES above.
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ host, db, user, table_name, grantor, table_priv, column_priv
+    FROM mysql.tables_priv ORDER BY host, db, user, table_name;
+  
   -- Checksum system tables to make sure they have been properly
   -- restored after test.
   -- skip mysql.proc however, as created timestamps may have been updated by
@@ -237,7 +248,6 @@ BEGIN
     mysql.replication_group_member_actions,
     mysql.role_edges,
     mysql.slow_log,
-    mysql.tables_priv,
     mysql.time_zone,
     mysql.time_zone_leap_second,
     mysql.time_zone_name,

@@ -4577,9 +4577,6 @@ static void fix_write_disable_wal_value(THD *thd, bool sync) {
   this object commits them on commit.
 */
 class Rdb_transaction_impl : public Rdb_transaction {
-  rocksdb::Transaction *m_rocksdb_tx = nullptr;
-  rocksdb::Transaction *m_rocksdb_reuse_tx = nullptr;
-
  public:
   void set_lock_timeout(int timeout_sec_arg) override {
     assert(!is_ac_nl_ro_rc_transaction());
@@ -4613,17 +4610,27 @@ class Rdb_transaction_impl : public Rdb_transaction {
   bool is_writebatch_trx() const override { return false; }
 
  private:
+  std::unique_ptr<rocksdb::Transaction> m_rocksdb_tx;
+  std::unique_ptr<rocksdb::Transaction> m_rocksdb_reuse_tx;
+
+  void begin_rdb_tx(const rocksdb::WriteOptions &write_opts,
+                    const rocksdb::TransactionOptions &tx_opts) {
+    assert(m_rocksdb_tx == nullptr);
+    // If m_rocksdb_reuse_tx is null this will create a new transaction object.
+    // Otherwise it will reuse the existing one.
+    m_rocksdb_tx.reset(rdb->BeginTransaction(write_opts, tx_opts,
+                                             m_rocksdb_reuse_tx.release()));
+  }
+
   void release_tx(size_t wb_size) {
     // We are done with the current active transaction object.  Preserve it
     // for later reuse.
     assert(m_rocksdb_reuse_tx == nullptr);
-    auto tx = m_rocksdb_tx;
+    auto tx = std::move(m_rocksdb_tx);
     if (rdb_should_free_write_batch(wb_size)) {
-      delete tx;
-      tx = nullptr;
+      tx.reset();
     }
-    m_rocksdb_reuse_tx = tx;
-    m_rocksdb_tx = nullptr;
+    m_rocksdb_reuse_tx = std::move(tx);
   }
 
   bool prepare() override {
@@ -4873,7 +4880,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     return m_rocksdb_tx->GetIterator(options, column_family);
   }
 
-  const rocksdb::Transaction *get_rdb_trx() const { return m_rocksdb_tx; }
+  const rocksdb::Transaction *get_rdb_trx() const { return m_rocksdb_tx.get(); }
 
   bool is_tx_started() const override { return (m_rocksdb_tx != nullptr); }
 
@@ -4901,13 +4908,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);
 
-    /*
-      If m_rocksdb_reuse_tx is null this will create a new transaction object.
-      Otherwise it will reuse the existing one.
-    */
-    m_rocksdb_tx =
-        rdb->BeginTransaction(write_opts, tx_opts, m_rocksdb_reuse_tx);
-    m_rocksdb_reuse_tx = nullptr;
+    begin_rdb_tx(write_opts, tx_opts);
 
     m_read_opts = rocksdb::ReadOptions();
     m_read_opts.ignore_range_deletions =
@@ -4983,8 +4984,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     }
   }
 
-  explicit Rdb_transaction_impl(THD *const thd)
-      : Rdb_transaction(thd), m_rocksdb_tx(nullptr) {
+  explicit Rdb_transaction_impl(THD *const thd) : Rdb_transaction(thd) {
     // Create a notifier that can be called when a snapshot gets generated.
     m_notifier = std::make_shared<Rdb_snapshot_notifier>(this);
   }
@@ -5001,8 +5001,6 @@ class Rdb_transaction_impl : public Rdb_transaction {
     // the transaction anymore.
     m_notifier->detach();
 
-    // Free any transaction memory that is still hanging around.
-    delete m_rocksdb_reuse_tx;
     assert(m_rocksdb_tx == nullptr);
   }
 };

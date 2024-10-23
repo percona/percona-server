@@ -99,7 +99,7 @@ SHOW GLOBAL VARIABLES LIKE "performance_schema_max_logger_classes";
 Variable_name	Value
 performance_schema_max_logger_classes	1
 # Restart server, test '--performance_schema_logger' parameter to change the default log level
-# restart
+# restart:<hidden args>
 SELECT name, level FROM performance_schema.setup_loggers;
 name	level
 logger/test_logs_componentA/test1	error

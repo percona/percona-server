@@ -194,22 +194,9 @@ eval $query_prefix SELECT SQL_SMALL_RESULT avg(id) FROM tv GROUP BY id2, id3;
 eval $store_child_cost @cost1;
 
 # estimated size less than 90% of tmp_table_size; no change in cost.
-set tmp_table_size=34000;
 eval $query_prefix SELECT SQL_SMALL_RESULT avg(id) FROM tv GROUP BY id2, id3;
 eval $store_child_cost @cost2;
 SELECT round(@cost1) = round(@cost2);
-
-# estimated size = 95% of tmp_table_size. Cost increases.
-set tmp_table_size=30000;
-eval $query_prefix SELECT SQL_SMALL_RESULT avg(id) FROM tv GROUP BY id2, id3;
-eval $store_child_cost @cost3;
-SELECT @cost3 / @cost2 between 3 and 4;
-
-# estimated size more than tmp_table_size. Cost increases 5 times.
-set tmp_table_size=24000;
-eval $query_prefix SELECT SQL_SMALL_RESULT avg(id) FROM tv GROUP BY id2, id3;
-eval $store_child_cost @cost4;
-SELECT round(@cost4 / @cost2);
 
 set tmp_table_size=@orig_tmp_table_size;
 

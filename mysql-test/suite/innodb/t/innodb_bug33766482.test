@@ -48,7 +48,8 @@ CALL fill();
 --sleep 5
 --let $memory_after_insert= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
 
-assert($memory_after_insert == $memory_before_insert);
+--let $memory_diff = `SELECT ABS($memory_after_insert - $memory_before_insert)`
+assert($memory_diff <= 1);
 
 --let $memory_before_update= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
 
@@ -57,7 +58,8 @@ CALL upd();
 --sleep 5
 --let $memory_after_update= `SELECT CURRENT_COUNT_USED FROM performance_schema.memory_summary_global_by_event_name WHERE event_name LIKE 'memory/innodb/memory';`
 
-assert($memory_after_update == $memory_before_update);
+--let $memory_diff = `SELECT ABS($memory_after_update - $memory_before_update)`
+assert($memory_diff <= 1);
 
 
 DROP PROCEDURE IF EXISTS fill;

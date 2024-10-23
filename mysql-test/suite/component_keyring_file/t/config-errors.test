@@ -10,6 +10,8 @@
 # Expected error in the log
 --disable_query_log
 CALL mtr.add_suppression("has not valid format");
+call mtr.add_suppression("\\[ERROR\\] .*Keyring configuration JSON parse error: Invalid value");
+call mtr.add_suppression("\\[ERROR\\] .*Keyring configuration doesn't exists:");
 --enable_query_log
 --let KEYRING_CONFIG_CONTENT = {\"xxx\":  ,, e }
 --source include/keyring_tests/helper/local_keyring_create_config.inc

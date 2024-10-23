@@ -15,13 +15,13 @@ insert into t values ();
 begin;
 insert into t values ();
 insert into t values ();
+--source include/expect_crash.inc
 set debug="+d,crash_commit_before";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+
+--source include/start_mysqld.inc
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -29,13 +29,13 @@ select table_schema, table_name, auto_increment > @row_max from information_sche
 begin;
 insert into t values ();
 insert into t values ();
+--source include/expect_crash.inc
 set debug="+d,crash_commit_after_prepare";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+
+--source include/start_mysqld.inc
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -43,13 +43,13 @@ select table_schema, table_name, auto_increment > @row_max from information_sche
 begin;
 insert into t values ();
 insert into t values ();
+--source include/expect_crash.inc
 set debug="+d,crash_commit_after_log";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+
+--source include/start_mysqld.inc
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 
@@ -57,13 +57,13 @@ select table_schema, table_name, auto_increment > @row_max from information_sche
 begin;
 insert into t values ();
 insert into t values ();
+--source include/expect_crash.inc
 set debug="+d,crash_commit_after";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error CR_SERVER_LOST
 commit;
 --source include/wait_until_disconnected.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+
+--source include/start_mysqld.inc
 select max(i) into @row_max from t;
 select table_schema, table_name, auto_increment > @row_max from information_schema.tables where table_name = 't';
 

@@ -4,7 +4,9 @@
 # Install the plugins that will be active and present on donor but
 # not installed on recipient
 INSTALL PLUGIN example SONAME 'ha_example.so';
-INSTALL PLUGIN version_tokens SONAME 'version_token.so';;
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 
 # create a different plugin_dir for recipient without the example and
 # audit_log plugin. Now the recipient server do not have these plugins
@@ -23,8 +25,8 @@ CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATAD
 ERROR HY000: Clone Donor plugin EXAMPLE is not active in Recipient.
 SET GLOBAL clone_exclude_plugins_list='example';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
-ERROR HY000: Clone Donor plugin version_tokens is not active in Recipient.
-SET GLOBAL clone_exclude_plugins_list='example,version_tokens';
+ERROR HY000: Clone Donor plugin validate_password is not active in Recipient.
+SET GLOBAL clone_exclude_plugins_list='example,validate_password';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY='CLONED_DATADIR';
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Couldn't load plugin named '.*' with soname '.*'.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't open shared library.*");
@@ -32,7 +34,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't open shared library.*");
 # restart with default datadir
 # restart:
 UNINSTALL PLUGIN clone;
-UNINSTALL PLUGIN version_tokens;
+UNINSTALL PLUGIN validate_password;
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN example;
 DROP TABLE t1;

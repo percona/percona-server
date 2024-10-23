@@ -242,6 +242,8 @@ TempTable_count_hit_max_ram	9
 
 connection con1;
 SET @@SESSION.tmp_table_size=2*1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=default;
 FLUSH STATUS;
 
@@ -256,17 +258,19 @@ CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	1
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	4
+Count_hit_tmp_table_size	1
 Variable_name	Value
 TempTable_count_hit_max_ram	9
 
 connection con2;
 SET @@SESSION.tmp_table_size=2*1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=default;
 FLUSH STATUS;
 
@@ -281,19 +285,19 @@ CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
 Count_hit_tmp_table_size	1
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	10
+Count_hit_tmp_table_size	2
 Variable_name	Value
 TempTable_count_hit_max_ram	9
 
 connection default;
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	12
+Count_hit_tmp_table_size	2
 Variable_name	Value
 TempTable_count_hit_max_ram	9
 SELECT VARIABLE_NAME, VARIABLE_VALUE
@@ -301,7 +305,7 @@ FROM performance_schema.global_status WHERE
 VARIABLE_NAME = 'Count_hit_tmp_table_size' OR
 VARIABLE_NAME = 'TempTable_count_hit_max_ram' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-Count_hit_tmp_table_size	12
+Count_hit_tmp_table_size	2
 TempTable_count_hit_max_ram	9
 # Test Cleanup
 SET @@SESSION.tmp_table_size=default
@@ -310,10 +314,12 @@ SET @@SESSION.tmp_table_size=default
 # Test case#4 Table exceeds the tmp_table_size and memory limit both
 #
 SET @@SESSION.tmp_table_size=2*1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=2*1024*1024;
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	12
+Count_hit_tmp_table_size	2
 Variable_name	Value
 TempTable_count_hit_max_ram	9
 FLUSH STATUS;
@@ -332,22 +338,22 @@ CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	0
+Created_tmp_disk_tables	1
 Variable_name	Value
-Count_hit_tmp_table_size	1
+Count_hit_tmp_table_size	0
 SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.session_status WHERE
 VARIABLE_NAME LIKE 'Created_tmp%tables' OR
 VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-Count_hit_tmp_table_size	1
-Created_tmp_disk_tables	0
+Count_hit_tmp_table_size	0
+Created_tmp_disk_tables	1
 Created_tmp_tables	1
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	18
+Count_hit_tmp_table_size	2
 Variable_name	Value
-TempTable_count_hit_max_ram	9
+TempTable_count_hit_max_ram	10
 # Test cleanup
 SET @@SESSION.tmp_table_size=default
 SET @@GLOBAL.temptable_max_ram=default;
@@ -361,9 +367,9 @@ SELECT @@internal_tmp_mem_storage_engine;
 TempTable
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	20
+Count_hit_tmp_table_size	2
 Variable_name	Value
-TempTable_count_hit_max_ram	9
+TempTable_count_hit_max_ram	10
 FLUSH STATUS;
 
 SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
@@ -382,9 +388,9 @@ Variable_name	Value
 Count_hit_tmp_table_size	0
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	20
+Count_hit_tmp_table_size	2
 Variable_name	Value
-TempTable_count_hit_max_ram	9
+TempTable_count_hit_max_ram	10
 
 # Test cleanup
 SET @@SESSION.big_tables=default;
@@ -406,9 +412,9 @@ SELECT @@max_heap_table_size;
 2097152
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	20
+Count_hit_tmp_table_size	2
 Variable_name	Value
-TempTable_count_hit_max_ram	9
+TempTable_count_hit_max_ram	10
 FLUSH STATUS;
 
 SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;
@@ -428,9 +434,9 @@ Variable_name	Value
 Count_hit_tmp_table_size	0
 CALL print_status_variables('global');
 Variable_name	Value
-Count_hit_tmp_table_size	20
+Count_hit_tmp_table_size	2
 Variable_name	Value
-TempTable_count_hit_max_ram	9
+TempTable_count_hit_max_ram	10
 # Let us try with a CTE this time
 SET @@SESSION.max_heap_table_size=16384;
 SET cte_max_recursion_depth=5000;
@@ -458,6 +464,8 @@ SET @@SESSION.max_heap_table_size=default;
 # Test case#7 table size exceeds tmp_table_size
 #
 SET @@SESSION.tmp_table_size=2*1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 FLUSH STATUS;
 
 WITH RECURSIVE cte (c) as
@@ -473,16 +481,16 @@ CALL print_status_variables('session');
 Variable_name	Value
 Created_tmp_tables	1
 Variable_name	Value
-Created_tmp_disk_tables	1
+Created_tmp_disk_tables	0
 Variable_name	Value
-Count_hit_tmp_table_size	1
+Count_hit_tmp_table_size	0
 SELECT VARIABLE_NAME, VARIABLE_VALUE
 FROM performance_schema.session_status WHERE
 VARIABLE_NAME LIKE 'Created_tmp%tables' OR
 VARIABLE_NAME = 'Count_hit_tmp_table_size' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-Count_hit_tmp_table_size	1
-Created_tmp_disk_tables	1
+Count_hit_tmp_table_size	0
+Created_tmp_disk_tables	0
 Created_tmp_tables	1
 
 #
@@ -497,7 +505,7 @@ SELECT @@max_heap_table_size;
 16777216
 SELECT @@tmp_table_size;
 @@tmp_table_size
-2048
+1048576
 FLUSH STATUS;
 
 SELECT c1, COUNT(DISTINCT(c2)) FROM lob_table GROUP BY c1;

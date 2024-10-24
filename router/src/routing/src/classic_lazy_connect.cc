@@ -40,7 +40,6 @@
 #include "classic_greeting_forwarder.h"  // ServerGreetor
 #include "classic_init_schema_sender.h"
 #include "classic_query_sender.h"
-#include "classic_quit_sender.h"
 #include "classic_reset_connection_sender.h"
 #include "classic_set_option_sender.h"
 #include "mysql/harness/logging/logging.h"
@@ -48,6 +47,7 @@
 #include "mysql_com.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "router_require.h"
 #include "sql_value.h"  // sql_value_to_string
@@ -229,6 +229,8 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   switch (stage()) {
+    case Stage::Init:
+      return init();
     case Stage::FromStash:
       return from_stash();
     case Stage::Connect:
@@ -291,6 +293,13 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   }
 
   harness_assert_this_should_not_execute();
+}
+
+stdx::expected<Processor::Result, std::error_code> LazyConnector::init() {
+  connection()->current_server_mode(connection()->expected_server_mode());
+
+  stage(Stage::FromStash);
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
@@ -805,7 +814,7 @@ LazyConnector::wait_gtid_executed() {
                                         // didn't wait.
 
   if (connection()->wait_for_my_writes() &&
-      (connection()->expected_server_mode() ==
+      (connection()->current_server_mode() ==
        mysqlrouter::ServerMode::ReadOnly)) {
     auto gtid_executed = connection()->gtid_at_least_executed();
     if (!gtid_executed.empty()) {
@@ -869,38 +878,20 @@ stdx::expected<Processor::Result, std::error_code>
 LazyConnector::pool_or_close() {
   stage(Stage::FallbackToWrite);
 
-#if 1
   connection()->stash_server_conn();
-#else
-  const auto pool_res = pool_server_connection();
-  if (!pool_res) return stdx::unexpected(pool_res.error());
-
-  const auto still_open = *pool_res;
-  if (still_open) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::pooled"));
-    }
-
-  } else {
-    // connection wasn't pooled as the pool was full. close it.
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::pool_full"));
-    }
-
-    connection()->push_processor(std::make_unique<QuitSender>(connection()));
-  }
-#endif
 
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::fallback_to_write() {
-  if (already_fallback_ || connection()->expected_server_mode() ==
-                               mysqlrouter::ServerMode::ReadWrite) {
+  if (already_fallback_ ||
+      (connection()->expected_server_mode() ==
+       mysqlrouter::ServerMode::ReadWrite) ||
+      (connection()->current_server_mode() ==
+       mysqlrouter::ServerMode::ReadWrite)) {
     // only fallback to the primary once and if the client is asking for
     // "read-only" nodes
-    //
 
     // failed() is already set.
 
@@ -912,7 +903,8 @@ LazyConnector::fallback_to_write() {
     tr.trace(Tracer::Event().stage("connect::fallback_to_write"));
   }
 
-  connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+  // connect to the read-write node in read-only mode.
+  connection()->current_server_mode(mysqlrouter::ServerMode::ReadWrite);
   already_fallback_ = true;
 
   // reset the failed state

@@ -3505,9 +3505,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   }
 
   if (is_unsigned())
-    return ((unsigned short)a < (unsigned short)b)
-               ? -1
-               : ((unsigned short)a > (unsigned short)b) ? 1 : 0;
+    return ((unsigned short)a < (unsigned short)b)   ? -1
+           : ((unsigned short)a > (unsigned short)b) ? 1
+                                                     : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -4028,9 +4028,9 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     b = longlongget(b_ptr);
   }
   if (is_unsigned())
-    return ((ulonglong)a < (ulonglong)b)
-               ? -1
-               : ((ulonglong)a > (ulonglong)b) ? 1 : 0;
+    return ((ulonglong)a < (ulonglong)b)   ? -1
+           : ((ulonglong)a > (ulonglong)b) ? 1
+                                           : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -5995,8 +5995,9 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a = longlongget(a_ptr);
     b = longlongget(b_ptr);
   }
-  return ((ulonglong)a < (ulonglong)b) ? -1
-                                       : ((ulonglong)a > (ulonglong)b) ? 1 : 0;
+  return ((ulonglong)a < (ulonglong)b)   ? -1
+         : ((ulonglong)a > (ulonglong)b) ? 1
+                                         : 0;
 }
 
 size_t Field_datetime::make_sort_key(uchar *to, size_t length) const {
@@ -10075,12 +10076,12 @@ int Field_typed_array::key_cmp(const uchar *key_ptr, uint key_length) const {
   m_conv_item->field->set_key_image(key_ptr, key_length);
   if (sql_scalar_to_json(m_conv_item, "<Field_typed_array::key_cmp>", &value,
                          &tmp, &key, nullptr, true)) {
-    return -1;
+    return 1;
   }
 
   // Compare colum value with the key.
   if (val_json(&col_val)) {
-    return -1;
+    return 1;
   }
   assert(col_val.type() == enum_json_type::J_ARRAY);
   for (uint i = 0; i < col_val.length(); i++) {
@@ -10089,7 +10090,7 @@ int Field_typed_array::key_cmp(const uchar *key_ptr, uint key_length) const {
       return 0;
     }
   }
-  return -1;
+  return 1;
 }
 
 void Field_typed_array::init(TABLE *table_arg) {

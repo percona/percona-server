@@ -60,7 +60,7 @@ dberr_t File_reader::prepare() noexcept {
   ut_a(m_buffer_size > 0);
   ut_a(m_read_len == 0);
 
-  if (m_offset == m_size) {
+  if (end_of_range()) {
     return DB_END_OF_INDEX;
   }
 
@@ -101,12 +101,12 @@ dberr_t File_reader::prepare() noexcept {
   const auto n_fields = dict_index_get_n_fields(m_index);
   const auto n = 1 + REC_OFFS_HEADER_SIZE + n_fields;
 
-  ut_a(m_offsets.empty());
+  ut_a(m_field_offsets.empty());
 
-  m_offsets.resize(n);
+  m_field_offsets.resize(n);
 
-  m_offsets[0] = n;
-  m_offsets[1] = n_fields;
+  m_field_offsets[0] = n;
+  m_field_offsets[1] = n_fields;
 
   ut_a(m_aux_buf == nullptr);
   m_aux_buf = ut::new_arr_withkey<byte>(ut::make_psi_memory_key(mem_key_ddl),
@@ -116,38 +116,63 @@ dberr_t File_reader::prepare() noexcept {
     return DB_OUT_OF_MEMORY;
   }
 
+<<<<<<< HEAD
   ut_a(m_size > m_offset);
   m_read_len = get_read_len_next();
   const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
                               m_offset, m_crypt_buffer.first, m_space_id);
 
   if (err != DB_SUCCESS) {
+||||||| merged common ancestors
+  ut_a(m_size > m_offset);
+  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+
+  if (err != DB_SUCCESS) {
+=======
+  if (const auto err = seek(); err != DB_SUCCESS) {
+>>>>>>> mysql-8.4.3
     return err;
   }
-
-  /* Fetch and advance to the next record. */
-  m_ptr = m_io_buffer.first;
 
   /* Position m_mrec on the first record. */
   return next();
 }
 
-dberr_t File_reader::seek(os_offset_t offset) noexcept {
-  ut_a(m_size > offset);
+dberr_t File_reader::seek() noexcept {
+  ut_a(m_range.second > m_range.first);
 
-  m_offset = offset;
+  const auto len = std::min(m_io_buffer.second, m_range.second - m_range.first);
+  const auto err =
+      ddl::pread(m_file.get(), m_io_buffer.first, len, m_range.first);
 
+<<<<<<< HEAD
   m_read_len = get_read_len_next();
   const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
                               m_offset, m_crypt_buffer.first, m_space_id);
 
   m_ptr = m_io_buffer.first;
+||||||| merged common ancestors
+  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
+  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+
+  m_ptr = m_io_buffer.first;
+=======
+  if (err == DB_SUCCESS) {
+    /* Fetch and advance to the next record. */
+    m_ptr = m_io_buffer.first;
+  }
+>>>>>>> mysql-8.4.3
 
   return err;
 }
 
-dberr_t File_reader::read(os_offset_t offset) noexcept {
-  const auto err = seek(offset);
+dberr_t File_reader::read(const Range &range) noexcept {
+  ut_a(range.first < range.second);
+  m_range = range;
+
+  /* Read the page in the file buffer */
+  const auto err = seek();
 
   if (err == DB_SUCCESS) {
     /* Position m_mrec on the first record. */
@@ -158,8 +183,16 @@ dberr_t File_reader::read(os_offset_t offset) noexcept {
 }
 
 dberr_t File_reader::read_next() noexcept {
+<<<<<<< HEAD
   ut_a(m_size > m_offset);
   return seek(m_offset + m_read_len);
+||||||| merged common ancestors
+  ut_a(m_size > m_offset);
+  return seek(m_offset + m_io_buffer.second);
+=======
+  m_range.first = m_range.first + m_io_buffer.second;
+  return seek();
+>>>>>>> mysql-8.4.3
 }
 
 dberr_t File_reader::next() noexcept {
@@ -168,8 +201,8 @@ dberr_t File_reader::next() noexcept {
   size_t extra_size = *m_ptr++;
 
   if (extra_size == 0) {
-    /* Mark as eof. */
-    m_offset = m_size;
+    /* Mark as end of range. */
+    m_range.first = m_range.second;
     return DB_END_OF_INDEX;
   }
 
@@ -222,9 +255,10 @@ dberr_t File_reader::next() noexcept {
       m_ptr += len;
     }
 
-    rec_deserialize_init_offsets(rec + extra_size, m_index, &m_offsets[0]);
+    rec_deserialize_init_offsets(rec + extra_size, m_index,
+                                 &m_field_offsets[0]);
 
-    const auto data_size = rec_offs_data_size(&m_offsets[0]);
+    const auto data_size = rec_offs_data_size(&m_field_offsets[0]);
 
     /* These overflows should be impossible given that records are much
     smaller than either buffer, and the record starts near the beginning
@@ -238,9 +272,10 @@ dberr_t File_reader::next() noexcept {
     m_ptr += data_size;
 
   } else {
-    rec_deserialize_init_offsets(rec + extra_size, m_index, &m_offsets[0]);
+    rec_deserialize_init_offsets(rec + extra_size, m_index,
+                                 &m_field_offsets[0]);
 
-    const auto data_size = rec_offs_data_size(&m_offsets[0]);
+    const auto data_size = rec_offs_data_size(&m_field_offsets[0]);
 
     ut_a(extra_size + data_size < UNIV_PAGE_SIZE_MAX);
 
@@ -259,8 +294,8 @@ dberr_t File_reader::next() noexcept {
       are no REC_N_NEW_EXTRA_BYTES between extra_size and data_size.
       Similarly, rec_offs_validate() would fail, because it invokes
       rec_get_status(). */
-      ut_d(m_offsets[3] = (ulint)m_index);
-      ut_d(m_offsets[2] = (ulint)rec + extra_size);
+      ut_d(m_field_offsets[3] = (ulint)m_index);
+      ut_d(m_field_offsets[2] = (ulint)rec + extra_size);
 
       {
         const auto err = read_next();

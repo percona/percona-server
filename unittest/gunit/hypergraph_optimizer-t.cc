@@ -29,6 +29,7 @@
 
 #include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <regex>
 #include <string>
@@ -7507,7 +7508,13 @@ struct CountingReceiver {
     return false;
   }
 
-  size_t count(NodeMap map) const { return m_num_subplans[map]; }
+  size_t count(NodeMap map) const {
+#if defined(__GNUC__) && __GNUC__ >= 14
+    // Silence -Warray-bounds warning in GCC 14.
+    [[assume(map != std::numeric_limits<uint64_t>::max())]];
+#endif
+    return m_num_subplans[map];
+  }
 
   const JoinHypergraph &m_graph;
   std::unique_ptr<size_t[]> m_num_subplans;
@@ -7519,6 +7526,7 @@ RelationalExpression *CloneRelationalExpr(THD *thd,
       new (thd->mem_root) RelationalExpression(thd);
   new_expr->type = expr->type;
   new_expr->tables_in_subtree = expr->tables_in_subtree;
+  new_expr->companion_set = expr->companion_set;
   if (new_expr->type == RelationalExpression::TABLE) {
     new_expr->table = expr->table;
   } else {
@@ -7574,6 +7582,7 @@ vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
         expr->right = CloneRelationalExpr(thd, right[j]);
         expr->tables_in_subtree =
             expr->left->tables_in_subtree | expr->right->tables_in_subtree;
+        expr->companion_set = new (thd->mem_root) CompanionSet();
         ret.push_back(expr);
       }
     }

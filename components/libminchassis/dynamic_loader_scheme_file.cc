@@ -180,8 +180,8 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
       return true;
     }
 
-    guard_library.commit();
-    guard_library_set.commit();
+    guard_library.release();
+    guard_library_set.release();
 
     return false;
   } catch (...) {

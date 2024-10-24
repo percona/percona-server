@@ -511,9 +511,9 @@ struct Check_function_as_value_generator_parameters {
   int get_unnamed_function_error_code() const {
     return ((source == VGS_GENERATED_COLUMN)
                 ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                : (source == VGS_DEFAULT_EXPRESSION)
-                      ? ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED
-                      : ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED);
+            : (source == VGS_DEFAULT_EXPRESSION)
+                ? ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED
+                : ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED);
   }
 };
 /*
@@ -1010,7 +1010,8 @@ class Item : public Parse_tree_node {
   };
 
   enum Bool_test  ///< Modifier for result transformation
-  { BOOL_IS_TRUE = 0x00,
+  {
+    BOOL_IS_TRUE = 0x00,
     BOOL_IS_FALSE = 0x01,
     BOOL_IS_UNKNOWN = 0x02,
     BOOL_NOT_TRUE = 0x03,
@@ -1338,12 +1339,11 @@ class Item : public Parse_tree_node {
      */
     if (data_type() != MYSQL_TYPE_INVALID && !(pin && type() == PARAM_ITEM))
       return false;
-    if (propagate_type(thd,
-                       (def == MYSQL_TYPE_VARCHAR)
-                           ? Type_properties(def, Item::default_charset())
-                           : (def == MYSQL_TYPE_JSON)
-                                 ? Type_properties(def, &my_charset_utf8mb4_bin)
-                                 : Type_properties(def)))
+    if (propagate_type(thd, (def == MYSQL_TYPE_VARCHAR)
+                                ? Type_properties(def, Item::default_charset())
+                            : (def == MYSQL_TYPE_JSON)
+                                ? Type_properties(def, &my_charset_utf8mb4_bin)
+                                : Type_properties(def)))
       return true;
     if (pin) pin_data_type();
     if (inherit) set_data_type_inherited();
@@ -3555,7 +3555,8 @@ class Item : public Parse_tree_node {
   */
   uint32 max_length;  ///< Maximum length, in bytes
   enum item_marker    ///< Values for member 'marker'
-  { MARKER_NONE = 0,
+  {
+    MARKER_NONE = 0,
     /// When contextualization or itemization adds an implicit comparison '0<>'
     /// (see make_condition()), to record that this Item_func_ne was created for
     /// this purpose; this value is tested during resolution.
@@ -3578,7 +3579,8 @@ class Item : public Parse_tree_node {
     MARKER_TRAVERSAL = 8,
     /// When pushing index conditions: it says whether a condition uses only
     /// indexed columns.
-    MARKER_ICP_COND_USES_INDEX_ONLY = 10 };
+    MARKER_ICP_COND_USES_INDEX_ONLY = 10
+  };
   /**
     This member has several successive meanings, depending on the phase we're
     in (@see item_marker).
@@ -6163,30 +6165,52 @@ class Item_view_ref final : public Item_ref {
   /**
     Takes into account whether an Item in a derived table / view is part of an
     inner table of an outer join.
-
-    1) If the field is an outer reference, return OUTER_REF_TABLE_BIT.
-    2) Else
-       2a) If the field is const_for_execution and the field is used in the
-           inner part of an outer join, return the inner tables of the outer
-           join. (A 'const' field that depends on the inner table of an outer
-           join shouldn't be interpreted as const.)
-       2b) Else return the used_tables info of the underlying field.
-
-    @note The call to const_for_execution has been replaced by
-          "!(inner_map & ~INNER_TABLE_BIT)" to avoid multiple and recursive
-          calls to used_tables. This can create a problem when Views are
-          created using other views
-*/
+  */
   table_map used_tables() const override {
-    if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
+    const Item_ref *inner_ref = this;
+    const Item *inner_item;
+    /*
+      Check whether any of the inner expressions is an outer reference,
+      and if it is, return OUTER_REF_TABLE_BIT.
+    */
+    while (true) {
+      if (inner_ref->depended_from != nullptr) {
+        return OUTER_REF_TABLE_BIT;
+      }
+      inner_item = inner_ref->ref_item();
+      if (inner_item->type() != REF_ITEM) break;
+      inner_ref = down_cast<const Item_ref *>(inner_item);
+    }
 
-    table_map inner_map = ref_item()->used_tables();
-    return !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr
-               ? ref_item()->real_item()->type() == FIELD_ITEM
-                     ? down_cast<Item_field *>(ref_item()->real_item())
-                           ->table_ref->map()
-                     : first_inner_table->map()
-               : inner_map;
+    const Item_field *field = inner_item->type() == FIELD_ITEM
+                                  ? down_cast<const Item_field *>(inner_item)
+                                  : nullptr;
+
+    // If the field is an outer reference, return OUTER_REF_TABLE_BIT
+    if (field != nullptr && field->depended_from != nullptr) {
+      return OUTER_REF_TABLE_BIT;
+    }
+    /*
+      View references with expressions that are not deemed constant during
+      execution, or when they are constants but the merged view/derived table
+      was not from the inner side of an outer join, simply return the used
+      tables of the underlying item. A "const" field that comes from an inner
+      side of an outer join is not constant, since NULL values are issued
+      when there are no matching rows in the inner table(s).
+    */
+    if (!inner_item->const_for_execution() || first_inner_table == nullptr) {
+      return inner_item->used_tables();
+    }
+    /*
+      This is a const expression on the inner side of an outer join.
+      Augment its used table information with the map of an inner table from
+      the outer join nest. field can be nullptr if it is from a const table.
+      In this case, returning the table's original table map is required by
+      the join optimizer.
+    */
+    return field != nullptr
+               ? field->table_ref->map()
+               : inner_item->used_tables() | first_inner_table->map();
   }
 
   bool eq(const Item *item, bool) const override;

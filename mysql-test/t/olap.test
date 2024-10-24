@@ -1330,6 +1330,7 @@ GROUP BY CUBE(f2);
 
 DROP VIEW v1;
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # PS-8328: MySQL 8 Crash when using group_concat with group by with
@@ -1343,3 +1344,22 @@ SELECT string, GROUP_CONCAT(string) FROM t1 GROUP BY string WITH ROLLUP;
 SELECT i, GROUP_CONCAT(string) FROM t1 GROUP BY i WITH ROLLUP;
 SELECT i, string, GROUP_CONCAT(string) FROM t1 GROUP BY i, string WITH ROLLUP;
 DROP TABLE t1;
+||||||| merged common ancestors
+=======
+
+--echo #
+--echo # Bug#36444257: `false' in operator at sql/sql_executor.cc
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#36804785: `false' in operator at sql/sql_executor.cc
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(UTC_DATE()) OVER() FROM t1 GROUP BY UTC_DATE() WITH ROLLUP;
+DROP TABLE t1;
+>>>>>>> mysql-8.4.3

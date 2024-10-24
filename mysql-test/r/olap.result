@@ -2387,6 +2387,7 @@ GROUP BY CUBE(f2);
 ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
 DROP VIEW v1;
 DROP TABLE t1;
+<<<<<<< HEAD
 #
 # PS-8328: MySQL 8 Crash when using group_concat with group by with
 #          rollup.
@@ -2419,3 +2420,20 @@ i	string	GROUP_CONCAT(string)
 20	NULL	something_completely_else
 NULL	NULL	something,something_else,something_completely_else
 DROP TABLE t1;
+||||||| merged common ancestors
+=======
+#
+# Bug#36444257: `false' in operator at sql/sql_executor.cc
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(TAN(0)) OVER() FROM t1 GROUP BY TAN(0) WITH ROLLUP;
+SUM(TAN(0)) OVER()
+DROP TABLE t1;
+#
+# Bug#36804785: `false' in operator at sql/sql_executor.cc
+#
+CREATE TABLE t1(f1 INTEGER);
+SELECT SUM(UTC_DATE()) OVER() FROM t1 GROUP BY UTC_DATE() WITH ROLLUP;
+SUM(UTC_DATE()) OVER()
+DROP TABLE t1;
+>>>>>>> mysql-8.4.3

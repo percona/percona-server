@@ -5149,19 +5149,17 @@ static int handle_row_conflict(
      * We now take steps to generate a refresh Binlog event so that
      * other clusters will be re-aligned.
      */
-    DBUG_PRINT(
-        "info",
-        ("Conflict on table %s.  Operation type : %s, "
-         "conflict cause :%s, conflict error : %u : %s",
-         table_name,
-         ((op_type == WRITE_ROW)
-              ? "WRITE_ROW"
-              : (op_type == UPDATE_ROW) ? "UPDATE_ROW" : "DELETE_ROW"),
-         ((conflict_cause == ROW_ALREADY_EXISTS)
-              ? "ROW_ALREADY_EXISTS"
-              : (conflict_cause == ROW_DOES_NOT_EXIST) ? "ROW_DOES_NOT_EXIST"
-                                                       : "ROW_IN_CONFLICT"),
-         conflict_error.code, conflict_error.message));
+    DBUG_PRINT("info",
+               ("Conflict on table %s.  Operation type : %s, "
+                "conflict cause :%s, conflict error : %u : %s",
+                table_name,
+                ((op_type == WRITE_ROW)    ? "WRITE_ROW"
+                 : (op_type == UPDATE_ROW) ? "UPDATE_ROW"
+                                           : "DELETE_ROW"),
+                ((conflict_cause == ROW_ALREADY_EXISTS)   ? "ROW_ALREADY_EXISTS"
+                 : (conflict_cause == ROW_DOES_NOT_EXIST) ? "ROW_DOES_NOT_EXIST"
+                                                          : "ROW_IN_CONFLICT"),
+                conflict_error.code, conflict_error.message));
 
     assert(key_rec != nullptr);
     assert(row != nullptr);
@@ -7214,10 +7212,9 @@ double ha_ndbcluster::read_time(uint index, uint ranges, ha_rows rows) {
   assert(rows >= ranges);
 
   const NDB_INDEX_TYPE index_type =
-      (index < MAX_KEY)
-          ? get_index_type(index)
-          : (index == MAX_KEY) ? PRIMARY_KEY_INDEX  // Hidden primary key
-                               : UNDEFINED_INDEX;   // -> worst index
+      (index < MAX_KEY)    ? get_index_type(index)
+      : (index == MAX_KEY) ? PRIMARY_KEY_INDEX  // Hidden primary key
+                           : UNDEFINED_INDEX;   // -> worst index
 
   // fanout_factor is intended to compensate for the amount
   // of roundtrips between API <-> data node and between data nodes
@@ -8160,11 +8157,12 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         const NDB_Modifier *mod = column_modifiers.get("BLOB_INLINE_SIZE");
 
         if (mod->m_found) {
-          int mod_size = atoi(mod->m_val_str.str);
+          char *end = nullptr;
+          long mod_size = strtol(mod->m_val_str.str, &end, 10);
 
           if (mod_size > INT_MAX) mod_size = INT_MAX;
 
-          if (mod_size <= 0) {
+          if (*end != 0 || mod_size < 0) {
             if (thd) {
               get_thd_ndb(thd)->push_warning(
                   "Failed to parse BLOB_INLINE_SIZE=%s, "
@@ -13299,7 +13297,7 @@ static bool read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type,
 
 ha_rows ha_ndbcluster::multi_range_read_info_const(
     uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param, uint n_ranges,
-    uint *bufsz, uint *flags, Cost_estimate *cost) {
+    uint *bufsz, uint *flags, bool *force_default_mrr, Cost_estimate *cost) {
   ha_rows rows;
   uint def_flags = *flags;
   uint def_bufsz = *bufsz;
@@ -13307,8 +13305,9 @@ ha_rows ha_ndbcluster::multi_range_read_info_const(
   DBUG_TRACE;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  rows = handler::multi_range_read_info_const(
-      keyno, seq, seq_init_param, n_ranges, &def_bufsz, &def_flags, cost);
+  rows = handler::multi_range_read_info_const(keyno, seq, seq_init_param,
+                                              n_ranges, &def_bufsz, &def_flags,
+                                              force_default_mrr, cost);
   if (unlikely(rows == HA_POS_ERROR)) {
     return rows;
   }
@@ -13316,10 +13315,13 @@ ha_rows ha_ndbcluster::multi_range_read_info_const(
   /*
     If HA_MRR_USE_DEFAULT_IMPL has been passed to us, that is
     an order to use the default MRR implementation.
-    Otherwise, make a choice based on requested *flags, handler
-    capabilities, cost and mrr* flags of @@optimizer_switch.
+    Also, if multi_range_read_info_const() detected that "DS_MRR" cannot
+    be used (E.g. Using a multi-valued index for non-equality ranges), we
+    are mandated to use the default implementation. Else, make a choice
+    based on requested *flags, handler capabilities, cost and mrr* flags
+    of @@optimizer_switch.
   */
-  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
+  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || *force_default_mrr ||
       choose_mrr_impl(keyno, n_ranges, rows, bufsz, flags, cost)) {
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags = def_flags;
@@ -18181,6 +18183,37 @@ static MYSQL_SYSVAR_ULONG(
     0            /* block */
 );
 
+// Overrides --binlog-cache-size for the ndb binlog thread
+ulong opt_ndb_log_cache_size;
+static void fix_ndb_log_cache_size(THD *thd, SYS_VAR *, void *val_ptr,
+                                   const void *checked) {
+  ulong new_size = *static_cast<const ulong *>(checked);
+
+  // Cap the max value in the same way as other binlog cache size variables
+  if (new_size > max_binlog_cache_size) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+        "Option ndb_log_cache_size (%lu) is greater than max_binlog_cache_size "
+        "(%lu); setting ndb_log_cache_size equal to max_binlog_cache_size.",
+        (ulong)new_size, (ulong)max_binlog_cache_size);
+    new_size = static_cast<ulong>(max_binlog_cache_size);
+  }
+  *(static_cast<ulong *>(val_ptr)) = new_size;
+}
+
+static MYSQL_SYSVAR_ULONG(
+    log_cache_size,         /* name */
+    opt_ndb_log_cache_size, /* var */
+    PLUGIN_VAR_RQCMDARG,
+    "Size of the binary log transaction cache used by NDB binlog",
+    nullptr,                /* check func. */
+    fix_ndb_log_cache_size, /* update func. */
+    64 * 1024 * 1024,       /* default */
+    IO_SIZE,                /* min */
+    ULONG_MAX,              /* max */
+    IO_SIZE                 /* block */
+);
+
 bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
@@ -18594,6 +18627,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_transaction_compression_level_zstd),
     MYSQL_SYSVAR(log_purge_rate),
+    MYSQL_SYSVAR(log_cache_size),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(log_transaction_dependency),
     MYSQL_SYSVAR(clear_apply_status),

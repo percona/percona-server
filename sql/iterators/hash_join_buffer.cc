@@ -46,8 +46,9 @@
 using pack_rows::TableCollection;
 
 LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
-    MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root, TableCollection tables,
-    LinkedImmutableString next_ptr, size_t row_size_upper_bound, bool *full) {
+    MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root,
+    const TableCollection &tables, LinkedImmutableString next_ptr,
+    size_t row_size_upper_bound, bool *full) {
   if (tables.has_blob_column()) {
     // The row size upper bound can have changed.
     row_size_upper_bound = ComputeRowSizeUpperBound(tables);
@@ -85,11 +86,15 @@ LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
   }
 
   ret = LinkedImmutableString::EncodeHeader(next_ptr, &dptr);
+
+  const char *const start_of_row [[maybe_unused]] = dptr;
   dptr = pointer_cast<char *>(
       StoreFromTableBuffersRaw(tables, pointer_cast<uchar *>(dptr)));
+  assert(dptr <= start_of_row + row_size_upper_bound);
 
+  const size_t actual_length = dptr - start_of_value;
+  assert(actual_length <= required_value_bytes);
   if (!committed) {
-    const size_t actual_length = dptr - pointer_cast<char *>(start_of_value);
     mem_root->RawCommit(actual_length);
   }
   return ret;

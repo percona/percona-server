@@ -430,7 +430,8 @@ static COMMANDS commands[] = {
      "Execute an SQL script file. Takes a file name as an argument."},
     {"status", 's', com_status, false,
      "Get status information from the server."},
-    {"system", '!', com_shell, true, "Execute a system shell command."},
+    {"system", '!', com_shell, true,
+     "Execute a system shell command, if enabled"},
     {"tee", 'T', com_tee, true,
      "Set outfile [to_outfile]. Append everything into given outfile."},
     {"use", 'u', com_use, true,
@@ -1742,6 +1743,8 @@ unsigned short get_terminal_width() {
   return 80;
 }
 
+static bool opt_system_command = true;
+
 static struct my_option my_long_options[] = {
     {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -2074,6 +2077,10 @@ static struct my_option my_long_options[] = {
      "Specifies factor for which registration needs to be done for.",
      &opt_register_factor, &opt_register_factor, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
+    {"system-command", 0,
+     "Enable (by default) or disable the system mysql command.",
+     &opt_system_command, &opt_system_command, nullptr, GET_BOOL, NO_ARG, 1, 0,
+     0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -3337,7 +3344,8 @@ void add_syslog(const char *line) {
            "CONNECTION_ID:%lu, DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
            /* use the cached user/sudo_user value. */
            current_os_sudouser ? current_os_sudouser
-                               : current_os_user ? current_os_user : "--",
+           : current_os_user   ? current_os_user
+                               : "--",
            current_user ? current_user : "--", mysql_thread_id(&mysql_handle),
            current_host ? current_host : "--", current_db ? current_db : "--",
            line);
@@ -3938,13 +3946,13 @@ static void print_table_data(MYSQL_RES *result) {
   bool *num_flag;
   size_t sz;
 
-  sz = sizeof(bool) * mysql_num_fields(result);
-  num_flag = (bool *)my_safe_alloca(sz, MAX_ALLOCA_SIZE);
   if (column_types_flag) {
     print_field_types(result);
     if (!mysql_num_rows(result)) return;
     mysql_field_seek(result, 0);
   }
+  sz = sizeof(bool) * mysql_num_fields(result);
+  num_flag = (bool *)my_safe_alloca(sz, MAX_ALLOCA_SIZE);
   separator.copy("+", 1, charset_info);
   while ((field = mysql_fetch_field(result))) {
     size_t length = column_names ? field->name_length : 0;
@@ -4486,6 +4494,13 @@ static int com_shell(String *buffer [[maybe_unused]],
   if (!shell_cmd) {
     put_info("Usage: \\! shell-command", INFO_ERROR);
     return -1;
+  }
+
+  if (!opt_system_command) {
+    return put_info(
+        "'system' command received, but the --system-command option is off. "
+        "Skipping.",
+        INFO_ERROR);
   }
   /*
     The output of the shell command does not

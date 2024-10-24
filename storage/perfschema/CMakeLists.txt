@@ -380,7 +380,9 @@ table_malloc_stats.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY
-  LINK_LIBRARIES extra::rapidjson ext::zlib mysql_gtid)
+  LINK_LIBRARIES extra::rapidjson ext::zlib mysql_gtid
+  SYSTEM_INCLUDE_DIRECTORIES 
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)

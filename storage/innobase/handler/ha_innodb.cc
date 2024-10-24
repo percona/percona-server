@@ -698,6 +698,7 @@ static PSI_memory_info pfs_instrumented_innodb_memory[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
+    PSI_MUTEX_KEY(alter_stage_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(autoinc_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(autoinc_persisted_mutex, 0, 0, PSI_DOCUMENT_ME),
 #ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
@@ -24726,11 +24727,10 @@ int ha_innobase::multi_range_read_next(char **range_info) {
   return (m_ds_mrr.dsmrr_next(range_info));
 }
 
-ha_rows ha_innobase::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                                 void *seq_init_param,
-                                                 uint n_ranges, uint *bufsz,
-                                                 uint *flags,
-                                                 Cost_estimate *cost) {
+ha_rows ha_innobase::multi_range_read_info_const(
+    uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param, uint n_ranges,
+    uint *bufsz, uint *flags, bool *force_default_mrr [[maybe_unused]],
+    Cost_estimate *cost) {
   /* See comments in ha_myisam::multi_range_read_info_const */
   m_ds_mrr.init(table);
 

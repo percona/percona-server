@@ -59,10 +59,19 @@ MYSQL_ADD_EXECUTABLE(mysqltest
   ENABLE_EXPORTS
   LINK_LIBRARIES perconaserverclient
   )
+<<<<<<< HEAD
 IF (WITH_COREDUMPER)
   TARGET_LINK_LIBRARIES(mysqltest coredumper)
 ENDIF()
 
+||||||| merged common ancestors
+=======
+
+IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
+  TARGET_LINK_OPTIONS(mysqltest PRIVATE -Wno-error=stringop-overflow)
+ENDIF()
+
+>>>>>>> mysql-8.4.3
 MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc
@@ -230,6 +239,16 @@ SET(MYSQLBINLOG_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
   )
+
+# The client version of log_event.cc has false positives.
+# Downgrade from error to warning:
+IF(MY_COMPILER_IS_GNU AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  ADD_COMPILE_FLAGS(${CMAKE_SOURCE_DIR}/sql/log_event.cc
+    COMPILE_FLAGS
+    " -Wno-error=uninitialized"
+    " -Wno-error=maybe-uninitialized"
+    )
+ENDIF()
 
 # duplicate explicit instantiation of 'net_field_length_checked'
 # ignored as a Microsoft extension

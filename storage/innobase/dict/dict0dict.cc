@@ -1988,6 +1988,8 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
   ut_ad(dict_sys_mutex_own());
 
   size_t name_len = strlen(name);
+  const auto name_with_separator =
+      std::string{name, name_len} + dict_name::PART_SEPARATOR;
 
   for (uint32_t i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); ++i) {
     dict_table_t *table;
@@ -2005,8 +2007,10 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
         continue;
       }
 
-      if ((strncmp(name, prev_table->name.m_name, name_len) == 0) &&
-          dict_table_is_partition(prev_table)) {
+      /* Find all the partitions or subpartitions of table with name */
+      if (!strncmp(name_with_separator.data(), prev_table->name.m_name,
+                   name_with_separator.size())) {
+        ut_a(dict_table_is_partition(prev_table));
         btr_drop_ahi_for_table(prev_table);
         dict_table_remove_from_cache(prev_table);
       }
@@ -2727,6 +2731,21 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
                                   dict_index_t *index) /*!< in, own: index */
 {
   dict_index_remove_from_cache_low(table, index, false);
+}
+
+std::vector<table_id_t> dict_get_all_table_ids() {
+  std::vector<table_id_t> ids;
+  mutex_enter(&dict_sys->mutex);
+  ids.reserve(dict_sys->table_LRU.get_length() +
+              dict_sys->table_non_LRU.get_length());
+  for (dict_table_t *table : dict_sys->table_LRU) {
+    ids.push_back(table->id);
+  }
+  for (dict_table_t *table : dict_sys->table_non_LRU) {
+    ids.push_back(table->id);
+  }
+  mutex_exit(&dict_sys->mutex);
+  return ids;
 }
 
 /** Duplicate a virtual column information

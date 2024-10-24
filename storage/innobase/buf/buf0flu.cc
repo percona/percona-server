@@ -66,6 +66,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "ut0byte.h"
+#include "ut0math.h"
 #include "ut0stage.h"
 
 #ifdef UNIV_LINUX
@@ -607,17 +608,13 @@ void buf_flush_insert_sorted_into_flush_list(
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  /* The field in_LRU_list is protected by buf_pool->LRU_list_mutex,
-  which we are not holding.  However, while a block is in the flush
-  list, it is dirty and cannot be discarded, not from the
-  page_hash or from the LRU list.  At most, the uncompressed
-  page frame of a compressed block may be discarded or created
-  (copying the block->page to or from a buf_page_t that is
-  dynamically allocated from buf_buddy_alloc()).  Because those
-  transitions hold block->mutex and the flush list mutex (via
+  /* While a block is in the flush list, it is dirty and cannot be discarded,
+  not from the page_hash. At most, the uncompressed page frame of a compressed
+  block may be discarded or created (copying the block->page to or from a
+  buf_page_t that is dynamically allocated from buf_buddy_alloc()).  Because
+  those transitions hold block->mutex and the flush list mutex (via
   buf_flush_relocate_on_flush_list()), there is no possibility
   of a race condition in the assertions below. */
-  ut_ad(block->page.in_LRU_list);
   ut_ad(block->page.in_page_hash);
   /* buf_buddy_block_register() will take a block in the
   BUF_BLOCK_MEMORY state, not a file page. */
@@ -2078,7 +2075,7 @@ bool buf_flush_lists(ulint min_n, lsn_t lsn_limit, ulint *n_processed) {
     buffer pool instances. When min_n is ULINT_MAX
     we need to flush everything up to the lsn limit
     so no limit here. */
-    min_n = (min_n + srv_buf_pool_instances - 1) / srv_buf_pool_instances;
+    min_n = ut::div_ceil(min_n, ulint{srv_buf_pool_instances});
   }
 
   /* Flush to lsn_limit in all buffer pool instances */
@@ -2851,7 +2848,7 @@ static void pc_request(ulint min_n, lsn_t lsn_limit) {
     buffer pool instances. When min_n is ULINT_MAX
     we need to flush everything up to the lsn limit
     so no limit here. */
-    min_n = (min_n + srv_buf_pool_instances - 1) / srv_buf_pool_instances;
+    min_n = ut::div_ceil(min_n, ulint{srv_buf_pool_instances});
   }
 
   mutex_enter(&page_cleaner->mutex);

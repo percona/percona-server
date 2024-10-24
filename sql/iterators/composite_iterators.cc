@@ -618,6 +618,13 @@ class ImmutableStringHasher {
 
 using materialize_iterator::Operand;
 using Operands = Mem_root_array<Operand>;
+using hash_map_type = ankerl::unordered_dense::segmented_map<
+    ImmutableStringWithLength, LinkedImmutableString, ImmutableStringHasher>;
+
+void reset_hash_map(hash_map_type *hash_map) {
+  std::destroy_at(hash_map);
+  std::construct_at(hash_map);
+}
 
 /**
   Contains spill state for set operations' use of in-memory hash map.
@@ -875,17 +882,6 @@ class SpillState {
 #endif
 
   void set_secondary_overflow() { m_secondary_overflow = true; }
-
-  using hash_map_type = ankerl::unordered_dense::segmented_map<
-      ImmutableStringWithLength, LinkedImmutableString, ImmutableStringHasher>;
-
-  static void reset_hash_map(hash_map_type *hash_map) {
-    hash_map->~hash_map_type();
-    auto *map = new (hash_map) hash_map_type();
-    if (map == nullptr) {
-      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
-    }
-  }
 
   /// Getter, cf. comment for \c m_secondary_overflow
   bool secondary_overflow() const { return m_secondary_overflow; }
@@ -1385,8 +1381,6 @@ class MaterializeIterator final : public TableRowIterator {
   MEM_ROOT *m_overflow_mem_root{nullptr};
   size_t m_row_size_upper_bound;
 
-  using hash_map_type = SpillState::hash_map_type;
-
   // The hash map where the rows are stored.
   std::unique_ptr<hash_map_type> m_hash_map;
 
@@ -1445,6 +1439,7 @@ class MaterializeIterator final : public TableRowIterator {
   bool process_row_hash(const Operand &operand, TABLE *t, ha_rows *stored_rows);
   bool materialize_hash_map(TABLE *t, ha_rows *stored_rows);
   bool load_HF_row_into_hash_map();
+  void init_hash_map_for_new_exec();
   friend class SpillState;
 };
 
@@ -1576,6 +1571,7 @@ bool MaterializeIterator<Profiler>::Init() {
   } else {
     table()->file->ha_index_or_rnd_end();  // @todo likely unneeded => remove
     table()->file->ha_delete_all_rows();
+    if (m_use_hash_map) init_hash_map_for_new_exec();
   }
 
   if (m_query_expression != nullptr)
@@ -1663,7 +1659,7 @@ bool MaterializeIterator<Profiler>::Init() {
     }
   }
 
-  end_unique_index.rollback();
+  end_unique_index.reset();
   table()->materialized = true;
 
   if (!m_rematerialize) {
@@ -1974,6 +1970,14 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
   }
 
   return false;
+}
+
+template <typename Profiler>
+void MaterializeIterator<Profiler>::init_hash_map_for_new_exec() {
+  if (m_hash_map == nullptr) return;  // not used yet
+  reset_hash_map(m_hash_map.get());
+  m_mem_root->ClearForReuse();
+  m_rows_in_hash_map = 0;
 }
 
 /**
@@ -3916,7 +3920,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       */
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
         if (move_table_to_disk(error, /*insert_operation=*/false)) {
-          end_unique_index.commit();
+          end_unique_index.release();
           return true;
         }
         /*
@@ -4017,7 +4021,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       }
 
       if (move_table_to_disk(error, /*insert_operation=*/true)) {
-        end_unique_index.commit();
+        end_unique_index.release();
         return true;
       }
     } else {
@@ -4027,7 +4031,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
   }
 
   table()->file->ha_index_end();
-  end_unique_index.commit();
+  end_unique_index.release();
 
   table()->materialized = true;
 
@@ -4216,7 +4220,7 @@ RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
       m_source(std::move(source)),
       m_table(table),
       m_key(key),
-      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_buf(new(thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {}
 
 bool RemoveDuplicatesOnIndexIterator::Init() {
@@ -4257,7 +4261,7 @@ NestedLoopSemiJoinWithDuplicateRemovalIterator::
       m_source_inner(std::move(source_inner)),
       m_table_outer(table),
       m_key(key),
-      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_buf(new(thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {
   assert(m_source_outer != nullptr);
   assert(m_source_inner != nullptr);

@@ -128,7 +128,7 @@ BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles15:BuildRequires: gcc12 gcc12-c++}
+%{?sles15:BuildRequires: gcc13 gcc13-c++}
 %{?sles15:BuildRequires: rpcgen pkgconfig(libtirpc)}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -507,10 +507,6 @@ ClusterJ is a high level database API that is similar in style and
 concept to object-relational mapping persistence frameworks such as
 Hibernate and JPA.
 
-ClusterJPA is an OpenJPA implementation for MySQL Cluster that
-attempts to offer the best possible performance by leveraging the
-strengths of both ClusterJ and JDBC.
-
 %endif # cluster
 
 %if 0%{?with_meb}
@@ -632,7 +628,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
-  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/my_config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 
@@ -673,7 +669,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
-  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 
@@ -1203,7 +1199,7 @@ fi
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.13.0
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0
 %endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so

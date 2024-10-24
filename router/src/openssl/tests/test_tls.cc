@@ -26,7 +26,8 @@
 #include <gmock/gmock.h>
 
 #include <csignal>
-#include <ctime>  // time_t
+#include <cstring>  // memset
+#include <ctime>    // time_t
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -57,7 +58,7 @@ static VectorOfBytes generate_vector(const size_t size) {
   VectorOfBytes source_data(size, '\0');
   std::uniform_int_distribution<int> distribution(0, 255);
   std::generate(
-      source_data.begin(), source_data.end(), [&distribution]() -> auto {
+      source_data.begin(), source_data.end(), [&distribution]() -> auto{
         return distribution(*g_rengin);
       });
 

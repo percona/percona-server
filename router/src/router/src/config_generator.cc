@@ -37,11 +37,11 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
+#include <cstring>  // strlen
 #include <fstream>
 #include <functional>
 #include <iomanip>
-#include <iostream>
+#include <iostream>  // cerr
 #include <random>
 #include <regex>
 #include <set>
@@ -601,7 +601,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     set_file_owner(options, path);
   }
   auto_clean.clear();
-  create_user_undo.commit();
+  create_user_undo.release();
   out_stream_ << bootstrap_report_text;
 }
 
@@ -848,7 +848,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 #endif
 
   auto_clean.clear();
-  create_user_undo.commit();
+  create_user_undo.release();
   out_stream_ << bootstrap_report_text;
 }
 

@@ -1332,7 +1332,13 @@ void NdbImportUtil::free_rows(RowList &src) {
 NdbImportUtil::Blob::Blob() {
   m_blobsize = 0;
   m_allocsize = 0;
+<<<<<<< HEAD
   m_data = new uchar[1];
+||||||| merged common ancestors
+  m_data = new uchar[0];
+=======
+  m_data = nullptr;
+>>>>>>> mysql-8.4.3
 }
 
 NdbImportUtil::Blob::~Blob() { delete[] m_data; }
@@ -1347,7 +1353,9 @@ NdbImportUtil::BlobList::~BlobList() {
 }
 
 void NdbImportUtil::Blob::resize(uint size) {
-  if (m_allocsize < size) {
+  if (m_data == nullptr ||  // Make sure to always allocate data buffer as it's
+                            // used to distinguish between empty and NULL data
+      m_allocsize < size) {
     delete[] m_data;
     m_data = new uchar[size];
     m_allocsize = size;

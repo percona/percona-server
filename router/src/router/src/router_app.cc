@@ -32,7 +32,6 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <initializer_list>
 #include <memory>  // unique_ptr
@@ -90,7 +89,6 @@ const char dir_sep = '/';
 #include <string.h>
 #include "mysqlrouter/windows/password_vault.h"
 #include "mysqlrouter/windows/service_operations.h"
-#define strtok_r strtok_s
 const char dir_sep = '\\';
 #endif
 
@@ -303,11 +301,12 @@ void MySQLRouter::init(const std::string &program_name,
       config_files = std::move(config_files_res.value());
     }
 
-    DIM::instance().reset_Config();  // simplifies unit tests
-    DIM::instance().set_Config(
-        [this, &config_files]() { return make_config({}, config_files); },
-        std::default_delete<mysql_harness::LoaderConfig>());
-    mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
+    auto &dim = DIM::instance();
+
+    dim.set_Config(make_config({}, config_files),
+                   std::default_delete<mysql_harness::LoaderConfig>());
+
+    mysql_harness::LoaderConfig &config = dim.get_Config();
 
     // reinit logger (right now the logger is configured to log to STDERR,
     // here we re-configure it with settings from config file)
@@ -372,13 +371,9 @@ void MySQLRouter::init_dynamic_state(mysql_harness::Config &config) {
   if (config.has_default(router::options::kDynamicState)) {
     using mysql_harness::DynamicState;
 
-    const std::string dynamic_state_file =
-        config.get_default(router::options::kDynamicState);
     DIM::instance().set_DynamicState(
-        [=]() { return new DynamicState(dynamic_state_file); },
+        new DynamicState(config.get_default(router::options::kDynamicState)),
         std::default_delete<mysql_harness::DynamicState>());
-    // force object creation, the further code relies on it's existence
-    DIM::instance().get_DynamicState();
   }
 }
 
@@ -459,8 +454,7 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
     //           with the new one at the very end.
 
     // our new logger registry, it will replace the current one if all goes well
-    std::unique_ptr<mysql_harness::logging::Registry> registry(
-        new mysql_harness::logging::Registry());
+    auto registry = std::make_unique<mysql_harness::logging::Registry>();
 
     const auto level = mysql_harness::logging::get_default_log_level(
         config, raw_mode);  // throws std::invalid_argument
@@ -480,9 +474,8 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
     // nothing threw - we're good. Now let's replace the new registry with the
     // old one
     DIM::instance().set_LoggingRegistry(
-        [&registry]() { return registry.release(); },
+        registry.release(),
         std::default_delete<mysql_harness::logging::Registry>());
-    DIM::instance().reset_LoggingRegistry();
 
     // flag that the new loggers are ready for use
     DIM::instance().get_LoggingRegistry().set_ready();
@@ -558,21 +551,22 @@ void MySQLRouter::start() {
   // throws system_error() in case of failure
   const auto config_files = check_config_files();
 
+  auto &dim = DIM::instance();
+
   // read config, and also make this config globally-available via DIM
-  DIM::instance().reset_Config();  // simplifies unit tests
-  DIM::instance().set_Config(
-      [this, &config_files]() {
-        return make_config(get_default_paths(), config_files);
-      },
-      std::default_delete<mysql_harness::LoaderConfig>());
+  dim.set_Config(make_config(get_default_paths(), config_files),
+                 std::default_delete<mysql_harness::LoaderConfig>());
+
   mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
 
 #ifndef _WIN32
   // --user param given on the command line has a priority over
   // the user in the configuration
-  if (user_cmd_line_.empty() && config.has_default(router::options::kUser)) {
-    set_user(config.get_default(router::options::kUser), true,
-             this->sys_user_operations_);
+  {
+    if (user_cmd_line_.empty() && config.has_default(router::options::kUser)) {
+      set_user(config.get_default(router::options::kUser), true,
+               this->sys_user_operations_);
+    }
   }
 #endif
 
@@ -1974,7 +1968,7 @@ void MySQLRouter::show_help() {
 
     // fallback to .ini for each .conf file
     const std::string conf_ext(".conf");
-    if (mysql_harness::utility::ends_with(file, conf_ext)) {
+    if (file.ends_with(conf_ext)) {
       // replace .conf by .ini
       std::string ini_filename =
           file.substr(0, file.size() - conf_ext.size()) + ".ini";

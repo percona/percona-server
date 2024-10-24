@@ -12,15 +12,7 @@ END|
 CREATE TABLE t1(
 f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 INT NOT NULL,
-<<<<<<< HEAD
-f3 INT NOT NULL
-)
-||||||| merged common ancestors
-f3 INT NOT NULL,
-KEY(f2, f3))
-=======
 f3 INT NOT NULL)
->>>>>>> mysql-8.4.3
 ENGINE=INNODB;
 # Create 150000 uncommitted rows
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;

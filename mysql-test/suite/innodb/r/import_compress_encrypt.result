@@ -128,5 +128,3 @@ DROP TABLE t1;
 # Removing global manifest file for MySQL server
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------
-# Restarting server without keyring to restore server state
-# restart

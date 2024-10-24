@@ -182,16 +182,8 @@ struct File_cursor : public Load_cursor {
   @param[in] range              Offsets of the chunk to read from the file
   @param[in,out] stage          PFS observability. */
   File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
-<<<<<<< HEAD
-              size_t buffer_size, os_offset_t size, Alter_stage *stage,
+              size_t buffer_size, const Range &range, Alter_stage *stage,
               const Write_offsets &write_offsets) noexcept;
-||||||| merged common ancestors
-              size_t buffer_size, os_offset_t size,
-              Alter_stage *stage) noexcept;
-=======
-              size_t buffer_size, const Range &range,
-              Alter_stage *stage) noexcept;
->>>>>>> mysql-8.4.3
 
   /** Destructor. */
   ~File_cursor() override;
@@ -257,26 +249,12 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
 
 File_cursor::File_cursor(Builder *builder,
                          const Unique_os_file_descriptor &file,
-<<<<<<< HEAD
-                         size_t buffer_size, os_offset_t size,
+                         size_t buffer_size, const Range &range,
                          Alter_stage *stage,
                          const Write_offsets &write_offsets) noexcept
-||||||| merged common ancestors
-                         size_t buffer_size, os_offset_t size,
-                         Alter_stage *stage) noexcept
-=======
-                         size_t buffer_size, const Range &range,
-                         Alter_stage *stage) noexcept
->>>>>>> mysql-8.4.3
     : Load_cursor(builder, nullptr),
-<<<<<<< HEAD
-      m_reader(file, builder->index(), buffer_size, size,
+      m_reader(file, builder->index(), buffer_size, range,
                builder->get_space_id(), write_offsets),
-||||||| merged common ancestors
-      m_reader(file, builder->index(), buffer_size, size),
-=======
-      m_reader(file, builder->index(), buffer_size, range),
->>>>>>> mysql-8.4.3
       m_stage(stage) {
   ut_a(m_reader.m_file.is_open());
 }
@@ -393,13 +371,7 @@ dberr_t Merge_cursor::add_file(const ddl::file_t &file, size_t buffer_size,
   buffer_size = std::min(size_t(range.second - range.first), buffer_size);
   auto cursor = ut::new_withkey<File_cursor>(
       ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
-<<<<<<< HEAD
-      file.m_size, m_stage, file.m_write_offsets);
-||||||| merged common ancestors
-      file.m_size, m_stage);
-=======
-      range, m_stage);
->>>>>>> mysql-8.4.3
+      range, m_stage, file.m_write_offsets);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;

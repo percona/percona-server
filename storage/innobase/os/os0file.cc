@@ -793,7 +793,6 @@ class AIO {
   event for each possible pending IO. The size of the array
   is equal to m_slots.size(). */
   IOEvents m_events;
-<<<<<<< HEAD
 
   /** Array to buffer the not-submitted aio requests. The array length
   is n_slots. It is divided into n_segments segments. Pending requests
@@ -803,12 +802,7 @@ class AIO {
   /** Array of length n_segments. Each element counts the number of not
   submitted aio request on that segment. */
   ulint *m_count;
-#endif /* LINUX_NATIV_AIO */
-||||||| merged common ancestors
-#endif /* LINUX_NATIV_AIO */
-=======
 #endif /* LINUX_NATIVE_AIO */
->>>>>>> mysql-8.4.3
 
   /** The aio arrays for non-ibuf i/o and ibuf i/o. These are NULL when the
   module has not yet been initialized. */
@@ -5528,14 +5522,8 @@ bool os_file_set_nocache(int fd [[maybe_unused]],
     }
     return false;
   }
-<<<<<<< HEAD
-#endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
-  return true;
-||||||| merged common ancestors
-#endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
-=======
 #endif /* !(UNIV_SOLARIS && DIRECTIO_ON) && O_DIRECT */
->>>>>>> mysql-8.4.3
+  return true;
 }
 
 bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
@@ -6528,17 +6516,7 @@ void os_fusionio_get_sector_size() {
 
     /* Try to write the file with different sector size
     alignment. */
-<<<<<<< HEAD
-#ifdef UNIV_DEBUG
-    alignas(MAX_SECTOR_SIZE) byte data[MAX_SECTOR_SIZE] = { 0 };
-#else
-    alignas(MAX_SECTOR_SIZE) byte data[MAX_SECTOR_SIZE];
-#endif
-||||||| merged common ancestors
-    alignas(MAX_SECTOR_SIZE) byte data[MAX_SECTOR_SIZE];
-=======
     alignas(MAX_SECTOR_SIZE) byte data[MAX_SECTOR_SIZE] = {0};
->>>>>>> mysql-8.4.3
 
     while (sector_size <= MAX_SECTOR_SIZE) {
       block_ptr = static_cast<byte *>(ut_align(&data, sector_size));

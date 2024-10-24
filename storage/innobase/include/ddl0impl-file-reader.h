@@ -52,28 +52,15 @@ struct File_reader : private ut::Non_copyable {
   @param[in] buffer_size        Size of file buffer for reading.
   @param[in] range              Offsets of the chunk to read */
   File_reader(const Unique_os_file_descriptor &file, dict_index_t *index,
-<<<<<<< HEAD
-              size_t buffer_size, os_offset_t size, space_id_t space_id,
+              size_t buffer_size, const Range &range, space_id_t space_id,
               const Write_offsets &write_offsets) noexcept
       : m_index(index),
         m_file(file),
-        m_size(size),
+        m_range(range),
         m_buffer_size(buffer_size),
         m_space_id(space_id),
         m_write_offsets(write_offsets) {
-    ut_a(size > 0);
-||||||| merged common ancestors
-              size_t buffer_size, os_offset_t size) noexcept
-      : m_index(index), m_file(file), m_size(size), m_buffer_size(buffer_size) {
-    ut_a(size > 0);
-=======
-              size_t buffer_size, const Range &range) noexcept
-      : m_index(index),
-        m_file(file),
-        m_range(range),
-        m_buffer_size(buffer_size) {
     ut_a(range.first < range.second);
->>>>>>> mysql-8.4.3
     ut_a(m_buffer_size > 0);
     ut_a(m_index != nullptr);
     ut_a(m_file.is_open());
@@ -147,26 +134,8 @@ struct File_reader : private ut::Non_copyable {
   const Unique_os_file_descriptor &m_file;
 
  private:
-<<<<<<< HEAD
-  /** Size of the file in bytes. */
-  os_offset_t m_size{};
-
-  /** Offset to read. */
-  os_offset_t m_offset{};
-||||||| merged common ancestors
-  using Bounds = std::pair<const byte *, const byte *>;
-
-  /** Size of the file in bytes. */
-  os_offset_t m_size{};
-
-  /** Offset to read. */
-  os_offset_t m_offset{};
-=======
-  using Bounds = std::pair<const byte *, const byte *>;
-
   /* Coordinates of the chunk that this file reader can read the rows from */
   Range m_range{};
->>>>>>> mysql-8.4.3
 
   /** Last read length */
   os_offset_t m_read_len{};

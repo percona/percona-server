@@ -116,22 +116,7 @@ dberr_t File_reader::prepare() noexcept {
     return DB_OUT_OF_MEMORY;
   }
 
-<<<<<<< HEAD
-  ut_a(m_size > m_offset);
-  m_read_len = get_read_len_next();
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
-                              m_offset, m_crypt_buffer.first, m_space_id);
-
-  if (err != DB_SUCCESS) {
-||||||| merged common ancestors
-  ut_a(m_size > m_offset);
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
-
-  if (err != DB_SUCCESS) {
-=======
   if (const auto err = seek(); err != DB_SUCCESS) {
->>>>>>> mysql-8.4.3
     return err;
   }
 
@@ -142,27 +127,14 @@ dberr_t File_reader::prepare() noexcept {
 dberr_t File_reader::seek() noexcept {
   ut_a(m_range.second > m_range.first);
 
-  const auto len = std::min(m_io_buffer.second, m_range.second - m_range.first);
-  const auto err =
-      ddl::pread(m_file.get(), m_io_buffer.first, len, m_range.first);
-
-<<<<<<< HEAD
   m_read_len = get_read_len_next();
   const auto err = ddl::pread(m_file.get(), m_io_buffer.first, m_read_len,
-                              m_offset, m_crypt_buffer.first, m_space_id);
+                              m_range.first, m_crypt_buffer.first, m_space_id);
 
-  m_ptr = m_io_buffer.first;
-||||||| merged common ancestors
-  const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
-
-  m_ptr = m_io_buffer.first;
-=======
   if (err == DB_SUCCESS) {
     /* Fetch and advance to the next record. */
     m_ptr = m_io_buffer.first;
   }
->>>>>>> mysql-8.4.3
 
   return err;
 }
@@ -183,16 +155,8 @@ dberr_t File_reader::read(const Range &range) noexcept {
 }
 
 dberr_t File_reader::read_next() noexcept {
-<<<<<<< HEAD
-  ut_a(m_size > m_offset);
-  return seek(m_offset + m_read_len);
-||||||| merged common ancestors
-  ut_a(m_size > m_offset);
-  return seek(m_offset + m_io_buffer.second);
-=======
-  m_range.first = m_range.first + m_io_buffer.second;
+  m_range.first = m_range.first + m_read_len;
   return seek();
->>>>>>> mysql-8.4.3
 }
 
 dberr_t File_reader::next() noexcept {
@@ -338,17 +302,17 @@ dberr_t File_reader::next() noexcept {
 
 [[nodiscard]] size_t File_reader::get_read_len_next() const noexcept {
   if (!log_tmp_is_encrypted()) {
-    return std::min(m_io_buffer.second, m_size - m_offset);
+    return std::min(m_io_buffer.second, m_range.second - m_range.first);
   }
 
   // If encrypted, read the same offset and length that was written
   // so the decryption is correct
-  auto offset_it = get_next_offset(m_write_offsets, m_offset);
+  auto offset_it = get_next_offset(m_write_offsets, m_range.first);
   ut_a(offset_it != m_write_offsets.end());
 
-  const auto len = *offset_it - m_offset;
+  const auto len = *offset_it - m_range.first;
   ut_a(len > 0);
-  ut_a(len <= m_size - m_offset);
+  ut_a(len <= m_range.second - m_range.first);
   ut_a(len <= m_io_buffer.second);
 
   return len;

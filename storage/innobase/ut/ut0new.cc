@@ -103,7 +103,7 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_fil_space_t, "fil_space_t", 0, 0, PSI_DOCUMENT_ME},
-<<<<<<< HEAD
+    {&mem_key_lock_sys, "lock_sys", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_log_online_iterator_files, "log_online_iterator_files", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_log_online_iterator_page, "log_online_iterator_page", 0, 0,
@@ -113,10 +113,6 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_log_online_read_buf, "log_online_read_buf", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_log_online_sys, "log_online_sys", 0, 0, PSI_DOCUMENT_ME},
-||||||| merged common ancestors
-=======
-    {&mem_key_lock_sys, "lock_sys", 0, 0, PSI_DOCUMENT_ME},
->>>>>>> mysql-8.4.3
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},

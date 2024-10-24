@@ -1332,13 +1332,7 @@ void NdbImportUtil::free_rows(RowList &src) {
 NdbImportUtil::Blob::Blob() {
   m_blobsize = 0;
   m_allocsize = 0;
-<<<<<<< HEAD
-  m_data = new uchar[1];
-||||||| merged common ancestors
-  m_data = new uchar[0];
-=======
   m_data = nullptr;
->>>>>>> mysql-8.4.3
 }
 
 NdbImportUtil::Blob::~Blob() { delete[] m_data; }

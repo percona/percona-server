@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 2
+#define PERCONA_INNODB_VERSION 3
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -214,8 +214,8 @@ srv_start() has executed using the call command. */
                                    debugging without UNIV_DEBUG */
 #define UNIV_BLOB_LIGHT_DEBUG      /* Enable off-page column \
                                    debugging without UNIV_DEBUG */
-#define UNIV_DEBUG_LOCK_VALIDATE   /* Enable                       \
-                                   ut_ad(lock_rec_validate_page()) \
+#define UNIV_DEBUG_LOCK_VALIDATE   /* Enable                      \
+                                   ut_d(lock_rec_validate_page()) \
                                    assertions. */
 #define UNIV_LRU_DEBUG             /* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG            /* debug HASH_ macros */

@@ -578,16 +578,16 @@ long long innodb_redo_log_sharp_checkpoint(
     [[maybe_unused]] unsigned char *error);
 bool innodb_redo_log_consumer_register_init([[maybe_unused]] UDF_INIT *initid,
                                             UDF_ARGS *args, char *message);
-void innodb_redo_log_consumer_register_deinit([
-    [maybe_unused]] UDF_INIT *initid);
+void innodb_redo_log_consumer_register_deinit(
+    [[maybe_unused]] UDF_INIT *initid);
 long long innodb_redo_log_consumer_register(
     [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
     [[maybe_unused]] unsigned char *null_value,
     [[maybe_unused]] unsigned char *error);
 bool innodb_redo_log_consumer_unregister_init([[maybe_unused]] UDF_INIT *initid,
                                               UDF_ARGS *args, char *message);
-void innodb_redo_log_consumer_unregister_deinit([
-    [maybe_unused]] UDF_INIT *initid);
+void innodb_redo_log_consumer_unregister_deinit(
+    [[maybe_unused]] UDF_INIT *initid);
 long long innodb_redo_log_consumer_unregister(
     [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
     [[maybe_unused]] unsigned char *null_value,
@@ -2253,8 +2253,8 @@ bool innodb_redo_log_sharp_checkpoint_init([[maybe_unused]] UDF_INIT *initid,
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_sharp_checkpoint_deinit([
-    [maybe_unused]] UDF_INIT *initid) {
+void innodb_redo_log_sharp_checkpoint_deinit(
+    [[maybe_unused]] UDF_INIT *initid) {
   return;
 }
 
@@ -2308,8 +2308,8 @@ bool innodb_redo_log_consumer_register_init([[maybe_unused]] UDF_INIT *initid,
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_consumer_register_deinit([
-    [maybe_unused]] UDF_INIT *initid) {}
+void innodb_redo_log_consumer_register_deinit(
+    [[maybe_unused]] UDF_INIT *initid) {}
 
 /**
   UDF innodb_redo_log_consumer_register
@@ -2358,8 +2358,8 @@ bool innodb_redo_log_consumer_unregister_init([[maybe_unused]] UDF_INIT *initid,
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_consumer_unregister_deinit([
-    [maybe_unused]] UDF_INIT *initid) {}
+void innodb_redo_log_consumer_unregister_deinit(
+    [[maybe_unused]] UDF_INIT *initid) {}
 
 /**
   UDF innodb_redo_log_consumer_unregister
@@ -2405,8 +2405,8 @@ bool innodb_redo_log_consumer_advance_init([[maybe_unused]] UDF_INIT *initid,
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_consumer_advance_deinit([
-    [maybe_unused]] UDF_INIT *initid) {}
+void innodb_redo_log_consumer_advance_deinit(
+    [[maybe_unused]] UDF_INIT *initid) {}
 
 /**
   UDF innodb_redo_log_consumer_advance

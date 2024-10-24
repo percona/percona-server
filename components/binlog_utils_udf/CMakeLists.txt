@@ -33,7 +33,9 @@ MYSQL_ADD_COMPONENT(binlog_utils_udf
 )
 
 target_compile_definitions(component_binlog_utils_udf PRIVATE MYSQL_SERVER)
-target_include_directories(component_binlog_utils_udf SYSTEM PRIVATE ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+target_include_directories(component_binlog_utils_udf SYSTEM PRIVATE
+  ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
 
 IF(APPLE)
   SET_TARGET_PROPERTIES(component_binlog_utils_udf PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")

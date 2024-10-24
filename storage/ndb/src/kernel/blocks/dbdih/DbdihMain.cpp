@@ -106,12 +106,12 @@
 static const Uint32 WaitTableStateChangeMillis = 10;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_MULTI_TRP 1
-//#define DEBUG_NODE_STOP 1
-//#define DEBUG_REDO_CONTROL 1
-//#define DEBUG_LCP 1
-//#define DEBUG_LCP_COMP 1
-//#define DEBUG_COPY_ACTIVE 1
+// #define DEBUG_MULTI_TRP 1
+// #define DEBUG_NODE_STOP 1
+// #define DEBUG_REDO_CONTROL 1
+// #define DEBUG_LCP 1
+// #define DEBUG_LCP_COMP 1
+// #define DEBUG_COPY_ACTIVE 1
 #endif
 
 #ifdef DEBUG_COPY_ACTIVE
@@ -5041,7 +5041,7 @@ void Dbdih::execUPDATE_FRAG_STATEREQ(Signal *signal) {
 
 /* Debug Node Recovery Status module */
 #define DBG_NRS(a)
-//#define DBG_NRS(a) ndbout << a << endl
+// #define DBG_NRS(a) ndbout << a << endl
 
 void Dbdih::initNodeRecoveryStatus() {
   NodeRecordPtr nodePtr;
@@ -5270,7 +5270,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
     nodePtr.p->is_pausable = false;
   }
 
-  if (getNodeState().startLevel != NodeState::SL_STARTED) {
+  if (getNodeState().startLevel < NodeState::SL_STARTED) {
     jam();
     /**
      * We will ignore all state transitions until we are started ourselves
@@ -9061,6 +9061,9 @@ void Dbdih::execNODE_FAILREP(Signal *signal) {
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength,
              JBB, lsptr, 1);
 
+  sendSignal(TRIX_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
+             lsptr, 1);
+
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal, NodeFailRep::SignalLength, JBB,
              lsptr, 1);
 
@@ -9341,6 +9344,8 @@ void Dbdih::checkStopMe(Signal *signal, NodeRecordPtr failedNodePtr) {
 void Dbdih::checkStopPermMaster(Signal *signal, NodeRecordPtr failedNodePtr) {
   DihSwitchReplicaRef *const ref = (DihSwitchReplicaRef *)&signal->theData[0];
   jam();
+  /* Node is no longer 'stopping', clear from bitmap */
+  c_stopPermMaster.stoppingNodes.clear(failedNodePtr.i);
   if (c_DIH_SWITCH_REPLICA_REQ_Counter.isWaitingFor(failedNodePtr.i)) {
     jam();
     ndbrequire(c_stopPermMaster.clientRef != 0);
@@ -16564,8 +16569,6 @@ void Dbdih::execGCP_COMMIT(Signal *signal) {
     signal->theData[0] = 5048;
     sendSignal(numberToRef(DBLQH, c_error_insert_extra), GSN_NDB_TAMPER, signal,
                1, JBB);
-    signal->theData[0] = save;
-    CLEAR_ERROR_INSERT_VALUE;
 
     signal->theData[0] = 9999;
     sendSignal(numberToRef(CMVMI, c_error_insert_extra), GSN_DUMP_STATE_ORD,
@@ -19667,11 +19670,11 @@ void Dbdih::storeNewLcpIdLab(Signal *signal) {
 
   DEB_LCP_COMP(("Set to LCP_COPY_GCI"));
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
-  //#ifdef VM_TRACE
-  //  infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
-  //  signal->theData[0] = 7012;
-  //  execDUMP_STATE_ORD(signal);
-  //#endif
+  // #ifdef VM_TRACE
+  //   infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
+  //   signal->theData[0] = 7012;
+  //   execDUMP_STATE_ORD(signal);
+  // #endif
 
   copyGciLab(signal, CopyGCIReq::LOCAL_CHECKPOINT);
 }  // Dbdih::storeNewLcpIdLab()
@@ -19889,7 +19892,7 @@ void Dbdih::master_lcp_fragmentMutex_locked(Signal *signal,
   startLcpRoundLoopLab(signal, 0, 0);
 }
 
-//#define DIH_DEBUG_REPLICA_SEARCH
+// #define DIH_DEBUG_REPLICA_SEARCH
 #ifdef DIH_DEBUG_REPLICA_SEARCH
 static Uint32 totalScheduled;
 static Uint32 totalExamined;
@@ -25978,6 +25981,21 @@ void Dbdih::execSTOP_PERM_REQ(Signal *signal) {
       return;
     }  // if
 
+    if (c_stopPermMaster.stoppingNodes.count() > 0) {
+      jam();
+
+      /**
+       * Only grant one node graceful stopping
+       * permission currently
+       * Future extension : Max one per NG
+       */
+      ref->senderData = senderData;
+      ref->errorCode = StopPermRef::NodeShutdownInProgress;
+      sendSignal(senderRef, GSN_STOP_PERM_REF, signal,
+                 StopPermRef::SignalLength, JBB);
+      return;
+    }
+
     if (c_nodeStartMaster.activeState) {
       jam();
       ref->senderData = senderData;
@@ -25992,6 +26010,7 @@ void Dbdih::execSTOP_PERM_REQ(Signal *signal) {
      */
     c_nodeStartMaster.activeState = true;
     c_stopPermMaster.clientRef = senderRef;
+    c_stopPermMaster.stoppingNodes.set(nodeId);
 
     c_stopPermMaster.clientData = senderData;
     c_stopPermMaster.returnValue = 0;
@@ -26174,6 +26193,11 @@ void Dbdih::switchReplica(Signal *signal, Uint32 nodeId, Uint32 tableId,
         ref->errorCode = c_stopPermMaster.returnValue;
         sendSignal(c_stopPermMaster.clientRef, GSN_STOP_PERM_REF, signal, 2,
                    JBB);
+
+        /* Failure to get stop permission, clear node from stopping bitmap */
+        const Uint32 nodeId = refToNode(c_stopPermMaster.clientRef);
+        /* Expect bit to be set, unless stopping node failed early */
+        c_stopPermMaster.stoppingNodes.clear(nodeId);
       }  // if
 
       /**

@@ -42,8 +42,6 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #include "my_rapidjson_size_t.h"
 
 #include <rapidjson/pointer.h>
@@ -607,7 +605,7 @@ class TestEnv : public ::testing::Environment {
   [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
 
   void TearDown() override {
-    if (testing::Test::HasFatalFailure()) {
+    if (testing::Test::HasFailure()) {
       for (auto &srv : shared_servers_) {
         srv->process_manager().dump_logs();
       }
@@ -905,10 +903,11 @@ class TestWithSharedRouter {
 
 SharedRouter *TestWithSharedRouter::shared_router_ = nullptr;
 
-class SplittingConnectionTestBase : public RouterComponentTest {
+template <size_t S, size_t P>
+class SplittingConnectionTestBaseP : public RouterComponentTest {
  public:
-  static constexpr const size_t kNumServers = 3;
-  static constexpr const size_t kMaxPoolSize = 128;
+  static constexpr const size_t kNumServers = S;
+  static constexpr const size_t kMaxPoolSize = P;
 
   static void SetUpTestSuite() {
     for (const auto &srv : shared_servers()) {
@@ -938,6 +937,8 @@ class SplittingConnectionTestBase : public RouterComponentTest {
     return TestWithSharedRouter::router();
   }
 };
+
+using SplittingConnectionTestBase = SplittingConnectionTestBaseP<3, 128>;
 
 class SplittingConnectionTest
     : public SplittingConnectionTestBase,
@@ -2525,6 +2526,82 @@ TEST_P(SplittingConnectionTest, set_sys_vars_propagates) {
   }
 }
 
+TEST_P(SplittingConnectionTest, switch_primary_without_trx) {
+  RecordProperty("Bug", "36591958");
+  RecordProperty("Description",
+                 "Check that switching the PRIMARY while a connection is "
+                 "already open, drops the client connection.");
+  auto admin_cli_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_cli_res);
+
+  auto admin_cli = std::move(*admin_cli_res);
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // connection goes out of the pool and back to the pool again.
+  ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(1, 1s));
+
+  // SELECT from PRIMARY and SECONDARY to ensure a connection to each is
+  // established.
+  SCOPED_TRACE("// force stmt from PRIMARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check the write-connection works");
+  auto primary_server_uuid_res = query_one_result(cli, "SELECT @@server_uuid");
+  ASSERT_NO_ERROR(primary_server_uuid_res);
+
+  SCOPED_TRACE("// force stmt from SECONDARY");
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_only'"));
+
+  SCOPED_TRACE("// check the write-connection works");
+  auto secondary_server_uuid_res =
+      query_one_result(cli, "SELECT @@server_uuid");
+  ASSERT_NO_ERROR(secondary_server_uuid_res);
+
+  auto primary_server_uuid = (*primary_server_uuid_res)[0][0];
+  auto secondary_server_uuid = (*secondary_server_uuid_res)[0][0];
+
+  ASSERT_NE(primary_server_uuid, secondary_server_uuid);
+
+  SCOPED_TRACE("// set new primary");
+  ASSERT_NO_ERROR(admin_cli.query("SELECT group_replication_set_as_primary('" +
+                                  secondary_server_uuid + "', 10)"));
+
+  ASSERT_NO_ERROR(query_one_result(cli, "ROUTER SET access_mode='read_write'"));
+
+  SCOPED_TRACE("// check the write-connection fails with --super-read-only");
+
+  auto end = std::chrono::steady_clock::now() + 1s;
+  do {
+    auto truncate_res = query_one_result(cli, "TRUNCATE TABLE testing.t1");
+    ASSERT_ERROR(truncate_res);
+
+    if (truncate_res.error().value() == 2013) {
+      EXPECT_EQ(truncate_res.error().message(),
+                "Lost connection to MySQL server during query");
+
+      // good, leave the loop.
+      break;
+    }
+
+    EXPECT_EQ(truncate_res.error().value(), 1290)
+        << truncate_res.error().message();
+
+    ASSERT_LT(std::chrono::steady_clock::now(), end);
+
+    // wait for the metadata-cache TTL to notice the member change.
+    std::this_thread::sleep_for(100ms);
+  } while (true);
+}
+
 TEST_P(SplittingConnectionTest, clone_fails) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR9.4");
@@ -2622,6 +2699,199 @@ TEST_P(SplittingConnectionTest, select_overlong) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, SplittingConnectionTest,
+                         ::testing::ValuesIn(share_connection_params),
+                         [](auto &info) {
+                           return "ssl_modes_" + info.param.testname;
+                         });
+
+class SplittingConnectionNoPoolTest
+    : public SplittingConnectionTestBaseP<3, 0>,
+      public ::testing::WithParamInterface<SplittingConnectionParam> {
+ public:
+  void TearDown() override {
+    if (HasFailure()) {
+      shared_router()->process_manager().dump_logs();
+    }
+  }
+};
+
+TEST_P(SplittingConnectionNoPoolTest, classic_protocol_tls_resumption) {
+  std::map<std::string, std::string> last_hits;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  for (int round = 0; round < 10; ++round) {
+    SCOPED_TRACE("// connecting to server - round " + std::to_string(round));
+
+    {
+      MysqlClient cli;
+
+      cli.username(account.username);
+      cli.password(account.password);
+
+      SCOPED_TRACE("// connect");
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      for (const auto *initial_query : {"ROUTER SET access_mode='read_write'",
+                                        "ROUTER SET access_mode='read_only'"}) {
+        ASSERT_NO_ERROR(cli.query(initial_query));
+
+        SCOPED_TRACE("// checking TLS resumptions with the server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+      }
+    }
+  }
+}
+
+TEST_P(SplittingConnectionNoPoolTest, classic_protocol_quit_sender) {
+  std::map<std::string, std::string> last_hits;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  for (int round = 0; round < 10; ++round) {
+    SCOPED_TRACE("// connecting to server - round " + std::to_string(round));
+
+    {
+      MysqlClient cli;
+
+      cli.username(account.username);
+      cli.password(account.password);
+
+      SCOPED_TRACE("// connect");
+      ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                  shared_router()->port(GetParam())));
+
+      ASSERT_NO_ERROR(cli.query("DO 1"));  // on read-only.
+
+      std::string ro_port;
+      std::string rw_port;
+
+      {
+        SCOPED_TRACE("// checking TLS resumptions on the read-only server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+
+        ro_port = port;
+      }
+
+      auto prep_res = cli.prepare("DO ?");  // on the read-write node.
+      ASSERT_NO_ERROR(prep_res);
+
+      {
+        SCOPED_TRACE("// checking TLS resumptions with the server.");
+        auto hits_res = query_one_result(
+            cli,
+            "SELECT variable_value "
+            "  FROM performance_schema.session_status "
+            " WHERE variable_name LIKE 'Ssl_session_cache_hits'"
+            " UNION "
+            " SELECT variable_value "
+            "  FROM performance_schema.global_variables "
+            " WHERE variable_name LIKE 'port'");
+        ASSERT_NO_ERROR(hits_res);
+        ASSERT_THAT(*hits_res, testing::SizeIs(testing::Eq(2)));
+        std::string hits = (*hits_res)[0][0];
+        std::string port = (*hits_res)[1][0];
+
+        ASSERT_THAT(hits, Not(IsEmpty()));
+        ASSERT_THAT(port, Not(IsEmpty()));
+
+        if (!last_hits.contains(port)) {
+          // second round and later.
+          //
+          // with TLS on the server-side there should be TLS resumption.
+          if (GetParam().server_ssl_mode == kPreferred ||
+              GetParam().server_ssl_mode == kRequired ||
+              (GetParam().server_ssl_mode == kAsClient &&
+               (GetParam().client_ssl_mode == kPreferred ||
+                GetParam().client_ssl_mode == kRequired))) {
+            // the hits should increase.
+            //
+            // As the metadata-cache also connects to the backends and
+            // resumes TLS connections we don't know the exact increase
+            EXPECT_NE(last_hits[port], hits);
+          }
+        }
+
+        last_hits[port] = hits;
+
+        rw_port = port;
+      }
+
+      EXPECT_NE(rw_port, ro_port);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, SplittingConnectionNoPoolTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;

@@ -44,6 +44,7 @@
   server.
 */
 
+#include <openssl/opensslv.h>
 #include <stdarg.h>
 #include <sys/types.h>
 
@@ -69,12 +70,12 @@
 #include "base64.h"
 #include "client_async_authentication.h"
 #include "compression.h"  // validate_compression_attributes
-#include "config.h"
 #include "errmsg.h"
 #include "lex_string.h"
 #include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -201,11 +202,6 @@ static PSI_memory_info all_client_memory[] = {
     {&key_memory_MYSQL_ssl_session_data, "MYSQL_SSL_session", 0, 0,
      "Saved SSL sessions"}};
 
-/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
-#if OPENSSL_VERSION_NUMBER < 0x10101000L
-#define SSL_SESSION_is_resumable(x) true
-#endif
-
 void init_client_psi_keys(void) {
   const char *category = "client";
   int count;
@@ -215,6 +211,11 @@ void init_client_psi_keys(void) {
 }
 
 #endif /* HAVE_PSI_INTERFACE */
+
+/* SSL_SESSION_is_resumable is openssl 1.1.1+ */
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+#define SSL_SESSION_is_resumable(x) true
+#endif
 
 uint mysql_port = 0;
 char *mysql_unix_port = nullptr;
@@ -6040,14 +6041,12 @@ static mysql_state_machine_status authsm_handle_first_authenticate_user(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
-  DBUG_PRINT("info",
-             ("authenticate_user returned %s",
-              ctx->res == CR_OK
-                  ? "CR_OK"
-                  : ctx->res == CR_ERROR ? "CR_ERROR"
-                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
-                                               ? "CR_OK_HANDSHAKE_COMPLETE"
-                                               : "error"));
+  DBUG_PRINT("info", ("authenticate_user returned %s",
+                      ctx->res == CR_OK      ? "CR_OK"
+                      : ctx->res == CR_ERROR ? "CR_ERROR"
+                      : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                          ? "CR_OK_HANDSHAKE_COMPLETE"
+                          : "error"));
 
   static_assert(CR_OK == -1, "");
   static_assert(CR_ERROR == 0, "");
@@ -6188,14 +6187,12 @@ static mysql_state_machine_status authsm_handle_second_authenticate_user(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
-  DBUG_PRINT("info",
-             ("second authenticate_user returned %s",
-              ctx->res == CR_OK
-                  ? "CR_OK"
-                  : ctx->res == CR_ERROR ? "CR_ERROR"
-                                         : ctx->res == CR_OK_HANDSHAKE_COMPLETE
-                                               ? "CR_OK_HANDSHAKE_COMPLETE"
-                                               : "error"));
+  DBUG_PRINT("info", ("second authenticate_user returned %s",
+                      ctx->res == CR_OK      ? "CR_OK"
+                      : ctx->res == CR_ERROR ? "CR_ERROR"
+                      : ctx->res == CR_OK_HANDSHAKE_COMPLETE
+                          ? "CR_OK_HANDSHAKE_COMPLETE"
+                          : "error"));
   if (ctx->res > CR_OK) {
     if (ctx->res > CR_ERROR)
       set_mysql_error(mysql, ctx->res, unknown_sqlstate);
@@ -6443,6 +6440,10 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   DBUG_TRACE;
   mysql_async_connect ctx;
   memset(&ctx, 0, sizeof(ctx));
+
+  // Reset multipacket processing state
+  NET_ASYNC *net_async = NET_ASYNC_DATA(&mysql->net);
+  if (net_async) net_async->mp_state.reset();
 
   ctx.mysql = mysql;
   ctx.host = host;

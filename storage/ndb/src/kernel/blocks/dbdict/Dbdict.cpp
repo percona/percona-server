@@ -119,10 +119,10 @@
 #define ZRESTART_OPS_PER_TRANS 25
 #define ZRESTART_NO_WRITE_AFTER_READ 1
 
-//#define EVENT_PH2_DEBUG
-//#define EVENT_PH3_DEBUG
-//#define EVENT_DEBUG
-//#define DEBUG_API_FAIL
+// #define EVENT_PH2_DEBUG
+// #define EVENT_PH3_DEBUG
+// #define EVENT_DEBUG
+// #define DEBUG_API_FAIL
 
 #ifdef DEBUG_API_FAIL
 #define DEB_API_FAIL(arglist)    \
@@ -4236,7 +4236,7 @@ void Dbdict::checkSchemaStatus(Signal *signal) {
     D("own" << *ownEntry);
     D("mst" << *masterEntry);
 
-//#define PRINT_SCHEMA_RESTART
+// #define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
     printf("checkSchemaStatus: pass: %d table: %d", c_restartRecord.m_pass,
            tableId);
@@ -11632,7 +11632,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal *signal, ListTablesReq *req) {
       ndbassert(found);
     }
 
-    tableDataWriter.putWords((Uint32 *)&ltd, listTablesDataSizeInWords);
+    tableDataWriter.putWordsFromChar((char *)&ltd, listTablesDataSizeInWords);
     count++;
 
     if (reqListNames) {
@@ -11642,7 +11642,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal *signal, ListTablesReq *req) {
       const Uint32 wsize = (size + 3) / 4;
       tableNamesWriter.putWord(size);
       name.copy(tname);
-      tableNamesWriter.putWords((Uint32 *)tname, wsize);
+      tableNamesWriter.putWordsFromChar(tname, wsize);
     }
 
   flush:
@@ -15146,6 +15146,8 @@ void Dbdict::indexStat_prepare(Signal *signal, SchemaOpPtr op_ptr) {
 
   D("indexStat_prepare" << V(*op_ptr.p));
 
+  CRASH_INSERTION(6224);
+
   if (impl_req->requestType == IndexStatReq::RT_UPDATE_STAT ||
       impl_req->requestType == IndexStatReq::RT_DELETE_STAT) {
     // the main op of stat update or delete does nothing
@@ -15192,7 +15194,11 @@ void Dbdict::indexStat_toLocalStat(Signal *signal, SchemaOpPtr op_ptr) {
 
   switch (impl_req->requestType) {
     case IndexStatReq::RT_SCAN_FRAG:
-      trans_ptr.p->m_abort_on_node_fail = true;
+      /**
+       * Node failure during prepare phase should result in ST rollback
+       * to handle the case where the single scanning node has failed
+       */
+      trans_ptr.p->m_abort_on_node_fail_pre_commit = true;
       req->fragId = indexPtr.p->indexStatFragId;
       if (!do_action(trans_ptr.p->m_nodes, indexPtr.p->indexStatNodes,
                      getOwnNodeId())) {
@@ -15279,6 +15285,7 @@ void Dbdict::indexStat_commit(Signal *signal, SchemaOpPtr op_ptr) {
   IndexStatRecPtr indexStatPtr;
   getOpRec(op_ptr, indexStatPtr);
   D("indexStat_commit" << *op_ptr.p);
+  CRASH_INSERTION(6225);
   sendTransConf(signal, op_ptr);
 }
 
@@ -15289,6 +15296,7 @@ void Dbdict::indexStat_complete(Signal *signal, SchemaOpPtr op_ptr) {
   IndexStatRecPtr indexStatPtr;
   getOpRec(op_ptr, indexStatPtr);
   D("indexStat_complete" << *op_ptr.p);
+  CRASH_INSERTION(6226);
   sendTransConf(signal, op_ptr);
 }
 
@@ -16057,6 +16065,7 @@ void Dbdict::prepareUtilTransaction(Callback *pcallback, Signal *signal,
 
   utilPrepareReq->setSenderRef(reference());
   utilPrepareReq->setSenderData(senderData);
+  utilPrepareReq->flags = 0;
 
   const Uint32 pageSizeInWords = 128;
   Uint32 propPage[pageSizeInWords];
@@ -21671,9 +21680,10 @@ void Dbdict::createFile_parse(Signal *signal, bool master, SchemaOpPtr op_ptr,
         "Dbdict: %u: create name=%s,id=%u,obj_ptr_i=%d,"
         "type=%s,bytes=%llu,warn=0x%x",
         __LINE__, f.FileName, impl_req->file_id, filePtr.p->m_obj_ptr_i,
-        f.FileType == DictTabInfo::Datafile
-            ? "datafile"
-            : f.FileType == DictTabInfo::Undofile ? "undofile" : "<unknown>",
+        f.FileType == DictTabInfo::Datafile   ? "datafile"
+        : f.FileType == DictTabInfo::Undofile ? "undofile"
+                                              : "<unknown>",
+
         filePtr.p->m_file_size, createFilePtr.p->m_warningFlags);
   }
 
@@ -27228,12 +27238,34 @@ void Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal *signal) {
     jam();
     // trans_ptr.p->m_nodes.clear(nodeId);
     // No need to clear, will be cleared when next REQ is set
-    if (!trans_ptr.p->m_abort_on_node_fail) {
+    if (!trans_ptr.p->m_abort_on_node_fail_pre_commit) {
       jam();
       ref->errorCode = 0;
     } else {
       jam();
-      ref->errorCode = SchemaTransBeginRef::Nodefailure;
+      /* Abort on node fail if in pre-commit phase */
+      switch (trans_ptr.p->m_state) {
+        case SchemaTrans::TS_FLUSH_COMMIT:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_COMMITTING:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_FLUSH_COMPLETE:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_COMPLETING:
+          jam();
+          [[fallthrough]];
+        case SchemaTrans::TS_ENDING:
+          jam();
+          /* Ignore */
+          ref->errorCode = 0;
+          break;
+        default:
+          ref->errorCode = SchemaTransBeginRef::Nodefailure;
+          break;
+      }
     }
   }
 

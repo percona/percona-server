@@ -59,7 +59,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 0;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 
@@ -98,13 +98,14 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 0;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 
 --echo # Corrupt the first page (page_no=0) of the user tablespace.
 --let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
 --let PAGE_NUM="0"
+--let ALL_ZEROES=0
 --source corrupt_page.inc
 
 --source include/start_mysqld.inc
@@ -135,7 +136,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 1;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 
@@ -173,13 +174,14 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 1;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
 
 --echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
 --let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
 --let PAGE_NUM=1
+--let ALL_ZEROES=0
 --source corrupt_page.inc
 
 --source include/start_mysqld.inc
@@ -203,7 +205,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 0;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 
@@ -235,13 +237,14 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 0;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 
 --echo # Corrupt the first page (page_no=0) of the system tablespace.
 --let IBD_FILE=$MYSQLD_DATADIR/ibdata1
 --let PAGE_NUM="0"
+--let ALL_ZEROES=0
 --source corrupt_page.inc
 
 --source include/start_mysqld.inc
@@ -265,7 +268,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 1;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 
@@ -297,7 +300,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 SET GLOBAL innodb_saved_page_number_debug = 1;
 
 # Set the page dirty and force a flush to disk
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error CR_SERVER_LOST
 SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 
@@ -305,6 +308,7 @@ SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
 --echo # all zeroes.
 --let IBD_FILE=$MYSQLD_DATADIR/ibdata1
 --let PAGE_NUM=1
+--let ALL_ZEROES=0
 --source corrupt_page.inc
 
 --source include/start_mysqld.inc

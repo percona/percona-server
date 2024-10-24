@@ -1528,20 +1528,40 @@ bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, Table_ref *tables) {
   return false;
 }
 
-void Foreign_key_parents_invalidator::add(const char *db_name,
-                                          const char *table_name,
-                                          handlerton *hton) {
+void Foreign_key_parents_invalidator::add(
+    const char *db_name, const char *table_name, handlerton *hton,
+    enum_invalidation_type invalidation_type) {
   m_parent_map.insert(typename Parent_map::value_type(
-      typename Parent_map::key_type(db_name, table_name), hton));
+      typename Parent_map::key_type(db_name, table_name),
+      typename Parent_map::mapped_type(hton, invalidation_type)));
+}
+
+void Foreign_key_parents_invalidator::mark_for_reopen_if_added(
+    const char *db_name, const char *table_name) {
+  auto parent_it =
+      m_parent_map.find(typename Parent_map::key_type(db_name, table_name));
+  if (parent_it != m_parent_map.end()) {
+    parent_it->second.second =
+        enum_invalidation_type::INVALIDATE_AND_MARK_FOR_REOPEN;
+  }
 }
 
 void Foreign_key_parents_invalidator::invalidate(THD *thd) {
   for (auto parent_it : m_parent_map) {
-    // Invalidate Table and Table Definition Caches too.
-    mysql_ha_flush_table(thd, parent_it.first.first.c_str(),
-                         parent_it.first.second.c_str());
-    close_all_tables_for_name(thd, parent_it.first.first.c_str(),
-                              parent_it.first.second.c_str(), false);
+    if (parent_it.second.second ==
+        enum_invalidation_type::INVALIDATE_AND_CLOSE_TABLE) {
+      // Invalidate Table and Table Definition Caches too.
+      mysql_ha_flush_table(thd, parent_it.first.first.c_str(),
+                           parent_it.first.second.c_str());
+      close_all_tables_for_name(thd, parent_it.first.first.c_str(),
+                                parent_it.first.second.c_str(), false);
+    } else {
+      assert(parent_it.second.second ==
+             enum_invalidation_type::INVALIDATE_AND_MARK_FOR_REOPEN);
+      tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN,
+                       parent_it.first.first.c_str(),
+                       parent_it.first.second.c_str(), false);
+    }
 
     /*
       TODO: Should revisit the way we do invalidation to avoid
@@ -8119,6 +8139,8 @@ static Create_field *add_functional_index_to_create_list(
     const Functional_index_error_handler error_handler(
         {key_spec->name.str, key_spec->name.length}, thd);
 
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
+
     Item *expr = kp->get_expression();
     if (expr->type() == Item::FIELD_ITEM) {
       my_error(ER_FUNCTIONAL_INDEX_ON_FIELD, MYF(0));
@@ -10735,16 +10757,18 @@ static bool check_if_keyname_exists(const char *name, KEY *start, KEY *end) {
 
 static const char *make_unique_key_name(const char *field_name, KEY *start,
                                         KEY *end) {
-  char buff[MAX_FIELD_NAME], *buff_end;
+  // NOTE: This may not handle multi-byte characters properly
+  char buff[NAME_CHAR_LEN + 1];
 
   if (!check_if_keyname_exists(field_name, start, end) &&
       my_strcasecmp(system_charset_info, field_name, primary_key_name))
     return field_name;  // Use fieldname
-  buff_end = strmake(buff, field_name, sizeof(buff) - 4);
 
+  // Reserve space for '_', two-digit sequence number and terminating null char:
+  char *buff_end = strmake(buff, field_name, sizeof(buff) - 4);
   /*
-    Only 3 chars + '\0' left, so need to limit to 2 digit
-    This is ok as we can't have more than 100 keys anyway
+    2 digits support up to 100 keys, which is more than the normal MAX_INDEXES
+    limit (64).
   */
   for (uint i = 2; i < 100; i++) {
     *buff_end = '_';
@@ -12101,7 +12125,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   LogErr(SYSTEM_LEVEL, ER_SECONDARY_ENGINE_DDL_TRACK_PROGRESS,
          progress_msg.str().c_str());
   // Transaction committed successfully, no rollback will be necessary.
-  rollback_guard.commit();
+  rollback_guard.release();
 
   if (cleanup()) return true;
 
@@ -14037,6 +14061,8 @@ static bool mysql_inplace_alter_table(
     reopen_tables = true;
     close_temporary_table(thd, altered_table, true, false);
     rollback_needs_dict_cache_reset = true;
+
+    DEBUG_SYNC(thd, "alter_table_inplace_will_need_reset");
 
     /*
       Replace table definition in the data-dictionary.

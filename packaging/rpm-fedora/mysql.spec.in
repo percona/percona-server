@@ -92,6 +92,9 @@ BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
+%if 0%{?fedora} > 40
+BuildRequires:  openssl-devel-engine
+%endif
 BuildRequires:  patchelf
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
@@ -492,15 +495,11 @@ data.
 Summary:        MySQL Cluster Connector for Java
 %description    java
 This package contains MySQL Cluster Connector for Java, which includes
-ClusterJ and ClusterJPA, a plugin for use with OpenJPA.
+ClusterJ.
 
 ClusterJ is a high level database API that is similar in style and
 concept to object-relational mapping persistence frameworks such as
 Hibernate and JPA.
-
-ClusterJPA is an OpenJPA implementation for MySQL Cluster that
-attempts to offer the best possible performance by leveraging the
-strengths of both ClusterJ and JDBC
 
 %endif # cluster
 
@@ -568,6 +567,7 @@ mkdir debug
            -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
@@ -588,7 +588,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
-  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/my_config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 
@@ -604,6 +604,7 @@ mkdir release
            -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \
@@ -624,7 +625,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
-  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 

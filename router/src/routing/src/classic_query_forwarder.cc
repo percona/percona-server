@@ -35,8 +35,6 @@
 #include <system_error>
 #include <variant>
 
-#define RAPIDJSON_HAS_STDSTRING 1
-
 #include "my_rapidjson_size_t.h"
 
 #include <rapidjson/document.h>
@@ -47,7 +45,6 @@
 #include "classic_lazy_connect.h"
 #include "classic_query_param.h"
 #include "classic_query_sender.h"
-#include "classic_quit_sender.h"
 #include "classic_session_tracker.h"
 #include "command_router_set.h"
 #include "harness_assert.h"
@@ -1898,8 +1895,7 @@ QueryForwarder::explicit_commit_connect() {
 
 stdx::expected<Processor::Result, std::error_code>
 QueryForwarder::explicit_commit_connect_done() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (reconnect_error().error_code() != 0) {
     auto &src_conn = connection()->client_conn();
 
     discard_current_msg(src_conn);
@@ -2485,6 +2481,13 @@ QueryForwarder::classify_query() {
   if (connection()->connection_sharing_allowed() &&
       // only switch backends if access-mode is 'auto'
       connection()->context().access_mode() == routing::AccessMode::kAuto) {
+    if (connection()->expected_server_mode() ==
+        mysqlrouter::ServerMode::Unavailable) {
+      connection()->expected_server_mode(
+          want_read_only_connection ? mysqlrouter::ServerMode::ReadOnly
+                                    : mysqlrouter::ServerMode::ReadWrite);
+    }
+
     if ((want_read_only_connection && connection()->expected_server_mode() ==
                                           mysqlrouter::ServerMode::ReadWrite) ||
         (!want_read_only_connection && connection()->expected_server_mode() ==
@@ -2531,7 +2534,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
         std::string(connection()->expected_server_mode() ==
                             mysqlrouter::ServerMode::ReadOnly
                         ? "ro"
-                        : "rw-or-nothing")));
+                        : (connection()->expected_server_mode() ==
+                                   mysqlrouter::ServerMode::ReadWrite
+                               ? "rw-or-nothing"
+                               : "undefined"))));
   }
 
   stage(Stage::Connected);
@@ -2539,8 +2545,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
-  auto &server_conn = connection()->server_conn();
-  if (!server_conn.is_open()) {
+  if (reconnect_error().error_code() != 0) {
     auto &src_conn = connection()->client_conn();
 
     // take the client::command from the connection.

@@ -310,26 +310,20 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
     locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     const lock_t *wait_lock = trx->lock.wait_lock;
     if (wait_lock != nullptr) {
-      lock_queue_iterator_t iter;
-      const lock_t *curr_lock;
-      lock_queue_iterator_reset(&iter, wait_lock, ULINT_UNDEFINED);
-      for (curr_lock = lock_queue_iterator_get_prev(&iter);
-           curr_lock != nullptr;
-           curr_lock = lock_queue_iterator_get_prev(&iter)) {
-        if (lock_has_to_wait(trx->lock.wait_lock, curr_lock)) {
-          blocking[blocking_count].trx_id = lock_get_trx_id(curr_lock);
-          blocking[blocking_count].thread_id =
-              curr_lock->trx->mysql_thd
-                  ? thd_get_thread_id(curr_lock->trx->mysql_thd)
-                  : 0;
-          blocking[blocking_count].query_id =
-              curr_lock->trx->mysql_thd
-                  ? thd_get_query_id(curr_lock->trx->mysql_thd)
-                  : 0;
-          /* Only limited number of blocking transaction infos is implemented*/
-          if ((++blocking_count) >= MAX_BLOCKING_TRX_IN_REPORT) break;
-        }
-      }
+      locksys::find_blockers(*wait_lock, [&](const lock_t &curr_lock) {
+        blocking[blocking_count].trx_id = lock_get_trx_id(&curr_lock);
+        blocking[blocking_count].thread_id =
+            curr_lock.trx->mysql_thd
+                ? thd_get_thread_id(curr_lock.trx->mysql_thd)
+                : 0;
+        blocking[blocking_count].query_id =
+            curr_lock.trx->mysql_thd
+                ? thd_get_query_id(curr_lock.trx->mysql_thd)
+                : 0;
+        /* Only limited number of blocking transaction infos is implemented*/
+        if ((++blocking_count) >= MAX_BLOCKING_TRX_IN_REPORT) return true;
+        return false;
+      });
     }
   }
 

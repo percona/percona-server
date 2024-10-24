@@ -15902,6 +15902,8 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
     err = row_import_for_mysql(dict_table, table_def, m_prebuilt);
 
     if (err == DB_SUCCESS) {
+      dict_table_autoinc_set_col_pos(
+          dict_table, table->found_next_number_field->field_index());
       info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE |
            HA_STATUS_AUTO);
     }

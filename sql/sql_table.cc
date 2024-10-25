@@ -17077,7 +17077,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     from/notify interested storage engines.
   */
   Table_ddl_hton_notification_guard notification_guard{
-      thd, &table_list->mdl_request.key, HA_ALTER_DDL};
+      thd,          &table_list->mdl_request.key,
+      HA_ALTER_DDL, nullptr,
+      nullptr,      nullptr,
+      nullptr,      alter_info->flags};
 
   if (!is_temporary_table(table_list) && notification_guard.notify())
     return true;

@@ -64,6 +64,19 @@ class Rdb_bulk_load_manager {
   }
   ~Rdb_bulk_load_manager() { mysql_mutex_destroy(&m_mutex); }
 
+  bool is_table_bulk_loading(std::string_view db_name,
+                             std::string_view table_name) {
+    RDB_MUTEX_LOCK_CHECK(m_mutex);
+    auto lock_guard =
+        create_scope_guard([this]() { RDB_MUTEX_UNLOCK_CHECK(m_mutex); });
+    const auto name = std::string(db_name) + "." + std::string(table_name);
+    return std::any_of(
+        m_sessions.cbegin(), m_sessions.cend(), [&](const auto &entry) {
+          return entry.second.type() == Rdb_bulk_load_type::SST_FILE_WRITER &&
+                 entry.second.is_table_active(name);
+        });
+  }
+
   void start_bulk_load_session(my_thread_id thread_id, std::string &id,
                                Rdb_bulk_load_type type) {
     RDB_MUTEX_LOCK_CHECK(m_mutex);
@@ -93,7 +106,10 @@ class Rdb_bulk_load_manager {
       // ddl.
       bool exists =
           std::any_of(m_sessions.cbegin(), m_sessions.cend(), [&](auto &entry) {
+            // DDL requests serialize through SQL metadata locks. Only an
+            // SST writer can retain uncommitted data without holding MDL.
             return entry.first != id &&
+                   entry.second.type() == Rdb_bulk_load_type::SST_FILE_WRITER &&
                    entry.second.is_table_active(table_name);
           });
       if (exists) {
@@ -218,6 +234,11 @@ void rdb_bulk_load_init(uint history_size) {
   bulk_load_manger = std::make_unique<Rdb_bulk_load_manager>(history_size);
 }
 
+bool rdb_is_table_bulk_loading(std::string_view db_name,
+                               std::string_view table_name) {
+  return bulk_load_manger->is_table_bulk_loading(db_name, table_name);
+}
+
 void rdb_bulk_load_deinit() { bulk_load_manger = nullptr; }
 
 void rdb_set_bulk_load_history_size(uint size) {
@@ -245,6 +266,11 @@ void Rdb_bulk_load_context::clear_current_bulk_load() {
   m_curr_table_name.clear();
 };
 
+void Rdb_bulk_load_context::discard_index(GL_INDEX_ID index_id) {
+  m_curr_bulk_load.erase(index_id);
+  m_key_merge.erase(index_id);
+}
+
 bool Rdb_bulk_load_context::table_changed(std::string_view db_name,
                                           std::string_view table_base_name) {
   return (m_curr_db_name != db_name || m_curr_table_name != table_base_name);
@@ -254,15 +280,24 @@ uint Rdb_bulk_load_context::set_curr_table(std::string_view db_name,
                                            std::string_view table_base_name) {
   m_curr_db_name = db_name;
   m_curr_table_name = table_base_name;
-  if (!m_active) {
+  const bool new_session = !m_active;
+  if (new_session) {
     // start a new session
     bulk_load_manger->start_bulk_load_session(
         m_thd->thread_id(), m_bulk_load_session_id,
         Rdb_bulk_load_type::SST_FILE_WRITER);
     m_active = true;
   }
-  return bulk_load_manger->add_table_to_session(m_bulk_load_session_id, db_name,
-                                                table_base_name);
+  const auto rtn = bulk_load_manger->add_table_to_session(
+      m_bulk_load_session_id, db_name, table_base_name);
+  if (rtn && new_session) {
+    // the session has no table and loads nothing: end it as failed, or it
+    // would block DDL of this thread and later be recorded as completed.
+    m_curr_db_name.clear();
+    m_curr_table_name.clear();
+    complete_bulk_load_session(rtn);
+  }
+  return rtn;
 }
 
 uint Rdb_bulk_load_context::notify_ddl(std::string_view db_name,
@@ -276,6 +311,7 @@ uint Rdb_bulk_load_context::notify_ddl(std::string_view db_name,
   bulk_load_manger->start_bulk_load_session(
       m_thd->thread_id(), m_bulk_load_session_id, Rdb_bulk_load_type::DDL);
   m_active = true;
+  m_ddl_session = true;
   m_curr_db_name = db_name;
   m_curr_table_name = table_base_name;
   const auto rtn = bulk_load_manger->add_table_to_session(
@@ -304,6 +340,7 @@ void Rdb_bulk_load_context::complete_bulk_load_session(int rtn) {
     bulk_load_manger->complete_session(m_bulk_load_session_id, rtn,
                                        m_num_commited_sst_files);
     m_active = false;
+    m_ddl_session = false;
     m_num_commited_sst_files = 0;
   }
 }

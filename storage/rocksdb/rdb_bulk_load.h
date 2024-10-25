@@ -146,6 +146,10 @@ class Rdb_bulk_load_session {
 
 std::vector<Rdb_bulk_load_session> rdb_dump_bulk_load_sessions();
 
+// Called with exclusive MDL held, which prevents new writers on this name.
+bool rdb_is_table_bulk_loading(std::string_view db_name,
+                               std::string_view table_name);
+
 /**
   holds state of bulk load for the current thread.
   not thread safe, should always be accessed from the same thread.
@@ -167,7 +171,21 @@ class Rdb_bulk_load_context {
   */
   void clear_current_bulk_load();
 
+  /**
+    drop the uncommitted data of one index, for example of an index whose
+    in-place creation failed and whose key definition is going away.
+  */
+  void discard_index(GL_INDEX_ID index_id);
+
   void complete_bulk_load_session(int rtn);
+
+  /**
+    complete the session started by notify_ddl(), if it is still active.
+    leaves an active SST_FILE_WRITER session of this thread alone.
+  */
+  void complete_ddl_session(int rtn) {
+    if (m_ddl_session) complete_bulk_load_session(rtn);
+  }
 
   size_t num_bulk_load() const { return m_curr_bulk_load.size(); }
 
@@ -227,6 +245,8 @@ class Rdb_bulk_load_context {
  private:
   THD *m_thd;
   bool m_active = false;
+  // true while the active session was started by notify_ddl()
+  bool m_ddl_session = false;
   std::string m_bulk_load_session_id;
   // The Rdb_sst_info structures we are currently loading.  In a partitioned
   // table this can have more than one entry

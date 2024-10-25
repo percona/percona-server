@@ -69,8 +69,9 @@ CREATE TABLE t (
 INSERT INTO t (id, a) VALUES (1, '1');
 INSERT INTO t (id, a) VALUES (2, 'a');
 
---error ER_SK_POPULATE_DURING_ALTER
+# The failed ALTER above leaves nothing behind, so this one succeeds
 ALTER TABLE t ADD INDEX k1 (a, id);
+SELECT * FROM t FORCE INDEX(k1) ORDER BY a;
 
 DROP TABLE t;
 

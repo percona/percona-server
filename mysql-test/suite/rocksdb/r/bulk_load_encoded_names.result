@@ -1,0 +1,48 @@
+#
+# Pending bulk loads are protected also for table and database names
+# that need filename encoding.
+#
+CREATE TABLE `t-1` (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+INSERT INTO `t-1` VALUES (1,1),(2,2),(3,3);
+SELECT TYPE, STATUS, TABLES FROM information_schema.rocksdb_bulk_load_history
+WHERE STATUS = 'ACTIVE';
+TYPE	STATUS	TABLES
+SST_FILE_WRITER	ACTIVE	test.t-1
+TRUNCATE TABLE `t-1`;
+ERROR HY000: Lock acquisition refused by storage engine.
+ALTER TABLE `t-1` ADD COLUMN c INT, ALGORITHM=COPY;
+ERROR HY000: Lock acquisition refused by storage engine.
+RENAME TABLE `t-1` TO `t-2`;
+ERROR HY000: Lock acquisition refused by storage engine.
+DROP TABLE `t-1`;
+ERROR HY000: Lock acquisition refused by storage engine.
+SET rocksdb_bulk_load=0;
+SELECT COUNT(*) FROM `t-1`;
+COUNT(*)
+3
+DROP TABLE `t-1`;
+CREATE DATABASE `d-1`;
+CREATE TABLE `d-1`.tp (a INT PRIMARY KEY) ENGINE=ROCKSDB
+PARTITION BY HASH(a) PARTITIONS 2;
+SET rocksdb_bulk_load=1;
+INSERT INTO `d-1`.tp VALUES (1),(2),(3),(4);
+ALTER TABLE `d-1`.tp TRUNCATE PARTITION p0;
+ERROR HY000: Lock acquisition refused by storage engine.
+SET rocksdb_bulk_load=0;
+SELECT COUNT(*) FROM `d-1`.tp;
+COUNT(*)
+4
+DROP DATABASE `d-1`;
+# A bulk load into a table with an active DDL reports the conflict
+CREATE TABLE `t-3` (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+SET DEBUG_SYNC = 'alter_table_before_open_tables SIGNAL parked WAIT_FOR go';
+ALTER TABLE `t-3` ADD INDEX kb(b), ALGORITHM=INPLACE;
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+SET rocksdb_bulk_load=1;
+INSERT INTO `t-3` VALUES (1,1);
+ERROR HY000: Lock acquisition refused by storage engine.
+SET rocksdb_bulk_load=0;
+SET DEBUG_SYNC = 'now SIGNAL go';
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE `t-3`;

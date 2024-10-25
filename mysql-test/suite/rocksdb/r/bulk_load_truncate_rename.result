@@ -1,0 +1,48 @@
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE other (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO other VALUES (9);
+SET rocksdb_bulk_load_allow_unsorted=ON;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (2),(1);
+# DDL in the loader session cannot discard pending rows
+TRUNCATE TABLE t;
+ERROR HY000: Lock acquisition refused by storage engine.
+RENAME TABLE t TO renamed;
+ERROR HY000: Lock acquisition refused by storage engine.
+# Another session cannot truncate or rename the loaded table
+TRUNCATE TABLE t;
+ERROR HY000: Lock acquisition refused by storage engine.
+RENAME TABLE t TO renamed;
+ERROR HY000: Lock acquisition refused by storage engine.
+# A later pair in multi-table RENAME must check its own source
+RENAME TABLE other TO renamed_other, t TO renamed;
+ERROR HY000: Lock acquisition refused by storage engine.
+SELECT * FROM other;
+id
+9
+SET rocksdb_bulk_load=OFF;
+SELECT * FROM t ORDER BY id;
+id
+1
+2
+RENAME TABLE other TO renamed_other, t TO renamed;
+SELECT * FROM renamed ORDER BY id;
+id
+1
+2
+TRUNCATE TABLE renamed;
+SELECT * FROM renamed;
+id
+INSERT INTO renamed VALUES (3);
+# Nested RENAME notifications inside COPY ALTER remain allowed
+ALTER TABLE renamed ADD COLUMN v INT DEFAULT 7, ALGORITHM=COPY;
+SELECT * FROM renamed;
+id	v
+3	7
+SET rocksdb_bulk_load=ON;
+ALTER TABLE renamed ADD COLUMN w INT DEFAULT 8, ALGORITHM=COPY;
+SET rocksdb_bulk_load=OFF;
+SELECT * FROM renamed;
+id	v	w
+3	7	8
+DROP TABLE renamed, renamed_other;

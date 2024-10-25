@@ -1,0 +1,123 @@
+#
+# A failed in-place ADD INDEX must not leave a bulk-load session or
+# sorted keys behind, and the ALTER keeps a single DDL session.
+#
+call mtr.add_suppression("is too small");
+SET @saved_history_size = @@global.rocksdb_bulk_load_history_size;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# Partitioned table: one DDL session for all partitions
+CREATE TABLE t1 (a INT PRIMARY KEY, w VARCHAR(300)) ENGINE=ROCKSDB
+PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1, 'x'), (2, 'y'), (11, REPEAT('z', 250));
+ALTER TABLE t1 ADD INDEX ka(a), ALGORITHM=INPLACE;
+SELECT TYPE, STATUS, RETURN_CODE, TABLES
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	RETURN_CODE	TABLES
+DDL	COMPLETED	0	test.t1
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# The scan of the second partition fails
+SET SESSION rocksdb_merge_buf_size = 100;
+ALTER TABLE t1 ADD INDEX kw(w), ALGORITHM=INPLACE;
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION rocksdb_merge_buf_size = DEFAULT;
+SELECT TYPE, STATUS, RETURN_CODE, TABLES
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	RETURN_CODE	TABLES
+DDL	FAILED	1	test.t1
+TRUNCATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+DROP TABLE t1;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# Several indexes: the build of the last one fails
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c INT, w VARCHAR(300))
+ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1, 1, 1, REPEAT('w', 250)), (2, 2, 2, 'x');
+SET SESSION rocksdb_merge_buf_size = 100;
+ALTER TABLE t2 ADD INDEX kb(b), ADD INDEX kc(c), ADD INDEX kw(w),
+ALGORITHM=INPLACE;
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION rocksdb_merge_buf_size = DEFAULT;
+SELECT TYPE, STATUS, RETURN_CODE, TABLES
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	RETURN_CODE	TABLES
+DDL	FAILED	1	test.t2
+ALTER TABLE t2 ADD COLUMN d INT;
+DROP TABLE t2;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# Without the DDL check the session started by the ALTER also ends
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = ON;
+CREATE TABLE t3 (a INT PRIMARY KEY, w VARCHAR(300)) ENGINE=ROCKSDB;
+INSERT INTO t3 VALUES (1, 'x'), (2, REPEAT('z', 250));
+SET SESSION rocksdb_merge_buf_size = 100;
+ALTER TABLE t3 ADD INDEX kw(w), ALGORITHM=INPLACE;
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION rocksdb_merge_buf_size = DEFAULT;
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = OFF;
+SELECT TYPE, STATUS, RETURN_CODE, TABLES
+FROM information_schema.rocksdb_bulk_load_history;
+TYPE	STATUS	RETURN_CODE	TABLES
+SST_FILE_WRITER	FAILED	509	test.t3
+TRUNCATE TABLE t3;
+DROP TABLE t3;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# The keys of a failed ALTER do not reach a later ALTER of the session
+CREATE TABLE t4 (pk INT PRIMARY KEY, a INT, b INT, w VARCHAR(300))
+ENGINE=ROCKSDB;
+INSERT INTO t4 VALUES (1, 10, 10, 'x'), (2, 20, 20, REPEAT('w', 250)),
+(3, 30, 30, 'y');
+SET SESSION rocksdb_merge_buf_size = 100;
+ALTER TABLE t4 ADD INDEX kw(w), ALGORITHM=INPLACE;
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION rocksdb_merge_buf_size = DEFAULT;
+ALTER TABLE t4 ADD INDEX ka(a), ADD INDEX kb(b), ALGORITHM=INPLACE;
+SELECT COUNT(*) FROM t4 FORCE INDEX(ka) WHERE a > 0;
+COUNT(*)
+3
+SELECT COUNT(*) FROM t4 FORCE INDEX(kb) WHERE b > 0;
+COUNT(*)
+3
+SET SESSION rocksdb_merge_buf_size = 100;
+ALTER TABLE t4 ADD INDEX kw(w), ALGORITHM=INPLACE;
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION rocksdb_merge_buf_size = DEFAULT;
+ALTER TABLE t4 ADD INDEX kab(a, b), ALGORITHM=INPLACE;
+SELECT COUNT(*) FROM t4 FORCE INDEX(kab) WHERE a > 0;
+COUNT(*)
+3
+DROP TABLE t4;
+SET GLOBAL rocksdb_bulk_load_history_size = 0;
+SET GLOBAL rocksdb_bulk_load_history_size = 50;
+# A bulk load refused by a concurrent ALTER does not stay active
+CREATE TABLE t5 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t5 VALUES (1, 1);
+SET DEBUG_SYNC = 'alter_table_before_open_tables SIGNAL in_alter WAIT_FOR go';
+ALTER TABLE t5 ADD INDEX kb(b), ALGORITHM=INPLACE;
+SET DEBUG_SYNC = 'now WAIT_FOR in_alter';
+SET SESSION rocksdb_bulk_load = 1;
+INSERT INTO t5 VALUES (2, 2);
+ERROR HY000: Lock acquisition refused by storage engine.
+SELECT TYPE, STATUS, RETURN_CODE, TABLE_COUNT
+FROM information_schema.rocksdb_bulk_load_history
+WHERE TYPE = 'SST_FILE_WRITER';
+TYPE	STATUS	RETURN_CODE	TABLE_COUNT
+SST_FILE_WRITER	FAILED	1	0
+SET DEBUG_SYNC = 'now SIGNAL go';
+CREATE TABLE ti (a INT) ENGINE=InnoDB;
+DROP TABLE ti;
+SET SESSION rocksdb_bulk_load = 0;
+SELECT TYPE, STATUS, RETURN_CODE, TABLE_COUNT
+FROM information_schema.rocksdb_bulk_load_history
+WHERE TYPE = 'SST_FILE_WRITER';
+TYPE	STATUS	RETURN_CODE	TABLE_COUNT
+SST_FILE_WRITER	FAILED	1	0
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t5;
+SET GLOBAL rocksdb_bulk_load_history_size = @saved_history_size;

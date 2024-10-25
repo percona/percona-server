@@ -100,5 +100,49 @@ SET rocksdb_bulk_load=0;
 select TYPE, STATUS, RETURN_CODE, TABLE_COUNT, SST_FILES from information_schema.rocksdb_bulk_load_history where TABLES like '%test.t2';
 TYPE	STATUS	RETURN_CODE	TABLE_COUNT	SST_FILES
 DDL	COMPLETED	0	2	2
+
+DDL of tables of other engines is not recorded
+
+CREATE TABLE ti (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE ti ADD COLUMN b INT;
+DROP TABLE ti;
+CREATE TABLE tp (a INT PRIMARY KEY) ENGINE=ROCKSDB PARTITION BY HASH(a) PARTITIONS 2;
+ALTER TABLE tp ADD COLUMN b INT;
+DROP TABLE tp;
+CREATE TABLE ti (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE ti ENGINE=ROCKSDB;
+DROP TABLE ti;
+select count(*) - OLD_ROWS as new_rows from information_schema.rocksdb_bulk_load_history;
+new_rows
+4
+select TYPE, STATUS, RETURN_CODE, TABLE_COUNT from information_schema.rocksdb_bulk_load_history where TABLES like '%test.tp' or TABLES like '%test.ti';
+TYPE	STATUS	RETURN_CODE	TABLE_COUNT
+DDL	COMPLETED	0	1
+DDL	COMPLETED	0	1
+DDL	COMPLETED	0	1
+DDL	COMPLETED	0	1
+
+DDL of another table is allowed during a bulk load, unless another
+session is bulk loading that table
+
+SET rocksdb_bulk_load=1;
+INSERT INTO t3 VALUES(20, 20);
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 (c1, c2) VALUES(20, 20);
+ALTER TABLE t3 ADD COLUMN c4 INT;
+ERROR HY000: Lock acquisition refused by storage engine.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3177	Table `test`.`t3` has an unfinished MyRocks bulk load. Finish it with SET rocksdb_bulk_load=0 in the session that loads it.
+Error	3177	Lock acquisition refused by storage engine.
+ALTER TABLE t2 ADD COLUMN c4 INT;
+SET rocksdb_bulk_load=0;
+SET rocksdb_bulk_load=0;
+SELECT * FROM t1 WHERE c1 = 20;
+c1	c2	c3
+20	20	42
+SELECT * FROM t3 WHERE c1 = 20;
+c1	c2
+20	20
 set global rocksdb_bulk_load_history_size=default;
 DROP TABLE t1,t2,t3;

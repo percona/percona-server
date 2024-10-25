@@ -1,0 +1,52 @@
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Switching rocksdb_skip_bulk_load_notify_ddl while a DDL runs must not
+--echo # leave its bulk-load session active, nor end another one.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+
+--echo # ON after PRE: POST still completes the DDL session
+connect (con1,localhost,root,,);
+SET DEBUG_SYNC = 'alter_table_before_open_tables SIGNAL parked WAIT_FOR go';
+--send ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=COPY
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = ON;
+SET DEBUG_SYNC = 'now SIGNAL go';
+connection con1;
+--reap
+connection default;
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = OFF;
+SELECT TYPE, STATUS, TABLES FROM information_schema.rocksdb_bulk_load_history
+  WHERE STATUS = 'ACTIVE';
+connection con1;
+ALTER TABLE t2 ADD COLUMN c INT;
+connection default;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1,1),(2,2);
+SET rocksdb_bulk_load=0;
+SELECT COUNT(*) FROM t1;
+
+--echo # DDL skipped at PRE must not complete the session's own bulk load
+connection con1;
+SET rocksdb_bulk_load=1;
+INSERT INTO t2 VALUES (1,1),(2,2);
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = ON;
+CREATE TABLE t3 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t3;
+SET GLOBAL rocksdb_skip_bulk_load_notify_ddl = OFF;
+SELECT TYPE, STATUS, TABLES FROM information_schema.rocksdb_bulk_load_history
+  WHERE STATUS = 'ACTIVE';
+SET rocksdb_bulk_load=0;
+SELECT COUNT(*) FROM t2;
+
+disconnect con1;
+connection default;
+--source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;

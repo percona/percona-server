@@ -11,7 +11,7 @@ ALTER TABLE t1 ADD column c3 int default 42 after c1;
 ERROR HY000: Got error 1 - 'Operation not permitted' from storage engine
 select TYPE, STATUS, RETURN_CODE, SST_FILES from information_schema.rocksdb_bulk_load_history  where TABLES like '%test.t1';
 TYPE	STATUS	RETURN_CODE	SST_FILES
-DDL	COMPLETED	0	2
+DDL	FAILED	1	2
 select * from t1;
 c1	c2
 1	1

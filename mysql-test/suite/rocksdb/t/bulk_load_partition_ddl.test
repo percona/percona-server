@@ -1,0 +1,26 @@
+--source include/have_rocksdb.inc
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB
+  PARTITION BY HASH(id) PARTITIONS 2;
+CREATE TABLE swap_t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load_allow_unsorted=ON;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (1),(2),(3);
+--connection default
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE t TRUNCATE PARTITION p0;
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE t ENABLE KEYS, ALGORITHM=COPY;
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE t FORCE, ALGORITHM=COPY;
+# This engine does not support partition exchange, even without a bulk load.
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED
+ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE swap_t;
+--connection loader
+SET rocksdb_bulk_load=OFF;
+--connection default
+SELECT * FROM t ORDER BY id;
+ALTER TABLE t TRUNCATE PARTITION p0;
+SELECT * FROM t ORDER BY id;
+DROP TABLE t, swap_t;
+--disconnect loader

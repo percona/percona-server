@@ -1,0 +1,64 @@
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Pending bulk loads are protected also for table and database names
+--echo # that need filename encoding.
+--echo #
+
+CREATE TABLE `t-1` (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+connect (con1,localhost,root,,);
+SET rocksdb_bulk_load=1;
+INSERT INTO `t-1` VALUES (1,1),(2,2),(3,3);
+
+connection default;
+SELECT TYPE, STATUS, TABLES FROM information_schema.rocksdb_bulk_load_history
+  WHERE STATUS = 'ACTIVE';
+--error ER_LOCK_REFUSED_BY_ENGINE
+TRUNCATE TABLE `t-1`;
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE `t-1` ADD COLUMN c INT, ALGORITHM=COPY;
+--error ER_LOCK_REFUSED_BY_ENGINE
+RENAME TABLE `t-1` TO `t-2`;
+--error ER_LOCK_REFUSED_BY_ENGINE
+DROP TABLE `t-1`;
+
+connection con1;
+SET rocksdb_bulk_load=0;
+connection default;
+SELECT COUNT(*) FROM `t-1`;
+DROP TABLE `t-1`;
+
+CREATE DATABASE `d-1`;
+CREATE TABLE `d-1`.tp (a INT PRIMARY KEY) ENGINE=ROCKSDB
+  PARTITION BY HASH(a) PARTITIONS 2;
+connection con1;
+SET rocksdb_bulk_load=1;
+INSERT INTO `d-1`.tp VALUES (1),(2),(3),(4);
+connection default;
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE `d-1`.tp TRUNCATE PARTITION p0;
+connection con1;
+SET rocksdb_bulk_load=0;
+connection default;
+SELECT COUNT(*) FROM `d-1`.tp;
+DROP DATABASE `d-1`;
+
+--echo # A bulk load into a table with an active DDL reports the conflict
+CREATE TABLE `t-3` (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+connection con1;
+SET DEBUG_SYNC = 'alter_table_before_open_tables SIGNAL parked WAIT_FOR go';
+--send ALTER TABLE `t-3` ADD INDEX kb(b), ALGORITHM=INPLACE
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+SET rocksdb_bulk_load=1;
+--error ER_LOCK_REFUSED_BY_ENGINE
+INSERT INTO `t-3` VALUES (1,1);
+SET rocksdb_bulk_load=0;
+SET DEBUG_SYNC = 'now SIGNAL go';
+connection con1;
+--reap
+disconnect con1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE `t-3`;

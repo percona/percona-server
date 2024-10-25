@@ -101,5 +101,44 @@ SET rocksdb_bulk_load=0;
 
 select TYPE, STATUS, RETURN_CODE, TABLE_COUNT, SST_FILES from information_schema.rocksdb_bulk_load_history where TABLES like '%test.t2';
 
+echo;
+echo DDL of tables of other engines is not recorded;
+echo;
+let $history_rows= `select count(*) from information_schema.rocksdb_bulk_load_history`;
+CREATE TABLE ti (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE ti ADD COLUMN b INT;
+DROP TABLE ti;
+CREATE TABLE tp (a INT PRIMARY KEY) ENGINE=ROCKSDB PARTITION BY HASH(a) PARTITIONS 2;
+ALTER TABLE tp ADD COLUMN b INT;
+DROP TABLE tp;
+CREATE TABLE ti (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE ti ENGINE=ROCKSDB;
+DROP TABLE ti;
+--replace_result $history_rows OLD_ROWS
+eval select count(*) - $history_rows as new_rows from information_schema.rocksdb_bulk_load_history;
+select TYPE, STATUS, RETURN_CODE, TABLE_COUNT from information_schema.rocksdb_bulk_load_history where TABLES like '%test.tp' or TABLES like '%test.ti';
+
+echo;
+echo DDL of another table is allowed during a bulk load, unless another;
+echo session is bulk loading that table;
+echo;
+connect (con1,localhost,root,,);
+SET rocksdb_bulk_load=1;
+INSERT INTO t3 VALUES(20, 20);
+connection default;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 (c1, c2) VALUES(20, 20);
+error ER_LOCK_REFUSED_BY_ENGINE;
+ALTER TABLE t3 ADD COLUMN c4 INT;
+SHOW WARNINGS;
+ALTER TABLE t2 ADD COLUMN c4 INT;
+SET rocksdb_bulk_load=0;
+connection con1;
+SET rocksdb_bulk_load=0;
+disconnect con1;
+connection default;
+SELECT * FROM t1 WHERE c1 = 20;
+SELECT * FROM t3 WHERE c1 = 20;
+
 set global rocksdb_bulk_load_history_size=default;
 DROP TABLE t1,t2,t3;

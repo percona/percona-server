@@ -39,6 +39,9 @@ a VARCHAR(100)
 INSERT INTO t (id, a) VALUES (1, '1');
 INSERT INTO t (id, a) VALUES (2, 'a');
 ALTER TABLE t ADD INDEX k1 (a, id);
-ERROR HY000: MyRocks failed populating secondary key during alter.
+SELECT * FROM t FORCE INDEX(k1) ORDER BY a;
+id	a
+1	1
+2	a
 DROP TABLE t;
 SET @@session.rocksdb_merge_buf_size = DEFAULT;

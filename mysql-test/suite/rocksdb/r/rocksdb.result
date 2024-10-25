@@ -1045,6 +1045,7 @@ rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
 rocksdb_sim_cache_size	0
 rocksdb_skip_bloom_filter_on_read	OFF
+rocksdb_skip_bulk_load_notify_ddl	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_skip_locks_if_skip_unique_check	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0

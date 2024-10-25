@@ -809,6 +809,7 @@ static int handle_conflict_op_error(Ndb_applier *const applier,
                                     const NdbOperation *op);
 
 static bool ndbcluster_notify_alter_table(THD *, const MDL_key *,
+                                          ulonglong alter_info_flags,
                                           ha_notification_type);
 
 static bool ndbcluster_notify_exclusive_mdl(THD *, const MDL_key *,
@@ -12542,6 +12543,8 @@ static Ndb_server_hooks ndb_server_hooks;
 
 static bool ndbcluster_notify_alter_table(THD *thd,
                                           const MDL_key *mdl_key
+                                          [[maybe_unused]],
+                                          ulonglong alter_info_flags
                                           [[maybe_unused]],
                                           ha_notification_type notification) {
   DBUG_TRACE;

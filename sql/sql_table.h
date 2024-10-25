@@ -160,11 +160,13 @@ class Foreign_key_parents_invalidator {
 */
 class Table_ddl_hton_notification_guard {
  public:
-  Table_ddl_hton_notification_guard(
-      THD *thd, const MDL_key *key, ha_ddl_type ddl_type,
-      const char *old_db_name = nullptr, const char *old_table_name = nullptr,
-      const char *new_db_name = nullptr,
-      const char *new_table_name = nullptr) noexcept
+  Table_ddl_hton_notification_guard(THD *thd, const MDL_key *key,
+                                    ha_ddl_type ddl_type,
+                                    const char *old_db_name = nullptr,
+                                    const char *old_table_name = nullptr,
+                                    const char *new_db_name = nullptr,
+                                    const char *new_table_name = nullptr,
+                                    ulonglong alter_info_flags = 0) noexcept
       : m_hton_notified(false),
         m_thd(thd),
         m_key(*key),
@@ -172,12 +174,13 @@ class Table_ddl_hton_notification_guard {
         m_old_db_name(old_db_name),
         m_old_table_name(old_table_name),
         m_new_db_name(new_db_name),
-        m_new_table_name(new_table_name) {}
+        m_new_table_name(new_table_name),
+        m_alter_info_flags{alter_info_flags} {}
 
   [[nodiscard]] bool notify() noexcept {
     if (!ha_notify_table_ddl(m_thd, &m_key, HA_NOTIFY_PRE_EVENT, m_ddl_type,
                              m_old_db_name, m_old_table_name, m_new_db_name,
-                             m_new_table_name)) {
+                             m_new_table_name, m_alter_info_flags)) {
       m_hton_notified = true;
       return false;
     }
@@ -189,7 +192,7 @@ class Table_ddl_hton_notification_guard {
     if (m_hton_notified)
       (void)ha_notify_table_ddl(m_thd, &m_key, HA_NOTIFY_POST_EVENT, m_ddl_type,
                                 m_old_db_name, m_old_table_name, m_new_db_name,
-                                m_new_table_name);
+                                m_new_table_name, m_alter_info_flags);
   }
 
  private:
@@ -201,6 +204,7 @@ class Table_ddl_hton_notification_guard {
   const char *m_old_table_name;
   const char *m_new_db_name;
   const char *m_new_table_name;
+  const ulonglong m_alter_info_flags;
 };
 
 /*

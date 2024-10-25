@@ -1512,6 +1512,9 @@ class Rdb_ddl_manager : public Ensure_initialized {
 
   [[nodiscard]] Rdb_tbl_def *find(const std::string &table_name,
                                   bool lock = true) const;
+  /* Whether a table, or a partition of a table, of this name is registered */
+  [[nodiscard]] bool has_table_or_partition(
+      const std::string &table_name) const;
   [[nodiscard]] int find_indexes(const std::string &table_name,
                                  std::vector<GL_INDEX_ID> *indexes) const;
   [[nodiscard]] int find_table_stats(const std::string &table_name,

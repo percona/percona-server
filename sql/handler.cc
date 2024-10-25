@@ -9045,7 +9045,8 @@ struct HTON_NOTIFY_PARAMS {
                      const char *old_db_name = nullptr,
                      const char *old_table_name = nullptr,
                      const char *new_db_name = nullptr,
-                     const char *new_table_name = nullptr)
+                     const char *new_table_name = nullptr,
+                     ulonglong alter_info_flags = 0)
       : key(mdl_key),
         notification_type(mdl_type),
         ddl_type{ddl_type},
@@ -9054,7 +9055,8 @@ struct HTON_NOTIFY_PARAMS {
         m_old_db_name(old_db_name),
         m_old_table_name(old_table_name),
         m_new_db_name(new_db_name),
-        m_new_table_name(new_table_name) {}
+        m_new_table_name(new_table_name),
+        m_alter_info_flags(alter_info_flags) {}
 
   const MDL_key *key;
   const ha_notification_type notification_type;
@@ -9066,6 +9068,8 @@ struct HTON_NOTIFY_PARAMS {
   const char *m_old_table_name;
   const char *m_new_db_name;
   const char *m_new_table_name;
+  // alter info flags
+  const ulonglong m_alter_info_flags;
 };
 
 static bool notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin,
@@ -9152,6 +9156,7 @@ static bool notify_table_ddl_helper(THD *thd, plugin_ref plugin, void *arg) {
       case HA_ALTER_DDL:
         if (hton->notify_alter_table) {
           notify_ret = hton->notify_alter_table(thd, params->key,
+                                                params->m_alter_info_flags,
                                                 params->notification_type);
         }
         break;
@@ -9213,17 +9218,19 @@ bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
                          ha_notification_type notification_type,
                          ha_ddl_type ddl_type, const char *old_db_name,
                          const char *old_table_name, const char *new_db_name,
-                         const char *new_table_name) {
+                         const char *new_table_name,
+                         ulonglong alter_info_flags) {
   HTON_NOTIFY_PARAMS params(mdl_key, notification_type, ddl_type, old_db_name,
-                            old_table_name, new_db_name, new_table_name);
+                            old_table_name, new_db_name, new_table_name,
+                            alter_info_flags);
 
   if (plugin_foreach(thd, notify_table_ddl_helper, MYSQL_STORAGE_ENGINE_PLUGIN,
                      &params)) {
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified) {
-      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT,
-                                         ddl_type, old_db_name, old_table_name,
-                                         new_db_name, new_table_name);
+      HTON_NOTIFY_PARAMS rollback_params(
+          mdl_key, HA_NOTIFY_POST_EVENT, ddl_type, old_db_name, old_table_name,
+          new_db_name, new_table_name, alter_info_flags);
       (void)plugin_foreach(thd, notify_table_ddl_helper,
                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }

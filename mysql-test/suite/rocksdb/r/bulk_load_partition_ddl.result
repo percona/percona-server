@@ -1,0 +1,26 @@
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB
+PARTITION BY HASH(id) PARTITIONS 2;
+CREATE TABLE swap_t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load_allow_unsorted=ON;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (1),(2),(3);
+ALTER TABLE t TRUNCATE PARTITION p0;
+ERROR HY000: Lock acquisition refused by storage engine.
+ALTER TABLE t ENABLE KEYS, ALGORITHM=COPY;
+ERROR HY000: Lock acquisition refused by storage engine.
+ALTER TABLE t FORCE, ALGORITHM=COPY;
+ERROR HY000: Lock acquisition refused by storage engine.
+ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE swap_t;
+ERROR HY000: Partition management on a not partitioned table is not possible
+SET rocksdb_bulk_load=OFF;
+SELECT * FROM t ORDER BY id;
+id
+1
+2
+3
+ALTER TABLE t TRUNCATE PARTITION p0;
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+DROP TABLE t, swap_t;

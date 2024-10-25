@@ -781,6 +781,7 @@ static int32_t rocksdb_table_stats_background_thread_nice_value =
     THREAD_PRIO_MAX;
 static unsigned long long rocksdb_table_stats_max_num_rows_scanned = 0ul;
 static bool rocksdb_enable_bulk_load_api = true;
+static bool rocksdb_skip_bulk_load_notify_ddl = false;
 static uint rocksdb_bulk_load_history_size = RDB_BULK_LOAD_HISTORY_DEFAULT_SIZE;
 static bool rocksdb_enable_remove_orphaned_dropped_cfs = true;
 static bool rpl_skip_tx_api_var = false;
@@ -1299,6 +1300,12 @@ static MYSQL_SYSVAR_BOOL(
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "DBOptions::enable_pipelined_write for RocksDB", nullptr, nullptr,
     rocksdb_db_options->enable_pipelined_write);
+
+static MYSQL_SYSVAR_BOOL(
+    skip_bulk_load_notify_ddl, rocksdb_skip_bulk_load_notify_ddl,
+    PLUGIN_VAR_RQCMDARG,
+    "skips checking ddl operations conflict with active bulk loading", nullptr,
+    nullptr, false);
 
 static MYSQL_THDVAR_UINT(bulk_load_compression_parallel_threads,
                          PLUGIN_VAR_RQCMDARG,
@@ -2773,6 +2780,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(merge_buf_size),
     MYSQL_SYSVAR(enable_bulk_load_api),
     MYSQL_SYSVAR(enable_pipelined_write),
+    MYSQL_SYSVAR(skip_bulk_load_notify_ddl),
     MYSQL_SYSVAR(enable_remove_orphaned_dropped_cfs),
     MYSQL_SYSVAR(enable_udt_in_mem),
     MYSQL_SYSVAR(tmpdir),
@@ -3690,6 +3698,23 @@ class Rdb_transaction {
     auto ctx = get_bulk_load_ctx();
     ctx->complete_bulk_load_session(rtn);
     return rtn;
+  }
+
+  [[nodiscard]] bool bulk_load_session_active() {
+    return get_bulk_load_ctx()->active();
+  }
+
+  void complete_bulk_load_session(int rtn) {
+    get_bulk_load_ctx()->complete_bulk_load_session(rtn);
+  }
+
+  /* Drop the uncommitted bulk-load data of the given indexes */
+  void discard_bulk_load(
+      const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes) {
+    auto ctx = get_bulk_load_ctx();
+    for (const auto &kd : indexes) {
+      ctx->discard_index(kd->get_gl_index_id());
+    }
   }
 
   /* Finish bulk loading for all table handlers belongs to one connection */
@@ -6815,9 +6840,50 @@ static void rocksdb_truncation_table_cleanup(void) {
   }
 }
 
-static bool rocksdb_notify_alter_table(THD *thd, const MDL_key *mdl_key,
-                                       ha_notification_type notification_type) {
-  DBUG_EXECUTE_IF("rocksdb_skip_bulk_load_notify_ddl", { return false; };);
+/*
+  Whether the table is a MyRocks table, or an ALTER moves it to MyRocks. The
+  ALTER notification comes before the table is opened, so look the name up in
+  the MyRocks dictionary instead of the data dictionary.
+*/
+static bool rdb_ddl_affects_rocksdb_table(THD *thd, const ha_ddl_type ddl_type,
+                                          const MDL_key *mdl_key) {
+  const HA_CREATE_INFO *const create_info = thd->lex->create_info;
+  if (ddl_type == ha_ddl_type::HA_ALTER_DDL && create_info != nullptr &&
+      (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      create_info->db_type == rocksdb_hton) {
+    return true;
+  }
+
+  char db_buf[FN_REFLEN];
+  char table_buf[FN_REFLEN];
+  tablename_to_filename(mdl_key->db_name(), db_buf, sizeof(db_buf));
+  tablename_to_filename(mdl_key->name(), table_buf, sizeof(table_buf));
+  return ddl_manager.has_table_or_partition(std::string(db_buf) + "." +
+                                            table_buf);
+}
+
+static bool rocksdb_notify_ddl(THD *thd, const MDL_key *mdl_key,
+                               ulonglong alter_info_flags,
+                               const ha_ddl_type ddl_type,
+                               ha_notification_type notification_type) {
+  assert(ddl_type == ha_ddl_type::HA_ALTER_DDL || ddl_type == HA_DROP_DDL);
+  // Always complete on POST: the variable may have been switched on after PRE
+  // started this statement's DDL session.
+  if (rocksdb_skip_bulk_load_notify_ddl &&
+      notification_type == HA_NOTIFY_PRE_EVENT) {
+    return false;
+  }
+
+  // enable/disable keys is not supported on rocksdb SE (no op),
+  // some clients issue these alter statements in a bulk load session.
+  // ignore them.
+  constexpr auto safe_alters = Alter_info::Alter_info_flag::ALTER_KEYS_ONOFF;
+  if (ddl_type == ha_ddl_type::HA_ALTER_DDL &&
+      alter_info_flags == safe_alters && thd->lex->alter_info != nullptr &&
+      thd->lex->alter_info->requested_algorithm !=
+          Alter_info::ALTER_TABLE_ALGORITHM_COPY) {
+    return false;
+  }
 
   std::string_view db_name(mdl_key->db_name(), mdl_key->db_name_length());
   std::string_view table_name(mdl_key->name(), mdl_key->name_length());
@@ -6825,7 +6891,18 @@ static bool rocksdb_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   auto ha_data = get_ha_data(thd);
   auto bulk_load_ctx = ha_data->get_or_create_bulk_load_ctx(thd);
   if (notification_type == HA_NOTIFY_PRE_EVENT) {
+    // DDL of tables of other engines cannot conflict with a bulk load. Don't
+    // record it either, or it would push bulk loads out of the history.
+    if (!rdb_ddl_affects_rocksdb_table(thd, ddl_type, mdl_key)) {
+      return false;
+    }
     if (bulk_load_ctx->notify_ddl(db_name, table_name)) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_LOCK_REFUSED_BY_ENGINE,
+          "Table `%.*s`.`%.*s` has an unfinished MyRocks bulk load. Finish it "
+          "with SET rocksdb_bulk_load=0 in the session that loads it.",
+          static_cast<int>(db_name.size()), db_name.data(),
+          static_cast<int>(table_name.size()), table_name.data());
       return true;
     }
     return false;
@@ -6836,7 +6913,9 @@ static bool rocksdb_notify_alter_table(THD *thd, const MDL_key *mdl_key,
     // completed before reaching here, this call will be a noop.
     // for drop, this call simply completes
     // the dummy bulk load session created in notify_ddl.
-    bulk_load_ctx->complete_bulk_load_session(HA_EXIT_SUCCESS);
+    // A failed COPY ALTER reaches here with its session still active.
+    bulk_load_ctx->complete_ddl_session(thd->is_error() ? HA_EXIT_FAILURE
+                                                        : HA_EXIT_SUCCESS);
     return false;
   }
 
@@ -6845,9 +6924,45 @@ static bool rocksdb_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   return false;
 }
 
+static bool rocksdb_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                                       ulonglong alter_info_flags,
+                                       ha_notification_type notification_type) {
+  return rocksdb_notify_ddl(thd, mdl_key, alter_info_flags,
+                            ha_ddl_type::HA_ALTER_DDL, notification_type);
+}
+
 static bool rocksdb_notify_drop_table(THD *thd, const MDL_key *mdl_key,
                                       ha_notification_type notification_type) {
-  return rocksdb_notify_alter_table(thd, mdl_key, notification_type);
+  return rocksdb_notify_ddl(thd, mdl_key, /*alter_info_flags*/ 0,
+                            ha_ddl_type::HA_DROP_DDL, notification_type);
+}
+
+// These notifications run with exclusive MDL on the affected names. New
+// writers cannot enter, but existing bulk loaders may have released their MDL
+// while retaining SST files. Reject DDL until those files are finalized.
+// Do not start another DDL session here: RENAME also runs inside COPY ALTER,
+// whose existing DDL session must stay active until its outer notification.
+static bool rocksdb_notify_truncate_table(
+    THD *, const MDL_key *mdl_key, ha_notification_type notification_type) {
+  return !rocksdb_skip_bulk_load_notify_ddl &&
+         notification_type == HA_NOTIFY_PRE_EVENT &&
+         rdb_is_table_bulk_loading(
+             {mdl_key->db_name(), mdl_key->db_name_length()},
+             {mdl_key->name(), mdl_key->name_length()});
+}
+
+static bool rocksdb_notify_rename_table(THD *, const MDL_key *,
+                                        ha_notification_type notification_type,
+                                        const char *old_db,
+                                        const char *old_table,
+                                        const char *new_db,
+                                        const char *new_table) {
+  // The MDL key passed by SQL may belong to the first table in a multi-table
+  // RENAME. Use the actual source and destination for each rename step.
+  return !rocksdb_skip_bulk_load_notify_ddl &&
+         notification_type == HA_NOTIFY_PRE_EVENT &&
+         (rdb_is_table_bulk_loading(old_db, old_table) ||
+          rdb_is_table_bulk_loading(new_db, new_table));
 }
 
 /*
@@ -6992,6 +7107,8 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_hton->flush_logs = rocksdb_flush_wal;
   rocksdb_hton->notify_alter_table = rocksdb_notify_alter_table;
   rocksdb_hton->notify_drop_table_ddl = rocksdb_notify_drop_table;
+  rocksdb_hton->notify_truncate_table = rocksdb_notify_truncate_table;
+  rocksdb_hton->notify_rename_table = rocksdb_notify_rename_table;
 
   rocksdb_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE |
                         HTON_SUPPORTS_ONLINE_BACKUPS;
@@ -12343,6 +12460,15 @@ int ha_rocksdb::truncate(dd::Table *table_def) {
 
   assert(m_tbl_def != nullptr);
 
+  // Partition TRUNCATE bypasses the SQL-layer table notification. Check the
+  // logical table name before replacing any partition's index definitions.
+  if (!rocksdb_skip_bulk_load_notify_ddl &&
+      rdb_is_table_bulk_loading(to_string_view(table_share->db),
+                                to_string_view(table_share->table_name))) {
+    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+  }
+
   // Reset auto_increment_value to 1 if auto-increment feature is enabled
   // By default, the starting valid value for auto_increment_value is 1
   DBUG_RETURN(truncate_table(
@@ -15316,6 +15442,15 @@ int ha_rocksdb::inplace_populate_sk(
 
   Rdb_transaction *tx = get_or_create_tx(table->in_use);
 
+  // The DDL session started by the ALTER notification, if any, is completed
+  // by the ALTER itself. Complete a session that bulk_load_key() started here,
+  // and never keep the data of indexes whose creation fails.
+  const bool had_bulk_load_session = tx->bulk_load_session_active();
+  const auto bulk_load_guard = create_scope_guard([&]() {
+    if (res != HA_EXIT_SUCCESS) tx->discard_bulk_load(indexes);
+    if (!had_bulk_load_session) tx->complete_bulk_load_session(res);
+  });
+
   for (const auto &index : indexes) {
     // Skip populating partial indexes.
     if (index->is_partial_index() && !THDVAR(thd, bulk_load_partial_index))
@@ -15376,8 +15511,10 @@ int ha_rocksdb::inplace_populate_sk(
 
     ha_rnd_end();
 
+    // Write this index without completing the bulk-load session, which spans
+    // all the indexes and partitions of the ALTER.
     bool is_critical_error;
-    res = tx->finish_bulk_load(&is_critical_error, true, new_table_arg);
+    res = tx->commit_bulk_load(&is_critical_error, true, new_table_arg);
 
     if (res == ER_DUP_ENTRY) {
       assert(new_table_arg->key_info[index->get_keyno()].flags & HA_NOSAME);
@@ -15385,8 +15522,12 @@ int ha_rocksdb::inplace_populate_sk(
                          &new_table_arg->key_info[index->get_keyno()], MYF(0));
     }
 
-    if (res && is_critical_error) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "Error finishing bulk load.");
+    // An index that was not written fails the ALTER, also when the error is
+    // not critical: a later index must not turn it into a success.
+    if (res) {
+      if (is_critical_error) {
+        LogPluginErrMsg(ERROR_LEVEL, 0, "Error finishing bulk load.");
+      }
       DBUG_RETURN(res);
     }
   }

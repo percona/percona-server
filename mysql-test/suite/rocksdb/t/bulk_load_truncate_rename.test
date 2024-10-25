@@ -1,0 +1,41 @@
+--source include/have_rocksdb.inc
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE other (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO other VALUES (9);
+--connect (loader,localhost,root,,test)
+SET rocksdb_bulk_load_allow_unsorted=ON;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (2),(1);
+--echo # DDL in the loader session cannot discard pending rows
+--error ER_LOCK_REFUSED_BY_ENGINE
+TRUNCATE TABLE t;
+--error ER_LOCK_REFUSED_BY_ENGINE
+RENAME TABLE t TO renamed;
+--connection default
+--echo # Another session cannot truncate or rename the loaded table
+--error ER_LOCK_REFUSED_BY_ENGINE
+TRUNCATE TABLE t;
+--error ER_LOCK_REFUSED_BY_ENGINE
+RENAME TABLE t TO renamed;
+--echo # A later pair in multi-table RENAME must check its own source
+--error ER_LOCK_REFUSED_BY_ENGINE
+RENAME TABLE other TO renamed_other, t TO renamed;
+SELECT * FROM other;
+--connection loader
+SET rocksdb_bulk_load=OFF;
+--connection default
+SELECT * FROM t ORDER BY id;
+RENAME TABLE other TO renamed_other, t TO renamed;
+SELECT * FROM renamed ORDER BY id;
+TRUNCATE TABLE renamed;
+SELECT * FROM renamed;
+INSERT INTO renamed VALUES (3);
+--echo # Nested RENAME notifications inside COPY ALTER remain allowed
+ALTER TABLE renamed ADD COLUMN v INT DEFAULT 7, ALGORITHM=COPY;
+SELECT * FROM renamed;
+SET rocksdb_bulk_load=ON;
+ALTER TABLE renamed ADD COLUMN w INT DEFAULT 8, ALGORITHM=COPY;
+SET rocksdb_bulk_load=OFF;
+SELECT * FROM renamed;
+DROP TABLE renamed, renamed_other;
+--disconnect loader

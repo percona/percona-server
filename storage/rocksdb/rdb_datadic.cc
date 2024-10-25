@@ -5134,6 +5134,20 @@ Rdb_tbl_def *Rdb_ddl_manager::find(const std::string &table_name,
   return rec;
 }
 
+bool Rdb_ddl_manager::has_table_or_partition(
+    const std::string &table_name) const {
+  const std::string partition_prefix = table_name + "#P#";
+  mysql_rwlock_rdlock(&m_rwlock);
+  const bool found =
+      m_ddl_map.count(table_name) != 0 ||
+      std::any_of(m_ddl_map.cbegin(), m_ddl_map.cend(), [&](const auto &entry) {
+        return entry.first.compare(0, partition_prefix.size(),
+                                   partition_prefix) == 0;
+      });
+  mysql_rwlock_unlock(&m_rwlock);
+  return found;
+}
+
 int Rdb_ddl_manager::find_indexes(const std::string &table_name,
                                   std::vector<GL_INDEX_ID> *indexes) const {
   mysql_rwlock_rdlock(&m_rwlock);

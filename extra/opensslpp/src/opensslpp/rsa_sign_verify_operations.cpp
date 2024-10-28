@@ -76,7 +76,7 @@ bool verify_with_rsa_public_key(const std::string &digest_type,
       reinterpret_cast<const unsigned char *>(signature_data.data()),
       signature_data.size(), rsa_key_accessor::get_impl_const_casted(key));
 
-  // RSA_verify() does not destinguish between "an error occurred" and
+  // RSA_verify() does not distinguish between "an error occurred" and
   // "invalid signature" - in both cases 0 is returned.
   // Therefore, we need to make sure that the OpenSSL error code queue
   // will be empty after this call, so that it would not affect invoking

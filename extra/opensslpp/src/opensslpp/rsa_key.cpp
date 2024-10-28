@@ -26,7 +26,7 @@
 #include <opensslpp/big_number.hpp>
 #include <opensslpp/core_error.hpp>
 #include <opensslpp/operation_cancelled_error.hpp>
-#include <opensslpp/rsa_padding.hpp>
+#include <opensslpp/rsa_encryption_padding.hpp>
 
 #include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
@@ -98,17 +98,17 @@ std::size_t rsa_key::get_size_in_bytes() const noexcept {
 }
 
 std::size_t rsa_key::get_max_block_size_in_bytes(
-    rsa_padding padding) const noexcept {
+    rsa_encryption_padding padding) const noexcept {
   assert(!is_empty());
   std::size_t padding_bytes = 0;
   switch (padding) {
-    case rsa_padding::no:
+    case rsa_encryption_padding::no:
       padding_bytes = 0;
       break;
-    case rsa_padding::pkcs1:
+    case rsa_encryption_padding::pkcs1:
       padding_bytes = RSA_PKCS1_PADDING_SIZE;
       break;
-    case rsa_padding::pkcs1_oaep:
+    case rsa_encryption_padding::pkcs1_oaep:
       // for some reason, <rsa.h> does not have a constant for max padding
       // size for RSA_PKCS1_OAEP_PADDING
       // the number is taken from here

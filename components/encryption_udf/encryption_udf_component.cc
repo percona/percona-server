@@ -46,11 +46,14 @@
 #include <opensslpp/digest_operations.hpp>
 #include <opensslpp/dsa_key.hpp>
 #include <opensslpp/dsa_sign_verify_operations.hpp>
+#include <opensslpp/evp_pkey.hpp>
+#include <opensslpp/evp_pkey_algorithm.hpp>
+#include <opensslpp/evp_pkey_sign_verify_operations.hpp>
+#include <opensslpp/evp_pkey_signature_padding.hpp>
 #include <opensslpp/operation_cancelled_error.hpp>
 #include <opensslpp/rsa_encrypt_decrypt_operations.hpp>
+#include <opensslpp/rsa_encryption_padding.hpp>
 #include <opensslpp/rsa_key.hpp>
-#include <opensslpp/rsa_padding.hpp>
-#include <opensslpp/rsa_sign_verify_operations.hpp>
 
 #include "server_helpers.h"
 
@@ -67,56 +70,47 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 
 namespace {
 
-// clang-format off
-#define ENCRYPTION_UDF_X_MACRO_LIST() \
-  ENCRYPTION_UDF_X_MACRO(rsa),        \
-  ENCRYPTION_UDF_X_MACRO(dsa),        \
-  ENCRYPTION_UDF_X_MACRO(dh)
-// clang-format on
-
-#define ENCRYPTION_UDF_X_MACRO(X) X
-enum class algorithm_id_type { ENCRYPTION_UDF_X_MACRO_LIST(), delimiter };
-#undef ENCRYPTION_UDF_X_MACRO
-
-constexpr std::size_t number_of_algorithms =
-    static_cast<std::size_t>(algorithm_id_type::delimiter);
-
-#define ENCRYPTION_UDF_X_MACRO(X) BOOST_PP_STRINGIZE(X)
-constexpr std::array<std::string_view, number_of_algorithms>
-    algorithm_id_labels = {ENCRYPTION_UDF_X_MACRO_LIST()};
-#undef ENCRYPTION_UDF_X_MACRO
-
-#undef ENCRYPTION_UDF_X_MACRO_LIST
-
-algorithm_id_type get_algorithm_id_by_label(
-    std::string_view algorithm) noexcept {
-  assert(algorithm.data() != nullptr);
-  std::size_t index = 0;
-  while (index < number_of_algorithms &&
-         !boost::iequals(algorithm, algorithm_id_labels[index]))
-    ++index;
-  return static_cast<algorithm_id_type>(index);
-}
-
-algorithm_id_type get_and_validate_algorithm_id_by_label(
+opensslpp::evp_pkey_algorithm get_and_validate_algorithm_id_by_label(
     std::string_view algorithm) {
-  auto res = get_algorithm_id_by_label(algorithm);
-  if (res == algorithm_id_type::delimiter)
-    throw std::invalid_argument("Invalid algorithm specified");
-  return res;
+  if (algorithm.data() == nullptr)
+    throw std::invalid_argument("Algorithm cannot be NULL");
+
+  if (boost::iequals(algorithm, "rsa"))
+    return opensslpp::evp_pkey_algorithm::rsa;
+  if (boost::iequals(algorithm, "dsa"))
+    return opensslpp::evp_pkey_algorithm::dsa;
+  if (boost::iequals(algorithm, "dh")) return opensslpp::evp_pkey_algorithm::dh;
+
+  throw std::invalid_argument("Invalid algorithm specified");
 }
 
-opensslpp::rsa_padding get_and_validate_padding_by_label(
-    std::string_view padding) {
+opensslpp::rsa_encryption_padding
+get_and_validate_rsa_encryption_padding_by_label(std::string_view padding) {
   if (padding.data() == nullptr)
-    throw std::invalid_argument("RSA padding cannot be NULL");
+    throw std::invalid_argument("RSA encryption padding scheme cannot be NULL");
 
-  if (boost::iequals(padding, "no")) return opensslpp::rsa_padding::no;
-  if (boost::iequals(padding, "pkcs1")) return opensslpp::rsa_padding::pkcs1;
+  if (boost::iequals(padding, "no"))
+    return opensslpp::rsa_encryption_padding::no;
+  if (boost::iequals(padding, "pkcs1"))
+    return opensslpp::rsa_encryption_padding::pkcs1;
   if (boost::iequals(padding, "oaep"))
-    return opensslpp::rsa_padding::pkcs1_oaep;
+    return opensslpp::rsa_encryption_padding::pkcs1_oaep;
 
-  throw std::invalid_argument("Invalid RSA padding specified");
+  throw std::invalid_argument(
+      "Invalid RSA encryption padding scheme specified");
+}
+
+opensslpp::evp_pkey_signature_padding
+get_and_validate_evp_pkey_signature_padding_by_label(std::string_view padding) {
+  if (padding.data() == nullptr)
+    throw std::invalid_argument("RSA signature padding scheme cannot be NULL");
+
+  if (boost::iequals(padding, "pkcs1"))
+    return opensslpp::evp_pkey_signature_padding::rsa_pkcs1;
+  if (boost::iequals(padding, "pkcs1_pss"))
+    return opensslpp::evp_pkey_signature_padding::rsa_pkcs1_pss;
+
+  throw std::invalid_argument("Invalid RSA signature padding scheme specified");
 }
 
 enum class threshold_index_type { rsa, dsa, dh, delimiter };
@@ -229,7 +223,7 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
   auto length_or_dh_parameters_sv = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
-  if (algorithm_id == algorithm_id_type::dh) {
+  if (algorithm_id == opensslpp::evp_pkey_algorithm::dh) {
     auto key =
         opensslpp::dh_key::import_parameters_pem(length_or_dh_parameters_sv);
     key.promote_to_key();
@@ -240,19 +234,19 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_priv_key_impl::calculate(
                                                 length))
       throw std::invalid_argument("Key length is not a numeric value");
 
-    if (algorithm_id == algorithm_id_type::rsa) {
+    if (algorithm_id == opensslpp::evp_pkey_algorithm::rsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::rsa))
         throw std::invalid_argument("Invalid RSA key length specified");
-      opensslpp::rsa_key key;
+
+      opensslpp::evp_pkey key;
       try {
-        key = opensslpp::rsa_key::generate(length,
-                                           opensslpp::rsa_key::default_exponent,
-                                           create_cancellation_callback());
+        key = opensslpp::evp_pkey::generate(algorithm_id, length,
+                                            create_cancellation_callback());
       } catch (const opensslpp::operation_cancelled_error &e) {
         throw mysqlpp::udf_exception{e.what(), ER_QUERY_INTERRUPTED};
       }
-      pem = opensslpp::rsa_key::export_private_pem(key);
-    } else if (algorithm_id == algorithm_id_type::dsa) {
+      pem = opensslpp::evp_pkey::export_private_pem(key);
+    } else if (algorithm_id == opensslpp::evp_pkey_algorithm::dsa) {
       if (!check_if_bits_in_range(length, threshold_index_type::dsa))
         throw std::invalid_argument("Invalid DSA key length specified");
       opensslpp::dsa_key key;
@@ -310,13 +304,13 @@ mysqlpp::udf_result_t<STRING_RESULT> create_asymmetric_pub_key_impl::calculate(
   auto priv_key_pem_sv = ctx.get_arg<STRING_RESULT>(1);
 
   std::string pem;
-  if (algorithm_id == algorithm_id_type::rsa) {
-    auto priv_key = opensslpp::rsa_key::import_private_pem(priv_key_pem_sv);
-    pem = opensslpp::rsa_key::export_public_pem(priv_key);
-  } else if (algorithm_id == algorithm_id_type::dsa) {
+  if (algorithm_id == opensslpp::evp_pkey_algorithm::rsa) {
+    auto priv_key = opensslpp::evp_pkey::import_private_pem(priv_key_pem_sv);
+    pem = opensslpp::evp_pkey::export_public_pem(priv_key);
+  } else if (algorithm_id == opensslpp::evp_pkey_algorithm::dsa) {
     auto priv_key = opensslpp::dsa_key::import_private_pem(priv_key_pem_sv);
     pem = opensslpp::dsa_key::export_public_pem(priv_key);
-  } else if (algorithm_id == algorithm_id_type::dh) {
+  } else if (algorithm_id == opensslpp::evp_pkey_algorithm::dh) {
     auto priv_key = opensslpp::dh_key::import_private_pem(priv_key_pem_sv);
     pem = opensslpp::dh_key::export_public_pem(priv_key);
   }
@@ -372,16 +366,17 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
   auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
-  if (algorithm_id != algorithm_id_type::rsa)
+  if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
-  opensslpp::rsa_padding padding = opensslpp::rsa_padding::pkcs1_oaep;
+  opensslpp::rsa_encryption_padding padding =
+      opensslpp::rsa_encryption_padding::pkcs1_oaep;
   if (ctx.get_number_of_args() == 4) {
     auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
-    padding = get_and_validate_padding_by_label(padding_sv);
+    padding = get_and_validate_rsa_encryption_padding_by_label(padding_sv);
   }
 
   opensslpp::rsa_key key;
@@ -446,16 +441,17 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
   auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
-  if (algorithm_id != algorithm_id_type::rsa)
+  if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
-  opensslpp::rsa_padding padding = opensslpp::rsa_padding::pkcs1_oaep;
+  opensslpp::rsa_encryption_padding padding =
+      opensslpp::rsa_encryption_padding::pkcs1_oaep;
   if (ctx.get_number_of_args() == 4) {
     auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
-    padding = get_and_validate_padding_by_label(padding_sv);
+    padding = get_and_validate_rsa_encryption_padding_by_label(padding_sv);
   }
 
   opensslpp::rsa_key key;
@@ -531,8 +527,8 @@ mysqlpp::udf_result_t<STRING_RESULT> create_digest_impl::calculate(
 class asymmetric_sign_impl {
  public:
   asymmetric_sign_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 4)
-      throw std::invalid_argument("Function requires exactly four arguments");
+    if (ctx.get_number_of_args() < 4 || ctx.get_number_of_args() > 5)
+      throw std::invalid_argument("Function requires four or five arguments");
 
     mysqlpp::udf_context_charset_extension charset_ext{
         mysql_service_mysql_udf_metadata};
@@ -561,6 +557,13 @@ class asymmetric_sign_impl {
     ctx.mark_arg_nullable(3, false);
     ctx.set_arg_type(3, STRING_RESULT);
     charset_ext.set_arg_value_charset(ctx, 3, ascii_charset_name);
+
+    // optional arg4 - @padding
+    if (ctx.get_number_of_args() == 5) {
+      ctx.mark_arg_nullable(4, false);
+      ctx.set_arg_type(4, STRING_RESULT);
+      charset_ext.set_arg_value_charset(ctx, 4, ascii_charset_name);
+    }
   }
 
   mysqlpp::udf_result_t<STRING_RESULT> calculate(
@@ -571,9 +574,23 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
   auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
-  if (algorithm_id != algorithm_id_type::rsa &&
-      algorithm_id != algorithm_id_type::dsa)
+  if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa &&
+      algorithm_id != opensslpp::evp_pkey_algorithm::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
+
+  // TODO: for unspecified RSA signature padding scheme choose value based
+  // on "legacy_mode" system variable
+  opensslpp::evp_pkey_signature_padding signature_padding{
+      opensslpp::evp_pkey_signature_padding::rsa_pkcs1};
+  if (ctx.get_number_of_args() == 5) {
+    if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
+      throw std::invalid_argument(
+          "Signature padding scheme can only be specified for the RSA "
+          "algorithm");
+    auto signature_padding_sv = ctx.get_arg<STRING_RESULT>(4);
+    signature_padding = get_and_validate_evp_pkey_signature_padding_by_label(
+        signature_padding_sv);
+  }
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
   auto private_key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
@@ -581,12 +598,12 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   std::string signature;
-  if (algorithm_id == algorithm_id_type::rsa) {
+  if (algorithm_id == opensslpp::evp_pkey_algorithm::rsa) {
     auto private_key =
-        opensslpp::rsa_key::import_private_pem(private_key_pem_sv);
-    signature = opensslpp::sign_with_rsa_private_key(
-        digest_type, message_digest_sv, private_key);
-  } else if (algorithm_id == algorithm_id_type::dsa) {
+        opensslpp::evp_pkey::import_private_pem(private_key_pem_sv);
+    signature = opensslpp::sign_with_private_evp_pkey(
+        digest_type, message_digest_sv, private_key, signature_padding);
+  } else if (algorithm_id == opensslpp::evp_pkey_algorithm::dsa) {
     auto private_key =
         opensslpp::dsa_key::import_private_pem(private_key_pem_sv);
     signature = opensslpp::sign_with_dsa_private_key(
@@ -614,8 +631,8 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
 class asymmetric_verify_impl {
  public:
   asymmetric_verify_impl(mysqlpp::udf_context &ctx) {
-    if (ctx.get_number_of_args() != 5)
-      throw std::invalid_argument("Function requires exactly five arguments");
+    if (ctx.get_number_of_args() < 5 || ctx.get_number_of_args() > 6)
+      throw std::invalid_argument("Function requires five or six arguments");
 
     mysqlpp::udf_context_charset_extension charset_ext{
         mysql_service_mysql_udf_metadata};
@@ -649,6 +666,13 @@ class asymmetric_verify_impl {
     ctx.mark_arg_nullable(4, false);
     ctx.set_arg_type(4, STRING_RESULT);
     charset_ext.set_arg_value_charset(ctx, 4, ascii_charset_name);
+
+    // optional arg5 - @padding
+    if (ctx.get_number_of_args() == 6) {
+      ctx.mark_arg_nullable(5, false);
+      ctx.set_arg_type(5, STRING_RESULT);
+      charset_ext.set_arg_value_charset(ctx, 5, ascii_charset_name);
+    }
   }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx);
@@ -658,9 +682,23 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   auto algorithm_sv = ctx.get_arg<STRING_RESULT>(0);
   auto algorithm_id = get_and_validate_algorithm_id_by_label(algorithm_sv);
-  if (algorithm_id != algorithm_id_type::rsa &&
-      algorithm_id != algorithm_id_type::dsa)
+  if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa &&
+      algorithm_id != opensslpp::evp_pkey_algorithm::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
+
+  // TODO: for unspecified RSA signature padding scheme choose value based
+  // on "legacy_mode" system variable
+  opensslpp::evp_pkey_signature_padding signature_padding{
+      opensslpp::evp_pkey_signature_padding::rsa_pkcs1};
+  if (ctx.get_number_of_args() == 6) {
+    if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
+      throw std::invalid_argument(
+          "Signature padding scheme can only be specified for the RSA "
+          "algorithm");
+    auto signature_padding_sv = ctx.get_arg<STRING_RESULT>(5);
+    signature_padding = get_and_validate_evp_pkey_signature_padding_by_label(
+        signature_padding_sv);
+  }
 
   auto message_digest_sv = ctx.get_arg<STRING_RESULT>(1);
   auto signature_sv = ctx.get_arg<STRING_RESULT>(2);
@@ -669,11 +707,12 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
   auto digest_type = static_cast<std::string>(digest_type_sv);
 
   bool verification_result = false;
-  if (algorithm_id == algorithm_id_type::rsa) {
-    auto public_key = opensslpp::rsa_key::import_public_pem(public_key_pem_sv);
-    verification_result = opensslpp::verify_with_rsa_public_key(
-        digest_type, message_digest_sv, signature_sv, public_key);
-  } else if (algorithm_id == algorithm_id_type::dsa) {
+  if (algorithm_id == opensslpp::evp_pkey_algorithm::rsa) {
+    auto public_key = opensslpp::evp_pkey::import_public_pem(public_key_pem_sv);
+    verification_result = opensslpp::verify_with_public_evp_pkey(
+        digest_type, message_digest_sv, signature_sv, public_key,
+        signature_padding);
+  } else if (algorithm_id == opensslpp::evp_pkey_algorithm::dsa) {
     auto public_key = opensslpp::dsa_key::import_public_pem(public_key_pem_sv);
     verification_result = opensslpp::verify_with_dsa_public_key(
         digest_type, message_digest_sv, signature_sv, public_key);

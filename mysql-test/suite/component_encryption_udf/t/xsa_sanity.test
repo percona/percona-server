@@ -48,13 +48,13 @@ SELECT create_asymmetric_pub_key();
 --error ER_CANT_INITIALIZE_UDF
 SELECT create_asymmetric_pub_key(@algorithm);
 
---replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT create_asymmetric_pub_key(@algorithm, NULL);
---replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT create_asymmetric_pub_key(@algorithm, 42);
---replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
 
@@ -209,10 +209,10 @@ SELECT asymmetric_sign(@algorithm, NULL, @priv, @digest_type);
 
 --error ER_UDF_ERROR
 SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
---replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
---replace_regex /(cannot import RSA key from PEM PRIVATE KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PRIVATE KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
 
@@ -223,10 +223,18 @@ SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
 --error ER_UDF_ERROR
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 'SHAX');
 
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 'pkcs2');
+
 
 --echo
 --echo ** creating sample signature
 SET @signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+SET @signature_pss = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 'pkcs1_pss');
 
 --echo
 --echo ** checking 'asymmetric_verify()' function basics
@@ -260,10 +268,10 @@ SELECT asymmetric_verify(@algorithm, @message_digest, NULL, @pub, @digest_type);
 
 --error ER_UDF_ERROR
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
---replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PUBLIC KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
---replace_regex /(cannot import RSA key from PEM PUBLIC KEY).*/\1/
+--replace_regex /(cannot import EVP_PKEY from PEM PUBLIC KEY).*/\1/
 --error ER_UDF_ERROR
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
 
@@ -273,6 +281,13 @@ SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);
 --error ER_UDF_ERROR
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 'SHAX');
+
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, NULL);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, 42);
+--error ER_UDF_ERROR
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, 'SHAX');
 
 
 #

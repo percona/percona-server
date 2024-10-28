@@ -14,14 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_RSA_PADDING_HPP
-#define OPENSSLPP_RSA_PADDING_HPP
-
-#include <opensslpp/rsa_padding_fwd.hpp>
+#ifndef OPENSSLPP_RSA_ENCRYPTION_PADDING_FWD_HPP
+#define OPENSSLPP_RSA_ENCRYPTION_PADDING_FWD_HPP
 
 namespace opensslpp {
 
-enum class rsa_padding { no, pkcs1, pkcs1_oaep };
+enum class rsa_encryption_padding;
 
 }  // namespace opensslpp
 

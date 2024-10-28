@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_RSA_KEY_HPP
-#define OPENSSLPP_RSA_KEY_HPP
+#ifndef OPENSSLPP_EVP_PKEY_HPP
+#define OPENSSLPP_EVP_PKEY_HPP
 
 #include <cstdint>
 #include <memory>
@@ -23,68 +23,62 @@
 #include <string>
 #include <string_view>
 
-#include <opensslpp/rsa_key_fwd.hpp>
+#include <opensslpp/evp_pkey_fwd.hpp>
 
 #include <opensslpp/accessor_fwd.hpp>
-#include <opensslpp/big_number_fwd.hpp>
+#include <opensslpp/evp_pkey_algorithm_fwd.hpp>
 #include <opensslpp/key_generation_cancellation_callback_fwd.hpp>
-#include <opensslpp/rsa_encryption_padding_fwd.hpp>
 
 namespace opensslpp {
 
-class rsa_key final {
-  friend class accessor<rsa_key>;
+class evp_pkey final {
+  friend class accessor<evp_pkey>;
 
  public:
-  static const big_number exponent_3;
-  static const big_number exponent_f4;
-  static const big_number &default_exponent;
+  evp_pkey() noexcept = default;
+  ~evp_pkey() noexcept = default;
 
- public:
-  rsa_key() noexcept = default;
-  ~rsa_key() noexcept = default;
+  evp_pkey(const evp_pkey &obj);
+  evp_pkey(evp_pkey &&obj) noexcept = default;
 
-  rsa_key(const rsa_key &obj);
-  rsa_key(rsa_key &&obj) noexcept = default;
+  evp_pkey &operator=(const evp_pkey &obj);
+  evp_pkey &operator=(evp_pkey &&obj) noexcept = default;
 
-  rsa_key &operator=(const rsa_key &obj);
-  rsa_key &operator=(rsa_key &&obj) noexcept = default;
-
-  void swap(rsa_key &obj) noexcept;
+  void swap(evp_pkey &obj) noexcept;
 
   bool is_empty() const noexcept { return !impl_; }
+  evp_pkey_algorithm get_algorithm() const noexcept;
   bool is_private() const noexcept;
   std::size_t get_size_in_bits() const noexcept;
   std::size_t get_size_in_bytes() const noexcept;
 
-  std::size_t get_max_block_size_in_bytes(
-      rsa_encryption_padding padding) const noexcept;
+  evp_pkey derive_public_key() const;
 
-  rsa_key derive_public_key() const;
-
-  static rsa_key generate(
-      std::uint32_t bits, const big_number &exponent = default_exponent,
+  static evp_pkey generate(
+      evp_pkey_algorithm algorithm, std::uint32_t bits,
       const key_generation_cancellation_callback &cancellation_callback =
           key_generation_cancellation_callback{});
 
-  static std::string export_private_pem(const rsa_key &key);
-  static std::string export_public_pem(const rsa_key &key);
+  static std::string export_private_pem(const evp_pkey &key);
+  static std::string export_public_pem(const evp_pkey &key);
 
-  static rsa_key import_private_pem(std::string_view pem);
-  static rsa_key import_public_pem(std::string_view pem);
+  static evp_pkey import_private_pem(std::string_view pem);
+  static evp_pkey import_public_pem(std::string_view pem);
 
  private:
   // should not be declared final as this prevents optimization for empty
   // deleter in std::unique_ptr
-  struct rsa_deleter {
-    void operator()(void *rsa) const noexcept;
+  struct evp_pkey_deleter {
+    void operator()(void *evp_pkey) const noexcept;
   };
 
-  using impl_ptr = std::unique_ptr<void, rsa_deleter>;
+  using impl_ptr = std::unique_ptr<void, evp_pkey_deleter>;
   impl_ptr impl_;
+
+  static void validate_if_algorithm_supported(evp_pkey_algorithm algorithm);
 };
 
-std::ostream &operator<<(std::ostream &os, const rsa_key &obj);
+std::ostream &operator<<(std::ostream &os, const evp_pkey &obj);
 
 }  // namespace opensslpp
 

@@ -14,12 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef OPENSSLPP_RSA_PADDING_FWD_HPP
-#define OPENSSLPP_RSA_PADDING_FWD_HPP
+#ifndef OPENSSLPP_EVP_PKEY_ACCESSOR_HPP
+#define OPENSSLPP_EVP_PKEY_ACCESSOR_HPP
+
+#include <openssl/evp.h>
+
+#include <opensslpp/evp_pkey_fwd.hpp>
+
+#include "opensslpp/typed_accessor.hpp"
 
 namespace opensslpp {
 
-enum class rsa_padding;
+using evp_pkey_accessor = typed_accessor<evp_pkey, EVP_PKEY>;
 
 }  // namespace opensslpp
 

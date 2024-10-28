@@ -118,6 +118,7 @@ constexpr std::size_t number_of_thresholds =
     static_cast<std::size_t>(threshold_index_type::delimiter);
 
 uint bits_threshold_values[number_of_thresholds] = {};
+bool legacy_padding_scheme_value{false};
 
 struct threshold_definition {
   std::size_t min;
@@ -140,34 +141,25 @@ constexpr std::array<threshold_definition, number_of_thresholds> thresholds = {
     threshold_definition{
         1024U, 10000U, "dh_bits_threshold",
         "Maximum DH key length in bits for create_dh_parameters()"}};
+constexpr char legacy_padding_scheme_variable_name[] = "legacy_padding_scheme";
+constexpr char legacy_padding_scheme_variable_description[] =
+    "Enable legacy padding scheme for RSA sign/verify and encrypt/decrypt";
 
 using udf_int_arg_raw_type = mysqlpp::udf_arg_t<INT_RESULT>::value_type;
 bool check_if_bits_in_range(udf_int_arg_raw_type value,
                             threshold_index_type threshold_index) noexcept {
-  const auto &threshold = thresholds[static_cast<std::size_t>(threshold_index)];
+  const auto casted_threshold_index{static_cast<std::size_t>(threshold_index)};
+  const auto &threshold = thresholds[casted_threshold_index];
 
   if (value < static_cast<udf_int_arg_raw_type>(threshold.min)) return false;
 
-  std::size_t max_value = threshold.max;
-
-  static constexpr std::size_t var_buffer_length = 63U;
-  using var_buffer_type = std::array<char, var_buffer_length + 1>;
-  var_buffer_type var_buffer;
-  void *var_buffer_ptr = var_buffer.data();
-  std::size_t var_length = var_buffer_length;
-
-  if (mysql_service_component_sys_variable_register->get_variable(
-          CURRENT_COMPONENT_NAME_STR, threshold.var_name, &var_buffer_ptr,
-          &var_length) == 0) {
-    std::size_t extracted_var_value = 0;
-    if (boost::conversion::try_lexical_convert(
-            static_cast<char *>(var_buffer_ptr), var_length,
-            extracted_var_value))
-      max_value = extracted_var_value;
-  }
+  std::size_t max_value = bits_threshold_values[casted_threshold_index];
 
   if (value > static_cast<udf_int_arg_raw_type>(max_value)) return false;
   return true;
+}
+bool check_if_legacy_padding_scheme() noexcept {
+  return legacy_padding_scheme_value;
 }
 
 opensslpp::key_generation_cancellation_callback create_cancellation_callback() {
@@ -372,8 +364,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_encrypt_impl::calculate(
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
-  opensslpp::rsa_encryption_padding padding =
-      opensslpp::rsa_encryption_padding::pkcs1_oaep;
+  opensslpp::rsa_encryption_padding padding{
+      check_if_legacy_padding_scheme()
+          ? opensslpp::rsa_encryption_padding::pkcs1
+          : opensslpp::rsa_encryption_padding::pkcs1_oaep};
   if (ctx.get_number_of_args() == 4) {
     auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
     padding = get_and_validate_rsa_encryption_padding_by_label(padding_sv);
@@ -447,8 +441,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_decrypt_impl::calculate(
   auto message_sv = ctx.get_arg<STRING_RESULT>(1);
   auto key_pem_sv = ctx.get_arg<STRING_RESULT>(2);
 
-  opensslpp::rsa_encryption_padding padding =
-      opensslpp::rsa_encryption_padding::pkcs1_oaep;
+  opensslpp::rsa_encryption_padding padding{
+      check_if_legacy_padding_scheme()
+          ? opensslpp::rsa_encryption_padding::pkcs1
+          : opensslpp::rsa_encryption_padding::pkcs1_oaep};
   if (ctx.get_number_of_args() == 4) {
     auto padding_sv = ctx.get_arg<STRING_RESULT>(3);
     padding = get_and_validate_rsa_encryption_padding_by_label(padding_sv);
@@ -578,10 +574,10 @@ mysqlpp::udf_result_t<STRING_RESULT> asymmetric_sign_impl::calculate(
       algorithm_id != opensslpp::evp_pkey_algorithm::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
-  // TODO: for unspecified RSA signature padding scheme choose value based
-  // on "legacy_mode" system variable
   opensslpp::evp_pkey_signature_padding signature_padding{
-      opensslpp::evp_pkey_signature_padding::rsa_pkcs1};
+      check_if_legacy_padding_scheme()
+          ? opensslpp::evp_pkey_signature_padding::rsa_pkcs1
+          : opensslpp::evp_pkey_signature_padding::rsa_pkcs1_pss};
   if (ctx.get_number_of_args() == 5) {
     if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
       throw std::invalid_argument(
@@ -686,10 +682,10 @@ mysqlpp::udf_result_t<INT_RESULT> asymmetric_verify_impl::calculate(
       algorithm_id != opensslpp::evp_pkey_algorithm::dsa)
     throw std::invalid_argument("Invalid algorithm specified");
 
-  // TODO: for unspecified RSA signature padding scheme choose value based
-  // on "legacy_mode" system variable
   opensslpp::evp_pkey_signature_padding signature_padding{
-      opensslpp::evp_pkey_signature_padding::rsa_pkcs1};
+      check_if_legacy_padding_scheme()
+          ? opensslpp::evp_pkey_signature_padding::rsa_pkcs1
+          : opensslpp::evp_pkey_signature_padding::rsa_pkcs1_pss};
   if (ctx.get_number_of_args() == 6) {
     if (algorithm_id != opensslpp::evp_pkey_algorithm::rsa)
       throw std::invalid_argument(
@@ -858,6 +854,7 @@ static udf_bitset_type registered_udfs;
 
 using threshold_bitset_type = std::bitset<number_of_thresholds>;
 static threshold_bitset_type registered_thresholds;
+static bool legacy_padding_scheme_variable_registered{false};
 
 static mysql_service_status_t component_init() {
   // here, we use a custom error reporting function 'encryption_udf_my_error()'
@@ -877,17 +874,29 @@ static mysql_service_status_t component_init() {
       if (mysql_service_component_sys_variable_register->register_variable(
               CURRENT_COMPONENT_NAME_STR, threshold.var_name,
               PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG,
-              threshold.var_description, nullptr, nullptr,
-              static_cast<void *>(&arg),
-              static_cast<void *>(&bits_threshold_values[index])) == 0)
+              threshold.var_description, nullptr, nullptr, &arg,
+              &bits_threshold_values[index]) == 0)
         registered_thresholds.set(index);
     }
     ++index;
   }
+  if (!legacy_padding_scheme_variable_registered) {
+    BOOL_CHECK_ARG(bool) arg;
+    arg.def_val = false;
+    if (mysql_service_component_sys_variable_register->register_variable(
+            CURRENT_COMPONENT_NAME_STR, legacy_padding_scheme_variable_name,
+            PLUGIN_VAR_BOOL, legacy_padding_scheme_variable_description,
+            nullptr, nullptr, &arg, &legacy_padding_scheme_value) == 0) {
+      legacy_padding_scheme_variable_registered = true;
+    }
+  }
 
   mysqlpp::register_udfs(mysql_service_udf_registration, known_udfs,
                          registered_udfs);
-  return registered_udfs.all() && registered_thresholds.all() ? 0 : 1;
+  return registered_udfs.all() && registered_thresholds.all() &&
+                 legacy_padding_scheme_variable_registered
+             ? 0
+             : 1;
 }
 
 static mysql_service_status_t component_deinit() {
@@ -898,13 +907,24 @@ static mysql_service_status_t component_deinit() {
   for (const auto &threshold : thresholds) {
     if (registered_thresholds.test(index)) {
       if (mysql_service_component_sys_variable_unregister->unregister_variable(
-              CURRENT_COMPONENT_NAME_STR, threshold.var_name) == 0)
+              CURRENT_COMPONENT_NAME_STR, threshold.var_name) == 0) {
         registered_thresholds.reset(index);
+      }
     }
     ++index;
   }
+  if (legacy_padding_scheme_variable_registered) {
+    if (mysql_service_component_sys_variable_unregister->unregister_variable(
+            CURRENT_COMPONENT_NAME_STR, legacy_padding_scheme_variable_name) ==
+        0) {
+      legacy_padding_scheme_variable_registered = false;
+    }
+  }
 
-  return registered_udfs.none() && registered_thresholds.none() ? 0 : 1;
+  return registered_udfs.none() && registered_thresholds.none() &&
+                 !legacy_padding_scheme_variable_registered
+             ? 0
+             : 1;
 }
 
 // clang-format off

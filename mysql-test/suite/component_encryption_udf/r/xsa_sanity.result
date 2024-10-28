@@ -33,9 +33,9 @@ ERROR HY000: Can't initialize function 'create_asymmetric_pub_key'; Function req
 SELECT create_asymmetric_pub_key(@algorithm, NULL);
 ERROR HY000: create_asymmetric_pub_key<string> UDF failed; argument 2 cannot be null
 SELECT create_asymmetric_pub_key(@algorithm, 42);
-ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import EVP_PKEY from PEM PRIVATE KEY
 SELECT create_asymmetric_pub_key(@algorithm, 'blah-blah');
-ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+ERROR HY000: create_asymmetric_pub_key<string> UDF failed; cannot import EVP_PKEY from PEM PRIVATE KEY
 SELECT create_asymmetric_priv_key('FOO', 2048);
 ERROR HY000: create_asymmetric_priv_key<string> UDF failed; Invalid algorithm specified
 
@@ -61,9 +61,9 @@ ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 2 cannot be null
 SELECT asymmetric_encrypt(@algorithm, @message, @pub, NULL);
 ERROR HY000: asymmetric_encrypt<string> UDF failed; argument 4 cannot be null
 SELECT asymmetric_encrypt(@algorithm, @message, @pub, '');
-ERROR HY000: asymmetric_encrypt<string> UDF failed; Invalid RSA padding specified
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Invalid RSA encryption padding scheme specified
 SELECT asymmetric_encrypt(@algorithm, @message, @pub, 'unknown');
-ERROR HY000: asymmetric_encrypt<string> UDF failed; Invalid RSA padding specified
+ERROR HY000: asymmetric_encrypt<string> UDF failed; Invalid RSA encryption padding scheme specified
 SELECT asymmetric_encrypt(@algorithm, @message, @priv, 'oaep');
 ERROR HY000: asymmetric_encrypt<string> UDF failed; encrypting with RSA private key is not supported for PKCS1 OAEP padding
 SELECT asymmetric_encrypt(@algorithm, @message, @pub, 'oaep', '');
@@ -87,9 +87,9 @@ ERROR HY000: asymmetric_decrypt<string> UDF failed; argument 2 cannot be null
 SELECT asymmetric_decrypt(@algorithm, @message, @priv, NULL);
 ERROR HY000: asymmetric_decrypt<string> UDF failed; argument 4 cannot be null
 SELECT asymmetric_decrypt(@algorithm, @message, @priv, '');
-ERROR HY000: asymmetric_decrypt<string> UDF failed; Invalid RSA padding specified
+ERROR HY000: asymmetric_decrypt<string> UDF failed; Invalid RSA encryption padding scheme specified
 SELECT asymmetric_decrypt(@algorithm, @message, @priv, 'unknown');
-ERROR HY000: asymmetric_decrypt<string> UDF failed; Invalid RSA padding specified
+ERROR HY000: asymmetric_decrypt<string> UDF failed; Invalid RSA encryption padding scheme specified
 SELECT asymmetric_decrypt(@algorithm, @message, @pub, 'oaep');
 ERROR HY000: asymmetric_decrypt<string> UDF failed; decrypting with RSA public key is not supported for PKCS1 OAEP padding
 SELECT asymmetric_decrypt(@algorithm, @message, @priv, 'oaep', '');
@@ -115,13 +115,13 @@ SET @message_digest = create_digest(@digest_type, @message);
 
 ** checking 'asymmetric_sign()' function basics
 SELECT asymmetric_sign();
-ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires four or five arguments
 SELECT asymmetric_sign(@algorithm);
-ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires four or five arguments
 SELECT asymmetric_sign(@algorithm, @message_digest);
-ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires four or five arguments
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv);
-ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires exactly four arguments
+ERROR HY000: Can't initialize function 'asymmetric_sign'; Function requires four or five arguments
 SELECT asymmetric_sign(NULL, @message_digest, @priv, @digest_type);
 ERROR HY000: asymmetric_sign<string> UDF failed; argument 1 cannot be null
 SELECT asymmetric_sign(42, @message_digest, @priv, @digest_type);
@@ -133,30 +133,37 @@ ERROR HY000: asymmetric_sign<string> UDF failed; argument 2 cannot be null
 SELECT asymmetric_sign(@algorithm, @message_digest, NULL, @digest_type);
 ERROR HY000: asymmetric_sign<string> UDF failed; argument 3 cannot be null
 SELECT asymmetric_sign(@algorithm, @message_digest, 42, @digest_type);
-ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import EVP_PKEY from PEM PRIVATE KEY
 SELECT asymmetric_sign(@algorithm, @message_digest, 'blah-blah', @digest_type);
-ERROR HY000: asymmetric_sign<string> UDF failed; cannot import RSA key from PEM PRIVATE KEY
+ERROR HY000: asymmetric_sign<string> UDF failed; cannot import EVP_PKEY from PEM PRIVATE KEY
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, NULL);
 ERROR HY000: asymmetric_sign<string> UDF failed; argument 4 cannot be null
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 42);
 ERROR HY000: asymmetric_sign<string> UDF failed; unknown digest name
 SELECT asymmetric_sign(@algorithm, @message_digest, @priv, 'SHAX');
 ERROR HY000: asymmetric_sign<string> UDF failed; unknown digest name
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, NULL);
+ERROR HY000: asymmetric_sign<string> UDF failed; argument 5 cannot be null
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 42);
+ERROR HY000: asymmetric_sign<string> UDF failed; Invalid RSA signature padding scheme specified
+SELECT asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 'pkcs2');
+ERROR HY000: asymmetric_sign<string> UDF failed; Invalid RSA signature padding scheme specified
 
 ** creating sample signature
 SET @signature = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type);
+SET @signature_pss = asymmetric_sign(@algorithm, @message_digest, @priv, @digest_type, 'pkcs1_pss');
 
 ** checking 'asymmetric_verify()' function basics
 SELECT asymmetric_verify();
-ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires five or six arguments
 SELECT asymmetric_verify(@algorithm);
-ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires five or six arguments
 SELECT asymmetric_verify(@algorithm, @message_digest);
-ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires five or six arguments
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature);
-ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires five or six arguments
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub);
-ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires exactly five arguments
+ERROR HY000: Can't initialize function 'asymmetric_verify'; Function requires five or six arguments
 SELECT asymmetric_verify(NULL, @message_digest, @signature, @pub, @digest_type);
 ERROR HY000: asymmetric_verify<int> UDF failed; argument 1 cannot be null
 SELECT asymmetric_verify(42, @message_digest, @signature, @pub, @digest_type);
@@ -170,13 +177,19 @@ ERROR HY000: asymmetric_verify<int> UDF failed; argument 3 cannot be null
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, NULL, @digest_type);
 ERROR HY000: asymmetric_verify<int> UDF failed; argument 4 cannot be null
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 42, @digest_type);
-ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import EVP_PKEY from PEM PUBLIC KEY
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, 'blah-blah', @digest_type);
-ERROR HY000: asymmetric_verify<int> UDF failed; cannot import RSA key from PEM PUBLIC KEY
+ERROR HY000: asymmetric_verify<int> UDF failed; cannot import EVP_PKEY from PEM PUBLIC KEY
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, NULL);
 ERROR HY000: asymmetric_verify<int> UDF failed; argument 5 cannot be null
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 42);
 ERROR HY000: asymmetric_verify<int> UDF failed; unknown digest name
 SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, 'SHAX');
 ERROR HY000: asymmetric_verify<int> UDF failed; unknown digest name
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, NULL);
+ERROR HY000: asymmetric_verify<int> UDF failed; argument 6 cannot be null
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, 42);
+ERROR HY000: asymmetric_verify<int> UDF failed; Invalid RSA signature padding scheme specified
+SELECT asymmetric_verify(@algorithm, @message_digest, @signature, @pub, @digest_type, 'SHAX');
+ERROR HY000: asymmetric_verify<int> UDF failed; Invalid RSA signature padding scheme specified
 UNINSTALL COMPONENT 'file://component_encryption_udf';

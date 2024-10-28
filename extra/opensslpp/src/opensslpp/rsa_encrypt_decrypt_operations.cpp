@@ -22,17 +22,17 @@
 #include <opensslpp/rsa_encrypt_decrypt_operations.hpp>
 
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/rsa_encryption_padding.hpp>
 #include <opensslpp/rsa_key.hpp>
-#include <opensslpp/rsa_padding.hpp>
 
+#include "opensslpp/rsa_encryption_padding_conversions.hpp"
 #include "opensslpp/rsa_key_accessor.hpp"
-#include "opensslpp/rsa_padding_conversions.hpp"
 
 namespace opensslpp {
 
 std::string encrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding) {
+                                        rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (input.size() > key.get_max_block_size_in_bytes(padding))
@@ -46,7 +46,7 @@ std::string encrypt_with_rsa_public_key(std::string_view input,
       input.size(), reinterpret_cast<const unsigned char *>(input.data()),
       reinterpret_cast<unsigned char *>(res.data()),
       rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified public RSA key");
@@ -56,13 +56,13 @@ std::string encrypt_with_rsa_public_key(std::string_view input,
 
 std::string encrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding) {
+                                         rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (!key.is_private())
     throw core_error{"RSA key does not have private components"};
 
-  if (padding == rsa_padding::pkcs1_oaep)
+  if (padding == rsa_encryption_padding::pkcs1_oaep)
     throw core_error{
         "encrypting with RSA private key is not supported for PKCS1 OAEP "
         "padding"};
@@ -78,7 +78,7 @@ std::string encrypt_with_rsa_private_key(std::string_view input,
       input.size(), reinterpret_cast<const unsigned char *>(input.data()),
       reinterpret_cast<unsigned char *>(res.data()),
       rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified private RSA key");
@@ -88,10 +88,10 @@ std::string encrypt_with_rsa_private_key(std::string_view input,
 
 std::string decrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding) {
+                                        rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
-  if (padding == rsa_padding::pkcs1_oaep)
+  if (padding == rsa_encryption_padding::pkcs1_oaep)
     throw core_error{
         "decrypting with RSA public key is not supported for PKCS1 OAEP "
         "padding"};
@@ -106,7 +106,7 @@ std::string decrypt_with_rsa_public_key(std::string_view input,
       input.size(), reinterpret_cast<const unsigned char *>(input.data()),
       reinterpret_cast<unsigned char *>(res.data()),
       rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified public RSA key");
@@ -118,7 +118,7 @@ std::string decrypt_with_rsa_public_key(std::string_view input,
 
 std::string decrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding) {
+                                         rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (!key.is_private())
@@ -134,7 +134,7 @@ std::string decrypt_with_rsa_private_key(std::string_view input,
       input.size(), reinterpret_cast<const unsigned char *>(input.data()),
       reinterpret_cast<unsigned char *>(res.data()),
       rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified private RSA key");

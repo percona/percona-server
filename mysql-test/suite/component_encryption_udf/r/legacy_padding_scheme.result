@@ -1,0 +1,73 @@
+INSTALL COMPONENT 'file://component_encryption_udf';
+**
+** checking legacy_padding_scheme
+include/assert.inc [default legacy_padding_scheme must be OFF]
+SET SESSION encryption_udf.legacy_padding_scheme = ON;
+ERROR HY000: Variable 'encryption_udf.legacy_padding_scheme' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.encryption_udf.legacy_padding_scheme;
+ERROR HY000: Variable 'encryption_udf.legacy_padding_scheme' is a GLOBAL variable
+SET @algorithm = 'RSA';
+SET @priv_key = create_asymmetric_priv_key(@algorithm, 1024);
+SET @pub_key = create_asymmetric_pub_key(@algorithm, @priv_key);
+SET @message = 'secret_message';
+**
+** checking explicit/implicit padding scheme for RSA encrypt/decrypt
+SET @encrypted_message_oaep_explicit = asymmetric_encrypt(@algorithm, @message, @pub_key, 'oaep');
+SET @encrypted_message_pkcs1_explicit = asymmetric_encrypt(@algorithm, @message, @pub_key, 'pkcs1');
+SET @encrypted_message_oaep_imlicit = asymmetric_encrypt(@algorithm, @message, @pub_key);
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @encrypted_message_pkcs1_imlicit = asymmetric_encrypt(@algorithm, @message, @pub_key);
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_imlicit, @priv_key, 'oaep');
+include/assert.inc [decrypting @encrypted_message_oaep_imlicit with 'oaep' scheme specified explicitly must succeed]
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'oaep');
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot encrypt data block with the specified private RSA key
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_imlicit, @priv_key, 'pkcs1');
+include/assert.inc [decrypting @encrypted_message_oaep_imlicit with 'pkcs1' scheme specified explicitly must fail]
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'pkcs1');
+include/assert.inc [decrypting @encrypted_message_pkcs1_imlicit with 'pkcs1' scheme specified explicitly must succeed]
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_explicit, @priv_key);
+include/assert.inc [decrypting @encrypted_message_oaep_explicit with 'oaep' scheme specified implicitly must succeed]
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);
+ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot encrypt data block with the specified private RSA key
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_explicit, @priv_key);
+include/assert.inc [decrypting @encrypted_message_oaep_explicit with 'pkcs1' scheme specified implicitly must fail]
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);
+include/assert.inc [decrypting @encrypted_message_pkcs1_explicit with 'pkcs1' scheme specified implicitly must succeed]
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+**
+** checking explicit/implicit padding scheme for RSA sign/verify
+SET @digest_type = 'SHA256';
+SET @message_digest = create_digest(@digest_type, @message);
+SET @signature_pkcs1_pss_explicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type, 'pkcs1_pss');
+SET @signature_pkcs1_explicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type, 'pkcs1');
+SET @signature_pkcs1_pss_imlicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type);
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @signature_pkcs1_imlicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type);
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_imlicit, @pub_key, @digest_type, 'pkcs1_pss');
+include/assert.inc [verifying @signature_pkcs1_pss_imlicit with 'pkcs1_pss' scheme specified explicitly must succeed]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_imlicit, @pub_key, @digest_type, 'pkcs1_pss');
+include/assert.inc [verifying @signature_pkcs1_imlicit with 'pkcs1_pss' scheme specified explicitly must fail]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_imlicit, @pub_key, @digest_type, 'pkcs1');
+include/assert.inc [verifying @signature_pkcs1_pss_imlicit with 'pkcs1' specified explicitly scheme must fail]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_imlicit, @pub_key, @digest_type, 'pkcs1');
+include/assert.inc [verifying @signature_pkcs1_imlicit with 'pkcs1' specified explicitly scheme must succeed]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_explicit, @pub_key, @digest_type);
+include/assert.inc [verifying @signature_pkcs1_pss_explicit with 'pkcs1_pss' scheme specified implicitly must succeed]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_explicit, @pub_key, @digest_type);
+include/assert.inc [verifying @signature_pkcs1_explicit with 'pkcs1_pss' scheme specified implicitly must fail]
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_explicit, @pub_key, @digest_type);
+include/assert.inc [verifying @signature_pkcs1_pss_explicit with 'pkcs1' specified implicitly scheme must fail]
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_explicit, @pub_key, @digest_type);
+include/assert.inc [verifying @signature_pkcs1_explicit with 'pkcs1' specified implicitly scheme must succeed]
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+**
+** checking that non-privileged users cannot change legacy_padding_scheme variables
+CREATE USER 'usr' IDENTIFIED BY 'password';
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER 'usr';
+UNINSTALL COMPONENT 'file://component_encryption_udf';

@@ -1,6 +1,10 @@
 #
 # Bug #35336317: Deprecate mysql_native_password
 #
+# Restart server to avoid test failures in situation when deprecation
+# warning has been already emitted due to mysql_native_password
+# usage by one of earlier tests.
+# restart
 include/assert_grep.inc [There shouldn't be a warning when no user authenticated with native]
 CREATE USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password';
 include/assert_grep.inc [There should be one warning from CREATE USER]

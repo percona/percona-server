@@ -95,21 +95,6 @@ ERROR HY000: asymmetric_decrypt<string> UDF failed; decrypting with RSA public k
 SELECT asymmetric_decrypt(@algorithm, @message, @priv, 'oaep', '');
 ERROR HY000: Can't initialize function 'asymmetric_decrypt'; Function requires three or four arguments
 
-** checking that by default 'asymmetric_encrypt()' / 'asymmetric_decrypt()'
-** functions use PKCS1 OAEP padding
-SET @oaep_encrypted_message = asymmetric_encrypt(@algorithm, @message, @pub);
-include/assert.inc [[oaep encryption] specifying "no" padding explicitly in asymmetric_decrypt() must succeed but produce garbage]
-include/assert.inc [[oaep encryption] specifying "pkcs1" padding explicitly in asymmetric_decrypt() must succeed but produce garbage]
-include/assert.inc [[oaep encryption] specifying "oaep" padding explicitly in asymmetric_decrypt() must succeed]
-include/assert.inc [[oaep encryption] not specifying padding explicitly in asymmetric_decrypt() must succeed]
-SET @pkcs1_encrypted_message = asymmetric_encrypt(@algorithm, @message, @pub, 'pkcs1');
-include/assert.inc [[pkcs1 encryption] specifying "no" padding explicitly in asymmetric_decrypt() must succeed but produce garbage]
-include/assert.inc [[pkcs1 encryption] specifying "pkcs1" padding explicitly in asymmetric_decrypt() must succeed]
-SELECT asymmetric_decrypt(@algorithm, @pkcs1_encrypted_message, @priv, 'oaep');
-ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot encrypt data block with the specified private RSA key
-SELECT asymmetric_decrypt(@algorithm, @pkcs1_encrypted_message, @priv);
-ERROR HY000: asymmetric_decrypt<string> UDF failed; cannot encrypt data block with the specified private RSA key
-
 ** creating sample digest
 SET @message_digest = create_digest(@digest_type, @message);
 

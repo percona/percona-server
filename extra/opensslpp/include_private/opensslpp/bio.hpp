@@ -31,7 +31,7 @@ class bio final {
 
  public:
   bio();
-  bio(std::string_view buffer);
+  explicit bio(std::string_view buffer);
 
   ~bio() noexcept = default;
 

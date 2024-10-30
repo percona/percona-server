@@ -109,7 +109,7 @@ std::string decrypt_with_rsa_public_key(std::string_view input,
       rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
-        "cannot encrypt data block with the specified public RSA key");
+        "cannot decrypt data block with the specified public RSA key");
 
   assert(enc_status >= 0);
   res.resize(static_cast<std::size_t>(enc_status));
@@ -137,7 +137,7 @@ std::string decrypt_with_rsa_private_key(std::string_view input,
       rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
-        "cannot encrypt data block with the specified private RSA key");
+        "cannot decrypt data block with the specified private RSA key");
 
   assert(enc_status >= 0);
   res.resize(static_cast<std::size_t>(enc_status));

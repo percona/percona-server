@@ -68,6 +68,8 @@ void digest_context::swap(digest_context &obj) noexcept {
 }
 
 std::size_t digest_context::get_size_in_bytes() const noexcept {
+  assert(!is_empty());
+
   return EVP_MD_CTX_size(digest_context_accessor::get_impl(*this));
 }
 

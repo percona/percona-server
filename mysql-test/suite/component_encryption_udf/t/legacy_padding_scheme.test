@@ -35,13 +35,24 @@ SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_
 --let $assert_cond = @decrypted_message = @message
 --source include/assert.inc
 
---replace_regex /(cannot encrypt data block with the specified private RSA key).*/\1/
---error ER_UDF_ERROR
-SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'oaep');
+# Note that decrypting messages with different padding scheme may either fail with an error
+# or succeed but produce garbage depending on random bytes inserted into the encrypted message.
 
+# Therefore adding '--error 0,ER_UDF_ERROR' to handle both cases.
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'oaep');
+--let $assert_text = decrypting @encrypted_message_pkcs1_imlicit with 'oaep' scheme specified explicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
+
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
 SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_imlicit, @priv_key, 'pkcs1');
 --let $assert_text = decrypting @encrypted_message_oaep_imlicit with 'pkcs1' scheme specified explicitly must fail
---let $assert_cond = @decrypted_message <> @message
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
 --source include/assert.inc
 
 SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'pkcs1');
@@ -55,15 +66,22 @@ SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_
 --let $assert_cond = @decrypted_message = @message
 --source include/assert.inc
 
---replace_regex /(cannot encrypt data block with the specified private RSA key).*/\1/
---error ER_UDF_ERROR
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
 SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);
+--let $assert_text = decrypting @encrypted_message_pkcs1_explicit with 'oaep' scheme specified implicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
 
 SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
 
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
 SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_explicit, @priv_key);
 --let $assert_text = decrypting @encrypted_message_oaep_explicit with 'pkcs1' scheme specified implicitly must fail
---let $assert_cond = @decrypted_message <> @message
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
 --source include/assert.inc
 
 SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);

@@ -77,15 +77,15 @@ jobs:
 
   strategy:
     matrix:
-      macOS 12 RelWithDebInfo:
-        imageName: 'macOS-12'
+      macOS 14 RelWithDebInfo:
+        imageName: 'macOS-14'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       # skip for a pull request if branch name doesn't contain "fullci"
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        macOS 12 Debug:
-          imageName: 'macOS-12'
+        macOS 14 Debug:
+          imageName: 'macOS-14'
           Compiler: clang
           BuildType: Debug
 
@@ -530,7 +530,7 @@ jobs:
           -DMYSQL_MAINTAINER_MODE=OFF
           -DWITH_PROTOBUF=system
           -DWITH_SYSTEM_LIBS=ON
-          -DWITH_ICU=/usr/local/opt/icu4c
+          -DWITH_ICU=bundled
           -DWITH_SSL=/usr/local/opt/openssl@1.1
           -DWITH_FIDO=bundled
           -DWITH_ZLIB=bundled

@@ -130,8 +130,6 @@ COMMIT;
 --echo #
 --echo # Verify that the gtid_executed table is compressed.
 --echo #
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --inc $gno_2
 --replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
@@ -140,8 +138,11 @@ COMMIT;
 
 --echo # Trigger compression explicitly
 FLUSH LOGS;
-SET DEBUG_SYNC='now WAIT_FOR complete_compression';
-SET GLOBAL DEBUG= @debug_save;
+
+--echo # Wait until compression completes
+--let $wait_condition = SELECT GROUP_CONCAT(CONCAT(interval_start, "-", interval_end) ORDER BY interval_start)  = "1-$gno_0,$gno_1-$gno_2" FROM mysql.gtid_executed
+--source include/wait_condition.inc
+
 --replace_result $master_uuid SOURCE_UUID
 SELECT * FROM mysql.gtid_executed;
 
@@ -216,6 +217,7 @@ FLUSH LOGS;
 --echo # when writing gtid into table when binlog is disabled and
 --echo # gtid_mode is enabled.
 --echo #
+SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 --connection master
 INSERT INTO t3 VALUES(1);
@@ -245,8 +247,6 @@ SET GLOBAL DEBUG= @debug_save;
 --echo #
 --echo # Verify that the gtid_executed table is compressed.
 --echo #
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --inc $gno_2
 --replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
@@ -255,8 +255,11 @@ COMMIT;
 
 --echo # Trigger compression explicitly
 FLUSH LOGS;
-SET DEBUG_SYNC='now WAIT_FOR complete_compression';
-SET GLOBAL DEBUG= @debug_save;
+
+--echo # Wait until compression completes
+--let $wait_condition = SELECT GROUP_CONCAT(CONCAT(interval_start, "-", interval_end) ORDER BY interval_start)  = "1-$gno_0,$gno_1-$gno_2" FROM mysql.gtid_executed
+--source include/wait_condition.inc
+
 --replace_result $master_uuid SOURCE_UUID
 SELECT * FROM mysql.gtid_executed;
 

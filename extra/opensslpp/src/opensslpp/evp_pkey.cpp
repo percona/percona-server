@@ -18,84 +18,34 @@
 #include <memory>
 #include <vector>
 
-#include <openssl/core_names.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 
 #include <opensslpp/evp_pkey.hpp>
 
-#include <opensslpp/big_number.hpp>
 #include <opensslpp/core_error.hpp>
 #include <opensslpp/operation_cancelled_error.hpp>
+#include <opensslpp/rsa_key.hpp>
 
-#include "opensslpp/big_number_accessor.hpp"
 #include "opensslpp/bio.hpp"
 #include "opensslpp/bio_accessor.hpp"
 #include "opensslpp/evp_pkey_accessor.hpp"
 #include "opensslpp/evp_pkey_algorithm_conversions.hpp"
-#include "opensslpp/key_generation_cancellation_context.hpp"
-#include "opensslpp/key_generation_cancellation_context_accessor.hpp"
+#include "opensslpp/rsa_key_accessor.hpp"
 
-namespace opensslpp {
+namespace {
 
-void evp_pkey::evp_pkey_deleter::operator()(void *evp_pkey) const noexcept {
-  if (evp_pkey != nullptr) EVP_PKEY_free(static_cast<EVP_PKEY *>(evp_pkey));
-}
+void duplicate_evp_pkey(opensslpp::evp_pkey &dest,
+                        const opensslpp::evp_pkey &source, bool public_only) {
+  assert(!source.is_empty());
 
-evp_pkey::evp_pkey(const evp_pkey &obj)
-    :  // due to a bug in openssl interface, EVP_PKEY_dup() expects
-       // non-const parameter while it does not do any modifications with the
-       // object - it just performs duplication via ASN1_item_i2d/ASN1_item_d2i
-       // conversions
-      impl_{obj.is_empty()
-                ? nullptr
-                : EVP_PKEY_dup(evp_pkey_accessor::get_impl_const_casted(obj))} {
-  if (!obj.is_empty() && is_empty())
-    throw core_error{"cannot duplicate EVP_PKEY key"};
-}
-
-evp_pkey &evp_pkey::operator=(const evp_pkey &obj) {
-  auto tmp = evp_pkey{obj};
-  swap(tmp);
-  return *this;
-}
-
-void evp_pkey::swap(evp_pkey &obj) noexcept { impl_.swap(obj.impl_); }
-
-evp_pkey_algorithm evp_pkey::get_algorithm() const noexcept {
-  assert(!is_empty());
-  auto native_algorithm{
-      EVP_PKEY_get_base_id(evp_pkey_accessor::get_impl(*this))};
-  return native_algorithm_to_evp_pkey_algorithm(native_algorithm);
-}
-
-bool evp_pkey::is_private() const noexcept {
-  assert(!is_empty());
-
-  OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D, nullptr, 0),
-      OSSL_PARAM_construct_end()};
-
-  return EVP_PKEY_get_params(evp_pkey_accessor::get_impl(*this), params) != 0;
-}
-
-std::size_t evp_pkey::get_size_in_bits() const noexcept {
-  assert(!is_empty());
-  return EVP_PKEY_get_bits(evp_pkey_accessor::get_impl(*this));
-}
-
-std::size_t evp_pkey::get_size_in_bytes() const noexcept {
-  assert(!is_empty());
-  return EVP_PKEY_get_size(evp_pkey_accessor::get_impl(*this));
-}
-
-evp_pkey evp_pkey::derive_public_key() const {
-  assert(!is_empty());
-
-  const auto *casted_impl{evp_pkey_accessor::get_impl(*this)};
+  auto *casted_impl{
+      opensslpp::evp_pkey_accessor::get_impl_const_casted(source)};
   unsigned char *der_raw{nullptr};
-  auto der_length{i2d_PublicKey(casted_impl, &der_raw)};
+  const auto serializer{public_only ? &i2d_PublicKey : &i2d_PrivateKey};
+  auto der_length{(*serializer)(casted_impl, &der_raw)};
   if (der_length < 0) {
-    core_error::raise_with_error_string(
+    opensslpp::core_error::raise_with_error_string(
         "cannot serialize EVP_PKEY to DER format");
   }
 
@@ -110,13 +60,84 @@ evp_pkey evp_pkey::derive_public_key() const {
   buffer_ptr der{der_raw};
 
   const unsigned char *der_ptr{der_raw};
-  evp_pkey res{};
-  evp_pkey_accessor::set_impl(
-      res, d2i_PublicKey(EVP_PKEY_get_base_id(casted_impl), nullptr, &der_ptr,
-                         der_length));
-  if (res.is_empty()) {
-    core_error::raise_with_error_string("cannot derive public EVP_PKEY");
+  const auto deserializer{public_only ? &d2i_PublicKey : &d2i_PrivateKey};
+  opensslpp::evp_pkey_accessor::set_impl(
+      dest, (*deserializer)(EVP_PKEY_base_id(casted_impl), nullptr, &der_ptr,
+                            der_length));
+  if (dest.is_empty()) {
+    opensslpp::core_error::raise_with_error_string(
+        "cannot deserialize EVP_PKEY from DER format");
   }
+}
+
+}  // anonymous namespace
+
+namespace opensslpp {
+
+void evp_pkey::evp_pkey_deleter::operator()(void *evp_pkey) const noexcept {
+  if (evp_pkey != nullptr) EVP_PKEY_free(static_cast<EVP_PKEY *>(evp_pkey));
+}
+
+evp_pkey::evp_pkey(const evp_pkey &obj) : impl_{} {
+  if (!obj.is_empty()) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    // due to a bug in openssl interface, EVP_PKEY_dup() expects
+    // non-const parameter while it does not do any modifications with the
+    // object - it just performs duplication via ASN1_item_i2d/ASN1_item_d2i
+    // conversions
+    impl_.reset(EVP_PKEY_dup(evp_pkey_accessor::get_impl_const_casted(obj)));
+    if (!impl_) {
+      throw core_error{"cannot duplicate EVP_PKEY key"};
+    }
+#else
+    duplicate_evp_pkey(*this, obj, !obj.is_private());
+#endif
+  }
+}
+
+evp_pkey &evp_pkey::operator=(const evp_pkey &obj) {
+  auto tmp = evp_pkey{obj};
+  swap(tmp);
+  return *this;
+}
+
+void evp_pkey::swap(evp_pkey &obj) noexcept { impl_.swap(obj.impl_); }
+
+evp_pkey_algorithm evp_pkey::get_algorithm() const noexcept {
+  assert(!is_empty());
+  auto native_algorithm{EVP_PKEY_base_id(evp_pkey_accessor::get_impl(*this))};
+  return native_algorithm_to_evp_pkey_algorithm(native_algorithm);
+}
+
+bool evp_pkey::is_private() const noexcept {
+  assert(!is_empty());
+
+  // TODO: implement checks for other algorithms
+  const auto *native_rsa{
+      EVP_PKEY_get0_RSA(evp_pkey_accessor::get_impl_const_casted(*this))};
+  assert(native_rsa != nullptr);
+  rsa_key underlying_key;
+  rsa_key_accessor::set_impl(underlying_key, const_cast<RSA *>(native_rsa));
+  const auto res{underlying_key.is_private()};
+  rsa_key_accessor::release(underlying_key);
+  return res;
+}
+
+std::size_t evp_pkey::get_size_in_bits() const noexcept {
+  assert(!is_empty());
+  return EVP_PKEY_bits(evp_pkey_accessor::get_impl(*this));
+}
+
+std::size_t evp_pkey::get_size_in_bytes() const noexcept {
+  assert(!is_empty());
+  return EVP_PKEY_size(evp_pkey_accessor::get_impl(*this));
+}
+
+evp_pkey evp_pkey::derive_public_key() const {
+  assert(!is_empty());
+
+  evp_pkey res{};
+  duplicate_evp_pkey(res, *this, true);
 
   return res;
 }
@@ -128,6 +149,7 @@ class evp_pkey_keygen_ctx {
       : impl_{EVP_PKEY_CTX_new_id(id, nullptr)},
         cancellation_callback_{&cancellation_callback},
         cancelled_{false} {
+    assert(id == EVP_PKEY_RSA);
     if (!impl_) {
       throw core_error{"cannot create EVP_PKEY context for key generation"};
     }
@@ -138,11 +160,8 @@ class evp_pkey_keygen_ctx {
   }
 
   evp_pkey generate(std::size_t bits) {
-    auto local_bits{bits};
-    OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_size_t(OSSL_PKEY_PARAM_BITS, &local_bits),
-        OSSL_PARAM_construct_end()};
-    if (EVP_PKEY_CTX_set_params(impl_.get(), params) <= 0) {
+    // TODO: implement setting bit length for other algorithms
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(impl_.get(), bits) <= 0) {
       throw core_error{"cannot set EVP_PKEY context key generation parameters"};
     }
 
@@ -214,9 +233,10 @@ std::string evp_pkey::export_private_pem(const evp_pkey &key) {
     throw core_error{"EVP_PKEY does not have private components"};
 
   auto sink = bio{};
-  const int r = PEM_write_bio_PrivateKey(bio_accessor::get_impl(sink),
-                                         evp_pkey_accessor::get_impl(key),
-                                         nullptr, nullptr, 0, nullptr, nullptr);
+  const int r =
+      PEM_write_bio_PrivateKey(bio_accessor::get_impl(sink),
+                               evp_pkey_accessor::get_impl_const_casted(key),
+                               nullptr, nullptr, 0, nullptr, nullptr);
 
   if (r <= 0)
     core_error::raise_with_error_string(
@@ -230,8 +250,9 @@ std::string evp_pkey::export_public_pem(const evp_pkey &key) {
   assert(!key.is_empty());
 
   auto sink = bio{};
-  const int r = PEM_write_bio_PUBKEY(bio_accessor::get_impl(sink),
-                                     evp_pkey_accessor::get_impl(key));
+  const int r =
+      PEM_write_bio_PUBKEY(bio_accessor::get_impl(sink),
+                           evp_pkey_accessor::get_impl_const_casted(key));
   if (r == 0)
     core_error::raise_with_error_string(
         "cannot export EVP_PKEY key to PEM PUBLIC KEY");

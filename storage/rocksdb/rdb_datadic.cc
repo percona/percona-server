@@ -5274,7 +5274,9 @@ void Rdb_ddl_manager::adjust_stats(
   for (const auto &data : {new_data, deleted_data}) {
     for (const auto &src : data) {
       const auto &keydef = find(src.m_gl_index_id);
-      if (keydef) {
+      // adjust_stats() may be called before key parts were initialized,
+      // such as compactions during crash recovery before accessing tables.
+      if (keydef && keydef->get_key_parts() > 0) {
         keydef->m_stats.m_distinct_keys_per_prefix.resize(
             keydef->get_key_parts());
         keydef->m_stats.merge(src, i == 0, keydef->max_storage_fmt_length());

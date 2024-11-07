@@ -1204,7 +1204,10 @@ bool Thread_pool_connection_handler::add_connection(
   connection_t *const connection = alloc_connection(thd);
 
   if (unlikely(!connection)) {
-    thd->get_protocol_classic()->end_net();
+    // Tell THD dtor not to close the socket/channel in VIO, but only free
+    // VIO memory and end NET. Socket/channel will be closed by later
+    // Channel_info::send_error_and_close_channel() call.
+    thd->get_protocol_classic()->get_vio()->inactive = true;
     delete thd;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     Connection_handler_manager::dec_connection_count();

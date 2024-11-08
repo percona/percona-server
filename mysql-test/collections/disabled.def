@@ -82,6 +82,7 @@ max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test 
 
 # percona suite test
 percona.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
+percona.backup_safe_binlog_info : BUG#0000 - PS-8897 Test for broken and unused functionality.
 
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231

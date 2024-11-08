@@ -9221,7 +9221,7 @@ bool ha_rocksdb::create_cfs(
       auto local_dict_manager =
           dict_manager.get_dict_manager_selector_non_const(cf_name);
       std::lock_guard<Rdb_dict_manager> dm_lock(*local_dict_manager);
-      cf_handle = cf_manager.get_or_create_cf(rdb, cf_name,
+      cf_handle = cf_manager.get_or_create_cf(cf_name,
                                               !rocksdb_no_create_column_family);
       if (!cf_handle) {
         return true;
@@ -13517,7 +13517,7 @@ void Rdb_drop_index_thread::run() {
 
           for (const auto cf_id : dropped_cf_ids) {
             if (ongoing_drop_cf_ids.find(cf_id) == ongoing_drop_cf_ids.end()) {
-              cf_manager.remove_dropped_cf(local_dict_manager, rdb, cf_id);
+              cf_manager.remove_dropped_cf(local_dict_manager, cf_id);
             }
           }
         }

@@ -16,8 +16,8 @@
 -  LINK_LIBRARIES perconaserverclient
 +  LINK_LIBRARIES mysqlclient
    )
- IF (WITH_COREDUMPER)
-   TARGET_LINK_LIBRARIES(mysqltest coredumper)
+
+ IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
 @@ -67,23 +67,23 @@
    check/mysqlcheck.cc
    check/mysqlcheck_core.cc
@@ -215,8 +215,8 @@
 -  perconaserverclient
 +  mysqlclient
    )
-
- ROUTER_ADD_SHARED_LIBRARY(router_cluster
+ IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
+   TARGET_LINK_OPTIONS(router_mysql PRIVATE -Wno-error=stringop-overflow)
 --- scripts/CMakeLists.txt
 +++ scripts/CMakeLists.txt
 @@ -302,7 +302,7 @@ ELSE()
@@ -271,12 +271,16 @@
      ENDIF()
 --- testclients/CMakeLists.txt
 +++ testclients/CMakeLists.txt
-@@ -24,9 +24,9 @@
+@@ -24,7 +24,7 @@
  ADD_WSHADOW_WARNING()
 
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 -TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient extra::rapidjson)
 +TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
+
+ # We *do* calculate that there is space, see:
+ # printf("Warning: MYSQL_TMP_DIR is too long. Logging is disabled.\n");
+@@ -35,5 +35,5 @@
 
  IF(WITH_UNIT_TESTS)
    MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL EXCLUDE_FROM_PGO)

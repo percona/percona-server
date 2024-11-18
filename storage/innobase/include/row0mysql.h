@@ -113,7 +113,7 @@ void row_mysql_prebuilt_free_compress_heap(row_prebuilt_t *prebuilt) noexcept;
 @param[in]	dict_data_len	optional dictionary data length
 @param[in]	compress_heap
 @return pointer to the uncompressed data */
-MY_NODISCARD
+[[nodiscard]]
 const byte *row_decompress_column(const byte *data, ulint *len,
                                   const byte *dict_data, ulint dict_data_len,
                                   mem_heap_t **compress_heap);
@@ -126,7 +126,7 @@ const byte *row_decompress_column(const byte *data, ulint *len,
 @param[in]	dict_data_len	optional dictionary data length
 @param[in]	compress_heap
 @return pointer to the compressed data */
-MY_NODISCARD
+[[nodiscard]]
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
                           mem_heap_t **compress_heap);

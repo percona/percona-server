@@ -43,7 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 bool buf_flush_page_cleaner_is_active();
 
 /** Returns the count of currently active LRU manager threads. */
-MY_NODISCARD size_t buf_flush_active_lru_managers() noexcept;
+[[nodiscard]] size_t buf_flush_active_lru_managers() noexcept;
 
 #ifdef UNIV_DEBUG
 

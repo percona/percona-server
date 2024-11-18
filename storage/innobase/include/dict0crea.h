@@ -119,7 +119,7 @@ static const constexpr auto ZIP_DICT_MAX_DATA_LENGTH = 32506;
 @param[out]	dict_id		dict id
 @param[in,out]	trx		transaction
 @return	error code or DB_SUCCESS */
-MY_NODISCARD
+[[nodiscard]]
 dberr_t dict_create_get_zip_dict_id_by_reference(table_id_t table_id,
                                                  ulint column_pos,
                                                  ulint *dict_id, trx_t *trx);
@@ -134,7 +134,7 @@ Must be freed with my_free().
 @param[out]	data_len	dict data length
 @param[in,out]	trx		transaction
 @return	error code or DB_SUCCESS */
-MY_NODISCARD
+[[nodiscard]]
 dberr_t dict_create_get_zip_dict_info_by_id(ulint dict_id, char **name,
                                             ulint *name_len, char **data,
                                             ulint *data_len, trx_t *trx);

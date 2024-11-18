@@ -266,7 +266,7 @@ static bool is_name_in_list(const char *name, List<String> list_names) {
     false                         Success
 */
 
-MY_NODISCARD
+[[nodiscard]]
 static bool partition_default_handling(Partition_handler *part_handler,
                                        partition_info *part_info,
                                        bool is_create_table_ind,

@@ -50,7 +50,7 @@ class Rdb_cf_options {
   Rdb_cf_options() = default;
 
   /* bool true return indicates cf_name was found */
-  MY_NODISCARD bool get(const std::string &cf_name,
+  [[nodiscard]] bool get(const std::string &cf_name,
                         rocksdb::ColumnFamilyOptions *const opts);
 
   void update(const std::string &cf_name, const std::string &cf_options);

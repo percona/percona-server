@@ -506,7 +506,7 @@ class IORequest {
   }
 
   /** @return true if the page write should not be encrypted */
-  MY_NODISCARD bool is_encryption_disabled() const noexcept {
+  [[nodiscard]] bool is_encryption_disabled() const noexcept {
     return ((m_type & NO_ENCRYPTION) != 0);
   }
 

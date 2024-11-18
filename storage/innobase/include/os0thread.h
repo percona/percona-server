@@ -195,14 +195,14 @@ using Atomic_xor_of_thread_id =
 thread. On Linux, returns tid. On other systems currently returns
 os_thread_get_curr_id().
 @return current thread identifier */
-MY_NODISCARD os_tid_t os_thread_get_tid() noexcept;
+[[nodiscard]] os_tid_t os_thread_get_tid() noexcept;
 
 /** Set relative scheduling priority for a given thread on
 Linux. Currently a no-op on other systems.
 @param[in]	thread_id	thread id
 @param[in]	relative_priority	system-specific priority value
 @return An actual thread priority after the update  */
-MY_NODISCARD
+[[nodiscard]]
 unsigned long int os_thread_set_priority(
     os_tid_t thread_id, unsigned long int relative_priority) noexcept;
 

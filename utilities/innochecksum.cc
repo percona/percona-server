@@ -1395,7 +1395,7 @@ Extract the zip size from tablespace flags.
 @param[in] flags        tablespace flags
 @return	compressed page size of the file-per-table tablespace in bytes, or zero
 if the table is not compressed. */
-MY_NODISCARD
+[[nodiscard]]
 static ulint fsp_flags_get_zip_size(ulint flags) noexcept {
   ulint zip_size = 0;
   const ulint ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);

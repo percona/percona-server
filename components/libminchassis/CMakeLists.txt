@@ -34,6 +34,7 @@ SET(LIBMINCHASSIS_SOURCES
   mysql_component.cc
   mysql_service_implementation.cc
   registry.cc
+  registry_no_lock.cc
   rwlock_scoped_lock.cc
 )
 

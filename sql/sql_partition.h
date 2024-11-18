@@ -127,7 +127,7 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
    @retval true  - On failure.
    @retval false - On success.
 */
-MY_NODISCARD
+[[nodiscard]]
 bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
                               const char *normalized_path,
                               const char *partition_info_str,

@@ -604,7 +604,7 @@ static inline void init_all_partitions_iterator(partition_info *part_info,
    @return true - On failure.
    @return false - On success.
 */
-MY_NODISCARD
+[[nodiscard]]
 bool fill_first_partition_name(const partition_info *part_info,
                                const char *normalized_path, char *first_name);
 

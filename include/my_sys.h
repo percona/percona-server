@@ -521,22 +521,22 @@ inline int my_b_get(IO_CACHE *info) {
   return _my_b_get(info);
 }
 
-MY_NODISCARD
+[[nodiscard]]
 inline my_off_t my_b_tell(const IO_CACHE *info) {
   return info->pos_in_file + *info->current_pos - info->request_pos;
 }
 
-MY_NODISCARD
+[[nodiscard]]
 inline uchar *my_b_get_buffer_start(const IO_CACHE *info) {
   return info->request_pos;
 }
 
-MY_NODISCARD
+[[nodiscard]]
 inline size_t my_b_get_bytes_in_buffer(const IO_CACHE *info) {
   return info->read_end - my_b_get_buffer_start(info);
 }
 
-MY_NODISCARD
+[[nodiscard]]
 inline my_off_t my_b_get_pos_in_file(const IO_CACHE *info) {
   return info->pos_in_file;
 }
@@ -544,7 +544,7 @@ inline my_off_t my_b_get_pos_in_file(const IO_CACHE *info) {
 /* tell write offset in the SEQ_APPEND cache */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file);
 
-MY_NODISCARD
+[[nodiscard]]
 inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
   return *info->current_end - *info->current_pos;
 }
@@ -740,31 +740,31 @@ extern bool array_append_string_unique(const char *str, const char **array,
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
-MY_NODISCARD
+[[nodiscard]]
 extern int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                              enum cache_type type, my_off_t seek_offset,
                              bool use_async_io, myf cache_myflags,
                              PSI_file_key file_key);
-MY_NODISCARD
+[[nodiscard]]
 extern int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                          enum cache_type type, my_off_t seek_offset,
                          bool use_async_io, myf cache_myflags);
-MY_NODISCARD
+[[nodiscard]]
 extern bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
                             my_off_t seek_offset, bool use_async_io,
                             bool clear_cache);
 extern void setup_io_cache(IO_CACHE *info);
-MY_NODISCARD
+[[nodiscard]]
 extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
-MY_NODISCARD
+[[nodiscard]]
 extern int _my_b_read_r(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
                                 IO_CACHE *write_cache, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
-MY_NODISCARD
+[[nodiscard]]
 extern int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern int _my_b_net_read(IO_CACHE *info, uchar *Buffer, size_t Count);
-MY_NODISCARD
+[[nodiscard]]
 extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count);

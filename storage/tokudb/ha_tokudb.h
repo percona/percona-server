@@ -930,19 +930,19 @@ class ha_tokudb : public handler {
 
  private:
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-  MY_NODISCARD int fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
+  [[nodiscard]] int fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
                                mem_root_deque<Item *> &update_values,
                                Item *conds);
-  MY_NODISCARD bool check_fast_update(THD *thd, List<Item> &update_fields,
+  [[nodiscard]] bool check_fast_update(THD *thd, List<Item> &update_fields,
                                       List<Item> &update_values, Item *conds);
-  MY_NODISCARD int send_update_message(List<Item> &update_fields,
+  [[nodiscard]] int send_update_message(List<Item> &update_fields,
                                        List<Item> &update_values, Item *conds,
                                        DB_TXN *txn);
-  MY_NODISCARD int upsert(THD *thd, mem_root_deque<Item *> &update_fields,
+  [[nodiscard]] int upsert(THD *thd, mem_root_deque<Item *> &update_fields,
                           mem_root_deque<Item *> &update_values);
-  MY_NODISCARD bool check_upsert(THD *thd, List<Item> &update_fields,
+  [[nodiscard]] bool check_upsert(THD *thd, List<Item> &update_fields,
                                  List<Item> &update_values);
-  MY_NODISCARD int send_upsert_message(List<Item> &update_fields,
+  [[nodiscard]] int send_upsert_message(List<Item> &update_fields,
                                        List<Item> &update_values, DB_TXN *txn);
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
  public:

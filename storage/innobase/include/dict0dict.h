@@ -1673,7 +1673,7 @@ extern bool dict_upgrade_zip_dict_missing;
 @param[out]	dict_id		zip_dict id
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-MY_NODISCARD
+[[nodiscard]]
 dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
                                       ulint *dict_id);
 
@@ -1687,7 +1687,7 @@ Must be freed with mem_free().
 @param[out]	data_len	dictionary data length
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-MY_NODISCARD
+[[nodiscard]]
 dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
                                        ulint *name_len, char **data,
                                        ulint *data_len);

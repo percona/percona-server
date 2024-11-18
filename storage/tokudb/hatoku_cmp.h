@@ -107,42 +107,42 @@ class KEY_AND_COL_INFO {
   KEY_AND_COL_INFO &operator=(const KEY_AND_COL_INFO &) = delete;
   ~KEY_AND_COL_INFO();
 
-  MY_NODISCARD int32_t allocate(const TABLE_SHARE &table_share);
+  [[nodiscard]] int32_t allocate(const TABLE_SHARE &table_share);
 
-  MY_NODISCARD int32_t initialize(const TABLE_SHARE &table_share,
+  [[nodiscard]] int32_t initialize(const TABLE_SHARE &table_share,
                                   const TABLE &table,
                                   uint32_t hidden_primary_key,
                                   uint32_t primary_key);
 
-  MY_NODISCARD int32_t initialize_col_pack_info(const TABLE_SHARE &table_share,
+  [[nodiscard]] int32_t initialize_col_pack_info(const TABLE_SHARE &table_share,
                                                 uint32_t keynr);
   void free();
 
   // reset the kc_info state at keynr
   void reset(uint32_t keynr);
 
-  MY_NODISCARD inline bool is_fixed_field(uint32_t field_num) const {
+  [[nodiscard]] inline bool is_fixed_field(uint32_t field_num) const {
     return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
   }
 
-  MY_NODISCARD inline bool is_variable_field(uint32_t field_num) const {
+  [[nodiscard]] inline bool is_variable_field(uint32_t field_num) const {
     return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
   }
 
-  MY_NODISCARD inline bool is_blob_field(uint32_t field_num) const {
+  [[nodiscard]] inline bool is_blob_field(uint32_t field_num) const {
     return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
   }
 
   //
   // This offset is calculated starting from AFTER the NULL bytes
   //
-  MY_NODISCARD uint32_t get_fixed_field_size(const TABLE_SHARE &table_share,
+  [[nodiscard]] uint32_t get_fixed_field_size(const TABLE_SHARE &table_share,
                                              uint32_t keynr) const;
 
-  MY_NODISCARD uint32_t get_len_of_offsets(const TABLE_SHARE &table_share,
+  [[nodiscard]] uint32_t get_len_of_offsets(const TABLE_SHARE &table_share,
                                            uint32_t keynr) const;
 
-  MY_NODISCARD inline uint32_t get_max_desc_size(const TABLE &form) const
+  [[nodiscard]] inline uint32_t get_max_desc_size(const TABLE &form) const
       noexcept {
     uint32_t max_row_desc_buff_size;
     // upper bound of key comparison descriptor
@@ -154,7 +154,7 @@ class KEY_AND_COL_INFO {
     return max_row_desc_buff_size;
   }
 
-  MY_NODISCARD inline uint32_t get_max_secondary_key_pack_desc_size() const
+  [[nodiscard]] inline uint32_t get_max_secondary_key_pack_desc_size() const
       noexcept {
     uint32_t ret_val = 0;
     //
@@ -192,7 +192,7 @@ class KEY_AND_COL_INFO {
     return ret_val;
   }
 
-  MY_NODISCARD static inline uint32_t get_max_clustering_val_pack_desc_size(
+  [[nodiscard]] static inline uint32_t get_max_clustering_val_pack_desc_size(
       const TABLE_SHARE &table_share) {
     uint32_t ret_val = 0;
     //

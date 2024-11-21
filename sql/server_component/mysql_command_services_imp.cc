@@ -660,6 +660,8 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
             mysql_session = service->open(nullptr, nullptr);
           else
             return true;
+          if (mysql_session == nullptr)
+            return true;
           thd = mysql_session->get_thd();
           mcs_ext->is_thd_associated = false;
           Security_context_handle sc;

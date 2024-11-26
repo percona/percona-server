@@ -33,7 +33,7 @@ Percona is dedicated to **keeping open source open**. Whenever possible, we stri
 
 We encourage contributions and are always looking for new members that are as dedicated to serving the community as we are. The [Doc Contributing Guide](https://github.com/percona/psmysql-docs/blob/innovation-release/contributing.md) contains how you can contribute to the documentation.
 
-The [ CONTRIBUTING ](COTNRIBUTING.md) file in this directory contains instructions on contributing to the code.
+The [ CONTRIBUTING ](CONTRIBUTING.md) file in this directory contains instructions on contributing to the code.
 
 ## Contact
 

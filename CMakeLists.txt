@@ -2349,6 +2349,7 @@ INCLUDE(cmake/abi_check.cmake)
 INCLUDE(cmake/tags.cmake)
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
+CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_BINARY_DIR}/include/mysql_version.h )
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in

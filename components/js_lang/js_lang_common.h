@@ -37,6 +37,8 @@
 #include <mysql/components/services/mysql_thd_attributes.h>
 #include <mysql/components/services/mysql_thd_store_service.h>
 #include <mysql/components/services/security_context.h>
+#include <mysql/components/services/udf_metadata.h>
+#include <mysql/components/services/udf_registration.h>
 #include <mysql/mysql_lex_string.h>
 #include <mysqld_error.h>
 
@@ -74,6 +76,8 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
 /**
   Helper function which is used to absorb results of service calls

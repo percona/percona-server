@@ -33,6 +33,7 @@ MYSQL_ADD_COMPONENT(js_lang
   component.cc
   js_lang_core.cc
   js_lang_param.cc
+  js_lang_udf.cc
   LINK_LIBRARIES ext::v8
   MODULE_ONLY
 )

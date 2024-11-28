@@ -7913,6 +7913,337 @@ DROP USER u_creator@localhost;
 DROP USER u_caller@localhost;
 DROP USER u_dropper@localhost;
 DROP DATABASE mysqltest;
+
+#
+# Tests for advanced error reporting, JS_GET_LAST_ERROR() and other
+# related UDFs.
+#
+CREATE FUNCTION f_error() RETURNS VARCHAR(100) LANGUAGE JS AS $$
+function l0() {
+return "Ooops!"();
+}
+function l1() {
+return l0();
+}
+let l2 = (() => { return l1(); });
+return l2();
+$$|
+CREATE PROCEDURE p_error() LANGUAGE JS AS $$
+function l0() {
+return "Ooops!"();
+}
+function l1() {
+return l0();
+}
+(() => { return l1(); })();
+$$|
+CREATE FUNCTION f_error_no_stack() RETURNS VARCHAR(100) LANGUAGE JS AS $$
+function l0() {
+throw "Ooops!";
+}
+function l1() {
+return l0();
+}
+let l2 = (() => { return l1(); });
+return l2();
+$$|
+CREATE FUNCTION f_error_oneline() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return "Ooops"() $$;
+CREATE FUNCTION f_fine() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42; $$|
+#
+# Basic tests for both JS_GET_LAST_ERROR() and JS_GET_LAST_ERROR_INFO().
+#
+SELECT f_error();
+ERROR HY000: TypeError: "Ooops!" is not a function
+SELECT js_get_last_error();
+js_get_last_error()
+TypeError: "Ooops!" is not a function
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: TypeError: "Ooops!" is not a function
+At: SQL FUNCTION test.f_error:3:15
+Line: return "Ooops!"();
+                     ^
+Stack:
+TypeError: "Ooops!" is not a function
+    at l0 (SQL FUNCTION test.f_error:3:16)
+    at l1 (SQL FUNCTION test.f_error:6:8)
+    at l2 (SQL FUNCTION test.f_error:8:26)
+    at SQL FUNCTION test.f_error:9:8
+CALL p_error();
+ERROR HY000: TypeError: "Ooops!" is not a function
+SELECT js_get_last_error();
+js_get_last_error()
+TypeError: "Ooops!" is not a function
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: TypeError: "Ooops!" is not a function
+At: SQL PROCEDURE test.p_error:3:15
+Line: return "Ooops!"();
+                     ^
+Stack:
+TypeError: "Ooops!" is not a function
+    at l0 (SQL PROCEDURE test.p_error:3:16)
+    at l1 (SQL PROCEDURE test.p_error:6:8)
+    at SQL PROCEDURE test.p_error:8:17
+    at SQL PROCEDURE test.p_error:8:25
+    at SQL PROCEDURE test.p_error:10:3
+#
+# Case when no stacktrace is available.
+SELECT f_error_no_stack();
+ERROR HY000: Ooops!
+SELECT js_get_last_error();
+js_get_last_error()
+Ooops!
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: Ooops!
+At: SQL FUNCTION test.f_error_no_stack:3:0
+Line: throw "Ooops!";
+      ^
+#
+# Case with single line function is interesting because it
+# exposed wrapper code in initial implementation of extended
+# error info reporting code.
+SELECT f_error_oneline();
+ERROR HY000: TypeError: "Ooops" is not a function
+SELECT js_get_last_error();
+js_get_last_error()
+TypeError: "Ooops" is not a function
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: TypeError: "Ooops" is not a function
+At: SQL FUNCTION test.f_error_oneline:1:15
+Line:  return "Ooops"() 
+                     ^
+Stack:
+TypeError: "Ooops" is not a function
+    at SQL FUNCTION test.f_error_oneline:1:16
+#
+# Note that successfull execution of JS routine doesn't reset error
+# info. This can be useful in case when several JS routines are called
+# in a row.
+SELECT f_fine();
+f_fine()
+42
+SELECT js_get_last_error();
+js_get_last_error()
+TypeError: "Ooops" is not a function
+#
+# Test JS_CLEAR_LAST_ERROR() UDF (which clears last error state).
+#
+SELECT js_clear_last_error();
+js_clear_last_error()
+1
+# Note that we return NULL when the last error state was reset, or
+# if no JS error has happened so far.
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+#
+# When there is no error state to clear 0 should be returned by
+# JS_CLEAR_LAST_ERROR().
+#
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+#
+# Now test how these UDF work for cases when there wasn't any JS
+# run for connection or/and user, or when there was no error in it.
+#
+connect  con_root, localhost, root,,;
+#
+# Case when no JS was run in the connection.
+# (User run JS but in another connection).
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+#
+# Let us also check what JS_CLEAR_LAST_ERROR() does in this case.
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+#
+# Case when user run JS in connection, but there were no error.
+SELECT f_fine();
+f_fine()
+42
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+disconnect con_root;
+connection default;
+CREATE USER u_other@localhost;
+GRANT EXECUTE ON test.* TO u_other@localhost;
+CREATE FUNCTION f_invoker() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42 $$;
+CREATE FUNCTION f_invoker_error() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return "Not-a-function"() $$;
+connect  con_other, localhost, u_other,,;
+#
+# Case when user never run any JS at all.
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+#
+# Failed execution of SQL SECURITY DEFINER routine with different
+# creator doesn't affect current user's JS error state.
+SELECT f_error();
+ERROR HY000: TypeError: "Ooops!" is not a function
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+#
+# Successful execution of SQL SECURITY INVOKER routine does not
+# affect current user's JS error state either.
+SELECT f_invoker();
+f_invoker()
+42
+SELECT js_get_last_error();
+js_get_last_error()
+NULL
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+NULL
+SELECT js_clear_last_error();
+js_clear_last_error()
+0
+#
+# OTOH failed execution of SQL SECURITY INVOKER routine does.
+SELECT f_invoker_error();
+ERROR HY000: TypeError: "Not-a-function" is not a function
+SELECT js_get_last_error();
+js_get_last_error()
+TypeError: "Not-a-function" is not a function
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: TypeError: "Not-a-function" is not a function
+At: SQL FUNCTION test.f_invoker_error:1:24
+Line:  return "Not-a-function"() 
+                              ^
+Stack:
+TypeError: "Not-a-function" is not a function
+    at SQL FUNCTION test.f_invoker_error:1:25
+SELECT js_clear_last_error();
+js_clear_last_error()
+1
+disconnect con_other;
+connection default;
+#
+# Check types, charset and nullability of return values for
+# JS_GET_LAST_ERROR() and friends.
+#
+SELECT f_error();
+ERROR HY000: TypeError: "Ooops!" is not a function
+CREATE TABLE t_e AS SELECT JS_GET_LAST_ERROR();
+CREATE TABLE t_i AS SELECT JS_GET_LAST_ERROR_INFO();
+CREATE TABLE t_c AS SELECT JS_CLEAR_LAST_ERROR();
+SHOW CREATE TABLE t_e;
+Table	Create Table
+t_e	CREATE TABLE `t_e` (
+  `JS_GET_LAST_ERROR()` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_e;
+JS_GET_LAST_ERROR()
+TypeError: "Ooops!" is not a function
+SHOW CREATE TABLE t_i;
+Table	Create Table
+t_i	CREATE TABLE `t_i` (
+  `JS_GET_LAST_ERROR_INFO()` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_i;
+JS_GET_LAST_ERROR_INFO()
+Error: TypeError: "Ooops!" is not a function
+At: SQL FUNCTION test.f_error:3:15
+Line: return "Ooops!"();
+                     ^
+Stack:
+TypeError: "Ooops!" is not a function
+    at l0 (SQL FUNCTION test.f_error:3:16)
+    at l1 (SQL FUNCTION test.f_error:6:8)
+    at l2 (SQL FUNCTION test.f_error:8:26)
+    at SQL FUNCTION test.f_error:9:8
+SHOW CREATE TABLE t_c;
+Table	Create Table
+t_c	CREATE TABLE `t_c` (
+  `JS_CLEAR_LAST_ERROR()` bigint NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_c;
+JS_CLEAR_LAST_ERROR()
+1
+DROP TABLES t_e, t_i, t_c;
+#
+# Also test what will happen when UDFs return values with length
+# exceeding their return value type length.
+#
+# CREATE FUNCTION f_huge_error() RETURNS INT LANGUAGE JS AS $$ return "Make-the-error-message-big-enough-<70000-a-here>"(); $$
+SELECT f_huge_error();
+ERROR HY000: TypeError: "Make-the-error-message-big-enough-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+#
+# Should still work fine except CREATE TABLE ... SELECT UDF() case.
+SELECT JS_GET_LAST_ERROR();
+JS_GET_LAST_ERROR()
+TypeError: "Make-the-error-message-big-enough-<70000-of-a-here>" is not a function
+SELECT LENGTH(JS_GET_LAST_ERROR());
+LENGTH(JS_GET_LAST_ERROR())
+70065
+CREATE TABLE t AS SELECT JS_GET_LAST_ERROR();
+ERROR 22001: Data too long for column 'JS_GET_LAST_ERROR()' at row 1
+SELECT JS_GET_LAST_ERROR_INFO();
+JS_GET_LAST_ERROR_INFO()
+Error: TypeError: "Make-the-error-message-big-enough-<70000-of-a-here>" is not a function
+At: SQL FUNCTION test.f_huge_error:1:70044
+Line:  return "Make-the-error-message-big-enough-<70000-of-a-here>"(); 
+<70000-of-_-here>                                                  ^
+Stack:
+TypeError: "Make-the-error-message-big-enough-<70000-of-a-here>" is not a function
+    at SQL FUNCTION test.f_huge_error:1:70045
+SELECT LENGTH(JS_GET_LAST_ERROR_INFO());
+LENGTH(JS_GET_LAST_ERROR_INFO())
+280341
+CREATE TABLE t AS SELECT JS_GET_LAST_ERROR_INFO();
+ERROR 22001: Data too long for column 'JS_GET_LAST_ERROR_INFO()' at row 1
+SELECT JS_CLEAR_LAST_ERROR();
+JS_CLEAR_LAST_ERROR()
+1
+#
+# Clean-up
+DROP FUNCTION f_huge_error;
+DROP FUNCTION f_error;
+DROP PROCEDURE p_error;
+DROP FUNCTION f_error_no_stack;
+DROP FUNCTION f_error_oneline;
+DROP FUNCTION f_fine;
+DROP FUNCTION f_invoker;
+DROP FUNCTION f_invoker_error;
+DROP USER u_other@localhost;
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 #
 # Test of component uninstallation while having outstanding per

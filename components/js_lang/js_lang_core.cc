@@ -42,6 +42,8 @@
 
 #include "js_lang_core.h"
 
+#include <sstream>
+
 #include "js_lang_common.h"
 
 std::unique_ptr<v8::Platform> Js_v8::s_platform;
@@ -114,6 +116,104 @@ void Js_thd::unregister_slot() {
   s_thd_slot = nullptr;
 }
 
+void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
+                                           const char *fallback_error_msg) {
+  v8::Isolate *isolate = isolate_ptr->get_v8_isolate();
+
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Context> context = get_context();
+
+  // User string representation of exception as error message.
+  v8::String::Utf8Value exception_str(isolate, try_catch.Exception());
+  const char *error_msg_str =
+      *exception_str ? *exception_str : fallback_error_msg;
+
+  // Report error with this message to SQL core/user.
+  my_error(ER_LANGUAGE_COMPONENT, MYF(0), error_msg_str);
+
+  // Also save it the context so it can be retrieved using UDF
+  m_last_error = error_msg_str;
+
+  // Also make this message part of extended info.
+  //
+  // TODO: Consider supporting returning the same info as JSON,
+  //       so it easier to use it in tooling.
+  std::stringstream error_info_str;
+  error_info_str << "Error: " << error_msg_str;
+
+  // Append additional info from v8::Message class if possible.
+  v8::Local<v8::Message> message = try_catch.Message();
+  if (!message.IsEmpty()) {
+    // Add info about SQL program and line/column where the error has occurred
+    // (take into account that line/column numbers might be not available).
+    v8::String::Utf8Value rname(isolate, message->GetScriptResourceName());
+
+    error_info_str << "\nAt: " << (*rname ? *rname : "<unknown>");
+
+    int line_no = message->GetLineNumber(context).FromMaybe(-1);
+    int start_col = message->GetStartColumn(context).FromMaybe(-1);
+    int end_col = message->GetEndColumn(context).FromMaybe(-1);
+
+    // Line numbers are 1-based
+    if (line_no > 0) {
+      error_info_str << ":" << line_no;
+      // Column numbers are 0-based.
+      if (start_col >= 0 && end_col >= 0) {
+        error_info_str << ":" << start_col;
+        if (end_col > start_col + 1) error_info_str << "-" << end_col;
+      }
+    }
+
+    // If available add problematic source line with an optional ^^...^^
+    // underline indicating its exact part.
+    //
+    // TODO: Consider also adding a few surrounding lines to give more context?
+    //       Can be non-trivial as it will require splitting source into lines
+    //       and taking into account wrapping code.
+    v8::Local<v8::String> source_line_val;
+    if (message->GetSourceLine(context).ToLocal(&source_line_val) &&
+        source_line_val->Length() > 0) {
+      // We assume that converions of JS string to UTF8 can't fail
+      // (as OOM will abort the process).
+      v8::String::Utf8Value source_line_str(isolate, source_line_val);
+      error_info_str << "\nLine: " << *source_line_str;
+      if (start_col >= 0 && end_col >= 0) {
+        error_info_str << "\n      ";
+        int i = 0;
+        while (i < start_col) {
+          error_info_str << ' ';
+          ++i;
+        }
+        // Add at least one '^'.
+        do {
+          error_info_str << '^';
+          ++i;
+        } while (i < end_col);
+      }
+    }
+  }
+
+  // Also add stack trace for the error if it is available and has string
+  // type (in theory, JS code can override to be any value).
+  v8::Local<v8::Value> stack_trace_val;
+  if (try_catch.StackTrace(context).ToLocal(&stack_trace_val) &&
+      stack_trace_val->IsString() &&
+      stack_trace_val.As<v8::String>()->Length() > 0) {
+    // Again, we assume that converion of JS string to UTF8 can't fail.
+    v8::String::Utf8Value stack_trace_str(isolate, stack_trace_val);
+    error_info_str << "\nStack:\n" << *stack_trace_str;
+  }
+  m_last_error_info = error_info_str.str();
+}
+
+int Js_thd::Auth_id_context::clear_last_error() {
+  int result = m_last_error.has_value() ? 1 : 0;
+  m_last_error.reset();
+  m_last_error_info.reset();
+  return result;
+}
+
 Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
   assert(sql_sp_type == MYSQL_STORED_PROGRAM_DATA_QUERY_TYPE_FUNCTION ||
          sql_sp_type == MYSQL_STORED_PROGRAM_DATA_QUERY_TYPE_PROCEDURE);
@@ -123,6 +223,16 @@ Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
 
   always_ok(mysql_service_mysql_stored_program_metadata_query->get(
       sp, "argument_count", &m_arg_count));
+
+  // Construct "resource name" for routine, to be used by error reporting.
+  mysql_cstring_with_length qname;
+  always_ok(mysql_service_mysql_stored_program_metadata_query->get(
+      sp, "qualified_name", &qname));
+
+  m_resource_name.append("SQL ");
+  m_resource_name.append(m_type == Js_sp::FUNCTION ? "FUNCTION "
+                                                   : "PROCEDURE ");
+  m_resource_name.append(qname.str, qname.length);
 }
 
 Js_sp::~Js_sp() {
@@ -206,7 +316,15 @@ void Js_sp::prepare_wrapped_body_and_out_param_indexes() {
   if (m_type == Js_sp::PROCEDURE)
     m_wrapped_body.append("let js_lang_int_res = (() => {");
 
+  // Add line break, so users won't see introductory wrapper code in
+  // extended error info.
+  m_wrapped_body.append("\n");
+
   m_wrapped_body.append(body.str);
+
+  // Another line break, so users won't see finalizing wrapper code in
+  // extended error info.
+  m_wrapped_body.append("\n");
 
   // Finalize extra wrapping for PROCEDURE and pack IN/OUT parameter values
   // in an array to be returned.
@@ -223,11 +341,39 @@ void Js_sp::prepare_wrapped_body_and_out_param_indexes() {
   m_wrapped_body.append("})");
 }
 
-v8::Local<v8::Function> Js_sp::prepare_func(v8::Isolate *isolate,
-                                            v8::Local<v8::Context> &context) {
+v8::Local<v8::Function> Js_sp::prepare_func(
+    Js_thd::Auth_id_context *auth_id_ctx) {
+  v8::Isolate *isolate = auth_id_ctx->isolate_ptr->get_v8_isolate();
+
+  // Caller should have locked and made this Isolate current one already.
+  assert(v8::Locker::IsLocked(isolate));
+  assert(isolate->IsCurrent());
+
   v8::EscapableHandleScope handle_scope(isolate);
 
+  v8::Local<v8::Context> context = auth_id_ctx->get_context();
+
+  // Enter the context for compiling and getting the wrapper function.
+  v8::Context::Scope context_scope(context);
+
   v8::TryCatch try_catch(isolate);
+
+  // Set extended routine name as script origin for our JS code
+  // (it is used for error reporting).
+  //
+  // It can never exceed JS string length limit, so the below call can fail
+  // only in case of OOM. Since V8 handles OOM by aborting the process we
+  // do not try to handle it gracefully here either.
+  //
+  // Pass -1 as resource line offset to account for extra line at the start
+  // of wrapped code. Doing this allows to have correct line numbers in
+  // v8::Message objects and stack traces.
+  v8::ScriptOrigin origin(
+      v8::String::NewFromUtf8(isolate, m_resource_name.c_str(),
+                              v8::NewStringType::kNormal,
+                              m_resource_name.length())
+          .ToLocalChecked(),
+      -1);
 
   // Make v8::Function out of the wrapped code so we can use its Call()
   // method to execute the code with parameters passed in the array.
@@ -248,18 +394,14 @@ v8::Local<v8::Function> Js_sp::prepare_func(v8::Isolate *isolate,
 
   v8::Local<v8::Script> script;
 
-  if (!v8::Script::Compile(context, source).ToLocal(&script)) {
-    v8::String::Utf8Value exception(isolate, try_catch.Exception());
-    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
-             *exception ? *exception : "Unknown compilation error.");
+  if (!v8::Script::Compile(context, source, &origin).ToLocal(&script)) {
+    auth_id_ctx->report_error(try_catch, "Unknown compilation error.");
     return v8::Local<v8::Function>();
   }
 
   v8::Local<v8::Value> func_result;
   if (!script->Run(context).ToLocal(&func_result)) {
-    v8::String::Utf8Value exception(isolate, try_catch.Exception());
-    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
-             *exception ? *exception : "Unknown wrapper preparation error.");
+    auth_id_ctx->report_error(try_catch, "Unknown wrapper preparation error.");
     return v8::Local<v8::Function>();
   }
 
@@ -330,11 +472,6 @@ bool Js_sp::parse() {
   // Create a stack-allocated handle scope.
   v8::HandleScope handle_scope(isolate);
 
-  v8::Local<v8::Context> context = auth_id_ctx->get_context();
-
-  // Enter the context for compiling and getting the wrapper function.
-  v8::Context::Scope context_scope(context);
-
   /*
     Compile and execute script to get wrapper function object. Later we
     will use this function's Call() method for running our routine.
@@ -345,7 +482,7 @@ bool Js_sp::parse() {
     account active within the same connection. So we might need to build
     more Function objects for this account's JS context.
   */
-  v8::Local<v8::Function> func = prepare_func(isolate, context);
+  v8::Local<v8::Function> func = prepare_func(auth_id_ctx);
 
   if (func.IsEmpty()) return true;
 
@@ -390,11 +527,6 @@ bool Js_sp::execute() {
   // Create a stack-allocated handle scope.
   v8::HandleScope handle_scope(isolate);
 
-  v8::Local<v8::Context> context = auth_id_ctx->get_context();
-
-  // Enter the context for executing the function.
-  v8::Context::Scope context_scope(context);
-
   /*
     Get Function object for the routine in this context.
 
@@ -406,12 +538,17 @@ bool Js_sp::execute() {
 
   auto j = m_funcs.find(auth_id);
   if (j == m_funcs.end()) {
-    func = prepare_func(isolate, context);
+    func = prepare_func(auth_id_ctx);
     if (func.IsEmpty()) return true;
     m_funcs.try_emplace(auth_id, auth_id_ctx->isolate_ptr, isolate, func);
   } else {
     func = v8::Local<v8::Function>::New(isolate, j->second.func);
   }
+
+  v8::Local<v8::Context> context = auth_id_ctx->get_context();
+
+  // Enter the context for executing the function.
+  v8::Context::Scope context_scope(context);
 
   v8::TryCatch try_catch(isolate);
 
@@ -436,9 +573,7 @@ bool Js_sp::execute() {
   v8::Local<v8::Value> result;
   if (!func->Call(context, context->Global(), m_arg_count, arg_arr)
            .ToLocal(&result)) {
-    v8::String::Utf8Value exception(isolate, try_catch.Exception());
-    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
-             *exception ? *exception : "Unknown execution error");
+    auth_id_ctx->report_error(try_catch, "Unknown execution error");
     delete[] arg_arr;
     return true;
   }

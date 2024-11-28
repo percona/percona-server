@@ -66,6 +66,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
 /**
   Implementation of External Program Capability Query and External Program
@@ -224,8 +226,15 @@ static mysql_service_status_t component_init() {
     return 1;
   }
 
+  // The below call can fail if one of UDF names is already occupied.
+  if (register_udfs()) return 1;
+
   // Play safe, even though the below can't fail at the moment.
-  if (register_create_privilege()) return 1;
+  if (register_create_privilege()) {
+    // We can't do much if unregistiring UDFs fails here.
+    (void)unregister_udfs();
+    return 1;
+  }
 
   // Registering slot in THD for the component always succeeds (unless OOM)!
   Js_thd::register_slot();
@@ -258,6 +267,13 @@ static mysql_service_status_t component_deinit() {
     my_error(ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL, MYF(0));
     return 1;
   }
+
+  /*
+    The below call can fail in theory if one of UDFs is constantly invoked,
+    and we do not manage to catch the moment it is not used after several
+    attempts.
+  */
+  if (unregister_udfs()) return 1;
 
   // Play safe, even though the below can't fail at the moment.
   if (unregister_create_privilege()) return 1;
@@ -314,6 +330,8 @@ BEGIN_COMPONENT_REQUIRES(js_lang)
   REQUIRES_SERVICE(mysql_thd_attributes),
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(mysql_thd_store),
+  REQUIRES_SERVICE(mysql_udf_metadata),
+  REQUIRES_SERVICE(udf_registration),
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(js_lang)

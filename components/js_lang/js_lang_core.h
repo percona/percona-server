@@ -174,6 +174,15 @@ class Js_thd {
     return js_thd;
   }
 
+  /** Get Js_thd for current connection/THD, return nullptr if absent. */
+  static Js_thd *get_current_js_thd() {
+    MYSQL_THD thd;
+    always_ok(mysql_service_mysql_current_thread_reader->get(&thd));
+
+    void *opaque = mysql_service_mysql_thd_store->get(thd, s_thd_slot);
+    return reinterpret_cast<Js_thd *>(opaque);
+  }
+
   /**
     Return user@host pair representing user account currently active in the
     connection (it can be different than user that was authenticated at connect
@@ -253,14 +262,53 @@ class Js_thd {
       return v8::Local<v8::Context>::New(isolate_ptr->get_v8_isolate(),
                                          context);
     }
+
+    const std::optional<std::string> &get_last_error() const {
+      return m_last_error;
+    }
+
+    const std::optional<std::string> &get_last_error_info() const {
+      return m_last_error_info;
+    }
+
+    /**
+      Report error from JS parsing or execution that was caught by exception
+      handler to client (SQL core to be exact). Also update information about
+      the last JS error which occurred for this context.
+
+      @param try_catch            Exception handler which caught the error.
+      @param fallback_error_msg   Error message to be used if we fail to get
+                                  one from exception handler.
+    */
+    void report_error(v8::TryCatch &try_catch, const char *fallback_error_msg);
+
+    /**
+      Reset information about last JS error for the specific connection and
+      user pair as if no error happened.
+
+      @retval 1 - if there was a JS error, information about which was reset.
+      @retval 0 - if there was no JS error for this connection and user.
+    */
+    int clear_last_error();
+
+   private:
+    /**
+      Message for the last JS error which happened for the specific connection
+      and user pair.
+    */
+    std::optional<std::string> m_last_error;
+    /**
+      Extended information about the last JS error which happened for the
+      specific connection and user pair.
+    */
+    std::optional<std::string> m_last_error_info;
   };
 
   /**
     Get Auth_id_context representing context for the user account in the
     current connection. Create one if necessary.
   */
-  const Auth_id_context *get_or_create_auth_id_context(
-      const std::string &auth_id) {
+  Auth_id_context *get_or_create_auth_id_context(const std::string &auth_id) {
     auto i = m_auth_id_contexts.find(auth_id);
     if (i == m_auth_id_contexts.end()) {
       // Active user didn't run any JS in this connection before.
@@ -284,6 +332,33 @@ class Js_thd {
     }
 
     return &(i->second);
+  }
+
+  /**
+    Get Auth_id_context representing context for the user account in the
+    current connection. Return nullptr if there is no such context.
+  */
+  Auth_id_context *get_auth_id_context(const std::string &auth_id) {
+    auto i = m_auth_id_contexts.find(auth_id);
+
+    if (i == m_auth_id_contexts.end()) return nullptr;
+
+    return &(i->second);
+  }
+
+  /**
+    Get Auth_id_context representing context for the user account that is active
+    in the current connection. Return nullptr if there is no such context.
+  */
+  static Auth_id_context *get_current_auth_id_context() {
+    Js_thd *js_thd = Js_thd::get_current_js_thd();
+
+    // Handle case when JS was never run in this connection.
+    if (js_thd == nullptr) return nullptr;
+
+    std::string auth_id = js_thd->get_current_auth_id();
+
+    return js_thd->get_auth_id_context(auth_id);
   }
 
   /** Checks if connection executes CREATE FUNCTION or PROCEDURE statement. */
@@ -465,17 +540,17 @@ class Js_sp {
   set_param_func_t prepare_set_param_func(size_t idx);
 
   /**
-    Compile wrapper Function object for routine for the specific JS context.
+    Compile wrapper Function object for routine for the Auth_id_context (and
+    thus JS) context.
 
-    @param isolate  Isolate in which Function object should be prepared.
-    @param context  Context which should be used for preparing Function object.
+    @param auth_id_ctx Auth_id_context for which Function object needs to be
+                       prepared.
 
     @retval Handle for v8::Function object if all went well or empty handle
             in case of failure (the error has been reported already in the
             latter case).
   */
-  v8::Local<v8::Function> prepare_func(v8::Isolate *isolate,
-                                       v8::Local<v8::Context> &context);
+  v8::Local<v8::Function> prepare_func(Js_thd::Auth_id_context *auth_id_ctx);
 
   // Handle for core's stored program object (sp_head).
   stored_program_handle m_sql_sp;
@@ -484,6 +559,8 @@ class Js_sp {
   // Routine type. At the moment we only support functions and procedures in JS.
   enum sp_type { FUNCTION, PROCEDURE };
   sp_type m_type;
+  // "Resource name" for routine, used for error reporting.
+  std::string m_resource_name;
 
   /**
     Wrapped body of stored program which was passed in CREATE FUNCTION/
@@ -545,5 +622,23 @@ bool register_create_privilege();
   @retval True  - Failure (error has been reported).
 */
 bool unregister_create_privilege();
+
+/**
+  Register auxiliary UDFs providing access to additional
+  information about JS component or context.
+
+  @retval False - Success.
+  @retval True  - Failure (error has been reported).
+*/
+bool register_udfs();
+
+/**
+  Unregister auxiliary UDFs providing access to additional
+  information about JS component or context.
+
+  @retval False - Success.
+  @retval True  - Failure (error has been reported).
+*/
+bool unregister_udfs();
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_CORE_H */

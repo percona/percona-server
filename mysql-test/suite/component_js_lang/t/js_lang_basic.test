@@ -3330,6 +3330,222 @@ DROP USER u_dropper@localhost;
 DROP DATABASE mysqltest;
 
 
+--echo
+--echo #
+--echo # Tests for advanced error reporting, JS_GET_LAST_ERROR() and other
+--echo # related UDFs.
+--echo #
+
+DELIMITER |;
+CREATE FUNCTION f_error() RETURNS VARCHAR(100) LANGUAGE JS AS $$
+  function l0() {
+    return "Ooops!"();
+  }
+  function l1() {
+    return l0();
+  }
+  let l2 = (() => { return l1(); });
+  return l2();
+$$|
+CREATE PROCEDURE p_error() LANGUAGE JS AS $$
+  function l0() {
+    return "Ooops!"();
+  }
+  function l1() {
+    return l0();
+  }
+  (() => { return l1(); })();
+$$|
+CREATE FUNCTION f_error_no_stack() RETURNS VARCHAR(100) LANGUAGE JS AS $$
+  function l0() {
+    throw "Ooops!";
+  }
+  function l1() {
+    return l0();
+  }
+  let l2 = (() => { return l1(); });
+  return l2();
+$$|
+CREATE FUNCTION f_error_oneline() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return "Ooops"() $$;
+CREATE FUNCTION f_fine() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42; $$|
+DELIMITER ;|
+
+--echo #
+--echo # Basic tests for both JS_GET_LAST_ERROR() and JS_GET_LAST_ERROR_INFO().
+--echo #
+--error ER_LANGUAGE_COMPONENT
+SELECT f_error();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--error ER_LANGUAGE_COMPONENT
+CALL p_error();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--echo #
+--echo # Case when no stacktrace is available.
+--error ER_LANGUAGE_COMPONENT
+SELECT f_error_no_stack();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--echo #
+--echo # Case with single line function is interesting because it
+--echo # exposed wrapper code in initial implementation of extended
+--echo # error info reporting code.
+--error ER_LANGUAGE_COMPONENT
+SELECT f_error_oneline();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--echo #
+--echo # Note that successfull execution of JS routine doesn't reset error
+--echo # info. This can be useful in case when several JS routines are called
+--echo # in a row.
+SELECT f_fine();
+SELECT js_get_last_error();
+
+--echo #
+--echo # Test JS_CLEAR_LAST_ERROR() UDF (which clears last error state).
+--echo #
+SELECT js_clear_last_error();
+--echo # Note that we return NULL when the last error state was reset, or
+--echo # if no JS error has happened so far.
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--echo #
+--echo # When there is no error state to clear 0 should be returned by
+--echo # JS_CLEAR_LAST_ERROR().
+--echo #
+SELECT js_clear_last_error();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+
+--echo #
+--echo # Now test how these UDF work for cases when there wasn't any JS
+--echo # run for connection or/and user, or when there was no error in it.
+--echo #
+
+--connect (con_root, localhost, root,,)
+--echo #
+--echo # Case when no JS was run in the connection.
+--echo # (User run JS but in another connection).
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+--echo #
+--echo # Let us also check what JS_CLEAR_LAST_ERROR() does in this case.
+SELECT js_clear_last_error();
+
+--echo #
+--echo # Case when user run JS in connection, but there were no error.
+SELECT f_fine();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+SELECT js_clear_last_error();
+
+--disconnect con_root
+--source include/wait_until_disconnected.inc
+--connection default
+
+CREATE USER u_other@localhost;
+GRANT EXECUTE ON test.* TO u_other@localhost;
+CREATE FUNCTION f_invoker() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return 42 $$;
+CREATE FUNCTION f_invoker_error() RETURNS INT SQL SECURITY INVOKER LANGUAGE JS AS $$ return "Not-a-function"() $$;
+--connect (con_other, localhost, u_other,,)
+--echo #
+--echo # Case when user never run any JS at all.
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+SELECT js_clear_last_error();
+
+--echo #
+--echo # Failed execution of SQL SECURITY DEFINER routine with different
+--echo # creator doesn't affect current user's JS error state.
+--error ER_LANGUAGE_COMPONENT
+SELECT f_error();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+SELECT js_clear_last_error();
+
+--echo #
+--echo # Successful execution of SQL SECURITY INVOKER routine does not
+--echo # affect current user's JS error state either.
+SELECT f_invoker();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+SELECT js_clear_last_error();
+
+--echo #
+--echo # OTOH failed execution of SQL SECURITY INVOKER routine does.
+--error ER_LANGUAGE_COMPONENT
+SELECT f_invoker_error();
+SELECT js_get_last_error();
+SELECT js_get_last_error_info();
+SELECT js_clear_last_error();
+
+--disconnect con_other
+--source include/wait_until_disconnected.inc
+--connection default
+
+--echo #
+--echo # Check types, charset and nullability of return values for
+--echo # JS_GET_LAST_ERROR() and friends.
+--echo #
+--error ER_LANGUAGE_COMPONENT
+SELECT f_error();
+CREATE TABLE t_e AS SELECT JS_GET_LAST_ERROR();
+CREATE TABLE t_i AS SELECT JS_GET_LAST_ERROR_INFO();
+CREATE TABLE t_c AS SELECT JS_CLEAR_LAST_ERROR();
+SHOW CREATE TABLE t_e;
+SELECT * FROM t_e;
+SHOW CREATE TABLE t_i;
+SELECT * FROM t_i;
+SHOW CREATE TABLE t_c;
+SELECT * FROM t_c;
+DROP TABLES t_e, t_i, t_c;
+
+--echo #
+--echo # Also test what will happen when UDFs return values with length
+--echo # exceeding their return value type length.
+--echo #
+--let $a70k = `SELECT REPEAT('a', 70000)`
+--echo # CREATE FUNCTION f_huge_error() RETURNS INT LANGUAGE JS AS \$\$ return "Make-the-error-message-big-enough-<70000-a-here>"(); \$\$
+--disable_query_log
+--eval CREATE FUNCTION f_huge_error() RETURNS INT LANGUAGE JS AS \$\$ return "Make-the-error-message-big-enough-$a70k"(); \$\$
+--enable_query_log
+--error ER_LANGUAGE_COMPONENT
+SELECT f_huge_error();
+
+--echo #
+--echo # Should still work fine except CREATE TABLE ... SELECT UDF() case.
+--replace_regex /a{70000}/\<70000-of-a-here\>/ / {70000}/\<70000-of-_-here\>/
+SELECT JS_GET_LAST_ERROR();
+SELECT LENGTH(JS_GET_LAST_ERROR());
+--error ER_DATA_TOO_LONG
+CREATE TABLE t AS SELECT JS_GET_LAST_ERROR();
+
+--replace_regex /a{70000}/\<70000-of-a-here\>/ / {70000}/\<70000-of-_-here\>/
+SELECT JS_GET_LAST_ERROR_INFO();
+SELECT LENGTH(JS_GET_LAST_ERROR_INFO());
+--error ER_DATA_TOO_LONG
+CREATE TABLE t AS SELECT JS_GET_LAST_ERROR_INFO();
+
+SELECT JS_CLEAR_LAST_ERROR();
+
+--echo #
+--echo # Clean-up
+DROP FUNCTION f_huge_error;
+DROP FUNCTION f_error;
+DROP PROCEDURE p_error;
+DROP FUNCTION f_error_no_stack;
+DROP FUNCTION f_error_oneline;
+DROP FUNCTION f_fine;
+DROP FUNCTION f_invoker;
+DROP FUNCTION f_invoker_error;
+DROP USER u_other@localhost;
+
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 
 --echo #

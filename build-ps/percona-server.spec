@@ -262,6 +262,7 @@ Requires:       percona-server-client
 Requires:       percona-icu-data-files
 Requires:       curl
 Requires:       openssl
+Requires:       bash
 %if 0%{?rhel} >= 8
 Requires:  percona-telemetry-agent
 %endif

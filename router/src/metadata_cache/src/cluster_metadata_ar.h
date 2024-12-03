@@ -74,7 +74,7 @@ class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
    * @param [out] instance_id id of the server the metadata was fetched from
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
-   * @throws metadata_cache::metadata_error
+   * @throws metadata_cache::metadata_error on failure
    */
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(

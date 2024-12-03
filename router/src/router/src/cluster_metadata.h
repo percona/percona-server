@@ -115,10 +115,10 @@ class ClusterMetadata {
   /** @brief Verify that host is a valid metadata server
    *
    *
-   * @throws MySQLSession::Error
-   * @throws std::runtime_error
-   * @throws std::out_of_range
-   * @throws std::logic_error
+   * @throws MySQLSession::Error on failure
+   * @throws std::runtime_error on failure
+   * @throws std::out_of_range on failure
+   * @throws std::logic_error on failure
    *
    * checks that the server
    *
@@ -131,10 +131,10 @@ class ClusterMetadata {
   /** @brief Verify that host is a valid cluster member (either Group
    * Replication or ReplicaSet cluster)
    *
-   * @throws MySQLSession::Error
-   * @throws std::runtime_error
-   * @throws std::out_of_range
-   * @throws std::logic_error
+   * @throws MySQLSession::Error on failure
+   * @throws std::runtime_error on failure
+   * @throws std::out_of_range on failure
+   * @throws std::logic_error on failure
    */
   virtual void require_cluster_is_ok() = 0;
 

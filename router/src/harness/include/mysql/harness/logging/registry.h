@@ -364,7 +364,7 @@ void create_module_loggers(Registry &registry, const LogLevel level,
  * @param log_level The log level of the logger
  * @param logger_name The name under which the logger is registered
  *
- * @throws std::logic_error
+ * @throws std::logic_error if there is an error
  */
 HARNESS_EXPORT
 void create_logger(Registry &registry, const LogLevel level,

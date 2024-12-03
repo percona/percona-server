@@ -157,7 +157,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * filters or policies (like target_cluster etc.)
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
-   * @throws metadata_cache::metadata_error
+   * @throws metadata_cache::metadata_error on failure
    */
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(

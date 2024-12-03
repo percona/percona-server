@@ -177,7 +177,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @see has_curves()
    *
    * @param curves colon-separated names of curves
-   * @throws TlsError
+   * @throws TlsError in case of TLS error
    * @throws std::invalid_argument if API isn't supported
    * @see has_set_curves_list()
    */

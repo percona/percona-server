@@ -336,7 +336,7 @@ void clear_registry(Registry &registry);
  * @param main_app_log_domain Log domain (logger id) to be used as the main
  *                            program logger. This logger must exist, because
  *                            log_*() functions might fail
- * @throws std::logic_error
+ * @throws std::logic_error if there is an error
  */
 HARNESS_EXPORT
 void create_module_loggers(Registry &registry, const LogLevel level,
@@ -352,7 +352,7 @@ void create_module_loggers(Registry &registry, const LogLevel level,
  * @param log_level The log level of the logger
  * @param logger_name The name under which the logger is registered
  *
- * @throws std::logic_error
+ * @throws std::logic_error if there is an error
  */
 HARNESS_EXPORT
 void create_logger(Registry &registry, const LogLevel level,

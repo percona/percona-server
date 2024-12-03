@@ -47,7 +47,7 @@ extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
  * created
  * @param level     logging level for the newly create logging handlers
  *
- * @throws std::logic_error
+ * @throws std::logic_error if there is an error
  */
 void HARNESS_EXPORT
 create_plugin_loggers(const mysql_harness::LoaderConfig &config,

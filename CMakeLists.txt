@@ -2202,6 +2202,10 @@ OPTION(WITH_HYPERGRAPH_OPTIMIZER
   ${WITH_HYPERGRAPH_OPTIMIZER_DEFAULT}
   )
 
+
+option(WITH_PERCONA_PROBUILD "Build Percona Server Pro variant" OFF)
+option(PROBUILD "Build Percona Server Pro variant (an alias for WITH_PERCONA_PROBUILD)" OFF)
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 

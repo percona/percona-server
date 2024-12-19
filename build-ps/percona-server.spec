@@ -568,7 +568,6 @@ mkdir debug
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
-  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 # Build full release
@@ -624,7 +623,6 @@ mkdir release
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
-  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 
@@ -1140,6 +1138,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_signal_handler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_native_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_export.so
+
 
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -1191,6 +1193,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_session_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_native_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
@@ -1610,6 +1615,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_destination_status.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_cluster.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlclient.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_server.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysql.so.*

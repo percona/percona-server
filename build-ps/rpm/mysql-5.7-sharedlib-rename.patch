@@ -16,9 +16,9 @@
 -  LINK_LIBRARIES perconaserverclient
 +  LINK_LIBRARIES mysqlclient
    )
- IF (WITH_COREDUMPER)
-   TARGET_LINK_LIBRARIES(mysqltest coredumper)
-@@ -67,23 +67,23 @@
+
+ IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
+@@ -72,23 +72,23 @@
    check/mysqlcheck.cc
    check/mysqlcheck_core.cc
    multi_factor_passwordopt-vars.cc
@@ -46,7 +46,7 @@
    )
 
  OPTION(WITH_JSON_BINLOG_LIBRARY
-@@ -240,7 +240,7 @@
+@@ -256,7 +256,7 @@
 
  SET(MYSQLBINLOG_LIBRARIES
    mysql_binlog_event
@@ -55,7 +55,7 @@
    )
 
  IF(WITH_JSON_BINLOG_LIBRARY)
-@@ -282,20 +282,20 @@
+@@ -298,20 +298,20 @@
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
    multi_factor_passwordopt-vars.cc
@@ -119,9 +119,9 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt
 +++ libmysql/CMakeLists.txt
-@@ -304,15 +304,15 @@
- # authentication mysql_native_password client plug-in
- ADD_SUBDIRECTORY(authentication_native_password)
+@@ -307,15 +307,15 @@
+ # authentication openid connect client plug-in
+ ADD_SUBDIRECTORY(authentication_openid_connect_client)
 
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE}
@@ -138,7 +138,7 @@
 
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -326,13 +326,13 @@
+@@ -350,13 +350,13 @@
      STRING_APPEND(OS_SHARED_LIB_VERSION
        ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
    ENDIF()
@@ -149,24 +149,24 @@
    SET(UNIX_VERSION     VERSION     "${OS_SHARED_LIB_VERSION}")
    SET(UNIX_SOVERSION   SOVERSION   "${SHARED_LIB_MAJOR_VERSION}")
  ENDIF()
- 
+
 -# Merge several convenience libraries into one big perconaserverclient
 +# Merge several convenience libraries into one big mysqlclient
  # and link them together into shared library.
  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
    EXPORTS
-@@ -353,7 +353,7 @@
- 
+@@ -377,7 +377,7 @@
+
  IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
    ADD_DEPENDENCIES(libmysql ${kerberos_target})
 -  ADD_DEPENDENCIES(perconaserverclient ${kerberos_target})
 +  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
  ENDIF()
- 
+
  IF(UNIX)
-@@ -368,8 +368,8 @@
+@@ -392,8 +392,8 @@
    ENDIF()
- 
+
    # clean direct output needs to be set several targets have the same name
 -  #(perconaserverclient in this case)
 -  SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
@@ -174,7 +174,7 @@
 +  SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
  ENDIF()
- 
+
 --- libmysql/libmysql.ver.in
 +++ libmysql/libmysql.ver.in
 @@ -21,5 +21,5 @@
@@ -206,17 +206,6 @@
    ${MYSQLX_CLIENT_FULL_LIB}
    ${MYSQLX_PROTOCOL_FULL_LIB}
    ext::libprotobuf
---- router/src/router/src/CMakeLists.txt
-+++ router/src/router/src/CMakeLists.txt
-@@ -53,7 +53,7 @@
-   PUBLIC
-   harness_stdx
-   harness-library  # log_debug
--  perconaserverclient
-+  mysqlclient
-   )
-
- ROUTER_ADD_SHARED_LIBRARY(router_cluster
 --- scripts/CMakeLists.txt
 +++ scripts/CMakeLists.txt
 @@ -302,7 +302,7 @@ ELSE()
@@ -271,12 +260,16 @@
      ENDIF()
 --- testclients/CMakeLists.txt
 +++ testclients/CMakeLists.txt
-@@ -24,9 +24,9 @@
+@@ -24,7 +24,7 @@
  ADD_WSHADOW_WARNING()
 
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 -TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient extra::rapidjson)
 +TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient extra::rapidjson)
+
+ # We *do* calculate that there is space, see:
+ # printf("Warning: MYSQL_TMP_DIR is too long. Logging is disabled.\n");
+@@ -35,5 +35,5 @@
 
  IF(WITH_UNIT_TESTS)
    MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL EXCLUDE_FROM_PGO)

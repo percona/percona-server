@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+set @prior_slave_rows_search_algorithms=@@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+set @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+CREATE TABLE t1 (i INT, INDEX t1_i(i));
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+UPDATE t1 SET i = 11 WHERE i = 10;
+UPDATE t1 SET i = 12 WHERE i = 11;
+RETURN 0;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+INSERT INTO t1 VALUES (10);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+CREATE FUNCTION f2 () RETURNS INT BEGIN
+UPDATE t1 SET i = 11 WHERE i = 12;
+UPDATE t1 SET i = 13 WHERE i = 11;
+RETURN 0;
+END|
+include/sync_slave_sql_with_master.inc
+[connection master]
+SELECT f2();
+f2()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+[connection master]
+SELECT * FROM t1;
+i
+13
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+[connection slave]
+set @@global.slave_rows_search_algorithms= @prior_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+include/rpl_end.inc

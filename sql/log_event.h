@@ -40,9 +40,9 @@
 #include <functional>
 #include <list>
 #include <map>
-#include <set>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 
 #include "my_aes.h"
 #include "m_string.h"     // native_strncasecmp
@@ -2969,30 +2969,51 @@ class Rows_log_event : public virtual mysql::binlog::event::Rows_event,
   uchar *m_key;                /* Buffer to keep key value during searches */
   uint m_key_index;
   KEY *m_key_info; /* Points to description of index #m_key_index */
-  class Key_compare {
+  class Key_equal {
    public:
     /**
        @param  ki  Where to find KEY description
        @note m_distinct_keys is instantiated when Rows_log_event is constructed;
-       it stores a Key_compare object internally. However at that moment, the
+       it stores a Key_equal object internally. However at that moment, the
        index (KEY*) to use for comparisons, is not yet known. So, at
-       instantiation, we indicate the Key_compare the place where it can
+       instantiation, we indicate the Key_equal the place where it can
        find the KEY* when needed (this place is Rows_log_event::m_key_info),
-       Key_compare remembers the place in member m_key_info.
+       Key_equal remembers the place in member m_key_info.
        Before we need to do comparisons - i.e. before we need to insert
        elements, we update Rows_log_event::m_key_info once for all.
     */
-    Key_compare(KEY **ki = nullptr) : m_key_info(ki) {}
+    Key_equal(KEY **ki = nullptr) : m_key_info(ki) {}
     bool operator()(uchar *k1, uchar *k2) const {
       return key_cmp2((*m_key_info)->key_part, k1, (*m_key_info)->key_length,
-                      k2, (*m_key_info)->key_length) < 0;
+                      k2, (*m_key_info)->key_length) == 0;
     }
 
    private:
     KEY **m_key_info;
   };
-  std::set<uchar *, Key_compare> m_distinct_keys;
-  std::set<uchar *, Key_compare>::iterator m_itr;
+  class Key_hash {
+   public:
+    Key_hash(KEY **ki = nullptr) : m_key_info(ki) {}
+    size_t operator()(uchar *ptr) const {
+      size_t hash = 0;
+      if (ptr) {
+        std::string_view sv{reinterpret_cast<const char *>(ptr),
+                            (*m_key_info)->key_length};
+        return std::hash<std::string_view>{}(sv);
+      }
+      return hash;
+    }
+
+   private:
+    KEY **m_key_info;
+  };
+  std::unordered_set<uchar *, Key_hash, Key_equal> m_distinct_keys;
+
+  /**
+    A linear list to store the distinct keys preserving the insert order
+  */
+  std::vector<uchar *> m_distinct_keys_original_order;
+  std::size_t m_distinct_key_idx = 0;
   /**
     A spare buffer which will be used when saving the distinct keys
     for doing an index scan with HASH_SCAN search algorithm.

@@ -7862,7 +7862,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
       m_curr_row_end(nullptr),
       m_key(nullptr),
       m_key_info(nullptr),
-      m_distinct_keys(Key_compare(&m_key_info)),
+      m_distinct_keys(0, Key_hash(&m_key_info), Key_equal(&m_key_info)),
       m_distinct_key_spare_buf(nullptr) {
   DBUG_TRACE;
   common_header->type_code = event_type;
@@ -7953,7 +7953,7 @@ Rows_log_event::Rows_log_event(
       m_curr_row_end(nullptr),
       m_key(nullptr),
       m_key_info(nullptr),
-      m_distinct_keys(Key_compare(&m_key_info)),
+      m_distinct_keys(0, Key_hash(&m_key_info), Key_equal(&m_key_info)),
       m_distinct_key_spare_buf(nullptr)
 #endif
 {
@@ -9021,9 +9021,9 @@ int Rows_log_event::next_record_scan(bool first_read) {
           marker according to the next key value that we have in the list.
          */
         if (error) {
-          if (m_itr != m_distinct_keys.end()) {
-            m_key = *m_itr;
-            m_itr++;
+          if (m_distinct_key_idx != m_distinct_keys_original_order.size()) {
+            m_key = m_distinct_keys_original_order[m_distinct_key_idx];
+            m_distinct_key_idx++;
             first_read = true;
           } else {
             if (!is_trx_retryable_upon_engine_error(error))
@@ -9057,14 +9057,13 @@ int Rows_log_event::open_record_scan() {
 
   if (m_key_index < MAX_KEY) {
     if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN) {
-      /* initialize the iterator over the list of distinct keys that we have */
-      m_itr = m_distinct_keys.begin();
-
-      /* get the first element from the list of keys and increment the
-         iterator
+      /* Initialize the index to go over the vector of distinct keys */
+      m_distinct_key_idx = 0;
+      /* get the first element from the vector of keys and increment the
+         index
        */
-      m_key = *m_itr;
-      m_itr++;
+      m_key = m_distinct_keys_original_order[m_distinct_key_idx];
+      m_distinct_key_idx++;
     } else {
       /* this is an INDEX_SCAN we need to store the key in m_key */
       assert((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) && m_key);
@@ -9111,9 +9110,9 @@ int Rows_log_event::add_key_to_distinct_keyset() {
   DBUG_TRACE;
   assert(m_key_index < MAX_KEY);
   key_copy(m_distinct_key_spare_buf, m_table->record[0], m_key_info, 0);
-  std::pair<std::set<uchar *, Key_compare>::iterator, bool> ret =
-      m_distinct_keys.insert(m_distinct_key_spare_buf);
+  auto ret = m_distinct_keys.insert(m_distinct_key_spare_buf);
   if (ret.second) {
+    m_distinct_keys_original_order.push_back(m_distinct_key_spare_buf);
     /* Insert is successful, so allocate a new buffer for next key */
     m_distinct_key_spare_buf = (uchar *)thd->alloc(m_key_info->key_length);
     if (!m_distinct_key_spare_buf) {

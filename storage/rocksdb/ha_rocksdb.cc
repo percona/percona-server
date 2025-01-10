@@ -3255,6 +3255,22 @@ Rdb_transaction *Rdb_transaction_list::head{nullptr};
 Rdb_transaction *Rdb_transaction_list::tail{nullptr};
 Rdb_transaction *Rdb_transaction_list::newest_tx_with_snapshot{nullptr};
 
+// Bump an atomic counter that can be read from multiple threads but written
+// only by one thread. More efficient than
+// fetch_add(1, std::memory_order_relaxed);
+template <typename T>
+void private_ctr_inc(T &ctr) noexcept {
+  ctr.store(ctr.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+}
+
+// Decrement an atomic counter that can be read from multiple threads but
+// written only by one thread. More efficient than
+// fetch_sub(1, std::memory_order_relaxed);
+template <typename T>
+void private_ctr_dec(T &ctr) noexcept {
+  ctr.store(ctr.load(std::memory_order_relaxed) - 1, std::memory_order_relaxed);
+}
+
 /*
   Memory a write batch keeps after it is cleared: its buffer keeps its
   capacity, also after a rollback to a savepoint shrank its data.
@@ -3282,13 +3298,44 @@ class Rdb_transaction {
  private:
   friend class Rdb_transaction_list;
 
+  // Accesses from other threads protected by Rdb_transaction_list::mutex
   Rdb_transaction *next{nullptr};
   Rdb_transaction *prev{nullptr};
 
+  /** The timestamp of the earliest snapshot in the transaction, which does not
+  change even if the snapshot gets renewed or released. It is used to ensure
+  that the TTL filtering returns the same set of the rows throughout the
+  transaction lifetime. Zero if the transaction hasn't acquired a snapshot
+  yet. Writes and reads from other threads are protected by
+  Rdb_transaction_list::mutex. */
+  std::int64_t m_earliest_snapshot_ts = 0;
+
+  std::atomic<std::size_t> m_num_ongoing_bulk_load = 0;
+
  protected:
-  ulonglong m_write_count = 0;
+  /// The timestamp of the current snapshot in the transaction
+  std::atomic<std::int64_t> m_snapshot_ts = 0;
+
+  std::atomic<ulonglong> m_write_count = 0;
   // per row data
-  ulonglong m_row_lock_count = 0;
+  std::atomic<ulonglong> m_row_lock_count = 0;
+
+  // Read from other threads, does not change after constructing the object
+  THD *const m_thd;
+
+  /*
+    This is used by transactions started with "START TRANSACTION WITH "
+    "CONSISTENT [ROCKSDB] SNAPSHOT". When tx_read_only is turned on,
+    snapshot has to be created via DB::GetSnapshot(), not via Transaction
+    API. Read from other threads.
+  */
+  std::atomic<bool> m_tx_read_only{false};
+
+  // Cached value of @@rocksdb_lock_wait_timeout
+  std::atomic<int> m_timeout_sec = 0;
+
+  // The remaining fields, including the ones in subclasses, cannot be accessed
+  // from other threads
   std::unordered_map<GL_INDEX_ID, ulonglong> m_auto_incr_map;
 
   bool m_is_delayed_snapshot = false;
@@ -3305,22 +3352,8 @@ class Rdb_transaction {
 
   bool m_ddl_transaction = false;
 
-  /** The timestamp of the earliest snapshot in the transaction, which does not
-  change even if the snapshot gets renewed or released. It is used to ensure
-  that the TTL filtering returns the same set of the rows throughout the
-  transaction lifetime. Zero if the transaction hasn't acquired a snapshot
-  yet. Writes and reads from other threads are protected by
-  Rdb_transaction_list::mutex. */
-  std::int64_t m_earliest_snapshot_ts = 0;
-
  protected:
-  THD *m_thd = nullptr;
-
   Rdb_io_perf *m_tbl_io_perf;
-
-  bool m_tx_read_only = false;
-
-  int m_timeout_sec = 0; /* Cached value of @@rocksdb_lock_wait_timeout */
 
   /* Maximum number of locks the transaction can have */
   ulonglong m_max_row_locks;
@@ -3381,7 +3414,7 @@ class Rdb_transaction {
 
   /*
     for distinction between rdb_transaction_impl and rdb_writebatch_impl
-    when using walk tx list
+    when using walk tx list. Safe to call from other threads.
   */
   virtual bool is_writebatch_trx() const = 0;
 
@@ -3432,6 +3465,7 @@ class Rdb_transaction {
     return ha_rocksdb::rdb_error_to_mysql(s);
   }
 
+  // Safe to call from other threads
   THD *get_thd() const { return m_thd; }
 
   /* Used for tracking io_perf counters */
@@ -3478,9 +3512,10 @@ class Rdb_transaction {
       assert(thd_get_trx_isolation(thd) == ISO_READ_COMMITTED);
       m_max_row_locks = 0;
     } else {
-      m_timeout_sec = THDVAR(thd, lock_wait_timeout);
+      const auto timeout = THDVAR(thd, lock_wait_timeout);
+      m_timeout_sec.store(timeout, std::memory_order_relaxed);
       m_max_row_locks = THDVAR(thd, max_row_locks);
-      set_lock_timeout(m_timeout_sec);
+      set_lock_timeout(timeout);
     }
   }
 
@@ -3491,17 +3526,20 @@ class Rdb_transaction {
 
   [[nodiscard]] bool is_ddl_transaction() const { return m_ddl_transaction; }
 
+  // Safe to call from other threads
   [[nodiscard]] std::int64_t get_earliest_snapshot_ts() const noexcept {
     const auto result = m_earliest_snapshot_ts;
-    // Once it is safe to call get_snapshot_ts from different threads, assert
-    // that its value is not less than the earliest timestamp.
+
+    // A later snapshot can have an older timestamp if the wall clock went
+    // back, so only the sign is checked.
     assert(result >= 0);
+
     return result;
   }
 
-  [[nodiscard]] std::int64_t get_snapshot_ts() const {
-    const auto *const snapshot = m_read_opts.snapshot;
-    const auto result = snapshot != nullptr ? snapshot->GetUnixTime() : 0;
+  // Safe to call from other threads
+  [[nodiscard]] std::int64_t get_snapshot_ts() const noexcept {
+    const auto result = m_snapshot_ts.load(std::memory_order_relaxed);
 
     assert(result >= 0);
     assert(m_earliest_snapshot_ts >= 0);
@@ -3511,19 +3549,25 @@ class Rdb_transaction {
 
   virtual void set_lock_timeout(int timeout_sec_arg) = 0;
 
-  ulonglong get_write_count() const { return m_write_count; }
+  // Safe to call from other threads
+  [[nodiscard]] ulonglong get_write_count() const noexcept {
+    return m_write_count.load(std::memory_order_relaxed);
+  }
 
-  ulonglong get_row_lock_count() const { return m_row_lock_count; }
+  // Safe to call from other threads
+  [[nodiscard]] ulonglong get_row_lock_count() const noexcept {
+    return m_row_lock_count.load(std::memory_order_relaxed);
+  }
 
   void incr_row_lock_count() {
     assert(!is_ac_nl_ro_rc_transaction());
     assert(get_snapshot_ts() != 0);
 
-    ++m_row_lock_count;
+    private_ctr_inc(m_row_lock_count);
   }
 
   ulonglong get_max_row_lock_count() const {
-    assert(m_row_lock_count <= m_max_row_locks || get_thd()->rli_slave);
+    assert(get_row_lock_count() <= m_max_row_locks || get_thd()->rli_slave);
     return m_max_row_locks;
   }
 
@@ -3540,7 +3584,10 @@ class Rdb_transaction {
   }
 #endif
 
-  int get_timeout_sec() const { return m_timeout_sec; }
+  // Safe to call from other threads
+  [[nodiscard]] int get_timeout_sec() const noexcept {
+    return m_timeout_sec.load(std::memory_order_relaxed);
+  }
 
   virtual void set_sync(bool sync) = 0;
 
@@ -3581,6 +3628,10 @@ class Rdb_transaction {
     assert(snapshot != nullptr);
 
     m_read_opts.snapshot = snapshot;
+    auto snapshot_ts = snapshot->GetUnixTime();
+    // Simulate the wall clock going back since the earliest snapshot
+    DBUG_EXECUTE_IF("myrocks_snapshot_clock_back", { snapshot_ts -= 3600; });
+    m_snapshot_ts.store(snapshot_ts, std::memory_order_relaxed);
 
     DEBUG_SYNC(m_thd, "rocksdb_snapshot_before_publication");
     const auto earliest_ts = get_earliest_snapshot_ts();
@@ -3603,6 +3654,8 @@ class Rdb_transaction {
   Rdb_bulk_load_context *get_bulk_load_ctx() {
     if (!m_bulk_load_ctx) {
       m_bulk_load_ctx = get_bulk_load_ctx_from_thd(m_thd);
+      m_num_ongoing_bulk_load.store(m_bulk_load_ctx->num_bulk_load(),
+                                    std::memory_order_relaxed);
     }
     return m_bulk_load_ctx;
   }
@@ -3697,6 +3750,7 @@ class Rdb_transaction {
         commit_bulk_load(is_critical_error, print_client_error, table_arg);
     auto ctx = get_bulk_load_ctx();
     ctx->complete_bulk_load_session(rtn);
+    m_num_ongoing_bulk_load.store(0, std::memory_order_relaxed);
     return rtn;
   }
 
@@ -3715,6 +3769,8 @@ class Rdb_transaction {
     for (const auto &kd : indexes) {
       ctx->discard_index(kd->get_gl_index_id());
     }
+    m_num_ongoing_bulk_load.store(ctx->num_bulk_load(),
+                                  std::memory_order_relaxed);
   }
 
   /* Finish bulk loading for all table handlers belongs to one connection */
@@ -3743,6 +3799,7 @@ class Rdb_transaction {
     Ensure_cleanup cleanup([&]() {
       // Always clear everything regardless of success/failure
       ctx->clear_current_bulk_load();
+      m_num_ongoing_bulk_load.store(0, std::memory_order_relaxed);
     });
 
     int rc = 0;
@@ -3763,7 +3820,7 @@ class Rdb_transaction {
     std::vector<Rdb_sst_info::Rdb_sst_commit_info> sst_commit_list;
     sst_commit_list.reserve(ctx->num_bulk_load());
 
-    for (auto &sst_info : ctx->curr_bulk_load()) {
+    for (const auto &sst_info : ctx->curr_bulk_load()) {
       Rdb_sst_info::Rdb_sst_commit_info commit_info;
 
       // Commit the list of SST files and move it to the end of
@@ -4264,6 +4321,8 @@ class Rdb_transaction {
         rdb, table_handler->m_table_name, kd, *rocksdb_db_options,
         trace_sst_api,
         THDVAR(get_thd(), bulk_load_compression_parallel_threads));
+    m_num_ongoing_bulk_load.store(m_bulk_load_ctx->num_bulk_load(),
+                                  std::memory_order_relaxed);
 
     return HA_EXIT_SUCCESS;
   }
@@ -4274,11 +4333,9 @@ class Rdb_transaction {
     return bulk_load_ctx->notify_ddl(db_name, table_base_name);
   }
 
-  int num_ongoing_bulk_load() const {
-    if (m_bulk_load_ctx) {
-      return m_bulk_load_ctx->num_bulk_load();
-    }
-    return 0;
+  // Safe to call from other threads
+  [[nodiscard]] int num_ongoing_bulk_load() const noexcept {
+    return m_num_ongoing_bulk_load.load(std::memory_order_relaxed);
   }
 
   const char *get_rocksdb_tmpdir() const {
@@ -4450,7 +4507,7 @@ class Rdb_transaction {
       entire transaction.
     */
     do_set_savepoint();
-    m_writes_at_last_savepoint = m_write_count;
+    m_writes_at_last_savepoint = get_write_count();
   }
 
   /*
@@ -4495,7 +4552,8 @@ class Rdb_transaction {
         statement start) because setting a savepoint is cheap.
       */
       do_set_savepoint();
-      m_write_count = m_writes_at_last_savepoint;
+      m_write_count.store(m_writes_at_last_savepoint,
+                          std::memory_order_relaxed);
     }
   }
 
@@ -4524,9 +4582,13 @@ class Rdb_transaction {
     snapshot has to be created via DB::GetSnapshot(), not via Transaction
     API.
   */
-  bool is_tx_read_only() const { return m_tx_read_only; }
+  bool is_tx_read_only() const {
+    return m_tx_read_only.load(std::memory_order_relaxed);
+  }
 
-  void set_tx_read_only(bool val) { m_tx_read_only = val; }
+  void set_tx_read_only(bool val) {
+    m_tx_read_only.store(val, std::memory_order_relaxed);
+  }
 
   void remove_from_global_trx_list(void) {
     DBUG_EXECUTE_IF("rocksdb_trx_list_crash", {
@@ -4624,10 +4686,10 @@ class Rdb_transaction_impl : public Rdb_transaction {
                                      rocksdb::Slice(rowkey));
       // row_lock_count track row(pk)
       assert(!key_descr.is_primary_key() ||
-             (key_descr.is_primary_key() && m_row_lock_count > 0));
+             (key_descr.is_primary_key() && get_row_lock_count() > 0));
       // m_row_lock_count tracks per row data instead of per key data
-      if (key_descr.is_primary_key() && m_row_lock_count > 0) {
-        m_row_lock_count--;
+      if (key_descr.is_primary_key() && get_row_lock_count() > 0) {
+        private_ctr_dec(m_row_lock_count);
       }
     }
   }
@@ -4785,6 +4847,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
       m_read_opts.snapshot = nullptr;
     }
 
+    m_snapshot_ts.store(0, std::memory_order_relaxed);
+
     if (need_clear && m_rocksdb_tx != nullptr) m_rocksdb_tx->ClearSnapshot();
     m_is_delayed_snapshot = false;
   }
@@ -4794,7 +4858,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
                       const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return m_rocksdb_tx->Put(column_family, key, value, assume_tracked);
   }
 
@@ -4803,7 +4867,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
                              const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return m_rocksdb_tx->Delete(column_family, key, assume_tracked);
   }
 
@@ -4812,7 +4876,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
       const rocksdb::Slice &key, const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return m_rocksdb_tx->SingleDelete(column_family, key, assume_tracked);
   }
 
@@ -4833,7 +4897,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
   [[nodiscard]] rocksdb::WriteBatchBase &get_indexed_write_batch() override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return *m_rocksdb_tx->GetWriteBatch();
   }
 
@@ -4872,7 +4936,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     }
     auto restore_wait = create_scope_guard([&]() {
       if (no_wait) {
-        set_lock_timeout(m_timeout_sec);
+        set_lock_timeout(get_timeout_sec());
       }
     });
 
@@ -4885,7 +4949,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
           m_read_opts.snapshot ? do_validate : false);
     } else {
       // If snapshot is set, and if skipping validation,
-      // call GetForUpdate without validation and set back old snapshot
+      // call GetForUpdate without validation and set back old snapshot.
+      // OK to keep publishing the original snapshot timestamp.
       auto saved_snapshot = m_read_opts.snapshot;
       m_read_opts.snapshot = nullptr;
       s = m_rocksdb_tx->GetForUpdate(m_read_opts, column_family, key, value,
@@ -4905,6 +4970,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     return m_rocksdb_tx->GetIterator(options, column_family);
   }
 
+  // TODO(laurynas): unsafely called from other threads
   const rocksdb::Transaction *get_rdb_trx() const { return m_rocksdb_tx.get(); }
 
   bool is_tx_started() const override { return (m_rocksdb_tx != nullptr); }
@@ -4913,7 +4979,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
     rocksdb::TransactionOptions tx_opts;
     rocksdb::WriteOptions write_opts;
     tx_opts.set_snapshot = false;
-    tx_opts.lock_timeout = rdb_convert_sec_to_ms(m_timeout_sec);
+    tx_opts.lock_timeout = rdb_convert_sec_to_ms(get_timeout_sec());
     tx_opts.deadlock_detect = THDVAR(m_thd, deadlock_detect);
     tx_opts.deadlock_detect_depth = THDVAR(m_thd, deadlock_detect_depth);
     // If this variable is set, this will write commit time write batch
@@ -4938,6 +5004,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
     m_read_opts = rocksdb::ReadOptions();
     m_read_opts.ignore_range_deletions =
         !rocksdb_enable_delete_range_for_drop_index;
+    // A failed commit can skip release_snapshot()
+    m_snapshot_ts.store(0, std::memory_order_relaxed);
 
     set_initial_savepoint();
 
@@ -5002,8 +5070,12 @@ class Rdb_transaction_impl : public Rdb_transaction {
       if (org_snapshot != cur_snapshot) {
         m_read_opts.snapshot = cur_snapshot;
         if (cur_snapshot == nullptr) {
+          m_snapshot_ts.store(0, std::memory_order_relaxed);
           m_rocksdb_tx->SetSnapshotOnNextOperation(m_notifier);
           m_is_delayed_snapshot = true;
+        } else {
+          m_snapshot_ts.store(cur_snapshot->GetUnixTime(),
+                              std::memory_order_relaxed);
         }
       }
     }
@@ -5139,6 +5211,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     if (has_snapshot()) {
       rdb->ReleaseSnapshot(m_read_opts.snapshot);
       m_read_opts.snapshot = nullptr;
+      m_snapshot_ts.store(0, std::memory_order_relaxed);
     }
   }
 
@@ -5147,7 +5220,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
                       const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     m_batch.Put(column_family, key, value);
     // Note Put/Delete in write batch doesn't return any error code. We simply
     // return OK here.
@@ -5159,7 +5232,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
                              const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     m_batch.Delete(column_family, key);
     return rocksdb::Status::OK();
   }
@@ -5169,7 +5242,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
       const rocksdb::Slice &key, const bool assume_tracked) override {
     assert(!is_ac_nl_ro_rc_transaction());
 
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return m_batch.SingleDelete(column_family, key);
   }
 
@@ -5183,7 +5256,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
 
   [[nodiscard]] rocksdb::WriteBatchBase &get_indexed_write_batch() override {
     assert(!is_ac_nl_ro_rc_transaction());
-    ++m_write_count;
+    private_ctr_inc(m_write_count);
     return m_batch;
   }
 

@@ -16,6 +16,8 @@
 #ifndef MASKING_FUNCTIONS_CHARSET_STRING_FWD_HPP
 #define MASKING_FUNCTIONS_CHARSET_STRING_FWD_HPP
 
+#include <optional>
+
 namespace masking_functions {
 
 class charset_string;

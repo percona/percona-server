@@ -46,16 +46,17 @@ class udf_context_charset_extension {
   const char *get_return_value_charset(const udf_context &ctx) const {
     void *output = nullptr;
     if (udf_metadata_service_->result_get(ctx.initid_, charset_attribute_name,
-                                          &output))
+                                          &output) != 0)
       throw std::runtime_error{"cannot get return value character set"};
 
     return static_cast<char *>(output);
   }
 
   void set_return_value_charset(udf_context &ctx, const char *charset) const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     void *cs = const_cast<char *>(charset);
     if (udf_metadata_service_->result_set(ctx.initid_, charset_attribute_name,
-                                          cs))
+                                          cs) != 0)
       throw std::runtime_error{"cannot set return value character set"};
   }
 
@@ -66,7 +67,7 @@ class udf_context_charset_extension {
           "cannot get character set of a non-string argument"};
 
     if (udf_metadata_service_->argument_get(ctx.args_, charset_attribute_name,
-                                            index, &output))
+                                            index, &output) != 0)
       throw std::runtime_error{"cannot get argument character set"};
 
     return static_cast<char *>(output);
@@ -74,20 +75,21 @@ class udf_context_charset_extension {
 
   void set_arg_value_charset(udf_context &ctx, std::size_t index,
                              const char *charset) const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     void *cs = const_cast<char *>(charset);
     if (ctx.args_->arg_type[index] != STRING_RESULT)
       throw std::runtime_error{
           "cannot set character set of a non-string argument"};
 
     if (udf_metadata_service_->argument_set(ctx.args_, charset_attribute_name,
-                                            index, cs))
+                                            index, cs) != 0)
       throw std::runtime_error{"cannot set argument value character set"};
   }
 
   const char *get_return_value_collation(const udf_context &ctx) const {
     void *output = nullptr;
     if (udf_metadata_service_->result_get(ctx.initid_, collation_attribute_name,
-                                          &output))
+                                          &output) != 0)
       throw std::runtime_error{"cannot get return value collation"};
 
     return static_cast<char *>(output);
@@ -95,9 +97,10 @@ class udf_context_charset_extension {
 
   void set_return_value_collation(udf_context &ctx,
                                   const char *collation) const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     void *cs = const_cast<char *>(collation);
     if (udf_metadata_service_->result_set(ctx.initid_, collation_attribute_name,
-                                          cs))
+                                          cs) != 0)
       throw std::runtime_error{"cannot set return value collation"};
   }
 
@@ -108,7 +111,7 @@ class udf_context_charset_extension {
       throw std::runtime_error{"cannot get collation of a non-string argument"};
 
     if (udf_metadata_service_->argument_get(ctx.args_, collation_attribute_name,
-                                            index, &output))
+                                            index, &output) != 0)
       throw std::runtime_error{"cannot get argument collation"};
 
     return static_cast<char *>(output);
@@ -116,12 +119,13 @@ class udf_context_charset_extension {
 
   void set_arg_value_collation(udf_context &ctx, std::size_t index,
                                const char *collation) const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     void *cs = const_cast<char *>(collation);
     if (ctx.args_->arg_type[index] != STRING_RESULT)
       throw std::runtime_error{"cannot set collation of a non-string argument"};
 
     if (udf_metadata_service_->argument_set(ctx.args_, collation_attribute_name,
-                                            index, cs))
+                                            index, cs) != 0)
       throw std::runtime_error{"cannot set argument value collation"};
   }
 

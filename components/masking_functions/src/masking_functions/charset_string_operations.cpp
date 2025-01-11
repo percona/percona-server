@@ -17,6 +17,7 @@
 #include "masking_functions/charset_string_operations.hpp"
 
 #include <cassert>
+#include <cctype>
 #include <cstddef>
 #include <locale>
 #include <stdexcept>

@@ -16,13 +16,13 @@
 #ifndef MASKING_FUNCTIONS_CHARSET_STRING_HPP
 #define MASKING_FUNCTIONS_CHARSET_STRING_HPP
 
+#include "masking_functions/charset_string_fwd.hpp"  // IWYU pragma: export
+
 #include <cassert>
 #include <cstdint>
 #include <memory>
 #include <string_view>
 #include <utility>
-
-#include "masking_functions/charset_string_fwd.hpp"
 
 #include "masking_functions/string_service_tuple_fwd.hpp"
 
@@ -89,6 +89,8 @@ class charset_string {
 
   ~charset_string() = default;
 
+  bool is_default_constructed() const noexcept { return !impl_; }
+
   const string_service_tuple &get_services() const noexcept {
     return *impl_.get_deleter().services;
   }
@@ -130,8 +132,10 @@ class charset_string {
 
  private:
   struct deleter {
-    void operator()(void *ptr) const noexcept;
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     const string_service_tuple *services;
+
+    void operator()(void *ptr) const noexcept;
   };
   using impl_type = std::unique_ptr<void, deleter>;
   impl_type impl_;

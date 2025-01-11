@@ -1,0 +1,18 @@
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+INSERT INTO mysql.masking_dictionaries VALUES('dict1', 'term1');
+SET GLOBAL debug = '+d,enable_masking_functions_flusher_create_sync,enable_masking_functions_flush_thread_sync,enable_masking_functions_flush_thread_double_pass';
+SET debug_sync = 'masking_functions_after_flusher_create WAIT_FOR masking_functions_after_flusher_create_signal';
+INSTALL COMPONENT 'file://component_masking_functions';
+SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
+SET debug_sync = 'now SIGNAL masking_functions_after_flusher_create_signal';
+SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
+UNINSTALL COMPONENT 'file://component_masking_functions';
+SET GLOBAL debug = '-d,enable_masking_functions_flusher_create_sync,enable_masking_functions_flush_thread_sync,enable_masking_functions_flush_thread_double_pass';
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP TABLE mysql.masking_dictionaries;
+SET debug_sync = 'RESET';

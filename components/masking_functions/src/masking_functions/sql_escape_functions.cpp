@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 
+#include <my_inttypes.h>
 #include <my_sys.h>
 
 #include "masking_functions/charset_string.hpp"
@@ -40,12 +41,12 @@ std::string escape_string(const charset_string &cs_str) {
   const auto *cs =
       get_charset_by_name(charset_string::utf8mb4_collation_name, MYF(0));
   assert(cs != nullptr);
-  std::size_t r = escape_string_for_mysql(cs, res.data(), max_size,
-                                          buffer.data(), buffer.size());
-  if (r == ~static_cast<std::size_t>(0))
+  std::size_t escaping_result = escape_string_for_mysql(
+      cs, res.data(), max_size, buffer.data(), buffer.size());
+  if (escaping_result == ~static_cast<std::size_t>(0))
     throw std::runtime_error{"cannot escape string for sql"};
 
-  res.resize(r);
+  res.resize(escaping_result);
   return res;
 }
 

@@ -16,11 +16,11 @@
 #ifndef MASKING_FUNCTIONS_COMMAND_SERVICE_TUPLE_HPP
 #define MASKING_FUNCTIONS_COMMAND_SERVICE_TUPLE_HPP
 
+#include "masking_functions/command_service_tuple_fwd.hpp"  // IWYU pragma: export
+
 #include <mysql/components/service.h>
 
 #include <mysql/components/services/mysql_command_services.h>
-
-#include "masking_functions/command_service_tuple_fwd.hpp"
 
 namespace masking_functions {
 
@@ -35,16 +35,22 @@ namespace masking_functions {
 //   mysql_command_query{
 //     mysql_service_mysql_command_query,
 //     mysql_service_mysql_command_query_result,
+//     mysql_service_mysql_command_field_info,
 //     mysql_service_mysql_command_options,
-//     mysql_service_mysql_command_factory
+//     mysql_service_mysql_command_factory,
+//     mysql_service_mysql_command_error_info,
+//     mysql_service_mysql_command_thread
 //   };
 // ...
 // sql_context ctx{primitive_singleton<mysql_command_query>::instance()};
 struct command_service_tuple {
   SERVICE_TYPE(mysql_command_query) * query;
   SERVICE_TYPE(mysql_command_query_result) * query_result;
+  SERVICE_TYPE(mysql_command_field_info) * field_info;
   SERVICE_TYPE(mysql_command_options) * options;
   SERVICE_TYPE(mysql_command_factory) * factory;
+  SERVICE_TYPE(mysql_command_error_info) * error_info;
+  SERVICE_TYPE(mysql_command_thread) * thread;
 };
 
 }  // namespace masking_functions

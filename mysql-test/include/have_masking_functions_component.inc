@@ -8,7 +8,7 @@ if (!$MASKING_FUNCTIONS_COMPONENT) {
 }
 
 #
-## Check if --plugin-dir was setup for component_encryption_udf
+## Check if --plugin-dir was setup for component_masking_functions
 #
 if (`SELECT CONCAT('--plugin-dir=', REPLACE(@@plugin_dir, '\\\\', '/')) != '$MASKING_FUNCTIONS_COMPONENT_OPT/'`) {
     --skip component_masking_functions requires that --plugin-dir is set to the component_masking_functions dir (the .opt file does not contain \$MASKING_FUNCTIONS_COMPONENT_OPT)

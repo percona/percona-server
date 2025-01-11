@@ -26,27 +26,56 @@ endif()
 set(DATAMASKING_SOURCES
   src/component.cpp
 
+  src/masking_functions/bookshelf.cpp
   src/masking_functions/charset_string.cpp
   src/masking_functions/charset_string_operations.cpp
+  src/masking_functions/default_sql_context_builder.cpp
+  src/masking_functions/dictionary.cpp
+  src/masking_functions/dictionary_flusher_thread.cpp
   src/masking_functions/query_builder.cpp
+  src/masking_functions/term_cache.cpp
+  src/masking_functions/term_cache_core.cpp
   src/masking_functions/random_string_generators.cpp
   src/masking_functions/registration_routines.cpp
+  src/masking_functions/server_helpers.cpp
   src/masking_functions/sql_context.cpp
   src/masking_functions/sql_escape_functions.cpp
+  src/masking_functions/static_sql_context_builder.cpp
+  src/masking_functions/sys_vars.cpp
 
+  include/masking_functions/abstract_sql_context_builder_fwd.hpp
+  include/masking_functions/abstract_sql_context_builder.hpp
+  include/masking_functions/bookshelf_fwd.hpp
+  include/masking_functions/bookshelf.hpp
   include/masking_functions/charset_string_fwd.hpp
   include/masking_functions/charset_string.hpp
   include/masking_functions/charset_string_operations.hpp
   include/masking_functions/command_service_tuple_fwd.hpp
   include/masking_functions/command_service_tuple.hpp
+  include/masking_functions/component_sys_variable_service_tuple_fwd.hpp
+  include/masking_functions/component_sys_variable_service_tuple.hpp
+  include/masking_functions/default_sql_context_builder.hpp
+  include/masking_functions/dictionary_fwd.hpp
+  include/masking_functions/dictionary.hpp
+  include/masking_functions/dictionary_flusher_thread_fwd.hpp
+  include/masking_functions/dictionary_flusher_thread.hpp
   include/masking_functions/primitive_singleton.hpp
+  include/masking_functions/query_builder_fwd.hpp
   include/masking_functions/query_builder.hpp
+  include/masking_functions/term_cache_fwd.hpp
+  include/masking_functions/term_cache.hpp
+  include/masking_functions/term_cache_core_fwd.hpp
+  include/masking_functions/term_cache_core.hpp
   include/masking_functions/random_string_generators.hpp
   include/masking_functions/registration_routines.hpp
+  include/masking_functions/server_helpers.hpp
+  include/masking_functions/sql_context_fwd.hpp
   include/masking_functions/sql_context.hpp
   include/masking_functions/sql_escape_functions.hpp
+  include/masking_functions/static_sql_context_builder.hpp
   include/masking_functions/string_service_tuple_fwd.hpp
   include/masking_functions/string_service_tuple.hpp
+  include/masking_functions/sys_vars.hpp
 )
 
 ### Configuration ###

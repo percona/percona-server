@@ -18,6 +18,7 @@
 #define MASKING_FUNCTIONS_RANDOM_STRING_GENERATORS_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -28,7 +29,7 @@ namespace masking_functions {
 
 // An auxiliary enum used to specify desired character type in the
 // 'random_character_class_string' function.
-enum class character_class {
+enum class character_class : std::uint8_t {
   lower_alpha,          // [a-z]
   upper_alpha,          // [A-Z]
   numeric,              // [0-9]

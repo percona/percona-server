@@ -137,6 +137,7 @@ CREATE TABLE mysql.masking_dictionaries(
     Term VARCHAR(256) NOT NULL,
     UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 
 --let $current_user = `SELECT USER()`
 eval GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO $current_user;
@@ -182,6 +183,7 @@ SELECT masking_dictionary_remove('dict1');
 
 --source include/rpl/connection_source.inc
 eval REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM $current_user;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
 DROP TABLE mysql.masking_dictionaries;
 
 --source include/rpl/connection_replica.inc

@@ -14,28 +14,52 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <cassert>
+#include <cstdarg>
+#include <exception>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <utility>
+
 #include <boost/preprocessor/stringize.hpp>
 
-#include <mysql/components/component_implementation.h>
+#include <my_inttypes.h>
+#include <mysqld_error.h>
 
-#include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/my_loglevel.h>
+
+#include <mysql/components/component_implementation.h>
+#include <mysql/components/service.h>
+
+#include <mysql/components/services/component_sys_var_service.h>  // IWYU pragma: keep
 #include <mysql/components/services/log_builtins.h>
-#include <mysql/components/services/mysql_command_services.h>
-#include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/mysql_command_services.h>  // IWYU pragma: keep
+#include <mysql/components/services/mysql_current_thread_reader.h>  // IWYU pragma: keep
+#ifndef NDEBUG
+#include <mysql/components/services/mysql_debug_keyword_service.h>
+#include <mysql/components/services/mysql_debug_sync_service.h>
+#endif
 #include <mysql/components/services/mysql_runtime_error.h>
-#include <mysql/components/services/mysql_string.h>
-#include <mysql/components/services/security_context.h>
-#include <mysql/components/services/udf_metadata.h>
-#include <mysql/components/services/udf_registration.h>
+#include <mysql/components/services/mysql_string.h>  // IWYU pragma: keep
+#include <mysql/components/services/psi_thread.h>
+#include <mysql/components/services/security_context.h>  // IWYU pragma: keep
+#include <mysql/components/services/udf_metadata.h>      // IWYU pragma: keep
+#include <mysql/components/services/udf_registration.h>  // IWYU pragma: keep
 
 #include <mysqlpp/udf_error_reporter.hpp>
 
-#include <mysqld_error.h>
-
 #include "masking_functions/command_service_tuple.hpp"
+#include "masking_functions/component_sys_variable_service_tuple.hpp"
+#include "masking_functions/default_sql_context_builder.hpp"
+#include "masking_functions/dictionary_flusher_thread.hpp"
 #include "masking_functions/primitive_singleton.hpp"
+#include "masking_functions/query_builder.hpp"
 #include "masking_functions/registration_routines.hpp"
 #include "masking_functions/string_service_tuple.hpp"
+#include "masking_functions/sys_vars.hpp"
+#include "masking_functions/term_cache.hpp"
+#include "masking_functions/term_cache_core.hpp"
 
 // defined as a macro because needed both raw and stringized
 #define CURRENT_COMPONENT_NAME masking_functions
@@ -54,8 +78,13 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_compare);
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_query_result);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_command_field_info);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_command_factory);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_command_error_info);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_command_thread);
+
+REQUIRES_PSI_THREAD_SERVICE_PLACEHOLDER;
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
@@ -65,51 +94,68 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 
+#ifndef NDEBUG
+REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_sync_service);
+#endif
+
 SERVICE_TYPE(log_builtins) * log_bi;
 SERVICE_TYPE(log_builtins_string) * log_bs;
 
-static mysql_service_status_t component_init();
-static mysql_service_status_t component_deinit();
+namespace {
 
-static void masking_functions_my_error(int error_id, myf flags, ...) {
+mysql_service_status_t component_init();
+mysql_service_status_t component_deinit();
+
+void masking_functions_my_error(int error_id, myf flags, ...) {
   va_list args;
   va_start(args, flags);
   mysql_service_mysql_runtime_error->emit(error_id, flags, args);
   va_end(args);
 }
 
-static mysql_service_status_t component_init() {
+mysql_service_status_t component_init() {
+  mysql_service_status_t initialization_result{0};
+
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
 
   masking_functions::primitive_singleton<
       masking_functions::string_service_tuple>::instance() =
       masking_functions::string_service_tuple{
-          // TODO: convert this to designated initializers in c++20
-          mysql_service_mysql_charset,
-          mysql_service_mysql_string_factory,
-          mysql_service_mysql_string_charset_converter,
-          mysql_service_mysql_string_get_data_in_charset,
-          mysql_service_mysql_string_append,
-          mysql_service_mysql_string_character_access,
-          mysql_service_mysql_string_byte_access,
-          mysql_service_mysql_string_reset,
-          mysql_service_mysql_string_substr,
-          mysql_service_mysql_string_compare};
+          .charset = mysql_service_mysql_charset,
+          .factory = mysql_service_mysql_string_factory,
+          .converter = mysql_service_mysql_string_charset_converter,
+          .get_data_in_charset = mysql_service_mysql_string_get_data_in_charset,
+          .append = mysql_service_mysql_string_append,
+          .character_access = mysql_service_mysql_string_character_access,
+          .byte_access = mysql_service_mysql_string_byte_access,
+          .reset = mysql_service_mysql_string_reset,
+          .substr = mysql_service_mysql_string_substr,
+          .compare = mysql_service_mysql_string_compare};
   masking_functions::primitive_singleton<
       masking_functions::command_service_tuple>::instance() =
       masking_functions::command_service_tuple{
-          // TODO: convert this to designated initializers in c++20
-          mysql_service_mysql_command_query,
-          mysql_service_mysql_command_query_result,
-          mysql_service_mysql_command_options,
-          mysql_service_mysql_command_factory};
+          .query = mysql_service_mysql_command_query,
+          .query_result = mysql_service_mysql_command_query_result,
+          .field_info = mysql_service_mysql_command_field_info,
+          .options = mysql_service_mysql_command_options,
+          .factory = mysql_service_mysql_command_factory,
+          .error_info = mysql_service_mysql_command_error_info,
+          .thread = mysql_service_mysql_command_thread};
+  masking_functions::primitive_singleton<
+      masking_functions::component_sys_variable_service_tuple>::instance() =
+      masking_functions::component_sys_variable_service_tuple{
+          .registrator = mysql_service_component_sys_variable_register,
+          .unregistrator = mysql_service_component_sys_variable_unregister};
 
   // here we use a custom error reporting function
   // 'masking_functions_my_error()' based on the
@@ -118,28 +164,109 @@ static mysql_service_status_t component_init() {
   // component
   mysqlpp::udf_error_reporter::instance() = &masking_functions_my_error;
 
-  if (!masking_functions::register_dynamic_privileges()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Cannot register dynamic privilege");
-    component_deinit();
-    return 1;
-  }
+  try {
+    if (!masking_functions::register_dynamic_privileges()) {
+      throw std::runtime_error{"Cannot register dynamic privilege"};
+    }
 
-  if (!masking_functions::register_udfs()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot register UDFs");
-    component_deinit();
-    return 1;
-  }
+    if (!masking_functions::register_sys_vars()) {
+      throw std::runtime_error{"Cannot register system variables"};
+    }
 
-  LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                  "Component successfully initialized");
-  return 0;
+    std::string check_error_message;
+    if (!masking_functions::check_sys_vars(check_error_message)) {
+      throw std::runtime_error{check_error_message};
+    }
+
+    if (!masking_functions::register_udfs()) {
+      throw std::runtime_error{"Cannot register UDFs"};
+    }
+
+    auto sql_query_builder{std::make_unique<masking_functions::query_builder>(
+        masking_functions::get_dict_database_name())};
+    masking_functions::primitive_singleton<
+        masking_functions::query_builder_ptr>::instance() =
+        std::move(sql_query_builder);
+
+    const auto &command_services = masking_functions::primitive_singleton<
+        masking_functions::command_service_tuple>::instance();
+
+    auto default_sql_ctx_builder{
+        std::make_shared<masking_functions::default_sql_context_builder>(
+            command_services)};
+
+    // here we create an instance of the 'term_cache_core' class that will
+    // be shared between 'primary_cache' (an instance of the 'term_cache'
+    // created with this core and 'default_sql_context_builder') and another
+    // instance of the 'term_cache' class created inside background thread
+    // handler function with this core and 'static_sql_context_builder'
+    auto cache_core{std::make_shared<masking_functions::term_cache_core>()};
+
+    auto primary_cache{std::make_unique<masking_functions::term_cache>(
+        cache_core, default_sql_ctx_builder)};
+    masking_functions::primitive_singleton<
+        masking_functions::term_cache_ptr>::instance() =
+        std::move(primary_cache);
+
+    const auto flush_interval_seconds{
+        masking_functions::get_flush_interval_seconds()};
+    if (flush_interval_seconds > 0U) {
+      auto flusher{
+          std::make_unique<masking_functions::dictionary_flusher_thread>(
+              cache_core, flush_interval_seconds)};
+
+      masking_functions::primitive_singleton<
+          masking_functions::dictionary_flusher_thread_ptr>::instance() =
+          std::move(flusher);
+
+      // not using 'DBUG_EXECUTE_IF()' macro from the
+      // 'mysql/components/util/debug_execute_if.h' and 'DEBUG_SYNC()' macro
+      // fromthe 'mysql/components/util/debug_sync.h' as they are not supposed
+      // to be used in namespaces (including anonymous)
+#ifndef NDEBUG
+      if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+              "enable_masking_functions_flusher_create_sync") != 0) {
+        MYSQL_THD current_thd{nullptr};
+        mysql_service_mysql_current_thread_reader->get(&current_thd);
+        assert(current_thd != nullptr);
+        mysql_service_mysql_debug_sync_service->debug_sync(
+            current_thd, "masking_functions_after_flusher_create");
+      }
+#endif
+    }
+
+    LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Component successfully initialized");
+  } catch (const std::exception &e) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+    component_deinit();
+    initialization_result = 1;
+  }
+  return initialization_result;
 }
 
-static mysql_service_status_t component_deinit() {
+mysql_service_status_t component_deinit() {
   int result = 0;
+  auto &flusher{masking_functions::primitive_singleton<
+      masking_functions::dictionary_flusher_thread_ptr>::instance()};
+
+  // the destruction of the 'flusher' object will also trigger graceful
+  // background thread termination ('dictionary_flusher_thread' destructor
+  // will set its state to 'stopped' and then will join the thread)
+  flusher.reset();
+
+  masking_functions::primitive_singleton<
+      masking_functions::term_cache_ptr>::instance()
+      .reset();
+
   if (!masking_functions::unregister_udfs()) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Cannot unregister UDFs");
+    result = 1;
+  }
+
+  if (!masking_functions::unregister_sys_vars()) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Cannot unregister system variables");
     result = 1;
   }
 
@@ -158,7 +285,14 @@ static mysql_service_status_t component_deinit() {
   return result;
 }
 
+}  // anonymous namespace
+
 // clang-format off
+
+// NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTBEGIN(bugprone-casting-through-void)
+// NOLINTBEGIN(misc-use-anonymous-namespace)
 BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)
 END_COMPONENT_PROVIDES();
 
@@ -174,10 +308,15 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_string_substr),
   REQUIRES_SERVICE(mysql_string_compare),
 
+  REQUIRES_PSI_THREAD_SERVICE,
+
   REQUIRES_SERVICE(mysql_command_query),
   REQUIRES_SERVICE(mysql_command_query_result),
+  REQUIRES_SERVICE(mysql_command_field_info),
   REQUIRES_SERVICE(mysql_command_options),
   REQUIRES_SERVICE(mysql_command_factory),
+  REQUIRES_SERVICE(mysql_command_error_info),
+  REQUIRES_SERVICE(mysql_command_thread),
 
   REQUIRES_SERVICE(udf_registration),
   REQUIRES_SERVICE(dynamic_privilege_register),
@@ -187,11 +326,19 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(mysql_current_thread_reader),
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(global_grants_check),
+  REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(component_sys_variable_unregister),
 
   REQUIRES_SERVICE(log_builtins),
   REQUIRES_SERVICE(log_builtins_string),
 
   REQUIRES_SERVICE(mysql_runtime_error),
+
+#ifndef NDEBUG
+  REQUIRES_SERVICE(mysql_debug_keyword_service),
+  REQUIRES_SERVICE(mysql_debug_sync_service),
+#endif
+
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)
@@ -207,4 +354,9 @@ END_DECLARE_COMPONENT();
 DECLARE_LIBRARY_COMPONENTS
   &COMPONENT_REF(CURRENT_COMPONENT_NAME)
 END_DECLARE_LIBRARY_COMPONENTS
+// NOLINTEND(misc-use-anonymous-namespace)
+// NOLINTEND(bugprone-casting-through-void)
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
+// NOLINTEND(cppcoreguidelines-pro-type-const-cast)
+
     // clang-format on

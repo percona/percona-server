@@ -17,18 +17,21 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 
+#include <mysql/components/services/mysql_string.h>
+
 #include "masking_functions/string_service_tuple.hpp"
 
 namespace {
-my_h_string to_h_string(void *h) noexcept {
-  return static_cast<my_h_string>(h);
+my_h_string to_h_string(void *handle) noexcept {
+  return static_cast<my_h_string>(handle);
 }
-CHARSET_INFO_h to_cs_info_h(void *h) noexcept {
-  return static_cast<CHARSET_INFO_h>(h);
+CHARSET_INFO_h to_cs_info_h(void *handle) noexcept {
+  return static_cast<CHARSET_INFO_h>(handle);
 }
 }  // anonymous namespace
 
@@ -56,6 +59,7 @@ charset_string::charset_string(const string_service_tuple &services,
   assert(local_handle != nullptr);
   impl_.reset(local_handle);
 
+  assert(buffer.data() != nullptr);
   if ((*get_services().converter->convert_from_buffer)(
           local_handle, buffer.data(), buffer.size(),
           to_cs_info_h(collation)) != 0)
@@ -64,7 +68,7 @@ charset_string::charset_string(const string_service_tuple &services,
 
 std::size_t charset_string::get_size_in_characters() const noexcept {
   assert(impl_);
-  uint size_in_characters = 0;
+  uint size_in_characters = 0;  // NOLINT(misc-include-cleaner)
   [[maybe_unused]] auto status =
       (*get_services().character_access->get_char_length)(
           to_h_string(impl_.get()), &size_in_characters);
@@ -74,7 +78,7 @@ std::size_t charset_string::get_size_in_characters() const noexcept {
 
 std::size_t charset_string::get_size_in_bytes() const noexcept {
   assert(impl_);
-  uint size_in_bytes = 0;
+  uint size_in_bytes = 0;  // NOLINT(misc-include-cleaner)
   [[maybe_unused]] auto status = (*get_services().byte_access->get_byte_length)(
       to_h_string(impl_.get()), &size_in_bytes);
   assert(status == 0);
@@ -90,7 +94,7 @@ void charset_string::clear() noexcept {
 
 std::uint32_t charset_string::operator[](std::size_t index) const noexcept {
   assert(impl_);
-  ulong ch{0};
+  ulong ch{0};  // NOLINT(misc-include-cleaner)
   [[maybe_unused]] auto status = (*get_services().character_access->get_char)(
       to_h_string(impl_.get()), index, &ch);
   assert(status == 0);
@@ -181,10 +185,9 @@ int charset_string::compare(const charset_string &another) const {
   assert(another.impl_);
 
   int result{0};
-  const auto collation = get_collation();
   charset_string conversion_buffer;
   const charset_string &rhs =
-      smart_convert_to_collation(another, collation, conversion_buffer);
+      smart_convert_to_collation(another, get_collation(), conversion_buffer);
 
   [[maybe_unused]] auto status = (*get_services().compare->compare)(
       to_h_string(impl_.get()), to_h_string(rhs.impl_.get()), &result);

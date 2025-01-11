@@ -1,0 +1,37 @@
+CALL mtr.add_suppression("Flusher thread terminated while waiting for session server");
+CALL mtr.add_suppression("Flusher thread terminated after creating internal connection");
+CALL mtr.add_suppression("Server shutdown requested while attempting to establish flusher thread connection");
+INSTALL COMPONENT 'file://component_masking_functions';
+SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
+@@global.masking_functions.dictionaries_flush_interval_seconds
+0
+SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+NAME
+SET GLOBAL masking_functions.dictionaries_flush_interval_seconds=100;
+ERROR HY000: Variable 'masking_functions.dictionaries_flush_interval_seconds' is a read only variable
+SET SESSION masking_functions.dictionaries_flush_interval_seconds=100;
+ERROR HY000: Variable 'masking_functions.dictionaries_flush_interval_seconds' is a read only variable
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+# restart: --masking_functions.dictionaries_flush_interval_seconds=100
+SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
+@@global.masking_functions.dictionaries_flush_interval_seconds
+100
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+SELECT masking_dictionary_term_add('single_dict_1', 'entry_1');
+masking_dictionary_term_add('single_dict_1', 'entry_1')
+1
+SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+NAME
+thread/masking_functions/masking_functions_dict_flusher
+REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM udftest_priv@localhost;
+UNINSTALL COMPONENT 'file://component_masking_functions';
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP USER udftest_priv@localhost;
+DROP TABLE mysql.masking_dictionaries;
+# restart:

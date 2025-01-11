@@ -18,6 +18,7 @@
 #define MASKING_FUNCTIONS_RANDOM_STRING_GENERATORS_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -28,7 +29,7 @@ namespace masking_functions {
 
 // An auxiliary enum used to specify desired character type in the
 // 'random_character_class_string' function.
-enum class character_class {
+enum class character_class : std::uint8_t {
   lower_alpha,          // [a-z]
   upper_alpha,          // [A-Z]
   numeric,              // [0-9]
@@ -59,8 +60,9 @@ inline std::string random_numeric_string(std::size_t length) {
 }
 
 // Returns a random number from the closed interval ['min', 'max'].
-// The behavior is undefined if 'min' > 'max'.
-std::size_t random_number(std::size_t min, std::size_t max);
+// If 'max' < 'min', then this function always return 'min'
+template <typename T>
+T random_number(T min, T max);
 
 // Returns a random American Express / Visa / Mastercard / Discover
 // credit card number that passes basic checksum validation.

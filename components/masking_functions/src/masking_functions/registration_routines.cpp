@@ -19,8 +19,16 @@
 
 #include <algorithm>
 #include <array>
-#include <bitset>
+#include <cassert>
+#include <cctype>
+#include <cstddef>
 #include <locale>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <tuple>
+
+#include <mysql/udf_registration_types.h>
 
 #include <mysql/components/component_implementation.h>
 
@@ -31,16 +39,15 @@
 #include <mysqlpp/udf_context.hpp>
 #include <mysqlpp/udf_context_charset_extension.hpp>
 #include <mysqlpp/udf_registration.hpp>
+#include <mysqlpp/udf_traits.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
 #include "masking_functions/charset_string.hpp"
 #include "masking_functions/charset_string_operations.hpp"
-#include "masking_functions/command_service_tuple.hpp"
 #include "masking_functions/primitive_singleton.hpp"
-#include "masking_functions/query_builder.hpp"
 #include "masking_functions/random_string_generators.hpp"
-#include "masking_functions/sql_context.hpp"
 #include "masking_functions/string_service_tuple.hpp"
+#include "masking_functions/term_cache.hpp"
 
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
@@ -55,10 +62,8 @@ namespace {
 
 using global_string_services = masking_functions::primitive_singleton<
     masking_functions::string_service_tuple>;
-using global_command_services = masking_functions::primitive_singleton<
-    masking_functions::command_service_tuple>;
-using global_query_builder =
-    masking_functions::primitive_singleton<masking_functions::query_builder>;
+using global_term_cache =
+    masking_functions::primitive_singleton<masking_functions::term_cache_ptr>;
 
 constexpr std::string_view masking_dictionaries_privilege_name =
     "MASKING_DICTIONARIES_ADMIN";
@@ -66,19 +71,19 @@ constexpr std::string_view masking_dictionaries_privilege_name =
 // Returns 'true' if current MySQL user has 'MASKING_DICTIONARIES_ADMIN'
 // dynamic privilege
 bool have_masking_admin_privilege() {
-  THD *thd;
-  if (mysql_service_mysql_current_thread_reader->get(&thd)) {
+  THD *thd{nullptr};
+  if (mysql_service_mysql_current_thread_reader->get(&thd) != 0) {
     throw std::runtime_error{"Couldn't query current thd"};
   }
 
-  Security_context_handle sctx;
-  if (mysql_service_mysql_thd_security_context->get(thd, &sctx)) {
+  Security_context_handle sctx{nullptr};
+  if (mysql_service_mysql_thd_security_context->get(thd, &sctx) != 0) {
     throw std::runtime_error{"Couldn't query security context"};
   }
 
   if (mysql_service_global_grants_check->has_global_grant(
           sctx, masking_dictionaries_privilege_name.data(),
-          masking_dictionaries_privilege_name.size()))
+          masking_dictionaries_privilege_name.size()) != 0)
     return true;
 
   return false;
@@ -144,7 +149,7 @@ void set_return_value_collation_from_arg(
 // If <first argument> is less then <second argument>, NULL is returned.
 class gen_range_impl {
  public:
-  gen_range_impl(mysqlpp::udf_context &ctx) {
+  explicit gen_range_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 2)
       throw std::invalid_argument{"Wrong argument list: should be (int, int)"};
 
@@ -158,15 +163,20 @@ class gen_range_impl {
     ctx.set_arg_type(1, INT_RESULT);
   }
 
-  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx) {
+  // original UDF Wrappers design assumed that calculate() won't be a static
+  // member function, however making it static does not do any harm as
+  // static member functions can still be called on an instance of a class
+  static mysqlpp::udf_result_t<INT_RESULT> calculate(
+      const mysqlpp::udf_context &ctx) {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto lower = *ctx.get_arg<INT_RESULT>(0);
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto upper = *ctx.get_arg<INT_RESULT>(1);
 
     if (upper < lower) {
       return std::nullopt;
-    } else {
-      return masking_functions::random_number(lower, upper);
     }
+    return masking_functions::random_number(lower, upper);
   }
 };
 
@@ -189,7 +199,7 @@ class gen_rnd_email_impl {
   static constexpr std::size_t max_surname_length = 1024;
 
  public:
-  gen_rnd_email_impl(mysqlpp::udf_context &ctx) {
+  explicit gen_rnd_email_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() > 3)
       throw std::invalid_argument{
           "Wrong argument list: should be ([int], [int], [string])"};
@@ -222,7 +232,7 @@ class gen_rnd_email_impl {
     }
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     masking_functions::charset_string cs_email_domain;
     if (ctx.get_number_of_args() >= 3) {
@@ -233,9 +243,12 @@ class gen_rnd_email_impl {
           masking_functions::charset_string::default_collation_name};
     }
 
-    const long long name_length = ctx.get_number_of_args() >= 1
-                                      ? *ctx.get_arg<INT_RESULT>(0)
-                                      : default_name_length;
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    const long long name_length =
+        ctx.get_number_of_args() >= 1
+            ? *ctx.get_arg<INT_RESULT>(0)
+            : static_cast<long long>(default_name_length);
+    // NOLINTEND(bugprone-unchecked-optional-access)
     if (name_length <= 0) {
       throw std::invalid_argument{"Name length must be a positive number"};
     }
@@ -245,9 +258,12 @@ class gen_rnd_email_impl {
                                   std::to_string(max_name_length)};
     }
 
-    const long long surname_length = ctx.get_number_of_args() >= 2
-                                         ? *ctx.get_arg<INT_RESULT>(1)
-                                         : default_surname_length;
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    const long long surname_length =
+        ctx.get_number_of_args() >= 2
+            ? *ctx.get_arg<INT_RESULT>(1)
+            : static_cast<long long>(default_surname_length);
+    // NOLINTEND(bugprone-unchecked-optional-access)
     if (surname_length <= 0) {
       throw std::invalid_argument{"Surname length must be a positive number"};
     }
@@ -312,7 +328,7 @@ class gen_rnd_iban_impl {
   }
 
  public:
-  gen_rnd_iban_impl(mysqlpp::udf_context &ctx) {
+  explicit gen_rnd_iban_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() > 2)
       throw std::invalid_argument{
           "Wrong argument list: should be ([string], [int])"};
@@ -340,7 +356,7 @@ class gen_rnd_iban_impl {
     }
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     masking_functions::charset_string cs_country_code;
     if (ctx.get_number_of_args() >= 1) {
@@ -359,9 +375,12 @@ class gen_rnd_iban_impl {
             conversion_buffer);
     validate_ansi_country_code(ascii_country_code);
 
-    const long long iban_length = ctx.get_number_of_args() >= 2
-                                      ? *ctx.get_arg<INT_RESULT>(1)
-                                      : default_number_of_characters;
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    const long long iban_length =
+        ctx.get_number_of_args() >= 2
+            ? *ctx.get_arg<INT_RESULT>(1)
+            : static_cast<long long>(default_number_of_characters);
+    // NOLINTEND(bugprone-unchecked-optional-access)
 
     if (iban_length < 0) {
       throw std::invalid_argument{"IBAN length must not be a negative number"};
@@ -392,7 +411,7 @@ class gen_rnd_iban_impl {
 
 class rnd_impl_base {
  public:
-  rnd_impl_base(mysqlpp::udf_context &ctx) {
+  explicit rnd_impl_base(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 0) {
       throw std::invalid_argument{"Wrong argument list: should be empty"};
     }
@@ -401,9 +420,6 @@ class rnd_impl_base {
     charset_ext.set_return_value_collation(
         ctx, masking_functions::charset_string::default_collation_name);
   }
-
- protected:
-  ~rnd_impl_base() = default;
 };
 
 //
@@ -416,7 +432,8 @@ class rnd_impl_base {
 class gen_rnd_canada_sin_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_canada_sin();
   }
 };
@@ -430,7 +447,8 @@ class gen_rnd_canada_sin_impl final : private rnd_impl_base {
 class gen_rnd_pan_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_credit_card();
   }
 };
@@ -444,7 +462,8 @@ class gen_rnd_pan_impl final : private rnd_impl_base {
 class gen_rnd_ssn_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_ssn();
   }
 };
@@ -458,7 +477,8 @@ class gen_rnd_ssn_impl final : private rnd_impl_base {
 class gen_rnd_uk_nin_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_uk_nin();
   }
 };
@@ -471,7 +491,8 @@ class gen_rnd_uk_nin_impl final : private rnd_impl_base {
 class gen_rnd_us_phone_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_us_phone();
   }
 };
@@ -484,7 +505,8 @@ class gen_rnd_us_phone_impl final : private rnd_impl_base {
 class gen_rnd_uuid_impl final : private rnd_impl_base {
  public:
   using rnd_impl_base::rnd_impl_base;
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
+      const mysqlpp::udf_context & /*unused*/) {
     return masking_functions::random_uuid();
   }
 };
@@ -498,7 +520,7 @@ class gen_rnd_uuid_impl final : private rnd_impl_base {
 // Optional <forth argument> is used as a masking character.
 class mask_inner_impl {
  public:
-  mask_inner_impl(mysqlpp::udf_context &ctx) {
+  explicit mask_inner_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() < 3 || ctx.get_number_of_args() > 4)
       throw std::invalid_argument{
           "Wrong argument list: should be (string, int, int, [char])"};
@@ -525,7 +547,7 @@ class mask_inner_impl {
     set_return_value_collation_from_arg(charset_ext, ctx, 0);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     if (ctx.is_arg_null(0)) return std::nullopt;
 
@@ -534,7 +556,9 @@ class mask_inner_impl {
     const auto masking_char =
         determine_masking_char(ctx, 3, x_ascii_masking_char);
 
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto left_margin = *ctx.get_arg<INT_RESULT>(1);
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto right_margin = *ctx.get_arg<INT_RESULT>(2);
 
     if (left_margin < 0 || right_margin < 0) {
@@ -559,7 +583,7 @@ class mask_inner_impl {
 // Optional <forth argument> is used as a masking character.
 class mask_outer_impl {
  public:
-  mask_outer_impl(mysqlpp::udf_context &ctx) {
+  explicit mask_outer_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() < 3 || ctx.get_number_of_args() > 4)
       throw std::invalid_argument{
           "Wrong argument list: should be (string, int, int [char])"};
@@ -586,7 +610,7 @@ class mask_outer_impl {
     set_return_value_collation_from_arg(charset_ext, ctx, 0);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     if (ctx.is_arg_null(0)) return std::nullopt;
 
@@ -595,7 +619,9 @@ class mask_outer_impl {
     const auto masking_char =
         determine_masking_char(ctx, 3, x_ascii_masking_char);
 
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto left_margin = *ctx.get_arg<INT_RESULT>(1);
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const auto right_margin = *ctx.get_arg<INT_RESULT>(2);
 
     if (left_margin < 0 || right_margin < 0) {
@@ -633,7 +659,7 @@ class mask_impl_base {
       const masking_functions::charset_string &masking_char) const = 0;
 
  public:
-  mask_impl_base(mysqlpp::udf_context &ctx) {
+  explicit mask_impl_base(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() < 1 || ctx.get_number_of_args() > 2)
       throw std::invalid_argument{
           "Wrong argument list: should be (string, [char])"};
@@ -666,11 +692,10 @@ class mask_impl_base {
         throw std::invalid_argument{"Argument must be exactly " +
                                     std::to_string(min_length()) +
                                     " characters"};
-      } else {
-        throw std::invalid_argument{
-            "Argument must be between " + std::to_string(min_length()) +
-            " and " + std::to_string(max_length()) + " characters"};
       }
+      throw std::invalid_argument{"Argument must be between " +
+                                  std::to_string(min_length()) + " and " +
+                                  std::to_string(max_length()) + " characters"};
     }
 
     const auto masking_char =
@@ -682,6 +707,11 @@ class mask_impl_base {
   }
 
  protected:
+  mask_impl_base(const mask_impl_base &) = default;
+  mask_impl_base &operator=(const mask_impl_base &) = default;
+  mask_impl_base(mask_impl_base &&) = default;
+  mask_impl_base &operator=(mask_impl_base &&) = default;
+
   ~mask_impl_base() = default;
 };
 
@@ -701,13 +731,16 @@ class mask_canada_sin_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 9; }
-  virtual std::size_t max_length() const override { return 11; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{9U};
+  static constexpr std::size_t max_length_value{11U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return x_ascii_masking_char;
   }
 
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     if (cs_str.get_size_in_characters() == max_length()) {
@@ -718,11 +751,10 @@ class mask_canada_sin_impl final : private mask_impl_base {
       auto sresult = masking_functions::mask_inner(cs_str, 4, 4, masking_char);
       sresult = masking_functions::mask_inner(sresult, 0, 8, masking_char);
       return masking_functions::mask_inner(sresult, 8, 0, masking_char);
-    } else {
-      // otherwise (no delimiters at all, or just one at an unknown position),
-      // we use 'mask_inner_alphanum()' for the whole range
-      return masking_functions::mask_inner_alphanum(cs_str, 0, 0, masking_char);
     }
+    // otherwise (no delimiters at all, or just one at an unknown position),
+    // we use 'mask_inner_alphanum()' for the whole range
+    return masking_functions::mask_inner_alphanum(cs_str, 0, 0, masking_char);
   }
 };
 
@@ -743,12 +775,15 @@ class mask_iban_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 15; }
-  virtual std::size_t max_length() const override { return 34 + 8; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{15U};
+  static constexpr std::size_t max_length_value{34U + 8U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return star_ascii_masking_char;
   }
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     // as positions of the delimiters may vary, we always use the
@@ -774,13 +809,16 @@ class mask_pan_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 14; }
-  virtual std::size_t max_length() const override { return 19; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{14U};
+  static constexpr std::size_t max_length_value{19U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return x_ascii_masking_char;
   }
 
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     // as positions of the delimiters may vary, we always use the
@@ -806,18 +844,24 @@ class mask_pan_relaxed_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 14; }
-  virtual std::size_t max_length() const override { return 19; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{14U};
+  static constexpr std::size_t max_length_value{19U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return x_ascii_masking_char;
   }
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     // as positions of the delimiters may vary, we always use the
     // 'mask_inner_alphanum()' function for everything except the first 6 and
     // the last 4 characters
-    return masking_functions::mask_inner_alphanum(cs_str, 6, 4, masking_char);
+    static constexpr std::size_t prefix_length{6U};
+    static constexpr std::size_t suffix_length{4U};
+    return masking_functions::mask_inner_alphanum(cs_str, prefix_length,
+                                                  suffix_length, masking_char);
   }
 };
 
@@ -837,12 +881,15 @@ class mask_ssn_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 9; }
-  virtual std::size_t max_length() const override { return 11; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{9U};
+  static constexpr std::size_t max_length_value{11U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return star_ascii_masking_char;
   }
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     if (cs_str.get_size_in_characters() == max_length()) {
@@ -850,13 +897,25 @@ class mask_ssn_impl final : private mask_impl_base {
       // delimiters to be at the predefined positions (after the first 3
       // digits and before the last 4 digits), we just mask everything except
       // the delimiters
-      auto sresult = masking_functions::mask_inner(cs_str, 4, 5, masking_char);
-      return masking_functions::mask_inner(sresult, 0, 8, masking_char);
-    } else {
-      // otherwise (no delimiters at all, or just one at an unknown position),
-      // we use 'mask_inner_alphanum()' for everything except the last 4 digits
-      return masking_functions::mask_inner_alphanum(cs_str, 0, 4, masking_char);
+      static constexpr std::size_t long_first_prefix_length{4U};
+      static constexpr std::size_t long_first_suffix_length{5U};
+      auto sresult =
+          masking_functions::mask_inner(cs_str, long_first_prefix_length,
+                                        long_first_suffix_length, masking_char);
+
+      static constexpr std::size_t long_second_prefix_length{0U};
+      static constexpr std::size_t long_second_suffix_length{8U};
+      return masking_functions::mask_inner(sresult, long_second_prefix_length,
+                                           long_second_suffix_length,
+                                           masking_char);
     }
+    // otherwise (no delimiters at all, or just one at an unknown position),
+    // we use 'mask_inner_alphanum()' for everything except the last 4 digits
+    static constexpr std::size_t short_second_prefix_length{0U};
+    static constexpr std::size_t short_second_suffix_length{4U};
+    return masking_functions::mask_inner_alphanum(
+        cs_str, short_second_prefix_length, short_second_suffix_length,
+        masking_char);
   }
 };
 
@@ -876,12 +935,15 @@ class mask_uk_nin_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 9; }
-  virtual std::size_t max_length() const override { return 11; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{9U};
+  static constexpr std::size_t max_length_value{11U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return star_ascii_masking_char;
   }
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     // as positions of the delimiters may vary, we always use the
@@ -907,12 +969,15 @@ class mask_uuid_impl final : private mask_impl_base {
   using mask_impl_base::mask_impl_base;
 
  private:
-  virtual std::size_t min_length() const override { return 36; }
-  virtual std::size_t max_length() const override { return 36; }
-  virtual std::string_view default_ascii_masking_char() const override {
+  static constexpr std::size_t min_length_value{36U};
+  static constexpr std::size_t max_length_value{36U};
+
+  std::size_t min_length() const override { return min_length_value; }
+  std::size_t max_length() const override { return max_length_value; }
+  std::string_view default_ascii_masking_char() const override {
     return star_ascii_masking_char;
   }
-  virtual masking_functions::charset_string process(
+  masking_functions::charset_string process(
       const masking_functions::charset_string &cs_str,
       const masking_functions::charset_string &masking_char) const override {
     return masking_functions::mask_inner_alphanum(cs_str, 0, 0, masking_char);
@@ -930,7 +995,7 @@ class mask_uuid_impl final : private mask_impl_base {
 // via the third argument, otherwise the original term is returned.
 class gen_blocklist_impl {
  public:
-  gen_blocklist_impl(mysqlpp::udf_context &ctx) {
+  explicit gen_blocklist_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 3)
       throw std::invalid_argument{
           "Wrong argument list: gen_blocklist(string, string, string)"};
@@ -955,7 +1020,7 @@ class gen_blocklist_impl {
     set_return_value_collation_from_arg(charset_ext, ctx, 0);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     if (ctx.is_arg_null(0)) return std::nullopt;
 
@@ -963,38 +1028,24 @@ class gen_blocklist_impl {
     const auto cs_dict_a = make_charset_string_from_arg(ctx, 1);
     const auto cs_dict_b = make_charset_string_from_arg(ctx, 2);
 
-    {
-      masking_functions::sql_context sql_ctx{
-          global_command_services::instance()};
-
-      auto query =
-          global_query_builder::instance().check_term_presence_in_dictionary(
-              cs_dict_a, cs_term);
-      auto sresult = sql_ctx.query_single_value(query);
-
-      if (!sresult) {
-        return {std::string{cs_term.get_buffer()}};
-      }
+    if (!global_term_cache::instance()->contains(cs_dict_a, cs_term)) {
+      return {std::string{cs_term.get_buffer()}};
     }
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
+    const auto cs_random_term =
+        global_term_cache::instance()->get_random(cs_dict_b);
 
-    auto query =
-        global_query_builder::instance().select_random_term_for_dictionary(
-            cs_dict_b);
-    auto sresult = sql_ctx.query_single_value(query);
-
-    if (sresult && sresult->size() > 0) {
-      masking_functions::charset_string utf8_result{
-          global_string_services::instance(), *sresult,
-          masking_functions::charset_string::utf8mb4_collation_name};
-      masking_functions::charset_string conversion_buffer;
-      const auto &cs_result = masking_functions::smart_convert_to_collation(
-          utf8_result, cs_term.get_collation(), conversion_buffer);
-      return {std::string{cs_result.get_buffer()}};
-    } else {
+    if (cs_random_term.is_default_constructed()) {
       return std::nullopt;
     }
+    // random term should be in utf8mb4
+    assert(cs_random_term.get_collation() ==
+           masking_functions::charset_string::get_utf8mb4_collation(
+               global_string_services::instance()));
+    masking_functions::charset_string conversion_buffer;
+    const auto &cs_result = masking_functions::smart_convert_to_collation(
+        cs_random_term, cs_term.get_collation(), conversion_buffer);
+    return {std::string{cs_result.get_buffer()}};
   }
 };
 
@@ -1005,7 +1056,7 @@ class gen_blocklist_impl {
 // specified via the first argument.
 class gen_dictionary_impl {
  public:
-  gen_dictionary_impl(mysqlpp::udf_context &ctx) {
+  explicit gen_dictionary_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 1)
       throw std::invalid_argument{
           "Wrong argument list: gen_dictionary(string)"};
@@ -1023,22 +1074,53 @@ class gen_dictionary_impl {
         ctx, masking_functions::charset_string::default_collation_name);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<STRING_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
+    const auto cs_random_term =
+        global_term_cache::instance()->get_random(cs_dictionary);
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().select_random_term_for_dictionary(
-            cs_dictionary);
-    auto sresult = sql_ctx.query_single_value(query);
-
-    if (sresult && sresult->size() > 0) {
-      return *sresult;
-    } else {
+    if (cs_random_term.is_default_constructed()) {
       return std::nullopt;
     }
+
+    // random term should already be in utf8mb4
+    assert(cs_random_term.get_collation() ==
+           masking_functions::charset_string::get_utf8mb4_collation(
+               global_string_services::instance()));
+    return {std::string{cs_random_term.get_buffer()}};
+  }
+};
+
+//
+// masking_dictionaries_flush()
+//
+// Flush the data from the masking dictionaries table to the memory cache.
+class masking_dictionaries_flush_impl {
+ public:
+  explicit masking_dictionaries_flush_impl(mysqlpp::udf_context &ctx) {
+    if (!have_masking_admin_privilege()) {
+      throw std::invalid_argument{
+          "Function requires " +
+          std::string(masking_dictionaries_privilege_name) + " privilege"};
+    }
+
+    if (ctx.get_number_of_args() > 0)
+      throw std::invalid_argument{
+          "Wrong argument list: masking_dictionaries_flush()"};
+
+    ctx.mark_result_nullable(false);
+    // Calling this UDF two or more times has exactly the same effect as just
+    // calling it once. So, we mark the result as 'const' here so that the
+    // optimizer could use this info to eliminate unnecessary calls.
+    ctx.mark_result_const(true);
+  }
+
+  static mysqlpp::udf_result_t<INT_RESULT> calculate(
+      const mysqlpp::udf_context &ctx [[maybe_unused]]) {
+    global_term_cache::instance()->reload_cache();
+
+    return 1;
   }
 };
 
@@ -1049,7 +1131,7 @@ class gen_dictionary_impl {
 // argument, and all of its terms from the dictionary registry.
 class masking_dictionary_remove_impl {
  public:
-  masking_dictionary_remove_impl(mysqlpp::udf_context &ctx) {
+  explicit masking_dictionary_remove_impl(mysqlpp::udf_context &ctx) {
     if (!have_masking_admin_privilege()) {
       throw std::invalid_argument{
           "Function requires " +
@@ -1060,7 +1142,7 @@ class masking_dictionary_remove_impl {
       throw std::invalid_argument{
           "Wrong argument list: masking_dictionary_remove(string)"};
 
-    ctx.mark_result_nullable(true);
+    ctx.mark_result_nullable(false);
     // Calling this UDF two or more times has exactly the same effect as just
     // calling it once. So, we mark the result as 'const' here so that the
     // optimizer could use this info to eliminate unnecessary calls.
@@ -1069,26 +1151,13 @@ class masking_dictionary_remove_impl {
     // arg0 - dictionary
     ctx.mark_arg_nullable(0, false);
     ctx.set_arg_type(0, STRING_RESULT);
-
-    mysqlpp::udf_context_charset_extension charset_ext{
-        mysql_service_mysql_udf_metadata};
-    charset_ext.set_return_value_collation(
-        ctx, masking_functions::charset_string::default_collation_name);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<INT_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().delete_for_dictionary(cs_dictionary);
-    if (!sql_ctx.execute(query)) {
-      return std::nullopt;
-    } else {
-      return "1";
-    }
+    return global_term_cache::instance()->remove(cs_dictionary) ? 1 : 0;
   }
 };
 
@@ -1099,7 +1168,7 @@ class masking_dictionary_remove_impl {
 // dictionary whose name is specified via the first argument.
 class masking_dictionary_term_add_impl {
  public:
-  masking_dictionary_term_add_impl(mysqlpp::udf_context &ctx) {
+  explicit masking_dictionary_term_add_impl(mysqlpp::udf_context &ctx) {
     if (!have_masking_admin_privilege()) {
       throw std::invalid_argument{
           "Function requires " +
@@ -1111,7 +1180,7 @@ class masking_dictionary_term_add_impl {
           "Wrong argument list: masking_dictionary_term_add(string, "
           "string)"};
 
-    ctx.mark_result_nullable(true);
+    ctx.mark_result_nullable(false);
     // Calling this UDF two or more times has exactly the same effect as just
     // calling it once. So, we mark the result as 'const' here so that the
     // optimizer could use this info to eliminate unnecessary calls.
@@ -1124,28 +1193,15 @@ class masking_dictionary_term_add_impl {
     // arg1 - term
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
-
-    mysqlpp::udf_context_charset_extension charset_ext{
-        mysql_service_mysql_udf_metadata};
-    charset_ext.set_return_value_collation(
-        ctx, masking_functions::charset_string::default_collation_name);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<INT_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
     const auto cs_term = make_charset_string_from_arg(ctx, 1);
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query = global_query_builder::instance().insert_ignore_record(
-        cs_dictionary, cs_term);
-
-    if (!sql_ctx.execute(query)) {
-      return std::nullopt;
-    } else {
-      return "1";
-    }
+    return global_term_cache::instance()->insert(cs_dictionary, cs_term) ? 1
+                                                                         : 0;
   }
 };
 
@@ -1156,7 +1212,7 @@ class masking_dictionary_term_add_impl {
 // dictionary whose name is specified via the first argument.
 class masking_dictionary_term_remove_impl {
  public:
-  masking_dictionary_term_remove_impl(mysqlpp::udf_context &ctx) {
+  explicit masking_dictionary_term_remove_impl(mysqlpp::udf_context &ctx) {
     if (!have_masking_admin_privilege()) {
       throw std::invalid_argument{
           "Function requires " +
@@ -1168,7 +1224,7 @@ class masking_dictionary_term_remove_impl {
           "Wrong argument list: masking_dictionary_term_remove(string, "
           "string)"};
 
-    ctx.mark_result_nullable(true);
+    ctx.mark_result_nullable(false);
     // Calling this UDF two or more times has exactly the same effect as just
     // calling it once. So, we mark the result as 'const' here so that the
     // optimizer could use this info to eliminate unnecessary calls.
@@ -1181,28 +1237,15 @@ class masking_dictionary_term_remove_impl {
     // arg1 - term
     ctx.mark_arg_nullable(1, false);
     ctx.set_arg_type(1, STRING_RESULT);
-
-    mysqlpp::udf_context_charset_extension charset_ext{
-        mysql_service_mysql_udf_metadata};
-    charset_ext.set_return_value_collation(
-        ctx, masking_functions::charset_string::default_collation_name);
   }
 
-  mysqlpp::udf_result_t<STRING_RESULT> calculate(
+  static mysqlpp::udf_result_t<INT_RESULT> calculate(
       const mysqlpp::udf_context &ctx) {
     const auto cs_dictionary = make_charset_string_from_arg(ctx, 0);
     const auto cs_term = make_charset_string_from_arg(ctx, 1);
 
-    masking_functions::sql_context sql_ctx{global_command_services::instance()};
-
-    auto query =
-        global_query_builder::instance().delete_for_dictionary_and_term(
-            cs_dictionary, cs_term);
-    if (!sql_ctx.execute(query)) {
-      return std::nullopt;
-    } else {
-      return "1";
-    }
+    return global_term_cache::instance()->remove(cs_dictionary, cs_term) ? 1
+                                                                         : 0;
   }
 };
 
@@ -1229,12 +1272,14 @@ DECLARE_STRING_UDF_AUTO(mask_uk_nin)
 DECLARE_STRING_UDF_AUTO(mask_uuid)
 DECLARE_STRING_UDF_AUTO(gen_blocklist)
 DECLARE_STRING_UDF_AUTO(gen_dictionary)
-DECLARE_STRING_UDF_AUTO(masking_dictionary_remove)
-DECLARE_STRING_UDF_AUTO(masking_dictionary_term_add)
-DECLARE_STRING_UDF_AUTO(masking_dictionary_term_remove)
+DECLARE_INT_UDF_AUTO(masking_dictionaries_flush)
+DECLARE_INT_UDF_AUTO(masking_dictionary_remove)
+DECLARE_INT_UDF_AUTO(masking_dictionary_term_add)
+DECLARE_INT_UDF_AUTO(masking_dictionary_term_remove)
 
 // TODO: in c++20 (where CTAD works for alias templates) this shoud be changed
 // to 'static const udf_info_container known_udfs'
+// NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
 std::array known_udfs{DECLARE_UDF_INFO_AUTO(gen_range),
                       DECLARE_UDF_INFO_AUTO(gen_rnd_email),
                       DECLARE_UDF_INFO_AUTO(gen_rnd_iban),
@@ -1256,15 +1301,21 @@ std::array known_udfs{DECLARE_UDF_INFO_AUTO(gen_range),
                       DECLARE_UDF_INFO_AUTO(mask_uuid),
                       DECLARE_UDF_INFO_AUTO(gen_blocklist),
                       DECLARE_UDF_INFO_AUTO(gen_dictionary),
+                      DECLARE_UDF_INFO_AUTO(masking_dictionaries_flush),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_remove),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_term_add),
                       DECLARE_UDF_INFO_AUTO(masking_dictionary_term_remove)};
+// NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
+
+namespace {
 
 using udf_bitset_type =
     mysqlpp::udf_bitset<std::tuple_size_v<decltype(known_udfs)>>;
-static udf_bitset_type registered_udfs;
+udf_bitset_type registered_udfs;
 
-static bool privileges_registered = false;
+bool privileges_registered = false;
+
+}  // anonymous namespace
 
 namespace masking_functions {
 

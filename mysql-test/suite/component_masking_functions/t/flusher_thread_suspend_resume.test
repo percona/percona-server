@@ -1,0 +1,71 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_masking_functions_component.inc
+
+# as this test can be run with --repeat=N, we need to be able to select log error records
+# only from the current run - to do so we identify the timestamp of the oldest record
+# at the beginning of the execution
+--let $startup_ts = `SELECT MAX(logged) FROM performance_schema.error_log`
+
+--let $expected_flusher_thread_error = Exception during reloading dictionary cache
+eval CALL mtr.add_suppression("$expected_flusher_thread_error");
+
+--source include/count_sessions.inc
+
+SET GLOBAL debug = '+d,enable_masking_functions_flusher_create_sync,enable_masking_functions_flush_thread_sync,enable_masking_functions_flush_thread_double_pass';
+SET debug_sync = 'masking_functions_after_flusher_create WAIT_FOR masking_functions_after_flusher_create_signal';
+
+send INSTALL COMPONENT 'file://component_masking_functions';
+
+--connect(con_priv,localhost,root,,)
+SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
+
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.error_log WHERE logged >= "$startup_ts" AND prio = "Error" AND data LIKE "%$expected_flusher_thread_error%"] = 1
+--let $assert_text = Server error log must contain an error record from the Dictionary Flusher thread
+--source include/assert.inc
+
+SET debug_sync = 'now SIGNAL masking_functions_after_flusher_create_signal';
+
+--connection default
+--reap
+
+--disconnect con_priv
+
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+
+# Even though the flusher thread is suspended, here the very first call to the 'gen_dictionary()'
+# will trigger cache reloading
+INSERT INTO mysql.masking_dictionaries VALUES('dict1', 'term1');
+--let $assert_cond = gen_dictionary("dict1") = "term1"
+--let $assert_text = The very first call to gen_dictionary("dict1") should trigger inplace cache reload and return "term1"
+--source include/assert.inc
+
+INSERT INTO mysql.masking_dictionaries VALUES('dict2', 'term2');
+--let $assert_cond = gen_dictionary("dict2") IS NULL
+--let $assert_text = The very first call to gen_dictionary("dict2") should not trigger inplace cache reload and return NULL
+--source include/assert.inc
+
+SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
+--let $assert_cond = gen_dictionary("dict1") = "term1"
+--let $assert_text = After resuming flusher thread gen_dictionary("dict1") should still return "term1"
+--source include/assert.inc
+
+--let $assert_cond = gen_dictionary("dict2") = "term2"
+--let $assert_text = After resuming flusher thread gen_dictionary("dict2") should get new values from the cache updated by the flusher and  return "term2"
+--source include/assert.inc
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+SET GLOBAL debug = '-d,enable_masking_functions_flusher_create_sync,enable_masking_functions_flush_thread_sync,enable_masking_functions_flush_thread_double_pass';
+
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP TABLE mysql.masking_dictionaries;
+
+--source include/wait_until_count_sessions.inc
+
+SET debug_sync = 'RESET';

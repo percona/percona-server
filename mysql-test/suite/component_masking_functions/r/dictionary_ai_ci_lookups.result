@@ -1,0 +1,43 @@
+#
+# Checking for proper case-insensitive 'utf8mb4_0900_ai_ci' string
+# comparison in Masking Function dictionary operations
+INSTALL COMPONENT 'file://component_masking_functions';
+CREATE TABLE mysql.masking_dictionaries(
+Dictionary VARCHAR(256) NOT NULL,
+Term VARCHAR(256) NOT NULL,
+UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+#
+# Polulating dictionary 'dict'
+include/assert.inc [The very first masking_dictionary_term_add() must succeed]
+#
+# Checking case-sensitivity and accents in dictionary terms
+include/assert.inc [Terms with differences in case must be considered equal]
+include/assert.inc [Terms with differences in accent must be considered equal]
+include/assert.inc [Terms with differences in both case and accent must be considered equal]
+include/assert.inc [Terms with German Eszett and "ss" must be considered equal]
+include/assert.inc [Terms with German Capital Eszett and "ss" must be considered equal]
+#
+# Checking case-sensitivity and accents in dictionary names
+include/assert.inc [Dictionary names with differences in case must be considered equal]
+include/assert.inc [Dictionary names with differences in accent must be considered equal]
+include/assert.inc [Dictionary names with differences in both case and accent must be considered equal]
+#
+# Polulating dictionary 'dummy' (will be used for substitutions)
+include/assert.inc [The second meaningful call to masking_dictionary_term_add() must succeed]
+#
+# Checking Dictionary Cache case-insensitive accent-aware lookups via gen_blocklist()
+include/assert.inc [Original term must be substituted]
+include/assert.inc [Term with changed case must be substituted]
+include/assert.inc [Term with changed accent must be substituted]
+include/assert.inc [Term with both changed case and changed accent must be substituted]
+include/assert.inc [Terms with German Eszett must be substituted]
+include/assert.inc [Terms with German Capital Eszett must be substituted]
+include/assert.inc [Terms with actual differences must not be substituted]
+DROP USER udftest_priv@localhost;
+UNINSTALL COMPONENT 'file://component_masking_functions';
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP TABLE mysql.masking_dictionaries;

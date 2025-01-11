@@ -6,7 +6,7 @@
 # $expected_collation - the expected collation of the result (optional)
 # $hide_value         - if non-zero, then the $value will be hidden from the assertion statements
 #
-# Only one of the $regexp / $value should be specified - if both, $regexp has precedence
+# Only one of the $regexp / $value should be specified - if both, $value has precedence
 # if $expected_collation is not specified, then the default one for the given $expected_charset will be assumed
 
 eval SET @check_expression_result = $expression;

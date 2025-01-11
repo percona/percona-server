@@ -16,10 +16,10 @@
 #ifndef MASKING_FUNCTIONS_STRING_SERVICE_TUPLE_HPP
 #define MASKING_FUNCTIONS_STRING_SERVICE_TUPLE_HPP
 
+#include "masking_functions/string_service_tuple_fwd.hpp"  // IWYU pragma: export
+
 #include <mysql/components/service.h>
 #include <mysql/components/services/mysql_string.h>
-
-#include "masking_functions/string_service_tuple_fwd.hpp"
 
 namespace masking_functions {
 

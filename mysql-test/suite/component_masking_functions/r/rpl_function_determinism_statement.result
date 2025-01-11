@@ -396,6 +396,7 @@ Dictionary VARCHAR(256) NOT NULL,
 Term VARCHAR(256) NOT NULL,
 UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
 # masking_dictionary_term_add()
 SELECT masking_dictionary_term_add('dict1', 'word11');
@@ -455,6 +456,7 @@ include/rpl/sync_to_replica.inc
 include/assert.inc [mysql.masking_dictionaries must have no records]
 [connection master]
 REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
 DROP TABLE mysql.masking_dictionaries;
 [connection slave]
 UNINSTALL COMPONENT 'file://component_masking_functions';

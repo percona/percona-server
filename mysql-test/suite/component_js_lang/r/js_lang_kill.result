@@ -1,0 +1,71 @@
+INSTALL COMPONENT 'file://component_js_lang';
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+connect  con_killer, localhost, root,,;
+CREATE FUNCTION run_forever() RETURNS INT LANGUAGE JS AS $$ while (true) { } $$;
+CREATE FUNCTION f(i INT) RETURNS INT LANGUAGE JS AS $$ return i * 42 $$;
+#
+# Let us start by testing KILL QUERY handling.
+#
+connect  con_victim, localhost, root,,;
+# Get con_victim's connection_id.
+#
+# Call function which will run forever and try to kill the query.
+SELECT run_forever();;
+connection con_killer;
+# Wait until SELECT query starts to run.
+#
+# We don't have a good 'state' value to ensure that its execution
+# reached the stage of JS code execution. But it is sufficient
+# for the test if it happens occasionally.
+KILL QUERY ID;
+connection con_victim;
+# Reap the SELECT.
+ERROR 70100: Query execution was interrupted
+# Run another function to show that we still can execute JS
+# in connection after it.
+SELECT f(1);
+f(1)
+42
+# Rinse and repeat, to show how it works when functions are cached.
+SELECT run_forever();;
+connection con_killer;
+# Wait until SELECT query starts to run.
+KILL QUERY ID;
+connection con_victim;
+# Reap the SELECT.
+ERROR 70100: Query execution was interrupted
+SELECT f(2);
+f(2)
+84
+#
+# Now, let us test handling of statement timeouts (implemented as a
+# variant of KILL internally).
+#
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ run_forever();
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+SELECT f(3);
+f(3)
+126
+#
+# Then, test KILL also known as KILL CONNECTION.
+#
+SELECT run_forever();;
+connection con_killer;
+# Wait until SELECT query starts to run.
+KILL ID;
+# Try to reap SELECT and see that 'con_victim' connection is closed.
+connection con_victim;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Clean-up.
+#
+connection con_killer;
+disconnect con_killer;
+connection default;
+DROP FUNCTION f;
+DROP FUNCTION run_forever;
+connection default;
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+UNINSTALL COMPONENT 'file://component_js_lang';
+# Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+# restart

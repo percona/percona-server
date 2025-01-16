@@ -1,0 +1,107 @@
+#
+# Test coverage for KILLability and timeout handling in JS routines.
+#
+--source include/have_js_lang_component.inc
+INSTALL COMPONENT 'file://component_js_lang';
+
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+
+--enable_connect_log
+--connect (con_killer, localhost, root,,)
+CREATE FUNCTION run_forever() RETURNS INT LANGUAGE JS AS $$ while (true) { } $$;
+CREATE FUNCTION f(i INT) RETURNS INT LANGUAGE JS AS $$ return i * 42 $$;
+
+--echo #
+--echo # Let us start by testing KILL QUERY handling.
+--echo #
+--connect (con_victim, localhost, root,,)
+--echo # Get con_victim's connection_id.
+--let $id = `SELECT connection_id();`
+
+--echo #
+--echo # Call function which will run forever and try to kill the query.
+--send SELECT run_forever();
+
+--connection con_killer
+--echo # Wait until SELECT query starts to run.
+--echo #
+--echo # We don't have a good 'state' value to ensure that its execution
+--echo # reached the stage of JS code execution. But it is sufficient
+--echo # for the test if it happens occasionally.
+--let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE info = 'SELECT run_forever()' AND state = 'executing'
+--source include/wait_condition.inc
+--replace_result $ID ID
+--eval KILL QUERY $id
+
+--connection con_victim
+--echo # Reap the SELECT.
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--echo # Run another function to show that we still can execute JS
+--echo # in connection after it.
+SELECT f(1);
+
+--echo # Rinse and repeat, to show how it works when functions are cached.
+--send SELECT run_forever();
+--connection con_killer
+--echo # Wait until SELECT query starts to run.
+--let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE info = 'SELECT run_forever()' AND state = 'executing'
+--source include/wait_condition.inc
+--replace_result $ID ID
+--eval KILL QUERY $id
+
+--connection con_victim
+--echo # Reap the SELECT.
+--error ER_QUERY_INTERRUPTED
+--reap
+SELECT f(2);
+
+--echo #
+--echo # Now, let us test handling of statement timeouts (implemented as a
+--echo # variant of KILL internally).
+--echo #
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ run_forever();
+
+SELECT f(3);
+
+--echo #
+--echo # Then, test KILL also known as KILL CONNECTION.
+--echo #
+--send SELECT run_forever();
+
+--connection con_killer
+--echo # Wait until SELECT query starts to run.
+--let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE info = 'SELECT run_forever()' AND state = 'executing'
+--source include/wait_condition.inc
+--replace_result $ID ID
+--eval KILL $id
+
+--echo # Try to reap SELECT and see that 'con_victim' connection is closed.
+--connection con_victim
+--error CR_SERVER_LOST
+--reap
+--source include/wait_until_disconnected.inc
+
+--echo #
+--echo # Clean-up.
+--echo #
+
+--connection con_killer
+--disconnect con_killer
+--source include/wait_until_disconnected.inc
+--connection default
+
+DROP FUNCTION f;
+DROP FUNCTION run_forever;
+
+--connection default
+--disable_connect_log
+
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+
+UNINSTALL COMPONENT 'file://component_js_lang';
+
+--echo # Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+--source include/restart_mysqld.inc

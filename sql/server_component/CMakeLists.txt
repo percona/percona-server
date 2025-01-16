@@ -92,6 +92,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_signal_handler_imp.cc
   applier_metrics_service_imp.cc
   mysql_library_imp.cc
+  mysql_thd_kill_handler_imp.cc
   mysql_json_encode_imp.cc
   mysql_my_thread_imp.cc
   mysql_file_imp.cc

@@ -44,6 +44,8 @@
 
 #include <sstream>
 
+#include <scope_guard.h>
+
 #include "js_lang_common.h"
 
 std::unique_ptr<v8::Platform> Js_v8::s_platform;
@@ -555,6 +557,8 @@ bool Js_sp::execute() {
   // Build array with program parameters.
   v8::Local<v8::Value> *arg_arr = nullptr;
 
+  auto arg_arr_guard = create_scope_guard([&arg_arr]() { delete[] arg_arr; });
+
   if (m_arg_count) {
     arg_arr = new v8::Local<v8::Value>[m_arg_count];
     for (size_t i = 0; i < m_arg_count; ++i) {
@@ -563,21 +567,46 @@ bool Js_sp::execute() {
       if (arg_arr[i].IsEmpty()) {
         // It is responsibility of get_param_func function to
         // report error to user.
-        delete[] arg_arr;
         return true;
       }
     }
   }
 
-  // Call the wrapper function passing parameters to it.
-  v8::Local<v8::Value> result;
-  if (!func->Call(context, context->Global(), m_arg_count, arg_arr)
-           .ToLocal(&result)) {
-    auth_id_ctx->report_error(try_catch, "Unknown execution error");
-    delete[] arg_arr;
+  /*
+    We about to execute JS code, which can take time. Make this execution
+    KILLable by installing a handler to be called when connection/statement
+    is killed (or MAX_EXECUTION_TIME limit is reached).
+    This handler aborts execution of JS code in the connection by calling
+    v8::Isolate::TerminateExecution() method. It gets pointer to Isolate
+    to be aborted as a parameter.
+  */
+  js_thd->install_kill_handler(isolate);
+
+  // But before proceeding, we need to check if we were killed before
+  // handler has been installed and we have not noticed this.
+  bool killed_earlier = js_thd->is_killed();
+
+  v8::MaybeLocal<v8::Value> maybe_result;
+  if (!killed_earlier) {
+    // Call the wrapper function passing parameters to it.
+    maybe_result = func->Call(context, context->Global(), m_arg_count, arg_arr);
+  }
+
+  js_thd->reset_kill_handler();
+
+  if (killed_earlier || js_thd->is_killed() ||
+      isolate->IsExecutionTerminating() /* Extra-safety. */) {
+    isolate->CancelTerminateExecution();
+    // It is responsibility of SQL core to report an error in case when
+    // connection or query was killed.
     return true;
   }
-  delete[] arg_arr;
+
+  v8::Local<v8::Value> result;
+  if (!maybe_result.ToLocal(&result)) {
+    auth_id_ctx->report_error(try_catch, "Unknown execution error");
+    return true;
+  }
 
   if (m_type == Js_sp::FUNCTION) {
     if (m_set_retval_func(context, 0, result)) return true;

@@ -35,6 +35,7 @@
 #include <mysql/components/services/mysql_stored_program.h>
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/components/services/mysql_thd_attributes.h>
+#include <mysql/components/services/mysql_thd_kill_handler.h>
 #include <mysql/components/services/mysql_thd_store_service.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_metadata.h>
@@ -74,6 +75,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_copy_converter);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_kill_handler);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);

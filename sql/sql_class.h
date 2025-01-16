@@ -73,6 +73,7 @@
 #include "mysql/components/services/bits/my_thread_bits.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_thd_kill_handler_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_idle_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
@@ -5310,6 +5311,44 @@ class THD : public MDL_context_owner,
   void inc_fk_cascade_chain_tables() { m_fk_cascade_chain_tables++; }
   void dec_fk_cascade_chain_tables() { m_fk_cascade_chain_tables--; }
   void reset_fk_cascade_chain_tables() { m_fk_cascade_chain_tables = 0; }
+
+ public:
+  /**
+    Install/remove handler to be invoked then this connection or statement
+    in it is killed.
+
+    @param fn     Pointer to handler function to install. Use NULL to remove
+                  installed handler.
+    @param data   Pointer to an auxiliary data to be passed to the handler.
+
+    @note The handler will be executed by a thread other than one handling
+          the connection/statement, so needs to be thread-safe.
+
+    @retval False - success.
+    @retval True -  failure (handler already installed).
+  */
+  bool set_kill_handler(kill_handler_fn fn, void *data) {
+    MUTEX_LOCK(lock, &LOCK_thd_data);
+    // Replacing one non-null handler with another is likely to be bug.
+    if (m_kill_handler_fn != nullptr && fn != nullptr) return true;
+    m_kill_handler_fn = fn;
+    m_kill_handler_data = data;
+    return false;
+  }
+
+ private:
+  /**
+    Handler to be invoked then this connection or statement in it is killed
+    (including timeout case). Components can use this functionality to allow
+    kill to abort some long running or blocking operation in them.
+    'nullptr' when no such callback is present/active for this connection.
+
+    We also store pointer to auxiliary data to be passed to the handler.
+
+    Protected by THD::LOCK_thd_data lock.
+  */
+  kill_handler_fn m_kill_handler_fn{nullptr};
+  void *m_kill_handler_data{nullptr};
 };
 
 /**

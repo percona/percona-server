@@ -61,6 +61,7 @@
 #include "rpl_source.h"  // unregister_slave
 #include "scope_guard.h"
 #include "server_component/mysql_server_event_tracking_bridge_imp.h"
+#include "server_component/mysql_thd_kill_handler_imp.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -1631,6 +1632,17 @@ void THD::awake(THD::killed_state state_to_set) {
 
   /* Interrupt target waiting inside a storage engine. */
   if (state_to_set != THD::NOT_KILLED) ha_kill_connection(this);
+
+  /*
+    If present invoke handler in a component to abort long-running or
+    blocking operation it might be executing.
+  */
+  if (state_to_set != THD::NOT_KILLED) {
+    if (m_kill_handler_fn != nullptr) {
+      Mysql_thd_kill_handler_imp::call_handler(this, m_kill_handler_fn,
+                                               m_kill_handler_data);
+    }
+  }
 
   if (state_to_set == THD::KILL_TIMEOUT) {
     assert(!status_var_aggregated);

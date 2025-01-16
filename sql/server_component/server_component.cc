@@ -93,6 +93,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
+#include "mysql_thd_kill_handler_imp.h"
 #include "mysql_thd_store_imp.h"
 #include "mysql_transaction_delegate_control_imp.h"
 #include "mysqld_error.h"
@@ -586,6 +587,9 @@ END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_status_variable_string)
 mysql_status_variable_reader_imp::get END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_kill_handler)
+Mysql_thd_kill_handler_imp::set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_store)
 Mysql_thd_store_service_imp::register_slot,
     Mysql_thd_store_service_imp::unregister_slot,
@@ -1047,6 +1051,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
     PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
+    PROVIDES_SERVICE(mysql_server, mysql_thd_kill_handler),
     PROVIDES_SERVICE(mysql_server, mysql_thd_store),
     PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
     PROVIDES_SERVICE(mysql_server, dynamic_loader_services_loaded_notification),

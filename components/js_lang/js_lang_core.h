@@ -389,6 +389,33 @@ class Js_thd {
         sctx, CREATE_PRIVILEGE_NAME.data(), CREATE_PRIVILEGE_NAME.length());
   }
 
+  /**
+    Install a handler for the connection that will ensure that JS code
+    execution in isolate will be aborted if connection/statement in it
+    gets killed.
+  */
+  void install_kill_handler(v8::Isolate *isolate) {
+    auto kill_handler_lambda = [](MYSQL_THD /* killed_thd */,
+                                  uint16_t /* state */, void *data) {
+      reinterpret_cast<v8::Isolate *>(data)->TerminateExecution();
+    };
+
+    always_ok(mysql_service_mysql_thd_kill_handler->set(
+        m_thd, kill_handler_lambda, isolate));
+  }
+
+  void reset_kill_handler() {
+    always_ok(
+        mysql_service_mysql_thd_kill_handler->set(m_thd, nullptr, nullptr));
+  }
+
+  /** Check if connection or statement that it executes is killed. */
+  bool is_killed() {
+    uint16_t status;
+    mysql_service_mysql_thd_attributes->get(m_thd, "thd_status", &status);
+    return status != STATUS_SESSION_OK;
+  }
+
  private:
   // Opaque handle for corresponding THD object.
   MYSQL_THD m_thd;

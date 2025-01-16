@@ -64,6 +64,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_copy_converter);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_kill_handler);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
@@ -328,6 +329,7 @@ BEGIN_COMPONENT_REQUIRES(js_lang)
   REQUIRES_SERVICE(mysql_string_factory),
   REQUIRES_SERVICE(mysql_string_get_data_in_charset),
   REQUIRES_SERVICE(mysql_thd_attributes),
+  REQUIRES_SERVICE(mysql_thd_kill_handler),
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(mysql_thd_store),
   REQUIRES_SERVICE(mysql_udf_metadata),

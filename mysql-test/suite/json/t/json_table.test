@@ -1557,3 +1557,26 @@ EXPLAIN FORMAT=TREE DELETE FROM t WHERE EXISTS
 );
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#36606073: json_table and exists make a bug
+--echo #
+
+CREATE TABLE t(x VARCHAR(10));
+INSERT INTO t VALUES ('[1]'), ('[2]'), ('[3]');
+SELECT * FROM t WHERE EXISTS (
+  SELECT * FROM JSON_TABLE(x, '$[*]' COLUMNS (i INT PATH '$')) AS jt WHERE i = 2
+);
+DROP TABLE t;
+
+--echo #
+--echo # PS-9390: JSON_TABLE and EXISTS() does not work
+--echo # https://perconadev.atlassian.net/browse/PS-9390
+--echo #
+
+CREATE TABLE t (id INT PRIMARY KEY, b JSON);
+INSERT INTO t SET id = 1, b = '{"a": [{"b": "1"}]}';
+SELECT * FROM t WHERE EXISTS(SELECT 1 FROM JSON_TABLE(t.b, '$."a"[*]' COLUMNS (col1 VARCHAR(100) PATH '$.b' )) a);
+INSERT INTO t SET id = 2, b = '{"a": [{"b": "2"}]}';
+SELECT * FROM t WHERE EXISTS(SELECT 1 FROM JSON_TABLE(t.b, '$."a"[*]' COLUMNS (col1 VARCHAR(100) PATH '$.b' )) a);
+DROP TABLE t;

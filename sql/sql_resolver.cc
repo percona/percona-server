@@ -107,6 +107,7 @@
 #include "sql/sql_union.h"  // Query_result_union
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/visible_fields.h"
@@ -2178,6 +2179,11 @@ static void fix_tables_after_pullout(Query_block *parent_query_block,
       Note that 'tr' might be a common table expression: it means we now have a
       "lateral CTE".
     */
+  }
+
+  if (tr->is_table_function()) {
+    tr->table_function->fix_after_pullout(parent_query_block,
+                                          removed_query_block);
   }
 }
 

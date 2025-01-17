@@ -158,6 +158,17 @@ class Table_function {
 
   virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg) = 0;
 
+  /**
+    Fix after tables have been moved from one query_block level to the parent
+    level, e.g by semijoin conversion.
+
+    @param parent_query_block  query_block that tables are moved to.
+    @param removed_query_block query_block that tables are moved away from,
+                          child of parent_query_block.
+  */
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block);
+
  private:
   /**
     Get the list of fields to create the result table
@@ -173,6 +184,8 @@ class Table_function {
   virtual bool do_init_args() = 0;
   friend bool Table_ref::setup_table_function(THD *thd);
   virtual void do_cleanup() {}
+  virtual void do_fix_after_pullout(Query_block *parent_query_block,
+                                    Query_block *removed_query_block) = 0;
 };
 
 /****************************************************************************
@@ -431,6 +444,8 @@ class Table_function_json final : public Table_function {
   List<Create_field> *get_field_list() override;
   bool do_init_args() override;
   void do_cleanup() override;
+  void do_fix_after_pullout(Query_block *parent_query_block,
+                            Query_block *removed_query_block) override;
 };
 
 class Table_function_sequence final : public Table_function {
@@ -501,6 +516,8 @@ class Table_function_sequence final : public Table_function {
   virtual List<Create_field> *get_field_list() override;
   virtual bool do_init_args() override;
   virtual void do_cleanup() override;
+  void do_fix_after_pullout(Query_block *parent_query_block,
+                            Query_block *removed_query_block) override;
 
   ulonglong calculate_upper_bound() const;
 };

@@ -95,6 +95,12 @@ bool Table_function::init_args() {
   return false;
 }
 
+void Table_function::fix_after_pullout(Query_block *parent_query_block,
+                                       Query_block *removed_query_block) {
+  do_fix_after_pullout(parent_query_block, removed_query_block);
+  table->pos_in_table_list->dep_tables = used_tables();
+}
+
 /******************************************************************************
   Implementation of JSON_TABLE function
 ******************************************************************************/
@@ -770,6 +776,11 @@ void Table_function_json::do_cleanup() {
   for (uint i = 0; i < m_all_columns.size(); i++) m_all_columns[i]->cleanup();
 }
 
+void Table_function_json::do_fix_after_pullout(
+    Query_block *parent_query_block, Query_block *removed_query_block) {
+  source->fix_after_pullout(parent_query_block, removed_query_block);
+}
+
 void JT_data_source::cleanup() {
   v.clear();
   producing_records = false;
@@ -872,6 +883,11 @@ void Table_function_sequence::do_cleanup() {
   m_vt_list.clear();
   m_upper_bound_precalculated = false;
   m_precalculated_upper_bound = 0;
+}
+
+void Table_function_sequence::do_fix_after_pullout(
+    Query_block *parent_query_block, Query_block *removed_query_block) {
+  m_source->fix_after_pullout(parent_query_block, removed_query_block);
 }
 
 ulonglong Table_function_sequence::calculate_upper_bound() const {

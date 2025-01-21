@@ -26,8 +26,7 @@ namespace masking_functions {
 const charset_string dictionary::shared_empty{};
 
 bool dictionary::contains(const charset_string &term) const noexcept {
-  // TODO: in c++20 change to terms_.contains(term)
-  return terms_.count(term) > 0U;
+  return terms_.contains(term);
 }
 
 const charset_string &dictionary::get_random() const noexcept {

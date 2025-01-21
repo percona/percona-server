@@ -1277,8 +1277,6 @@ DECLARE_INT_UDF_AUTO(masking_dictionary_remove)
 DECLARE_INT_UDF_AUTO(masking_dictionary_term_add)
 DECLARE_INT_UDF_AUTO(masking_dictionary_term_remove)
 
-// TODO: in c++20 (where CTAD works for alias templates) this shoud be changed
-// to 'static const udf_info_container known_udfs'
 // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
 std::array known_udfs{DECLARE_UDF_INFO_AUTO(gen_range),
                       DECLARE_UDF_INFO_AUTO(gen_rnd_email),

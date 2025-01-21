@@ -125,34 +125,31 @@ mysql_service_status_t component_init() {
   masking_functions::primitive_singleton<
       masking_functions::string_service_tuple>::instance() =
       masking_functions::string_service_tuple{
-          // TODO: convert this to designated initializers in c++20
-          mysql_service_mysql_charset,
-          mysql_service_mysql_string_factory,
-          mysql_service_mysql_string_charset_converter,
-          mysql_service_mysql_string_get_data_in_charset,
-          mysql_service_mysql_string_append,
-          mysql_service_mysql_string_character_access,
-          mysql_service_mysql_string_byte_access,
-          mysql_service_mysql_string_reset,
-          mysql_service_mysql_string_substr,
-          mysql_service_mysql_string_compare};
+          .charset = mysql_service_mysql_charset,
+          .factory = mysql_service_mysql_string_factory,
+          .converter = mysql_service_mysql_string_charset_converter,
+          .get_data_in_charset = mysql_service_mysql_string_get_data_in_charset,
+          .append = mysql_service_mysql_string_append,
+          .character_access = mysql_service_mysql_string_character_access,
+          .byte_access = mysql_service_mysql_string_byte_access,
+          .reset = mysql_service_mysql_string_reset,
+          .substr = mysql_service_mysql_string_substr,
+          .compare = mysql_service_mysql_string_compare};
   masking_functions::primitive_singleton<
       masking_functions::command_service_tuple>::instance() =
       masking_functions::command_service_tuple{
-          // TODO: convert this to designated initializers in c++20
-          mysql_service_mysql_command_query,
-          mysql_service_mysql_command_query_result,
-          mysql_service_mysql_command_field_info,
-          mysql_service_mysql_command_options,
-          mysql_service_mysql_command_factory,
-          mysql_service_mysql_command_error_info,
-          mysql_service_mysql_command_thread};
+          .query = mysql_service_mysql_command_query,
+          .query_result = mysql_service_mysql_command_query_result,
+          .field_info = mysql_service_mysql_command_field_info,
+          .options = mysql_service_mysql_command_options,
+          .factory = mysql_service_mysql_command_factory,
+          .error_info = mysql_service_mysql_command_error_info,
+          .thread = mysql_service_mysql_command_thread};
   masking_functions::primitive_singleton<
       masking_functions::component_sys_variable_service_tuple>::instance() =
       masking_functions::component_sys_variable_service_tuple{
-          // TODO: convert this to designated initializers in c++20
-          mysql_service_component_sys_variable_register,
-          mysql_service_component_sys_variable_unregister};
+          .registrator = mysql_service_component_sys_variable_register,
+          .unregistrator = mysql_service_component_sys_variable_unregister};
 
   // here we use a custom error reporting function
   // 'masking_functions_my_error()' based on the

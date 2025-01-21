@@ -2,9 +2,9 @@
 --source include/have_debug_sync.inc
 --source include/have_masking_functions_component.inc
 
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 CREATE TABLE mysql.masking_dictionaries(
     Dictionary VARCHAR(256) NOT NULL,
     Term VARCHAR(256) NOT NULL,
@@ -15,11 +15,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.ses
 SET sql_log_bin = ON;
 
 
---source include/rpl_sync.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
 GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET GLOBAL debug ='+d,enable_masking_functions_flush_thread_sync';
 INSTALL COMPONENT 'file://component_masking_functions';
 SET sql_log_bin = OFF;
@@ -27,26 +27,26 @@ GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
 SET sql_log_bin = ON;
 
 
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 SET GLOBAL debug ='+d,enable_masking_functions_flush_thread_sync';
 INSTALL COMPONENT 'file://component_masking_functions';
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 --let $assert_cond = gen_dictionary("dict1") IS NULL
 --let $assert_text = The very first call to gen_dictionary("dict1") on source must load empty cache and return NULL
 --source include/assert.inc
 
 
---source include/rpl_sync.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
 --let $assert_cond = gen_dictionary("dict1") IS NULL
 --let $assert_text = The very first call to gen_dictionary("dict1") on replica must load empty cache and return NULL
 --source include/assert.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SELECT masking_dictionary_term_add('dict1', 'term1');
 SELECT masking_dictionary_term_add('dict2', 'term2');
 
@@ -59,8 +59,8 @@ SELECT masking_dictionary_term_add('dict2', 'term2');
 --source include/assert.inc
 
 
---source include/rpl_sync.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
 --let $assert_cond = [SELECT COUNT(*) FROM mysql.masking_dictionaries] = 2
 --let $assert_text = The number of dictionary terms on replica after synchronization must be 2
 --source include/assert.inc
@@ -84,7 +84,7 @@ SELECT masking_dictionaries_flush();
 --source include/assert.inc
 
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 INSERT INTO mysql.masking_dictionaries VALUES ('dict3', 'term3');
 
 --let $assert_cond = gen_dictionary("dict3") IS NULL
@@ -98,8 +98,8 @@ SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_F
 --source include/assert.inc
 
 
---source include/rpl_sync.inc
---source include/rpl_connection_slave.inc
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
 --let $assert_cond = [SELECT COUNT(*) FROM mysql.masking_dictionaries] = 3
 --let $assert_text = The number of dictionary terms on replica after the second synchronization must be 3
 --source include/assert.inc
@@ -116,14 +116,14 @@ SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_F
 
 #
 # Cleanup
---source include/rpl_connection_slave.inc
+--source include/rpl/connection_replica.inc
 REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
 SET GLOBAL debug ='-d,enable_masking_functions_flush_thread_sync';
 UNINSTALL COMPONENT 'file://component_masking_functions';
 REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
 SET debug_sync = 'RESET';
 
---source include/rpl_connection_master.inc
+--source include/rpl/connection_source.inc
 SET sql_log_bin = OFF;
 REVOKE MASKING_DICTIONARIES_ADMIN ON *.* FROM root@localhost;
 SET sql_log_bin = ON;
@@ -136,5 +136,5 @@ SET debug_sync = 'RESET';
 
 DROP TABLE mysql.masking_dictionaries;
 
---source include/rpl_sync.inc
---source include/rpl_end.inc
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

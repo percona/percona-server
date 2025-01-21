@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -12,7 +12,7 @@ UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
 SET sql_log_bin = OFF;
 GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 SET sql_log_bin = ON;
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection slave]
 GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 [connection master]
@@ -27,7 +27,7 @@ INSTALL COMPONENT 'file://component_masking_functions';
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO root@localhost;
 [connection master]
 include/assert.inc [The very first call to gen_dictionary("dict1") on source must load empty cache and return NULL]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection slave]
 include/assert.inc [The very first call to gen_dictionary("dict1") on replica must load empty cache and return NULL]
 [connection master]
@@ -39,7 +39,7 @@ masking_dictionary_term_add('dict2', 'term2')
 1
 include/assert.inc [The call to gen_dictionary("dict1") after inserting terms on source must return "term1"]
 include/assert.inc [The call to gen_dictionary("dict2") after inserting terms on source must return "term2"]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection slave]
 include/assert.inc [The number of dictionary terms on replica after synchronization must be 2]
 include/assert.inc [The call to gen_dictionary("dict1") on replica after synchronization but without reloading cache must return NULL]
@@ -54,7 +54,7 @@ INSERT INTO mysql.masking_dictionaries VALUES ('dict3', 'term3');
 include/assert.inc [The call to gen_dictionary("dict3") on source with suspended flusher thread must return NULL]
 SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
 include/assert.inc [The call to gen_dictionary("dict3") on source after resuming flusher thread must return "term3"]
-include/rpl_sync.inc
+include/rpl/sync.inc
 [connection slave]
 include/assert.inc [The number of dictionary terms on replica after the second synchronization must be 3]
 include/assert.inc [The call to gen_dictionary("dict3") on replica with suspended flusher thread must return NULL]
@@ -77,5 +77,5 @@ REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.
 SET sql_log_bin = ON;
 SET debug_sync = 'RESET';
 DROP TABLE mysql.masking_dictionaries;
-include/rpl_sync.inc
-include/rpl_end.inc
+include/rpl/sync.inc
+include/rpl/deinit.inc

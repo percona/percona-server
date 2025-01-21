@@ -28,7 +28,6 @@
 #include <thread>
 #include <utility>
 
-#include <my_dbug.h>
 #include <my_sys.h>
 #include <my_thread.h>
 #include <mysqld_error.h>
@@ -40,6 +39,10 @@
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
+#ifndef NDEBUG
+#include <mysql/components/services/mysql_debug_keyword_service.h>
+#include <mysql/components/services/mysql_debug_sync_service.h>
+#endif
 
 #include <mysql/components/services/bits/my_thread_bits.h>
 #include <mysql/components/services/bits/psi_bits.h>
@@ -58,9 +61,11 @@
 #endif
 #include "masking_functions/static_sql_context_builder.hpp"
 
-#include "sql/debug_sync.h"  // IWYU pragma: keep
-
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+#ifndef NDEBUG
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_sync_service);
+#endif
 
 namespace {
 
@@ -294,8 +299,13 @@ void dictionary_flusher_thread::do_periodic_reload() {
     }
     cache = std::make_unique<term_cache>(cache_core_, sql_ctx_builder);
 
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
-    DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_sync", {
+    // not using 'DBUG_EXECUTE_IF()' macro from the
+    // 'mysql/components/util/debug_execute_if.h' and 'DEBUG_SYNC()' macro
+    // fromthe 'mysql/components/util/debug_sync.h' as they are not supposed
+    // to be used in namespaces (including anonymous)
+#ifndef NDEBUG
+    if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+            "enable_masking_functions_flush_thread_sync") != 0) {
       const sql_context_ptr sql_ctx{sql_ctx_builder->build()};
       std::string wait_action{
           "SET debug_sync = 'masking_functions_before_cache_reload WAIT_FOR "
@@ -303,16 +313,18 @@ void dictionary_flusher_thread::do_periodic_reload() {
       std::string signal_action{
           "SET debug_sync = 'masking_functions_after_cache_reload SIGNAL "
           "masking_functions_after_cache_reload_signal"};
-      DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_double_pass", {
+      if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+              "enable_masking_functions_flush_thread_double_pass") != 0) {
         wait_action += " EXECUTE 2";
         signal_action += " EXECUTE 2";
-      });
+      }
       wait_action += '\'';
       signal_action += '\'';
 
       sql_ctx->execute_dml(wait_action);
       sql_ctx->execute_dml(signal_action);
-    });
+    }
+#endif
   } catch (const std::exception &e) {
     failure_message.emplace(
         "Exception during flusher thread initialization - ");
@@ -352,10 +364,13 @@ void dictionary_flusher_thread::do_periodic_reload() {
   auto expires_at{std::chrono::steady_clock::now()};
   while (!is_terminated_lambda()) {
     if (std::chrono::steady_clock::now() >= expires_at) {
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
-      DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_sync", {
-        DEBUG_SYNC(extracted_thd, "masking_functions_before_cache_reload");
-      });
+#ifndef NDEBUG
+      if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+              "enable_masking_functions_flush_thread_sync") != 0) {
+        mysql_service_mysql_debug_sync_service->debug_sync(
+            extracted_thd, "masking_functions_before_cache_reload");
+      }
+#endif
 
       failure_message.reset();
       try {
@@ -373,10 +388,13 @@ void dictionary_flusher_thread::do_periodic_reload() {
                         failure_message->c_str());
       }
 
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
-      DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_sync", {
-        DEBUG_SYNC(extracted_thd, "masking_functions_after_cache_reload");
-      });
+#ifndef NDEBUG
+      if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+              "enable_masking_functions_flush_thread_sync") != 0) {
+        mysql_service_mysql_debug_sync_service->debug_sync(
+            extracted_thd, "masking_functions_after_cache_reload");
+      }
+#endif
 
       expires_at = std::chrono::steady_clock::now() + flush_interval_duration;
     } else {

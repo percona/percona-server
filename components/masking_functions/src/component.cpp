@@ -24,7 +24,6 @@
 
 #include <boost/preprocessor/stringize.hpp>
 
-#include <my_dbug.h>
 #include <my_inttypes.h>
 #include <mysqld_error.h>
 
@@ -37,6 +36,10 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/mysql_command_services.h>  // IWYU pragma: keep
 #include <mysql/components/services/mysql_current_thread_reader.h>  // IWYU pragma: keep
+#ifndef NDEBUG
+#include <mysql/components/services/mysql_debug_keyword_service.h>
+#include <mysql/components/services/mysql_debug_sync_service.h>
+#endif
 #include <mysql/components/services/mysql_runtime_error.h>
 #include <mysql/components/services/mysql_string.h>  // IWYU pragma: keep
 #include <mysql/components/services/psi_thread.h>
@@ -45,8 +48,6 @@
 #include <mysql/components/services/udf_registration.h>  // IWYU pragma: keep
 
 #include <mysqlpp/udf_error_reporter.hpp>
-
-#include "sql/debug_sync.h"  // IWYU pragma: keep
 
 #include "masking_functions/command_service_tuple.hpp"
 #include "masking_functions/component_sys_variable_service_tuple.hpp"
@@ -100,6 +101,11 @@ REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
+
+#ifndef NDEBUG
+REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_sync_service);
+#endif
 
 SERVICE_TYPE(log_builtins) * log_bi;
 SERVICE_TYPE(log_builtins_string) * log_bs;
@@ -213,13 +219,20 @@ mysql_service_status_t component_init() {
           masking_functions::dictionary_flusher_thread_ptr>::instance() =
           std::move(flusher);
 
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
-      DBUG_EXECUTE_IF("enable_masking_functions_flusher_create_sync", {
-        MYSQL_THD extracted_thd{nullptr};
-        mysql_service_mysql_current_thread_reader->get(&extracted_thd);
-        assert(extracted_thd != nullptr);
-        DEBUG_SYNC(extracted_thd, "masking_functions_after_flusher_create");
-      });
+      // not using 'DBUG_EXECUTE_IF()' macro from the
+      // 'mysql/components/util/debug_execute_if.h' and 'DEBUG_SYNC()' macro
+      // fromthe 'mysql/components/util/debug_sync.h' as they are not supposed
+      // to be used in namespaces (including anonymous)
+#ifndef NDEBUG
+      if (mysql_service_mysql_debug_keyword_service->lookup_debug_keyword(
+              "enable_masking_functions_flusher_create_sync") != 0) {
+        MYSQL_THD current_thd{nullptr};
+        mysql_service_mysql_current_thread_reader->get(&current_thd);
+        assert(current_thd != nullptr);
+        mysql_service_mysql_debug_sync_service->debug_sync(
+            current_thd, "masking_functions_after_flusher_create");
+      }
+#endif
     }
 
     LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
@@ -320,6 +333,12 @@ BEGIN_COMPONENT_REQUIRES(CURRENT_COMPONENT_NAME)
   REQUIRES_SERVICE(log_builtins_string),
 
   REQUIRES_SERVICE(mysql_runtime_error),
+
+#ifndef NDEBUG
+  REQUIRES_SERVICE(mysql_debug_keyword_service),
+  REQUIRES_SERVICE(mysql_debug_sync_service),
+#endif
+
 END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(CURRENT_COMPONENT_NAME)

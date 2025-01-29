@@ -236,6 +236,12 @@ class Connection_handler_manager {
   static void wait_till_no_connection();
 
   /**
+    Performs required initializations after the daemonization of the mysqld
+    process.
+  */
+  void post_daemonize_init();
+
+  /**
     Return number of connections in thread-safe way.
   */
   static uint get_connection_count() {

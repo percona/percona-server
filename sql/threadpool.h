@@ -80,4 +80,7 @@ extern void tp_set_max_threads(uint val);
 extern void tp_set_threadpool_size(uint val) noexcept;
 extern void tp_set_threadpool_stall_limit(uint val) noexcept;
 
+/* Function to start the timer thread */
+extern void tp_start_timer_thread() noexcept;
+
 #endif /* THREADPOOL_INCLUDED */

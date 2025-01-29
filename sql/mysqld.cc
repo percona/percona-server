@@ -8164,6 +8164,11 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
+  // Post daemonization operations performed
+  // such as initializing the timer_thread when using
+  // --thread-handling=pool-of-threads
+  Connection_handler_manager::get_instance()->post_daemonize_init();
+
 #ifndef _WIN32
   user_info = check_user(mysqld_user);
   if (!user_info.IsVoid()) {

@@ -229,6 +229,10 @@ void Connection_handler_manager::wait_till_no_connection() {
   mysql_mutex_unlock(&LOCK_connection_count);
 }
 
+void Connection_handler_manager::post_daemonize_init() {
+  m_connection_handler->post_daemonize_init();
+}
+
 void Connection_handler_manager::destroy_instance() {
   Per_thread_connection_handler::destroy();
 

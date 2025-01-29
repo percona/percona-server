@@ -59,6 +59,12 @@ class Connection_handler {
             by this connection handler.
   */
   virtual uint get_max_threads() const = 0;
+
+  /**
+    Performs required initializations after the daemonization of the mysqld
+    process.
+  */
+  virtual void post_daemonize_init() {}
 };
 
 #endif  // CONNECTION_HANDLER_INCLUDED

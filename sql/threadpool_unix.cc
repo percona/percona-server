@@ -59,6 +59,8 @@ const char *threadpool_high_prio_mode_names[] = {"transactions", "statements",
 
 /** Indicates that threadpool was initialized*/
 static bool threadpool_started = false;
+/** Indicates that timer thread was started*/
+static bool timer_thread_started = false;
 
 /*
   Define PSI Keys for performance schema.
@@ -602,6 +604,7 @@ static void check_stall(thread_group_t *thread_group) {
 static void start_timer(pool_timer_t *timer) noexcept {
   my_thread_handle thread_id;
   DBUG_ENTER("start_timer");
+  timer_thread_started = true;
   mysql_mutex_init(key_timer_mutex, &timer->mutex, NULL);
   mysql_cond_init(key_timer_cond, &timer->cond);
   timer->shutdown = false;
@@ -609,10 +612,16 @@ static void start_timer(pool_timer_t *timer) noexcept {
   DBUG_VOID_RETURN;
 }
 
+void tp_start_timer_thread() noexcept {
+  pool_timer.tick_interval = threadpool_stall_limit;
+  start_timer(&pool_timer);
+}
+
 static void stop_timer(pool_timer_t *timer) noexcept {
   DBUG_ENTER("stop_timer");
   mysql_mutex_lock(&timer->mutex);
   timer->shutdown = true;
+  timer_thread_started = false;
   mysql_cond_signal(&timer->cond);
   mysql_mutex_unlock(&timer->mutex);
   DBUG_VOID_RETURN;
@@ -1488,8 +1497,6 @@ bool tp_init() {
   mysql_thread_register("threadpool", thread_list, array_elements(thread_list));
 #endif
 
-  pool_timer.tick_interval = threadpool_stall_limit;
-  start_timer(&pool_timer);
   DBUG_RETURN(false);
 }
 
@@ -1497,8 +1504,7 @@ void tp_end() noexcept {
   DBUG_ENTER("tp_end");
 
   if (!threadpool_started) DBUG_VOID_RETURN;
-
-  stop_timer(&pool_timer);
+  if (timer_thread_started) stop_timer(&pool_timer);
   for (uint i = 0; i < array_elements(all_groups); i++) {
     thread_group_close(&all_groups[i]);
   }

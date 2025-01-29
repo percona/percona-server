@@ -234,5 +234,11 @@ class Connection_handler_manager {
     wat till connection_count to become zero.
   */
   static void wait_till_no_connection();
+
+  /**
+    Performs required initializations after the daemonization of the mysqld
+    process.
+  */
+  void post_daemonize_init();
 };
 #endif  // CONNECTION_HANDLER_MANAGER_INCLUDED.

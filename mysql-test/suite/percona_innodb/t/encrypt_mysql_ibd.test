@@ -47,4 +47,4 @@ EOF
 --force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $ERROR_LOG
 
---source suite/component_keyring_file/inc/setup_component_customized.inc
+--source suite/component_keyring_file/inc/teardown_component_customized.inc

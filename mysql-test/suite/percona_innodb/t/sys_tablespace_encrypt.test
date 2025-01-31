@@ -449,4 +449,4 @@ SET PERSIST innodb_sys_tablespace_encrypt = ON;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET PERSIST innodb_sys_tablespace_encrypt = OFF;
 
---source suite/component_keyring_file/inc/setup_component_customized.inc
+--source suite/component_keyring_file/inc/teardown_component_customized.inc

@@ -34,18 +34,18 @@ include/start_slave.inc
 # Verify processlist user name is 'system_user'.
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Create user 'test_processlist' then restart the replica and verify that
 # the processlist user name for the replica threads is 'system user'.
@@ -64,19 +64,19 @@ include/start_slave.inc
 # Verify processlist user name is 'system_user' for the replica threads.
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	test_processlist	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+<Id>	test_processlist	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 
 # Clean up.
 

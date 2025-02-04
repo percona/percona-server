@@ -56,6 +56,10 @@
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
 
+# Pass path to v8 lib
+%{?with_js_lang: %global js_lang_option -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=%{with_js_lang}/include -DV8_LIB_DIR=%{with_js_lang}/out.gn/static/obj}
+%{?with_js_lang: %global js_lang 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -575,6 +579,7 @@ mkdir debug
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?js_lang_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -630,6 +635,7 @@ mkdir release
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?js_lang_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -1212,6 +1218,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif
 # Percona plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_js_lang.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
 #%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so

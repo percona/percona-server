@@ -39,7 +39,7 @@ TAR=${TAR:-tar}
 if ! getopt --test
 then
     go_out="$(getopt --options=iqdvj:m:t: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-ssl:,tag: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-v8:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -82,6 +82,11 @@ do
     -m | --with-mecab )
         shift
         WITH_MECAB_OPTION="-DWITH_MECAB=$1"
+        shift
+        ;;
+    -v8 | --with-v8 )
+        shift
+        WITH_V8="$1"
         shift
         ;;
     --with-ssl )
@@ -275,6 +280,7 @@ fi
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
 	-DWITH_PERCONA_TELEMETRY=ON \
+        -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=${WITH_V8}/include -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET

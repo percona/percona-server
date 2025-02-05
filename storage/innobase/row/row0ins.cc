@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -550,6 +550,11 @@ row_ins_cascade_calc_update_vec(
 		for (j = 0; j < parent_update->n_fields; j++) {
 			const upd_field_t*	parent_ufield
 				= &parent_update->fields[j];
+
+			/* Skip if the updated field is virtual */
+			if (parent_ufield->is_virtual()) {
+				continue;
+			}
 
 			if (parent_ufield->field_no == parent_field_no) {
 

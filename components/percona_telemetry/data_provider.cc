@@ -76,9 +76,9 @@ class DbReplicationIdSolver {
 
   void vote(const std::string &id, Voter voter) {
     if (voter > id_voter_) {
-      db_replication_id_ = id;
+      db_replication_id_ =  id;
       id_voter_ =  voter;
-      fprintf(stderr, "KH4");
+      fprintf(stderr, "KH44");
     }
   }
 

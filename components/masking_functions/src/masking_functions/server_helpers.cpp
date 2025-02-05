@@ -18,6 +18,7 @@
 #include <rwlock_scoped_lock.h>
 
 #include "sql/mysqld.h"
+#include "sql/sql_class.h"
 
 namespace masking_functions {
 
@@ -32,6 +33,14 @@ bool execute_under_lock_if_not_in_shutdown(
   }
   func();
   return true;
+}
+
+void reset_thd_diagnostic_area(THD *thd) {
+  thd->get_stmt_da()->reset_diagnostics_area();
+}
+
+bool is_connection_events_loop_aborted() {
+  return connection_events_loop_aborted();
 }
 
 }  // namespace masking_functions

@@ -42,6 +42,7 @@
   /run/mysqld/mysqld.sock w,
   /sys/devices/system/cpu/ r,
   owner /tmp/** lk,
+  /proc/*/mem r,
   /tmp/** rw,
   /usr/lib/mysql/plugin/ r,
   /usr/lib/mysql/plugin/*.so* mr,

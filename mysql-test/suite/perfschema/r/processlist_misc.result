@@ -33,12 +33,12 @@ include/rpl/start_replica.inc
 
 # Verify processlist user name is 'system_user'.
 
-select * from performance_schema.processlist order by user, id;
+select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	system user	<Host>	NULL	Query	<Time>	<State>	NULL	PRIMARY
@@ -63,7 +63,7 @@ include/rpl/start_replica.inc
 
 # Verify processlist user name is 'system_user' for the replica threads.
 
-select * from performance_schema.processlist order by user, id;
+select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
@@ -76,7 +76,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
-<Id>	test_processlist	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	test_processlist	<Host>	test	Query	<Time>	<State>	select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id	PRIMARY
 
 # Clean up.
 

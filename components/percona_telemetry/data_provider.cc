@@ -79,6 +79,7 @@ class DbReplicationIdSolver {
       db_replication_id_ =  id;
       id_voter_ =  voter;
       fprintf(stderr, "KH44 ");
+
     }
   }
 

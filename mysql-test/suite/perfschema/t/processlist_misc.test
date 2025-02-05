@@ -35,7 +35,7 @@
 --echo
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select * from performance_schema.processlist order by user, id;
+select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
 
 --echo
 --echo # Create user 'test_processlist' then restart the replica and verify that
@@ -59,7 +59,7 @@ GRANT ALL ON *.* TO 'test_processlist'@'localhost';
 --echo
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select * from performance_schema.processlist order by user, id;
+select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
 
 --echo
 --echo # Clean up.

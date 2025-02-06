@@ -1,0 +1,46 @@
+--source include/have_masking_functions_component.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # PS-9611 "Assertion `!is_set() || m_can_overwrite_status' failure while server shutdown"
+--echo # https://perconadev.atlassian.net/browse/PS-9611
+--echo #
+
+CALL mtr.add_suppression("Flusher thread terminated while waiting for session server");
+CALL mtr.add_suppression("Exception during reloading dictionary cache");
+
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+--let $do_not_echo_parameters = 1
+--let $restart_parameters = restart: --debug=+d,enable_masking_functions_flush_thread_turbo_mode,enable_masking_functions_flush_thread_sync --masking_functions.dictionaries_flush_interval_seconds=31536000
+--source include/restart_mysqld.inc
+
+--let $assert_cond = LOCATE("enable_masking_functions_flush_thread_turbo_mode", @@global.debug) != 0
+--let $assert_text = Turbo mode must be enabled via DBUG
+--source include/assert.inc
+
+--let $assert_cond = @@global.masking_functions.dictionaries_flush_interval_seconds = 31536000
+--let $assert_text = dictionaries_flush_interval_seconds must be set to 1 year
+--source include/assert.inc
+
+SET debug_sync = 'now SIGNAL masking_functions_before_cache_reload_signal WAIT_FOR masking_functions_after_cache_reload_signal';
+
+SET debug_sync = 'RESET';
+
+--let $restart_parameters =
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP TABLE mysql.masking_dictionaries;

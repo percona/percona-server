@@ -3,31 +3,50 @@
 CALL mtr.add_suppression("Flusher thread terminated while waiting for session server");
 CALL mtr.add_suppression("Flusher thread terminated after creating internal connection");
 CALL mtr.add_suppression("Server shutdown requested while attempting to establish flusher thread connection");
+CALL mtr.add_suppression("option 'masking-functions.dictionaries-flush-interval-seconds':.*adjusted");
 
 INSTALL COMPONENT 'file://component_masking_functions';
 
 # No running flusher thread with default settings
-SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
-SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+--let $assert_cond = @@global.masking_functions.dictionaries_flush_interval_seconds = 0
+--let $assert_text = default dictionaries_flush_interval_seconds value must be 0
+--source include/assert.inc
+
+--let $assert_cond = COUNT(*) FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%" = 0
+--let $assert_text = flusher thread must not be running
+--source include/assert.inc
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET GLOBAL masking_functions.dictionaries_flush_interval_seconds=100;
+SET GLOBAL masking_functions.dictionaries_flush_interval_seconds = 100;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET SESSION masking_functions.dictionaries_flush_interval_seconds=100;
+SET SESSION masking_functions.dictionaries_flush_interval_seconds = 100;
 
 # Make sure dict flusher process is running
 CREATE TABLE mysql.masking_dictionaries(
     Dictionary VARCHAR(256) NOT NULL,
     Term VARCHAR(256) NOT NULL,
     UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
-) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
 
---let $restart_parameters="restart: --masking_functions.dictionaries_flush_interval_seconds=100"
+--let $restart_parameters = restart: --masking_functions.dictionaries_flush_interval_seconds=31536001
 --source include/restart_mysqld.inc
+--let $assert_cond = @@global.masking_functions.dictionaries_flush_interval_seconds = 31536000
+--let $assert_text = setting dictionaries_flush_interval_seconds to a value higher than 31536000 must result in clipping it to 31536000
+--source include/assert.inc
 
-SELECT @@global.masking_functions.dictionaries_flush_interval_seconds;
+--let $restart_parameters = restart: --masking_functions.dictionaries_flush_interval_seconds=-1
+--source include/restart_mysqld.inc
+--let $assert_cond = @@global.masking_functions.dictionaries_flush_interval_seconds = 0
+--let $assert_text = setting dictionaries_flush_interval_seconds to a value lower than 0 must result in clipping it to 0
+--source include/assert.inc
+
+--let $restart_parameters = restart: --masking_functions.dictionaries_flush_interval_seconds=100
+--source include/restart_mysqld.inc
+--let $assert_cond = @@global.masking_functions.dictionaries_flush_interval_seconds = 100
+--let $assert_text = dictionaries_flush_interval_seconds value after restart must be 100
+--source include/assert.inc
 
 CREATE USER udftest_priv@localhost;
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
@@ -37,7 +56,9 @@ SELECT masking_dictionary_term_add('single_dict_1', 'entry_1');
 
 # Flusher thread is active
 --connection default
-SELECT NAME FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%";
+--let $assert_cond = COUNT(*) FROM performance_schema.threads WHERE NAME LIKE "%masking_functions%" = 1
+--let $assert_text = after restart flusher thread must be running
+--source include/assert.inc
 
 #
 # Cleanup
@@ -51,5 +72,5 @@ REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.
 DROP USER udftest_priv@localhost;
 DROP TABLE mysql.masking_dictionaries;
 
---let $restart_parameters="restart:"
+--let $restart_parameters =
 --source include/restart_mysqld.inc

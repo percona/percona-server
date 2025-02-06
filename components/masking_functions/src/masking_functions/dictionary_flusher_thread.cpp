@@ -327,7 +327,14 @@ void dictionary_flusher_thread::do_periodic_reload() {
   assert(extracted_thd != nullptr);
 
   const auto is_terminated_lambda{[thd = extracted_thd, this]() {
-    if ((*is_killed_hook)(thd) != 0) {
+    // Any of the following conditions must set Flusher thread state to
+    // 'stopped':
+    // 1. Thread is killed - "(*is_killed_hook)(thd) != 0"
+    // 2. Server received a SIGTERM / SIGQUIT signal -
+    //    "connection_events_loop_aborted()"
+    // 3. Shutdown started - "srv_session_server_is_available() == 0"
+    if ((*is_killed_hook)(thd) != 0 || is_connection_events_loop_aborted() ||
+        srv_session_server_is_available() == 0) {
       state_.store(state_type::stopped);
     }
     return state_.load() == state_type::stopped;
@@ -359,6 +366,24 @@ void dictionary_flusher_thread::do_periodic_reload() {
 
       failure_message.reset();
       try {
+        // In rare cases when this thread is in the middle of execution of
+        // its dictionary table SELECT statement, the server may receive a
+        // SHUTDOWN command and will start the shutdown process causing this
+        // SELECT statement to fail. This situation is properly handled by
+        // the 'mysql_command_xxx' services, and this SELECT will terminate
+        // with the 'execution aborted because of the server shutdown'
+        // status. However, in this scenario this status is not cleared in
+        // the diagnostic area of the THD object.
+        // Before recent changes to 'is_terminated_lambda' (adding
+        // 'is_connection_events_loop_aborted()' to the list of external
+        // termination conditions) a scenario was possible when we didn't
+        // detect flusher thread termination in time and tried to execute the
+        // same SELECT statement again, triggering assertion about diagnostic
+        // area of the THD object not being empty.
+        // So, to play extra safe, we call 'reset_thd_diagnostic_area()'
+        // which internally does
+        // "thd->get_stmt_da()->reset_diagnostics_area()" here.
+        reset_thd_diagnostic_area(extracted_thd);
         cache->reload_cache();
       } catch (const std::exception &e) {
         failure_message.emplace(
@@ -377,8 +402,13 @@ void dictionary_flusher_thread::do_periodic_reload() {
       DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_sync", {
         DEBUG_SYNC(extracted_thd, "masking_functions_after_cache_reload");
       });
-
-      expires_at = std::chrono::steady_clock::now() + flush_interval_duration;
+      const auto local_now{std::chrono::steady_clock::now()};
+      // no time_point overflow should happen here as max
+      // 'flush_interval_duration' is limited to a reasonable value
+      expires_at = local_now + flush_interval_duration;
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
+      DBUG_EXECUTE_IF("enable_masking_functions_flush_thread_turbo_mode",
+                      { expires_at = local_now; });
     } else {
       std::this_thread::sleep_for(sleep_interval);
     }

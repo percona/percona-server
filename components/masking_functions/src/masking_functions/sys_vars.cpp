@@ -42,7 +42,10 @@ constexpr const char flush_interval_var_name[]{
     "dictionaries_flush_interval_seconds"};
 
 char default_database_name[]{"mysql"};
-const ulonglong default_flush_interval_seconds = 0;
+constexpr ulonglong min_flush_interval_seconds{0};
+// 1 year = 60 * 60 * 24 * 365 seconds = 31 536 000 seconds
+constexpr ulonglong max_flush_interval_seconds{60ULL * 60ULL * 24ULL * 365ULL};
+constexpr ulonglong default_flush_interval_seconds{min_flush_interval_seconds};
 
 bool is_database_name_initialised = false;
 bool is_flush_interval_initialised = false;
@@ -79,7 +82,9 @@ bool register_sys_vars() {
   is_database_name_initialised = true;
 
   INTEGRAL_CHECK_ARG(ulonglong)
-  check_flush_interval{default_flush_interval_seconds, 0, ULLONG_MAX, 1};
+  check_flush_interval{default_flush_interval_seconds,
+                       min_flush_interval_seconds, max_flush_interval_seconds,
+                       1};
 
   if (services.registrator->register_variable(
           component_name, flush_interval_var_name,

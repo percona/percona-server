@@ -18,6 +18,8 @@
 
 #include <functional>
 
+class THD;
+
 namespace masking_functions {
 
 using lock_protected_function = std::function<void()>;
@@ -30,6 +32,10 @@ using lock_protected_function = std::function<void()>;
 // without exceptions
 // this function may throw if 'func' throws
 bool execute_under_lock_if_not_in_shutdown(const lock_protected_function &func);
+
+void reset_thd_diagnostic_area(THD *thd);
+
+bool is_connection_events_loop_aborted();
 
 }  // namespace masking_functions
 

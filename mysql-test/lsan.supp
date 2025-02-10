@@ -43,10 +43,12 @@ leak:/usr/bin/python3.8
 leak:/usr/bin/python3.9
 leak:/usr/bin/python3.10
 leak:/usr/bin/python3.11
+leak:/usr/bin/python3.12
+leak:/usr/bin/dd
 leak:/usr/bin/grep
 leak:/usr/bin/ps
 leak:/usr/bin/*g++-*
-leak:/usr/lib/*cc1plus
+leak:/usr/*/cc1plus
 leak:/lib/*libbfd-*-system.so
 leak:/usr/bin/*ld.bfd
 leak:/usr/lib/*collect2

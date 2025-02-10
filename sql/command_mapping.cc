@@ -42,7 +42,7 @@ class Command_maps final {
     return (it != server_command_map.end() ? it->second : COM_END);
   }
 
-  static const char *sql_commands[static_cast<unsigned int>(SQLCOM_END)];
+  static const char *sql_commands[];
 
  private:
   std::unordered_map<const char *, enum_server_command> server_command_map;
@@ -206,7 +206,16 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "unlock_instance",
                                             "restart_server",
                                             "create_srs",
-                                            "drop_srs"};
+                                            "drop_srs",
+                                            "show_parse_tree",
+                                            "show_user_stats",
+                                            "show_table_stats",
+                                            "show_index_stats",
+                                            "show_client_stats",
+                                            "show_thread_stats",
+                                            "lock_tables_for_backup",
+                                            "create_compression_dictionary",
+                                            "drop_compression_dictionary"};
 
 Command_maps *g_command_maps{nullptr};
 }  // namespace

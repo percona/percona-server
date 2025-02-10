@@ -1,0 +1,11 @@
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+# LOCK TABLES FOR BACKUP should not cause server crash.
+LOCK TABLES FOR BACKUP;
+UNLOCK TABLES;
+#
+# Cleanup

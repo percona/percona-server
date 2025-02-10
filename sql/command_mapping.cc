@@ -42,7 +42,7 @@ class Command_maps final {
     return (it != server_command_map.end() ? it->second : COM_END);
   }
 
-  static const char *sql_commands[static_cast<unsigned int>(SQLCOM_END) + 1];
+  static const char *sql_commands[];
 
  private:
   std::unordered_map<const char *, enum_server_command> server_command_map;
@@ -211,6 +211,15 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "create_library",
                                             "drop_library",
                                             "show_create_library",
+                                            "show_parse_tree",
+                                            "show_user_stats",
+                                            "show_table_stats",
+                                            "show_index_stats",
+                                            "show_client_stats",
+                                            "show_thread_stats",
+                                            "lock_tables_for_backup",
+                                            "create_compression_dictionary",
+                                            "drop_compression_dictionary",
                                             ""};
 // keep the empty string last and add new elements before it.
 
@@ -235,7 +244,7 @@ enum_server_command get_server_command(const char *server_command) {
 }
 
 const char *get_sql_command_string(enum_sql_command sql_command) {
-  static_assert(((size_t)(SQLCOM_END - SQLCOM_SELECT) + 1) ==
+  static_assert(((size_t)(SQLCOM_END - SQLCOM_SELECT) + 2) ==
                 (sizeof(Command_maps::sql_commands) / sizeof(char *)));
   return Command_maps::sql_commands[sql_command];
 }

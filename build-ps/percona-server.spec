@@ -28,9 +28,6 @@
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
 
-# By default a build will be done in normal mode
-%{?enable_fipsmode: %global enable_fipsmode 1}
-
 %global mysql_version @@MYSQL_VERSION@@
 %global percona_server_version @@PERCONA_VERSION@@
 %global revision @@REVISION@@
@@ -66,13 +63,8 @@
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
-%if 0%{?enable_fipsmode}
-%{!?compilation_comment_release: %global compilation_comment_release Percona Server Pro (GPL), Release %{percona_server_version}, Revision %{revision}}
-%{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server Pro - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
-%else
 %{!?compilation_comment_release: %global compilation_comment_release Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
-%endif$
 %{!?src_base:                    %global src_base percona-server}
 
 %if 0%{?rhel} >= 8

@@ -3515,24 +3515,28 @@ DROP TABLES t_e, t_i, t_c;
 --disable_query_log
 --eval CREATE FUNCTION f_huge_error() RETURNS INT LANGUAGE JS AS \$\$ return "Make-the-error-message-big-enough-$a70k"(); \$\$
 --enable_query_log
+
+--echo # Raise REGEXP step limit so they can handle expressions with 70000 repetitions.
+SET GLOBAL regexp_time_limit = 100000;
+
 --error ER_LANGUAGE_COMPONENT
 SELECT f_huge_error();
 
 --echo #
 --echo # Should still work fine except CREATE TABLE ... SELECT UDF() case.
---replace_regex /a{70000}/\<70000-of-a-here\>/ / {70000}/\<70000-of-_-here\>/
-SELECT JS_GET_LAST_ERROR();
+SELECT REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>");
 SELECT LENGTH(JS_GET_LAST_ERROR());
 --error ER_DATA_TOO_LONG
 CREATE TABLE t AS SELECT JS_GET_LAST_ERROR();
 
---replace_regex /a{70000}/\<70000-of-a-here\>/ / {70000}/\<70000-of-_-here\>/
-SELECT JS_GET_LAST_ERROR_INFO();
+SELECT REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR_INFO(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>");
 SELECT LENGTH(JS_GET_LAST_ERROR_INFO());
 --error ER_DATA_TOO_LONG
 CREATE TABLE t AS SELECT JS_GET_LAST_ERROR_INFO();
 
 SELECT JS_CLEAR_LAST_ERROR();
+
+SET GLOBAL regexp_time_limit = DEFAULT;
 
 --echo #
 --echo # Clean-up

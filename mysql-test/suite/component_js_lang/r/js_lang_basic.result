@@ -8204,20 +8204,22 @@ DROP TABLES t_e, t_i, t_c;
 # exceeding their return value type length.
 #
 # CREATE FUNCTION f_huge_error() RETURNS INT LANGUAGE JS AS $$ return "Make-the-error-message-big-enough-<70000-a-here>"(); $$
+# Raise REGEXP step limit so they can handle expressions with 70000 repetitions.
+SET GLOBAL regexp_time_limit = 100000;
 SELECT f_huge_error();
 ERROR HY000: TypeError: "Make-the-error-message-big-enough-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 #
 # Should still work fine except CREATE TABLE ... SELECT UDF() case.
-SELECT JS_GET_LAST_ERROR();
-JS_GET_LAST_ERROR()
+SELECT REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>");
+REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>")
 TypeError: "Make-the-error-message-big-enough-<70000-of-a-here>" is not a function
 SELECT LENGTH(JS_GET_LAST_ERROR());
 LENGTH(JS_GET_LAST_ERROR())
 70065
 CREATE TABLE t AS SELECT JS_GET_LAST_ERROR();
 ERROR 22001: Data too long for column 'JS_GET_LAST_ERROR()' at row 1
-SELECT JS_GET_LAST_ERROR_INFO();
-JS_GET_LAST_ERROR_INFO()
+SELECT REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR_INFO(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>");
+REGEXP_REPLACE(REGEXP_REPLACE(JS_GET_LAST_ERROR_INFO(), "a{70000}", "<70000-of-a-here>"), " {70000}", "<70000-of-_-here>")
 Error: TypeError: "Make-the-error-message-big-enough-<70000-of-a-here>" is not a function
 At: SQL FUNCTION test.f_huge_error:1:70044
 Line:  return "Make-the-error-message-big-enough-<70000-of-a-here>"(); 
@@ -8233,6 +8235,7 @@ ERROR 22001: Data too long for column 'JS_GET_LAST_ERROR_INFO()' at row 1
 SELECT JS_CLEAR_LAST_ERROR();
 JS_CLEAR_LAST_ERROR()
 1
+SET GLOBAL regexp_time_limit = DEFAULT;
 #
 # Clean-up
 DROP FUNCTION f_huge_error;

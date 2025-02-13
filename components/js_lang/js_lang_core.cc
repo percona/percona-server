@@ -55,7 +55,7 @@ std::atomic<int> Js_v8::s_ref_count = 0;
 void Js_v8::init() {
   // We would like to enforce strict mode for code of JS routines right
   // from the start.
-  v8::V8::SetFlagsFromString("--use_strict");
+  v8::V8::SetFlagsFromString("--use_strict --no-concurrent_sparkplug");
 
   // v8::V8::InitializeICUDefaultLocation(argv[0]);
   // v8::V8::InitializeExternalStartupData(argv[0]);

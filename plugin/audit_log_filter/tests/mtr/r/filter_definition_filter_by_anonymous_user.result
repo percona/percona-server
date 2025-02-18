@@ -1,0 +1,51 @@
+CREATE USER ''@'127.0.0.1';
+SET @filter = '{
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "connect"
+      }
+    }
+  }
+}';
+SELECT audit_log_filter_set_filter('log_connect', @filter);
+audit_log_filter_set_filter('log_connect', @filter)
+OK
+###
+### 1. Connecting as an anonymous user with no rules set
+###
+SET @audit_filter_log_name = audit_log_rotate();
+USER()	CURRENT_USER()
+foobarbaz@localhost	@127.0.0.1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 2. Connecting as an anonymous user with default rule set
+###
+SELECT audit_log_filter_set_user('%', 'log_connect');
+audit_log_filter_set_user('%', 'log_connect')
+OK
+SET @audit_filter_log_name = audit_log_rotate();
+USER()	CURRENT_USER()
+foobarbaz@localhost	@127.0.0.1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 3. Connecting as an anonymous user with a dedicated rule for this anonymous user
+###
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+SELECT audit_log_filter_set_user('@127.0.0.1', 'log_connect');
+audit_log_filter_set_user('@127.0.0.1', 'log_connect')
+OK
+SET @audit_filter_log_name = audit_log_rotate();
+USER()	CURRENT_USER()
+foobarbaz@localhost	@127.0.0.1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+SELECT audit_log_filter_remove_user('@127.0.0.1');
+audit_log_filter_remove_user('@127.0.0.1')
+OK
+DROP USER ''@'127.0.0.1';

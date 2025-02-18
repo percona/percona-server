@@ -1,0 +1,79 @@
+--source include/have_component_audit_log.inc
+
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $anonymous_user_name = foobarbaz
+--let $ipv4_localhost = 127.0.0.1
+
+--let $MYSQL_PORT = `SELECT @@port`
+
+eval CREATE USER ''@'$ipv4_localhost';
+
+SET @filter = '{
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "connect"
+      }
+    }
+  }
+}';
+SELECT audit_log_filter_set_filter('log_connect', @filter);
+
+--echo ###
+--echo ### 1. Connecting as an anonymous user with no rules set
+--echo ###
+SET @audit_filter_log_name = audit_log_rotate();
+
+--source include/count_sessions.inc
+--exec $MYSQL -u$anonymous_user_name -h$ipv4_localhost -P$MYSQL_PORT -e "SELECT USER(), CURRENT_USER();" test
+--source include/wait_until_count_sessions.inc
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+
+--assert(`SELECT JSON_LENGTH(@content) = 0 AS no_connection_events_must_be_logged`)
+
+
+--echo ###
+--echo ### 2. Connecting as an anonymous user with default rule set
+--echo ###
+SELECT audit_log_filter_set_user('%', 'log_connect');
+SET @audit_filter_log_name = audit_log_rotate();
+
+--source include/count_sessions.inc
+--exec $MYSQL -u$anonymous_user_name -h$ipv4_localhost -P$MYSQL_PORT -e "SELECT USER(), CURRENT_USER();" test
+--source include/wait_until_count_sessions.inc
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+
+--assert(`SELECT JSON_LENGTH(@content) = 1 AS one_connection_event_must_be_logged`)
+--assert(`SELECT JSON_EXTRACT(@content, '\$[0].login.user') = '$anonymous_user_name' AS event_must_be_from_fake_user_name`)
+--assert(`SELECT JSON_EXTRACT(@content, '\$[0].login.ip') = '$ipv4_localhost' AS event_must_be_from_ipv4_localhost`)
+
+
+--echo ###
+--echo ### 3. Connecting as an anonymous user with a dedicated rule for this anonymous user
+--echo ###
+SELECT audit_log_filter_remove_user('%');
+eval SELECT audit_log_filter_set_user('@$ipv4_localhost', 'log_connect');
+SET @audit_filter_log_name = audit_log_rotate();
+
+--source include/count_sessions.inc
+--exec $MYSQL -u$anonymous_user_name -h$ipv4_localhost -P$MYSQL_PORT -e "SELECT USER(), CURRENT_USER();" test
+--source include/wait_until_count_sessions.inc
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+
+--assert(`SELECT JSON_LENGTH(@content) = 1 AS one_connection_event_must_be_logged`)
+--assert(`SELECT JSON_EXTRACT(@content, '\$[0].login.user') = '$anonymous_user_name' AS event_must_be_from_fake_user_name`)
+--assert(`SELECT JSON_EXTRACT(@content, '\$[0].login.ip') = '$ipv4_localhost' AS event_must_be_from_ipv4_localhost`)
+
+
+eval SELECT audit_log_filter_remove_user('@$ipv4_localhost');
+
+eval DROP USER ''@'$ipv4_localhost';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4928,12 +4928,20 @@ void cmp_item_row::store_value(Item *item)
   assert(comparators);
   if (comparators)
   {
-    item->bring_value();
     item->null_value= 0;
-    for (uint i= 0; i < n; i++)
+    item->bring_value();
+    if (item->null_value)
     {
-      comparators[i]->store_value(item->element_index(i));
-      item->null_value|= item->element_index(i)->null_value;
+      set_null_value(/*nv=*/true);
+    }
+    else
+    {
+      item->null_value= false;
+      for (uint i= 0; i < n; i++)
+      {
+        comparators[i]->store_value(item->element_index(i));
+        item->null_value|= item->element_index(i)->null_value;
+      }
     }
   }
   DBUG_VOID_RETURN;
@@ -4951,15 +4959,23 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
   n= tmpl->n;
   if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
   {
-    item->bring_value();
     item->null_value= 0;
-    for (uint i=0; i < n; i++)
+    item->bring_value();
+    if (item->null_value)
     {
-      if (!(comparators[i]= tmpl->comparators[i]->make_same()))
-	break;					// new failed
-      comparators[i]->store_value_by_template(tmpl->comparators[i],
-					      item->element_index(i));
-      item->null_value|= item->element_index(i)->null_value;
+      set_null_value(/*nv=*/true);
+    }
+    else
+    {
+      item->null_value= false;
+      for (uint i= 0; i < n; i++)
+      {
+        if (!(comparators[i]= tmpl->comparators[i]->make_same()))
+          break;                                  // new failed
+        comparators[i]->store_value_by_template(tmpl->comparators[i],
+                                                item->element_index(i));
+        item->null_value|= item->element_index(i)->null_value;
+      }
     }
   }
 }

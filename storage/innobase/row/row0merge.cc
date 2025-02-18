@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+Copyright (c) 2005, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2174,9 +2174,15 @@ end_of_index:
 			ut_ad(add_autoinc
 			      < dict_table_get_n_user_cols(new_table));
 
-			const dfield_t*	dfield;
+			dfield_t *dfield = dtuple_get_nth_field(row, add_autoinc);
+			if (num_spatial > 0) {
+				/* Perform a deep copy of the field because for
+				spatial indexes, the default tuple allocation is
+				overwritten, as tuples are processed at the end
+				of the page. */
+				dfield_dup(dfield, sp_heap);
+			}
 
-			dfield = dtuple_get_nth_field(row, add_autoinc);
 			if (dfield_is_null(dfield)) {
 				goto write_buffers;
 			}

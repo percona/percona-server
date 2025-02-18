@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -463,6 +463,9 @@ struct upd_field_t{
 #endif /* !UNIV_HOTBACKUP */
 	dfield_t	new_val;	/*!< new value for the column */
 	dfield_t*	old_v_val;	/*!< old value for the virtual column */
+
+	bool is_virtual() const { return (new_val.is_virtual()); }
+
 };
 
 

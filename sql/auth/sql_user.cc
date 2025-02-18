@@ -1655,6 +1655,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  /* Clear privilege cache */
+  acl_cache->clear(1);
 
   mysql_mutex_unlock(&acl_cache->lock);
 

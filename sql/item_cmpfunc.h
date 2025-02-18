@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1420,6 +1420,7 @@ public:
   {
     store_value(item);
   }
+  virtual void set_null_value(bool nv) = 0;
 };
 
 /// cmp_item which stores a scalar (i.e. non-ROW).
@@ -1769,6 +1770,13 @@ public:
   int compare(const cmp_item *arg) const;
   cmp_item *make_same();
   void store_value_by_template(cmp_item *tmpl, Item *);
+  void set_null_value(bool nv)
+  {
+    for (uint i= 0; i < n; i++)
+    {
+      comparators[i]->set_null_value(nv);
+    }
+  }
   friend void Item_func_in::fix_length_and_dec();
 };
 

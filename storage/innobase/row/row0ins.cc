@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -534,7 +534,7 @@ row_ins_cascade_calc_update_vec(
 
 	n_fields_updated = 0;
 
-	*fts_col_affected = FALSE;
+	*fts_col_affected = foreign->is_fts_col_affected();
 
 	if (table->fts) {
 		doc_id_pos = dict_table_get_nth_col_pos(
@@ -550,6 +550,11 @@ row_ins_cascade_calc_update_vec(
 		for (j = 0; j < parent_update->n_fields; j++) {
 			const upd_field_t*	parent_ufield
 				= &parent_update->fields[j];
+
+			/* Skip if the updated field is virtual */
+			if (parent_ufield->is_virtual()) {
+				continue;
+			}
 
 			if (parent_ufield->field_no == parent_field_no) {
 
@@ -654,16 +659,6 @@ row_ins_cascade_calc_update_vec(
 							padded_data, min_size);
 				}
 
-				/* Check whether the current column has
-				FTS index on it */
-				if (table->fts
-				    && dict_table_is_fts_column(
-					table->fts->indexes,
-					dict_col_get_no(col),
-					dict_col_is_virtual(col))
-					!= ULINT_UNDEFINED) {
-					*fts_col_affected = TRUE;
-				}
 
 				/* If Doc ID is updated, check whether the
 				Doc ID is valid */
@@ -1114,7 +1109,6 @@ row_ins_foreign_check_on_constraint(
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
-	ibool		fts_col_affacted = FALSE;
 
 	DBUG_ENTER("row_ins_foreign_check_on_constraint");
 	ut_a(thr);
@@ -1310,12 +1304,13 @@ row_ins_foreign_check_on_constraint(
 	table. Before a clustered index record is deleted in the child table,
 	a copy of row is built to remove secondary index records. This copy of
 	the row requires virtual columns to be materialized. Hence, if child
-	table has any virtual columns, we have to initialize virtual column
-	template */
-	if (cascade->is_delete && dict_table_get_n_v_cols(table) > 0
-	    && table->vc_templ == NULL) {
+	table has any virtual columns which are indexed, we have to initialize
+	virtual column template. */
+	if (cascade->is_delete && dict_table_has_indexed_v_cols(table) &&
+		table->vc_templ == NULL) {
 		innobase_init_vc_templ(table);
 	}
+
 	if (node->is_delete
 	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
@@ -1344,17 +1339,9 @@ row_ins_foreign_check_on_constraint(
 			ufield->exp = NULL;
 			dfield_set_null(&ufield->new_val);
 
-			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
-			    != ULINT_UNDEFINED) {
-				fts_col_affacted = TRUE;
-			}
 		}
 
-		if (fts_col_affacted) {
+		if (foreign->is_fts_col_affected()) {
 			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 
@@ -1371,31 +1358,21 @@ row_ins_foreign_check_on_constraint(
 
 	} else if (table->fts && cascade->is_delete) {
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
-		for (i = 0; i < foreign->n_fields; i++) {
-			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i),
-				dict_col_is_virtual(
-					dict_index_get_nth_col(index, i)))
-			    != ULINT_UNDEFINED) {
-				fts_col_affacted = TRUE;
-			}
-		}
-
-		if (fts_col_affacted) {
+		if (foreign->is_fts_col_affected()) {
 			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
 	if (!node->is_delete
 	    && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
+		ibool fts_col_affected = FALSE;
 
 		/* Build the appropriate update vector which sets changing
 		foreign->n_fields first fields in rec to new values */
 
 		n_to_update = row_ins_cascade_calc_update_vec(
 			node, foreign, tmp_heap,
-			trx, &fts_col_affacted);
+			trx, &fts_col_affected);
 
 
 		if (foreign->v_cols != NULL
@@ -1436,7 +1413,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		/* Mark the old Doc ID as deleted */
-		if (fts_col_affacted) {
+		if (fts_col_affected) {
 			ut_ad(table->fts);
 			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}

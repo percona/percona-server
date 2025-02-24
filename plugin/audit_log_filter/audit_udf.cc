@@ -73,7 +73,8 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 
   const std::regex user_name_all_regex("^%$");
   const std::regex user_name_regex("(.*)@(.*)");
-  const std::regex deprecated_symbols_regex("[\\*|\\%]");
+  const std::regex deprecated_account_name_characters_regex("[*|%]");
+  const std::regex deprecated_host_name_characters_regex("[*|]");
 
   auto user_info_data = std::make_unique<UserNameInfo>();
 
@@ -107,13 +108,15 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
         return nullptr;
       }
 
-      if (std::regex_search(user_name_match.str(), deprecated_symbols_regex)) {
+      if (std::regex_search(user_name_match.str(),
+                            deprecated_account_name_characters_regex)) {
         std::snprintf(message, MYSQL_ERRMSG_SIZE,
                       "Wrong argument: bad user name format");
         return nullptr;
       }
 
-      if (std::regex_search(user_host_match.str(), deprecated_symbols_regex)) {
+      if (std::regex_search(user_host_match.str(),
+                            deprecated_host_name_characters_regex)) {
         std::snprintf(message, MYSQL_ERRMSG_SIZE,
                       "Wrong argument: bad host name format");
         return nullptr;

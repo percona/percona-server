@@ -659,24 +659,28 @@ bool AuditLogFilter::get_connection_user(Security_context_handle &ctx,
   MYSQL_LEX_CSTRING user{"", 0};
   MYSQL_LEX_CSTRING host{"", 0};
 
-  if (m_security_context_opts_srv->get(ctx, "user", &user) == 1) {
+  if (m_security_context_opts_srv->get(ctx, "priv_user", &user) == 1) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Can not get user name from security context");
     return false;
   }
 
-  if (m_security_context_opts_srv->get(ctx, "host", &host) == 1) {
+  if (m_security_context_opts_srv->get(ctx, "priv_host", &host) == 1) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Can not get user host from security context");
     return false;
   }
 
-  if (user.length == 0 || host.length == 0) {
-    return false;
+  if (user.length == 0) {
+    user_name.clear();
+  } else {
+    user_name.assign(user.str, user.length);
   }
-
-  user_name = user.str;
-  user_host = host.str;
+  if (host.length == 0) {
+    user_host.clear();
+  } else {
+    user_host.assign(host.str, host.length);
+  }
 
   return true;
 }

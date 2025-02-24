@@ -406,7 +406,7 @@ AuditRecordString LogRecordFormatterJson::apply(
          << "\",\n"
          << R"(      "status": )" << audit_record.event->status << ",\n"
          << R"(      "db": ")"
-         << make_escaped_string(&audit_record.event->database) << "\""
+         << make_escaped_string(&audit_record.event->database) << "\"\n"
          << "    }" << extra_attrs_to_string(audit_record.extended_info)
          << "\n  }";
 
@@ -921,7 +921,7 @@ std::string LogRecordFormatterJson::extra_attrs_to_string(
       is_first_attr = false;
     }
 
-    result << "}";
+    result << "\n    }";
   }
 
   return result.str();

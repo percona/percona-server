@@ -1,0 +1,126 @@
+SET @filter = '{
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "connect"
+      }
+    }
+  }
+}';
+SELECT audit_log_filter_set_filter('log_connect', @filter);
+audit_log_filter_set_filter('log_connect', @filter)
+OK
+###
+### 1.1 IPv4 and IPv6 users, default audit log rule
+###
+CREATE USER 'usr'@'127.0.0.1' IDENTIFIED BY 'password';
+CREATE USER 'usr'@'::1' IDENTIFIED BY 'password';
+SELECT audit_log_filter_set_user('%', 'log_connect');
+audit_log_filter_set_user('%', 'log_connect')
+OK
+SET @audit_filter_log_name = audit_log_rotate();
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@::1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 1.2 IPv4 and wildcard users, default audit log rule
+###
+DROP USER 'usr'@'::1';
+CREATE USER 'usr'@'%' IDENTIFIED BY 'password';
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 1.3 Only wildcard user, default audit log rule
+###
+DROP USER 'usr'@'127.0.0.1';
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 2.1 Only wildcard user, IPv4 audit log rule
+###
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+SELECT audit_log_filter_set_user('usr@127.0.0.1', 'log_connect');
+audit_log_filter_set_user('usr@127.0.0.1', 'log_connect')
+OK
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 2.2 IPv4 and wildcard users, IPv4 audit log rule
+###
+CREATE USER 'usr'@'127.0.0.1' IDENTIFIED BY 'password';
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 2.3 IPv4 and IPv6 users, IPv4 audit log rule
+###
+DROP USER 'usr'@'%';
+CREATE USER 'usr'@'::1' IDENTIFIED BY 'password';
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@::1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 3.1 IPv4 and IPv6 users, wildcard audit log rule
+###
+SELECT audit_log_filter_remove_user('usr@127.0.0.1');
+audit_log_filter_remove_user('usr@127.0.0.1')
+OK
+SELECT audit_log_filter_set_user('usr@%', 'log_connect');
+audit_log_filter_set_user('usr@%', 'log_connect')
+OK
+SET @audit_filter_log_name = audit_log_rotate();
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@::1
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 3.2 IPv4 and wildcard users, wildcard audit log rule
+###
+DROP USER 'usr'@'::1';
+CREATE USER 'usr'@'%' IDENTIFIED BY 'password';
+USER()	CURRENT_USER()
+usr@localhost	usr@127.0.0.1
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+###
+### 3.3 Only wildcard user, wildcard audit log rule
+###
+DROP USER 'usr'@'127.0.0.1';
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+USER()	CURRENT_USER()
+usr@localhost	usr@%
+SET @audit_filter_log_name = audit_log_rotate();
+SET @content = CAST(CONVERT(LOAD_FILE(CONCAT(@@global.datadir, @audit_filter_log_name)) USING ascii) AS JSON);
+SELECT audit_log_filter_remove_user('usr@%');
+audit_log_filter_remove_user('usr@%')
+OK
+DROP USER 'usr'@'%';

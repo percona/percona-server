@@ -22,10 +22,10 @@ SET GLOBAL rocksdb_debug_ttl_rec_ts = 0;
 SELECT * from t0;
 
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace = OFF;
-SET GLOBAL rocksdb_max_row_locks = 0;
+SET session rocksdb_max_row_locks = 0;
 --error ER_GET_ERRMSG
 ALTER TABLE t0 comment = 'ttl_duration=2000';
-SET GLOBAL rocksdb_max_row_locks = default;
+SET session rocksdb_max_row_locks = default;
 
 # if varilabe isn't SET, inplace isn't supported
 --error ER_ALTER_OPERATION_NOT_SUPPORTED 

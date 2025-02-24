@@ -21,12 +21,12 @@ a	b	ts
 2	bbb	2
 3	ccc	3
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace = OFF;
-SET GLOBAL rocksdb_max_row_locks = 0;
+SET session rocksdb_max_row_locks = 0;
 Warnings:
 Warning	1292	Truncated incorrect rocksdb_max_row_locks value: '0'
 ALTER TABLE t0 comment = 'ttl_duration=2000';
 ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to rocksdb_max_row_locks limit' from ROCKSDB
-SET GLOBAL rocksdb_max_row_locks = default;
+SET session rocksdb_max_row_locks = default;
 ALTER TABLE t0 comment = 'ttl_duration=2000;', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 SET @@GLOBAL.rocksdb_alter_table_comment_inplace = ON;

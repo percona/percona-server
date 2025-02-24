@@ -220,11 +220,11 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (0, 0), (1, 0), (2, 0), (3, 0);
 SET @rocksdb_max_row_locks_saved=@@rocksdb_max_row_locks;
-SET GLOBAL rocksdb_max_row_locks=3;
+SET session rocksdb_max_row_locks=3;
 --error ER_GET_ERRMSG
 SELECT /*+ SET_VAR(rocksdb_lock_scanned_rows=1) */ * FROM t1 WHERE b=1 FOR UPDATE;
 DROP TABLE t1;
-SET GLOBAL rocksdb_max_row_locks=@rocksdb_max_row_locks_saved;
+SET session rocksdb_max_row_locks=@rocksdb_max_row_locks_saved;
 
 
 --echo #############################################

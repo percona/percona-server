@@ -809,7 +809,6 @@ static bool rocksdb_large_prefix = true;
 static bool rocksdb_allow_to_start_after_corruption = false;
 static ulong rocksdb_write_policy = rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 static char *rocksdb_read_free_rpl_tables;
-ulong rocksdb_max_row_locks;
 std::mutex rocksdb_read_free_rpl_tables_mutex;
 #if defined(HAVE_PSI_INTERFACE)
 Regex_list_handler rdb_read_free_regex_handler(key_rwlock_read_free_rpl_tables);
@@ -1454,8 +1453,7 @@ static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read,
                          "Skip using bloom filter for reads", nullptr, nullptr,
                          false);
 
-static MYSQL_SYSVAR_ULONG(max_row_locks, rocksdb_max_row_locks,
-                          PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(max_row_locks, PLUGIN_VAR_RQCMDARG,
                           "Maximum number of locks a transaction can have",
                           nullptr, nullptr,
                           /*default*/ RDB_DEFAULT_ROW_LOCKS,
@@ -3299,7 +3297,7 @@ class Rdb_transaction {
       m_max_row_locks = 0;
     } else {
       m_timeout_sec = THDVAR(thd, lock_wait_timeout);
-      m_max_row_locks = rocksdb_max_row_locks;
+      m_max_row_locks = THDVAR(thd, max_row_locks);
       set_lock_timeout(m_timeout_sec);
     }
   }

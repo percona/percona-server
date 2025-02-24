@@ -35,16 +35,17 @@ ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argume
 SELECT audit_log_filter_set_user('aaaaaa', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: wrong user_name format, it should be in user_name@host_name format, or '%' to represent the default account
 #
-# Wildcards are not allowed in user or host name
+# [*|%] characters are not allowed in user name
+# [*|] characters are not allowed in host name
 SELECT audit_log_filter_set_user('user%@localhost', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad user name format
 SELECT audit_log_filter_set_user('user*@localhost', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad user name format
-SELECT audit_log_filter_set_user('user@host%', 'filter_1');
+SELECT audit_log_filter_set_user('user@host|', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad host name format
 SELECT audit_log_filter_set_user('user@host*', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad host name format
-SELECT audit_log_filter_set_user('user@%', 'filter_1');
+SELECT audit_log_filter_set_user('user@|', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad host name format
 SELECT audit_log_filter_set_user('user@*', 'filter_1');
 ERROR HY000: Can't initialize function 'audit_log_filter_set_user'; Wrong argument: bad host name format

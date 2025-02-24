@@ -52,17 +52,18 @@ SELECT audit_log_filter_set_user('root@localhost', '');
 SELECT audit_log_filter_set_user('aaaaaa', 'filter_1');
 
 --echo #
---echo # Wildcards are not allowed in user or host name
+--echo # [*|%] characters are not allowed in user name
+--echo # [*|] characters are not allowed in host name
 --error 1123
 SELECT audit_log_filter_set_user('user%@localhost', 'filter_1');
 --error 1123
 SELECT audit_log_filter_set_user('user*@localhost', 'filter_1');
 --error 1123
-SELECT audit_log_filter_set_user('user@host%', 'filter_1');
+SELECT audit_log_filter_set_user('user@host|', 'filter_1');
 --error 1123
 SELECT audit_log_filter_set_user('user@host*', 'filter_1');
 --error 1123
-SELECT audit_log_filter_set_user('user@%', 'filter_1');
+SELECT audit_log_filter_set_user('user@|', 'filter_1');
 --error 1123
 SELECT audit_log_filter_set_user('user@*', 'filter_1');
 --error 1123

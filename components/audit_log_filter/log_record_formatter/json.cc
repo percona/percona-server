@@ -410,7 +410,7 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(    "connection_data": {)" << "\n"
          << R"(      "connection_type": ")" << connection_type_name_to_string(audit_record.event->connection_type) << "\",\n"
          << R"(      "status": )" << audit_record.event->status << ",\n"
-         << R"(      "db": ")" << make_escaped_string(&audit_record.event->database) << "\"}"
+         << R"(      "db": ")" << make_escaped_string(&audit_record.event->database) << "\"\n    }"
          << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   /* clang-format on */
 
@@ -861,7 +861,7 @@ std::string LogRecordFormatterJson::extra_attrs_to_string(
       is_first_attr = false;
     }
 
-    result << "}";
+    result << "\n    }";
   }
 
   return result.str();

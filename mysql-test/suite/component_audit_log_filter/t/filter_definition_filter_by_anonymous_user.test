@@ -1,4 +1,7 @@
---source audit_tables_init.inc
+--source include/have_component_audit_log.inc
+
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
 
 --let $anonymous_user_name = foobarbaz
 --let $ipv4_localhost = 127.0.0.1
@@ -72,4 +75,5 @@ eval SELECT audit_log_filter_remove_user('@$ipv4_localhost');
 
 eval DROP USER ''@'$ipv4_localhost';
 
---source audit_tables_cleanup.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

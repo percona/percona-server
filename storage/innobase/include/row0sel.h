@@ -420,39 +420,6 @@ enum row_sel_match_mode {
                        of a fixed length column) */
 };
 
-/** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
-@param[in,out] dest             buffer where to store; NOTE
-                                that BLOBs are not in themselves stored
-                                here: the caller must allocate and copy
-                                the BLOB into buffer before, and pass
-                                the pointer to the BLOB in 'data'
-@param[in]      templ           MySQL column template. Its following fields
-                                are referenced: type, is_unsigned,
-mysql_col_len, mbminlen, mbmaxlen
-@param[in]      index           InnoDB index
-@param[in]      field_no        templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no
-@param[in]      data            data to store
-@param[in]      len             length of the data
-@param[in]      compress_heap
-@param[in]      sec_field       secondary index field no if the secondary index
-                                record but the prebuilt template is in
-                                clustered index format and used only for end
-                                range comparison. */
-void row_sel_field_store_in_mysql_format_func(
-    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
-    IF_DEBUG(ulint field_no, ) const byte *data,
-    ulint len, mem_heap_t **compress_heap IF_DEBUG(, ulint sec_field));
-
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-static inline void row_sel_field_store_in_mysql_format(
-    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *idx,
-    ulint field, const byte *src, ulint len, mem_heap_t **compress_heap, ulint sec) {
-  row_sel_field_store_in_mysql_format_func(
-      dest, templ, idx, IF_DEBUG(field, ) src, len, compress_heap IF_DEBUG(, sec));
-}
-
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.
 @param[in]      db_name         database name

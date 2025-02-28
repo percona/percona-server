@@ -12811,6 +12811,117 @@ ER_SIMPLE_ERROR_LOG_COMPONENT_STATUS
 
 start-error-number 15500
 
+ER_INVALID_METER
+  eng "Invalid meter name or value for performance_schema_meter '%s'."
+
+ER_INVALID_LOGGER
+  eng "Invalid logger name or value for performance_schema_logger '%s'."
+
+ER_IB_DELETE_SCHEMA_DIR
+  eng "deleted the schema directory: %s"
+
+ER_IB_INSERT_DELETE_SCHEMA_DIRECTORY_DDL_LOG
+  eng "%s"
+
+ER_IMDS_OCI_INFO
+  eng "%s"
+
+ER_IMDS_OCI_WARNING
+  eng "%s"
+
+ER_IMDS_OCI_ERROR
+  eng "%s"
+
+ER_THREAD_POOL_CONNECTION_INIT_REPORT
+   eng "TP conn (init: in, queue, auth, err, ok. port: managed(delta), active, opened, closed, added, dropped): %s"
+
+ER_THREAD_POOL_ALLOC_FAILED
+   eng "Thread pool failed to allocate %s."
+
+ER_THREAD_POOL_SOCKETPAIR_FAILED
+   eng "socketpair() failed with errno: %d"
+
+ER_THREAD_POOL_LOW_LEVEL_INIT_FAILED
+   eng "tp_client_low_level_init() failed"
+
+ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED
+   eng "tp_client_low_level_arm() failed"
+
+ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED_WITH_ERRNO
+   eng "tp_client_low_level_arm() failed with %d"
+
+ER_THREAD_POOL_CREATE_THREAD_FAILED
+   eng "Can't create pool thread (error %d, errno: %d)"
+
+ER_THREAD_POOL_LOW_LEVEL_INIT_ALLOC_FAILED
+   eng "tp_client_low_level_init() for wait context failed to allocate memory"
+
+ER_THREAD_POOL_CREATE_EPOLL_FAILED
+   eng "epoll_create() failed with %d"
+
+ER_THREAD_POOL_EPOLL_WAIT_ERROR
+   eng "Thread pool epoll_wait() error: errno=%d."
+
+ER_THREAD_POOL_POLL_WAIT_ERROR
+   eng "Thread pool poll_wait() error: errno=%d."
+
+ER_KEYRING_COMPONENT_AWS_FILE_PATH_EMPTY
+  eng "Keyring data file path is empty in configuration file."
+
+ER_KEYRING_COMPONENT_AWS_FILE_OPEN_FAILED
+  eng "Failed to open keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_READ_FAILED
+  eng "Failed to read data from keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_WRITE_FAILED
+  eng "Failed to write data to keyring data file: %s."
+
+ER_KEYRING_COMPONENT_AWS_FILE_PARSE_FAILED
+   eng "The keyring file content is not in a valid JSON format."
+
+ER_KEYRING_COMPONENT_AWS_KEY_EXTRACT_FAILED
+   eng "Failed to extract %d. element from keyring file content."
+
+ER_KEYRING_COMPONENT_AWS_CLIENT_CREATE_FAILED
+  eng "Failed to create AWS KMS client."
+
+ER_KEYRING_COMPONENT_AWS_CLIENT_OPERATION_FAILED
+  eng "Failed AWS KMS operation %s: %s."
+
+ER_KEYRING_COMPONENT_AWS_GENERATE_KEY_INVALID_PARAMETER
+  eng "Invalid key generate parameter: %s = %s, must be %s."
+
+ER_KEYRING_COMPONENT_AWS_BACKEND_OPERATION_FAILED
+  eng "Failed operation %s on key %s owned by %s."
+
+ER_KEYRING_COMPONENT_AWS_CACHE_OPERATION_FAILED
+  eng "Failed keyring cache operation %s."
+
+ER_KEYRING_COMPONENT_AWS_ADD_TO_DOC_FAILED
+  eng "Failed to add key %s for %s to JSON document."
+
+ER_KEYRING_COMPONENT_AWS_WRITE_AFTER_REENCRYPTION_FAILED
+  eng "Failed to write the data after reencryption."
+
+ER_KEYRING_COMPONENT_AWS_READ_ONLY_LIMIT
+  eng "Cannot %s, the keyring is read only."
+
+ER_KEYRING_COMPONENT_AWS_CANNOT_ENCRYPT_READ_ONLY
+  eng "CMK was changed and the keyring must be re-encrypted, but the keyring is read only. Set the read_only config parameter to false for re-encryption and reload the component."
+
+ER_AUTHENTICATION_OPENID_OPTION_REGISTER
+  eng "Option registration failed."
+
+ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
+  eng "Option deregistration failed."
+
+#
+# End of MySQL 9.x error messages intended to be written to the server error log.
+#
+
+
+
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -13171,111 +13282,6 @@ ER_SSL_FIPS_MODE_ENABLED
 # End of Percona Server 8.0 server error log messages
 #
 
-
-ER_INVALID_METER
-  eng "Invalid meter name or value for performance_schema_meter '%s'."
-
-ER_INVALID_LOGGER
-  eng "Invalid logger name or value for performance_schema_logger '%s'."
-
-ER_IB_DELETE_SCHEMA_DIR
-  eng "deleted the schema directory: %s"
-
-ER_IB_INSERT_DELETE_SCHEMA_DIRECTORY_DDL_LOG
-  eng "%s"
-
-ER_IMDS_OCI_INFO
-  eng "%s"
-
-ER_IMDS_OCI_WARNING
-  eng "%s"
-
-ER_IMDS_OCI_ERROR
-  eng "%s"
-
-ER_THREAD_POOL_CONNECTION_INIT_REPORT
-   eng "TP conn (init: in, queue, auth, err, ok. port: managed(delta), active, opened, closed, added, dropped): %s"
-
-ER_THREAD_POOL_ALLOC_FAILED
-   eng "Thread pool failed to allocate %s."
-
-ER_THREAD_POOL_SOCKETPAIR_FAILED
-   eng "socketpair() failed with errno: %d"
-
-ER_THREAD_POOL_LOW_LEVEL_INIT_FAILED
-   eng "tp_client_low_level_init() failed"
-
-ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED
-   eng "tp_client_low_level_arm() failed"
-
-ER_THREAD_POOL_LOW_LEVEL_ARM_FAILED_WITH_ERRNO
-   eng "tp_client_low_level_arm() failed with %d"
-
-ER_THREAD_POOL_CREATE_THREAD_FAILED
-   eng "Can't create pool thread (error %d, errno: %d)"
-
-ER_THREAD_POOL_LOW_LEVEL_INIT_ALLOC_FAILED
-   eng "tp_client_low_level_init() for wait context failed to allocate memory"
-
-ER_THREAD_POOL_CREATE_EPOLL_FAILED
-   eng "epoll_create() failed with %d"
-
-ER_THREAD_POOL_EPOLL_WAIT_ERROR
-   eng "Thread pool epoll_wait() error: errno=%d."
-
-ER_THREAD_POOL_POLL_WAIT_ERROR
-   eng "Thread pool poll_wait() error: errno=%d."
-
-ER_KEYRING_COMPONENT_AWS_FILE_PATH_EMPTY
-  eng "Keyring data file path is empty in configuration file."
-
-ER_KEYRING_COMPONENT_AWS_FILE_OPEN_FAILED
-  eng "Failed to open keyring data file: %s."
-
-ER_KEYRING_COMPONENT_AWS_FILE_READ_FAILED
-  eng "Failed to read data from keyring data file: %s."
-
-ER_KEYRING_COMPONENT_AWS_FILE_WRITE_FAILED
-  eng "Failed to write data to keyring data file: %s."
-
-ER_KEYRING_COMPONENT_AWS_FILE_PARSE_FAILED
-   eng "The keyring file content is not in a valid JSON format."
-
-ER_KEYRING_COMPONENT_AWS_KEY_EXTRACT_FAILED
-   eng "Failed to extract %d. element from keyring file content."
-
-ER_KEYRING_COMPONENT_AWS_CLIENT_CREATE_FAILED
-  eng "Failed to create AWS KMS client."
-
-ER_KEYRING_COMPONENT_AWS_CLIENT_OPERATION_FAILED
-  eng "Failed AWS KMS operation %s: %s."
-
-ER_KEYRING_COMPONENT_AWS_GENERATE_KEY_INVALID_PARAMETER
-  eng "Invalid key generate parameter: %s = %s, must be %s."
-
-ER_KEYRING_COMPONENT_AWS_BACKEND_OPERATION_FAILED
-  eng "Failed operation %s on key %s owned by %s."
-
-ER_KEYRING_COMPONENT_AWS_CACHE_OPERATION_FAILED
-  eng "Failed keyring cache operation %s."
-
-ER_KEYRING_COMPONENT_AWS_ADD_TO_DOC_FAILED
-  eng "Failed to add key %s for %s to JSON document."
-
-ER_KEYRING_COMPONENT_AWS_WRITE_AFTER_REENCRYPTION_FAILED
-  eng "Failed to write the data after reencryption."
-
-ER_KEYRING_COMPONENT_AWS_READ_ONLY_LIMIT
-  eng "Cannot %s, the keyring is read only."
-
-ER_KEYRING_COMPONENT_AWS_CANNOT_ENCRYPT_READ_ONLY
-  eng "CMK was changed and the keyring must be re-encrypted, but the keyring is read only. Set the read_only config parameter to false for re-encryption and reload the component."
-
-ER_AUTHENTICATION_OPENID_OPTION_REGISTER
-  eng "Option registration failed."
-
-ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
-  eng "Option deregistration failed."
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for

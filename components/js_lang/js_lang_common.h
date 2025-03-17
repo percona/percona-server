@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+/* Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@
   Services and helper headers provided by SQL core which our component uses.
 */
 #include <mysql/components/services/bits/stored_program_bits.h>
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
@@ -46,6 +47,8 @@
 /*
   Placeholders for services from SQL core used by our component.
 */
+extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+extern REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 extern REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
 extern REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_charset);
@@ -102,5 +105,10 @@ static constexpr const char LANGUAGE_NAME[] = "JS";
 // Name of global privilege required from user creating JS routine
 // in addition to usual CREATE ROUTINE privilege on the schema.
 static constexpr std::string_view CREATE_PRIVILEGE_NAME = "CREATE_JS_ROUTINE";
+
+// Name of system variable which limits the size of console log buffer.
+//
+// Defined as a macro so we can easier concatenate it with other literals.
+#define MAX_CONSOLE_LOG_SIZE_VAR_NAME "max_console_log_size"
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_COMMON_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+/* Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or
@@ -679,5 +679,15 @@ bool unregister_create_privilege() {
              " component.");
     return true;
   }
+  return false;
+}
+
+bool register_sys_vars() {
+  if (Js_console::register_sys_var()) return true;
+  return false;
+}
+
+bool unregister_sys_vars() {
+  if (Js_console::unregister_sys_var()) return true;
   return false;
 }

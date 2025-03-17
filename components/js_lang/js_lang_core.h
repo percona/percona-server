@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+/* Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@
 #include <mysql/components/services/language_service.h>  // stored_program_handle
 
 #include "js_lang_common.h"
+#include "js_lang_console.h"
 
 /**
   Representation of V8 engine in our component.
@@ -252,6 +253,9 @@ class Js_thd {
     */
     v8::Global<v8::Context> context;
 
+    /** JS console for the specific connection and user pair. */
+    Js_console console;
+
     Auth_id_context(const std::shared_ptr<Js_isolate> &iso_ptr,
                     v8::Local<v8::Context> &ctx)
         : isolate_ptr(iso_ptr), context(iso_ptr->get_v8_isolate(), ctx) {}
@@ -324,7 +328,13 @@ class Js_thd {
 
       v8::HandleScope handle_scope(isolate);
 
+      // Create JS context with our custom built-ins.
+      //
+      // First, create context using global object template.
       v8::Local<v8::Context> context = v8::Context::New(isolate);
+
+      // Then, setup our custom 'console' object.
+      Js_console::prepare_object(context);
 
       auto r = m_auth_id_contexts.try_emplace(auth_id, isolate_ptr, context);
 
@@ -667,5 +677,21 @@ bool register_udfs();
   @retval True  - Failure (error has been reported).
 */
 bool unregister_udfs();
+
+/**
+  Register system variables allowing to control some of JS routines behavior.
+
+  @retval False - Success.
+  @retval True  - Failure (error has been reported).
+*/
+bool register_sys_vars();
+
+/**
+  Unregister system variables allowing to control some of JS routines behavior.
+
+  @retval False - Success.
+  @retval True  - Failure (error has been reported).
+*/
+bool unregister_sys_vars();
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_CORE_H */

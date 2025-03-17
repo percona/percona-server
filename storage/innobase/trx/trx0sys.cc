@@ -610,7 +610,7 @@ void trx_sys_create(void) {
 
   ut_d(trx_sys->rw_max_trx_no = 0);
 
-  new (&trx_sys->rw_trx_ids)
+  new (&trx_sys->long_rw_trx_ids)
       trx_ids_t(ut::allocator<trx_id_t>(mem_key_trx_sys_t_rw_trx_ids));
 
   for (auto &shard : trx_sys->shards) {
@@ -688,7 +688,7 @@ void trx_sys_close(void) {
   mutex_free(&trx_sys->serialisation_mutex);
   mutex_free(&trx_sys->mutex);
 
-  trx_sys->rw_trx_ids.~trx_ids_t();
+  trx_sys->long_rw_trx_ids.~trx_ids_t();
 
   ut::free(trx_sys);
 

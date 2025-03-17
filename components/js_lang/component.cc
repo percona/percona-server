@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+/* Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or
@@ -41,6 +41,8 @@
 #include "js_lang_common.h"
 #include "js_lang_core.h"
 
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
+REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(dynamic_privilege_register);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_charset);
@@ -232,9 +234,19 @@ static mysql_service_status_t component_init() {
   // The below call can fail if one of UDF names is already occupied.
   if (register_udfs()) return 1;
 
+  // The below call can fail, when, for example, while executing INSTALL
+  // COMPONENT statement, we use SET clause to set one of component's
+  // system variables to some wrong value.
+  if (register_sys_vars()) {
+    // We can't do much if unregistiring UDFs fails here.
+    (void)unregister_udfs();
+    return 1;
+  }
+
   // Play safe, even though the below can't fail at the moment.
   if (register_create_privilege()) {
-    // We can't do much if unregistiring UDFs fails here.
+    // We can't do much if unregistiring sys vars or UDFs fails here.
+    (void)unregister_sys_vars();
     (void)unregister_udfs();
     return 1;
   }
@@ -278,8 +290,8 @@ static mysql_service_status_t component_deinit() {
   */
   if (unregister_udfs()) return 1;
 
-  // Play safe, even though the below can't fail at the moment.
-  if (unregister_create_privilege()) return 1;
+  // Play safe, even though the below calls should not fail at the moment.
+  if (unregister_sys_vars() || unregister_create_privilege()) return 1;
 
   Js_thd::unregister_slot();
 
@@ -307,6 +319,8 @@ BEGIN_COMPONENT_PROVIDES(js_lang)
 END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(js_lang)
+  REQUIRES_SERVICE(component_sys_variable_register),
+  REQUIRES_SERVICE(component_sys_variable_unregister),
   REQUIRES_SERVICE(dynamic_privilege_register),
   REQUIRES_SERVICE(global_grants_check),
   REQUIRES_SERVICE(mysql_charset),

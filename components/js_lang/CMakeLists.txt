@@ -1,4 +1,4 @@
-# Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+# Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,7 @@ MYSQL_ADD_COMPONENT(js_lang
   js_lang_core.cc
   js_lang_param.cc
   js_lang_udf.cc
-  LINK_LIBRARIES ext::v8
+  js_lang_console.cc
+  LINK_LIBRARIES ext::v8 extra::rapidjson
   MODULE_ONLY
 )

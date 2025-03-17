@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024 Percona LLC and/or its affiliates. All rights
+/* Copyright (c) 2023, 2025 Percona LLC and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or
@@ -43,6 +43,22 @@ static constexpr char UTF8_DEFAULT_COLLATION_NAME[] = "utf8mb4_0900_ai_ci";
   (including implicit temporary table case).
 */
 static constexpr std::size_t MAX_TEXT_RESULT_LENGTH = ((1 << 16) - 1) / 4;
+
+/**
+  Max result length for UDFs which return string values and for which we
+  decided to return results of LONGTEXT type (as opposed to TINYTEXT, TEXT,
+  or MEDIUMTEXT). It's 2^32-1 (max LONGTEXT length in bytes) divided by 4
+  (max number of bytes per utf8mb4_* character).
+
+  Note that SQL layer tries to cap max return value size reported by UDF
+  at MAX_BLOB_WIDTH, which is supposed to be mapped to MEDIUMTEXT size.
+  However, since at some point the capped value multiplied by 4 (max
+  number of by per utf8mb4 character) we still end up with LONGTEXT type.
+  If this (bug?) ever fixed UDF will start returning MEDIUMTEXT type instead
+  of the correct one.
+*/
+static constexpr std::size_t MAX_LONGTEXT_RESULT_LENGTH =
+    ((1ULL << 32) - 1) / 4;
 
 /**
   Implementation of JS_GET_LAST_ERROR() UDF for getting error message for the
@@ -159,13 +175,128 @@ class js_clear_last_error_impl {
   }
 };
 
+/**
+  Implementation of JS_GET_CONSOLE_LOG() UDF for getting console output
+  for the connection and the current user pair.
+*/
+class js_get_console_log_impl {
+ public:
+  js_get_console_log_impl(mysqlpp::udf_context &ctx) {
+    // TODO: Same here consider supporting retrieval of console log
+    // for different users.
+    if (ctx.get_number_of_args() != 0)
+      throw std::invalid_argument{"Wrong argument list: should be ()"};
+
+    ctx.mark_result_nullable(false);
+    ctx.mark_result_const(false);
+
+    /*
+      Probably, in most cases buffered console output should fit into
+      MEDIUMTEXT type (i.e. be smaller than < 16Mb). This works well
+      for default value of js_lang.max_console_log_size variable, which
+      caps maximum approximate size of buffered console messages.
+      However, the maximum supported value for this variabel is 1Gb
+      so we resort to using LONGTEXT type.
+    */
+    ctx.set_result_max_length(MAX_LONGTEXT_RESULT_LENGTH);
+
+    const char *const UTF8_DEFAULT_COLLATION_NAME = "utf8mb4_0900_ai_ci";
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+    charset_ext.set_return_value_collation(ctx, UTF8_DEFAULT_COLLATION_NAME);
+  }
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+    auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+    // Handle the case when JavaScript was never run for this user and/or
+    // this connection.
+    if (auth_id_ctx == nullptr) return "";
+
+    return auth_id_ctx->console.get_log();
+  }
+};
+
+/**
+  Implementation of JS_GET_CONSOLE_LOG_JSON() UDF for getting console
+  output in JSON format for the connection and the current user pair.
+*/
+class js_get_console_log_json_impl {
+ public:
+  js_get_console_log_json_impl(mysqlpp::udf_context &ctx) {
+    // TODO: Same here consider supporting retrieval of console log
+    // for different users.
+    if (ctx.get_number_of_args() != 0)
+      throw std::invalid_argument{"Wrong argument list: should be ()"};
+
+    ctx.mark_result_nullable(false);
+    ctx.mark_result_const(false);
+
+    /*
+      Use LONGTEXT as a type of return value for this UDF.
+
+      Since JSON representation might add quite some overhead to the log
+      message size, shorter MEDIUMTEXT type (which can store up to 16Mb)
+      might not be ehough to store JSON of console log output which fits
+      within default 1Mb value of js_lang.max_console_log_size variable.
+    */
+    ctx.set_result_max_length(MAX_LONGTEXT_RESULT_LENGTH);
+
+    const char *const UTF8_DEFAULT_COLLATION_NAME = "utf8mb4_0900_ai_ci";
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+    charset_ext.set_return_value_collation(ctx, UTF8_DEFAULT_COLLATION_NAME);
+  }
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+    auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+    // Handle the case when JS was never run for this user and/or
+    // this connection.
+    if (auth_id_ctx == nullptr) return "[\n]";
+
+    return auth_id_ctx->console.get_log_json();
+  }
+};
+
+/**
+  Implementation of JS_CLEAR_CONSOLE_LOG() UDF for clearing contents of console
+  for the connection and the current user pair.
+*/
+class js_clear_console_log_impl {
+ public:
+  js_clear_console_log_impl(mysqlpp::udf_context &ctx) {
+    // TODO: Same here consider supporting clearing of console log for
+    // different users.
+    if (ctx.get_number_of_args() != 0)
+      throw std::invalid_argument{"Wrong argument list: should be ()"};
+
+    ctx.mark_result_nullable(false);
+    ctx.mark_result_const(false);
+  }
+  mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &) {
+    auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+    // Handle the case when JS was never run for this user and/or
+    // this connection.
+    if (auth_id_ctx == nullptr) return 0;
+
+    return auth_id_ctx->console.clear_log();
+  }
+};
+
 DECLARE_STRING_UDF_AUTO(js_get_last_error)
 DECLARE_STRING_UDF_AUTO(js_get_last_error_info)
 DECLARE_INT_UDF_AUTO(js_clear_last_error)
+DECLARE_STRING_UDF_AUTO(js_get_console_log)
+DECLARE_STRING_UDF_AUTO(js_get_console_log_json)
+DECLARE_INT_UDF_AUTO(js_clear_console_log)
 
 static std::array udfs{DECLARE_UDF_INFO_AUTO(js_get_last_error),
                        DECLARE_UDF_INFO_AUTO(js_get_last_error_info),
-                       DECLARE_UDF_INFO_AUTO(js_clear_last_error)};
+                       DECLARE_UDF_INFO_AUTO(js_clear_last_error),
+                       DECLARE_UDF_INFO_AUTO(js_get_console_log),
+                       DECLARE_UDF_INFO_AUTO(js_get_console_log_json),
+                       DECLARE_UDF_INFO_AUTO(js_clear_console_log)};
+
 using udf_bitset_type = mysqlpp::udf_bitset<std::tuple_size_v<decltype(udfs)>>;
 static udf_bitset_type registered_udfs;
 

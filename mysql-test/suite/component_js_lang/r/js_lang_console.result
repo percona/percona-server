@@ -1,0 +1,2485 @@
+# Prepare playground.
+INSTALL COMPONENT 'file://component_js_lang';
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+#
+# 0) Some basic tests,
+#
+CREATE PROCEDURE p1() LANGUAGE JS AS $$ console.log("Test!") $$;
+#
+# JS_GET_CONSOLE_LOG() and JS_GET_CONSOLE_LOG_JSON() prior to
+# any writes to console.
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[]
+#
+# Let us do some writes to console and check output.
+CALL p1();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Test!
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Test!"
+    }
+]
+CALL p1();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Test!
+Test!
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Test!"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Test!"
+    }
+]
+#
+# Also let us test JS_CLEAR_CONSOLE_LOG().
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+2
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[]
+DROP PROCEDURE p1;
+#
+# 1) Test coverage for console.log().
+#
+#
+# 1.1) console.log() - empty argument list case.
+#
+# Nothing (not even an empty line) should be added to the
+# console output in this case.
+CREATE PROCEDURE p_empty() LANGUAGE JS AS $$ console.log() $$;
+CALL p_empty();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+DROP PROCEDURE p_empty;
+#
+# 1.2) console.log(val1) - case with a single non-String argument.
+#
+# Line with a representation of argument which is useful for
+# debugging purposes is added to the console output in this case.
+# It is not necessarily the same thing as result of argument
+# conversion to String. It might also change without much notice.
+#
+CREATE PROCEDURE p_val1() LANGUAGE JS AS $$
+console.log(null);
+console.log(undefined);
+console.log(10);
+console.log(12.5);
+console.log(BigInt(100));
+console.log(true);
+console.log([1, 2, 3]);
+console.log({ x: 1, y: "alpha", m() { return 1; } });
+console.log(function (a) { return a; });
+console.log(new Uint8Array([0, 1, 2, 3]));
+$$|
+CALL p_val1();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+null
+undefined
+10
+12.5
+100
+true
+[object Array]
+#<Object>
+function (a) { return a; }
+[object Uint8Array]
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+10
+DROP PROCEDURE p_val1;
+#
+# Conversion to such debugging representation should work even
+# when conversion to String is broken.
+CREATE PROCEDURE p_val1_err() LANGUAGE JS AS $$ console.log({ toString() { throw "Oops!" } }) $$;
+CALL p_val1_err();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+[object Object]
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_val1_err;
+#
+# 1.3) console.log(val1, ..., valN) - case with a multiple arguments
+#      (where first argument is non-String).
+#
+# Line with concatenated represenations of arguments which are useful for
+# debugging separated by spaces added to the console output.
+CREATE PROCEDURE p_valN() LANGUAGE JS AS $$
+console.log(null, undefined);
+console.log(10, 12.5, BigInt(100));
+console.log(false, "alpha", "0.1", "123");
+console.log([1, 2, 3], { x: 1, y: "alpha", m() { return 1; } },
+(function (a) { return a; }), new Uint8Array([0, 1, 2, 3]));
+$$|
+CALL p_valN();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+null undefined
+10 12.5 100
+false alpha 0.1 123
+[object Array] #<Object> function (a) { return a; } [object Uint8Array]
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+4
+DROP PROCEDURE p_valN;
+#
+# 1.4) console.log(msg) - case with a single String argument.
+#
+# Line with the verbatim argument is added to console log.
+# Format specifiers which are present in the string are
+# kept as is (unlike in the next case).
+CREATE PROCEDURE p_str1() LANGUAGE JS AS $$
+console.log("");
+console.log("alpha");
+console.log("%s %d %i %f %o %O %c %%");
+$$|
+CALL p_str1();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+alpha
+%s %d %i %f %o %O %c %%
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+3
+DROP PROCEDURE p_str1;
+#
+# 1.5) console.log(msg, val1, ... valN) - case with multiple arguments
+#      where the first one is a String.
+#
+# The first argument might contain format specifiers which are replaced
+# by converted values of later arguments, where conversion procedure for
+# each argument is prescribed by corresponding specifier.
+CREATE PROCEDURE p_strN() LANGUAGE JS AS $$
+const arg_desc = ["null", "undefined", "10", "12.5", "BigInt(123)", "true",
+"'alpha'", "'0.6'", "'123'", "'123abc'",
+"[1, 2, 3]", "({ x: 1, y: 'alpha' })",
+"({ toString() { return 'Wow!'; } })",
+"({ toString() { return '123.45'; } })",
+"(function (a) { return a; })",
+"new Uint8Array([0, 1, 2, 3])"];
+const arg_vals = arg_desc.map((s) => eval(s));
+function test_specifier(spec) {
+const msg_string =  arg_desc.reduce(
+(m, d) => m + " Arg <" + d + "> converted <" + spec + "> ",
+"");
+console.log("Testing specifier :", spec);
+console.log(msg_string, ...arg_vals);
+}
+// %s specifier is replaced with argument value converted to String.
+test_specifier("%s");
+// %d and %i specifiers are replaced with argument value converted to integer.
+// Conversion is done by converting to String first and then to integer.
+test_specifier("%d");
+test_specifier("%i");
+// %f specifier is replaced with argument value converted to floating-point
+// number. Conversion is done by converting to String first and then to
+// floating-point number.
+test_specifier("%f");
+// %o and %O specifiers are replaced with argument converted to representation
+// useful for debugging.
+test_specifier("%o");
+test_specifier("%O");
+// %c is supposed to allow specify CSS for the following text. This does not
+// make sense in our case. So this specifier is omitted and corresponding
+// argument is skipped.
+test_specifier("%c");
+// %% is replaced with a single %. Argument is not consumed.
+test_specifier("%%");
+// Case when there are more specifiers than arguments.
+// Specifiers without corresponding arguments are
+// kept in the message as is.
+console.log("1 : %s 2 : %s 3 : %s", "a", "b");
+// Case when there are more arguments than specifiers.
+// Representations of extra arguments useful for debugging are
+// appended at the end.
+console.log("1 : %s", "a", "b", "c");
+// Case when message does not contain any specifiers at all.
+console.log("No specifiers:", "a","b","c");
+$$|
+CALL p_strN();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Testing specifier : %s
+ Arg <null> converted <null>  Arg <undefined> converted <undefined>  Arg <10> converted <10>  Arg <12.5> converted <12.5>  Arg <BigInt(123)> converted <123>  Arg <true> converted <true>  Arg <'alpha'> converted <alpha>  Arg <'0.6'> converted <0.6>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123abc>  Arg <[1, 2, 3]> converted <1,2,3>  Arg <({ x: 1, y: 'alpha' })> converted <[object Object]>  Arg <({ toString() { return 'Wow!'; } })> converted <Wow!>  Arg <({ toString() { return '123.45'; } })> converted <123.45>  Arg <(function (a) { return a; })> converted <function (a) { return a; }>  Arg <new Uint8Array([0, 1, 2, 3])> converted <0,1,2,3> 
+Testing specifier : %d
+ Arg <null> converted <NaN>  Arg <undefined> converted <NaN>  Arg <10> converted <10>  Arg <12.5> converted <12>  Arg <BigInt(123)> converted <123>  Arg <true> converted <NaN>  Arg <'alpha'> converted <NaN>  Arg <'0.6'> converted <0>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123>  Arg <[1, 2, 3]> converted <1>  Arg <({ x: 1, y: 'alpha' })> converted <NaN>  Arg <({ toString() { return 'Wow!'; } })> converted <NaN>  Arg <({ toString() { return '123.45'; } })> converted <123>  Arg <(function (a) { return a; })> converted <NaN>  Arg <new Uint8Array([0, 1, 2, 3])> converted <0> 
+Testing specifier : %i
+ Arg <null> converted <NaN>  Arg <undefined> converted <NaN>  Arg <10> converted <10>  Arg <12.5> converted <12>  Arg <BigInt(123)> converted <123>  Arg <true> converted <NaN>  Arg <'alpha'> converted <NaN>  Arg <'0.6'> converted <0>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123>  Arg <[1, 2, 3]> converted <1>  Arg <({ x: 1, y: 'alpha' })> converted <NaN>  Arg <({ toString() { return 'Wow!'; } })> converted <NaN>  Arg <({ toString() { return '123.45'; } })> converted <123>  Arg <(function (a) { return a; })> converted <NaN>  Arg <new Uint8Array([0, 1, 2, 3])> converted <0> 
+Testing specifier : %f
+ Arg <null> converted <NaN>  Arg <undefined> converted <NaN>  Arg <10> converted <10>  Arg <12.5> converted <12.5>  Arg <BigInt(123)> converted <123>  Arg <true> converted <NaN>  Arg <'alpha'> converted <NaN>  Arg <'0.6'> converted <0.6>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123>  Arg <[1, 2, 3]> converted <1>  Arg <({ x: 1, y: 'alpha' })> converted <NaN>  Arg <({ toString() { return 'Wow!'; } })> converted <NaN>  Arg <({ toString() { return '123.45'; } })> converted <123.45>  Arg <(function (a) { return a; })> converted <NaN>  Arg <new Uint8Array([0, 1, 2, 3])> converted <0> 
+Testing specifier : %o
+ Arg <null> converted <null>  Arg <undefined> converted <undefined>  Arg <10> converted <10>  Arg <12.5> converted <12.5>  Arg <BigInt(123)> converted <123>  Arg <true> converted <true>  Arg <'alpha'> converted <alpha>  Arg <'0.6'> converted <0.6>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123abc>  Arg <[1, 2, 3]> converted <[object Array]>  Arg <({ x: 1, y: 'alpha' })> converted <#<Object>>  Arg <({ toString() { return 'Wow!'; } })> converted <[object Object]>  Arg <({ toString() { return '123.45'; } })> converted <[object Object]>  Arg <(function (a) { return a; })> converted <function (a) { return a; }>  Arg <new Uint8Array([0, 1, 2, 3])> converted <[object Uint8Array]> 
+Testing specifier : %O
+ Arg <null> converted <null>  Arg <undefined> converted <undefined>  Arg <10> converted <10>  Arg <12.5> converted <12.5>  Arg <BigInt(123)> converted <123>  Arg <true> converted <true>  Arg <'alpha'> converted <alpha>  Arg <'0.6'> converted <0.6>  Arg <'123'> converted <123>  Arg <'123abc'> converted <123abc>  Arg <[1, 2, 3]> converted <[object Array]>  Arg <({ x: 1, y: 'alpha' })> converted <#<Object>>  Arg <({ toString() { return 'Wow!'; } })> converted <[object Object]>  Arg <({ toString() { return '123.45'; } })> converted <[object Object]>  Arg <(function (a) { return a; })> converted <function (a) { return a; }>  Arg <new Uint8Array([0, 1, 2, 3])> converted <[object Uint8Array]> 
+Testing specifier : %c
+ Arg <null> converted <>  Arg <undefined> converted <>  Arg <10> converted <>  Arg <12.5> converted <>  Arg <BigInt(123)> converted <>  Arg <true> converted <>  Arg <'alpha'> converted <>  Arg <'0.6'> converted <>  Arg <'123'> converted <>  Arg <'123abc'> converted <>  Arg <[1, 2, 3]> converted <>  Arg <({ x: 1, y: 'alpha' })> converted <>  Arg <({ toString() { return 'Wow!'; } })> converted <>  Arg <({ toString() { return '123.45'; } })> converted <>  Arg <(function (a) { return a; })> converted <>  Arg <new Uint8Array([0, 1, 2, 3])> converted <> 
+Testing specifier : %%
+ Arg <null> converted <%>  Arg <undefined> converted <%>  Arg <10> converted <%>  Arg <12.5> converted <%>  Arg <BigInt(123)> converted <%>  Arg <true> converted <%>  Arg <'alpha'> converted <%>  Arg <'0.6'> converted <%>  Arg <'123'> converted <%>  Arg <'123abc'> converted <%>  Arg <[1, 2, 3]> converted <%>  Arg <({ x: 1, y: 'alpha' })> converted <%>  Arg <({ toString() { return 'Wow!'; } })> converted <%>  Arg <({ toString() { return '123.45'; } })> converted <%>  Arg <(function (a) { return a; })> converted <%>  Arg <new Uint8Array([0, 1, 2, 3])> converted <%>  null undefined 10 12.5 123 true alpha 0.6 123 123abc [object Array] #<Object> [object Object] [object Object] function (a) { return a; } [object Uint8Array]
+1 : a 2 : b 3 : %s
+1 : a b c
+No specifiers: a b c
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+19
+DROP PROCEDURE p_strN;
+#
+# 1.6) Test cases when conversion of console.log() argument fails.
+#
+# Conversion of argument to representation useful for debugging
+# should not fail even if conversion of argument to String fails.
+CREATE PROCEDURE p_val_err() LANGUAGE JS AS $$ console.log({ toString() { throw "Ooops!" } }) $$;
+CALL p_val_err();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+[object Object]
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_val_err;
+#
+# Conversion to string can fail and the exception should be propagated
+# from console.log() to JS code. If uncaught it results in SQL CALL
+# statement failure with error set accordingly. If caught execution
+# of JS code should continue.
+CREATE PROCEDURE p_str_err() LANGUAGE JS AS $$ console.log("%s", { toString() { throw "Ooops!" } }) $$;
+CALL p_str_err();
+ERROR HY000: Ooops!
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_LAST_ERROR_INFO();
+JS_GET_LAST_ERROR_INFO()
+Error: Ooops!
+At: SQL PROCEDURE test.p_str_err:1:34
+Line:  console.log("%s", { toString() { throw "Ooops!" } }) 
+                                        ^
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+0
+DROP PROCEDURE p_str_err;
+CREATE PROCEDURE p_str_err_catch() LANGUAGE JS AS $$
+try {
+console.log("%s", { toString() { throw "Ooops!" } });
+} catch (e) {
+console.log("Got exception:", e);
+}
+$$|
+CALL p_str_err_catch();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Got exception: Ooops!
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_str_err_catch;
+#
+# 1.7) Test that console.log() produces console messages with "Info"
+#      log level.
+CREATE PROCEDURE p_level() LANGUAGE JS AS $$
+console.log(1, "st message");
+console.log("Message 2");
+console.log("Message %s", "Three");
+$$|
+CALL p_level();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	1 st message
+Info	Message 2
+Info	Message Three
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+3
+DROP PROCEDURE p_level;
+#
+# 2) Test coverage for console.info(), warn(), error() and
+#    debug() methods.
+#
+#    They behave exactly the same way as console.log() does
+#    except that they use different log level for messages.
+CREATE PROCEDURE p_log_like(name VARCHAR(10)) LANGUAGE JS AS $$
+eval("console."+name+"()");
+eval("console."+name+"('')");
+eval("console."+name+"(1)");
+eval("console."+name+"(2, 3, 'Four')");
+eval("console."+name+"('Message five - %d')");
+eval("console."+name+"('Message %s', 'Six')");
+eval("console."+name+"('Message %d', 7.6, 8, 9)");
+$$|
+#
+# 2.1) In our implementation console.info() is just an alias for
+#      console.log(), so it uses "Info" level as well.
+CALL p_log_like("info");
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+1
+2 3 Four
+Message five - %d
+Message Six
+Message 7 8 9
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	
+Info	1
+Info	2 3 Four
+Info	Message five - %d
+Info	Message Six
+Info	Message 7 8 9
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+6
+#
+# 2.2) console.warn() uses "Warning" log level.
+CALL p_log_like("warn");
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+1
+2 3 Four
+Message five - %d
+Message Six
+Message 7 8 9
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Warning	
+Warning	1
+Warning	2 3 Four
+Warning	Message five - %d
+Warning	Message Six
+Warning	Message 7 8 9
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+6
+#
+# 2.3) console.error() uses "Error" log level.
+CALL p_log_like("error");
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+1
+2 3 Four
+Message five - %d
+Message Six
+Message 7 8 9
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Error	
+Error	1
+Error	2 3 Four
+Error	Message five - %d
+Error	Message Six
+Error	Message 7 8 9
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+6
+#
+# 2.4) console.debug() uses "Debug" log level.
+CALL p_log_like("debug");
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+1
+2 3 Four
+Message five - %d
+Message Six
+Message 7 8 9
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Debug	
+Debug	1
+Debug	2 3 Four
+Debug	Message five - %d
+Debug	Message Six
+Debug	Message 7 8 9
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+6
+DROP PROCEDURE p_log_like;
+#
+# 3) Test coverage for console.assert().
+#
+# console.assert() can be considered conditional form of error() call.
+#
+# - Does nothing if its first argument is truthy.
+# - If there are no arguments or there is only one argument which is
+#   falsy "Assertion failed" message is logged with "Error" level.
+# - If there are more than one argument and the first argument is falsy,
+#   it works like the error() call works, when it is passed all the
+#   arguments starting from the second one. "Assertion failed:"
+#   message is prepended to the console log message.
+CREATE PROCEDURE p_assert() LANGUAGE JS AS $$
+// Let us check how different condition values are handled.
+const arg_desc = ["", "null", "undefined", "0", "123", "0.0", "12.5",
+"BigInt(0)", "BigInt(123)", "true", "false",
+"''", "'alpha'", "'0'", "'0.0'", "'123'",
+"[1, 2, 3]", "({ x: 1, y: 'alpha' })",
+"({ toString() { return ''; } })",
+"({ toString() { throw 'Oops!'; } })",
+"(function (a) { return a; })",
+"new Uint8Array([0, 1, 2, 3])"];
+for (const a of arg_desc) {
+console.log("Calling console.assert(%s) results in :", a);
+eval("console.assert(" + a + ")");
+}
+console.log("Test console.assert() with more than 1 argument:");
+console.assert(false, 1, 2, 3);
+console.assert(false, "four");
+console.assert(false, "five %s %d", "six", 7.65, 8);
+$$|
+CALL p_assert();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Calling console.assert() results in :
+Assertion failed
+Calling console.assert(null) results in :
+Assertion failed
+Calling console.assert(undefined) results in :
+Assertion failed
+Calling console.assert(0) results in :
+Assertion failed
+Calling console.assert(123) results in :
+Calling console.assert(0.0) results in :
+Assertion failed
+Calling console.assert(12.5) results in :
+Calling console.assert(BigInt(0)) results in :
+Assertion failed
+Calling console.assert(BigInt(123)) results in :
+Calling console.assert(true) results in :
+Calling console.assert(false) results in :
+Assertion failed
+Calling console.assert('') results in :
+Assertion failed
+Calling console.assert('alpha') results in :
+Calling console.assert('0') results in :
+Calling console.assert('0.0') results in :
+Calling console.assert('123') results in :
+Calling console.assert([1, 2, 3]) results in :
+Calling console.assert(({ x: 1, y: 'alpha' })) results in :
+Calling console.assert(({ toString() { return ''; } })) results in :
+Calling console.assert(({ toString() { throw 'Oops!'; } })) results in :
+Calling console.assert((function (a) { return a; })) results in :
+Calling console.assert(new Uint8Array([0, 1, 2, 3])) results in :
+Test console.assert() with more than 1 argument:
+Assertion failed: 1 2 3
+Assertion failed: four
+Assertion failed: five six 7 8
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	Calling console.assert() results in :
+Error	Assertion failed
+Info	Calling console.assert(null) results in :
+Error	Assertion failed
+Info	Calling console.assert(undefined) results in :
+Error	Assertion failed
+Info	Calling console.assert(0) results in :
+Error	Assertion failed
+Info	Calling console.assert(123) results in :
+Info	Calling console.assert(0.0) results in :
+Error	Assertion failed
+Info	Calling console.assert(12.5) results in :
+Info	Calling console.assert(BigInt(0)) results in :
+Error	Assertion failed
+Info	Calling console.assert(BigInt(123)) results in :
+Info	Calling console.assert(true) results in :
+Info	Calling console.assert(false) results in :
+Error	Assertion failed
+Info	Calling console.assert('') results in :
+Error	Assertion failed
+Info	Calling console.assert('alpha') results in :
+Info	Calling console.assert('0') results in :
+Info	Calling console.assert('0.0') results in :
+Info	Calling console.assert('123') results in :
+Info	Calling console.assert([1, 2, 3]) results in :
+Info	Calling console.assert(({ x: 1, y: 'alpha' })) results in :
+Info	Calling console.assert(({ toString() { return ''; } })) results in :
+Info	Calling console.assert(({ toString() { throw 'Oops!'; } })) results in :
+Info	Calling console.assert((function (a) { return a; })) results in :
+Info	Calling console.assert(new Uint8Array([0, 1, 2, 3])) results in :
+Info	Test console.assert() with more than 1 argument:
+Error	Assertion failed: 1 2 3
+Error	Assertion failed: four
+Error	Assertion failed: five six 7 8
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+34
+DROP PROCEDURE p_assert;
+#
+# 4) Tests for console.count() and console.countReset() calls.
+#
+# 4.1) Basic test for count() and countReset() functionality.
+CREATE PROCEDURE p_count_basic() LANGUAGE JS AS $$
+console.log("Call count() for label 'a' thrice and for 'b' once.");
+console.count("a");
+console.count("a");
+console.count("a");
+console.count("b");
+console.log("Call count() for label 'a' one more time (so its count is 4)");
+console.count("a");
+console.log("Call countReset() for label 'a'");
+console.countReset("a");
+console.log("Now call count() for label 'a' one more time and observe " +
+"that counting has been restarted.");
+console.count("a");
+console.log("Counter for 'b' should not be affected.");
+console.count("b");
+console.log("Clean up counters for 'a' and 'b'.");
+console.countReset("a");
+console.countReset("b");
+$$|
+CALL p_count_basic();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Call count() for label 'a' thrice and for 'b' once.
+a: 1
+a: 2
+a: 3
+b: 1
+Call count() for label 'a' one more time (so its count is 4)
+a: 4
+Call countReset() for label 'a'
+Now call count() for label 'a' one more time and observe that counting has been restarted.
+a: 1
+Counter for 'b' should not be affected.
+b: 2
+Clean up counters for 'a' and 'b'.
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+13
+DROP PROCEDURE p_count_basic;
+#
+# 4.2) Arity tests.
+#
+# When no arguments are passed to count() and countReset()
+# 'default' label is used.
+# Extra (second and later) arguments are ignored per standard
+# JS practice.
+CREATE PROCEDURE p_count_arity() LANGUAGE JS AS $$
+console.log("Call count() without arguments to show that for label " +
+"'default' is used.");
+console.count();
+console.count();
+console.log("Call count('default') to show that it is the same label.");
+console.count('default');
+console.log("Call countReset() and then count() without arguments to show " +
+"'default' counter is reset.");
+console.countReset();
+console.count();
+console.log("Extra arguments in count() and countReset() are ignored");
+console.count("a", "b");
+console.count("b");
+console.countReset("a", "b");
+console.count("a");
+console.count("b");
+console.log("Clean up counters for 'a', 'b' and 'default'.");
+console.countReset("a");
+console.countReset("b");
+console.countReset();
+$$|
+CALL p_count_arity();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Call count() without arguments to show that for label 'default' is used.
+default: 1
+default: 2
+Call count('default') to show that it is the same label.
+default: 3
+Call countReset() and then count() without arguments to show 'default' counter is reset.
+default: 1
+Extra arguments in count() and countReset() are ignored
+a: 1
+b: 1
+a: 1
+b: 2
+Clean up counters for 'a', 'b' and 'default'.
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+13
+DROP PROCEDURE p_count_arity;
+#
+# 4.3) Test how arguments of different types are handled and
+#      what happens in case of error.
+#
+# First argument to count()/countReset() is converted to String
+# to get label value. If error happens during this conversion it
+# should be propagated to JS.
+CREATE PROCEDURE p_count_arg_conv() LANGUAGE JS AS $$
+console.log("count() - normal case, String argument.");
+console.count("");
+console.count("alpha");
+console.count("123");
+console.log("count() - exotic, non-String arguments, which are converted to String.");
+console.count(0);
+console.count(123);
+console.count(1.5);
+console.count(true);
+console.count(BigInt(100));
+console.count({ toString() { return "Label"; } });
+console.count([1, 2, 3]);
+console.log("countReset() - normal case, String argument.");
+console.countReset("");
+console.countReset("alpha");
+console.countReset("123");
+console.log("Check values after reset.");
+console.count("");
+console.count("alpha");
+console.count("123");
+console.log("countReset() - exotic, non-String arguments, which are converted to String.");
+console.countReset(0);
+console.countReset(123);
+console.countReset(1.5);
+console.countReset(true);
+console.countReset(BigInt(100));
+console.countReset({ toString() { return "Label"; } });
+console.countReset([1, 2, 3]);
+console.log("Check values after reset.");
+console.count(0);
+console.count(123);
+console.count(1.5);
+console.count(true);
+console.count(BigInt(100));
+console.count({ toString() { return "Label"; } });
+console.count([1, 2, 3]);
+console.log("Check what happens if error occurs while converting argument value to String.");
+try {
+console.count({ toString() { throw "Ooops!"; } });
+} catch (e) {
+console.error("Exception %s caught while calling count().", e);
+}
+try {
+console.countReset({ toString() { throw "Arghh!"; } });
+} catch (e) {
+console.error("Exception %s caught while calling countReset().", e);
+}
+console.log("Clean up by resetting counters.");
+console.countReset("");
+console.countReset("alpha");
+console.countReset("123");
+console.countReset(0);
+console.countReset(1.5);
+console.countReset(true);
+console.countReset(BigInt(100));
+console.countReset({ toString() { return "Label"; } });
+console.countReset([1, 2, 3]);
+$$|
+CALL p_count_arg_conv();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	count() - normal case, String argument.
+Info	: 1
+Info	alpha: 1
+Info	123: 1
+Info	count() - exotic, non-String arguments, which are converted to String.
+Info	0: 1
+Info	123: 2
+Info	1.5: 1
+Info	true: 1
+Info	100: 1
+Info	Label: 1
+Info	1,2,3: 1
+Info	countReset() - normal case, String argument.
+Info	Check values after reset.
+Info	: 1
+Info	alpha: 1
+Info	123: 1
+Info	countReset() - exotic, non-String arguments, which are converted to String.
+Info	Check values after reset.
+Info	0: 1
+Info	123: 1
+Info	1.5: 1
+Info	true: 1
+Info	100: 1
+Info	Label: 1
+Info	1,2,3: 1
+Info	Check what happens if error occurs while converting argument value to String.
+Error	Exception Ooops! caught while calling count().
+Error	Exception Arghh! caught while calling countReset().
+Info	Clean up by resetting counters.
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+30
+DROP PROCEDURE p_count_arg_conv;
+#
+# 4.4) Test how labels are compared by count() and countReset() calls.
+#
+# Labels should be compared in the same way as Strings are compared
+# in JS by default (i.e. using binary comparison).
+CREATE PROCEDURE p_count_label() LANGUAGE JS AS $$
+console.count("a");
+console.count("A");
+console.count("â");
+console.log("Call countReset() for 2 out of 3 labels.");
+console.countReset("A");
+console.countReset("â");
+console.log("Check that 2 out of 3 counters were reset.");
+console.count("a");
+console.count("A");
+console.count("â");
+console.log("Clean up counters.");
+console.countReset("a");
+console.countReset("A");
+console.countReset("â");
+$$|
+CALL p_count_label();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+a: 1
+A: 1
+â: 1
+Call countReset() for 2 out of 3 labels.
+Check that 2 out of 3 counters were reset.
+a: 2
+A: 1
+â: 1
+Clean up counters.
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+9
+DROP PROCEDURE p_count_label;
+#
+# 4.5) Test that count() produces messages with 'Info' log level.
+#
+CREATE PROCEDURE p_count_log_level() LANGUAGE JS AS $$
+console.count("label");
+console.count();
+console.countReset("label");
+console.countReset();
+$$|
+CALL p_count_log_level();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	label: 1
+Info	default: 1
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+2
+DROP PROCEDURE p_count_log_level;
+#
+# 4.6) Finally, test that countReset() produces a warning if label
+#      was not used with count() before.
+#
+CREATE PROCEDURE p_count_no_label() LANGUAGE JS AS $$
+console.log("Test what happens if label was not used before at all.");
+console.countReset("no-such-label");
+console.log("Also test case when the label was used but its count has ");
+console.log("been reset already. Spec says there should be no warning ");
+console.log("in this case, but implementations still warn.");
+console.count("label");
+console.countReset("label");
+console.countReset("label");
+console.log("Same for 'default' case.");
+console.countReset();
+$$|
+CALL p_count_no_label();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	Test what happens if label was not used before at all.
+Warning	no-such-label: there is no counter to reset
+Info	Also test case when the label was used but its count has 
+Info	been reset already. Spec says there should be no warning 
+Info	in this case, but implementations still warn.
+Info	label: 1
+Warning	label: there is no counter to reset
+Info	Same for 'default' case.
+Warning	default: there is no counter to reset
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+9
+DROP PROCEDURE p_count_no_label;
+#
+# 5) Tests for console.time(), timeEnd() and timeLog() calls.
+#
+# 5.1) Basic tests for time(), timeLog() and timeEnd() functionality.
+CREATE PROCEDURE p_time_basic() LANGUAGE JS AS $$
+console.log("Start timers 'a', 'b', and 'c'.");
+console.time("a");
+console.time("b");
+console.time("c");
+console.timeLog("c", "Call timeLog for 'c'.");
+console.log("Stop timer 'c'.");
+console.timeEnd("c");
+console.timeLog("b", "Call timeLog for 'b' and then stop it.");
+console.timeEnd("b");
+console.log("Start timer'b' again");
+console.time("b");
+console.log("Stop timers 'a' and 'b'.");
+console.timeEnd("b");
+console.timeEnd("a");
+$$|
+CALL p_time_basic();
+# Mask elapsed times in the output as they are of course not repeatable.
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Start timers 'a', 'b', and 'c'.
+c: X.XXX ms Call timeLog for 'c'.
+Stop timer 'c'.
+c: X.XXX ms
+b: X.XXX ms Call timeLog for 'b' and then stop it.
+b: X.XXX ms
+Start timer'b' again
+Stop timers 'a' and 'b'.
+b: X.XXX ms
+a: X.XXX ms
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+10
+DROP PROCEDURE p_time_basic;
+#
+# 5.2) Arity tests.
+#
+# When no arguments are passed to time(), timeLog() and timeEnd()
+# 'default' label is used.
+# Extra (second and later) arguments for time() and timeEnd() are
+# ignored per standard JS practice.
+CREATE PROCEDURE p_time_arity() LANGUAGE JS AS $$
+console.log("Call time() , timeLog() and timeEnd() without arguments to" +
+" show 'default' is used as label in this case.");
+console.time();
+console.timeLog();
+console.timeEnd();
+console.log("Call time() and than timeLog('default') and timeEnd('default')" +
+"to show that it is the same label.");
+console.time();
+console.timeLog("default");
+console.timeEnd("default");
+console.log("Extra arguments in time() and timeEnd() are ignored");
+console.time("a", "b");
+console.timeEnd("a");
+console.time("c");
+console.timeEnd("c", "d");
+console.log("The 2nd and later arguments of timeLog() are appended to the message.");
+console.time("e");
+console.timeLog("e", 1, -2, "three");
+console.log("Unlike for assert format specifiers are not supported.");
+console.timeLog("e", "%s message", "four");
+console.timeEnd("e");
+$$|
+CALL p_time_arity();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Call time() , timeLog() and timeEnd() without arguments to show 'default' is used as label in this case.
+default: X.XXX ms
+default: X.XXX ms
+Call time() and than timeLog('default') and timeEnd('default')to show that it is the same label.
+default: X.XXX ms
+default: X.XXX ms
+Extra arguments in time() and timeEnd() are ignored
+a: X.XXX ms
+c: X.XXX ms
+The 2nd and later arguments of timeLog() are appended to the message.
+e: X.XXX ms 1 -2 three
+Unlike for assert format specifiers are not supported.
+e: X.XXX ms %s message four
+e: X.XXX ms
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+14
+DROP PROCEDURE p_time_arity;
+#
+# 5.3) Test how time(), timeLog() and timeEnd() handle values of
+#      different types passed to them as the first argument and
+#      what happens in case of error.
+#
+# The first argument in these calls is converted to String to get
+# label value. If error happens during this conversion it should
+# be propagated to JS.
+CREATE PROCEDURE p_time_arg_conv() LANGUAGE JS AS $$
+console.log("Normal case, String argument.");
+console.time("");
+console.time("alpha");
+console.time("123");
+console.timeLog("", "by timeLog()");
+console.timeLog("alpha", "by timeLog()");
+console.timeLog("123", "by timeLog()");
+console.timeEnd("");
+console.timeEnd("alpha");
+console.timeEnd("123");
+console.log("Exotic, non-String arguments, which are converted to String.");
+console.time(0);
+console.time(123);
+console.time(1.5);
+console.time(true);
+console.time(BigInt(100));
+console.time({ toString() { return "Label"; } });
+console.time([1, 2, 3]);
+console.timeLog(0, "by timeLog()");
+console.timeLog(123, "by timeLog()");
+console.timeLog(1.5, "by timeLog()");
+console.timeLog(true, "by timeLog()");
+console.timeLog(BigInt(100), "by timeLog()");
+console.timeLog({ toString() { return "Label"; } }, "by timeLog()");
+console.timeLog([1, 2, 3], "by timeLog()");
+console.timeEnd(0);
+console.timeEnd(123);
+console.timeEnd(1.5);
+console.timeEnd(true);
+console.timeEnd(BigInt(100));
+console.timeEnd({ toString() { return "Label"; } });
+console.timeEnd([1, 2, 3]);
+console.log("Check what happens if error occurs while converting the " +
+"first argument value to String.");
+try {
+console.time({ toString() { throw "Ooops!"; } });
+} catch (e) {
+console.error("Exception %s caught while calling time().", e);
+}
+try {
+console.timeLog({ toString() { throw "Arghh!"; } });
+} catch (e) {
+console.error("Exception %s caught while calling timeLog().", e);
+}
+try {
+console.timeEnd({ toString() { throw "Ouch!"; } });
+} catch (e) {
+console.error("Exception %s caught while calling timeEnd().", e);
+}
+$$|
+CALL p_time_arg_conv();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	Normal case, String argument.
+Info	: X.XXX ms by timeLog()
+Info	alpha: X.XXX ms by timeLog()
+Info	123: X.XXX ms by timeLog()
+Info	: X.XXX ms
+Info	alpha: X.XXX ms
+Info	123: X.XXX ms
+Info	Exotic, non-String arguments, which are converted to String.
+Info	0: X.XXX ms by timeLog()
+Info	123: X.XXX ms by timeLog()
+Info	1.5: X.XXX ms by timeLog()
+Info	true: X.XXX ms by timeLog()
+Info	100: X.XXX ms by timeLog()
+Info	Label: X.XXX ms by timeLog()
+Info	1,2,3: X.XXX ms by timeLog()
+Info	0: X.XXX ms
+Info	123: X.XXX ms
+Info	1.5: X.XXX ms
+Info	true: X.XXX ms
+Info	100: X.XXX ms
+Info	Label: X.XXX ms
+Info	1,2,3: X.XXX ms
+Info	Check what happens if error occurs while converting the first argument value to String.
+Error	Exception Ooops! caught while calling time().
+Error	Exception Arghh! caught while calling timeLog().
+Error	Exception Ouch! caught while calling timeEnd().
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+26
+DROP PROCEDURE p_time_arg_conv;
+#
+# 5.4) Test how timeLog() handles values of the second and later
+#      arguments of different types.
+#
+# These arguments are converted to String representation useful
+# for debugging purposes and they results are appended to the
+# message about elapsed time. Unlike in assert() format specifiers
+# in the second argument are not processed.
+CREATE PROCEDURE p_timelog_args() LANGUAGE JS AS $$
+// Let us check how different condition values are handled.
+const arg_desc = ["", "null", "undefined", "0", "123", "0.0", "12.5",
+"BigInt(0)", "BigInt(123)", "true", "false",
+"''", "'alpha'", "'0'", "'0.0'", "'123'",
+"[1, 2, 3]", "({ x: 1, y: 'alpha' })",
+"({ toString() { return 'Message'; } })",
+"({ toString() { throw 'Oops!'; } })",
+"(function (a) { return a; })",
+"new Uint8Array([0, 1, 2, 3])"];
+console.time('a');
+for (const a of arg_desc) {
+console.log("Calling console.timeLog('a', %s) results in :", a);
+eval("console.timeLog('a', " + a + ")");
+}
+console.log("Test console.timeLog() with more than 2 arguments:");
+console.timeLog('a', 1, 2, 3);
+console.timeLog('a', "four");
+console.log("Format specifiers should not be processed:");
+console.timeLog('a', "five %s %d", "six", 7.65, 8);
+console.timeEnd('a');
+$$|
+CALL p_timelog_args();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Calling console.timeLog('a', ) results in :
+a: X.XXX ms
+Calling console.timeLog('a', null) results in :
+a: X.XXX ms null
+Calling console.timeLog('a', undefined) results in :
+a: X.XXX ms undefined
+Calling console.timeLog('a', 0) results in :
+a: X.XXX ms 0
+Calling console.timeLog('a', 123) results in :
+a: X.XXX ms 123
+Calling console.timeLog('a', 0.0) results in :
+a: X.XXX ms 0
+Calling console.timeLog('a', 12.5) results in :
+a: X.XXX ms 12.5
+Calling console.timeLog('a', BigInt(0)) results in :
+a: X.XXX ms 0
+Calling console.timeLog('a', BigInt(123)) results in :
+a: X.XXX ms 123
+Calling console.timeLog('a', true) results in :
+a: X.XXX ms true
+Calling console.timeLog('a', false) results in :
+a: X.XXX ms false
+Calling console.timeLog('a', '') results in :
+a: X.XXX ms 
+Calling console.timeLog('a', 'alpha') results in :
+a: X.XXX ms alpha
+Calling console.timeLog('a', '0') results in :
+a: X.XXX ms 0
+Calling console.timeLog('a', '0.0') results in :
+a: X.XXX ms 0.0
+Calling console.timeLog('a', '123') results in :
+a: X.XXX ms 123
+Calling console.timeLog('a', [1, 2, 3]) results in :
+a: X.XXX ms [object Array]
+Calling console.timeLog('a', ({ x: 1, y: 'alpha' })) results in :
+a: X.XXX ms #<Object>
+Calling console.timeLog('a', ({ toString() { return 'Message'; } })) results in :
+a: X.XXX ms [object Object]
+Calling console.timeLog('a', ({ toString() { throw 'Oops!'; } })) results in :
+a: X.XXX ms [object Object]
+Calling console.timeLog('a', (function (a) { return a; })) results in :
+a: X.XXX ms function (a) { return a; }
+Calling console.timeLog('a', new Uint8Array([0, 1, 2, 3])) results in :
+a: X.XXX ms [object Uint8Array]
+Test console.timeLog() with more than 2 arguments:
+a: X.XXX ms 1 2 3
+a: X.XXX ms four
+Format specifiers should not be processed:
+a: X.XXX ms five %s %d six 7.65 8
+a: X.XXX ms
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+50
+DROP PROCEDURE p_timelog_args;
+#
+# 5.5) Test how labels are compared by time(), timeLog() and
+#      timeEnd() calls.
+#
+# Labels should be compared in the same way as Strings are compared
+# in JS by default (i.e. using binary comparison).
+CREATE PROCEDURE p_time_label() LANGUAGE JS AS $$
+console.log("Start timer 'a' and then call timeLog() for labels 'A' and 'â'.");
+console.time("a");
+console.timeLog("A");
+console.timeLog("â");
+console.log("Now try to end the time using labels 'A' and 'â'.");
+console.timeEnd("A");
+console.timeEnd("â");
+console.timeEnd("a");
+$$|
+CALL p_time_label();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	Start timer 'a' and then call timeLog() for labels 'A' and 'â'.
+Warning	A: no such timer
+Warning	â: no such timer
+Info	Now try to end the time using labels 'A' and 'â'.
+Warning	A: no such timer
+Warning	â: no such timer
+Info	a: X.XXX ms
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+7
+DROP PROCEDURE p_time_label;
+#
+# 5.6) Test that timeLog() and timeEnd() produce messages with 'Info'
+#      log level.
+#
+CREATE PROCEDURE p_time_log_level() LANGUAGE JS AS $$
+console.time("label");
+console.time();
+console.timeLog("label");
+console.timeLog("label", "Additional message.");
+console.timeLog();
+console.timeEnd();
+console.timeEnd("label");
+$$|
+CALL p_time_log_level();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	label: X.XXX ms
+Info	label: X.XXX ms Additional message.
+Info	default: X.XXX ms
+Info	default: X.XXX ms
+Info	label: X.XXX ms
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+5
+DROP PROCEDURE p_time_log_level;
+#
+# 5.7) Finally, test that time() produces a warning if timer
+#      already has been started for the label, and that
+#      timeLog() and timeEnd() produce warnings if there is
+#      no active timer for the label.
+#
+CREATE PROCEDURE p_time_warn() LANGUAGE JS AS $$
+console.log("Test what happens if we call time() for already used label.");
+console.time("label");
+console.time("label");
+console.log("But after timeEnd() calling time() for previously used " +
+"label should be OK.");
+console.timeEnd("label");
+console.time("label");
+console.log("Calling timeLog() and timeEnd() for label without timer " +
+"started should produce warning.");
+console.timeLog("no-such-label");
+console.timeEnd("no-such-label");
+console.log("Even if there was timer for the label in the past.");
+console.timeEnd("label");
+console.timeLog("label");
+console.timeEnd("label");
+$$|
+CALL p_time_warn();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	Test what happens if we call time() for already used label.
+Warning	label: timer has been started already
+Info	But after timeEnd() calling time() for previously used label should be OK.
+Info	label: X.XXX ms
+Info	Calling timeLog() and timeEnd() for label without timer started should produce warning.
+Warning	no-such-label: no such timer
+Warning	no-such-label: no such timer
+Info	Even if there was timer for the label in the past.
+Info	label: X.XXX ms
+Warning	label: no such timer
+Warning	label: no such timer
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+11
+DROP PROCEDURE p_time_warn;
+#
+# 6) Tests for console.group(), groupCollapsed() and groupEnd() calls.
+#
+# 6.1) Basic functionality tests for group(), groupCollapsed() and
+#      groupEnd().
+CREATE PROCEDURE p_group_basic() LANGUAGE JS AS $$
+console.log("No group at this level..");
+console.group("a");
+console.log("This should go to group 'a'.");
+console.group("b");
+console.log("This should go to group 'b' under group 'a'.");
+console.groupEnd();
+console.log("This should go to group 'a' again.");
+console.group("b");
+console.log("This should go to a new group 'b' under group 'a'.");
+console.groupEnd();
+console.group("c");
+console.log("This should go to group 'c' under group 'a'.");
+console.groupEnd();
+console.log("We should be back at group 'a' once again.");
+console.groupEnd();
+console.log("We should be back at basic level.");
+$$|
+CALL p_group_basic();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+No group at this level..
+a
+  This should go to group 'a'.
+  b
+    This should go to group 'b' under group 'a'.
+  This should go to group 'a' again.
+  b
+    This should go to a new group 'b' under group 'a'.
+  c
+    This should go to group 'c' under group 'a'.
+  We should be back at group 'a' once again.
+We should be back at basic level.
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "No group at this level.."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "This should go to group 'a'."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "This should go to group 'b' under group 'a'."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "This should go to group 'a' again."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "This should go to a new group 'b' under group 'a'."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "c"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "c"],
+        "message": "This should go to group 'c' under group 'a'."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "We should be back at group 'a' once again."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "We should be back at basic level."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+12
+DROP PROCEDURE p_group_basic;
+#
+# 6.2) Test coverage for argument handling in group()/groupCollapsed()
+#      and groupEnd() calls.
+#
+# 6.2.1) group() call without argument creates a group without
+#        a lable (null in JSON represenation). This is different
+#        from empty ("") group label. No group label is logged
+#        in the former case.
+CREATE PROCEDURE p_group_no_label() LANGUAGE JS AS $$
+console.log("Group without label:");
+console.group();
+console.log("This should go into group without label/null in JSON.");
+console.groupEnd();
+console.log("Group with empty label:");
+console.group("");
+console.log("This should go into group with label name ('').");
+console.groupEnd();
+$$|
+CALL p_group_no_label();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Group without label:
+  This should go into group without label/null in JSON.
+Group with empty label:
+
+  This should go into group with label name ('').
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Group without label:"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": [null],
+        "message": "This should go into group without label/null in JSON."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Group with empty label:"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": ""
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": [""],
+        "message": "This should go into group with label name ('')."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+5
+DROP PROCEDURE p_group_no_label;
+#
+# 6.2.2) In case when group() call has arguments they are processed
+#        similarly to arguments of log() call to create group label.
+#
+# - If first argument is not a String, then group label is created by
+#   concatenating representations of each argument useful for debugging
+#   purposes separated by spaces.
+# - In case of single String argument it is used as group label as is.
+# - In case when there are more than one argument and first argument
+#   is String we build label by replacing format specifiers in the
+#   first argument string with by converted values of later arguments,
+#   where conversion procedure for each argument is prescribed by
+#   corresponding specifier.
+CREATE PROCEDURE p_group_args() LANGUAGE JS AS $$
+console.group(1);
+console.log("This goes into group with converted Number as label.");
+console.groupEnd();
+console.group(true, 1.0, "alpha", [1, 2, 3],
+{ toString() { return "label"; } });
+console.log("This goes into group with label constructed from debugging " +
+"representation of arguments.");
+console.groupEnd();
+console.group("String group label %% %s");
+console.log("This goes into group with label which is verbatim value of " +
+"single String argument.");
+console.groupEnd();
+console.group("String without specifiers.", 1, "One more String.", [1, 2, 3]);
+console.log("This goes into group with label which is built from the first " +
+"String argument without specifiers and some more arguments.");
+console.groupEnd();
+console.group("One %s three %d five", { toString() { return "two"; } }, 4);
+console.log("This goes into group with label which is built by processing " +
+"specifiers in the first String argument.");
+console.groupEnd();
+console.group("One %s", 2, [3, 4, 5]);
+console.log("This goes into group with label which is built by processing " +
+"specifiers in the first String argument and there more " +
+"arguments than specifiers.");
+console.groupEnd();
+console.group("One %s %d %s End!", "Two", "3");
+console.log("This goes into group with label which is built by processing " +
+"specifiers in the first String argument and there too few " +
+"arguments.");
+console.groupEnd();
+$$|
+CALL p_group_args();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+1
+  This goes into group with converted Number as label.
+true 1 alpha [object Array] [object Object]
+  This goes into group with label constructed from debugging representation of arguments.
+String group label %% %s
+  This goes into group with label which is verbatim value of single String argument.
+String without specifiers. 1 One more String. [object Array]
+  This goes into group with label which is built from the first String argument without specifiers and some more arguments.
+One two three 4 five
+  This goes into group with label which is built by processing specifiers in the first String argument.
+One 2 [object Array]
+  This goes into group with label which is built by processing specifiers in the first String argument and there more arguments than specifiers.
+One Two 3 %s End!
+  This goes into group with label which is built by processing specifiers in the first String argument and there too few arguments.
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+14
+DROP PROCEDURE p_group_args;
+#
+# 6.2.3) Also test what happens when group() gets an error while
+#        converting its arguments.
+CREATE PROCEDURE p_group_arg_error() LANGUAGE JS AS $$
+console.group({ toString() { throw "Ooops!!!"; } } );
+console.log("This should into group with a valid label.");
+console.groupEnd();
+try {
+console.group("Message %s", { toString() { throw "Ouch!!!"; } });
+console.log("This should have gone into group, but we have got error " +
+"while building label.");
+console.groupEnd();
+} catch (e) {
+console.error("Error while calling console.group() : ", e);
+}
+$$|
+CALL p_group_arg_error();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+[object Object]
+  This should into group with a valid label.
+Error while calling console.group() :  Ouch!!!
+
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+level VARCHAR(10) PATH "$.level",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+level	message
+Info	[object Object]
+Info	This should into group with a valid label.
+Error	Error while calling console.group() :  Ouch!!!
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+3
+DROP PROCEDURE p_group_arg_error;
+#
+# 6.2.4) "Arity" of groupEnd() call.
+#
+# We follow standard JS practice and just ignore all extra (that is all)
+# to this call.
+CREATE PROCEDURE p_groupend_arity() LANGUAGE JS AS $$
+console.group("a");
+console.log("This goes into group 'a'.");
+console.groupEnd("b");
+console.log("This should be outside any group.");
+console.group("a");
+console.group("b");
+console.log("This goes into group 'b' in group 'a'.");
+console.groupEnd("a");
+console.log("This still goes into group 'a'.");
+console.groupEnd();
+console.log("This should be outside any group as well.");
+console.group("c");
+console.log("This goes into group 'c'.");
+console.groupEnd("d", "e", 6, 7.1);
+console.log("And this should be outside any group too.");
+$$|
+CALL p_groupend_arity();
+SELECT * FROM JSON_TABLE(JS_GET_CONSOLE_LOG_JSON(),
+"$[*]" COLUMNS(
+gs0 VARCHAR(3) PATH "$.groups[0]",
+gs1 VARCHAR(3) PATH "$.groups[1]",
+message VARCHAR(100) PATH "$.message")
+) AS jslog;
+gs0	gs1	message
+NULL	NULL	a
+a	NULL	This goes into group 'a'.
+NULL	NULL	This should be outside any group.
+NULL	NULL	a
+a	NULL	b
+a	b	This goes into group 'b' in group 'a'.
+a	NULL	This still goes into group 'a'.
+NULL	NULL	This should be outside any group as well.
+NULL	NULL	c
+c	NULL	This goes into group 'c'.
+NULL	NULL	And this should be outside any group too.
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+11
+DROP PROCEDURE p_groupend_arity;
+#
+# 6.3) Test case for groups with the label name on the group stack.
+#
+# Even though it is exotic case, it is perfectly legal to have nested
+# groups with the label. Group labels are mostly for user convinience
+# they do not identify groups.
+CREATE PROCEDURE p_group_dupname() LANGUAGE JS AS $$
+console.group("a");
+console.group("b");
+console.group("a");
+console.log("This goes to group 'a' under group 'b' under group 'a' " +
+"(different one!).");
+console.groupEnd();
+console.groupEnd();
+console.groupEnd();
+console.group();
+console.group();
+console.log("Another exotic case. This goes into 2nd level group. " +
+"Both levels do not have labels (null in JSON).");
+console.groupEnd();
+console.groupEnd();
+$$|
+CALL p_group_dupname();
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b", "a"],
+        "message": "This goes to group 'a' under group 'b' under group 'a' (different one!)."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": [null, null],
+        "message": "Another exotic case. This goes into 2nd level group. Both levels do not have labels (null in JSON)."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+5
+DROP PROCEDURE p_group_dupname;
+#
+# 6.4) Test case for groupCollapsed() call.
+#
+# In our implementation groupCollapsed() is an alias for group() call.
+CREATE PROCEDURE p_groupcollapsed() LANGUAGE JS AS $$
+console.groupCollapsed("a");
+console.log("This goes to group 'a'");
+console.groupCollapsed("b %s", "Two", 3);
+console.log("This goes to group 'b Two 3' under group 'a'");
+console.groupEnd();
+console.log("This goes to group 'a' again.");
+console.group(123);
+console.log("This goes to group '123' under group 'a'");
+console.groupEnd();
+console.groupEnd();
+console.log("This goes outside any group.");
+$$|
+CALL p_groupcollapsed();
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "This goes to group 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b Two 3"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b Two 3"],
+        "message": "This goes to group 'b Two 3' under group 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "This goes to group 'a' again."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "123"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "123"],
+        "message": "This goes to group '123' under group 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "This goes outside any group."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+8
+DROP PROCEDURE p_groupcollapsed;
+#
+# 6.5) Test that console log entries with group labels generated by
+#      group()/groupCollapsed() calls get 'Info' log level.
+#
+CREATE PROCEDURE p_group_log_level() LANGUAGE JS AS $$
+console.group("g1");
+console.warn("This warning goes to group 'g1'");
+console.groupEnd();
+console.groupCollapsed("g2");
+console.error("This error goes to group 'g2'");
+console.group("g3");
+console.debug("This debug messages goes to group 'g3' under group 'g2'.");
+console.groupEnd();
+console.groupEnd();
+$$|
+CALL p_group_log_level();
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "g1"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Warning",
+        "groups": ["g1"],
+        "message": "This warning goes to group 'g1'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "g2"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Error",
+        "groups": ["g2"],
+        "message": "This error goes to group 'g2'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["g2"],
+        "isGroupLabel": true,
+        "message": "g3"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Debug",
+        "groups": ["g2", "g3"],
+        "message": "This debug messages goes to group 'g3' under group 'g2'."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+6
+DROP PROCEDURE p_group_log_level;
+#
+# 6.6) Test that output of all console calls goes to the group on the
+#      top of the group stack.
+#
+CREATE PROCEDURE p_group_top() LANGUAGE JS AS $$
+console.group("a");
+console.group("b");
+console.assert(false, "assert() message should go to group 'b' under 'a'");
+console.debug("debug() message should go to group 'b' under 'a'");
+console.error("error() message should go to group 'b' under 'a'");
+console.info("info() message should go to group 'b' under 'a'");
+console.log("log() message should go to group 'b' under 'a'");
+console.warn("warn() message should go to group 'b' under 'a'");
+const cnt_label = "count() result should go to to group 'b' under 'a'";
+console.count(cnt_label);
+console.countReset(cnt_label);
+const time_label ="timeEnd()/timeLog() result should go to group 'b' too";
+console.time(time_label);
+console.timeLog(time_label, "extra");
+console.timeEnd(time_label);
+console.group("Finally label for nested group should go to 'b' as well");
+console.log("This goes into the nested group under 'b' under 'a'");
+console.groupEnd();
+console.groupEnd();
+console.groupEnd();
+$$|
+CALL p_group_top();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+a
+  b
+    Assertion failed: assert() message should go to group 'b' under 'a'
+    debug() message should go to group 'b' under 'a'
+    error() message should go to group 'b' under 'a'
+    info() message should go to group 'b' under 'a'
+    log() message should go to group 'b' under 'a'
+    warn() message should go to group 'b' under 'a'
+    count() result should go to to group 'b' under 'a': 1
+    timeEnd()/timeLog() result should go to group 'b' too: X.XXX ms extra
+    timeEnd()/timeLog() result should go to group 'b' too: X.XXX ms
+    Finally label for nested group should go to 'b' as well
+      This goes into the nested group under 'b' under 'a'
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Error",
+        "groups": ["a", "b"],
+        "message": "Assertion failed: assert() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Debug",
+        "groups": ["a", "b"],
+        "message": "debug() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Error",
+        "groups": ["a", "b"],
+        "message": "error() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "info() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "log() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Warning",
+        "groups": ["a", "b"],
+        "message": "warn() message should go to group 'b' under 'a'"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "count() result should go to to group 'b' under 'a': 1"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "timeEnd()/timeLog() result should go to group 'b' too: X.XXX ms extra"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "timeEnd()/timeLog() result should go to group 'b' too: X.XXX ms"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "isGroupLabel": true,
+        "message": "Finally label for nested group should go to 'b' as well"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b", "Finally label for nested group should go to 'b' as well"],
+        "message": "This goes into the nested group under 'b' under 'a'"
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+13
+DROP PROCEDURE p_group_top;
+#
+# 6.7) Test special semantics of console.clear() for groups,
+#      it should empty group stack as a side-effect.
+#      OTOH JS_CLEAR_CONSOLE_LOG() should not have the same
+#      side-effect.
+#
+CREATE PROCEDURE p_group_clear() LANGUAGE JS AS $$
+console.group("a");
+console.group("b");
+console.log("This should go into group 'b' under group 'a'. " +
+"But we won't see this.");
+console.clear();
+console.log("console.clear() call resets groups stack, so this " +
+"should go to the top level.");
+$$|
+CREATE PROCEDURE p_group_clear_udf_begin() LANGUAGE JS AS $$
+console.group("a");
+console.group("b");
+console.log("This should go into group 'b' under group 'a'.");
+$$|
+CREATE PROCEDURE p_group_clear_udf_end() LANGUAGE JS AS $$
+console.log("This should go into group 'b' under group 'a' as well.");
+console.groupEnd();
+console.groupEnd();
+$$|
+# Test console.clear() call first.
+CALL p_group_clear();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+console.clear() call resets groups stack, so this should go to the top level.
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "console.clear() call resets groups stack, so this should go to the top level."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+# Now test how JS_CLEAR_CONSOLE_LOG() UDF behaves.
+CALL p_group_clear_udf_begin();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+a
+  b
+    This should go into group 'b' under group 'a'.
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "isGroupLabel": true,
+        "message": "b"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "This should go into group 'b' under group 'a'."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+3
+CALL p_group_clear_udf_end();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+    This should go into group 'b' under group 'a' as well.
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a", "b"],
+        "message": "This should go into group 'b' under group 'a' as well."
+    }
+]
+# Clean-up.
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_group_clear_udf_begin;
+DROP PROCEDURE p_group_clear_udf_end;
+DROP PROCEDURE p_group_clear;
+#
+# 6.8) Finally, let us test what happens when there is groupEnd()
+#      call without prior group() call.
+#
+CREATE PROCEDURE p_groupend_unbalanced() LANGUAGE JS AS $$
+console.log("This doesn't belong to any group.");
+console.groupEnd();
+console.log("Neither this.");
+console.group("a");
+console.log("This goes to group 'a'.");
+console.groupEnd();
+console.groupEnd();
+console.log("This doesn't belong to any group as well.");
+$$|
+CALL p_groupend_unbalanced();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+This doesn't belong to any group.
+Neither this.
+a
+  This goes to group 'a'.
+This doesn't belong to any group as well.
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "This doesn't belong to any group."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Neither this."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "a"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["a"],
+        "message": "This goes to group 'a'."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "This doesn't belong to any group as well."
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+5
+DROP PROCEDURE p_groupend_unbalanced;
+#
+# 7) Test coverage for console.clear() call.
+#
+# console.clear() should remove all messages from console log
+# and also reset the group stack.
+CREATE PROCEDURE p_clear() LANGUAGE JS AS $$
+console.clear("But first, test that clear()", "ignores its", "args...");
+console.assert(false, "This assert() message should be removed.");
+console.debug("So this debug() message.");
+console.error("And this error() message too.");
+console.info("Ditto this info() message.");
+console.log("And this log() message.");
+console.warn("And this warn() message as well.");
+const cnt_label = "count() result should be removed as well.";
+console.count(cnt_label);
+console.countReset(cnt_label);
+const time_label ="So the messages from timeEnd()/timeLog().";
+console.time(time_label);
+console.timeLog(time_label, "extra");
+console.timeEnd(time_label);
+console.group("Finally, this label for this group should be removed.");
+console.log("And the message which goes into this group.");
+console.clear();
+console.log("This message is the only which should be left. " +
+"Since clear() resets group stack it should go to top level.");
+$$|
+CALL p_clear();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+This message is the only which should be left. Since clear() resets group stack it should go to top level.
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_clear;
+#
+# 8) Test what happens when one invokes console calls which are
+#    present in specification but are not unsupported (yet?).
+#
+# These functions do not do anything at the moment.
+CREATE PROCEDURE p_unsupported() LANGUAGE JS AS $$
+console.table(["Output",  "of",  "table()", "is", "ignored"]);
+console.trace("trace() does nothing too.");
+console.dir({  a: "So dir() as well." });
+console.dirxml({  a: "Neither dirxml() does anything." });
+$$|
+CALL p_unsupported();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+0
+DROP PROCEDURE p_unsupported;
+#
+# 9) Test that we correctly escape strings in JS_GET_CONSOLE_LOG_JSON()
+#    output (at this point only message and group names need this).
+#
+CREATE PROCEDURE p_json_escaping() LANGUAGE JS AS $$
+console.log("RFC7159 says that the following characters need escaping:");
+console.log("- All control characters (0x00 - 0x1F), among them:");
+console.log("  * Bell <\u0007>");
+console.log("  * Backspace <\b>");
+console.log("  * Tab <\t>");
+console.log("  * New line <\n>");
+console.log('- Quotation mark (")');
+console.log("- Reverse solidus \\ (aka escape character)");
+console.log("Apostrophe doesn't neeed quoting, and in fact doing this " +
+"by simply adding reverse solidus before it is against RFC.");
+console.group("Escaping should be also done for group labels <\"example\">");
+console.log("This goes into group");
+console.groupEnd();
+$$|
+CALL p_json_escaping();
+# There should be no escaping in JS_GET_CONSOLE_LOG() output case.
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+RFC7159 says that the following characters need escaping:
+- All control characters (0x00 - 0x1F), among them:
+  * Bell <>
+  * Backspace <>
+  * Tab <	>
+  * New line <
+>
+- Quotation mark (")
+- Reverse solidus \ (aka escape character)
+Apostrophe doesn't neeed quoting, and in fact doing this by simply adding reverse solidus before it is against RFC.
+Escaping should be also done for group labels <"example">
+  This goes into group
+
+# But there should be when output is JSON!
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "RFC7159 says that the following characters need escaping:"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "- All control characters (0x00 - 0x1F), among them:"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "  * Bell <\u0007>"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "  * Backspace <\b>"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "  * Tab <\t>"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "  * New line <\n>"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "- Quotation mark (\")"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "- Reverse solidus \\ (aka escape character)"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Apostrophe doesn't neeed quoting, and in fact doing this by simply adding reverse solidus before it is against RFC."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "isGroupLabel": true,
+        "message": "Escaping should be also done for group labels <\"example\">"
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "groups": ["Escaping should be also done for group labels <\"example\">"],
+        "message": "This goes into group"
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+11
+DROP PROCEDURE p_json_escaping;
+#
+# 10) Test that one can limit how much console lines are buffered
+#     by using js_lang.max_console_log_size variable.
+#
+# 10.1) First, case when limit is exceeded due to total length of
+#       messages.
+#
+# Set limit to minimal supported value.
+SET GLOBAL js_lang.max_console_log_size = 10240;
+CREATE PROCEDURE p_log_10240_and_some() LANGUAGE JS AS $$
+for (let i = 0; i < 1024; i++) {
+console.log("0123456789");
+}
+console.log("And more...");
+$$|
+CALL p_log_10240_and_some();
+# Simple console output should be definitely within the limit.
+SELECT LENGTH(JS_GET_CONSOLE_LOG()) <= 1024 * 10;
+LENGTH(JS_GET_CONSOLE_LOG()) <= 1024 * 10
+1
+# JSON version of console output can easily exceed the limit
+# since it doesn't account for things like timestamps, severity,
+# JSON field names, indentation and quotes. Magic number 130
+# is there to take overhead from these factors into account.
+SELECT LENGTH(JS_GET_CONSOLE_LOG_JSON()) <= 1024 * (130 + 10);
+LENGTH(JS_GET_CONSOLE_LOG_JSON()) <= 1024 * (130 + 10)
+1
+# As each log messages needs at least 10 bytes total number
+# of messages should be below 1024.
+SELECT JS_CLEAR_CONSOLE_LOG() <= 1024;
+JS_CLEAR_CONSOLE_LOG() <= 1024
+1
+DROP PROCEDURE p_log_10240_and_some;
+#
+# 10.2) Then, case when limit is exceeded thanks to group stack info.
+CREATE PROCEDURE p_log_10240_and_some_group() LANGUAGE JS AS $$
+console.group("0123456789");
+for (let i = 0; i < 1024; i++) {
+console.log("");
+}
+console.groupEnd();
+$$|
+CALL p_log_10240_and_some_group();
+# Since each message takes at least 10 bytes thanks to group stack,
+# the total number of messages should be below 1024.
+# Simple console output will consist from this number of lines,
+# where each line contains 2 spaces (group indent) + '\n' char.
+SELECT LENGTH(JS_GET_CONSOLE_LOG()) <= 1024 * (2 + 1);
+LENGTH(JS_GET_CONSOLE_LOG()) <= 1024 * (2 + 1)
+1
+# Again JSON version of console output can exceed the limit.
+# Same magic number 130 as in case 10.1) to the rescue.
+SELECT LENGTH(JS_GET_CONSOLE_LOG_JSON()) <= 1024 * (130 + 10);
+LENGTH(JS_GET_CONSOLE_LOG_JSON()) <= 1024 * (130 + 10)
+1
+# Naturally total number of messages should be below 1024.
+SELECT JS_CLEAR_CONSOLE_LOG() <= 1024;
+JS_CLEAR_CONSOLE_LOG() <= 1024
+1
+DROP PROCEDURE p_log_10240_and_some_group;
+#
+# 10.3) Finally, extreme case with single huge message which exceeds
+#       the limit.
+CREATE PROCEDURE p_log_huge() LANGUAGE JS AS $$
+console.log("0123456789".repeat(1024 + 1));
+$$|
+CALL p_log_huge();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+<The message and part of its context have been suppressed as they exceed max_console_log_size limit>
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "<The message and part of its context have been suppressed as they exceed max_console_log_size limit>"
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+DROP PROCEDURE p_log_huge;
+SET GLOBAL js_lang.max_console_log_size = DEFAULT;
+#
+# 11) Now let us test security aspect of console support.
+#
+CREATE PROCEDURE p_definer() LANGUAGE JS AS $$
+console.log("Test definer!");
+$$|
+CREATE PROCEDURE p_invoker() SQL SECURITY INVOKER LANGUAGE JS AS $$
+console.log("Test invoker!");
+$$|
+CREATE FUNCTION f_log() RETURNS VARCHAR(100) RETURN JS_GET_CONSOLE_LOG() |
+CREATE USER u_other@localhost;
+GRANT EXECUTE ON test.* TO u_other@localhost;
+connect  con_other, localhost, u_other,,;
+# Test case when user never run any JS at all first.
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+0
+# Execution of SQL SECURITY DEFINER routine doesn't affect
+# current user's JS console log.
+CALL p_definer();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+0
+# Log contents should be visible from routine DEFINER context.
+SELECT f_log();
+f_log()
+Test definer!
+
+# Execution of SQL SECURITY INVOKER routine affects current user's
+# console log as expected.
+CALL p_invoker();
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+Test invoker!
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Test invoker!"
+    }
+]
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1
+SELECT JS_GET_CONSOLE_LOG();
+JS_GET_CONSOLE_LOG()
+
+SELECT JS_GET_CONSOLE_LOG_JSON();
+JS_GET_CONSOLE_LOG_JSON()
+[]
+# Console log associated with root@localhost security context was
+# not affected.
+SELECT f_log();
+f_log()
+Test definer!
+
+# Clean-up.
+disconnect con_other;
+connection default;
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+0
+DROP PROCEDURE p_definer;
+DROP PROCEDURE p_invoker;
+DROP FUNCTION f_log;
+DROP USER u_other@localhost;
+#
+# 12) Check types, charset and nullability of return values for
+#     JS_GET_CONSOLE_LOG() UDF and friends.
+#
+# 12.1) Test type, charset and nullability.
+CREATE PROCEDURE p_log_some() LANGUAGE JS AS $$
+console.log("Log something...");
+console.error("And then log something as error...");
+$$|
+CALL p_log_some();
+CREATE TABLE t_s AS SELECT JS_GET_CONSOLE_LOG();
+CREATE TABLE t_j AS SELECT JS_GET_CONSOLE_LOG_JSON();
+CREATE TABLE t_c AS SELECT JS_CLEAR_CONSOLE_LOG();
+SHOW CREATE TABLE t_s;
+Table	Create Table
+t_s	CREATE TABLE `t_s` (
+  `JS_GET_CONSOLE_LOG()` longtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_s;
+JS_GET_CONSOLE_LOG()
+Log something...
+And then log something as error...
+
+SHOW CREATE TABLE t_j;
+Table	Create Table
+t_j	CREATE TABLE `t_j` (
+  `JS_GET_CONSOLE_LOG_JSON()` longtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_j;
+JS_GET_CONSOLE_LOG_JSON()
+[
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Info",
+        "message": "Log something..."
+    },
+    {
+        "timestamp": "YYYY-MM-DD HH:MM:SS.FFFFFF",
+        "level": "Error",
+        "message": "And then log something as error..."
+    }
+]
+SHOW CREATE TABLE t_c;
+Table	Create Table
+t_c	CREATE TABLE `t_c` (
+  `JS_CLEAR_CONSOLE_LOG()` bigint NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_c;
+JS_CLEAR_CONSOLE_LOG()
+2
+DROP TABLES t_s, t_j, t_c;
+DROP PROCEDURE p_log_some;
+#
+# 12.2) Let us also check what happens if we return fairly big result
+#       from JS_GET_CONSOLE_LOG() and JS_GET_CONSOLE_LOG_JSON() UDFs.
+SET GLOBAL js_lang.max_console_log_size = 21*1024*1024;
+CREATE PROCEDURE p_log_more_than_mediumtext() LANGUAGE JS AS $$
+for (let i = 0; i < 1024; i++) {
+console.log("01234567890123456789".repeat(1024));
+}
+$$|
+CALL p_log_more_than_mediumtext();
+SELECT LENGTH(JS_GET_CONSOLE_LOG()) > 20*1024*1024;
+LENGTH(JS_GET_CONSOLE_LOG()) > 20*1024*1024
+1
+SELECT LENGTH(JS_GET_CONSOLE_LOG_JSON()) > 20*1024*1024;
+LENGTH(JS_GET_CONSOLE_LOG_JSON()) > 20*1024*1024
+1
+# Also check that we correctly store returned output
+# when using CREATE TABLE ... SELECT UDF().
+CREATE TABLE t_s AS SELECT JS_GET_CONSOLE_LOG() AS l;
+CREATE TABLE t_j AS SELECT JS_GET_CONSOLE_LOG_JSON() AS l;
+SELECT LENGTH(l) > 20*1024*1024 FROM t_s;
+LENGTH(l) > 20*1024*1024
+1
+SELECT LENGTH(l) > 20*1024*1024 FROM t_j;
+LENGTH(l) > 20*1024*1024
+1
+SELECT JS_CLEAR_CONSOLE_LOG();
+JS_CLEAR_CONSOLE_LOG()
+1024
+DROP TABLES t_s, t_j;
+DROP PROCEDURE p_log_more_than_mediumtext;
+SET GLOBAL js_lang.max_console_log_size = DEFAULT;
+#
+# Final clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+# Disconnect of default connection to free the only remaining
+# connection context and isolate, so we can uninstall component.
+disconnect default;
+connect default,localhost,root;
+UNINSTALL COMPONENT 'file://component_js_lang';
+# Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+# restart

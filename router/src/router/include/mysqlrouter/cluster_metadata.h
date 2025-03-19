@@ -112,6 +112,11 @@ bool ROUTER_CLUSTER_EXPORT check_group_replication_online(MySQLSession *mysql);
 // throws MySQLSession::Error, std::logic_error, std::out_of_range
 bool ROUTER_CLUSTER_EXPORT check_group_has_quorum(MySQLSession *mysql);
 
+bool ROUTER_CLUSTER_EXPORT is_server_version_supported(MySQLSession *mysql);
+
+std::string ROUTER_CLUSTER_EXPORT
+get_unsupported_server_version_msg(MySQLSession *mysql);
+
 template <size_t N>
 bool metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion (&required)[N],

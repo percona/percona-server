@@ -830,6 +830,8 @@ void MysqlRoutingXConnection::connect() {
 
   server_conn().assign_connection(std::move(server_connection));
 
+  server_address(server_conn().endpoint());
+
   this->connected();
 
   return server_init_tls();

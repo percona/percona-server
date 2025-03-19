@@ -89,9 +89,10 @@ ADD_LIBRARY(mysql_server_component_services STATIC
   ${MYSQL_SERVER_COMPONENT_SOURCES})
 TARGET_COMPILE_DEFINITIONS(mysql_server_component_services
   PRIVATE WITH_MYSQL_COMPONENTS_TEST_DRIVER)
-TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE extra::rapidjson)
-TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE ext::zlib)
+TARGET_LINK_LIBRARIES(mysql_server_component_services
+  PRIVATE
+  extra::rapidjson
+  ext::zlib
+  extra::unordered_dense
+  )
 ADD_DEPENDENCIES(mysql_server_component_services GenError)
-
-TARGET_INCLUDE_DIRECTORIES(mysql_server_component_services SYSTEM PRIVATE 
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)

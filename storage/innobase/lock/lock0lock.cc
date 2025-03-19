@@ -476,10 +476,6 @@ void lock_sys_close(void) {
   lock_sys = nullptr;
 }
 
-/** Gets the size of a lock struct.
- @return size in bytes */
-ulint lock_get_size(void) { return ((ulint)sizeof(lock_t)); }
-
 bool lock_is_waiting(const lock_t &lock) {
   ut_ad(locksys::owns_lock_shard(&lock));
   return lock.is_waiting();
@@ -1110,6 +1106,15 @@ ulint lock_number_of_tables_locked(const trx_t *trx) {
   return count;
 }
 
+lock_t *lock_alloc_from_heap(mem_heap_t *heap, size_t bitmap_bytes) {
+  const size_t n_bytes = sizeof(lock_t) + bitmap_bytes;
+  static_assert(alignof(lock_t) <= UNIV_MEM_ALIGNMENT,
+                "heap allocator must ensure lock_t is properly aligned");
+  auto ptr = mem_heap_alloc(heap, n_bytes);
+  ut_a(ut::is_aligned_as<lock_t>(ptr));
+  return reinterpret_cast<lock_t *>(ptr);
+}
+
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /**
@@ -1160,11 +1165,7 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
 
   if (trx->lock.rec_cached >= trx->lock.rec_pool.size() ||
       sizeof(*lock) + size > REC_LOCK_SIZE) {
-    ulint n_bytes = size + sizeof(*lock);
-    mem_heap_t *heap = trx->lock.lock_heap;
-    auto ptr = mem_heap_alloc(heap, n_bytes);
-    ut_a(ut::is_aligned_as<lock_t>(ptr));
-    lock = reinterpret_cast<lock_t *>(ptr);
+    lock = lock_alloc_from_heap(trx->lock.lock_heap, size);
   } else {
     lock = trx->lock.rec_pool[trx->lock.rec_cached];
     ++trx->lock.rec_cached;
@@ -3297,9 +3298,7 @@ static inline lock_t *lock_table_create(
   } else if (trx->lock.table_cached < trx->lock.table_pool.size()) {
     lock = trx->lock.table_pool[trx->lock.table_cached++];
   } else {
-    auto ptr = mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock));
-    ut_a(ut::is_aligned_as<lock_t>(ptr));
-    lock = static_cast<lock_t *>(ptr);
+    lock = lock_alloc_from_heap(trx->lock.lock_heap);
   }
   lock->type_mode = uint32_t(type_mode | LOCK_TABLE);
   lock->trx = trx;
@@ -3407,17 +3406,6 @@ static inline void lock_table_remove_autoinc_lock(
 lock_guid_t::lock_guid_t(const lock_t &lock)
     : m_trx_guid(*(lock.trx)),
       m_immutable_id(reinterpret_cast<uint64_t>(&lock)) {}
-
-const lock_t *lock_find_table_lock_by_guid(const dict_table_t *table,
-                                           const lock_guid_t &guid) {
-  ut_ad(locksys::owns_table_shard(*table));
-  for (const lock_t *lock : table->locks) {
-    if (lock_guid_t(*lock) == guid) {
-      return lock;
-    }
-  }
-  return nullptr;
-}
 
 /** Removes a table lock request from the queue and the trx list of locks;
  this is a low-level function which does NOT check if waiting requests

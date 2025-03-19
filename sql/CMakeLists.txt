@@ -23,6 +23,12 @@
 
 ADD_WSHADOW_WARNING()
 
+# Too many error: empty paragraph passed to '@throws'
+IF(MY_COMPILER_IS_CLANG AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19)
+  DISABLE_DOCUMENTATION_WARNINGS()
+ENDIF()
+
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
 # but it is basically impossible to trace the actual origin.
 IF(FPROFILE_GENERATE OR FPROFILE_USE OR
@@ -845,30 +851,6 @@ MY_ADD_COMPILE_DEFINITIONS(
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
   )
 
-# Workaround for Apple Clang bug on ARM.
-# When linking mysqld (and executables using server_unittest_library)
-# we get linker warnings about
-# ld: warning: direct access in function ....
-#     to global weak symbol 'typeinfo for .... '
-# It turns out we end up with conflicting visibilities for typeinfo symbols:
-# e.g. in in singleton.cc.o  vs  histogram.cc.o
-# (__DATA,__const) weak external __ZTIN10histograms9SingletonI6StringEE
-# (__DATA,__const) weak private external __ZTIN10histograms9SingletonI6StringEE
-#
-# Setting an explicit visibility here fixes the warnings.
-# Note that the LINK_PUBLIC for server_unittest_library
-# will make unit tests pick up histogram symbols from libsql_main.a.
-IF(APPLE_ARM)
-  ADD_COMPILE_FLAGS(
-    histograms/equi_height.cc
-    histograms/equi_height_bucket.cc
-    histograms/histogram.cc
-    histograms/singleton.cc
-    histograms/value_map.cc
-    COMPILE_FLAGS -fvisibility=hidden
-    )
-ENDIF()
-
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   iterators/hash_join_iterator.cc
@@ -973,8 +955,7 @@ MYSQL_ADD_PLUGIN(mysql_native_password
   SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
   STATIC_ONLY DEFAULT)
 
-TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
+TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio

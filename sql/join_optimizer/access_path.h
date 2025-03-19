@@ -1496,6 +1496,8 @@ inline AccessPath *NewNestedLoopSemiJoinWithDuplicateRemovalAccessPath(
   path->nested_loop_semijoin_with_duplicate_removal().table = table;
   path->nested_loop_semijoin_with_duplicate_removal().key = key;
   path->nested_loop_semijoin_with_duplicate_removal().key_len = key_len;
+  path->has_group_skip_scan =
+      outer->has_group_skip_scan || inner->has_group_skip_scan;
   return path;
 }
 

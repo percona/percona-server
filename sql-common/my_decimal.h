@@ -125,9 +125,12 @@ class my_decimal : public decimal_t {
     sanity_check();
     rhs.sanity_check();
     if (this == &rhs) return *this;
-    decimal_t::operator=(rhs);
+    decimal_t::intg = rhs.intg;
+    decimal_t::frac = rhs.frac;
+    decimal_t::len = rhs.len;
+    decimal_t::sign = rhs.sign();
     for (uint i = 0; i < DECIMAL_BUFF_LENGTH; i++) buffer[i] = rhs.buffer[i];
-    buf = buffer;
+    decimal_t::buf = buffer;
     return *this;
   }
 
@@ -136,12 +139,9 @@ class my_decimal : public decimal_t {
     foo1 = test_value;
     foo2 = test_value;
 #endif
-    /*
-      Do not initialize more of the base class,
-      we want to catch uninitialized use.
-    */
     len = DECIMAL_BUFF_LENGTH;
     buf = buffer;
+    decimal_make_zero(this);
   }
 
   my_decimal() { init(); }

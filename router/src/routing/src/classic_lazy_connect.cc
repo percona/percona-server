@@ -78,9 +78,10 @@ class FailedQueryHandler : public QuerySender::Handler {
 
 class IsTrueHandler : public QuerySender::Handler {
  public:
-  IsTrueHandler(LazyConnector &processor,
+  IsTrueHandler(LazyConnector &processor, std::string stmt,
                 classic_protocol::message::server::Error on_cond_fail_error)
       : processor_(processor),
+        stmt_(std::move(stmt)),
         on_condition_fail_error_(std::move(on_cond_fail_error)) {}
 
   void on_column_count(uint64_t count) override {
@@ -123,7 +124,7 @@ class IsTrueHandler : public QuerySender::Handler {
   }
 
   void on_error(const classic_protocol::message::server::Error &err) override {
-    log_warning("%s", err.message().c_str());
+    log_warning("%s failed: %s", stmt_.c_str(), err.message().c_str());
 
     processor_.failed(err);
   }
@@ -131,6 +132,8 @@ class IsTrueHandler : public QuerySender::Handler {
  private:
   LazyConnector &processor_;
   uint64_t row_count_{};
+
+  std::string stmt_;
 
   classic_protocol::message::server::Error on_condition_fail_error_;
 };
@@ -330,6 +333,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::from_stash() {
 
           // reset the seq-id of the server side as this is a new command.
           connection()->server_protocol().seq_id(0xff);
+
+          connection()->server_address(connection()->server_conn().endpoint());
 
           if (auto &tr = tracer()) {
             tr.trace(Tracer::Event().stage(
@@ -832,19 +837,22 @@ LazyConnector::wait_gtid_executed() {
 
       std::ostringstream oss;
       if (max_replication_lag.count() == 0) {
-        oss << "SELECT GTID_SUBSET(" << std::quoted(gtid_executed)
+        // use ' to quote to make it ANSI_QUOTES safe.
+        oss << "SELECT GTID_SUBSET(" << std::quoted(gtid_executed, '\'')
             << ", @@GLOBAL.gtid_executed)";
       } else {
+        // use ' to quote to make it ANSI_QUOTES safe.
         oss << "SELECT NOT WAIT_FOR_EXECUTED_GTID_SET("
-            << std::quoted(gtid_executed) << ", "
+            << std::quoted(gtid_executed, '\'') << ", "
             << std::to_string(max_replication_lag.count()) << ")";
       }
 
       connection()->push_processor(std::make_unique<QuerySender>(
           connection(), oss.str(),
           std::make_unique<IsTrueHandler>(
-              *this, classic_protocol::message::server::Error{
-                         0, "wait_for_my_writes timed out", "HY000"})));
+              *this, oss.str(),
+              classic_protocol::message::server::Error{
+                  0, "wait_for_my_writes timed out", "HY000"})));
     }
   }
 

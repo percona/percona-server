@@ -52,6 +52,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,8 +104,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** Boolean flag indicating if connection pool is disabled or not */
     boolean connectionPoolDisabled = false;
 
-    /** Map of Proxy Interfaces to Domain Class */
-    final private Map<String, Class<?>> proxyInterfacesToDomainClassMap = new HashMap<String, Class<?>>();
+    /** Map of Proxy to Class */
+    static private Map<Class<?>, Class<?>> proxyClassToDomainClass =
+            new ConcurrentHashMap<>();
 
     /** Map of Domain Class to DomainTypeHandler. */
     final private Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
@@ -495,26 +497,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param cls the Class for which to get domain type handler
      * @return the DomainTypeHandler or null if not available
      */
-    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
+    <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
             @SuppressWarnings( "unchecked" )
             DomainTypeHandler<T> domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
             return domainTypeHandler;
         }
-    }
-
-    /** Generate a key from the given interfaces to lookup the proxyInterfacesToDomainClass map
-     * @param proxyInterfaces List of proxy interfaces to generate the key from
-     * @return the generated lookup key
-     */
-    private static String generateProxyInterfacesKey(Class<?>[] proxyInterfaces) {
-        // The generated key is of form : CanonicalNameOfInterface1;CanonicalNameOfInterface2;...
-        StringBuilder key = new StringBuilder();
-        for (Class<?> proxyInterface : proxyInterfaces) {
-            key.append(proxyInterface.getCanonicalName()).append(';');
-        }
-        return key.toString();
     }
 
     /** Create or get the DomainTypeHandler for a class.
@@ -524,25 +513,22 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @return the type handler
      */
     
-    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls, Dictionary dictionary) {
+    <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls, Dictionary dictionary) {
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
             @SuppressWarnings("unchecked")
             DomainTypeHandler<T> domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
             if (logger.isDetailEnabled()) logger.detail("DomainTypeToHandler for "
-                    + cls.getName() + "(" + cls
-                    + ") returned " + domainTypeHandler);
+                    + cls.getName() + "(" + cls + ") returned " + domainTypeHandler);
             if (domainTypeHandler == null) {
                 domainTypeHandler = domainTypeHandlerFactory.createDomainTypeHandler(cls,
                         dictionary, smartValueHandlerFactory);
                 if (logger.isDetailEnabled()) logger.detail("createDomainTypeHandler for "
-                        + cls.getName() + "(" + cls
-                        + ") returned " + domainTypeHandler);
+                        + cls.getName() + "(" + cls + ") returned " + domainTypeHandler);
                 typeToHandlerMap.put(cls, domainTypeHandler);
-                Class<?>[] proxyInterfaces = domainTypeHandler.getProxyInterfaces();
-                if (proxyInterfaces != null) {
-                    String key = generateProxyInterfacesKey(proxyInterfaces);
-                    proxyInterfacesToDomainClassMap.put(key, cls);
+                Class<?> proxyClass = domainTypeHandler.getProxyClass();
+                if (proxyClass != null) {
+                    proxyClassToDomainClass.put(proxyClass, cls);
                 }
             }
             return domainTypeHandler;
@@ -555,7 +541,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param dictionary the dictionary for metadata access
      * @return the DomainTypeHandler for the object
      */
-    public <T> DomainTypeHandler<T> getDomainTypeHandler(T object, Dictionary dictionary) {
+    <T> DomainTypeHandler<T> getDomainTypeHandler(T object, Dictionary dictionary) {
         Class<T> cls = getClassForProxy(object);
         DomainTypeHandler<T> result = getDomainTypeHandler(cls, dictionary);
         return result;
@@ -569,12 +555,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     protected <T> Class<T> getClassForProxy(T object) {
         Class<?> cls = object.getClass();
         if (java.lang.reflect.Proxy.isProxyClass(cls)) {
-            // The underlying class is a Proxy. Retrieve the interfaces implemented
-            // by the proxy class and use them to fetch the domain class from
-            // proxyInterfacesToDomainClass map.
-            Class<?>[] proxyInterfaces = cls.getInterfaces();
-            String key = generateProxyInterfacesKey(proxyInterfaces);
-            cls = proxyInterfacesToDomainClassMap.get(key);
+            cls = proxyClassToDomainClass.get(cls);
         }
         return (Class<T>)cls;
     }
@@ -853,7 +834,6 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // remove all DomainTypeHandlers, as they embed references to
             // Ndb dictionary objects which have been removed
             factory.typeToHandlerMap.clear();
-            factory.proxyInterfacesToDomainClassMap.clear();
 
             logger.warn(local.message("WARN_Reconnect_creating"));
             factory.createClusterConnectionPool();

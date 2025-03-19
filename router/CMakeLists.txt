@@ -52,6 +52,12 @@ IF(POLICY CMP0075)
   CMAKE_POLICY(SET CMP0075 NEW)
 ENDIF()
 
+# Too many error: empty paragraph passed to '@throws'
+IF(MY_COMPILER_IS_CLANG AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19)
+  DISABLE_DOCUMENTATION_WARNINGS()
+ENDIF()
+
 IF(SOLARIS)
   # disable rapidjson optimisation on Solaris as it breaks
   # shared objects that build with -fPIC

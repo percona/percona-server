@@ -79,6 +79,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     private Map<String, Method> unmatchedGetMethods = new HashMap<String, Method>();
     private Map<String, Method> unmatchedSetMethods = new HashMap<String, Method>();
 
+    /** The Proxy class for the Domain Class. */
+    private Class<T> proxyClass;
+
     /** The proxy interfaces implemented by the domain object */
     Class<?>[] proxyInterfaces = null;
 
@@ -106,7 +109,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         this(cls, dictionary, null);
     }
 
-    @SuppressWarnings( "unchecked" )
+    @SuppressWarnings( {"unchecked","deprecation"} )
     public DomainTypeHandlerImpl(Class<T> cls, Dictionary dictionary,
             ValueHandlerFactory smartValueHandlerFactory) {
         this.valueHandlerFactory = smartValueHandlerFactory!=null?
@@ -126,6 +129,8 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                         "ERR_Not_Persistence_Capable_Type", name));
             }
             proxyInterfaces = new Class<?>[] {cls, Finalizable.class};
+            proxyClass = (Class<T>)
+                Proxy.getProxyClass(cls.getClassLoader(), proxyInterfaces);
             // Get the table name from Persistence Capable annotation
             persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
             if (persistenceCapable == null) {
@@ -409,8 +414,8 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         handler.markModified(fieldNumber);
     }
 
-    public Class<?>[] getProxyInterfaces() {
-        return proxyInterfaces;
+    public Class<?> getProxyClass() {
+        return proxyClass;
     }
 
     public Class<T> getDomainClass() {

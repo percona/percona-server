@@ -72,6 +72,23 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   struct ConnData {
     using time_point_type = std::chrono::time_point<std::chrono::system_clock>;
+
+    ConnData() = default;
+
+    ConnData(std::string src, std::string dst, std::size_t bytes_up,
+             std::size_t bytes_down, time_point_type started,
+             time_point_type connected_to_server,
+             time_point_type last_sent_to_server,
+             time_point_type last_received_from_server)
+        : src(std::move(src)),
+          dst(std::move(dst)),
+          bytes_up(bytes_up),
+          bytes_down(bytes_down),
+          started(started),
+          connected_to_server(connected_to_server),
+          last_sent_to_server(last_sent_to_server),
+          last_received_from_server(last_received_from_server) {}
+
     std::string src;
     std::string dst;
 

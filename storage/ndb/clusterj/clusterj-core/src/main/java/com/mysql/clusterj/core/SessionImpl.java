@@ -1200,10 +1200,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance for which to get the domain type handler
      * @return the domain type handler
      */
-    protected synchronized <T> DomainTypeHandler<T> getDomainTypeHandler(T object) {
-        DomainTypeHandler<T> domainTypeHandler =
-                factory.getDomainTypeHandler(object, dictionary);
-        return domainTypeHandler;
+    protected <T> DomainTypeHandler<T> getDomainTypeHandler(T object) {
+        return factory.getDomainTypeHandler(object, dictionary);
     }
 
     /** Get the domain type handler for a class.
@@ -1211,10 +1209,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class
      * @return the domain type handler
      */
-    public synchronized <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
-        DomainTypeHandler<T> domainTypeHandler =
-                factory.getDomainTypeHandler(cls, dictionary);
-        return domainTypeHandler;
+    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
+        return factory.getDomainTypeHandler(cls, dictionary);
     }
 
     public Dictionary getDictionary() {

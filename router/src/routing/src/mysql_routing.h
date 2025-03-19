@@ -166,32 +166,6 @@ class ROUTING_EXPORT AcceptingEndpointUnixSocket : public AcceptingEndpoint {
  *  The class MySQLRouter is used to start a service listening on a particular
  *  TCP port for incoming MySQL Client connection and route these to a MySQL
  *  Server.
- *
- *  Connection routing will not analyze or parse any MySQL package (except from
- *  those in the handshake phase to be able to discover invalid connection
- *  error) nor will it do any authentication. It will not handle errors from the
- *  MySQL server and not automatically recover. The client communicate through
- *  MySQL Router just like it would directly connecting.
- *
- *  The MySQL Server is chosen from a given list of hosts or IP addresses
- *  (with or without TCP port) based on the the mode. For example, mode
- *  read-only will go through the list of servers in a round-robin way. The
- *  mode read-write will always go through the list from the beginning and
- *  failover to the next available.
- *
- *
- *  Example usage: bind to all IP addresses and use TCP Port 7001
- *
- *  @code
- *      MySQLRouting r(conf, ioctx);
- *      r.destination_connect_timeout = std::chrono::seconds(1);
- *      r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
- *      r.run();
- *  @endcode
- *
- *  The above example will, when MySQL running on 10.0.10.5 is not available,
- *  use 10.0.11.6 to setup the connection routing.
- *
  */
 class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  public:
@@ -220,11 +194,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   /** @brief Sets the destinations from URI
    *
-   * Sets destinations using the given string and the given mode. The string
-   * should be a comma separated list of MySQL servers.
-   *
-   * The mode is one of MySQLRouting::Mode, for example
-   * MySQLRouting::Mode::kReadOnly.
+   * Sets destinations using the given string. The string should be a comma
+   * separated list of MySQL servers.
    *
    * Example of destinations:
    *   "10.0.10.5,10.0.11.6:3307"

@@ -48,6 +48,7 @@
 #include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -974,7 +975,11 @@ DuktapeStatementReader::~DuktapeStatementReader() {
 
 static classic_protocol::message::server::Greeting default_server_greeting() {
   // defaults
-  std::string server_version = "8.0.23-mock";
+  const std::string server_version =
+      std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
+      std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
+      std::to_string(MYSQL_ROUTER_VERSION_PATCH) + "-mock";
+
   uint32_t connection_id = 0;
   classic_protocol::capabilities::value_type server_capabilities =
       classic_protocol::capabilities::long_password |

@@ -75,6 +75,10 @@
 
 #include <memory>
 
+#ifdef _WIN32
+#include <chrono>
+#endif
+
 #include "xcom/node_connection.h"
 #include "xdr_gen/xcom_vp.h"
 

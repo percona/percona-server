@@ -47,6 +47,7 @@ struct PkiFile {
   };
 
   static bool remove(const PathName &);
+  static bool remove(const char *);
   static int assign(PathName &path, const char *dir, const char *file);
 };
 

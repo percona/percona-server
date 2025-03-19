@@ -76,6 +76,13 @@ if (mysqld.global.metadata_schema_version === undefined) {
   mysqld.global.metadata_schema_version = [2, 2, 0];
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.3.0";
+}
+
 var members = gr_memberships.gr_members(
     mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
@@ -146,7 +153,8 @@ var router_update_last_check_in_v2 =
     auth: {
       username: mysqld.global.user,
       password: mysqld.global.password,
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {

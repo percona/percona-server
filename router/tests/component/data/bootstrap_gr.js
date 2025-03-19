@@ -29,6 +29,13 @@ if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "cluster-specific-id";
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.3.0";
+}
+
 var members = gr_memberships.gr_members(
     mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
@@ -135,7 +142,8 @@ var router_store_config_defaults_gr_cluster =
     auth: {
       username: "root",
       password: "fake-pass",
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     var res;

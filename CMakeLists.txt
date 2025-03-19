@@ -55,26 +55,18 @@ IF(WIN32)
     ENDIF()
   ENDIF()
 ELSEIF(APPLE)
-  # Version 3.12.4 is needed because the new build system of Xcode is not
-  # supported by cmake. 3.12.4 will force using the legacy build system.
-  # Version 3.9.2 is needed because INCLUDE_DIRECTORIES(SYSTEM ...) wasn't
-  # handled properly by the cmake Xcode generator.
-  # NOTE:
-  # cmake >= 3.19 will use the new build system by default for Xcode >= 12.x
   IF(CMAKE_GENERATOR STREQUAL "Xcode")
     SET(APPLE_XCODE 1)
-    CMAKE_MINIMUM_REQUIRED(VERSION 3.12.4)
-  ELSE()
-    CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
   ENDIF()
-  # If this is macOS 11, we need cmake 3.18
+  # For macOS version >= 11 we need cmake 3.18
   # System libraries like
   #    /usr/lib/libresolv.dylib
   # are no longer present in the file system.
   # cmake >= 3.18 will look for .tbd files in the SDK instead
   # So we end up linking with:
   #    /Applications/Xcode.app/.../usr/lib/libresolv.tbd
-  # We must postpone the version test until we have called 'uname -r' below.
+  # cmake >= 3.19 will use the new build system by default for Xcode >= 12.x
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.19)
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
   IF(CMAKE_VERSION VERSION_LESS 3.14.6)
@@ -444,20 +436,20 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
     ELSEIF(SOLARIS)
-      MESSAGE(STATUS "Looking for GCC 10 on Solaris.")
+      MESSAGE(STATUS "Looking for GCC 11 on Solaris.")
       FIND_PROGRAM(ALTERNATIVE_GCC gcc
         NO_DEFAULT_PATH
-        PATHS "/usr/gcc/10/bin")
+        PATHS "/usr/gcc/11/bin")
       FIND_PROGRAM(ALTERNATIVE_GPP g++
         NO_DEFAULT_PATH
-        PATHS "/usr/gcc/10/bin")
+        PATHS "/usr/gcc/11/bin")
       IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
         SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
-        MESSAGE(WARNING "Could not find /usr/gcc/10/bin/gcc")
+        MESSAGE(WARNING "Could not find /usr/gcc/11/bin/gcc")
       ENDIF()
     ENDIF()
   ENDIF()
@@ -1759,6 +1751,25 @@ IF(APPLE)
   ENDIF()
   # The Xcode version is 1.2.12 which is too old
   LIST(REMOVE_ITEM SYSTEM_LIBRARIES ZLIB)
+  # Link with the correct version of libc++.dylib
+  # Also use ar/ranlib from the compiler bundle.
+  IF(CMAKE_CXX_COMPILER MATCHES "/opt/homebrew/Cellar" OR
+      CMAKE_CXX_COMPILER MATCHES ${HOMEBREW_HOME}
+      )
+    SET(CMAKE_AR ${CMAKE_CXX_COMPILER_AR})
+    SET(CMAKE_RANLIB ${CMAKE_CXX_COMPILER_RANLIB})
+    GET_FILENAME_COMPONENT(CXX_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    GET_FILENAME_COMPONENT(LLVM_DIR ${CXX_DIR} DIRECTORY)
+    SET(LLVMBUNDLE_LINKER_FLAGS " -L${LLVM_DIR}/lib/c++")
+    IF(EXISTS ${LLVM_DIR}/lib/unwind/libunwind.dylib)
+      STRING_APPEND(LLVMBUNDLE_LINKER_FLAGS " -L${LLVM_DIR}/lib/unwind -lunwind")
+    ELSEIF(EXISTS "${LLVM_DIR}/lib/libunwind.dylib")
+      STRING_APPEND(LLVMBUNDLE_LINKER_FLAGS " -L${LLVM_DIR}/lib -lunwind")
+    ENDIF()
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS "${LLVMBUNDLE_LINKER_FLAGS}")
+    STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS "${LLVMBUNDLE_LINKER_FLAGS}")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS "${LLVMBUNDLE_LINKER_FLAGS}")
+  ENDIF()
 ENDIF()
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
@@ -1810,6 +1821,31 @@ IF(WITH_SYSTEM_LIBS)
   # Don't redo the system analysis on subsequent runs of cmake
   UNSET(WITH_SYSTEM_LIBS)
   UNSET(WITH_SYSTEM_LIBS CACHE)
+ENDIF()
+
+# The "annobin" plugin will normally generate a warning message if it
+# detects that neither the -D_FORTIFY_SOURCE=2 nor the
+# -D_FORTIFY_SOURCE=3 options have been provided on the command line
+# and -flto has been enabled.  This is because LTO compilation hides
+# preprocessor options, so information about them cannot be passed on
+# to the annocheck tool.
+#
+# See output from rpm --eval %optflags
+# Some of our RPM spec files will filter away some of the output.
+# To ensure consistency, and a clean build, we may filter away -flto here.
+# Note that it must be done early, before any ADD_SUBDIRECTORY or
+# MYSQL_CHECK_XXX, so that we do not break any feature tests.
+IF(LINUX_RPM_PLATFORM)
+  IF(NOT CMAKE_C_FLAGS MATCHES "FORTIFY_SOURCE")
+    IF(CMAKE_C_FLAGS MATCHES "-specs=.*redhat-annobin")
+      REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+    ENDIF()
+  ENDIF()
+  IF(NOT CMAKE_CXX_FLAGS MATCHES "FORTIFY_SOURCE")
+    IF(CMAKE_CXX_FLAGS MATCHES "-specs=.*redhat-annobin")
+      REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # See whether backtrace is supported.
@@ -2277,6 +2313,7 @@ ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
+ADD_SUBDIRECTORY(extra/unordered_dense)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)

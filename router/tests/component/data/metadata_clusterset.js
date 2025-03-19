@@ -16,6 +16,13 @@ if (mysqld.global.metadata_schema_version === undefined) {
   mysqld.global.metadata_schema_version = [2, 2, 0];
 }
 
+if (mysqld.global.server_version === undefined) {
+  // Let's keep the default server version as some known compatible version.
+  // If there is a need to some specific compatibility checks, this should be
+  // overwritten from the test.
+  mysqld.global.server_version = "8.3.0";
+}
+
 var options = {
   cluster_type: "gr",
   metadata_schema_version: mysqld.global.metadata_schema_version,
@@ -80,6 +87,7 @@ var router_update_last_check_in =
 
 
 ({
+  handshake: {greeting: {server_version: mysqld.global.server_version}},
   stmts: function(stmt) {
     var res;
     if (common_responses.hasOwnProperty(stmt)) {

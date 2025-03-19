@@ -384,6 +384,8 @@ void ConnectProcessor::assign_server_side_connection_after_pool(
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
   connection()->destination_endpoint(endpoints_it_->endpoint());
 
+  connection()->server_address(connection()->server_conn().endpoint());
+
   // update the msg-tracer callback to the new connection.
   if (auto *ssl = connection()->server_conn().channel().ssl()) {
     SSL_set_msg_callback_arg(ssl, connection());
@@ -990,6 +992,8 @@ ConnectProcessor::connected() {
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
   connection()->destination_endpoint(endpoints_it_->endpoint());
 
+  connection()->server_address(connection()->server_conn().endpoint());
+
   // mark destination as reachable.
   connection()->context().shared_quarantine().update(
       {dest->hostname(), dest->port()}, true);
@@ -1021,9 +1025,10 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
       msg += ": ";
       msg += ec.message();
     }
+
     log_error("[%s] connecting to backend(s) for client from %s failed: %s",
               connection()->context().get_name().c_str(),
-              connection()->get_client_address().c_str(), msg.c_str());
+              connection()->client_conn().endpoint().c_str(), msg.c_str());
   }
 
   if (auto *ev = trace_event_connect_) {

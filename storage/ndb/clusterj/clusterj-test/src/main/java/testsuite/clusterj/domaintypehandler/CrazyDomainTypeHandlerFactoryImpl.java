@@ -120,7 +120,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public Class<?>[] getProxyInterfaces() {
+               public Class<?> getProxyClass() {
                     throw new UnsupportedOperationException("Nice Job!");
                 }
 

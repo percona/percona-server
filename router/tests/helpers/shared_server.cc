@@ -414,14 +414,16 @@ SharedServer::user_connection_ids(MysqlClient &cli,
   }
 
   auto ids_res = cli.query(
-      "SELECT id FROM performance_schema.processlist WHERE id != "
-      "CONNECTION_ID() AND User IN (" +
+      "SELECT id FROM performance_schema.processlist "
+      "WHERE id != CONNECTION_ID() "
+      "  AND state NOT LIKE 'Group Replication%%' "
+      "  AND User IN (" +
       oss.str() + ")");
   if (!ids_res) return stdx::unexpected(ids_res.error());
 
   std::vector<uint64_t> ids;
   for (const auto &res : *ids_res) {
-    for (auto row : res.rows()) {
+    for (const auto *row : res.rows()) {
       ids.push_back(strtol(row[0], nullptr, 10));
     }
   }

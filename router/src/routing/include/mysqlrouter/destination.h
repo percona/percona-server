@@ -120,12 +120,10 @@ class Destinations {
   /**
    * emplace a Destination at the back of the container.
    */
-  // clang-format off
   template <class... Args>
-  auto emplace_back(Args &&... args) {
+  auto emplace_back(Args &&...args) {
     return destinations_.emplace_back(std::forward<Args>(args)...);
   }
-  // clang-format on
 
   void push_back(value_type &&v) { destinations_.push_back(std::move(v)); }
 

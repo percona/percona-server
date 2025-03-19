@@ -31,7 +31,6 @@
 
 #include "classic_connection_base.h"
 #include "processor.h"
-#include "tracer.h"
 
 class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
  private:
@@ -52,11 +51,7 @@ class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
   //
   template <typename... Args>
   [[nodiscard]] static std::shared_ptr<MysqlRoutingClassicConnectionBase>
-  create(
-      // clang-format off
-      Args &&... args) {
-    // clang-format on
-
+  create(Args &&...args) {
     // can't use make_unique<> here as the constructor is private.
     return std::shared_ptr<MysqlRoutingClassicConnectionBase>(
         new MysqlRoutingClassicConnection(std::forward<Args>(args)...));

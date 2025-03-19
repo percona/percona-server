@@ -83,7 +83,13 @@ class MySQLRoutingConnectionBase {
    *
    * @return address of server
    */
-  virtual std::string get_server_address() const = 0;
+  std::string get_server_address() const {
+    return stats_([](const Stats &stats) { return stats.server_address; });
+  }
+
+  void server_address(const std::string &dest) {
+    return stats_([&dest](Stats &stats) { stats.server_address = dest; });
+  }
 
   virtual void disconnect() = 0;
 
@@ -92,7 +98,13 @@ class MySQLRoutingConnectionBase {
    *
    * @return address of client
    */
-  virtual std::string get_client_address() const = 0;
+  std::string get_client_address() const {
+    return stats_([](const Stats &stats) { return stats.client_address; });
+  }
+
+  void client_address(const std::string &dest) {
+    return stats_([&dest](Stats &stats) { stats.client_address = dest; });
+  }
 
   std::size_t get_bytes_up() const {
     return stats_([](const Stats &stats) { return stats.bytes_up; });
@@ -123,6 +135,25 @@ class MySQLRoutingConnectionBase {
   }
 
   struct Stats {
+    Stats() = default;
+
+    Stats(std::string client_address, std::string server_address,
+          std::size_t bytes_up, std::size_t bytes_down, time_point_type started,
+          time_point_type connected_to_server,
+          time_point_type last_sent_to_server,
+          time_point_type last_received_from_server)
+        : client_address(std::move(client_address)),
+          server_address(std::move(server_address)),
+          bytes_up(bytes_up),
+          bytes_down(bytes_down),
+          started(started),
+          connected_to_server(connected_to_server),
+          last_sent_to_server(last_sent_to_server),
+          last_received_from_server(last_received_from_server) {}
+
+    std::string client_address;
+    std::string server_address;
+
     std::size_t bytes_up{0};
     std::size_t bytes_down{0};
 
@@ -181,8 +212,6 @@ class MySQLRoutingConnectionBase {
 
  private:
   net::impl::socket::native_handle_type client_fd_;
-  std::string client_id_;
-  std::string server_id_;
 };
 
 class ConnectorBase {

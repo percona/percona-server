@@ -1317,4 +1317,20 @@ std::string to_string(
   return "drop_all";
 }
 
+// We do not support server with version highier than our version
+// Patch is .99 as we only care about major and minor
+static constexpr const unsigned long max_suported_version_ulong =
+    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
+
+bool is_server_version_supported(MySQLSession *mysql) {
+  return max_suported_version_ulong >= mysql->server_version();
+}
+
+std::string get_unsupported_server_version_msg(MySQLSession *mysql) {
+  return "Unsupported MySQL Server version '" +
+         std::to_string(mysql->server_version()) +
+         "'. Maximal supported version is '" +
+         std::to_string(max_suported_version_ulong) + "'.";
+}
+
 }  // namespace mysqlrouter

@@ -1304,7 +1304,9 @@ void free_items(Item *item) {
 */
 void cleanup_items(Item *item) {
   DBUG_TRACE;
-  for (; item; item = item->next_free) item->cleanup();
+  for (; item; item = item->next_free) {
+    item->cleanup();
+  }
 }
 
 /**

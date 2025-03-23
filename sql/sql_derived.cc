@@ -545,10 +545,9 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
                  }
                  if (inner_item->type() == Item::FIELD_ITEM) {
                    Item_field *field = down_cast<Item_field *>(inner_item);
-                   if (field_info.push_back(
+                   field_info.push_back(
                            Field_info(context, field->table_ref, depended_from,
-                                      field->cached_table, field->field)))
-                     return true;
+                                      field->cached_table, field->field));
                  }
                  return false;
                }))

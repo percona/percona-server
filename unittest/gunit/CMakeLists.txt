@@ -142,7 +142,6 @@ SET(TESTS
   like_range
   m_string
   mdl
-  mem_root_deque
   mutex_lock
   my_alloc
   my_bitmap

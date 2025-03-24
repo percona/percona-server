@@ -83,7 +83,7 @@ void Js_v8::shutdown() {
   s_platform.reset();
 }
 
-std::shared_ptr<Js_isolate> Js_isolate::create() {
+Js_isolate *Js_isolate::create() {
   v8::Isolate::CreateParams create_params;
   v8::Isolate *isolate;
 
@@ -98,8 +98,7 @@ std::shared_ptr<Js_isolate> Js_isolate::create() {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
   isolate = v8::Isolate::New(create_params);
-  return std::make_shared<Js_isolate>(isolate,
-                                      create_params.array_buffer_allocator);
+  return new Js_isolate(isolate, create_params.array_buffer_allocator);
 }
 
 mysql_thd_store_slot Js_thd::s_thd_slot = nullptr;
@@ -120,7 +119,9 @@ void Js_thd::unregister_slot() {
 
 void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
                                            const char *fallback_error_msg) {
-  v8::Isolate *isolate = isolate_ptr->get_v8_isolate();
+  Js_isolate *js_isolate = get_js_isolate();
+
+  v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
   v8::HandleScope handle_scope(isolate);
 
@@ -238,9 +239,11 @@ Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
 }
 
 Js_sp::~Js_sp() {
-  for (auto &p : m_funcs) {
-    v8::Locker locker(p.second.isolate_ptr->get_v8_isolate());
-    p.second.func.Reset();
+  Js_thd *js_thd = Js_thd::get_current_js_thd();
+
+  // Js_thd context might be already gone at this point.
+  if (js_thd != nullptr) {
+    js_thd->erase_sp(m_sql_sp);
   }
 }
 
@@ -345,7 +348,9 @@ void Js_sp::prepare_wrapped_body_and_out_param_indexes() {
 
 v8::Local<v8::Function> Js_sp::prepare_func(
     Js_thd::Auth_id_context *auth_id_ctx) {
-  v8::Isolate *isolate = auth_id_ctx->isolate_ptr->get_v8_isolate();
+  Js_isolate *js_isolate = auth_id_ctx->get_js_isolate();
+
+  v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
   // Caller should have locked and made this Isolate current one already.
   assert(v8::Locker::IsLocked(isolate));
@@ -463,7 +468,9 @@ bool Js_sp::parse() {
 
   auto auth_id_ctx = js_thd->get_or_create_auth_id_context(auth_id);
 
-  v8::Isolate *isolate = auth_id_ctx->get_isolate();
+  Js_isolate *js_isolate = auth_id_ctx->get_js_isolate();
+
+  v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
   // Lock the isolate to follow convention.
   v8::Locker locker(isolate);
@@ -488,7 +495,7 @@ bool Js_sp::parse() {
 
   if (func.IsEmpty()) return true;
 
-  m_funcs.try_emplace(auth_id, auth_id_ctx->isolate_ptr, isolate, func);
+  auth_id_ctx->add_function(m_sql_sp, func);
 
   // Prepare functions for getting parameter values.
   if (prepare_get_param_funcs()) return true;
@@ -519,7 +526,9 @@ bool Js_sp::execute() {
 
   auto auth_id_ctx = js_thd->get_or_create_auth_id_context(auth_id);
 
-  v8::Isolate *isolate = auth_id_ctx->get_isolate();
+  Js_isolate *js_isolate = auth_id_ctx->get_js_isolate();
+
+  v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
   v8::Locker locker(isolate);
 
@@ -536,15 +545,12 @@ bool Js_sp::execute() {
     in case of SQL SECURITY INVOKER routine, so prepare a new one if
     necessary.
   */
-  v8::Local<v8::Function> func;
+  v8::Local<v8::Function> func = auth_id_ctx->get_function(m_sql_sp);
 
-  auto j = m_funcs.find(auth_id);
-  if (j == m_funcs.end()) {
+  if (func.IsEmpty()) {
     func = prepare_func(auth_id_ctx);
     if (func.IsEmpty()) return true;
-    m_funcs.try_emplace(auth_id, auth_id_ctx->isolate_ptr, isolate, func);
-  } else {
-    func = v8::Local<v8::Function>::New(isolate, j->second.func);
+    auth_id_ctx->add_function(m_sql_sp, func);
   }
 
   v8::Local<v8::Context> context = auth_id_ctx->get_context();

@@ -530,6 +530,8 @@ while($i <= 6)
 --echo # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
 --echo # - If JS numeric or BigInt value can be safely converted to SQL-type
 --echo #   we use direct conversion (for performance reasons).
+--echo # - JS Boolean values are converted to 0 or 1 directly as well
+--echo #   (as conversion through string causes error).
 --echo # - Otherwise, as well as for all other types of JS values conversion
 --echo #   is done through strings (i.e. by doing JS toString() conversion
 --echo #   and trying to store resulting string as SQL integer value).
@@ -578,6 +580,8 @@ while($i <= 5)
   --eval CREATE FUNCTION f_bigint_tb() RETURNS $type LANGUAGE JS AS \$\$ return BigInt(1e+25); \$\$
 
   --eval CREATE FUNCTION f_bool() RETURNS $type LANGUAGE JS AS \$\$ return true; \$\$
+
+  --eval CREATE FUNCTION f_bool_u() RETURNS $type UNSIGNED LANGUAGE JS AS \$\$ return true; \$\$
 
   --eval CREATE FUNCTION f_str_e() RETURNS $type LANGUAGE JS AS \$\$ return ""; \$\$
   --eval CREATE FUNCTION f_str_a() RETURNS $type LANGUAGE JS AS \$\$ return "alpha"; \$\$
@@ -641,8 +645,9 @@ while($i <= 5)
   --error ER_WARN_DATA_OUT_OF_RANGE
   SELECT f_bigint_tb();
 
-  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   SELECT f_bool() AS bo;
+
+  SELECT f_bool_u() AS bu;
 
   --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   SELECT f_str_e() AS se;
@@ -701,6 +706,7 @@ while($i <= 5)
   DROP FUNCTION f_bigint_un;
   DROP FUNCTION f_bigint_tb;
   DROP FUNCTION f_bool;
+  DROP FUNCTION f_bool_u;
   DROP FUNCTION f_str_e;
   DROP FUNCTION f_str_a;
   DROP FUNCTION f_str_n1;
@@ -728,6 +734,8 @@ while($i <= 5)
 --echo # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
 --echo # - If JS numeric value can be safely converted to SQL-type we use
 --echo #   direct conversion (for performance reasons).
+--echo # - JS Boolean values are converted to 0 or 1 directly as well
+--echo #   (as conversion through string causes error).
 --echo # - Otherwise, as well as for all other types of JS values conversion
 --echo #   is done through strings (i.e. by doing JS toString() conversion
 --echo #   and trying to store resulting string as SQL floating-point value).
@@ -782,7 +790,6 @@ while($i <= 2)
   SELECT f_bigint() AS bi;
   SELECT f_bigint_pl() AS bipl;
 
-  --error 1265
   SELECT f_bool() AS bo;
 
   --error 1265
@@ -837,12 +844,17 @@ while($i <= 2)
 }
 
 --echo #
---echo # For DECIMAL SQL-type conversion is done through strings (by doing JS
---echo # toString() conversion and trying to store resulting string as SQL
---echo # type value). There is no point in optimizing conversion from Number
---echo # type, like it is done for floating point SQL-types, as SQL core does
---echo # double -> DECIMAL conversions through strings. As usual JS 'null'
---echo # and 'undefined' values are mapped to SQL NULL.
+--echo # For DECIMAL SQL-type conversion is almost always done through strings
+--echo # (by doing JS toString() conversion and trying to store resulting string
+--echo # as SQL type value). There is no point in optimizing conversion from
+--echo # Number type, like it is done for floating point SQL-types, as SQL core
+--echo # does double -> DECIMAL conversions through strings.
+--echo #
+--echo # The exception to the above are JS Boolean values which are directly
+--echo # converted to 0/1, as converting them through strings would cause
+--echo # errors.
+--echo #
+--echo # As usual JS 'null' and 'undefined' values are mapped to SQL NULL.
 --echo #
 
 CREATE FUNCTION f_undefined() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return $$;
@@ -900,7 +912,6 @@ SELECT f_bigint_1() AS bi1, f_bigint_2() AS bi2;
 --error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f_bigint_tb() AS bitb;
 
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 SELECT f_bool() AS bo;
 
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
@@ -1917,6 +1928,8 @@ while($i <= 5)
 
   --eval CREATE PROCEDURE p_bool(OUT r $type) LANGUAGE JS AS \$\$ r = true; \$\$
 
+  --eval CREATE PROCEDURE p_bool_u(OUT r $type UNSIGNED) LANGUAGE JS AS \$\$ r = true; \$\$
+
   --eval CREATE PROCEDURE p_str_e(OUT r $type) LANGUAGE JS AS \$\$ r = ""; \$\$
   --eval CREATE PROCEDURE p_str_a(OUT r $type) LANGUAGE JS AS \$\$ r = "alpha"; \$\$
   --eval CREATE PROCEDURE p_str_n1(OUT r $type) LANGUAGE JS AS \$\$ r = "123"; \$\$
@@ -2010,8 +2023,11 @@ while($i <= 5)
   --error ER_WARN_DATA_OUT_OF_RANGE
   CALL p_bigint_tb(@r);
 
-  --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   CALL p_bool(@r);
+  SELECT @r AS bo;
+
+  CALL p_bool_u(@r);
+  SELECT @r AS bu;
 
   --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
   CALL p_str_e(@r);
@@ -2077,6 +2093,7 @@ while($i <= 5)
   DROP PROCEDURE p_bigint_un;
   DROP PROCEDURE p_bigint_tb;
   DROP PROCEDURE p_bool;
+  DROP PROCEDURE p_bool_u;
   DROP PROCEDURE p_str_e;
   DROP PROCEDURE p_str_a;
   DROP PROCEDURE p_str_n1;
@@ -2173,8 +2190,8 @@ while($i <= 2)
   CALL p_bigint_pl(@r);
   SELECT @r AS bipl;
 
-  --error 1265
   CALL p_bool(@r);
+  SELECT @r AS bo;
 
   --error 1265
   CALL p_str_e(@r);
@@ -2310,8 +2327,8 @@ SELECT @r AS bi2;
 --error ER_WARN_DATA_OUT_OF_RANGE
 CALL p_bigint_tb(@r);
 
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 CALL p_bool(@r);
+SELECT @r AS bo;
 
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 CALL p_str_e(@r);

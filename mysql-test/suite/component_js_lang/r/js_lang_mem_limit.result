@@ -1,0 +1,237 @@
+# Global prepare of playground.
+INSTALL COMPONENT 'file://component_js_lang';
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+# Check the default per connection/user memory limit in our
+# component. At the moment it is 8M if it is changed, the
+# parameters of calls below need to be ajusted.
+SELECT @@js_lang.max_mem_size;
+@@js_lang.max_mem_size
+8388608
+#
+# 1) Create routine which will hog prescribed amount of memory on the
+#    V8 heap in the process of its execution.
+#
+# JSON.parse(JSON.stringify()) trick is necessary to suppress V8 string
+# optimizations which will cause much smaller memory usage if applied.
+#
+# Note that since we can only do "best effort" memory limit detection
+# with V8, spike allocation of memory still might cause V8/process
+# aborts, or go unnoticed if memory is quickly released.
+#
+# So the below tests might have to be adjusted to slow down memory
+# allocation (to let detection kick in) or disabled if it starts to
+# misbehave on some machine.
+CREATE PROCEDURE p_heap_hog(size INT) LANGUAGE JS AS
+$$ let s = JSON.parse(JSON.stringify(("A").repeat(size/2 /* Two copies of string! */))) $$;
+#
+# Check that we detect exceeding the limit and report it.
+CALL p_heap_hog(10*1000*1000);
+ERROR HY000: Memory limit exceeded.
+#
+# Hogging amounts of memory below the limit should be fine.
+#
+# The below also shows that we can run JS code in the
+# connection after hitting memory limit earlier.
+CALL p_heap_hog(5*1000*1000);
+CALL p_heap_hog(5*1000*1000);
+CALL p_heap_hog(5*1000*1000);
+DROP PROCEDURE p_heap_hog;
+#
+# 2) Now create routine which will hog prescribed amount of memory on
+#    ArrayBuffer allocator.
+CREATE PROCEDURE p_array_buff_hog(size INT) LANGUAGE JS AS $$
+let a = new ArrayBuffer(size);
+$$|
+#
+# Check that we detect exceeding the limit and report it.
+CALL p_array_buff_hog(10*1000*1000);
+ERROR HY000: Memory limit exceeded.
+#
+# Again staying below the limit should be fine.
+#
+# Unlike in heap case calling this routine with parameter below the
+# limit several times in a row still might fail. The exact behavior
+# depends on whether GC manages to free previously allocated 
+# ArrayBuffer objects in time. Unlike in heap case where limit can be
+# temporarily exceeded until GC, ArrayBuffer allocator treats it as a
+# hard one.
+CALL p_array_buff_hog(5*1000*1000);
+DROP PROCEDURE p_array_buff_hog;
+#
+# 3) Then create routine which will hog prescribed amount of memory using
+#    mix of allocations from ArrayBuffer allocator and V8 heap.
+CREATE PROCEDURE p_mixed_hog(size INT) LANGUAGE JS AS $$
+let arr = [];
+for (let i = 0; i < 20; i++) {
+arr[i] = new ArrayBuffer(size/40);
+arr[20 + i] = JSON.parse(JSON.stringify(("A").repeat(size/40)));
+}
+$$|
+CALL p_mixed_hog(10*1000*1000);
+ERROR HY000: Memory limit exceeded.
+DROP PROCEDURE p_mixed_hog;
+#
+# 4) Let us also test situation when we exceed the memory limit by
+#    passing too long argument to routine.
+#
+CREATE FUNCTION f_longtext_hog(s LONGTEXT) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longtext_cs_hog(s LONGTEXT CHARACTER SET cp1251) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+CREATE FUNCTION f_longblob_hog(b LONGBLOB) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return b.byteLength $$;
+CREATE FUNCTION f_json_hog(s JSON) RETURNS VARCHAR(100) LANGUAGE JS AS $$ return s.length $$;
+SELECT f_longtext_hog(REPEAT('A', 10*1000*1000)) AS hog;
+ERROR HY000: Memory limit exceeded.
+# Check that hogging memory below the limit is OK and also that
+# we can run JS in the connection after hitting the limit.
+SELECT f_longtext_hog(REPEAT('A', 5*1000*1000)) AS hog;
+hog
+5000000
+SELECT f_longtext_cs_hog(REPEAT(X'fa', 10*1000*1000)) AS hog;
+ERROR HY000: Memory limit exceeded.
+# OK if we stay below the limit.
+SELECT f_longtext_cs_hog(REPEAT(X'fa', 5*1000*1000)) AS hog;
+hog
+5000000
+SELECT f_longblob_hog(REPEAT(X'ff', 10*1000*1000)) AS hog;
+ERROR HY000: Memory limit exceeded.
+# OK if we stay below the limit.
+SELECT f_longblob_hog(REPEAT(X'ff', 5*1000*1000)) AS hog;
+hog
+5000000
+SELECT f_json_hog(JSON_ARRAY(REPEAT('a', 10*1000*1000)));
+ERROR HY000: Memory limit exceeded.
+# OK if we stay below the limit.
+SELECT f_json_hog(JSON_ARRAY(REPEAT('a', 5*1000*1000)));
+f_json_hog(JSON_ARRAY(REPEAT('a', 5*1000*1000)))
+1
+DROP FUNCTION f_longtext_hog;
+DROP FUNCTION f_longtext_cs_hog;
+DROP FUNCTION f_longblob_hog;
+DROP FUNCTION f_json_hog;
+#
+# 5) Let us also test status variables which expose information
+#    about memory usage by JS component.
+#
+# Values of most of these status variables are non-deterministic
+# due to garbage collection.
+SHOW STATUS LIKE 'js_lang%';
+Variable_name	Value
+Js_lang_contexts	#
+Js_lang_external_memory_size	#
+Js_lang_total_heap_size	#
+Js_lang_used_heap_size	#
+# But at least number of contexts is stable.
+SHOW STATUS LIKE 'js_lang_contexts';
+Variable_name	Value
+Js_lang_contexts	1
+#
+# 6) Test coverage for JS_GET_MEMORY_USAGE_JSON() UDF.
+#
+#    This function returns information about memory usage by isolate
+#    for current connection/user pair and all isolates in the system.
+#
+# 6.1) Some very basic tests.
+#
+# First, let us ensure that this connection/user pair has an isolate
+# and there is something on its heap first.
+CREATE FUNCTION f1() RETURNS INT LANGUAGE JS AS $$ return 1 $$;
+SELECT f1();
+f1()
+1
+# Since most of values in returned JSON are non-deterministic
+# due to garbage collection they have to be masked.
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>
+    },
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+# Since some phases of GC are concurrent even checking that memory
+# usage by the current isolate is lower or equal than the global one
+# is racy.
+#
+# Let us at least check that heap usage is non-zero.
+# Also number of active contexts should be stable.
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.local.totalHeapSize") > 0 AS loc_ths,
+JSON_EXTRACT(@mem_usage, "$.local.usedHeapSize") > 0  AS loc_uhs,
+JSON_EXTRACT(@mem_usage, "$.global.totalHeapSize") > 0 AS glob_ths,
+JSON_EXTRACT(@mem_usage, "$.global.usedHeapSize") > 0  AS glob_uhs,
+JSON_EXTRACT(@mem_usage, "$.global.contexts") AS glob_c;
+loc_ths	loc_uhs	glob_ths	glob_uhs	glob_c
+1	1	1	1	1
+#
+# 6.2) Test what happens when UDF is called for connection which
+#      never run JS before.
+#
+#      In this case 'local' member of returned JSON should be null.
+connect  con_add, localhost, root,,;
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": null,
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+#
+# 6.3) Test what happens when this connection runs some JS.
+#
+# 'local' member should no longer be null.
+SELECT f1();
+f1()
+1
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>
+    },
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+# Number of active contexts should increase!
+SELECT JSON_EXTRACT(JS_GET_MEMORY_USAGE_JSON(), "$.global.contexts") AS c;
+c
+2
+#
+# 6.4) Finally, let us test that "external"/off-heap allocations
+#      are also tracked.
+CREATE PROCEDURE p1() LANGUAGE JS AS $$ globalThis.a = new ArrayBuffer(1024) $$;
+CALL p1();
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.local.externalMemorySize") >= 1024 AS loc_ems,
+JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") >= 1024  AS glob_ems;
+loc_ems	glob_ems
+1	1
+# Local clean-up.
+disconnect con_add;
+connection default;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+# Global clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+# Disconnect of default connection to free the only remaining
+# connection context and isolate, so we can uninstall component.
+disconnect default;
+connect default,localhost,root;
+UNINSTALL COMPONENT 'file://component_js_lang';
+# Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+# restart

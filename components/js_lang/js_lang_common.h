@@ -29,6 +29,7 @@
   Services and helper headers provided by SQL core which our component uses.
 */
 #include <mysql/components/services/bits/stored_program_bits.h>
+#include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
@@ -82,6 +83,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_kill_handler);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
 /**
@@ -110,5 +112,23 @@ static constexpr std::string_view CREATE_PRIVILEGE_NAME = "CREATE_JS_ROUTINE";
 //
 // Defined as a macro so we can easier concatenate it with other literals.
 #define MAX_CONSOLE_LOG_SIZE_VAR_NAME "max_console_log_size"
+
+// Names of system variables which limit the size of per isolate memory.
+//
+// Defined as macros so we can easier concatenate them with other literals.
+#define MAX_MEM_SIZE_VAR_NAME "max_mem_size"
+#define MAX_MEM_SIZE_HARD_LIMIT_FACTOR_VAR_NAME "max_mem_size_hard_limit_factor"
+
+// We use RapidJSON to produce console log and information about memory
+// usage in JSON format.
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+#include "my_rapidjson_size_t.h"
+#endif
+#include <rapidjson/prettywriter.h>
+#include <string_with_len.h>
+
+// Convenience aliases for RapidJSON types.
+using Json_string_buffer = rapidjson::StringBuffer;
+using Json_writer = rapidjson::PrettyWriter<Json_string_buffer>;
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_COMMON_H */

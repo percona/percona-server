@@ -62,6 +62,13 @@ class Js_v8 {
   */
   static bool is_used_or_shutdown() { return s_ref_count.load() != 0; }
 
+  /** Get number of v8::Isolate object around. */
+  static unsigned int get_isolate_count() {
+    auto ref_count = s_ref_count.load(std::memory_order_relaxed);
+    // Play safe, do not return special -1 value to the caller.
+    return (ref_count >= 0) ? ref_count : 0;
+  }
+
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
   static void inc_ref_count() {
@@ -87,21 +94,17 @@ class Js_v8 {
 
 /**
   Wrapper class around v8::Isolate which simplifies its lifetime management
-  through reference counting pointers by packaging it with its allocator.
-
-  It also contains static methods for V8 initialization/shutdown as well as
-  global reference counter for isolates, so we can block component shutdown
-  if there are connections around that use isolates and therefore V8.
+  by packaging it with its allocator and other Isolate specific data.
 */
 class Js_isolate {
- public:
-  // TODO: Make ctor private once we stop using std::shared_ptr with this class.
-  Js_isolate(v8::Isolate *iso, v8::ArrayBuffer::Allocator *alloc)
-      : m_isolate(iso), m_allocator(alloc) {}
+ private:
+  Js_isolate() : m_memory_manager(this) {}
 
+ public:
   ~Js_isolate() {
     m_isolate->Dispose();
-    delete m_allocator;
+    // Destroy allocator we got from V8 before allowing V8 shutdown.
+    m_memory_manager.m_arr_buff_allocator.reset();
     // Decrement global V8/Isolate reference counter to allow component
     // shutdown if there are no other Isolates around.
     Js_v8::dec_ref_count();
@@ -117,13 +120,283 @@ class Js_isolate {
     Create new Js_isolate and increments global counter of isolates
     accordingly.
   */
-  static std::shared_ptr<Js_isolate> create();
+  static Js_isolate *create();
 
   v8::Isolate *get_v8_isolate() const { return m_isolate; }
 
+  bool is_max_mem_size_exceeded() const {
+    return m_memory_manager.m_is_max_mem_size_exceeded;
+  }
+
+  /**
+    Mark isolate as exceeded memory limit and request execution
+    of JS in it to be aborted.
+  */
+  void raise_max_mem_size_exceeded() {
+    m_memory_manager.m_is_max_mem_size_exceeded = true;
+    m_isolate->TerminateExecution();
+  }
+
+  /**
+    Get current memory usage counters for this isolate and aggregate them
+    into global memory usage counters.
+  */
+  void update_global_mem_stats() { m_memory_manager.update_global_mem_stats(); }
+
+  /**
+    Get information about memory usage by the isolate for current connection/
+    user pair (passed as parameter) and by all isolates in the system as JSON
+    object.
+
+    @param js_iso - Pointer to Js_isolate object for current connection/
+                    user pair if exists. nullptr - if there is no such object
+                    (e.g. connection was never used for running JS code).
+  */
+  static std::string get_mem_stats_json(Js_isolate *js_iso) {
+    return Memory_manager::get_mem_stats_json(
+        (js_iso != nullptr) ? &(js_iso->m_memory_manager) : nullptr);
+  }
+
+  /**
+    Helper which allows to check in advance if buffer we are about allocate
+    for ArrayBuffer object will fit into the memory limit. If no we mark
+    isolate as exceeding the limit and request JS execution to be aborted.
+
+    @note Concurrent background GC freeing buffers in allocator should not
+          be a problem for this call. It migh fail in cases when it could
+          have succeeded, but will never do vice versa.
+
+    @return True if limit is about to be exceeded and isolate was marked
+            marked as such. False otherwise.
+  */
+  static bool check_if_arr_buff_alloc_will_exceed_mem_limit(size_t length);
+
+  /**
+    Helper which does naive and optimistic check if string object we are about
+    to allocate will fit into the memory limit. If no we mark isolate as
+    exceeding the limit and request JS execution to be aborted.
+
+    @note This function is really optimistic (not even best-efforts!) and
+          should not be relied up in cases when we must ensure that the
+          upcoming allocation fits into the limit.
+
+    @return True if limit is about to be exceeded and isolate was marked
+            marked as such. False otherwise.
+  */
+  static bool check_if_heap_alloc_will_exceed_mem_limit(size_t length);
+
+  /** Get definitions of memory usage status variables. */
+  static SHOW_VAR *get_status_vars_defs();
+
+  /**
+    Register/unregister system variable which controls per-isolate maximum
+    memory size as well as global status variables for memory usage.
+
+    @retval False - Success.
+    @retval True  - Failure (error has been reported).
+  */
+  static bool register_vars();
+  static bool unregister_vars();
+
  private:
-  v8::Isolate *m_isolate;
-  v8::ArrayBuffer::Allocator *m_allocator;
+  v8::Isolate *m_isolate{nullptr};
+
+  /**
+    Helper class which is responsible for memory accounting and limit
+    enforcement for the isolate.
+
+    Implements v8::ArrayBuffer::Allocator interface to be able properly
+    enforce memory limits for JS ArrayBuffer objects. This is done by
+    wrapping default V8 ArrayBuffer allocator implementation with memory
+    accounting/tracking functionality.
+  */
+  class Memory_manager : public v8::ArrayBuffer::Allocator {
+   public:
+    Memory_manager(Js_isolate *js_iso)
+        : m_js_isolate(js_iso),
+          m_arr_buff_allocator(
+              v8::ArrayBuffer::Allocator::NewDefaultAllocator()),
+          m_max_mem_size(s_max_mem_size) {
+#ifndef NDEBUG
+      always_ok(mysql_service_mysql_current_thread_reader->get(&m_mysql_thd));
+#endif
+    }
+
+    ~Memory_manager() {
+      // Since V8 isolate has been deleted at this point it is good time
+      // to decrease global memory usage counters.
+      s_total_heap_size -= m_old_stats.total_heap_size;
+      s_used_heap_size -= m_old_stats.used_heap_size;
+      s_external_memory_size -= m_old_stats.external_memory_size;
+    }
+
+    // Block default copy/move semantics.
+    Memory_manager(Memory_manager const &rhs) = delete;
+    Memory_manager(Memory_manager &&rhs) = delete;
+    Memory_manager &operator=(Memory_manager const &rhs) = delete;
+    Memory_manager &operator=(Memory_manager &&rhs) = delete;
+
+    void check_thd() {
+#ifndef NDEBUG
+      MYSQL_THD mysql_thd;
+      always_ok(mysql_service_mysql_current_thread_reader->get(&mysql_thd));
+      assert(m_mysql_thd == mysql_thd);
+#endif
+    }
+
+    /**
+      Check if allocation of new memory buffer will exceed memory limit,
+      mark isolate as exceeding memory limit and request JS execution abort
+      in it if yes.
+
+      @retval False - limit is not exceeded.
+      @retval True  - limit is exceeded.
+    */
+    bool check_mem_limit_at_arr_buff_alloc(size_t length);
+
+    /**
+      Check if we about to allocate on heap object that is bigger than memory
+      limit, mark isolate as exceeding memory limit and request JS execution
+      abort in it if yes.
+
+      @retval False - objects is smaller than memory limit (the limit still
+                      might be exceeded though).
+      @retval True  - object exceeds than memory limit.
+    */
+    bool check_mem_limit_at_heap_alloc(size_t length) {
+      if (length > m_max_mem_size) {
+        m_js_isolate->raise_max_mem_size_exceeded();
+        return true;
+      }
+      return false;
+    }
+
+    /**
+      At minor/major GC time check if memory limit for isolate is exceeded,
+      mark it as such and request JS execution abort in it if yes.
+    */
+    void check_mem_limit_at_GC();
+
+    /* Start of v8::ArrayBuffer::Allocator interface implementation. */
+
+    void *Allocate(size_t length) override;
+
+    void *AllocateUninitialized(size_t length) override;
+
+    void Free(void *data, size_t length) override;
+
+    void *Reallocate(void *data, size_t old_length, size_t new_length) override;
+
+    /* End of v8::ArrayBuffer::Allocator interface implementation. */
+
+    /**
+      Aggregate current memory usage counters for this isolate (which are
+      passed in parameter) into global memory usage counters.
+    */
+    void update_global_mem_stats(v8::HeapStatistics &stats);
+
+    /**
+      Get current memory usage counters for this isolate and aggregate them
+      into global memory usage counters.
+    */
+    void update_global_mem_stats();
+
+    /**
+      Get information about memory usage by the isolate for current connection/
+      user pair (its Memory_manager passed as parameter) and by all isolates in
+      the system as a JSON object.
+
+      @param mem_mgr - Pointer to Memory_manager object for current connection/
+                       user pair's isolate if exists.
+                       nullptr - if there is no such object (e.g. if connection
+                       was never used for running JS code).
+    */
+    static std::string get_mem_stats_json(Memory_manager *mem_mgr);
+
+    /* Helpers implementing memory usage status variables. */
+    static int show_total_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+    static int show_used_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+    static int show_external_memory_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+
+    /** Pointer to isolate to which this memory manager belongs. */
+    Js_isolate *m_js_isolate;
+
+#ifndef NDEBUG
+    /**
+      Opaque handle of THD object which uses this isolate/memory manager,
+      used as an approximation of physical thread id by debug assertions.
+    */
+    MYSQL_THD m_mysql_thd;
+#endif
+
+    /**
+      V8 default ArrayBuffer::Allocator to which we forward ArrayBuffer
+      buffer allocation requests.
+    */
+    std::unique_ptr<v8::ArrayBuffer::Allocator> m_arr_buff_allocator;
+
+    /**
+      Amount of memory allocated for ArrayBuffer buffers outside of V8 heap
+      for the isolate.
+
+      @note Needs to be atomic as these buffers can be freed from the
+            background threads.
+    */
+    std::atomic<size_t> m_arr_buff_allocated{0};
+
+    /**
+      Total amount of memory which was used by the isolate during last GC.
+      It is used to determine if we have approached dangerously close to
+      memory limit since the last GC, or it was already the case at the
+      last GC.
+    */
+    size_t m_last_danger_zone_check_mem_size{0};
+
+    /**
+      Maximum memory size limit which is enforced for this isolate/memory
+      manager.
+
+      @note This limit is set at Isolate creation time and then used by checks
+            for the rest of its life. We cannot use value of global dynamic
+            variable directly for this, as change in its value will bring it
+            out of sync with V8 heap limit which set at Isolate creation time,
+            which might lead to crashes.
+    */
+    const size_t m_max_mem_size;
+
+    /**
+      Indicates if per-isolate maximum memory size has been exceeded,
+      and therefore JS execution in it should be aborted and isolate
+      should be destroyed.
+    */
+    bool m_is_max_mem_size_exceeded{false};
+
+    /**
+      Global dynamic variable for maximum memory size limit to set for
+      new isolates.
+    */
+    static unsigned int s_max_mem_size;
+
+    /**
+      Memory usage counter values for this isolate which already have been
+      agreggated into global memory usage counters.
+    */
+    struct {
+      size_t total_heap_size;
+      size_t used_heap_size;
+      size_t external_memory_size;
+    } m_old_stats{0, 0, 0};
+
+    /**
+      Global counters of memory usage to be shown as status variables.
+
+      TODO: Consider partitioning these counters if updating them ever
+            becomes performance bottleneck (though it is unlikely).
+    */
+    static std::atomic<size_t> s_total_heap_size;
+    static std::atomic<size_t> s_used_heap_size;
+    static std::atomic<size_t> s_external_memory_size;
+  } m_memory_manager;
 };
 
 /**
@@ -134,15 +407,7 @@ class Js_isolate {
 class Js_thd {
  public:
   explicit Js_thd(MYSQL_THD thd) : m_thd(thd) {}
-  ~Js_thd() {
-    // Play safe. Lock the isolate before deleting context associated with it.
-    for (auto &p : m_auth_id_contexts) {
-      {
-        v8::Locker locker(p.second.isolate_ptr->get_v8_isolate());
-        p.second.context.Reset();
-      }
-    }
-  }
+  ~Js_thd() {}
 
   // Block default copy/move semantics.
   Js_thd(Js_thd const &rhs) = delete;
@@ -236,36 +501,63 @@ class Js_thd {
     TODO: Make it a class once support for KILLability/OOM handling is added.
   */
   struct Auth_id_context {
-    /**
-      Pointer to isolate for this specific connection and user pair.
-
-      We have to use reference counting pointer here since SQL code imposes
-      akward restrictions on Js_thd and Js_sp lifetime - Js_sp object
-      representing routine in the connection can outlive connection's Js_thd
-      object [sic!].
-    */
-    std::shared_ptr<Js_isolate> isolate_ptr;
-
-    /**
-      JS context for the specific connection and user pair.
-
-      @note Belongs to the Isolate referenced from this context.
-    */
-    v8::Global<v8::Context> context;
-
     /** JS console for the specific connection and user pair. */
     Js_console console;
 
-    Auth_id_context(const std::shared_ptr<Js_isolate> &iso_ptr,
-                    v8::Local<v8::Context> &ctx)
-        : isolate_ptr(iso_ptr), context(iso_ptr->get_v8_isolate(), ctx) {}
+    Auth_id_context(Js_isolate *js_iso, v8::Local<v8::Context> &ctx)
+        : m_js_isolate(js_iso),
+          m_context(m_js_isolate->get_v8_isolate(), ctx) {}
 
-    v8::Isolate *get_isolate() const { return isolate_ptr->get_v8_isolate(); }
+    ~Auth_id_context() {
+      // Follow the protocol.
+      // Lock the isolate before deleting objects associated with it.
+      {
+        v8::Locker locker(m_js_isolate->get_v8_isolate());
+        m_funcs.clear();
+        m_context.Reset();
+      }
+      delete m_js_isolate;
+    }
+
+    Js_isolate *get_js_isolate() const { return m_js_isolate; }
 
     v8::Local<v8::Context> get_context() const {
-      return v8::Local<v8::Context>::New(isolate_ptr->get_v8_isolate(),
-                                         context);
+      return v8::Local<v8::Context>::New(m_js_isolate->get_v8_isolate(),
+                                         m_context);
     }
+
+    /**
+      Get JS Function object which corresponds to SQL-layer stored routine
+      handler/object in this context (for SQL INVOKER routines we can use
+      several different Auth_id_context objects for the same SQL-layer
+      stored routine handler/object).
+
+      @return Handle for JS Function object, empty handle if no such object
+              found in this context.
+    */
+    v8::Local<v8::Function> get_function(stored_program_handle sql_sp) const {
+      auto j = m_funcs.find(sql_sp);
+
+      if (j == m_funcs.end()) return v8::Local<v8::Function>();
+
+      return v8::Local<v8::Function>::New(m_js_isolate->get_v8_isolate(),
+                                          j->second);
+    }
+
+    /**
+      Set JS Function object which corresponds to SQL-layer stored
+      routine handler/object in this context.
+    */
+    void add_function(stored_program_handle sql_sp,
+                      v8::Local<v8::Function> func) {
+      m_funcs.try_emplace(sql_sp, m_js_isolate->get_v8_isolate(), func);
+    }
+
+    /**
+      Delete Function object which corresponds to SQL-layer stored routine
+      handler/object in this context if exists.
+    */
+    void erase_function(stored_program_handle sql_sp) { m_funcs.erase(sql_sp); }
 
     const std::optional<std::string> &get_last_error() const {
       return m_last_error;
@@ -297,6 +589,40 @@ class Js_thd {
 
    private:
     /**
+      Pointer to isolate for this specific connection and user pair.
+
+      @note Since Js_sp objects can outlive connection Js_thd context
+            this member can't be cached by the former.
+    */
+    Js_isolate *m_js_isolate;
+
+    /**
+      JS context for the specific connection and user pair.
+
+      @note Belongs to the Isolate referenced from this context.
+    */
+    v8::Global<v8::Context> m_context;
+
+    /**
+      Map with Function objects for routines to be executed in the JS
+      context and Isolate for the specific connection and user pair.
+      With SQL core routine handle being a key.
+
+      Note that even SQL SECURITY DEFINER routines are always executed under
+      the same account, and thus are using the same JS context within
+      connection and need only one Function object (for connection), the
+      pointer to this object can't be stored in Js_sp objects easily,
+      as the latter can outlive Isolate associated with the connection
+      (unless we do some kind of reference tracking and their invalidation).
+
+      SQL SECURITY INVOKER routines might be executed with different user
+      account being active within the same connection. So they might use
+      different JS contexts and thus require separate Function objects
+      for each context/account being used.
+    */
+    std::unordered_map<stored_program_handle, v8::Global<v8::Function>> m_funcs;
+
+    /**
       Message for the last JS error which happened for the specific connection
       and user pair.
     */
@@ -317,9 +643,9 @@ class Js_thd {
     if (i == m_auth_id_contexts.end()) {
       // Active user didn't run any JS in this connection before.
       // We need to create new Isolate and Context.
-      auto isolate_ptr = Js_isolate::create();
+      Js_isolate *js_isolate = Js_isolate::create();
 
-      v8::Isolate *isolate = isolate_ptr->get_v8_isolate();
+      v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
       // Lock the isolate and make it the current one to follow convention.
       v8::Locker locker(isolate);
@@ -336,7 +662,13 @@ class Js_thd {
       // Then, setup our custom 'console' object.
       Js_console::prepare_object(context);
 
-      auto r = m_auth_id_contexts.try_emplace(auth_id, isolate_ptr, context);
+      // After both Isolate and Context have been created it is good
+      // time to update global counters of memory usage.
+      // This operation is not cheap, but creation of isolate is
+      // not cheap either!
+      js_isolate->update_global_mem_stats();
+
+      auto r = m_auth_id_contexts.try_emplace(auth_id, js_isolate, context);
 
       return &(r.first->second);
     }
@@ -424,6 +756,21 @@ class Js_thd {
     uint16_t status;
     mysql_service_mysql_thd_attributes->get(m_thd, "thd_status", &status);
     return status != STATUS_SESSION_OK;
+  }
+
+  /**
+    Erase information associated with SQL-layer routine handle/object from
+    this Js_thd and all its Auth_id_context objects.
+  */
+  void erase_sp(stored_program_handle sp) {
+    for (auto &p : m_auth_id_contexts) {
+      v8::Locker locker(p.second.get_js_isolate()->get_v8_isolate());
+      p.second.erase_function(sp);
+    }
+  }
+
+  void erase_auth_id_context(const std::string &auth_id) {
+    m_auth_id_contexts.erase(auth_id);
   }
 
  private:
@@ -612,33 +959,6 @@ class Js_sp {
   // Indexes of OUT/INOUT parameters in array of all routine parameters.
   std::vector<size_t> m_out_param_indexes;
 
-  /**
-    Map with Function objects for this routine (with user account as a key).
-
-    SQL SECURITY DEFINER routines are always executed under the same account,
-    so the are using the same JS context within connection and need only one
-    Function object (for connection).
-
-    However, SQL SECURITY INVOKER routines might be executed with different
-    user account being active within the same connection. So they might use
-    different JS contexts thus require separate Function objects for each
-    context/account being used.
-
-    To support correct release of Function handle, we also keep pointer
-    to the corresponding Isolate in which this function was allocated.
-    Since Js_sp can temporarily outlive Js_thd [sic!] this has to be
-    reference counting pointer.
-  */
-  struct Function_handle_wrapper {
-    std::shared_ptr<Js_isolate> isolate_ptr;
-    v8::Global<v8::Function> func;
-
-    Function_handle_wrapper(const std::shared_ptr<Js_isolate> &iso_ptr,
-                            v8::Isolate *v8_iso, v8::Local<v8::Function> f)
-        : isolate_ptr(iso_ptr), func(v8_iso, f) {}
-  };
-  std::unordered_map<std::string, Function_handle_wrapper> m_funcs;
-
   // Parameter and return value getters/setters.
   std::vector<get_param_func_t> m_get_param_func;
   set_param_func_t m_set_retval_func;
@@ -680,18 +1000,22 @@ bool unregister_udfs();
 
 /**
   Register system variables allowing to control some of JS routines behavior.
+  Also register status variables allowing to get some information about their
+  execution.
 
   @retval False - Success.
   @retval True  - Failure (error has been reported).
 */
-bool register_sys_vars();
+bool register_vars();
 
 /**
   Unregister system variables allowing to control some of JS routines behavior.
+  Unregister status variables allowing to get some information about their
+  execution.
 
   @retval False - Success.
   @retval True  - Failure (error has been reported).
 */
-bool unregister_sys_vars();
+bool unregister_vars();
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_CORE_H */

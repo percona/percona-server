@@ -1222,6 +1222,8 @@ DROP FUNCTION f_object_serr;
 # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
 # - If JS numeric or BigInt value can be safely converted to SQL-type
 #   we use direct conversion (for performance reasons).
+# - JS Boolean values are converted to 0 or 1 directly as well
+#   (as conversion through string causes error).
 # - Otherwise, as well as for all other types of JS values conversion
 #   is done through strings (i.e. by doing JS toString() conversion
 #   and trying to store resulting string as SQL integer value).
@@ -1256,6 +1258,7 @@ CREATE FUNCTION f_bigint_u() RETURNS TINYINT UNSIGNED LANGUAGE JS AS $$ return B
 CREATE FUNCTION f_bigint_un() RETURNS TINYINT UNSIGNED LANGUAGE JS AS $$ return BigInt(-42); $$;
 CREATE FUNCTION f_bigint_tb() RETURNS TINYINT LANGUAGE JS AS $$ return BigInt(1e+25); $$;
 CREATE FUNCTION f_bool() RETURNS TINYINT LANGUAGE JS AS $$ return true; $$;
+CREATE FUNCTION f_bool_u() RETURNS TINYINT UNSIGNED LANGUAGE JS AS $$ return true; $$;
 CREATE FUNCTION f_str_e() RETURNS TINYINT LANGUAGE JS AS $$ return ""; $$;
 CREATE FUNCTION f_str_a() RETURNS TINYINT LANGUAGE JS AS $$ return "alpha"; $$;
 CREATE FUNCTION f_str_n1() RETURNS TINYINT LANGUAGE JS AS $$ return "123"; $$;
@@ -1315,7 +1318,11 @@ ERROR 22003: Out of range value for column 'f_bigint_un()' at row 1
 SELECT f_bigint_tb();
 ERROR 22003: Out of range value for column 'f_bigint_tb()' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect integer value: 'true' for column 'bo' at row 1
+bo
+1
+SELECT f_bool_u() AS bu;
+bu
+1
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect integer value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -1373,6 +1380,7 @@ DROP FUNCTION f_bigint_u;
 DROP FUNCTION f_bigint_un;
 DROP FUNCTION f_bigint_tb;
 DROP FUNCTION f_bool;
+DROP FUNCTION f_bool_u;
 DROP FUNCTION f_str_e;
 DROP FUNCTION f_str_a;
 DROP FUNCTION f_str_n1;
@@ -1417,6 +1425,7 @@ CREATE FUNCTION f_bigint_u() RETURNS SMALLINT UNSIGNED LANGUAGE JS AS $$ return 
 CREATE FUNCTION f_bigint_un() RETURNS SMALLINT UNSIGNED LANGUAGE JS AS $$ return BigInt(-42); $$;
 CREATE FUNCTION f_bigint_tb() RETURNS SMALLINT LANGUAGE JS AS $$ return BigInt(1e+25); $$;
 CREATE FUNCTION f_bool() RETURNS SMALLINT LANGUAGE JS AS $$ return true; $$;
+CREATE FUNCTION f_bool_u() RETURNS SMALLINT UNSIGNED LANGUAGE JS AS $$ return true; $$;
 CREATE FUNCTION f_str_e() RETURNS SMALLINT LANGUAGE JS AS $$ return ""; $$;
 CREATE FUNCTION f_str_a() RETURNS SMALLINT LANGUAGE JS AS $$ return "alpha"; $$;
 CREATE FUNCTION f_str_n1() RETURNS SMALLINT LANGUAGE JS AS $$ return "123"; $$;
@@ -1476,7 +1485,11 @@ ERROR 22003: Out of range value for column 'f_bigint_un()' at row 1
 SELECT f_bigint_tb();
 ERROR 22003: Out of range value for column 'f_bigint_tb()' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect integer value: 'true' for column 'bo' at row 1
+bo
+1
+SELECT f_bool_u() AS bu;
+bu
+1
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect integer value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -1534,6 +1547,7 @@ DROP FUNCTION f_bigint_u;
 DROP FUNCTION f_bigint_un;
 DROP FUNCTION f_bigint_tb;
 DROP FUNCTION f_bool;
+DROP FUNCTION f_bool_u;
 DROP FUNCTION f_str_e;
 DROP FUNCTION f_str_a;
 DROP FUNCTION f_str_n1;
@@ -1578,6 +1592,7 @@ CREATE FUNCTION f_bigint_u() RETURNS MEDIUMINT UNSIGNED LANGUAGE JS AS $$ return
 CREATE FUNCTION f_bigint_un() RETURNS MEDIUMINT UNSIGNED LANGUAGE JS AS $$ return BigInt(-42); $$;
 CREATE FUNCTION f_bigint_tb() RETURNS MEDIUMINT LANGUAGE JS AS $$ return BigInt(1e+25); $$;
 CREATE FUNCTION f_bool() RETURNS MEDIUMINT LANGUAGE JS AS $$ return true; $$;
+CREATE FUNCTION f_bool_u() RETURNS MEDIUMINT UNSIGNED LANGUAGE JS AS $$ return true; $$;
 CREATE FUNCTION f_str_e() RETURNS MEDIUMINT LANGUAGE JS AS $$ return ""; $$;
 CREATE FUNCTION f_str_a() RETURNS MEDIUMINT LANGUAGE JS AS $$ return "alpha"; $$;
 CREATE FUNCTION f_str_n1() RETURNS MEDIUMINT LANGUAGE JS AS $$ return "123"; $$;
@@ -1637,7 +1652,11 @@ ERROR 22003: Out of range value for column 'f_bigint_un()' at row 1
 SELECT f_bigint_tb();
 ERROR 22003: Out of range value for column 'f_bigint_tb()' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect integer value: 'true' for column 'bo' at row 1
+bo
+1
+SELECT f_bool_u() AS bu;
+bu
+1
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect integer value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -1695,6 +1714,7 @@ DROP FUNCTION f_bigint_u;
 DROP FUNCTION f_bigint_un;
 DROP FUNCTION f_bigint_tb;
 DROP FUNCTION f_bool;
+DROP FUNCTION f_bool_u;
 DROP FUNCTION f_str_e;
 DROP FUNCTION f_str_a;
 DROP FUNCTION f_str_n1;
@@ -1739,6 +1759,7 @@ CREATE FUNCTION f_bigint_u() RETURNS INT UNSIGNED LANGUAGE JS AS $$ return BigIn
 CREATE FUNCTION f_bigint_un() RETURNS INT UNSIGNED LANGUAGE JS AS $$ return BigInt(-42); $$;
 CREATE FUNCTION f_bigint_tb() RETURNS INT LANGUAGE JS AS $$ return BigInt(1e+25); $$;
 CREATE FUNCTION f_bool() RETURNS INT LANGUAGE JS AS $$ return true; $$;
+CREATE FUNCTION f_bool_u() RETURNS INT UNSIGNED LANGUAGE JS AS $$ return true; $$;
 CREATE FUNCTION f_str_e() RETURNS INT LANGUAGE JS AS $$ return ""; $$;
 CREATE FUNCTION f_str_a() RETURNS INT LANGUAGE JS AS $$ return "alpha"; $$;
 CREATE FUNCTION f_str_n1() RETURNS INT LANGUAGE JS AS $$ return "123"; $$;
@@ -1798,7 +1819,11 @@ ERROR 22003: Out of range value for column 'f_bigint_un()' at row 1
 SELECT f_bigint_tb();
 ERROR 22003: Out of range value for column 'f_bigint_tb()' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect integer value: 'true' for column 'bo' at row 1
+bo
+1
+SELECT f_bool_u() AS bu;
+bu
+1
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect integer value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -1856,6 +1881,7 @@ DROP FUNCTION f_bigint_u;
 DROP FUNCTION f_bigint_un;
 DROP FUNCTION f_bigint_tb;
 DROP FUNCTION f_bool;
+DROP FUNCTION f_bool_u;
 DROP FUNCTION f_str_e;
 DROP FUNCTION f_str_a;
 DROP FUNCTION f_str_n1;
@@ -1900,6 +1926,7 @@ CREATE FUNCTION f_bigint_u() RETURNS BIGINT UNSIGNED LANGUAGE JS AS $$ return Bi
 CREATE FUNCTION f_bigint_un() RETURNS BIGINT UNSIGNED LANGUAGE JS AS $$ return BigInt(-42); $$;
 CREATE FUNCTION f_bigint_tb() RETURNS BIGINT LANGUAGE JS AS $$ return BigInt(1e+25); $$;
 CREATE FUNCTION f_bool() RETURNS BIGINT LANGUAGE JS AS $$ return true; $$;
+CREATE FUNCTION f_bool_u() RETURNS BIGINT UNSIGNED LANGUAGE JS AS $$ return true; $$;
 CREATE FUNCTION f_str_e() RETURNS BIGINT LANGUAGE JS AS $$ return ""; $$;
 CREATE FUNCTION f_str_a() RETURNS BIGINT LANGUAGE JS AS $$ return "alpha"; $$;
 CREATE FUNCTION f_str_n1() RETURNS BIGINT LANGUAGE JS AS $$ return "123"; $$;
@@ -1956,7 +1983,11 @@ ERROR 22003: Out of range value for column 'f_bigint_un()' at row 1
 SELECT f_bigint_tb();
 ERROR 22003: Out of range value for column 'f_bigint_tb()' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect integer value: 'true' for column 'bo' at row 1
+bo
+1
+SELECT f_bool_u() AS bu;
+bu
+1
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect integer value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -2014,6 +2045,7 @@ DROP FUNCTION f_bigint_u;
 DROP FUNCTION f_bigint_un;
 DROP FUNCTION f_bigint_tb;
 DROP FUNCTION f_bool;
+DROP FUNCTION f_bool_u;
 DROP FUNCTION f_str_e;
 DROP FUNCTION f_str_a;
 DROP FUNCTION f_str_n1;
@@ -2036,6 +2068,8 @@ DROP FUNCTION f_object_userr;
 # - JS 'null' and 'undefined' values which are mapped to SQL NULL.
 # - If JS numeric value can be safely converted to SQL-type we use
 #   direct conversion (for performance reasons).
+# - JS Boolean values are converted to 0 or 1 directly as well
+#   (as conversion through string causes error).
 # - Otherwise, as well as for all other types of JS values conversion
 #   is done through strings (i.e. by doing JS toString() conversion
 #   and trying to store resulting string as SQL floating-point value).
@@ -2076,7 +2110,8 @@ SELECT f_bigint_pl() AS bipl;
 bipl
 3.60288e16
 SELECT f_bool() AS bo;
-ERROR 01000: Data truncated for column 'bo' at row 1
+bo
+1
 SELECT f_str_e() AS se;
 ERROR 01000: Data truncated for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -2162,7 +2197,8 @@ SELECT f_bigint_pl() AS bipl;
 bipl
 3.602879701896397e16
 SELECT f_bool() AS bo;
-ERROR 01000: Data truncated for column 'bo' at row 1
+bo
+1
 SELECT f_str_e() AS se;
 ERROR 01000: Data truncated for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -2212,12 +2248,17 @@ DROP FUNCTION f_typed_arr;
 DROP FUNCTION f_data_view;
 DROP FUNCTION f_object_serr;
 #
-# For DECIMAL SQL-type conversion is done through strings (by doing JS
-# toString() conversion and trying to store resulting string as SQL
-# type value). There is no point in optimizing conversion from Number
-# type, like it is done for floating point SQL-types, as SQL core does
-# double -> DECIMAL conversions through strings. As usual JS 'null'
-# and 'undefined' values are mapped to SQL NULL.
+# For DECIMAL SQL-type conversion is almost always done through strings
+# (by doing JS toString() conversion and trying to store resulting string
+# as SQL type value). There is no point in optimizing conversion from
+# Number type, like it is done for floating point SQL-types, as SQL core
+# does double -> DECIMAL conversions through strings.
+#
+# The exception to the above are JS Boolean values which are directly
+# converted to 0/1, as converting them through strings would cause
+# errors.
+#
+# As usual JS 'null' and 'undefined' values are mapped to SQL NULL.
 #
 CREATE FUNCTION f_undefined() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return $$;
 CREATE FUNCTION f_null() RETURNS DECIMAL(4,2) LANGUAGE JS AS $$ return null $$;
@@ -2271,7 +2312,8 @@ bi1	bi2
 SELECT f_bigint_tb() AS bitb;
 ERROR 22003: Out of range value for column 'bitb' at row 1
 SELECT f_bool() AS bo;
-ERROR HY000: Incorrect decimal value: 'true' for column 'bo' at row 1
+bo
+1.00
 SELECT f_str_e() AS se;
 ERROR HY000: Incorrect decimal value: '' for column 'se' at row 1
 SELECT f_str_a() AS sa;
@@ -4789,6 +4831,7 @@ CREATE PROCEDURE p_bigint_u(OUT r TINYINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt
 CREATE PROCEDURE p_bigint_un(OUT r TINYINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(-42); $$;
 CREATE PROCEDURE p_bigint_tb(OUT r TINYINT) LANGUAGE JS AS $$ r = BigInt(1e+25); $$;
 CREATE PROCEDURE p_bool(OUT r TINYINT) LANGUAGE JS AS $$ r = true; $$;
+CREATE PROCEDURE p_bool_u(OUT r TINYINT UNSIGNED) LANGUAGE JS AS $$ r = true; $$;
 CREATE PROCEDURE p_str_e(OUT r TINYINT) LANGUAGE JS AS $$ r = ""; $$;
 CREATE PROCEDURE p_str_a(OUT r TINYINT) LANGUAGE JS AS $$ r = "alpha"; $$;
 CREATE PROCEDURE p_str_n1(OUT r TINYINT) LANGUAGE JS AS $$ r = "123"; $$;
@@ -4901,7 +4944,13 @@ ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect integer value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
+CALL p_bool_u(@r);
+SELECT @r AS bu;
+bu
+1
 CALL p_str_e(@r);
 ERROR HY000: Incorrect integer value: '' for column 'r' at row 1
 CALL p_str_a(@r);
@@ -4973,6 +5022,7 @@ DROP PROCEDURE p_bigint_u;
 DROP PROCEDURE p_bigint_un;
 DROP PROCEDURE p_bigint_tb;
 DROP PROCEDURE p_bool;
+DROP PROCEDURE p_bool_u;
 DROP PROCEDURE p_str_e;
 DROP PROCEDURE p_str_a;
 DROP PROCEDURE p_str_n1;
@@ -5017,6 +5067,7 @@ CREATE PROCEDURE p_bigint_u(OUT r SMALLINT UNSIGNED) LANGUAGE JS AS $$ r = BigIn
 CREATE PROCEDURE p_bigint_un(OUT r SMALLINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(-42); $$;
 CREATE PROCEDURE p_bigint_tb(OUT r SMALLINT) LANGUAGE JS AS $$ r = BigInt(1e+25); $$;
 CREATE PROCEDURE p_bool(OUT r SMALLINT) LANGUAGE JS AS $$ r = true; $$;
+CREATE PROCEDURE p_bool_u(OUT r SMALLINT UNSIGNED) LANGUAGE JS AS $$ r = true; $$;
 CREATE PROCEDURE p_str_e(OUT r SMALLINT) LANGUAGE JS AS $$ r = ""; $$;
 CREATE PROCEDURE p_str_a(OUT r SMALLINT) LANGUAGE JS AS $$ r = "alpha"; $$;
 CREATE PROCEDURE p_str_n1(OUT r SMALLINT) LANGUAGE JS AS $$ r = "123"; $$;
@@ -5129,7 +5180,13 @@ ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect integer value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
+CALL p_bool_u(@r);
+SELECT @r AS bu;
+bu
+1
 CALL p_str_e(@r);
 ERROR HY000: Incorrect integer value: '' for column 'r' at row 1
 CALL p_str_a(@r);
@@ -5201,6 +5258,7 @@ DROP PROCEDURE p_bigint_u;
 DROP PROCEDURE p_bigint_un;
 DROP PROCEDURE p_bigint_tb;
 DROP PROCEDURE p_bool;
+DROP PROCEDURE p_bool_u;
 DROP PROCEDURE p_str_e;
 DROP PROCEDURE p_str_a;
 DROP PROCEDURE p_str_n1;
@@ -5245,6 +5303,7 @@ CREATE PROCEDURE p_bigint_u(OUT r MEDIUMINT UNSIGNED) LANGUAGE JS AS $$ r = BigI
 CREATE PROCEDURE p_bigint_un(OUT r MEDIUMINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(-42); $$;
 CREATE PROCEDURE p_bigint_tb(OUT r MEDIUMINT) LANGUAGE JS AS $$ r = BigInt(1e+25); $$;
 CREATE PROCEDURE p_bool(OUT r MEDIUMINT) LANGUAGE JS AS $$ r = true; $$;
+CREATE PROCEDURE p_bool_u(OUT r MEDIUMINT UNSIGNED) LANGUAGE JS AS $$ r = true; $$;
 CREATE PROCEDURE p_str_e(OUT r MEDIUMINT) LANGUAGE JS AS $$ r = ""; $$;
 CREATE PROCEDURE p_str_a(OUT r MEDIUMINT) LANGUAGE JS AS $$ r = "alpha"; $$;
 CREATE PROCEDURE p_str_n1(OUT r MEDIUMINT) LANGUAGE JS AS $$ r = "123"; $$;
@@ -5357,7 +5416,13 @@ ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect integer value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
+CALL p_bool_u(@r);
+SELECT @r AS bu;
+bu
+1
 CALL p_str_e(@r);
 ERROR HY000: Incorrect integer value: '' for column 'r' at row 1
 CALL p_str_a(@r);
@@ -5429,6 +5494,7 @@ DROP PROCEDURE p_bigint_u;
 DROP PROCEDURE p_bigint_un;
 DROP PROCEDURE p_bigint_tb;
 DROP PROCEDURE p_bool;
+DROP PROCEDURE p_bool_u;
 DROP PROCEDURE p_str_e;
 DROP PROCEDURE p_str_a;
 DROP PROCEDURE p_str_n1;
@@ -5473,6 +5539,7 @@ CREATE PROCEDURE p_bigint_u(OUT r INT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(900
 CREATE PROCEDURE p_bigint_un(OUT r INT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(-42); $$;
 CREATE PROCEDURE p_bigint_tb(OUT r INT) LANGUAGE JS AS $$ r = BigInt(1e+25); $$;
 CREATE PROCEDURE p_bool(OUT r INT) LANGUAGE JS AS $$ r = true; $$;
+CREATE PROCEDURE p_bool_u(OUT r INT UNSIGNED) LANGUAGE JS AS $$ r = true; $$;
 CREATE PROCEDURE p_str_e(OUT r INT) LANGUAGE JS AS $$ r = ""; $$;
 CREATE PROCEDURE p_str_a(OUT r INT) LANGUAGE JS AS $$ r = "alpha"; $$;
 CREATE PROCEDURE p_str_n1(OUT r INT) LANGUAGE JS AS $$ r = "123"; $$;
@@ -5585,7 +5652,13 @@ ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect integer value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
+CALL p_bool_u(@r);
+SELECT @r AS bu;
+bu
+1
 CALL p_str_e(@r);
 ERROR HY000: Incorrect integer value: '' for column 'r' at row 1
 CALL p_str_a(@r);
@@ -5657,6 +5730,7 @@ DROP PROCEDURE p_bigint_u;
 DROP PROCEDURE p_bigint_un;
 DROP PROCEDURE p_bigint_tb;
 DROP PROCEDURE p_bool;
+DROP PROCEDURE p_bool_u;
 DROP PROCEDURE p_str_e;
 DROP PROCEDURE p_str_a;
 DROP PROCEDURE p_str_n1;
@@ -5701,6 +5775,7 @@ CREATE PROCEDURE p_bigint_u(OUT r BIGINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(
 CREATE PROCEDURE p_bigint_un(OUT r BIGINT UNSIGNED) LANGUAGE JS AS $$ r = BigInt(-42); $$;
 CREATE PROCEDURE p_bigint_tb(OUT r BIGINT) LANGUAGE JS AS $$ r = BigInt(1e+25); $$;
 CREATE PROCEDURE p_bool(OUT r BIGINT) LANGUAGE JS AS $$ r = true; $$;
+CREATE PROCEDURE p_bool_u(OUT r BIGINT UNSIGNED) LANGUAGE JS AS $$ r = true; $$;
 CREATE PROCEDURE p_str_e(OUT r BIGINT) LANGUAGE JS AS $$ r = ""; $$;
 CREATE PROCEDURE p_str_a(OUT r BIGINT) LANGUAGE JS AS $$ r = "alpha"; $$;
 CREATE PROCEDURE p_str_n1(OUT r BIGINT) LANGUAGE JS AS $$ r = "123"; $$;
@@ -5811,7 +5886,13 @@ ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect integer value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
+CALL p_bool_u(@r);
+SELECT @r AS bu;
+bu
+1
 CALL p_str_e(@r);
 ERROR HY000: Incorrect integer value: '' for column 'r' at row 1
 CALL p_str_a(@r);
@@ -5883,6 +5964,7 @@ DROP PROCEDURE p_bigint_u;
 DROP PROCEDURE p_bigint_un;
 DROP PROCEDURE p_bigint_tb;
 DROP PROCEDURE p_bool;
+DROP PROCEDURE p_bool_u;
 DROP PROCEDURE p_str_e;
 DROP PROCEDURE p_str_a;
 DROP PROCEDURE p_str_n1;
@@ -5975,7 +6057,9 @@ SELECT @r AS bipl;
 bipl
 3.602879701896397e16
 CALL p_bool(@r);
-ERROR 01000: Data truncated for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
 CALL p_str_e(@r);
 ERROR 01000: Data truncated for column 'r' at row 1
 CALL p_str_a(@r);
@@ -6102,7 +6186,9 @@ SELECT @r AS bipl;
 bipl
 3.602879701896397e16
 CALL p_bool(@r);
-ERROR 01000: Data truncated for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1
 CALL p_str_e(@r);
 ERROR 01000: Data truncated for column 'r' at row 1
 CALL p_str_a(@r);
@@ -6245,7 +6331,9 @@ bi2
 CALL p_bigint_tb(@r);
 ERROR 22003: Out of range value for column 'r' at row 1
 CALL p_bool(@r);
-ERROR HY000: Incorrect decimal value: 'true' for column 'r' at row 1
+SELECT @r AS bo;
+bo
+1.00
 CALL p_str_e(@r);
 ERROR HY000: Incorrect decimal value: '' for column 'r' at row 1
 CALL p_str_a(@r);

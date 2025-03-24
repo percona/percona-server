@@ -70,6 +70,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_kill_handler);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
 /**
@@ -235,7 +236,7 @@ static mysql_service_status_t component_init() {
   // The below call can fail, when, for example, while executing INSTALL
   // COMPONENT statement, we use SET clause to set one of component's
   // system variables to some wrong value.
-  if (register_sys_vars()) {
+  if (register_vars()) {
     // We can't do much if unregistiring UDFs fails here.
     (void)unregister_udfs();
     return 1;
@@ -244,7 +245,7 @@ static mysql_service_status_t component_init() {
   // Play safe, even though the below can't fail at the moment.
   if (register_create_privilege()) {
     // We can't do much if unregistiring sys vars or UDFs fails here.
-    (void)unregister_sys_vars();
+    (void)unregister_vars();
     (void)unregister_udfs();
     return 1;
   }
@@ -289,7 +290,7 @@ static mysql_service_status_t component_deinit() {
   if (unregister_udfs()) return 1;
 
   // Play safe, even though the below calls should not fail at the moment.
-  if (unregister_sys_vars() || unregister_create_privilege()) return 1;
+  if (unregister_vars() || unregister_create_privilege()) return 1;
 
   Js_thd::unregister_slot();
 
@@ -347,6 +348,7 @@ BEGIN_COMPONENT_REQUIRES(js_lang)
   REQUIRES_SERVICE(mysql_thd_security_context),
   REQUIRES_SERVICE(mysql_thd_store),
   REQUIRES_SERVICE(mysql_udf_metadata),
+  REQUIRES_SERVICE(status_variable_registration),
   REQUIRES_SERVICE(udf_registration),
 END_COMPONENT_REQUIRES();
 

@@ -87,18 +87,14 @@ class Js_v8 {
 
 /**
   Wrapper class around v8::Isolate which simplifies its lifetime management
-  through reference counting pointers by packaging it with its allocator.
-
-  It also contains static methods for V8 initialization/shutdown as well as
-  global reference counter for isolates, so we can block component shutdown
-  if there are connections around that use isolates and therefore V8.
+  by packaging it with its allocator and other Isolate specific data.
 */
 class Js_isolate {
- public:
-  // TODO: Make ctor private once we stop using std::shared_ptr with this class.
+ private:
   Js_isolate(v8::Isolate *iso, v8::ArrayBuffer::Allocator *alloc)
       : m_isolate(iso), m_allocator(alloc) {}
 
+ public:
   ~Js_isolate() {
     m_isolate->Dispose();
     delete m_allocator;
@@ -117,7 +113,7 @@ class Js_isolate {
     Create new Js_isolate and increments global counter of isolates
     accordingly.
   */
-  static std::shared_ptr<Js_isolate> create();
+  static Js_isolate *create();
 
   v8::Isolate *get_v8_isolate() const { return m_isolate; }
 
@@ -134,15 +130,7 @@ class Js_isolate {
 class Js_thd {
  public:
   explicit Js_thd(MYSQL_THD thd) : m_thd(thd) {}
-  ~Js_thd() {
-    // Play safe. Lock the isolate before deleting context associated with it.
-    for (auto &p : m_auth_id_contexts) {
-      {
-        v8::Locker locker(p.second.isolate_ptr->get_v8_isolate());
-        p.second.context.Reset();
-      }
-    }
-  }
+  ~Js_thd() {}
 
   // Block default copy/move semantics.
   Js_thd(Js_thd const &rhs) = delete;
@@ -236,36 +224,63 @@ class Js_thd {
     TODO: Make it a class once support for KILLability/OOM handling is added.
   */
   struct Auth_id_context {
-    /**
-      Pointer to isolate for this specific connection and user pair.
-
-      We have to use reference counting pointer here since SQL code imposes
-      akward restrictions on Js_thd and Js_sp lifetime - Js_sp object
-      representing routine in the connection can outlive connection's Js_thd
-      object [sic!].
-    */
-    std::shared_ptr<Js_isolate> isolate_ptr;
-
-    /**
-      JS context for the specific connection and user pair.
-
-      @note Belongs to the Isolate referenced from this context.
-    */
-    v8::Global<v8::Context> context;
-
     /** JS console for the specific connection and user pair. */
     Js_console console;
 
-    Auth_id_context(const std::shared_ptr<Js_isolate> &iso_ptr,
-                    v8::Local<v8::Context> &ctx)
-        : isolate_ptr(iso_ptr), context(iso_ptr->get_v8_isolate(), ctx) {}
+    Auth_id_context(Js_isolate *js_iso, v8::Local<v8::Context> &ctx)
+        : m_js_isolate(js_iso),
+          m_context(m_js_isolate->get_v8_isolate(), ctx) {}
 
-    v8::Isolate *get_isolate() const { return isolate_ptr->get_v8_isolate(); }
+    ~Auth_id_context() {
+      // Follow the protocol.
+      // Lock the isolate before deleting objects associated with it.
+      {
+        v8::Locker locker(m_js_isolate->get_v8_isolate());
+        m_funcs.clear();
+        m_context.Reset();
+      }
+      delete m_js_isolate;
+    }
+
+    Js_isolate *get_js_isolate() const { return m_js_isolate; }
 
     v8::Local<v8::Context> get_context() const {
-      return v8::Local<v8::Context>::New(isolate_ptr->get_v8_isolate(),
-                                         context);
+      return v8::Local<v8::Context>::New(m_js_isolate->get_v8_isolate(),
+                                         m_context);
     }
+
+    /**
+      Get JS Function object which corresponds to SQL-layer stored routine
+      handler/object in this context (for SQL INVOKER routines we can use
+      several different Auth_id_context objects for the same SQL-layer
+      stored routine handler/object).
+
+      @return Handle for JS Function object, empty handle if no such object
+              found in this context.
+    */
+    v8::Local<v8::Function> get_function(stored_program_handle sql_sp) const {
+      auto j = m_funcs.find(sql_sp);
+
+      if (j == m_funcs.end()) return v8::Local<v8::Function>();
+
+      return v8::Local<v8::Function>::New(m_js_isolate->get_v8_isolate(),
+                                          j->second);
+    }
+
+    /**
+      Set JS Function object which corresponds to SQL-layer stored
+      routine handler/object in this context.
+    */
+    void add_function(stored_program_handle sql_sp,
+                      v8::Local<v8::Function> func) {
+      m_funcs.try_emplace(sql_sp, m_js_isolate->get_v8_isolate(), func);
+    }
+
+    /**
+      Delete Function object which corresponds to SQL-layer stored routine
+      handler/object in this context if exists.
+    */
+    void erase_function(stored_program_handle sql_sp) { m_funcs.erase(sql_sp); }
 
     const std::optional<std::string> &get_last_error() const {
       return m_last_error;
@@ -297,6 +312,41 @@ class Js_thd {
 
    private:
     /**
+      Pointer to isolate for this specific connection and user pair.
+
+      @note Since Js_sp objects can outlive connection Js_thd context
+            this member can't be cached by the former.
+    */
+    Js_isolate *m_js_isolate;
+
+    /**
+      JS context for the specific connection and user pair.
+
+      @note Belongs to the Isolate referenced from this context.
+    */
+    v8::Global<v8::Context> m_context;
+
+    /**
+      Map with Function objects for routines to be executed in the JS
+      context and Isolate for the specific connection and user pair.
+      With SQL core routine handle being a key.
+
+      Note that even SQL SECURITY DEFINER routines are always executed under
+      the same account, and thus are using the same JS context within
+      connection and need only one Function object (for connection), the
+      pointer to this object can't be stored in Js_sp objects easily,
+      as the latter can outlive Isolate associated with the connection
+      (unless we do some kind of reference tracking and their invalidation).
+
+      SQL SECURITY INVOKER routines might be executed with different user
+      account being active within the same connection. So they might use
+      different JS contexts and thus require separate Function objects
+      for each context/account being used.
+    */
+    std::unordered_map<stored_program_handle, v8::Global<v8::Function> >
+        m_funcs;
+
+    /**
       Message for the last JS error which happened for the specific connection
       and user pair.
     */
@@ -317,9 +367,9 @@ class Js_thd {
     if (i == m_auth_id_contexts.end()) {
       // Active user didn't run any JS in this connection before.
       // We need to create new Isolate and Context.
-      auto isolate_ptr = Js_isolate::create();
+      Js_isolate *js_isolate = Js_isolate::create();
 
-      v8::Isolate *isolate = isolate_ptr->get_v8_isolate();
+      v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
       // Lock the isolate and make it the current one to follow convention.
       v8::Locker locker(isolate);
@@ -336,7 +386,7 @@ class Js_thd {
       // Then, setup our custom 'console' object.
       Js_console::prepare_object(context);
 
-      auto r = m_auth_id_contexts.try_emplace(auth_id, isolate_ptr, context);
+      auto r = m_auth_id_contexts.try_emplace(auth_id, js_isolate, context);
 
       return &(r.first->second);
     }
@@ -424,6 +474,17 @@ class Js_thd {
     uint16_t status;
     mysql_service_mysql_thd_attributes->get(m_thd, "thd_status", &status);
     return status != STATUS_SESSION_OK;
+  }
+
+  /**
+    Erase information associated with SQL-layer routine handle/object from
+    this Js_thd and all its Auth_id_context objects.
+  */
+  void erase_sp(stored_program_handle sp) {
+    for (auto &p : m_auth_id_contexts) {
+      v8::Locker locker(p.second.get_js_isolate()->get_v8_isolate());
+      p.second.erase_function(sp);
+    }
   }
 
  private:
@@ -611,33 +672,6 @@ class Js_sp {
   std::string m_wrapped_body;
   // Indexes of OUT/INOUT parameters in array of all routine parameters.
   std::vector<size_t> m_out_param_indexes;
-
-  /**
-    Map with Function objects for this routine (with user account as a key).
-
-    SQL SECURITY DEFINER routines are always executed under the same account,
-    so the are using the same JS context within connection and need only one
-    Function object (for connection).
-
-    However, SQL SECURITY INVOKER routines might be executed with different
-    user account being active within the same connection. So they might use
-    different JS contexts thus require separate Function objects for each
-    context/account being used.
-
-    To support correct release of Function handle, we also keep pointer
-    to the corresponding Isolate in which this function was allocated.
-    Since Js_sp can temporarily outlive Js_thd [sic!] this has to be
-    reference counting pointer.
-  */
-  struct Function_handle_wrapper {
-    std::shared_ptr<Js_isolate> isolate_ptr;
-    v8::Global<v8::Function> func;
-
-    Function_handle_wrapper(const std::shared_ptr<Js_isolate> &iso_ptr,
-                            v8::Isolate *v8_iso, v8::Local<v8::Function> f)
-        : isolate_ptr(iso_ptr), func(v8_iso, f) {}
-  };
-  std::unordered_map<std::string, Function_handle_wrapper> m_funcs;
 
   // Parameter and return value getters/setters.
   std::vector<get_param_func_t> m_get_param_func;

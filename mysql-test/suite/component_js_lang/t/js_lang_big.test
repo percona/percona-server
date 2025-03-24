@@ -23,6 +23,11 @@ SET @save_max_allowed_packet = @@global.max_allowed_packet;
 --replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
 --eval SET @@global.max_allowed_packet= $v8_max_string_length + 24 + 1024
 
+--echo # Also raise js_lang.max_mem_size limit to avoid hitting it.
+SET @save_js_lang_max_mem_size = @@global.js_lang.max_mem_size;
+--replace_result $v8_max_string_length V8_MAX_STRING_LENGTH
+--eval SET @@global.js_lang.max_mem_size = $v8_max_string_length + 24 + @@global.js_lang.max_mem_size
+
 --echo # Use new connection so new max_allowed_packet value takes effect.
 --connect (con_big_packet, localhost, root,,)
 
@@ -80,6 +85,7 @@ DROP FUNCTION f_longblob;
 --source include/wait_until_disconnected.inc
 --connection default
 SET @@global.max_allowed_packet = @save_max_allowed_packet;
+SET @@global.js_lang.max_mem_size = @save_js_lang_max_mem_size;
 
 --echo # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;

@@ -57,13 +57,6 @@
 #include <iomanip>
 #include <sstream>
 
-// We use RapidJSON to produce console log in JSON format.
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-#include "my_rapidjson_size_t.h"
-#endif
-#include <rapidjson/prettywriter.h>
-#include <string_with_len.h>
-
 #include "js_lang_core.h"
 
 void Js_console::write_log(Log_level_type level, std::string &&msg,
@@ -857,10 +850,6 @@ std::string Js_console::get_log() const {
 
   return result;
 }
-
-// Define convenience aliases for RapidJSON types.
-using Json_string_buffer = rapidjson::StringBuffer;
-using Json_writer = rapidjson::PrettyWriter<Json_string_buffer>;
 
 /**
   Helper which adds string representation of log entry timestamp into JSON.

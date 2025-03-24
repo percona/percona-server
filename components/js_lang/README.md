@@ -60,6 +60,7 @@ configured and built using the following commands:
                                    v8_use_external_startup_data=false
                                    use_custom_libcxx=false
                                    v8_enable_maglev=false
+                                   use_rtti=true
                                    use_sysroot=false
                                    is_component_build=false'
     ninja -C out.gn/static
@@ -89,7 +90,6 @@ TODO/Future work:
 Short-term
 ----------
 
-- Memory tracking/limiting?
 - Handling of async JS features
 - Execution of SQL
 

@@ -1,0 +1,29 @@
+# Global prepare of playground.
+INSTALL COMPONENT 'file://component_js_lang';
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+#
+# PS-9681: "boolean value true/false returned by JS stored function
+#           is interpreted as a string value."
+#
+# Original test case reported. See additional coverage for conversion
+# of JS Boolean values to numeric SQL parameters/returns values in
+# js_lang_basic test.
+CREATE FUNCTION f_ps9681_0() RETURNS BOOL LANGUAGE JS AS $$ return false $$;
+CREATE FUNCTION f_ps9681_1() RETURNS BOOL LANGUAGE JS AS $$ return true $$;
+SELECT f_ps9681_0() AS f;
+f
+0
+SELECT f_ps9681_1() AS t;
+t
+1
+DROP FUNCTION f_ps9681_0;
+DROP FUNCTION f_ps9681_1;
+# Global clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+# Disconnect of default connection to free the only remaining
+# connection context and isolate, so we can uninstall component.
+disconnect default;
+connect default,localhost,root;
+UNINSTALL COMPONENT 'file://component_js_lang';
+# Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+# restart

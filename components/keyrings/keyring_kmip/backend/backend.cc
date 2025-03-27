@@ -98,22 +98,33 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
                                  Data_extension<IdExt> &data) {
   DBUG_TRACE;
   if (!metadata.valid() || !data.valid()) return true;
-  if (data.type() != "AES") {
-    // we only support AES keys
-    return true;
-  }
+
   try {
     auto ctx = kmip_ctx();
     auto key = data.data().decode();
-    kmippp::context::key_t keyv(key.begin(), key.end());
-    auto id = ctx.op_register(metadata.key_id(), config_.object_group, keyv);
-    if (id.empty()) {
+    if (data.type() == "AES") {
+      kmippp::context::key_t keyv(key.begin(), key.end());
+      auto id = ctx.op_register(metadata.key_id(), config_.object_group, keyv);
+      if (id.empty()) {
+        return true;
+      }
+      if (!ctx.op_activate(id)) {
+        return true;
+      }
+      data.set_extension({id});
+    } else if (data.type() == "SECRET") {
+      kmippp::context::name_t secret(key);
+      // secret data type 1 is password
+      auto id = ctx.op_register_secret(metadata.key_id(), config_.object_group, secret, 1);
+      if (id.empty()) {
+        return true;
+      }
+      if (!ctx.op_activate(id)) {
+        return true;
+      }
+    } else { // we only support AES keys and SECRET type (passwords)
       return true;
     }
-    if (!ctx.op_activate(id)) {
-      return true;
-    }
-    data.set_extension({id});
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;
@@ -142,6 +153,11 @@ bool Keyring_kmip_backend::erase(const Metadata &metadata,
   if (!metadata.valid()) return true;
 
   auto ctx = kmip_ctx();
+  // reason 1 means deactivate, and then incident occurrence time should be 0.
+  if (ctx.op_revoke(data.get_extension().uuid, 1, "Deleting the key", 0)) {
+    return true;
+  }
+
   return !ctx.op_destroy(data.get_extension().uuid);
 }
 

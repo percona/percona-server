@@ -19,7 +19,6 @@
 #pragma once
 
 /* C++ standard header files */
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -28,8 +27,8 @@
 #endif
 
 /* MySQL header files */
-#include "sql/handler.h" /* handler */
-#include "sql_string.h"
+#include "my_base.h"
+#include "my_inttypes.h"
 
 /* MyRocks header files */
 #include "./ib_ut0counter.h"
@@ -277,8 +276,7 @@ const constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 /*
   Maximum index prefix length in bytes.
 */
-const constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
-const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
+constexpr uint MAX_INDEX_COL_LEN = 3072;
 
 /*
   MyRocks specific error codes. NB! Please make sure that you will update

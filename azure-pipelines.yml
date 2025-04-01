@@ -278,30 +278,16 @@ jobs:
         CompilerVer: 8
         BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-7 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 7
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-7 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 7
-          BuildType: Debug
-
-      clang-6 RelWithDebInfo [Ubuntu 20.04 Focal]:
+      clang-7 RelWithDebInfo [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
-        CompilerVer: 6.0
+        CompilerVer: 7
         BuildType: RelWithDebInfo
 
-      clang-6 Debug [Ubuntu 20.04 Focal]:
+      clang-7 Debug [Ubuntu 20.04 Focal]:
         imageName: 'ubuntu-20.04'
         Compiler: clang
-        CompilerVer: 6.0
+        CompilerVer: 7
         BuildType: Debug
 
 

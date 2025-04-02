@@ -21,9 +21,9 @@
 
 #include "rdb_utils.h"  // LOG_COMPONENT_TAG for includes below
 
-#include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysqld_error.h"
 
 namespace myrocks {

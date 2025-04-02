@@ -10801,7 +10801,6 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
   @param[in] row_info           hold all data for update row, such as old row
                                 data and new row data
   @param[out] found             whether the primary key exists before.
-  @param[out] skip_unique_check whether to skip key uniqueness check
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
@@ -11515,7 +11514,6 @@ int ha_rocksdb::update_write_indexes(const struct update_row_info &row_info,
 
   @param[in] old_data           nullptr for write, non-null for update
   @param[in] new_data           non-null for write/update
-  @param[in] skip_unique_check  whether to check uniqueness
   @return
     HA_EXIT_SUCCESS OK
     Other           HA_ERR error code (can be SE-specific)

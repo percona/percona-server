@@ -27,7 +27,6 @@
 /* C++ standard header files */
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <cstdint>
 #ifndef NDEBUG
 #include <limits>

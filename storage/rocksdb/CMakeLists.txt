@@ -282,7 +282,6 @@ IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
 ENDIF()
 
-
 SET(WITH_LIBURING "OFF" CACHE STRING "By default don't use bundled liburing.")
 IF (WITH_LIBURING)
   FIND_LIBRARY(URING_LIBRARY

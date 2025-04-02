@@ -36,14 +36,10 @@
 #include "sql/table.h"  // ST_FIELD_INFO
 
 /* RocksDB header files */
-#include "rocksdb/version.h"
-#if ROCKSDB_MAJOR >= 8
 #include "rocksdb/advanced_cache.h"
-#endif  // ROCKSDB_MAJOR >= 8
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/filter_policy.h"
-#include "rocksdb/memtablerep.h"
 #include "rocksdb/merge_operator.h"
 #include "rocksdb/slice_transform.h"
 #include "rocksdb/utilities/transaction_db.h"
@@ -965,6 +961,7 @@ static int rdb_i_s_compact_stats_fill_table(
   DBUG_RETURN(ret);
 }
 
+#if ROCKSDB_MAJOR < 8 || (ROCKSDB_MAJOR == 8 && ROCKSDB_MINOR < 7)
 namespace {
 
 using rocksdb::CompactionReason;
@@ -1015,6 +1012,7 @@ const char *GetCompactionReasonString(CompactionReason compaction_reason) {
 }
 
 }  // anonymous namespace
+#endif
 
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_ACTIVE_COMPACTION_STATS dynamic table
@@ -1924,8 +1922,8 @@ static int rdb_i_s_index_file_map_fill_table(
           sst_name.data(), sst_name.size(), system_charset_info);
 
       /* Get the __indexstats__ data out of the table property */
-      std::vector<Rdb_index_stats> stats;
-      Rdb_tbl_prop_coll::read_stats_from_tbl_props(props.second, &stats);
+      const auto stats =
+          Rdb_tbl_prop_coll::read_stats_from_tbl_props(*props.second);
 
       if (stats.empty()) {
         field[RDB_INDEX_FILE_MAP_FIELD::COLUMN_FAMILY]->store(-1, true);
@@ -2051,8 +2049,8 @@ static int rdb_i_s_lock_info_fill_table(
   for (const auto &lock : lock_info) {
     const uint32_t cf_id = lock.first;
     const auto &key_lock_info = lock.second;
-    const auto key_hexstr = rdb_hexdump(key_lock_info.key.c_str(),
-                                        key_lock_info.key.length(), FN_REFLEN);
+    const auto key_hexstr =
+        rdb_hexdump(key_lock_info.key.data(), key_lock_info.key.length());
 
     for (const auto &id : key_lock_info.ids) {
       tables->table->field[RDB_LOCKS_FIELD::COLUMN_FAMILY_ID]->store(cf_id,
@@ -2168,10 +2166,10 @@ static int rdb_i_s_trx_info_fill_table(
   const std::vector<Rdb_trx_info> &all_trx_info = rdb_get_all_trx_info();
 
   for (const auto &info : all_trx_info) {
-    auto name_hexstr =
-        rdb_hexdump(info.name.c_str(), info.name.length(), NAME_LEN);
-    auto key_hexstr = rdb_hexdump(info.waiting_key.c_str(),
-                                  info.waiting_key.length(), FN_REFLEN);
+    const auto name_hexstr =
+        rdb_hexdump(info.name.data(), info.name.length(), NAME_LEN);
+    const auto key_hexstr =
+        rdb_hexdump(info.waiting_key.data(), info.waiting_key.length());
 
     tables->table->field[RDB_TRX_FIELD::TRANSACTION_ID]->store(info.trx_id,
                                                                true);

@@ -52,7 +52,68 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-let $total_persistent_vars=489;
+let $total_persistent_vars= `SELECT $total_global_vars - 225`;
+
+# If mysqlx is not present, increment the persisted count by $no_mysqlx * count
+let $no_mysqlx=`SELECT COUNT(*) = 0 FROM performance_schema.global_variables WHERE variable_name LIKE 'mysqlx_%'`;
+let $total_persistent_vars=`SELECT $total_persistent_vars + $no_mysqlx * 11`;
+
+# Add variable names that need to be excluded here
+let $total_excluded_vars=`SELECT COUNT(*) FROM performance_schema.global_variables WHERE variable_name in (
+'apply_log',
+'apply_log_index',
+'binlog_file_basedir',
+'binlog_index_basedir',
+'default_collation_for_utf8mb4_init',
+'disable_raft_log_repointing',
+'enable_acl_cache_deadlock_detection',
+'enable_acl_db_cache',
+'enable_acl_fast_lookup',
+'enable_rocksdb_intrinsic_tmp_table',
+'enable_failure_injection',
+'failure_injection_points',
+'group_replication_plugin_hooks',
+'gtid_committed',
+'gtid_purged_for_tailing',
+'innodb_doublewrite_sync_page_flush_slots',
+'innodb_buffer_pool_populate',
+'innodb_log_flush_events',
+'innodb_log_recent_closed_size',
+'innodb_log_recent_written_size',
+'innodb_log_write_events',
+'innodb_sync_pool_size',
+'use_mdl_mutex',
+'override_enable_raft_check',
+'performance_schema_esms_by_thread_by_event_name',
+'performance_schema_ews_by_thread_by_event_name',
+'performance_schema_ees_by_object_by_error',
+'performance_schema_histogram_enabled',
+'performance_schema_max_client_attrs',
+'performance_schema_sql_text_size',
+'per_user_session_var_user_name_delimiter',
+'prev_gtid_and_opid',
+'query_cache_size',
+'query_cache_type',
+'rocksdb_enable_tmp_table',
+'temptable_track_shared_block_ram',
+'thread_pool_tenant_resource_settings',
+'tx_isolation',
+'tx_read_only',
+'sql_wsenv_tenant',
+'sql_wsenv_oncall',
+'sql_wsenv_uri_prefix',
+'sql_wsenv_lib_name',
+'default_dd_system_storage_engine',
+'_list_end_'
+)`;
+let $total_persistent_vars= `SELECT $total_persistent_vars - $total_excluded_vars`;
+
+# Add Variables names that need to be included here
+let $total_included_vars=`SELECT COUNT(*) FROM performance_schema.global_variables WHERE variable_name in (
+'core_file',
+'_list_end_'
+)`;
+let $total_persistent_vars= `SELECT $total_persistent_vars + $total_included_vars`;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

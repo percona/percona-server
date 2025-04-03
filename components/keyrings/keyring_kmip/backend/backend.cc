@@ -33,6 +33,8 @@
 #include <components/keyrings/common/memstore/cache.h>
 #include <components/keyrings/common/memstore/iterator.h>
 #include <components/keyrings/common/utils/utils.h>
+#include <mysqld_error.h>
+#include <mysql/components/services/log_builtins.h>
 
 namespace keyring_kmip {
 
@@ -62,18 +64,32 @@ bool Keyring_kmip_backend::load_cache(
                      : ctx.op_locate_by_group(config_.object_group));
 
     for (auto const &id : keys) {
-      auto key = ctx.op_get(id);
       auto key_name = ctx.op_get_name_attr(id);
-
       if (key_name.empty()) continue;
 
-      Metadata metadata(key_name, "");
+      Data_extension<IdExt> data;
+      auto key = ctx.op_get(id);
+      if (!key.empty()) {
+        data = Data_extension<IdExt>(
+                  Data{keyring_common::data::Sensitive_data(
+                           reinterpret_cast<char *>(key.data()), key.size()),
+                       "AES"},
+                  IdExt{id});
+      } else {
+        auto secret = ctx.op_get_secret(id);
+        if (secret.empty()) {
+          LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot find nor key or secret with ID: " +id ).c_str());
+          continue;
+        }
+        data = Data_extension<IdExt>(
+            Data{keyring_common::data::Sensitive_data(
+                     secret.c_str(), secret.size()),
+                 "SECRET"},
+            IdExt{id});
+      }
 
-      Data_extension<IdExt> data(
-          Data{keyring_common::data::Sensitive_data(
-                   reinterpret_cast<char *>(key.data()), key.size()),
-               "AES"},
-          IdExt{id});
+
+      Metadata metadata(key_name, "");
 
       if (operations.insert(metadata, data) == true) {
         return true;
@@ -106,9 +122,11 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
       kmippp::context::key_t keyv(key.begin(), key.end());
       auto id = ctx.op_register(metadata.key_id(), config_.object_group, keyv);
       if (id.empty()) {
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot register key. " + ctx.get_last_result()).c_str());
         return true;
       }
       if (!ctx.op_activate(id)) {
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot activate key. " + ctx.get_last_result()).c_str());
         return true;
       }
       data.set_extension({id});
@@ -117,12 +135,15 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
       // secret data type 1 is password
       auto id = ctx.op_register_secret(metadata.key_id(), config_.object_group, secret, 1);
       if (id.empty()) {
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot register secret. %s"+ ctx.get_last_result()).c_str());
         return true;
       }
       if (!ctx.op_activate(id)) {
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot activate secret. " + ctx.get_last_result()).c_str());
         return true;
       }
     } else { // we only support AES keys and SECRET type (passwords)
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Unsupported KMIP entity, can not store");
       return true;
     }
   } catch (...) {
@@ -155,10 +176,15 @@ bool Keyring_kmip_backend::erase(const Metadata &metadata,
   auto ctx = kmip_ctx();
   // reason 1 means deactivate, and then incident occurrence time should be 0.
   if (ctx.op_revoke(data.get_extension().uuid, 1, "Deleting the key", 0)) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot deactivate key/secret. " + ctx.get_last_result()).c_str());
     return true;
   }
 
-  return !ctx.op_destroy(data.get_extension().uuid);
+  bool res = !ctx.op_destroy(data.get_extension().uuid);
+  if (res) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, ("Cannot delete key/secret. " + ctx.get_last_result()).c_str());
+  }
+  return res;
 }
 
 bool Keyring_kmip_backend::generate(const Metadata &metadata,

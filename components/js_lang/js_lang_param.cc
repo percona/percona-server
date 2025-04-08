@@ -504,10 +504,14 @@ Js_sp::get_param_func_t Js_sp::prepare_get_param_func(size_t idx) {
         if (is_null)
           return v8::Null(isolate);
         else {
-          // At the moment V8 simply aborts the process if it fails to
-          // allocate ArrayBuffer. It also aborts on other allocation
-          // failures. So we don't try to handle allocation failures
-          // here gracefully either.
+          /*
+            Do not try to create ArrayBuffer if it might exceed memory limit.
+            Failure to do this will lead to fatal aborts (see similar comment
+            in code that handles BLOB/BINARY types).
+          */
+          if (Js_isolate::check_if_arr_buff_alloc_will_exceed_mem_limit(length))
+            return no_js_value_for_param();
+
           v8::Local<v8::ArrayBuffer> buffer =
               v8::ArrayBuffer::New(isolate, length);
           v8::Local<v8::DataView> view = v8::DataView::New(buffer, 0, length);
@@ -542,6 +546,18 @@ Js_sp::get_param_func_t Js_sp::prepare_get_param_func(size_t idx) {
         if (is_null)
           return v8::Null(isolate);
         else {
+          /*
+            Do really optimisitc and approximate check that JSON object we are
+            about to create will fit into the memory limit. The main idea of
+            this check is to block extreme cases early.
+
+            It is not a big deal if this check returns too optimistic result,
+            as the later code will still work correctly. Exceeding memory
+            limit will be detected by it or during next GC.
+          */
+          if (Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(length))
+            return no_js_value_for_param();
+
           // String representation of JSON SQL type value should be always
           // UTF8 compatible.
           v8::Local<v8::String> json_str;
@@ -655,6 +671,21 @@ Js_sp::get_param_func_t Js_sp::prepare_get_param_func(size_t idx) {
           if (is_null)
             return v8::Null(isolate);
           else {
+            /*
+              Do really optimistic check that string we are about to
+              allocate will fit into memory limit.
+
+              It is OK if this check returns wrong, too optimistic result.
+              In this case the allocation will succeed and the problem
+              might be detected during next GC (or might not be detected
+              if string will be deleted before it).
+
+              The main purpose of this check is to block early the most
+              extreme cases.
+            */
+            if (Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(length))
+              return no_js_value_for_param();
+
             v8::Local<v8::Value> result;
             if (!v8::String::NewFromUtf8(isolate, str,
                                          v8::NewStringType::kNormal, length)
@@ -688,10 +719,20 @@ Js_sp::get_param_func_t Js_sp::prepare_get_param_func(size_t idx) {
           if (is_null)
             return v8::Null(isolate);
           else {
-            // At the moment V8 simply aborts the process if it fails to
-            // allocate ArrayBuffer. It also aborts on other allocation
-            // failures. So we don't try to handle allocation failures
-            // here gracefully either.
+            /*
+              At the moment v8::ArrayBuffer::New() simply aborts the process
+              when it fails to allocate buffer/when ArrayBuffer::Allocator
+              returns nullptr.
+              So we workaround such aborts when our per-isolate memory limit
+              is exceeded (i.e when our allocator returns nullptr) by checking
+              in advance if buffer we are about allocate will fit into the
+              limit. If no we mark isolate as exceeding the limit and thus
+              to be destroyed.
+            */
+            if (Js_isolate::check_if_arr_buff_alloc_will_exceed_mem_limit(
+                    length))
+              return no_js_value_for_param();
+
             v8::Local<v8::ArrayBuffer> buffer =
                 v8::ArrayBuffer::New(isolate, length);
             v8::Local<v8::DataView> view = v8::DataView::New(buffer, 0, length);
@@ -745,6 +786,17 @@ Js_sp::get_param_func_t Js_sp::prepare_get_param_func(size_t idx) {
             CHARSET_INFO_h not_used;
             always_ok(mysql_service_mysql_string_get_data_in_charset->get_data(
                 str_h, &utf8_buff, &utf8_length, &not_used));
+
+            /*
+              Do extremely optimistic check that string we are about to
+              allocate will fit into memory limit. The main idea of this
+              check to block early the most extreme cases.
+
+              Nothing critical will happen if it returns too optimistic
+              result.
+            */
+            if (Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(length))
+              return no_js_value_for_param();
 
             v8::Local<v8::Value> result;
             if (!v8::String::NewFromUtf8(isolate, utf8_buff,

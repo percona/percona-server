@@ -111,4 +111,9 @@ static constexpr std::string_view CREATE_PRIVILEGE_NAME = "CREATE_JS_ROUTINE";
 // Defined as a macro so we can easier concatenate it with other literals.
 #define MAX_CONSOLE_LOG_SIZE_VAR_NAME "max_console_log_size"
 
+// Name of system variable which limits the size of per isolate memory.
+//
+// Defined as a macro so we can easier concatenate it with other literals.
+#define MAX_MEM_SIZE_VAR_NAME "max_mem_size"
+
 #endif /* COMPONENT_JS_LANG_JS_LANG_COMMON_H */

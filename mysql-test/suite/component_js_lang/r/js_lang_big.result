@@ -9,6 +9,9 @@ GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
 # strings exceeding V8 limit. It should be multiply of 1024.
 SET @save_max_allowed_packet = @@global.max_allowed_packet;
 SET @@global.max_allowed_packet= V8_MAX_STRING_LENGTH + 24 + 1024;
+# Also raise js_lang.max_mem_size limit to avoid hitting it.
+SET @save_js_lang_max_mem_size = @@global.js_lang.max_mem_size;
+SET @@global.js_lang.max_mem_size = V8_MAX_STRING_LENGTH + 24 + @@global.js_lang.max_mem_size;
 # Use new connection so new max_allowed_packet value takes effect.
 connect  con_big_packet, localhost, root,,;
 # Try to create function with body exceeding JS string length limit.
@@ -49,6 +52,7 @@ DROP FUNCTION f_longblob;
 disconnect con_big_packet;
 connection default;
 SET @@global.max_allowed_packet = @save_max_allowed_packet;
+SET @@global.js_lang.max_mem_size = @save_js_lang_max_mem_size;
 # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 # Disconnect of default connection to free the only remaining

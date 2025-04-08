@@ -83,9 +83,166 @@ void Js_v8::shutdown() {
   s_platform.reset();
 }
 
+bool Js_isolate::Memory_manager::check_mem_limit_at_arr_buff_alloc(
+    size_t length) {
+  /*
+    raise_max_mem_size_exceeded() code assumes that it can be only called
+    from the same thread as executes JS (i.e. connection thread) and not
+    from some background thread. It needs to be adjusted to use atomic flag
+    if this assumption is ever broken.
+  */
+  check_thd();
+
+  /*
+    In theory, we could do a better check taking into account current heap
+    size, similar to one in check_mem_limit_at_GC(), here instead.
+
+    However:
+    1) Technically, we are not supposed to call back V8 from allocator
+       methods (though both PLv8 and isolated-vm projects seem to do this
+       just fine). Calling TerminateExecution() is probably safe.
+    2) Code gets akwardly complicated if we try to do this nicely:
+       We probably want to avoid calling v8::Isolate::GetHeapStatistics()
+       on each allocation. We also either need to avoid
+       v8::Isolate::LowMemoryNotification() in this case, or handle
+       situation when check_mem_limit_at_arr_buff_alloc() causes immediate GC,
+       which calls check_mem_limit_at_GC() in its turn (so we have sort of
+       recursion).
+
+    So, instead, we simply check that memory allocated for ArrayBuffer's
+    doesn't exceed the limit, and let the check at GC time to detect
+    situation when sum of memory allocated for ArrayBuffer's and on V8
+    heap exceeds the limit. What can happen in the worst case is that we
+    will exceed the memory limit until GC time, but this can happen anyway
+    in our implementation.
+
+    Note that m_arr_buff_allocated value can be updated concurrently by
+    Free() call invoked from within background thread. This makes the
+    check a bit racy, but it still should be OK.
+  */
+  if (m_arr_buff_allocated + length > m_max_mem_size) {
+    m_js_isolate->raise_max_mem_size_exceeded();
+    return true;
+  }
+  return false;
+}
+
+void Js_isolate::Memory_manager::check_mem_limit_at_GC() {
+  /*
+    The below code assumes that it can be only called from the same thread
+    as executes JS (i.e. connection thread) and not from some background
+    thread. It needs to be adjusted if this assumption is ever broken
+    (GetHeapStatistics() and TerminateExecution() are thread-safe, but
+    LowMemoryNotification() is likely not and neither reads/updates to
+    our Mem_limit_manager members).
+  */
+  check_thd();
+
+  v8::HeapStatistics heap_stats;
+  m_js_isolate->m_isolate->GetHeapStatistics(&heap_stats);
+
+  const size_t total_size = heap_stats.used_heap_size() + m_arr_buff_allocated;
+
+  if (total_size > m_max_mem_size) {
+    m_js_isolate->raise_max_mem_size_exceeded();
+  } else {
+    /*
+      Check if we have approached dangerously close to the memory limit
+      and ask V8 to do free up some memory if yes. Since this will
+      trigger major GC which is expensive we try to avoid doing this
+      if it was done during one of the previous callback invokations
+      and we didn't return back to normality yet.
+
+      TODO: In future we might consider to use memory pressure API instead.
+            It is thread-safe and allows to trigger GCs in a more gradual
+            fashion (first moderate pressure, then critical).
+    */
+    const size_t danger_zone_mem_size = m_max_mem_size * 0.9;
+    if ((total_size > danger_zone_mem_size) &&
+        (m_last_danger_zone_check_mem_size <= danger_zone_mem_size)) {
+      m_js_isolate->m_isolate->LowMemoryNotification();
+    }
+  }
+  m_last_danger_zone_check_mem_size = total_size;
+}
+
+/**
+  Maximum size of buffer for Typed Array for which V8 applies special
+  optimization and allocates buffer on V8 heap at its creation time
+  (see JSTypedArray::kMaxSizeInHeap in V8 sources).
+*/
+constexpr size_t TYPED_ARRAY_IN_HEAP_MAX_SIZE = 64;
+
+void *Js_isolate::Memory_manager::Allocate(size_t length) {
+  /*
+    It is unsafe to return nullptr from Allocate() in two cases:
+
+    1) If we were asked to allocate memory for tiny array buffer.
+
+       V8 optimizes tiny Typed Arrays by allocating their buffer on V8
+       heap instead of calling allocator. However, when someone requests
+       pointer to underlying buffer for such an array, V8 switches it from
+       on heap buffer to allocated buffer. Allocator is called and failure
+       to allocate the buffer in such a scenario results in V8 OOM/fatal
+       abort (see JSTypedArray::GetBuffer() in V8 sources).
+
+       Hence, we do not return nullptr for tiny allocation requests. This
+       should be fine as we still mark isolate as exceeding memory limit
+       and request its termination in this case.
+
+    2) v8::ArrayBuffer::New() which is used by our code handling parameter
+       values doesn't handle nullptr gracefully either and results in V8
+       OOM/fatal abort in this case as well.
+
+       We are working around this case by ensuring that we never invoke
+       v8::ArrayBuffer::New() when limit could be exceeded. This is done
+       by simply checking that we have enough space before invoking this
+       method. Of course it is ugly, but probably better than allowing
+       to allocate arbitrary large array buffers.
+
+    For other allocation requests it is OK to return nullptr as V8 should
+    handle such situations gracefully.
+  */
+  if (check_mem_limit_at_arr_buff_alloc(length) &&
+      length > TYPED_ARRAY_IN_HEAP_MAX_SIZE)
+    return nullptr;
+
+  m_arr_buff_allocated += length;
+  return m_arr_buff_allocator->Allocate(length);
+}
+
+void *Js_isolate::Memory_manager::AllocateUninitialized(size_t length) {
+  // See comment in Allocate() for explanation why we can't return nullptr
+  // for tiny allocations.
+  if (check_mem_limit_at_arr_buff_alloc(length) &&
+      length > TYPED_ARRAY_IN_HEAP_MAX_SIZE)
+    return nullptr;
+
+  m_arr_buff_allocated += length;
+  return m_arr_buff_allocator->AllocateUninitialized(length);
+}
+
+void Js_isolate::Memory_manager::Free(void *data, size_t length) {
+  // Note that this method can be called from a background thread doing
+  // GC sweeping, hence we have to use atomic for m_arr_buff_allocated.
+  m_arr_buff_allocated -= length;
+  m_arr_buff_allocator->Free(data, length);
+}
+
+void *Js_isolate::Memory_manager::Reallocate(void *data, size_t old_length,
+                                             size_t new_length) {
+  ssize_t length_diff =
+      static_cast<ssize_t>(new_length) - static_cast<ssize_t>(old_length);
+
+  if (length_diff > 0 && check_mem_limit_at_arr_buff_alloc(length_diff))
+    return nullptr;
+
+  m_arr_buff_allocated += length_diff;
+  return m_arr_buff_allocator->Reallocate(data, old_length, new_length);
+}
+
 Js_isolate *Js_isolate::create() {
   v8::Isolate::CreateParams create_params;
-  v8::Isolate *isolate;
 
   // Increment global Isolate reference counter to block component
   // shutdown while we creating Isolate and as long as it is around.
@@ -94,11 +251,170 @@ Js_isolate *Js_isolate::create() {
   // thus this code can't be called after component shutdown starts.
   Js_v8::inc_ref_count();
 
-  create_params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  // We create Js_isolate before creation of V8 Isolate object as the
+  // latter need to be passed reference to Js_isolate::Memory_manager.
+  Js_isolate *result = new Js_isolate();
 
-  isolate = v8::Isolate::New(create_params);
-  return new Js_isolate(isolate, create_params.array_buffer_allocator);
+  // Tell V8 to use our custom wrapper around the standard V8 ArrayBuffer
+  // allocator, which does memory limit enforcement.
+  create_params.array_buffer_allocator = &(result->m_memory_manager);
+  /*
+    V8 is bad at handling exceeding heap limit gracefully, instead it is
+    likely to abort the whole process in this case.
+
+    Handling OOMs/exceeding memory limits gracefully is simply not among V8's
+    design goals. Their primary customer is Chrome, which runs JS in separate
+    isolated processes, for which "let us crash on reaching the limit"
+    behavior doesn't cause problems.
+
+    We do best-effort attempt to respect our memory limits without crashes
+    by employing the following approach:
+    - Set V8 limit MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR times (4x at the moment)
+      higher than our intended limit.
+    - Check if our intended limit is exceeded periodically (at GC time).
+
+    TODO: Consider changing safety multiplier after getting more feedback
+          from users (PLv8 uses x2, but some of our tests easily crashed with
+          such multiplier, some other V8 embedders seem to use x8).
+
+          Note that if we won't set heap limit explicitly it will be set
+          automatically by V8 to some large value anyway (1Gb).
+
+    TODO: Consider having a hardened mode for JS execution in which it will
+          be run in separate worker process (like it is done in Chrome).
+  */
+
+  constexpr size_t MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR = 4;
+  create_params.constraints.ConfigureDefaultsFromHeapSize(
+      0, result->m_memory_manager.m_max_mem_size *
+             MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR);
+
+  v8::Isolate *isolate = v8::Isolate::New(create_params);
+
+  result->m_isolate = isolate;
+
+  // Install callback to be called at the end of GC that checks if
+  // memory limit has been exceeded, and terminates isolate if yes.
+  auto gc_epilogue_cb_lambda = [](v8::Isolate *, v8::GCType type,
+                                  v8::GCCallbackFlags, void *data) -> void {
+    // V8 documentation says that callback won't be called again if it
+    // triggers GC, so we don't have to care about recursion.
+    //
+    // Do the check only during normal minor and major GC.
+    if (type == v8::GCType::kGCTypeScavenge ||
+        type == v8::GCType::kGCTypeMarkSweepCompact) {
+      Js_isolate *js_isolate = static_cast<Js_isolate *>(data);
+      js_isolate->m_memory_manager.check_mem_limit_at_GC();
+    }
+    return;
+  };
+  isolate->AddGCEpilogueCallback(gc_epilogue_cb_lambda, result);
+
+  // If we have approached V8 heap limit (which is max_mem_size * X times),
+  // probably it is too late already! (Perhaps we are allocating too fast?).
+  //
+  // Still let us install callback to be called in this case to give  a chance
+  // to a graceful termination.
+  auto near_heap_limit_cb_lambda = [](void *data, size_t current_heap_limit,
+                                      size_t) -> size_t {
+    Js_isolate *js_isolate = static_cast<Js_isolate *>(data);
+    js_isolate->raise_max_mem_size_exceeded();
+    // Increase V8 heap limit temporarily to give a chance to
+    // a graceful termination handling/unwinding.
+    return current_heap_limit + 1024 * 1024;
+  };
+  isolate->AddNearHeapLimitCallback(near_heap_limit_cb_lambda, result);
+
+  return result;
+}
+
+constexpr unsigned int MAX_MEM_SIZE_DEFAULT = 8 * 1024 * 1024;
+constexpr unsigned int MAX_MEM_SIZE_MIN = 3 * 1024 * 1024;
+
+unsigned int Js_isolate::Memory_manager::s_max_mem_size = MAX_MEM_SIZE_DEFAULT;
+
+bool Js_isolate::register_sys_var() {
+  /*
+    Register variable for limiting per Isolate memory consumption.
+
+    Note that while minimum value for this setting might seem to be fairly
+    big it was determined by expiriments. V8 tends to overrides/increases
+    smaller values anyway.
+
+    TODO: Possibly change the default after gathering more feedback from users.
+  */
+  INTEGRAL_CHECK_ARG(uint) max_mem_size_check;
+  max_mem_size_check.def_val = MAX_MEM_SIZE_DEFAULT;
+  max_mem_size_check.min_val = MAX_MEM_SIZE_MIN;
+  max_mem_size_check.max_val = 1024 * 1024 * 1024;
+  max_mem_size_check.blk_sz = 1024;
+
+  if (mysql_service_component_sys_variable_register->register_variable(
+          CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME,
+          PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED,
+          "Maximum JS memory size for each user and connection", nullptr,
+          nullptr, (void *)&max_mem_size_check,
+          (void *)&Memory_manager::s_max_mem_size)) {
+    // Registration od system variable is non-trivial, and can fail for
+    // reasons other than OOM, so we play safe and try to handle error
+    // gracefully here.
+    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
+             "Can't register " MAX_MEM_SIZE_VAR_NAME
+             " system variable for " CURRENT_COMPONENT_NAME_STR " component.");
+    return true;
+  }
+
+  return false;
+}
+
+bool Js_isolate::unregister_sys_var() {
+  if (mysql_service_component_sys_variable_unregister->unregister_variable(
+          CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME)) {
+    // The above should not fail normally. Still we play safe.
+    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
+             "Can't unregister " MAX_MEM_SIZE_VAR_NAME
+             " system variable for " CURRENT_COMPONENT_NAME_STR " component.");
+    return true;
+  }
+  return false;
+}
+
+bool Js_isolate::check_if_arr_buff_alloc_will_exceed_mem_limit(size_t length) {
+  /*
+    Unlike in check_if_heap_alloc_will_exceed_mem_limit() case here it is
+    important not to be too optimistic, as it would lead to aborts in later
+    calls to v8::ArrayBuffer::New() when it will get nullptr from allocator.
+  */
+  Js_thd *js_thd = Js_thd::get_current_js_thd();
+  std::string auth_id = js_thd->get_current_auth_id();
+  auto auth_id_ctx = js_thd->get_auth_id_context(auth_id);
+  Js_isolate *that = auth_id_ctx->get_js_isolate();
+  return that->m_memory_manager.check_mem_limit_at_arr_buff_alloc(length);
+}
+
+bool Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(size_t length) {
+  /*
+    We do pretty naive and too optimistic check here. But that should be
+    OK taking into account context in which this method used.
+
+    OTOH since this method is called for each CHAR/VARCHAR/TEXT argument
+    we try to keep it as lightweight as possible (hence MAX_MEM_SIZE_MIN
+    check).
+
+    TODO: Consider doing something more complex but still cheap - like
+          summing up lengths of all arguments.
+  */
+  if (length >= MAX_MEM_SIZE_MIN) {
+    Js_thd *js_thd = Js_thd::get_current_js_thd();
+    std::string auth_id = js_thd->get_current_auth_id();
+    auto auth_id_ctx = js_thd->get_auth_id_context(auth_id);
+    Js_isolate *that = auth_id_ctx->get_js_isolate();
+
+    if (that->m_memory_manager.check_mem_limit_at_heap_alloc(length)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 mysql_thd_store_slot Js_thd::s_thd_slot = nullptr;
@@ -472,6 +788,18 @@ bool Js_sp::parse() {
 
   v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
+  /*
+    We need to destroy isolate and report error to user if we exceed memory
+    limit. Since it needs to be done after we stop using/unlock isolate it
+    is convenient to do this using scope guard handler.
+  */
+  auto mem_limit_guard = create_scope_guard([=]() {
+    if (js_isolate->is_max_mem_size_exceeded()) {
+      js_thd->erase_auth_id_context(auth_id);
+      my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
+    }
+  });
+
   // Lock the isolate to follow convention.
   v8::Locker locker(isolate);
 
@@ -493,7 +821,10 @@ bool Js_sp::parse() {
   */
   v8::Local<v8::Function> func = prepare_func(auth_id_ctx);
 
-  if (func.IsEmpty()) return true;
+  // When memory limit is exceeded we want to fail even if we were able
+  // prepare function. Scope guard will take care of isolate and error
+  // reporting.
+  if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
 
   auth_id_ctx->add_function(m_sql_sp, func);
 
@@ -528,6 +859,18 @@ bool Js_sp::execute() {
 
   Js_isolate *js_isolate = auth_id_ctx->get_js_isolate();
 
+  /*
+    We need to destroy isolate and report error to user if we exceed memory
+    limit. Since it needs to be done after we stop using/unlock isolate it
+    is convenient to do this using scope guard handler.
+  */
+  auto mem_limit_guard = create_scope_guard([=]() {
+    if (js_isolate->is_max_mem_size_exceeded()) {
+      js_thd->erase_auth_id_context(auth_id);
+      my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
+    }
+  });
+
   v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
   v8::Locker locker(isolate);
@@ -549,7 +892,10 @@ bool Js_sp::execute() {
 
   if (func.IsEmpty()) {
     func = prepare_func(auth_id_ctx);
-    if (func.IsEmpty()) return true;
+    // When memory limit is exceeded we want to fail even if we were able
+    // prepare function. Scope guard will take care of isolate and error
+    // reporting.
+    if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
     auth_id_ctx->add_function(m_sql_sp, func);
   }
 
@@ -569,6 +915,11 @@ bool Js_sp::execute() {
     arg_arr = new v8::Local<v8::Value>[m_arg_count];
     for (size_t i = 0; i < m_arg_count; ++i) {
       arg_arr[i] = m_get_param_func[i](isolate, i);
+
+      // When memory limit is exceeded we want to fail even if we were able
+      // to get parameter value. Scope guard will take care of isolate and
+      // error reporting.
+      if (js_isolate->is_max_mem_size_exceeded()) return true;
 
       if (arg_arr[i].IsEmpty()) {
         // It is responsibility of get_param_func function to
@@ -600,6 +951,11 @@ bool Js_sp::execute() {
 
   js_thd->reset_kill_handler();
 
+  // When memory limit is exceeded we want to fail even if we were able to
+  // execute call/get return value. Scope guard will take care of isolate
+  // and error reporting.
+  if (js_isolate->is_max_mem_size_exceeded()) return true;
+
   if (killed_earlier || js_thd->is_killed() ||
       isolate->IsExecutionTerminating() /* Extra-safety. */) {
     isolate->CancelTerminateExecution();
@@ -615,7 +971,11 @@ bool Js_sp::execute() {
   }
 
   if (m_type == Js_sp::FUNCTION) {
-    if (m_set_retval_func(context, 0, result)) return true;
+    if (m_set_retval_func(context, 0, result) ||
+        // When memory limit is exceeded we want to fail even if we were
+        // able to store return value.
+        js_isolate->is_max_mem_size_exceeded())
+      return true;
   } else {
     // Values of INOUT and OUT parameters need to be unpacked from the array
     // returned as result of function execution to corresponding parameters
@@ -652,10 +1012,16 @@ bool Js_sp::execute() {
           // in case of its failure.
           return true;
         }
+        // When memory limit is exceeded we want to fail even if we
+        // were able to store OUT parameter value.
+        if (js_isolate->is_max_mem_size_exceeded()) return true;
         ++res_arr_idx;
       }
     }
   }
+
+  // Memory limit should not be exceeded here. Still we play safe.
+  mem_limit_guard.release();
 
   return false;
 }
@@ -689,11 +1055,13 @@ bool unregister_create_privilege() {
 }
 
 bool register_sys_vars() {
+  if (Js_isolate::register_sys_var()) return true;
   if (Js_console::register_sys_var()) return true;
   return false;
 }
 
 bool unregister_sys_vars() {
-  if (Js_console::unregister_sys_var()) return true;
+  if (Js_isolate::unregister_sys_var() || Js_console::unregister_sys_var())
+    return true;
   return false;
 }

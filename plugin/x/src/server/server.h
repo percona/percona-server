@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <list>
@@ -84,7 +85,7 @@ class Server : public xpl::iface::Server {
          std::shared_ptr<xpl::iface::Timeout_callback> timeout_callback);
 
   std::shared_ptr<xpl::iface::Ssl_context> ssl_context() const override {
-    return m_ssl_context;
+    return std::atomic_load(&m_ssl_context);
   }
 
   bool reset() override;

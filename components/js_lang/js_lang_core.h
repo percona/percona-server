@@ -91,13 +91,13 @@ class Js_v8 {
 */
 class Js_isolate {
  private:
-  Js_isolate(v8::Isolate *iso, v8::ArrayBuffer::Allocator *alloc)
-      : m_isolate(iso), m_allocator(alloc) {}
+  Js_isolate() : m_memory_manager(this) {}
 
  public:
   ~Js_isolate() {
     m_isolate->Dispose();
-    delete m_allocator;
+    // Destroy allocator we got from V8 before allowing V8 shutdown.
+    m_memory_manager.m_arr_buff_allocator.reset();
     // Decrement global V8/Isolate reference counter to allow component
     // shutdown if there are no other Isolates around.
     Js_v8::dec_ref_count();
@@ -117,9 +117,199 @@ class Js_isolate {
 
   v8::Isolate *get_v8_isolate() const { return m_isolate; }
 
+  bool is_max_mem_size_exceeded() const {
+    return m_memory_manager.m_is_max_mem_size_exceeded;
+  }
+
+  /**
+    Mark isolate as exceeded memory limit and request execution
+    of JS in it to be aborted.
+  */
+  void raise_max_mem_size_exceeded() {
+    m_memory_manager.m_is_max_mem_size_exceeded = true;
+    m_isolate->TerminateExecution();
+  }
+
+  /**
+    Helper which allows to check in advance if buffer we are about allocate
+    for ArrayBuffer object will fit into the memory limit. If no we mark
+    isolate as exceeding the limit and request JS execution to be aborted.
+
+    @note Concurrent background GC freeing buffers in allocator should not
+          be a problem for this call. It migh fail in cases when it could
+          have succeeded, but will never do vice versa.
+
+    @return True if limit is about to be exceeded and isolate was marked
+            marked as such. False otherwise.
+  */
+  static bool check_if_arr_buff_alloc_will_exceed_mem_limit(size_t length);
+
+  /**
+    Helper which does naive and optimistic check if string object we are about
+    to allocate will fit into the memory limit. If no we mark isolate as
+    exceeding the limit and request JS execution to be aborted.
+
+    @note This function is really optimistic (not even best-efforts!) and
+          should not be relied up in cases when we must ensure that the
+          upcoming allocation fits into the limit.
+
+    @return True if limit is about to be exceeded and isolate was marked
+            marked as such. False otherwise.
+  */
+  static bool check_if_heap_alloc_will_exceed_mem_limit(size_t length);
+
+  /**
+    Register/unregister system variable which controls per-isolate maximum
+    memory size.
+
+    @retval False - Success.
+    @retval True  - Failure (error has been reported).
+  */
+  static bool register_sys_var();
+  static bool unregister_sys_var();
+
  private:
-  v8::Isolate *m_isolate;
-  v8::ArrayBuffer::Allocator *m_allocator;
+  v8::Isolate *m_isolate{nullptr};
+
+  /**
+    Helper class which is responsible for memory accounting and limit
+    enforcement for the isolate.
+
+    Implements v8::ArrayBuffer::Allocator interface to be able properly
+    enforce memory limits for JS ArrayBuffer objects. This is done by
+    wrapping default V8 ArrayBuffer allocator implementation with memory
+    accounting/tracking functionality.
+  */
+  class Memory_manager : public v8::ArrayBuffer::Allocator {
+   public:
+    Memory_manager(Js_isolate *js_iso)
+        : m_js_isolate(js_iso),
+          m_arr_buff_allocator(
+              v8::ArrayBuffer::Allocator::NewDefaultAllocator()),
+          m_max_mem_size(s_max_mem_size) {
+#ifndef NDEBUG
+      always_ok(mysql_service_mysql_current_thread_reader->get(&m_mysql_thd));
+#endif
+    }
+
+    // Block default copy/move semantics.
+    Memory_manager(Memory_manager const &rhs) = delete;
+    Memory_manager(Memory_manager &&rhs) = delete;
+    Memory_manager &operator=(Memory_manager const &rhs) = delete;
+    Memory_manager &operator=(Memory_manager &&rhs) = delete;
+
+    void check_thd() {
+#ifndef NDEBUG
+      MYSQL_THD mysql_thd;
+      always_ok(mysql_service_mysql_current_thread_reader->get(&mysql_thd));
+      assert(m_mysql_thd == mysql_thd);
+#endif
+    }
+
+    /**
+      Check if allocation of new memory buffer will exceed memory limit,
+      mark isolate as exceeding memory limit and request JS execution abort
+      in it if yes.
+
+      @retval False - limit is not exceeded.
+      @retval True  - limit is exceeded.
+    */
+    bool check_mem_limit_at_arr_buff_alloc(size_t length);
+
+    /**
+      Check if we about to allocate on heap object that is bigger than memory
+      limit, mark isolate as exceeding memory limit and request JS execution
+      abort in it if yes.
+
+      @retval False - objects is smaller than memory limit (the limit still
+                      might be exceeded though).
+      @retval True  - object exceeds than memory limit.
+    */
+    bool check_mem_limit_at_heap_alloc(size_t length) {
+      if (length > m_max_mem_size) {
+        m_js_isolate->raise_max_mem_size_exceeded();
+        return true;
+      }
+      return false;
+    }
+
+    /**
+      At minor/major GC time check if memory limit for isolate is exceeded,
+      mark it as such and request JS execution abort in it if yes.
+    */
+    void check_mem_limit_at_GC();
+
+    /* Start of v8::ArrayBuffer::Allocator interface implementation. */
+
+    void *Allocate(size_t length) override;
+
+    void *AllocateUninitialized(size_t length) override;
+
+    void Free(void *data, size_t length) override;
+
+    void *Reallocate(void *data, size_t old_length, size_t new_length) override;
+
+    /* End of v8::ArrayBuffer::Allocator interface implementation. */
+
+    /** Pointer to isolate to which this memory manager belongs. */
+    Js_isolate *m_js_isolate;
+
+#ifndef NDEBUG
+    /**
+      Opaque handle of THD object which uses this isolate/memory manager,
+      used as an approximation of physical thread id by debug assertions.
+    */
+    MYSQL_THD m_mysql_thd;
+#endif
+
+    /**
+      V8 default ArrayBuffer::Allocator to which we forward ArrayBuffer
+      buffer allocation requests.
+    */
+    std::unique_ptr<v8::ArrayBuffer::Allocator> m_arr_buff_allocator;
+
+    /**
+      Amount of memory allocated for ArrayBuffer buffers outside of V8 heap
+      for the isolate.
+
+      @note Needs to be atomic as these buffers can be freed from the
+            background threads.
+    */
+    std::atomic<size_t> m_arr_buff_allocated{0};
+
+    /**
+      Total amount of memory which was used by the isolate during last GC.
+      It is used to determine if we have approached dangerously close to
+      memory limit since the last GC, or it was already the case at the
+      last GC.
+    */
+    size_t m_last_danger_zone_check_mem_size{0};
+
+    /**
+      Maximum memory size limit which is enforced for this isolate/memory
+      manager.
+
+      @note This limit is set at Isolate creation time and then used by checks
+            for the rest of its life. We cannot use value of global dynamic
+            variable directly for this, as change in its value will bring it
+            out of sync with V8 heap limit which set at Isolate creation time,
+            which might lead to crashes.
+    */
+    const size_t m_max_mem_size;
+
+    /**
+      Indicates if per-isolate maximum memory size has been exceeded,
+      and therefore JS execution in it should be aborted and isolate
+      should be destroyed.
+    */
+    bool m_is_max_mem_size_exceeded{false};
+
+    /**
+      Global dynamic variable for maximum memory size limit to set for
+      new isolates.
+    */
+    static unsigned int s_max_mem_size;
+  } m_memory_manager;
 };
 
 /**
@@ -484,6 +674,10 @@ class Js_thd {
       v8::Locker locker(p.second.get_js_isolate()->get_v8_isolate());
       p.second.erase_function(sp);
     }
+  }
+
+  void erase_auth_id_context(const std::string &auth_id) {
+    m_auth_id_contexts.erase(auth_id);
   }
 
  private:

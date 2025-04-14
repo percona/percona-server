@@ -273,6 +273,7 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
       // it did not broke past the capacity already
       !write_set_ctx->was_write_set_limit_reached();
   bool exceeds_capacity = false;
+  auto writeset_history = atomic_load_shared(m_writeset_history);
 
   if (can_use_writesets) {
     /*
@@ -281,7 +282,7 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
      using its information for current transaction.
     */
     exceeds_capacity =
-        m_writeset_history.size() + writeset->size() > m_opt_max_history_size;
+        writeset_history->size() + writeset->size() > m_opt_max_history_size;
 
     /*
      Compute the greatest sequence_number among all conflicts and add the
@@ -290,15 +291,15 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     int64 last_parent = m_writeset_history_start;
     for (std::vector<uint64>::iterator it = writeset->begin();
          it != writeset->end(); ++it) {
-      Writeset_history::iterator hst = m_writeset_history.find(*it);
-      if (hst != m_writeset_history.end()) {
+      Writeset_history::iterator hst = writeset_history->find(*it);
+      if (hst != writeset_history->end()) {
         if (hst->second > last_parent && hst->second < sequence_number)
           last_parent = hst->second;
 
         hst->second = sequence_number;
       } else {
         if (!exceeds_capacity)
-          m_writeset_history.insert(
+          writeset_history->insert(
               std::pair<uint64, int64>(*it, sequence_number));
       }
     }
@@ -320,13 +321,16 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
 
   if (exceeds_capacity || !can_use_writesets) {
     m_writeset_history_start = sequence_number;
-    m_writeset_history.clear();
+    if (writeset_history) {
+      writeset_history->clear();
+    }
   }
 }
 
 void Writeset_trx_dependency_tracker::rotate(int64 start) {
   m_writeset_history_start = start;
-  m_writeset_history.clear();
+  auto new_map = std::make_shared<Writeset_history>();
+  atomic_store_shared<Writeset_history>(m_writeset_history, std::move(new_map));
 }
 
 /**

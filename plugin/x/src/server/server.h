@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <list>
@@ -35,6 +36,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <version>
 
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
@@ -84,7 +86,11 @@ class Server : public xpl::iface::Server {
          std::shared_ptr<xpl::iface::Timeout_callback> timeout_callback);
 
   std::shared_ptr<xpl::iface::Ssl_context> ssl_context() const override {
-    return m_ssl_context;
+#if defined(__cpp_lib_atomic_shared_ptr)
+    return m_ssl_context.load();
+#else
+    return std::atomic_load(&m_ssl_context);
+#endif
   }
 
   bool reset() override;
@@ -153,7 +159,11 @@ class Server : public xpl::iface::Server {
   std::unique_ptr<xpl::iface::Document_id_generator> m_id_generator;
   std::atomic<bool> m_gracefull_shutdown{false};
 
+#if defined(__cpp_lib_atomic_shared_ptr)
+  std::atomic<std::shared_ptr<xpl::iface::Ssl_context>> m_ssl_context;
+#else
   std::shared_ptr<xpl::iface::Ssl_context> m_ssl_context;
+#endif
   xpl::Sync_variable<State> m_state;
   xpl::Authentication_container m_auth_handlers;
   Client_list m_client_list;

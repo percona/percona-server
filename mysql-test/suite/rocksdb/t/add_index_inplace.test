@@ -1,5 +1,8 @@
 --source include/have_rocksdb.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 ##
 ## test adding index inplace
 ##
@@ -30,6 +33,42 @@ CHECK TABLE t1;
 SELECT * FROM t1 FORCE INDEX(kb) WHERE b > 5;
 --sorted_result
 SELECT * FROM t1 FORCE INDEX(kab) WHERE a > 2;
+DROP TABLE t1;
+
+# test convert unique key to secondary key
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, UNIQUE KEY kbc(b,c)) ENGINE=RocksDB CHARSET=latin1;
+INSERT INTO t1 (a, b, c) VALUES (1, 5, 4);
+INSERT INTO t1 (a, b, c) VALUES (2, 6, 6);
+INSERT INTO t1 (a, b, c) VALUES (3, 7, 8);
+--error ER_DUP_ENTRY
+INSERT INTO t1 (a, b, c) VALUES (4, 7, 8);
+
+ALTER TABLE t1 DROP KEY kbc, ADD KEY kbc(b,c), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+INSERT INTO t1 (a, b, c) VALUES (5, 7, 8);
+--sorted_result
+SELECT * FROM t1 FORCE INDEX(kbc) WHERE b > 5;
+--sorted_result
+SELECT * FROM t1 FORCE INDEX(kbc) WHERE a > 2;
+DROP TABLE t1;
+
+# test convert unique key to secondary key(2)
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, UNIQUE KEY kbc(b,c)) ENGINE=RocksDB CHARSET=latin1;
+INSERT INTO t1 (a, b, c) VALUES (1, 5, 4);
+INSERT INTO t1 (a, b, c) VALUES (2, 6, 6);
+INSERT INTO t1 (a, b, c) VALUES (3, 7, 8);
+--error ER_DUP_ENTRY
+INSERT INTO t1 (a, b, c) VALUES (4, 7, 8);
+
+ALTER TABLE t1 DROP KEY kbc, ADD KEY kac(a,c), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+INSERT INTO t1 (a, b, c) VALUES (5, 7, 8);
+--sorted_result
+SELECT * FROM t1 FORCE INDEX(kac) WHERE a > 4 and c > 7;
+--sorted_result
+SELECT * FROM t1 FORCE INDEX(kac) WHERE a > 2;
 DROP TABLE t1;
 
 ## test multi-drop + multi-add
@@ -244,10 +283,8 @@ connection default;
 
 
 SET @prior_rocksdb_merge_combine_read_size= @@rocksdb_merge_combine_read_size;
-SET @prior_rocksdb_strict_collation_check= @@rocksdb_strict_collation_check;
 SET @prior_rocksdb_merge_buf_size = @@rocksdb_merge_buf_size;
 
-SET global rocksdb_strict_collation_check = off;
 SET session rocksdb_merge_combine_read_size = 566;
 SET session rocksdb_merge_buf_size = 340;
 
@@ -266,7 +303,6 @@ DROP TABLE t1;
 
 SET session rocksdb_merge_buf_size = @prior_rocksdb_merge_buf_size;
 SET session rocksdb_merge_combine_read_size = @prior_rocksdb_merge_combine_read_size;
-SET global rocksdb_strict_collation_check = @prior_rocksdb_strict_collation_check;
 
 # Test to make sure index statistics are updating properly
 CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) ENGINE = ROCKSDB;
@@ -437,3 +473,5 @@ ALTER TABLE t1 DROP INDEX idx, ADD UNIQUE KEY idx (j);
 --enable_result_log
 CHECK TABLE t1;
 DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

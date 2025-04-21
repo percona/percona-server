@@ -18,7 +18,7 @@ INSERT INTO t1 VALUES (2, "bar");
 --source include/restart_mysqld.inc
 
 --let $assert_text = RocksDB file checksums must be enabled
---let $assert_cond = @@rocksdb_file_checksums = 1
+--let $assert_cond = [select count(*) from performance_schema.global_variables where variable_name="rocksdb_file_checksums" and variable_value="CHECKSUMS_WRITE_ONLY"] = 1
 --source include/assert.inc
 
 SELECT * FROM t1;
@@ -47,7 +47,61 @@ let sst_file=`SELECT SST_NAME
 # DB open first.
 --error 1
 exec $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf
-     --rocksdb-file-checksums > $fail_err_log 2>&1;
+     --rocksdb-file-checksums=checksums_write_and_verify > $fail_err_log 2>&1;
+
+--remove_file $sst
+--move_file $sst.bak $sst
+
+--source include/start_mysqld.inc
+
+--remove_file $fail_err_log
+
+# corrupting user table
+--disable_query_log
+  let $i = 3;
+  while ($i <= 2000) {
+    let $insert = INSERT INTO t1 VALUES($i, REPEAT('x', 100));
+    inc $i;
+    eval $insert;
+  }
+--enable_query_log
+
+set global rocksdb_compact_cf='cf1';
+
+let sst_file=`SELECT DISTINCT SST_NAME
+       FROM INFORMATION_SCHEMA.rocksdb_index_file_map AS file_map
+       INNER JOIN INFORMATION_SCHEMA.rocksdb_ddl AS ddl
+       ON file_map.COLUMN_FAMILY = ddl.COLUMN_FAMILY
+       AND ddl.TABLE_NAME='t1'`;
+
+--let sst=$sst_dir/$sst_file
+--file_exists $sst
+
+--copy_file $sst $sst.bak
+
+--exec echo "corrupt me" | dd if=$sst of=$sst conv=notrunc seek=10000 bs=1 count=10
+
+--let $fail_err_log=$MYSQLTEST_VARDIR/checksum-fail.err
+
+--source include/kill_mysqld.inc
+
+# rocksdb-file-checksums=checksums_write_and_verify verifies file checksums and it fails to start
+--error 1
+exec $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf
+     --rocksdb-file-checksums=checksums_write_and_verify --default_dd_system_storage_engine=$ddse > $fail_err_log 2>&1;
+
+# rocksdb-file-checksums=checksums_write_only skips verification so instance starts on most user table corruptions
+--source include/start_mysqld.inc
+
+call mtr.add_suppression("Status: Corruption");
+call mtr.add_suppression("Plugin rocksdb reported: 'BackgroundErrorReason:");
+call mtr.add_suppression("block checksum mismatch");
+
+# running with --rocksdb-io-error-action=ignore_error suppresses crash on i/o error
+set global rocksdb_io_error_action=ignore_error;
+--error 1815
+set global rocksdb_compact_cf='cf1';
+--source include/kill_mysqld.inc
 
 --remove_file $sst
 --move_file $sst.bak $sst

@@ -5077,9 +5077,9 @@ int init_common_variables() {
   }
   /*
     We set SYSTEM time zone as reasonable default and
-    also for failure of my_tz_init() and bootstrap mode.
+    also for failure of my_tz_full_init() and bootstrap mode.
     If user explicitly set time zone with --default-time-zone
-    option we will change this value in my_tz_init().
+    option we will change this value in my_tz_full_init().
   */
   global_system_variables.time_zone = my_tz_SYSTEM;
 
@@ -8163,6 +8163,11 @@ int mysqld_main(int argc, char **argv)
     current_pid = static_cast<ulong>(getpid());
   }
 #endif
+
+  // Post daemonization operations performed
+  // such as initializing the timer_thread when using
+  // --thread-handling=pool-of-threads
+  Connection_handler_manager::get_instance()->post_daemonize_init();
 
 #ifndef _WIN32
   user_info = check_user(mysqld_user);

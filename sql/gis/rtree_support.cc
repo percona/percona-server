@@ -106,8 +106,18 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   return result;
 }
 
-bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
-                   rtr_mbr_t *b) {
+bool mbr_equal_physically(rtr_mbr_t *a, rtr_mbr_t *b) {
+  // These points should not have initialized values at this point,
+  // which are min == DBL_MAX and max == -DBL_MAX.
+  assert(a->xmin <= a->xmax && a->ymin <= a->ymax);
+  assert(b->xmin <= b->xmax && b->ymin <= b->ymax);
+
+  return a->xmin == b->xmin && a->xmax == b->xmax && a->ymin == b->ymin &&
+         a->ymax == b->ymax;
+}
+
+bool mbr_equal_logically(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                         rtr_mbr_t *b) {
   // These points should not have initialized values at this point,
   // which are min == DBL_MAX and max == -DBL_MAX.
   assert(a->xmin <= a->xmax && a->ymin <= a->ymax);
@@ -142,14 +152,6 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   }
 
   return result;
-}
-
-bool mbr_equal_precise_cmp(rtr_mbr_t *mbr_a, rtr_mbr_t *mbr_b) {
-  assert(mbr_a->xmin <= mbr_a->xmax && mbr_a->ymin <= mbr_a->ymax);
-  assert(mbr_b->xmin <= mbr_b->xmax && mbr_b->ymin <= mbr_b->ymax);
-
-  return mbr_a->xmin == mbr_b->xmin && mbr_a->xmax == mbr_b->xmax &&
-         mbr_a->ymin == mbr_b->ymin && mbr_a->ymax == mbr_b->ymax;
 }
 
 bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,

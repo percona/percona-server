@@ -16,10 +16,8 @@
 #pragma once
 
 /* C++ system header files */
-#include <map>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 /* RocksDB header files */
@@ -27,9 +25,13 @@
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
+#include "rdb_psi.h"
+
+#include "rwlock_scoped_lock.h"
 
 namespace myrocks {
 
+class Rdb_cf_manager;
 class Rdb_ddl_manager;
 class Rdb_key_def;
 
@@ -140,7 +142,7 @@ class Rdb_tbl_card_coll {
 
 class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
  public:
-  Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
+  Rdb_tbl_prop_coll(const Rdb_ddl_manager &ddl_manager,
                     const Rdb_compact_params &params, const uint32_t cf_id,
                     const uint8_t table_stats_sampling_pct);
 
@@ -166,9 +168,8 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
  public:
   uint64_t GetMaxDeletedRows() const { return m_max_deleted_rows; }
 
-  static void read_stats_from_tbl_props(
-      const std::shared_ptr<const rocksdb::TableProperties> &table_props,
-      std::vector<Rdb_index_stats> *out_stats_vector);
+  [[nodiscard]] static std::vector<Rdb_index_stats> read_stats_from_tbl_props(
+      const rocksdb::TableProperties &table_props);
 
  private:
   static std::string GetReadableStats(const Rdb_index_stats &it);
@@ -184,7 +185,7 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
  private:
   uint32_t m_cf_id;
   std::shared_ptr<const Rdb_key_def> m_keydef;
-  Rdb_ddl_manager *m_ddl_manager;
+  const Rdb_ddl_manager &m_ddl_manager;
   std::vector<Rdb_index_stats> m_stats;
   Rdb_index_stats *m_last_stats;
   static const char *INDEXSTATS_KEY;
@@ -209,20 +210,26 @@ class Rdb_tbl_prop_coll_factory
   Rdb_tbl_prop_coll_factory(const Rdb_tbl_prop_coll_factory &) = delete;
   Rdb_tbl_prop_coll_factory &operator=(const Rdb_tbl_prop_coll_factory &) =
       delete;
+  Rdb_tbl_prop_coll_factory(Rdb_tbl_prop_coll_factory &&) = delete;
+  Rdb_tbl_prop_coll_factory &operator=(Rdb_tbl_prop_coll_factory &&) = delete;
 
-  explicit Rdb_tbl_prop_coll_factory(Rdb_ddl_manager *ddl_manager)
-      : m_ddl_manager(ddl_manager) {}
+  Rdb_tbl_prop_coll_factory(const Rdb_ddl_manager &ddl_manager,
+                            const Rdb_cf_manager &cf_manager)
+      : m_ddl_manager(ddl_manager), m_cf_manager(cf_manager) {
+#ifdef HAVE_PSI_INTERFACE
+    mysql_rwlock_init(key_rwlock_tbl_prop_coll_factory_lock, &lock);
+#else
+    mysql_rwlock_init(nullptr, &lock);
+#endif
+  }
+
+  ~Rdb_tbl_prop_coll_factory() override { mysql_rwlock_destroy(&lock); }
 
   /*
     Override parent class's virtual methods of interest.
   */
-
   virtual rocksdb::TablePropertiesCollector *CreateTablePropertiesCollector(
-      rocksdb::TablePropertiesCollectorFactory::Context context) override {
-    return new Rdb_tbl_prop_coll(m_ddl_manager, m_params,
-                                 context.column_family_id,
-                                 m_table_stats_sampling_pct);
-  }
+      rocksdb::TablePropertiesCollectorFactory::Context context) override;
 
   virtual const char *Name() const override {
     return "Rdb_tbl_prop_coll_factory";
@@ -230,15 +237,25 @@ class Rdb_tbl_prop_coll_factory
 
  public:
   void SetCompactionParams(const Rdb_compact_params &params) {
+    rwlock_scoped_lock guard(&lock, true, __FILE__, __LINE__);
     m_params = params;
   }
 
-  void SetTableStatsSamplingPct(const uint8_t table_stats_sampling_pct) {
+  void SetTableStatsSamplingPct(uint8_t table_stats_sampling_pct) {
+    rwlock_scoped_lock guard(&lock, true, __FILE__, __LINE__);
     m_table_stats_sampling_pct = table_stats_sampling_pct;
   }
 
+  void SetSkipSystemCF(bool skip_system_cf) {
+    rwlock_scoped_lock guard(&lock, true, __FILE__, __LINE__);
+    m_skip_system_cf = skip_system_cf;
+  }
+
  private:
-  Rdb_ddl_manager *const m_ddl_manager;
+  mutable mysql_rwlock_t lock;
+  const Rdb_ddl_manager &m_ddl_manager;
+  const Rdb_cf_manager &m_cf_manager;
+  bool m_skip_system_cf = false;
   Rdb_compact_params m_params;
   uint8_t m_table_stats_sampling_pct;
 };

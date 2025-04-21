@@ -22,7 +22,6 @@
 #include <array>
 #include <atomic>
 #include <map>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -36,11 +35,23 @@
 #include "./ha_rocksdb.h"
 #include "./properties_collector.h"
 #include "./rdb_buff.h"
+#include "./rdb_global.h"
 #include "./rdb_mutex_wrapper.h"
 #include "./rdb_utils.h"
 
 /* Server header files */
 #include "sql/dd/object_id.h"
+
+// Forward declarations
+#ifdef ROCKSDB_CUSTOM_NAMESPACE
+namespace ROCKSDB_CUSTOM_NAMESPACE {
+#else
+namespace rocksdb {
+#endif
+
+class TransactionDB;
+
+}  // namespace ROCKSDB_CUSTOM_NAMESPACE / rocksdb
 
 namespace myrocks {
 
@@ -347,6 +358,8 @@ class Rdb_key_def {
            m_index_type == INDEX_TYPE_HIDDEN_PRIMARY;
   }
 
+  inline bool is_unique_sk() const { return m_is_unique_sk; }
+
   inline bool supports_index_only_collation_scans() const {
     return (m_index_type == INDEX_TYPE_SECONDARY &&
             m_kv_format_version >= SECONDARY_FORMAT_VERSION_COLL) ||
@@ -388,8 +401,8 @@ class Rdb_key_def {
                              const rocksdb::Slice *const key,
                              uchar *const pk_buffer) const;
 
-  uint get_memcmp_sk_parts(const TABLE *table, const rocksdb::Slice &key,
-                           uchar *sk_buffer, uint *n_null_fields) const;
+  uint get_memcmp_sk_parts(const rocksdb::Slice &key, uchar *sk_buffer,
+                           uint *n_null_fields) const;
 
   /* Return max length of mem-comparable form */
   uint max_storage_fmt_length() const { return m_maxlength; }
@@ -986,6 +999,12 @@ class Rdb_key_def {
   */
   uint m_key_parts;
 
+  /* Whether the key is a unique secondary key */
+  bool m_is_unique_sk;
+
+  /* Number of key parts in the secondary key*/
+  uint m_user_defined_sk_parts;
+
   /*
     If TTL column is part of the PK, offset of the column within pk.
     Default is UINT_MAX to denote that TTL col is not part of PK.
@@ -1283,11 +1302,12 @@ class Rdb_tbl_def {
   Rdb_tbl_def(const Rdb_tbl_def &) = delete;
   Rdb_tbl_def &operator=(const Rdb_tbl_def &) = delete;
 
-  explicit Rdb_tbl_def(const std::string &name, Rdb_tbl_def &&other)
-      : m_key_descr_arr(other.m_key_descr_arr),
-        m_hidden_pk_val(0),
-        m_auto_incr_val(0),
-        m_pk_index(other.m_pk_index),
+  Rdb_tbl_def(const std::string &name, Rdb_tbl_def &&other)
+      : m_key_count(other.m_key_count),
+        m_key_descr_arr(std::exchange(other.m_key_descr_arr, nullptr)),
+        m_hidden_pk_val(other.m_hidden_pk_val.load(std::memory_order_relaxed)),
+        m_auto_incr_val(other.m_auto_incr_val.load(std::memory_order_relaxed)),
+        m_pk_index(other.get_pk_index()),
         m_tbl_stats(other.m_tbl_stats),
         m_update_time(0),
         m_mtcache_lock(0),
@@ -1296,15 +1316,10 @@ class Rdb_tbl_def {
         m_mtcache_last_update(0),
         m_create_time(CREATE_TIME_UNKNOWN) {
     set_name(name);
-    m_auto_incr_val = other.m_auto_incr_val.load(std::memory_order_relaxed);
-    m_hidden_pk_val = other.m_hidden_pk_val.load(std::memory_order_relaxed);
-    m_key_count = other.m_key_count;
-
-    // so that it's not free'd when deleting the old rec
-    other.m_key_descr_arr = nullptr;
+    other.m_pk_index = MAX_INDEXES + 1;
   }
 
-  explicit Rdb_tbl_def(const std::string &name)
+  Rdb_tbl_def(const std::string &name)
       : m_key_descr_arr(nullptr),
         m_hidden_pk_val(0),
         m_auto_incr_val(0),
@@ -1463,7 +1478,7 @@ class Rdb_ddl_manager : public Ensure_initialized {
   // This is mainly used to store key definitions during ALTER TABLE.
   std::map<GL_INDEX_ID, std::shared_ptr<Rdb_key_def>>
       m_index_num_to_uncommitted_keydef;
-  mysql_rwlock_t m_rwlock;
+  mutable mysql_rwlock_t m_rwlock;
 
   Rdb_seq_generator m_dd_table_sequence;
   Rdb_seq_generator m_user_table_sequence;
@@ -1474,7 +1489,8 @@ class Rdb_ddl_manager : public Ensure_initialized {
   // and consumed by the rocksdb background thread
   std::map<GL_INDEX_ID, Rdb_index_stats> m_stats2store;
 
-  const std::shared_ptr<Rdb_key_def> &find(GL_INDEX_ID gl_index_id);
+  [[nodiscard]] const std::shared_ptr<Rdb_key_def> &find(
+      GL_INDEX_ID gl_index_id) const;
 
  public:
   Rdb_ddl_manager(const Rdb_ddl_manager &) = delete;
@@ -1490,14 +1506,16 @@ class Rdb_ddl_manager : public Ensure_initialized {
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
-  void cleanup();
+  void cleanup(bool destroy_rwlock = true);
 
-  Rdb_tbl_def *find(const std::string &table_name, const bool lock = true);
-  int find_indexes(const std::string &table_name,
-                   std::vector<GL_INDEX_ID> *indexes);
-  int find_table_stats(const std::string &table_name,
-                       Rdb_table_stats *tbl_stats);
-  std::shared_ptr<const Rdb_key_def> safe_find(GL_INDEX_ID gl_index_id);
+  [[nodiscard]] Rdb_tbl_def *find(const std::string &table_name,
+                                  bool lock = true) const;
+  [[nodiscard]] int find_indexes(const std::string &table_name,
+                                 std::vector<GL_INDEX_ID> *indexes) const;
+  [[nodiscard]] int find_table_stats(const std::string &table_name,
+                                     Rdb_table_stats *tbl_stats) const;
+  [[nodiscard]] std::shared_ptr<const Rdb_key_def> safe_find(
+      GL_INDEX_ID gl_index_id) const;
   void set_stats(const std::unordered_map<GL_INDEX_ID, Rdb_index_stats> &stats);
   void adjust_stats(const std::vector<Rdb_index_stats> &new_data,
                     const std::vector<Rdb_index_stats> &deleted_data =
@@ -1516,17 +1534,18 @@ class Rdb_ddl_manager : public Ensure_initialized {
 
   uint get_and_update_next_number(uint cf_id, bool is_dd_tbl);
 
-  const std::string safe_get_table_name(const GL_INDEX_ID &gl_index_id);
+  [[nodiscard]] const std::string safe_get_table_name(
+      GL_INDEX_ID gl_index_id) const;
 
   /* Walk the data dictionary */
-  int scan_for_tables(Rdb_tables_scanner *tables_scanner);
+  int scan_for_tables(Rdb_tables_scanner *tables_scanner) const;
 
   void erase_index_num(const GL_INDEX_ID &gl_index_id);
   void add_uncommitted_keydefs(
       const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes);
   void remove_uncommitted_keydefs(
       const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes);
-  int find_in_uncommitted_keydef(const uint32_t cf_id);
+  [[nodiscard]] int find_in_uncommitted_keydef(uint32_t cf_id) const;
 
  private:
   /* Put the data into in-memory table (only) */
@@ -1538,9 +1557,9 @@ class Rdb_ddl_manager : public Ensure_initialized {
   static void free_hash_elem(void *const data);
 
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
-  bool validate_schemas();
+  [[nodiscard]] bool validate_schemas() const;
 
-  bool validate_auto_incr();
+  [[nodiscard]] bool validate_auto_incr() const;
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 };

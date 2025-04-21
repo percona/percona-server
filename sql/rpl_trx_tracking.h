@@ -127,7 +127,10 @@ class Commit_order_trx_dependency_tracker {
 class Writeset_trx_dependency_tracker {
  public:
   Writeset_trx_dependency_tracker(ulong max_history_size)
-      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {}
+      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {
+    std::atomic_store(&m_writeset_history,
+                      std::make_shared<Writeset_history>());
+  }
 
   /**
     Main function that gets the dependencies using the WRITESET tracker.
@@ -161,7 +164,7 @@ class Writeset_trx_dependency_tracker {
     in the database, using row hashes from the writeset as the index.
   */
   typedef std::unordered_map<uint64, int64> Writeset_history;
-  Writeset_history m_writeset_history;
+  std::shared_ptr<Writeset_history> m_writeset_history;
 };
 
 /**

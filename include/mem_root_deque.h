@@ -47,47 +47,8 @@ public:
     using const_reverse_iterator = typename std::list<T, Mem_root_allocator<T>>::const_reverse_iterator;
 
 
-<<<<<<< HEAD
     explicit mem_root_deque(MEM_ROOT *mem_root)
         : list_(Mem_root_allocator<T>(mem_root)), size_(0) {}
-||||||| 2df90d528b6
-  // Move constructor and assignment.
-  mem_root_deque(mem_root_deque &&other)
-      : m_blocks(other.m_blocks),
-        m_begin_idx(other.m_begin_idx),
-        m_end_idx(other.m_end_idx),
-        m_root(other.m_root) {
-    other.m_blocks = nullptr;
-    other.m_begin_idx = other.m_end_idx = other.m_capacity = 0;
-    other.invalidate_iterators();
-  }
-  mem_root_deque &operator=(mem_root_deque &&other) {
-    if (this != &other) {
-      this->~mem_root_deque();
-      new (this) mem_root_deque(std::move(other));
-    }
-    return *this;
-  }
-=======
-  // Move constructor and assignment.
-  mem_root_deque(mem_root_deque &&other)
-      : m_blocks(other.m_blocks),
-        m_begin_idx(other.m_begin_idx),
-        m_end_idx(other.m_end_idx),
-        m_capacity(other.m_capacity),
-        m_root(other.m_root) {
-    other.m_blocks = nullptr;
-    other.m_begin_idx = other.m_end_idx = other.m_capacity = 0;
-    other.invalidate_iterators();
-  }
-  mem_root_deque &operator=(mem_root_deque &&other) {
-    if (this != &other) {
-      this->~mem_root_deque();
-      new (this) mem_root_deque(std::move(other));
-    }
-    return *this;
-  }
->>>>>>> percona/8.0
 
     mem_root_deque(typename std::list<T, Mem_root_allocator<T>>::size_type count, const T &value, MEM_ROOT *mem_root)
         : list_(count, value, Mem_root_allocator<T>(mem_root)), size_(count) {}

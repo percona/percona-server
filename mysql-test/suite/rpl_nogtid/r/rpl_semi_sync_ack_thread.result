@@ -10,6 +10,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_1]
 CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
+call mtr.add_suppression("Replica SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 ####################################################################
 # Test Case: semisync master can be enabled and disabled sucessfully
 # without any live slave connection and also test ON, OFF can be set
@@ -197,8 +198,9 @@ SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
 include/rpl/install_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
+SET DEBUG_SYNC= 'now WAIT_FOR in_get_source_version_and_clock';
 SET GLOBAL debug= @save_debug;
-SET debug_sync= 'now SIGNAL signal.get_source_uuid';
+SET DEBUG_SYNC= 'now SIGNAL signal.get_source_uuid';
 include/rpl/wait_for_receiver_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 10,
 SOURCE_CONNECT_RETRY = 1;

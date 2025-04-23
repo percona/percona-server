@@ -1,0 +1,171 @@
+#
+# The test checks that basic DDL and DML events are encrypted
+# in the binary log on master.
+# The test is to be run with all binlog formats
+# (combinations for rpl_init.inc take care of that).
+#
+#
+# The test runs with the encrypted master and non-encrypted slave.
+# It generates a sequence of events on master, and checks that
+# - all events are encrypted on master;
+# - slave is able to replicate from the master;
+# - relay logs and binary logs are not encrypted on slave.
+#
+# The same exercise is repeated
+# - with binlog checksums;
+# - with default checksums and minimal binlog row image
+#
+
+--source include/have_myisam.inc
+# This test fails for binlog-format='row' due to Bug#1735185:
+# Assert fail in field.cc. The below check should be removed once
+# this bug gets fixed.
+--source include/rpl/deprecated/not_binlog_format_row.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+--let $restart_parameters = restart: --binlog_encryption=ON $PLUGIN_DIR_OPT
+--let $explicit_default_wait_counter=4000
+--source include/restart_mysqld_no_echo.inc
+
+--echo #################
+--echo # Initialization
+--echo #################
+
+--source include/rpl/init_source_replica.inc
+--enable_connect_log
+
+# We stop SQL thread because we want to have
+# all relay logs at the end of the test flow
+
+--connection server_2
+--disable_connect_log
+--source include/rpl/stop_applier.inc
+--enable_connect_log
+
+--connection server_1
+
+SET @binlog_checksum.save= @@global.binlog_checksum;
+SET @source_verify_checksum.save= @@global.source_verify_checksum;
+SET @binlog_row_image.save= @@global.binlog_row_image;
+
+--echo ####################################################
+--echo # Test 1: simple binlog, no checksum
+--echo ####################################################
+
+--connection server_1
+
+SET GLOBAL binlog_checksum= NONE;
+SET GLOBAL source_verify_checksum= 0;
+
+--source testdata.inc
+
+--echo ####################################################
+--echo # Test 2: binlog with checksum
+--echo ####################################################
+
+--connection server_1
+
+SET GLOBAL binlog_checksum= CRC32;
+SET GLOBAL source_verify_checksum= 1;
+
+--source testdata.inc
+
+--echo ####################################################
+--echo # Test 3: binlog with binlog_row_image=minimal
+--echo ####################################################
+
+--connection server_1
+
+SET GLOBAL binlog_checksum= NONE;
+SET GLOBAL source_verify_checksum= 0;
+SET GLOBAL binlog_row_image= MINIMAL;
+SET binlog_row_image= MINIMAL;
+
+--source testdata.inc
+
+--echo #############################
+--echo # Final checks for the master
+--echo #############################
+
+--let $master_datadir= `SELECT @@datadir`
+
+--echo # Here we try to find several plain texts that would appear in not encrypted binlog files.
+--echo # The searches should fail as we expect the binlog files to be encrypted.
+
+--let SEARCH_ECHO=ALL
+--let SEARCH_FILE= $master_datadir/master-bin.0*
+--let SEARCH_PATTERN= _to_encrypt
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $master_datadir/master-bin.0*
+--let SEARCH_PATTERN= COMMIT
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $master_datadir/master-bin.0*
+--let SEARCH_PATTERN= TIMESTAMP
+--source include/search_pattern.inc
+
+--disable_connect_log
+--source include/rpl/save_server_position.inc
+--enable_connect_log
+
+--echo #############################
+--echo # Final checks for the slave
+--echo #############################
+
+# Wait for the IO thread to write everything to relay logs
+
+--connection server_2
+
+--let $slave_datadir= `SELECT @@datadir`
+
+--disable_connect_log
+--source include/rpl/sync_received_with_saved.inc
+
+# Check that relay logs are unencrypted
+
+--let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
+--let SEARCH_PATTERN= _to_encrypt
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
+--let SEARCH_PATTERN= COMMIT
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
+--let SEARCH_PATTERN= TIMESTAMP
+--source include/search_pattern.inc
+
+
+# Re-enable SQL thread, let it catch up with IO thread
+# and check slave binary logs
+
+--source include/rpl/start_replica.inc
+--source include/rpl/sync_with_recieved.inc
+--enable_connect_log
+
+--let SEARCH_FILE= $slave_datadir/slave-bin.0*
+--let SEARCH_PATTERN= _to_encrypt
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $slave_datadir/slave-bin.0*
+--let SEARCH_PATTERN= COMMIT
+--source include/search_pattern.inc
+
+--let SEARCH_FILE= $slave_datadir/slave-bin.0*
+--let SEARCH_PATTERN= TIMESTAMP
+--source include/search_pattern.inc
+
+--echo ##########
+--echo # Cleanup
+--echo ##########
+
+--connection server_1
+SET GLOBAL binlog_checksum= @binlog_checksum.save;
+SET GLOBAL source_verify_checksum= @source_verify_checksum.save;
+SET GLOBAL binlog_row_image= @binlog_row_image.save;
+
+--disable_connect_log
+--source include/rpl/deinit.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

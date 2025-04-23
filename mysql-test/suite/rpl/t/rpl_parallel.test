@@ -33,7 +33,7 @@
 --source include/not_rpl_gtid_only.inc
 --source include/rpl/init_source_replica.inc
 
-connection master;
-source common/rpl/rpl_parallel_load.test;
+--source include/rpl/connection_source.inc
+--source common/rpl/rpl_parallel_load.test
 
 --source include/rpl/deinit.inc

@@ -26,6 +26,7 @@ include/rpl/wait_for_applier_to_start.inc
 include/rpl/assert_replica_no_error.inc
 # Resume SQL thread
 SET DEBUG_SYNC="now SIGNAL signal.continue";
+SET DEBUG_SYNC="RESET";
 [on master]
 DROP TABLE t1;
 include/rpl/deinit.inc

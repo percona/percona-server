@@ -58,8 +58,7 @@ LIMIT 1;
 --skip_if_hypergraph  # Does not call THD::LOCK_query_plan(), so no event.
 --replace_column 1 [EVENT_ID]
 SELECT DISTINCT EVENT_ID
-FROM performance_schema.events_waits_current
-JOIN performance_schema.events_waits_history USING (EVENT_ID)
+FROM performance_schema.events_waits_history
 JOIN performance_schema.events_waits_history_long USING (EVENT_ID)
 ORDER BY EVENT_ID
 LIMIT 1;

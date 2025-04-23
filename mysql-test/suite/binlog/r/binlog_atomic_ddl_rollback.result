@@ -10,4 +10,5 @@ ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/rpl/save_binlog_file_position.inc
 DELETE FROM tmp;
 include/rpl/assert_binlog_events.inc [!Gtid_or_anon # !Begin # !Q(DELETE.*) # !Commit]
+SET DEBUG_SYNC= 'reset';
 DROP VIEW v_12;

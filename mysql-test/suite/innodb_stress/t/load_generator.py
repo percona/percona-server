@@ -1,3 +1,4 @@
+from __future__ import print_function
 import io
 import hashlib
 import mysql.connector
@@ -12,7 +13,7 @@ import string
 CHARS = string.ascii_letters + string.digits
 
 def sha1(x):
-  return hashlib.sha1(str(x).encode("utf-8")).hexdigest()
+  return hashlib.sha1(str(x).encode('utf-8')).hexdigest()
 
 # Should be deterministic given an idx
 def get_msg(do_blob, idx):
@@ -51,10 +52,10 @@ class PopulateWorker(threading.Thread):
       self.exception = e
       try:
         cursor = self.con.cursor()
-        cursor.execute("INSERT INTO errors VALUES (%s)", (e,))
-      except mysql.connector.Error as e2:
-        print("caught while inserting error (%s)" % e2,)
-      print("caught (%s)" % e)
+        cursor.execute("INSERT INTO errors VALUES('%s')" % e)
+      except MySQLdb.Error as e2:
+        print("caught while inserting error (%s)" % e2, file=self.log)
+      print("caught (%s)" % e, file=self.log)
     finally:
       self.finish()
 

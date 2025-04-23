@@ -91,6 +91,7 @@ UPDATE t1 SET a=2 WHERE a=1;
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -172,6 +173,7 @@ UPDATE t1 SET a=9 WHERE a=7;
 --let $rpl_connection_name= server1
 --source include/connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo

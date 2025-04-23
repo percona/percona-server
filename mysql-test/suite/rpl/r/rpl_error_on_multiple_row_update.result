@@ -23,9 +23,9 @@ COMMIT;
 include/rpl/sync_to_replica.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 include/diff_tables.inc [master:test.t2, slave:test.t2]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Slave_rows_last_search_algorithm_used	HASH_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;

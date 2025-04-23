@@ -74,7 +74,7 @@ DROP TABLE t;
 # printed three times.
 
 # Steps that are executed above ensure that MTS slave stops with an error.
-# Following lines check that "The slave coordinator and worker threads are
+# Following lines check that "The replica coordinator and worker threads are
 # stopped..." error message is printed only once in the error log.
 
 --let $expected_errno= convert_error(ER_MTA_INCONSISTENT_DATA)

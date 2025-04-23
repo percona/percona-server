@@ -23,6 +23,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/rpl/init_source_replica.inc
 
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
+
 --echo #
 --echo # 1) Setup semisync replication
 --source include/rpl/install_semisync.inc

@@ -1,0 +1,15 @@
+!include ../my.cnf
+
+[mysqld.1]
+binlog-encryption=0
+
+# This test mixes InnoDB and MyISAM tables within the same trx
+# so it can't work in GTID mode.
+gtid-mode=OFF
+enforce-gtid-consistency=OFF
+
+[mysqld.2]
+binlog-encryption=0
+
+gtid-mode=OFF
+enforce-gtid-consistency=OFF

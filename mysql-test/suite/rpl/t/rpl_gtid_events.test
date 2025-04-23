@@ -194,6 +194,7 @@ CREATE TEMPORARY TABLE binlogs
 --let $table= binlogs
 --source include/rpl/read_binlog_index_into_table.inc
 
+--let $event_sequence= Format_desc # Previous_gtids(.|#)*
 # Verify that each binlog contains the events.
 --let $count= `SELECT COUNT(*) FROM binlogs`
 --let $i= 0
@@ -201,7 +202,6 @@ while ($i < $count)
 {
   --let $binlog_file= `SELECT filename FROM binlogs LIMIT $i, 1`
   --echo $binlog_file
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
   --source include/rpl/assert_binlog_events.inc
   --inc $i
 }
@@ -228,7 +228,6 @@ CREATE TEMPORARY TABLE relay_logs
 while ($i < $count)
 {
   --let $binlog_file= `SELECT filename FROM relay_logs LIMIT $i, 1`
-  --let $event_sequence= Format_desc # Previous_gtids(.|#)*
   --source include/rpl/assert_binlog_events.inc
 
   --inc $i

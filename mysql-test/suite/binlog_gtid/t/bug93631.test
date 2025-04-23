@@ -1,0 +1,10 @@
+--echo #
+--echo # Bug 93631: wrong error returned or crash if mysql.gtid_executed is inaccessible
+--echo #
+
+CREATE TABLE t1 (`a` text) ENGINE=InnoDB;
+
+--error ER_INNODB_FORCED_RECOVERY
+FLUSH BINARY LOGS;
+
+DROP TABLE t1;

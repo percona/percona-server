@@ -1,0 +1,5 @@
+--source include/have_myisam.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+
+--source common/binlog/percona_binlog_consistent.test

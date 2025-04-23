@@ -1,6 +1,3 @@
-# The test is currently experimental and crashes a lot, don't run it in Valgrind:
-source include/not_valgrind.inc;
-
 #
 # BUG#45214 
 # This test verifies if the slave I/O tread tries to reconnect to
@@ -23,30 +20,31 @@ source include/have_binlog_format_mixed.inc;
 
 connection slave;
 
-call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Replica I/O .* Source command COM_REGISTER_REPLICA failed:");
 call mtr.add_suppression("Replica I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
 call mtr.add_suppression("Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; .*");
 call mtr.add_suppression("Replica I/O thread .* register on source");
 call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
+call mtr.add_suppression("Get source clock failed with error");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 
 # set up two parameters to pass into common/rpl/rpl_get_source_version_and_clock.inc
-let $dbug_sync_point= 'debug_lock.before_get_UNIX_TIMESTAMP';
+let $dbug_sync_point= dbug.before_get_UNIX_TIMESTAMP;
 let $debug_sync_action= 'now SIGNAL signal.get_unix_timestamp';
 source common/rpl/rpl_get_source_version_and_clock.test; 
 
 #Test case 2: Try to get the value of the SERVER_ID from master under network disconnection
 connection slave;
 
-let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
+let $dbug_sync_point= dbug.before_get_SERVER_ID;
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source common/rpl/rpl_get_source_version_and_clock.test;
 
 #Test case 3: Try to get the value of the Source_UUID from master under network disconnection
 connection slave;
 
-let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
+let $dbug_sync_point= dbug.before_get_SOURCE_UUID;
 let $debug_sync_action= 'now SIGNAL signal.get_source_uuid';
 source common/rpl/rpl_get_source_version_and_clock.test;
 

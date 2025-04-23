@@ -1,0 +1,13 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, payload MEDIUMBLOB NOT NULL);
+include/rpl/restart_server.inc [server_number=1]
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+INSERT INTO t1(payload) VALUES(REPEAT('a',1468872));
+DROP TABLE t1;
+include/rpl/deinit.inc

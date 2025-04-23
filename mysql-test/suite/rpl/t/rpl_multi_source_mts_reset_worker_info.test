@@ -11,6 +11,12 @@
 call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Replica Workers info repository");
+# The following suppression is needed because of the Percona patch for
+# PS-5824 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://jira.percona.com/browse/PS-5824)
+# Oracle Bug #96400 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://bugs.mysql.com/bug.php?id=96400)
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --source include/rpl/stop_replica.inc
 RESET REPLICA ALL;

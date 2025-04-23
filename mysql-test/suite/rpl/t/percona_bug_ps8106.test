@@ -5,12 +5,12 @@
 --source include/have_binlog_format_row.inc
 
 --let $rpl_skip_start_slave= 1
---source include/master-slave.inc
+--source include/rpl/init_source_replica.inc
 
 --connection slave
 SET @replica_parallel_workers_save = @@global.replica_parallel_workers;
 SET GLOBAL replica_parallel_workers = 1;
---source include/start_slave.inc
+--source include/rpl/start_replica.inc
 
 --connection master
 CREATE TABLE joinit (
@@ -27,7 +27,7 @@ while ($i < 15) {
   inc $i;
 }
 
---source include/rpl_sync.inc
+--source include/rpl/sync.inc
 
 --connection master
 CREATE TABLE joinit_copy AS SELECT * FROM joinit;
@@ -41,4 +41,4 @@ SET GLOBAL replica_parallel_workers = @replica_parallel_workers_save;
 --connection master
 DROP TABLE joinit_copy;
 DROP TABLE joinit;
---source include/rpl_end.inc
+--source include/rpl/deinit.inc

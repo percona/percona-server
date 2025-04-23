@@ -1,0 +1,4 @@
+--replica-parallel-workers=2
+--gtid-mode=ON
+--enforce-gtid-consistency=true
+--replica-transaction-retries=0

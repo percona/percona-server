@@ -67,9 +67,11 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
 [connection server1]
 INSERT INTO t1 VALUE(2, 2);
 include/rpl/sync.inc
+SET DEBUG_SYNC='RESET';
 include/assert.inc [GTID_EXECUTED must contain 6 transactions]
 [connection server2]
 include/assert.inc [GTID_EXECUTED must contain 6 transactions]
+SET DEBUG_SYNC='RESET';
 include/diff_tables.inc [server1:t1, server2:t1]
 
 ############################################################

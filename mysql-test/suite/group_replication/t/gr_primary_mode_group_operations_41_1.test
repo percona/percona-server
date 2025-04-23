@@ -224,6 +224,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_cont
 --let $assert_cond= "$work_completed" = "1"
 --source include/assert.inc
 
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 
@@ -547,6 +548,7 @@ UNLOCK TABLES;
 --let $rpl_connection_name= server_1
 --source include/connection.inc
 
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 

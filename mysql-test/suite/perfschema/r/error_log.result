@@ -82,7 +82,8 @@ System	MY-013577	InnoDB	InnoDB initialization has ended.
 SELECT prio,error_code,subsystem
 FROM performance_schema.error_log
 WHERE logged>=@startup
-AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
+AND error_code NOT IN("MY-010097", "MY-015641",
+"MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-010949", "MY-010747", "MY-013546", "MY-010051",
 "MY-011946", "MY-012922", "MY-011810", "MY-012932",
 "MY-011952", "MY-011323", "MY-010902", "MY-000000",
@@ -158,7 +159,8 @@ SELECT prio,error_code,subsystem,data
 FROM performance_schema.error_log
 WHERE logged>=@startup
 AND prio!="Note"
-   AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
+   AND error_code NOT IN("MY-010097", "MY-015641",
+"MY-011323", "MY-010075", "MY-010068", "MY-010069",
 "MY-010931", "MY-010116", "MY-011810", "MY-000000",
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
 "MY-010108", "MY-012363", "MY-013711", "MY-013908",

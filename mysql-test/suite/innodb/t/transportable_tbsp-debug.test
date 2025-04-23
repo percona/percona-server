@@ -1228,6 +1228,7 @@ call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table
 call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] .* Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] .* Page 0 at offset 0 looks corrupted in file");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace");
 call mtr.add_suppression("\\[Warning\\] .* Tablespace.*, name 'test_wl5522.t1', file '.*test_wl5522.t1.ibd' is missing!");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for `test_wl5522/t1`");

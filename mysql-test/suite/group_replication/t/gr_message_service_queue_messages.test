@@ -126,6 +126,7 @@ DROP TABLE test.t1;
 --source include/remove_debug_point.inc
 
 SET DEBUG_SYNC= "now SIGNAL signal.notification_continue";
+SET DEBUG_SYNC= "RESET";
 
 --echo
 --echo # 11. Assert server2 received both messages transmitted by GR message

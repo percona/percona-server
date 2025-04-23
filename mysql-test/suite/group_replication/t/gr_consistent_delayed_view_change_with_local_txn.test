@@ -173,6 +173,7 @@ SET DEBUG_SYNC= 'now SIGNAL waiting';
 --source include/connection.inc
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
 
 
 --echo
@@ -181,6 +182,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepa
 --let $rpl_connection_name= server1
 --source include/connection.inc
 --reap
+SET DEBUG_SYNC= 'RESET';
 
 --let $rpl_connection_name= server_1_1
 --source include/connection.inc

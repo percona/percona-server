@@ -110,6 +110,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --disable_warnings
 --reap
 --enable_warnings
+SET DEBUG_SYNC='RESET';
 
 --echo
 --echo ############################################################

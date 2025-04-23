@@ -109,7 +109,6 @@ SET @@GLOBAL.group_replication_communication_debug_options= @group_replication_c
 --let $assert_file= $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
 --let $assert_count= 1
 --source include/assert_grep.inc
---exec cat $output_file
 
 --echo
 --echo ############################################################

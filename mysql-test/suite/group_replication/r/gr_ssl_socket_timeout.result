@@ -37,7 +37,6 @@ START GROUP_REPLICATION;
 SET @@GLOBAL.group_replication_communication_debug_options= @group_replication_communication_debug_options_save;
 include/assert_grep.inc [Assert that the mysql connection has been ended by the server]
 include/assert_grep.inc [Assert that message about aborting the connection has been logged to GCS_DEBUG_TRACE file]
-ERROR 2013 (HY000): Lost connection to MySQL server at 'reading initial communication packet', system error: 2
 
 ############################################################
 # 4. Clean up.

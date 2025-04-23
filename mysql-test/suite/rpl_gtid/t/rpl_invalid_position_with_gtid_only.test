@@ -37,6 +37,13 @@
 
 --source include/rpl/connection_replica.inc
 
+# The following suppression is needed because of the Percona patch for
+# PS-5824 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://jira.percona.com/browse/PS-5824)
+# Oracle Bug #96400 "MTS STOP SLAVE takes over a minute when master crashed during event logging"
+# (https://bugs.mysql.com/bug.php?id=96400)
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
 # Reduce this to a minimum
 --let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
 SET @@GLOBAL.replica_checkpoint_period= 1;

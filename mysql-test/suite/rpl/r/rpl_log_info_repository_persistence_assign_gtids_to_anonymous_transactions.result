@@ -52,7 +52,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_type;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Assign_gtids_to_anonymous_transactions_value;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 12;
-include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start  --upgrade=FORCE]
+include/rpl/restart_server.inc [server_number=2 parameters: --skip_replica_start --upgrade=FORCE]
 include/assert.inc [Check the number of channels with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE set to OFF AND ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE set to NULL]
 RESET REPLICA ALL FOR CHANNEL "ch1";

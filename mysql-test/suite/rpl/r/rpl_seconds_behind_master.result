@@ -29,7 +29,7 @@ SET DEBUG_SYNC="RESET";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_start";
 SET DEBUG_SYNC="now WAIT_FOR mta_checkpoint_end";
 # Removing debug point 'mta_checkpoint' from @@GLOBAL.debug
-include/assert.inc [Seconds_Behind_Source must be 0]
+include/rpl/wait_for_replica_status.inc [Seconds_Behind_Source]
 LOCK TABLE t1 WRITE;
 INSERT INTO t1 VALUES (3);
 include/assert.inc [Seconds_Behind_Source must be greater or equal than 'lower_bound']

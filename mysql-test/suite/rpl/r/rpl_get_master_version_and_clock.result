@@ -3,45 +3,49 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Replica I/O .* Source command COM_REGISTER_REPLICA failed:");
 call mtr.add_suppression("Replica I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
 call mtr.add_suppression("Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; .*");
 call mtr.add_suppression("Replica I/O thread .* register on source");
 call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
+call mtr.add_suppression("Get source clock failed with error");
 include/rpl/stop_replica.inc
-SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
+SET @@global.debug= "+d,dbug.before_get_UNIX_TIMESTAMP";
 include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
 Check network error happened here
 include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
-set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
+set @@global.debug = "-d,dbug.before_get_UNIX_TIMESTAMP";
 include/rpl/start_server.inc [server_number=1]
 include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/stop_replica.inc
-SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
+SET @@global.debug= "+d,dbug.before_get_SERVER_ID";
 include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
 include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
-set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
+set @@global.debug = "-d,dbug.before_get_SERVER_ID";
 include/rpl/start_server.inc [server_number=1]
 include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 include/rpl/stop_replica.inc
-SET @@global.debug= "+d,'dbug.before_get_SOURCE_UUID'";
+SET @@global.debug= "+d,dbug.before_get_SOURCE_UUID";
 include/rpl/start_replica.inc
 slave is going to hang in get_master_version_and_clock
+SET DEBUG_SYNC= "NOW WAIT_FOR in_get_source_version_and_clock";
 include/rpl/stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_source_uuid';
 Check network error happened here
 include/rpl/wait_for_receiver_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
-set @@global.debug = "-d,'dbug.before_get_SOURCE_UUID'";
+set @@global.debug = "-d,dbug.before_get_SOURCE_UUID";
 include/rpl/start_server.inc [server_number=1]
 include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
 reset binary logs and gtids;

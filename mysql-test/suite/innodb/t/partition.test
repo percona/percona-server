@@ -507,6 +507,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
 --echo #
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot save statistics for table `test`\\.`t1`");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace .*");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Missing .ibd file for table `test`\.`t1` .* ");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .*");

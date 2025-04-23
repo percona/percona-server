@@ -1,0 +1,55 @@
+#
+# Debug build tests for consistent binlog snapshot
+#
+RESET BINARY LOGS AND GTIDS;
+#
+# Bug 1646100: Server becomes unresponsive during flushing after loading
+# big files through LOAD DATA INFILE
+#
+include/assert.inc [@@sync_binlog must be enabled]
+CREATE TABLE t1 (a INT);
+# connection con1
+BEGIN;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC="before_sync_binlog_file SIGNAL commit_ready WAIT_FOR finish_commit";
+COMMIT;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR commit_ready";
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000001
+Binlog_snapshot_position	POSITION
+SET DEBUG_SYNC="now SIGNAL finish_commit";
+# connection con1
+# connection default
+DROP TABLE t1;
+#
+# Bug 1657128: Deadlock by concurrent SHOW BINLOGS,
+# performance_schema.global_status query, and binlog purge
+#
+FLUSH LOGS;
+# connection con1
+SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
+PURGE BINARY LOGS BEFORE '2038-01-19';
+# connection con2
+SET DEBUG_SYNC="materialize_session_status_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'Binlog_snapshot_%';;
+# connection con3
+SET DEBUG_SYNC="show_binlogs_after_lock_log_before_lock_index SIGNAL show_ready WAIT_FOR finish_show";
+SHOW BINARY LOGS;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR purge_ready";
+SET DEBUG_SYNC="now WAIT_FOR pfs_ready";
+SET DEBUG_SYNC="now WAIT_FOR show_ready";
+SET DEBUG_SYNC="now SIGNAL finish_purge";
+SET DEBUG_SYNC="now SIGNAL finish_pfs";
+SET DEBUG_SYNC="now SIGNAL finish_show";
+# connection con1
+Warnings:
+Warning	1868	file ./binlog.000002 was not purged because it is the active log file.
+# connection con2
+VARIABLE_NAME	VARIABLE_VALUE
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	POSITION
+# connection con3
+# connection default

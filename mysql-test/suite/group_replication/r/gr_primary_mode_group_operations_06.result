@@ -64,6 +64,7 @@ INSERT INTO t2 VALUES (1);
 # 9. Unblock the transaction on server1
 [connection server_1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 [connection server_1_1]
 
@@ -71,6 +72,7 @@ SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 #     It should have failed
 [connection server_2]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='RESET';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 [connection server_2_1]
 ERROR 40000: Plugin instructed the server to rollback the current transaction.

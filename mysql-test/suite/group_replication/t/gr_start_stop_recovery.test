@@ -101,6 +101,8 @@ INSERT INTO t1 VALUES (1);
 --let $assert_cond= [select count(*) from t1] = 1;
 --source include/assert.inc
 
+SET DEBUG_SYNC= "reset";
+
 --echo #
 --echo # Clean up
 --echo #

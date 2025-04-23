@@ -1,3 +1,7 @@
+# This test can't work in GTID mode since it mixes InnoDB and MyISAM
+# tables within the same transaction.
+--source include/rpl/set_gtid_mode_off.inc
+
 RESET BINARY LOGS AND GTIDS;
 
 # Test that we get the correct binlog position from START TRANSACTION WITH
@@ -148,3 +152,6 @@ connection default;
 DROP TABLE t1,t2;
 
 --source include/wait_until_count_sessions.inc
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

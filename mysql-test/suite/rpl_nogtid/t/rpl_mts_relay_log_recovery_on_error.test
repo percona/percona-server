@@ -37,11 +37,11 @@
 # successful.
 --source include/force_restart.inc
 --source include/have_binlog_format_row.inc
---source include/have_replica_parallel_workers.inc
---source include/have_replica_parallel_type_database.inc
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
+--source include/have_replica_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
 call mtr.add_suppression("Duplicate entry*");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Failed to initialize the connection metadata structure");

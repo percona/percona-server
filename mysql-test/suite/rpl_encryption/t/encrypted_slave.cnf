@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+binlog-encryption=0
+
+[mysqld.2]
+binlog-encryption=0

@@ -268,8 +268,8 @@ eval CHANGE REPLICATION SOURCE TO
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 # Grep only after the message that the server_2 has connected to the master
 --let $assert_only_after=Start binlog_dump to source_thread_id\($replica_thread_id\)
---let $assert_count= 1
 --let $assert_select=found a zombie dump thread with the same UUID
+--let $assert_match= ($assert_select)+
 --let $assert_text= Found the expected line in master's error log for server 2 disconnection
 --source include/assert_grep.inc
 
@@ -296,6 +296,8 @@ eval CHANGE REPLICATION SOURCE TO
 # Assert only the occurrences after the last CHANGE REPLICATION SOURCE
 --let $assert_only_after=CHANGE REPLICATION SOURCE .* executed
 --let $assert_select= Replica .* Got fatal error .* from source .* replica with the same server_uuid/server_id as this replica
+--let $assert_match=
+--let $assert_count= 1
 --let $assert_text= Found the expected line in server 2 error log
 --source include/assert_grep.inc
 

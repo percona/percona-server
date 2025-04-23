@@ -32,6 +32,7 @@
 --source include/have_binlog_format_row.inc
 --source include/rpl/init_source_replica.inc
 
+--source include/count_sessions.inc
 connect(master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(master3,127.0.0.1,root,,test,$MASTER_MYPORT,);
 --connection master
@@ -115,6 +116,7 @@ while ($iter)
 --disconnect master3
 
 --connection master
+--source include/wait_until_count_sessions.inc
 SET DEBUG_SYNC='RESET';
 SET GLOBAL DEBUG=@save_debug;
 source include/rpl/deinit.inc;

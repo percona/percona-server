@@ -40,6 +40,8 @@ INSERT INTO db1.t1 VALUES (40);
 INSERT INTO db2.t1 VALUES (40);
 --source include/rpl/sync_to_replica.inc
 
+# connection was switched to slave
+
 # Save the global variables that are being modified. Set bigger values for
 # replica_checkpoint_group/period so that no further checkpoints are done
 # automatically.

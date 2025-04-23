@@ -129,4 +129,7 @@ source include/rpl/deprecated/show_binlog_events.inc;
 --echo # SHOW BINLOG EVENTS ON SLAVE
 source include/rpl/deprecated/show_binlog_events.inc;
 
+--connection master
+set DEBUG_SYNC= 'RESET';
+
 --source include/rpl/deinit.inc

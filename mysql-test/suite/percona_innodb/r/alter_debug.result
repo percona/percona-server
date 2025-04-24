@@ -1,0 +1,112 @@
+#
+# Test for PS-9214 : Alter table online results in "duplicate key"
+#                    error on the primary key (only index).
+#
+CREATE TABLE t1 (pk CHAR(5) PRIMARY KEY);
+INSERT INTO t1 VALUES ('aaaaa'), ('bbbbb'), ('ccccc'), ('ddddd'), ('eeeee');
+connect  con1, localhost, root,,;
+SET DEBUG='+d,ddl_buf_add_two';
+SET DEBUG_SYNC='ddl_bulk_inserter_latches_released SIGNAL latches_released WAIT_FOR go';
+# Send ALTER TABLE INPLACE which rebuilds table.
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+INSERT INTO t1 VALUES ('ccaaa');
+SET DEBUG_SYNC='now SIGNAL go';
+connection con1;
+# Reap ALTER TABLE
+# Before fix it failed with duplicate key error.
+SET DEBUG='-d,ddl_buf_add_two';
+disconnect con1;
+connection default;
+# Cleanup.
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+#
+# PS-9703 "Upstream 8.0.41 release does not fully fix PS-9144"/
+# Bug#117436 "PCursor::move_to_next_block may skip records incorrectly".
+#
+# Execution of ALTER TABLE INPLACE might sometimes result in row
+# loss when merge of pages in table's B-tree is happening concurrently.
+#
+# Rows of the table should be big enough to easily cause page split,
+# OTOH they should be small enough to be easily merged back as well.
+# In our case:
+#       5 * 3300 > available space for rows in 16k page,
+#       2 * 3300 < 8k which is merge threshold for 16k page.
+CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(3300));
+INSERT INTO t1 VALUES (1, REPEAT('1', 3300));
+INSERT INTO t1 VALUES (2, REPEAT('2', 3300));
+INSERT INTO t1 VALUES (3, REPEAT('3', 3300));
+INSERT INTO t1 VALUES (4, REPEAT('4', 3300));
+INSERT INTO t1 VALUES (5, REPEAT('5', 3300));
+INSERT INTO t1 VALUES (7, REPEAT('7', 3300));
+#
+# At this point leaf pages of B-tree for our table look like:
+#
+#              [1,2] - [3,4,5,7]
+#
+# The below insert will cause split of the second leaf page, so
+# we end up with the following picture of leaf pages after it:
+#
+#           [1,2] - [3,4] - [5,6,7]
+INSERT INTO t1 VALUES (6, REPEAT('6', 3300));
+#
+# Delete marks middle row in the third leaf page as deleted.
+# Once purge is enabled, the row will be removed from the page
+# for real, causing the contents of the third leaf page to
+# be merged into second:
+#
+# [1,2] - [3,4] - [5,*6,7]  =>  [1,2] - [3,4,5,7]
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id=6;
+connect con1, localhost, root,,;
+# Make ALTER TABLE to process all leaf pages as a single scan.
+SET GLOBAL DEBUG="+d,parallel_reader_force_single_range";
+# Ensure that we always release latches when moving from
+# page to page.
+SET GLOBAL DEBUG="+d,pcursor_move_to_next_block_release_latches";
+SET DEBUG_SYNC="pcursor_move_to_next_block_latches_released SIGNAL latches_released WAIT_FOR continue EXECUTE 2";
+# Send ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+# Wait until we reach end of the first leaf page:
+# [1,2 <we are here>] - [3, 4] - ...
+# And signal ALTER TABLE to proceed to the next leaf page.
+SET DEBUG_SYNC="now WAIT_FOR latches_released";
+SET DEBUG_SYNC="now SIGNAL continue";
+# Wait until we reach end of the second leaf page:
+# [1,2] - [3,4 <we are here>] - [5,*6,7]
+SET DEBUG_SYNC="now WAIT_FOR latches_released";
+# Unleash the purge and wait till it completes, so row 6 is
+# removed for real and the third leaf page is merged into the
+# second one.
+SET GLOBAL innodb_purge_run_now = ON;
+#
+# We should end up with:
+#        [1,2] - [3,4, <we are here> 5,7]
+#
+# While before the fix we got:
+#        [1,2] - [3,4,5,7 <we are here>]
+#
+# Resume ALTER TABLE.
+SET DEBUG_SYNC="now SIGNAL continue";
+connection con1;
+# Reap ALTER TABLE.
+# Check that all rows are present in table (except deleted row 6).
+# Before the fix rows 5 and 7 were missing as well.
+SELECT id FROM t1;
+id
+1
+2
+3
+4
+5
+7
+# Clean up.
+SET GLOBAL DEBUG="-d,pcursor_move_to_next_block_release_latches";
+SET GLOBAL DEBUG="-d,parallel_reader_force_single_range";
+SET DEBUG_SYNC='RESET';
+disconnect con1;
+connection default;
+DROP TABLE t1;

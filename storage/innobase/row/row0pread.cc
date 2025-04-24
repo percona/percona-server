@@ -231,7 +231,7 @@ class PCursor {
 
   /** This method must be called after all records on a page are processed and
   cursor is positioned at supremum. Under this assumption, it stores the
-  position BTR_PCUR_AFTER the last user record on the page.
+  position of the last user record on the page.
   This method must be paired with restore_to_first_unprocessed() to restore to
   a record which comes right after the value of the stored last processed
   record @see restore_to_first_unprocessed for details. */
@@ -433,13 +433,24 @@ void PCursor::restore_to_last_processed_user_record() noexcept {
 void PCursor::save_previous_user_record_as_last_processed() noexcept {
   ut_a(m_pcur->is_after_last_on_page());
   ut_ad(m_read_level == 0);
+  /*
+    Instead of simply taking savepoint for cursor pointing to supremum we
+    are doing one step back. This is necessary to prevent situation when
+    concurrent merge from the next page, which happens after we commit
+    mini-transaction/release latches, moves records over supremum to the
+    current page. In this case the optimistic restore of cursor pointing
+    to supremum will result in cursor pointing to supremum, which means
+    moved records will be incorrectly skipped by the scan.
+
+    So, effectively, we are saving position of last user record which we
+    have processed/which corresponds to last key value we have processed!
+  */
+  m_pcur->move_to_prev_on_page();
   m_pcur->store_position(m_mtr);
-  ut_a(m_pcur->m_rel_pos == BTR_PCUR_AFTER);
   m_mtr->commit();
 }
 
 void PCursor::restore_to_first_unprocessed() noexcept {
-  ut_a(m_pcur->m_rel_pos == BTR_PCUR_AFTER);
   ut_ad(m_read_level == 0);
   m_mtr->start();
   m_mtr->set_log_mode(MTR_LOG_NO_REDO);
@@ -448,13 +459,21 @@ void PCursor::restore_to_first_unprocessed() noexcept {
   /* Restored cursor is positioned on the page at the level intended before */
   ut_ad(m_read_level == btr_page_get_level(m_pcur->get_page()));
 
-  /* The BTR_PCUR_IS_POSITIONED_OPTIMISTIC only happens in case of a successful
-  optimistic restoration in which the cursor points to a user record after
-  restoration. But, in save_previous_user_record_as_last_processed() the cursor
-  pointed to SUPREMUM before calling m_ptr->store_position(mtr), so it would
-  also point there if optimistic restoration succeeded, which is not a user
-  record. */
-  ut_ad(m_pcur->m_pos_state != BTR_PCUR_IS_POSITIONED_OPTIMISTIC);
+  /*
+    The cursor points to last processed record, or, if it has been purged
+    meanwhile, its closest non-purged predecessor.
+    By moving to the successor of the saved record we position the cursor
+    either to supremum record (which means we restored the original cursor
+    position and can continue switch to the next page as usual) or to
+    some user record which our scan have not processed yet (for example,
+    this record might have been moved from the next page due to page
+    merge or simply inserted to our page concurrently).
+
+    The latter case is detected by caller by doing !is_after_last_on_page()
+    check and instead of doing switch to the next page we continue processing
+    from the restored user record.
+  */
+  m_pcur->move_to_next_on_page();
 }
 
 bool PCursor::restore_to_largest_le_position_saved() noexcept {
@@ -1330,6 +1349,9 @@ dberr_t Parallel_reader::Scan_ctx::create_ranges(const Scan_range &scan_range,
     start = nullptr;
 
     page_cur_move_to_next(&page_cursor);
+
+    DBUG_EXECUTE_IF("parallel_reader_force_single_range",
+                    page_cur_set_after_last(block, &page_cursor););
   }
 
   savepoints.push_back(savepoint);

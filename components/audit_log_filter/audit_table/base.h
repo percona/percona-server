@@ -27,7 +27,7 @@ namespace audit_log_filter::audit_table {
 inline constexpr const size_t kAuditFieldLengthUsername = 32;
 inline constexpr const size_t kAuditFieldLengthUserhost = 255;
 inline constexpr const size_t kAuditFieldLengthFiltername = 255;
-inline constexpr const size_t kAuditFieldLengthFilter = 1024;
+inline constexpr const size_t kAuditFieldLengthFilter = 16 * 1024;
 
 enum class TableResult { Ok, Fail, Found, NotFound };
 

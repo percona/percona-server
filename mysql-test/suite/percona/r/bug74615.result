@@ -74,4 +74,3 @@ ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 39. The tab
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE mysql.user;
 ALTER TABLE mysql.user_bak RENAME mysql.user;
-FLUSH PRIVILEGES;

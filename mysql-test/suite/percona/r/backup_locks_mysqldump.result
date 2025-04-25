@@ -43,9 +43,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
 SET SESSION character_set_results = 'binary'
@@ -58,9 +55,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 SELECT argument FROM mysql.general_log WHERE argument != ''
 TRUNCATE TABLE mysql.general_log;
@@ -101,9 +95,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
@@ -117,9 +108,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
@@ -164,9 +152,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
@@ -180,9 +165,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
@@ -225,9 +207,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
 SET SESSION character_set_results = 'binary'
@@ -240,9 +219,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 SELECT argument FROM mysql.general_log WHERE argument != ''
 TRUNCATE TABLE mysql.general_log;
@@ -282,9 +258,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
@@ -298,9 +271,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
@@ -344,9 +314,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
@@ -360,9 +327,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
@@ -407,9 +371,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
@@ -423,9 +384,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 ROLLBACK TO SAVEPOINT sp
 RELEASE SAVEPOINT sp
@@ -466,9 +424,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
 SET SESSION character_set_results = 'binary'
@@ -481,9 +436,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 SELECT argument FROM mysql.general_log WHERE argument != ''
 TRUNCATE TABLE mysql.general_log;
@@ -521,9 +473,6 @@ use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't1'
 SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't1'
-SET SESSION character_set_results = 'utf8mb4'
 show table status like 't2'
 SET SQL_QUOTE_SHOW_CREATE=1
 SET SESSION character_set_results = 'binary'
@@ -536,9 +485,6 @@ SET SESSION character_set_results = 'binary'
 use `test`
 select @@collation_database
 SHOW TRIGGERS LIKE 't2'
-SET SESSION character_set_results = 'utf8mb4'
-SET SESSION character_set_results = 'binary'
-SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't2'
 SET SESSION character_set_results = 'utf8mb4'
 UNLOCK TABLES
 SELECT argument FROM mysql.general_log WHERE argument != ''

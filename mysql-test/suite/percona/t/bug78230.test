@@ -16,8 +16,6 @@ CREATE TABLE mysql.user(
   PRIMARY KEY Host (Host, User)
 ) ENGINE=InnoDB;
 
-FLUSH PRIVILEGES;
-
 CREATE TABLE t1(
   a INT UNSIGNED,
   b INT UNSIGNED,
@@ -39,4 +37,3 @@ DROP TABLE t1;
 DROP TABLE mysql.user;
 
 ALTER TABLE mysql.user_bak RENAME mysql.user;
-FLUSH PRIVILEGES;

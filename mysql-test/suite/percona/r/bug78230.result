@@ -6,9 +6,6 @@ User CHAR COLLATE utf8mb4_bin DEFAULT '',
 PasswONs INT UNSIGNED,
 PRIMARY KEY Host (Host, User)
 ) ENGINE=InnoDB;
-FLUSH PRIVILEGES;
-Warnings:
-Warning	1805	Column count of mysql.user is wrong. Expected 51, found 3. The table is probably corrupted
 CREATE TABLE t1(
 a INT UNSIGNED,
 b INT UNSIGNED,
@@ -27,4 +24,3 @@ ERROR HY000: Column count of mysql.user is wrong. Expected 51, found 3. The tabl
 DROP TABLE t1;
 DROP TABLE mysql.user;
 ALTER TABLE mysql.user_bak RENAME mysql.user;
-FLUSH PRIVILEGES;

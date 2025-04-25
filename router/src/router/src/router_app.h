@@ -471,39 +471,21 @@ class MySQLRouter {
   /**
    * @brief Initializes keyring using master-key-reader and master-key-writer.
    *
-<<<<<<< HEAD
-   * @throw MasterKeyReadError on failure
-||||||| merged common ancestors
-   * @throw MasterKeyReadError
-=======
    * @throw MasterKeyReadError On error.
->>>>>>> mysql-9.2.0
    */
   void init_keyring_using_external_facility(mysql_harness::Config &config);
 
   /**
    * @brief Initializes keyring using master key file.
    *
-<<<<<<< HEAD
-   * @throw std::runtime_error on failure
-||||||| merged common ancestors
-   * @throw std::runtime_error
-=======
    * @throw std::runtime_error On error.
->>>>>>> mysql-9.2.0
    */
   void init_keyring_using_master_key_file();
 
   /**
    * @brief Initializes keyring using password read from STDIN.
    *
-<<<<<<< HEAD
-   * @throw std::runtime_error on failure
-||||||| merged common ancestors
-   * @throw std::runtime_error
-=======
    * @throw std::runtime_error On error.
->>>>>>> mysql-9.2.0
    */
   void init_keyring_using_prompted_password();
 

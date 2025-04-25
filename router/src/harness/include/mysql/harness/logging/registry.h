@@ -348,13 +348,7 @@ void clear_registry(Registry &registry);
  * @param main_app_log_domain Log domain (logger id) to be used as the main
  *                            program logger. This logger must exist, because
  *                            log_*() functions might fail
-<<<<<<< HEAD
- * @throws std::logic_error if there is an error
-||||||| merged common ancestors
- * @throws std::logic_error
-=======
  * @throws std::logic_error On error.
->>>>>>> mysql-9.2.0
  */
 HARNESS_EXPORT
 void create_module_loggers(Registry &registry, const LogLevel level,

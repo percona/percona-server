@@ -35,11 +35,6 @@ std::condition_variable active_cv;
 int active_connections = 0;
 }  // namespace
 
-// Declaration to access the name of the SYS_VAR
-struct SYS_VAR {
-  MYSQL_PLUGIN_VAR_HEADER;
-};
-
 template <typename Copy_type>
 void update_sysvar(THD *, SYS_VAR *var, void *var_ptr, const void *value) {
   // Update the value

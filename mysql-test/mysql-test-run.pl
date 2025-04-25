@@ -301,7 +301,7 @@ our @DEFAULT_SUITES = qw(
   test_services
   x
   component_keyring_file
-<<<<<<< HEAD
+  component_connection_control
 
   component_audit_log_filter
   percona
@@ -323,10 +323,6 @@ our @DEFAULT_SUITES = qw(
   group_replication
   jp
   stress
-||||||| merged common ancestors
-=======
-  component_connection_control
->>>>>>> mysql-9.2.0
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;

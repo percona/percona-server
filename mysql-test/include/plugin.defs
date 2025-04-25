@@ -198,7 +198,9 @@ component_test_execute_prepared_statement  plugin_output_directory  no  COMPONEN
 
 # component_test_execute_regular_statement
 component_test_execute_regular_statement  plugin_output_directory  no  COMPONENT_TEST_EXECUTE_REGULAR_STATEMENT
-<<<<<<< HEAD
+
+# connection control component
+component_connection_control     plugin_output_directory  no  COMPONENT_CONNECTION_CONTROL
 
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
@@ -215,9 +217,3 @@ component_binlog_utils_udf          plugin_output_directory  no  BINLOG_UTILS_UD
 component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_COMPONENT
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
-||||||| merged common ancestors
-=======
-
-# connection control component
-component_connection_control     plugin_output_directory  no  COMPONENT_CONNECTION_CONTROL
->>>>>>> mysql-9.2.0

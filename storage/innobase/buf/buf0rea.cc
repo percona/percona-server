@@ -699,13 +699,7 @@ void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
   for (ulint i = 0; i < n_stored; i++) {
     dberr_t err;
     buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-<<<<<<< HEAD
-                      cur_page_id, page_size, true, nullptr, false);
-||||||| merged common ancestors
-                      cur_page_id, page_size, true);
-=======
-                      {space_id, page_nos[i]}, page_size, true);
->>>>>>> mysql-9.2.0
+                      {space_id, page_nos[i]}, page_size, true, nullptr, false);
   }
 
   os_aio_simulated_wake_handler_threads();

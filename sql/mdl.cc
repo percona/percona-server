@@ -136,16 +136,10 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
-<<<<<<< HEAD
-    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for table backup lock", 0, PSI_DOCUMENT_ME}};
-||||||| merged common ancestors
-    {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME}};
-=======
     {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for library metadata lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for table backup lock", 0, PSI_DOCUMENT_ME},
 };
->>>>>>> mysql-9.2.0
 
 #ifdef HAVE_PSI_INTERFACE
 void MDL_key::init_psi_keys() {

@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#define ALLOW_COMPONENT_INCLUDE // for my_io.h and plugin.h
 #include "components/audit_log_filter/audit_log_filter.h"
 #include "components/audit_log_filter/audit_filter.h"
 #include "components/audit_log_filter/audit_keyring.h"

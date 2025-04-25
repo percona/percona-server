@@ -49,15 +49,9 @@ plug_dest	caching_sha2_password
 disconnect plug_user;
 UPDATE mysql.user SET user='plug_user' WHERE user='new_user';
 FLUSH PRIVILEGES;
-<<<<<<< HEAD
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
-||||||| merged common ancestors
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-=======
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
->>>>>>> mysql-9.2.0
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 plug_dest	caching_sha2_password
 plug_user	test_plugin_server
@@ -79,43 +73,25 @@ plug_dest	caching_sha2_password
 plug_user	test_plugin_server
 UPDATE mysql.user SET user='new_user' WHERE user='plug_user';
 FLUSH PRIVILEGES;
-<<<<<<< HEAD
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
-||||||| merged common ancestors
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-=======
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
->>>>>>> mysql-9.2.0
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 new_user	test_plugin_server
 plug_dest	caching_sha2_password
 UPDATE mysql.user SET authentication_string='new_dest' WHERE user='new_user';
 FLUSH PRIVILEGES;
-<<<<<<< HEAD
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
-||||||| merged common ancestors
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-=======
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
->>>>>>> mysql-9.2.0
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 new_user	test_plugin_server
 plug_dest	caching_sha2_password
 UPDATE mysql.user SET plugin='new_plugin_server' WHERE user='new_user';
 FLUSH PRIVILEGES;
-<<<<<<< HEAD
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
-||||||| merged common ancestors
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-=======
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
->>>>>>> mysql-9.2.0
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema', 'percona.telemetry');
 user	plugin
 new_user	new_plugin_server
 plug_dest	caching_sha2_password

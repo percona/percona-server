@@ -12948,7 +12948,78 @@ ER_AUTHENTICATION_OPENID_OPTION_REGISTER
 ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
   eng "Option deregistration failed."
 
-<<<<<<< HEAD
+ER_BULK_PARSER_UNEXPECTED_ENCLOSED_BY_CHARACTER_LOG
+  eng "Unexpected enclosed by character found inside unenclosed string at row %ld in file '%s' resulting in malformed CSV."
+
+ER_DIAG_LOG_STRING
+  eng "%s"
+
+ER_FAILED_TO_CREATE_RPL_OPT_TRACKER_THREAD
+  eng "Unable to create the thread that periodically tracks the replication features. The server will continue its bootstrap."
+
+ER_CONNECTION_CONTROL_STATUS_VAR_REG_FAILED
+  eng "component_connection_control status variables registration failed."
+
+ER_CONNECTION_CONTROL_STATUS_VAR_UNREG_FAILED
+  eng "component_connection_control status variables unregistration failed."
+
+ER_CONNECTION_CONTROL_VARIABLE_REGISTRATION_FAILED
+  eng "%s variable registration failed."
+
+ER_CONNECTION_CONTROL_VARIABLE_UNREGISTRATION_FAILED
+  eng "%s variable unregistration failed."
+
+ER_CONNECTION_CONTROL_FAILED_TO_GET_SECURITY_CTX
+  eng "Can't retrieve the security context from thread."
+
+ER_CONNECTION_CONTROL_FAILED_TO_GET_ATTRIBUTE_FROM_SECURITY_CTX
+  eng "Can't retrieve the %s from the security context."
+
+ER_CONNECTION_CONTROL_FAILED_DEINIT
+  eng "Failed to deinit %s."
+
+ER_GR_RM_MEMORY_STATS_FETCH_FAILED
+  eng "Error fetching system memory stats. Retrying in 5 seconds."
+
+ER_GR_RM_MEMORY_STATS_FETCH_SUCCESS
+  eng "Fetching system memory stats successfully resumed."
+
+ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_FAILED
+  eng "Replication channel lag retrieval failed due to query execution error. Retrying in 5 seconds."
+
+ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_SUCCESS
+  eng "Replication channel lag retrieved successfully resumed."
+
+ER_GR_RM_GR_MGMT_SERVICE_ACQUIRE_FAILED
+  eng "Failed to acquire Group Replication management service. Verify Group Replication status and configuration."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_MEMBER_LEAVING_APPLIER_THRESHOLD_HIT
+  eng "Member exiting group: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
+
+ER_GR_RM_MEMBER_LEAVING_RECOVERY_THRESHOLD_HIT
+  eng "Member exiting group: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
+
+ER_GR_RM_MEMBER_LEAVING_MEMORY_THRESHOLD_HIT
+  eng "Member exiting group: memory used of %d%% exceeded tolerance threshold configured to %d%%."
+
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13316,81 +13387,6 @@ ER_SSL_FIPS_MODE_ENABLED
 #
 
 
-||||||| merged common ancestors
-=======
-ER_BULK_PARSER_UNEXPECTED_ENCLOSED_BY_CHARACTER_LOG
-  eng "Unexpected enclosed by character found inside unenclosed string at row %ld in file '%s' resulting in malformed CSV."
-
-ER_DIAG_LOG_STRING
-  eng "%s"
-
-ER_FAILED_TO_CREATE_RPL_OPT_TRACKER_THREAD
-  eng "Unable to create the thread that periodically tracks the replication features. The server will continue its bootstrap."
-
-ER_CONNECTION_CONTROL_STATUS_VAR_REG_FAILED
-  eng "component_connection_control status variables registration failed."
-
-ER_CONNECTION_CONTROL_STATUS_VAR_UNREG_FAILED
-  eng "component_connection_control status variables unregistration failed."
-
-ER_CONNECTION_CONTROL_VARIABLE_REGISTRATION_FAILED
-  eng "%s variable registration failed."
-
-ER_CONNECTION_CONTROL_VARIABLE_UNREGISTRATION_FAILED
-  eng "%s variable unregistration failed."
-
-ER_CONNECTION_CONTROL_FAILED_TO_GET_SECURITY_CTX
-  eng "Can't retrieve the security context from thread."
-
-ER_CONNECTION_CONTROL_FAILED_TO_GET_ATTRIBUTE_FROM_SECURITY_CTX
-  eng "Can't retrieve the %s from the security context."
-
-ER_CONNECTION_CONTROL_FAILED_DEINIT
-  eng "Failed to deinit %s."
-
-ER_GR_RM_MEMORY_STATS_FETCH_FAILED
-  eng "Error fetching system memory stats. Retrying in 5 seconds."
-
-ER_GR_RM_MEMORY_STATS_FETCH_SUCCESS
-  eng "Fetching system memory stats successfully resumed."
-
-ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_FAILED
-  eng "Replication channel lag retrieval failed due to query execution error. Retrying in 5 seconds."
-
-ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_SUCCESS
-  eng "Replication channel lag retrieved successfully resumed."
-
-ER_GR_RM_GR_MGMT_SERVICE_ACQUIRE_FAILED
-  eng "Failed to acquire Group Replication management service. Verify Group Replication status and configuration."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_QUARANTINE
-  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_QUARANTINE
-  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_QUARANTINE
-  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_N_MEMBERS
-  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_N_MEMBERS
-  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
-
-ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_N_MEMBERS
-  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, the group has less than 3 members, the member will not leave the group."
-
-ER_GR_RM_MEMBER_LEAVING_APPLIER_THRESHOLD_HIT
-  eng "Member exiting group: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
-
-ER_GR_RM_MEMBER_LEAVING_RECOVERY_THRESHOLD_HIT
-  eng "Member exiting group: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
-
-ER_GR_RM_MEMBER_LEAVING_MEMORY_THRESHOLD_HIT
-  eng "Member exiting group: memory used of %d%% exceeded tolerance threshold configured to %d%%."
-
->>>>>>> mysql-9.2.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

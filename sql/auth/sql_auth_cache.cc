@@ -174,7 +174,6 @@ bool validate_user_plugins = true;
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
 
-<<<<<<< HEAD
 ACL_USER acl_utility_user;
 static LEX_STRING acl_utility_user_name, acl_utility_user_host_name;
 static bool acl_utility_user_initialized = false;
@@ -183,8 +182,6 @@ static std::vector<std::string> uu_dynamic_privileges;
 
 static void acl_free_utility_user();
 
-||||||| merged common ancestors
-=======
 /**
  * Returns a non-owning raw pointer of either func_priv_hash, proc_priv_hash or
  * library_priv_hash.
@@ -207,7 +204,6 @@ malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
   return nullptr;
 }
 
->>>>>>> mysql-9.2.0
 /** Helper: Set user name */
 static void set_username(char **user, const char *user_arg, MEM_ROOT *mem) {
   assert(user != nullptr);
@@ -3743,23 +3739,11 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
     return;
   }
   List_of_granted_roles granted_roles;
-<<<<<<< HEAD
-  get_privilege_access_maps(
-      acl_user, sctx->get_active_roles(), &m_global_acl, &m_db_acls,
-      &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls, &granted_roles,
-      &m_with_admin_acls, &m_dynamic_privileges, m_restrictions, false);
-||||||| merged common ancestors
-  get_privilege_access_maps(
-      acl_user, sctx->get_active_roles(), &m_global_acl, &m_db_acls,
-      &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls, &granted_roles,
-      &m_with_admin_acls, &m_dynamic_privileges, m_restrictions);
-=======
   get_privilege_access_maps(acl_user, sctx->get_active_roles(), &m_global_acl,
                             &m_db_acls, &m_db_wild_acls, &m_table_acls,
                             &m_sp_acls, &m_func_acls, &m_lib_acls,
                             &granted_roles, &m_with_admin_acls,
-                            &m_dynamic_privileges, m_restrictions);
->>>>>>> mysql-9.2.0
+                            &m_dynamic_privileges, m_restrictions, false);
 }
 
 Acl_map::~Acl_map() {

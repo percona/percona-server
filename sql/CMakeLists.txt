@@ -109,17 +109,11 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_keyword_list
 )
 
-<<<<<<< HEAD
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
-||||||| merged common ancestors
-ADD_DEFINITIONS(-DMYSQL_SERVER)
-=======
 IF(WITH_LOG_DIAGNOSTIC)
   ADD_DEFINITIONS(-DHAVE_LOG_DIAGNOSTIC)
 ENDIF()
 
-ADD_DEFINITIONS(-DMYSQL_SERVER)
->>>>>>> mysql-9.2.0
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
 ADD_SUBDIRECTORY(server_component)
 ADD_SUBDIRECTORY(protobuf)
 
@@ -978,21 +972,8 @@ ELSEIF(WITH_SHOW_PARSE_TREE_DEFAULT STREQUAL "default")
     $<$<CONFIG:Debug>:WITH_SHOW_PARSE_TREE=1>)
 ENDIF()
 
-<<<<<<< HEAD
-TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
-
-||||||| merged common ancestors
-TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
-
-TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
-
-=======
 TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
 
->>>>>>> mysql-9.2.0
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys library_mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto

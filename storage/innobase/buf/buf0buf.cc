@@ -5979,14 +5979,12 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       /* Pages must be uncompressed for crash recovery. */
       ut_a(uncompressed);
       recv_recover_page(true, (buf_block_t *)bpage);
-<<<<<<< HEAD
-    }
-
-    if (uncompressed && !Compression::is_compressed_page(frame) &&
-        !recv_no_ibuf_operations &&
-        fil_page_get_type(frame) == FIL_PAGE_INDEX && page_is_leaf(frame) &&
-        !fsp_is_system_temporary(bpage->id.space()) &&
-        !fsp_is_undo_tablespace(bpage->id.space()) && !bpage->was_stale()) {
+    } else if (uncompressed && !Compression::is_compressed_page(frame) &&
+               fil_page_get_type(frame) == FIL_PAGE_INDEX &&
+               page_is_leaf(frame) &&
+               !fsp_is_system_temporary(bpage->id.space()) &&
+               !fsp_is_undo_tablespace(bpage->id.space()) &&
+               !bpage->was_stale()) {
       buf_block_t *block;
       bool update_ibuf_bitmap;
 
@@ -5999,26 +5997,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       }
       ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
                                     update_ibuf_bitmap);
-||||||| merged common ancestors
-    }
-
-    if (uncompressed && !Compression::is_compressed_page(frame) &&
-        !recv_no_ibuf_operations &&
-        fil_page_get_type(frame) == FIL_PAGE_INDEX && page_is_leaf(frame) &&
-        !fsp_is_system_temporary(bpage->id.space()) &&
-        !fsp_is_undo_tablespace(bpage->id.space()) && !bpage->was_stale()) {
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, true);
-=======
-    } else if (uncompressed && !Compression::is_compressed_page(frame) &&
-               fil_page_get_type(frame) == FIL_PAGE_INDEX &&
-               page_is_leaf(frame) &&
-               !fsp_is_system_temporary(bpage->id.space()) &&
-               !fsp_is_undo_tablespace(bpage->id.space()) &&
-               !bpage->was_stale()) {
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, true);
->>>>>>> mysql-9.2.0
     }
   }
 

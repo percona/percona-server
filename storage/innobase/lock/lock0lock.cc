@@ -477,6 +477,11 @@ void lock_sys_close(void) {
   lock_sys = nullptr;
 }
 
+bool lock_is_waiting(const lock_t &lock) {
+  ut_ad(locksys::owns_lock_shard(&lock));
+  return lock.is_waiting();
+}
+
 /** Sets the wait flag of a lock and the back pointer in trx to lock.
 @param[in]  lock  The lock on which a transaction is waiting */
 static inline void lock_set_lock_and_trx_wait(lock_t *lock) {

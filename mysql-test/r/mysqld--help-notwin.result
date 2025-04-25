@@ -351,17 +351,13 @@ The following options may be given as the first argument:
  before storage engine initialization, where each plugin
  is identified as name=library, where name is the plugin
  name and library is the plugin library in plugin_dir.
-<<<<<<< HEAD
- --encrypt-tmp-files Encrypt temporary files (created for filesort, Group
- Replication, etc)
-||||||| merged common ancestors
-=======
  --enable-secondary-engine-statistics 
  When this option is enabled, the hypergraph query
  optimizer may fetchstatistics from the secondary engine,
  if available
  (Defaults to on; use --skip-enable-secondary-engine-statistics to disable.)
->>>>>>> mysql-9.2.0
+ --encrypt-tmp-files Encrypt temporary files (created for filesort, Group
+ Replication, etc)
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -1832,12 +1828,8 @@ delayed-queue-size 1000
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 div-precision-increment 4
-<<<<<<< HEAD
-encrypt-tmp-files FALSE
-||||||| merged common ancestors
-=======
 enable-secondary-engine-statistics TRUE
->>>>>>> mysql-9.2.0
+encrypt-tmp-files FALSE
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 enforce-storage-engine (No default value)
@@ -2042,13 +2034,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 175
-<<<<<<< HEAD
-performance-schema-max-statement-classes 234
-||||||| merged common ancestors
-performance-schema-max-statement-classes 226
-=======
-performance-schema-max-statement-classes 229
->>>>>>> mysql-9.2.0
+performance-schema-max-statement-classes 237
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1

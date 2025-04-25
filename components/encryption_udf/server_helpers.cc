@@ -16,6 +16,7 @@
 
 #include "server_helpers.h"
 
+#define ALLOW_COMPONENT_INCLUDE // for my_io.h
 #include <sql/sql_class.h>
 
 bool is_thd_killed(const THD *thd) noexcept {

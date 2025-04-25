@@ -1003,11 +1003,8 @@ static bool login_connection(THD *thd) {
     return true;
   }
   /* Connect completed, set read/write timeouts back to default */
-<<<<<<< HEAD
-  thd->get_protocol_classic()->set_read_timeout(
-      thd->variables.net_read_timeout);
-  thd->get_protocol_classic()->set_write_timeout(
-      thd->variables.net_write_timeout);
+  protocol->set_read_timeout(thd->variables.net_read_timeout);
+  protocol->set_write_timeout(thd->variables.net_write_timeout);
 
   if (unlikely(opt_userstat)) {
     thd->reset_stats();
@@ -1016,15 +1013,6 @@ static bool login_connection(THD *thd) {
     increment_connection_count(*thd, true);
   }
 
-||||||| merged common ancestors
-  thd->get_protocol_classic()->set_read_timeout(
-      thd->variables.net_read_timeout);
-  thd->get_protocol_classic()->set_write_timeout(
-      thd->variables.net_write_timeout);
-=======
-  protocol->set_read_timeout(thd->variables.net_read_timeout);
-  protocol->set_write_timeout(thd->variables.net_write_timeout);
->>>>>>> mysql-9.2.0
   return false;
 }
 

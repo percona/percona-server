@@ -84,13 +84,7 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
    * metadata
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
-<<<<<<< HEAD
-   * @throws metadata_cache::metadata_error on failure
-||||||| merged common ancestors
-   * @throws metadata_cache::metadata_error
-=======
    * @throws metadata_cache::metadata_error If fetching metadata fails.
->>>>>>> mysql-9.2.0
    */
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(

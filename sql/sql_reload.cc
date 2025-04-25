@@ -53,12 +53,8 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // reset_mqh
 #include "sql/sql_const.h"
-<<<<<<< HEAD
-#include "sql/sql_profile.h"
-||||||| merged common ancestors
-=======
 #include "sql/sql_error.h"    // push_deprecated_warn_no_replacement
->>>>>>> mysql-9.2.0
+#include "sql/sql_profile.h"
 #include "sql/sql_servers.h"  // servers_reload
 #include "sql/system_variables.h"
 #include "sql/table.h"

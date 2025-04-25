@@ -7385,7 +7385,7 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_rpl_opt_tracker, &LOCK_rpl_opt_tracker,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table, &COND_compress_gtid_table);
-<<<<<<< HEAD
+  mysql_cond_init(key_COND_rpl_opt_tracker, &COND_rpl_opt_tracker);
 
   mysql_mutex_init(key_LOCK_global_user_client_stats,
                    &LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
@@ -7394,10 +7394,6 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_global_index_stats, &LOCK_global_index_stats,
                    MY_MUTEX_INIT_FAST);
 
-||||||| merged common ancestors
-=======
-  mysql_cond_init(key_COND_rpl_opt_tracker, &COND_rpl_opt_tracker);
->>>>>>> mysql-9.2.0
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count, &LOCK_handler_count,
@@ -8351,14 +8347,9 @@ static int init_server_components() {
   randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
   setup_fpu();
 
-<<<<<<< HEAD
   init_global_table_stats();
   init_global_index_stats();
 
-  setup_error_log();  // opens the log if needed
-||||||| merged common ancestors
-  setup_error_log();  // opens the log if needed
-=======
   setup_error_log();       // opens the log if needed
   setup_diagnostic_log();  // opens the log if needed
 
@@ -8367,7 +8358,6 @@ static int init_server_components() {
     fflush(stdout);
     LogDiag(INFORMATION_LEVEL, ER_DIAG_LOG_STRING, "Message to diagnostic log");
   });
->>>>>>> mysql-9.2.0
 
   enter_cond_hook = thd_enter_cond;
   exit_cond_hook = thd_exit_cond;

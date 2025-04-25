@@ -362,14 +362,8 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
       }
 
       // write log-event to log-file
-<<<<<<< HEAD
       if (!log_only_to_buffered_error_log || !buffered_error_log.is_enabled())
-        log_write_errstream(buff_line, len);
-||||||| merged common ancestors
-      log_write_errstream(buff_line, len);
-=======
-      log_write_errstream(buff_line, len, log_type);
->>>>>>> mysql-9.2.0
+        log_write_errstream(buff_line, len, log_type);
     }
   }
 

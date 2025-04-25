@@ -1342,7 +1342,6 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
     return;
   }
 
-<<<<<<< HEAD
   if (command->abort_on_error) {
     if (err_errno == ER_NO_SUCH_THREAD) {
       /* No such thread id, let's dump the available ones */
@@ -1352,19 +1351,10 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
               command->query);
       show_query(&cur_con->mysql, "SHOW PROCESSLIST");
     }
-    die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
-        err_sqlstate, err_error);
-  }
-||||||| merged common ancestors
-  if (command->abort_on_error)
-    die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
-        err_sqlstate, err_error);
-=======
-  if (command->abort_on_error)
     handle_error_and_die("Query failed.", interpolated_query, command->query,
                          expected_errors->error_list().c_str(), err_errno,
                          err_error, err_sqlstate);
->>>>>>> mysql-9.2.0
+  }
 
   DBUG_PRINT("info", ("Expected errors count: %zu", expected_errors->count()));
 
@@ -1403,7 +1393,6 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
   }
 
   if (expected_errors->count()) {
-<<<<<<< HEAD
     if (err_errno == ER_NO_SUCH_THREAD) {
       /* No such thread id, let's dump the available ones */
       fprintf(stderr,
@@ -1412,36 +1401,11 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
               command->query);
       show_query(&cur_con->mysql, "SHOW PROCESSLIST");
     }
-    if (expected_errors->count() == 1) {
-      die("Query '%s' failed with wrong error %d: '%s', should have failed "
-          "with error '%s'.",
-          command->query, err_errno, err_error,
-          expected_errors->error_list().c_str());
-    } else {
-      die("Query '%s' failed with wrong error %d: '%s', should have failed "
-          "with any of '%s' errors.",
-          command->query, err_errno, err_error,
-          expected_errors->error_list().c_str());
-    }
-||||||| merged common ancestors
-    if (expected_errors->count() == 1) {
-      die("Query '%s' failed with wrong error %d: '%s', should have failed "
-          "with error '%s'.",
-          command->query, err_errno, err_error,
-          expected_errors->error_list().c_str());
-    } else {
-      die("Query '%s' failed with wrong error %d: '%s', should have failed "
-          "with any of '%s' errors.",
-          command->query, err_errno, err_error,
-          expected_errors->error_list().c_str());
-    }
-=======
     handle_error_and_die(
         "Query failed with an error different from the expected error(s).",
         interpolated_query, command->query,
         expected_errors->error_list().c_str(), err_errno, err_error,
         err_sqlstate);
->>>>>>> mysql-9.2.0
   }
 
   revert_properties();

@@ -419,12 +419,8 @@ struct MDL_key {
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
-<<<<<<< HEAD
-    BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
-||||||| merged common ancestors
-=======
     LIBRARY,
->>>>>>> mysql-9.2.0
+    BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
     /* This should be the last ! */
     NAMESPACE_END
   };

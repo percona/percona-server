@@ -176,7 +176,7 @@ int my_aes_encrypt(EVP_CIPHER_CTX *ctx, const unsigned char *source,
                    uint32 source_length, unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding, vector<string> *kdf_options) {
+                   bool padding, std::vector<std::string> *kdf_options) {
   const EVP_CIPHER *cipher = aes_evp_type(mode);
   int u_len, f_len;
   /* The real key to be used for encryption */
@@ -229,7 +229,7 @@ int my_aes_decrypt(EVP_CIPHER_CTX *ctx, const unsigned char *source,
                    uint32 source_length, unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding, vector<string> *kdf_options) {
+                   bool padding, std::vector<std::string> *kdf_options) {
   const EVP_CIPHER *cipher = aes_evp_type(mode);
   int u_len, f_len;
 

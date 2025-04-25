@@ -115,22 +115,10 @@ class ClusterMetadata {
   /** @brief Verify that host is a valid metadata server
    *
    *
-<<<<<<< HEAD
-   * @throws MySQLSession::Error on failure
-   * @throws std::runtime_error on failure
-   * @throws std::out_of_range on failure
-   * @throws std::logic_error on failure
-||||||| merged common ancestors
-   * @throws MySQLSession::Error
-   * @throws std::runtime_error
-   * @throws std::out_of_range
-   * @throws std::logic_error
-=======
    * @throws MySQLSession::Error  On error.
    * @throws std::runtime_error   On error.
    * @throws std::out_of_range    On error.
    * @throws std::logic_error     On error.
->>>>>>> mysql-9.2.0
    *
    * checks that the server
    *
@@ -143,22 +131,10 @@ class ClusterMetadata {
   /** @brief Verify that host is a valid cluster member (either Group
    * Replication or ReplicaSet cluster)
    *
-<<<<<<< HEAD
-   * @throws MySQLSession::Error on failure
-   * @throws std::runtime_error on failure
-   * @throws std::out_of_range on failure
-   * @throws std::logic_error on failure
-||||||| merged common ancestors
-   * @throws MySQLSession::Error
-   * @throws std::runtime_error
-   * @throws std::out_of_range
-   * @throws std::logic_error
-=======
    * @throws MySQLSession::Error On error.
    * @throws std::runtime_error  On error.
    * @throws std::out_of_range   On error.
    * @throws std::logic_error    On error.
->>>>>>> mysql-9.2.0
    */
   virtual void require_cluster_is_ok() = 0;
 

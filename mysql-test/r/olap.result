@@ -2458,7 +2458,6 @@ SUM(UTC_DATE()) OVER()
 20090416
 SET timestamp=default;
 DROP TABLE t1;
-<<<<<<< HEAD
 #
 # PS-8328: MySQL 8 Crash when using group_concat with group by with
 #          rollup.
@@ -2491,13 +2490,3 @@ i	string	GROUP_CONCAT(string)
 20	NULL	something_completely_else
 NULL	NULL	something,something_else,something_completely_else
 DROP TABLE t1;
-||||||| merged common ancestors
-#
-# Bug#36804785: `false' in operator at sql/sql_executor.cc
-#
-CREATE TABLE t1(f1 INTEGER);
-SELECT SUM(UTC_DATE()) OVER() FROM t1 GROUP BY UTC_DATE() WITH ROLLUP;
-SUM(UTC_DATE()) OVER()
-DROP TABLE t1;
-=======
->>>>>>> mysql-9.2.0

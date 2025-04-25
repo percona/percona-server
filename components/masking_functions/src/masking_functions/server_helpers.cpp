@@ -17,7 +17,8 @@
 
 #include <rwlock_scoped_lock.h>
 
-#include "sql/mysqld.h"
+extern mysql_rwlock_t LOCK_server_shutting_down;
+extern bool server_shutting_down;
 
 namespace masking_functions {
 

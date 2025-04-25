@@ -115,24 +115,10 @@ if (!$eval_result)
 --let $include_filename = assert.inc [$assert_text]
 --source include/end_include_file.inc
 
-<<<<<<< HEAD
---let $assert_text=
---let $assert_cond=
---let $assert_debug=
---let $eval_expr= $_assert_old_eval_expr
---let $eval_result= $_assert_old_eval_result
---let $eval_no_result= $_assert_old_eval_no_result
-||||||| merged common ancestors
---let $assert_text=
---let $assert_cond=
---let $eval_expr= $_assert_old_eval_expr
---let $eval_result= $_assert_old_eval_result
---let $eval_no_result= $_assert_old_eval_no_result
-=======
 --let $assert_text =
 --let $assert_cond =
+--let $assert_debug=
 --let $rpl_debug = $_assert_old_rpl_debug
 --let $eval_expr = $_assert_old_eval_expr
 --let $eval_result = $_assert_old_eval_result
 --let $eval_no_result = $_assert_old_eval_no_result
->>>>>>> mysql-9.2.0

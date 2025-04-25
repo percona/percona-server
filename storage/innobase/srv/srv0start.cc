@@ -2053,37 +2053,7 @@ dberr_t srv_start(bool create_new_db) {
       return srv_init_abort(err);
     }
 
-<<<<<<< HEAD
-    if (err == DB_SUCCESS) {
-      arch_page_sys->post_recovery_init();
-
-      /* Initialize the change buffer. */
-      err = dict_boot();
-      DBUG_EXECUTE_IF("ib_dic_boot_error", err = DB_ERROR;);
-    }
-
-    if (err != DB_SUCCESS) {
-      /* Set the abort flag to true. */
-      auto p = recv_recovery_from_checkpoint_finish(true);
-
-      ut_a(p == nullptr);
-
-      return (srv_init_abort(err));
-    }
-||||||| merged common ancestors
-    if (err == DB_SUCCESS) {
-      arch_page_sys->post_recovery_init();
-
-      /* Initialize the change buffer. */
-      err = dict_boot();
-    }
-
-    if (err != DB_SUCCESS) {
-      return (srv_init_abort(err));
-    }
-=======
     arch_page_sys->post_recovery_init();
->>>>>>> mysql-9.2.0
 
     ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
 
@@ -2096,65 +2066,7 @@ dberr_t srv_start(bool create_new_db) {
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
       RECOVERY_CRASH(2);
 
-<<<<<<< HEAD
-      /* Don't allow IBUF operations for cloned database
-      recovery as it would add extra redo log and we may
-      not have enough margin.
-
-      Don't allow IBUF operations when redo is written
-      in the older format than the current, because we
-      would write new redo records in the current fmt,
-      and end up with file in both formats = invalid. */
-
-      recv_apply_hashed_log_recs(*log_sys,
-                                 !recv_sys->is_cloned_db && !log_upgrade);
-
-      if (recv_sys->found_corrupt_log) {
-        err = DB_ERROR;
-        /* Set the abort flag to true. */
-        auto p = recv_recovery_from_checkpoint_finish(true);
-
-        ut_a(p == nullptr);
-        return (srv_init_abort(err));
-      }
-
-      DBUG_PRINT("ib_log", ("apply completed"));
-
-      /* Check and print if there were any tablespaces
-      which had redo log records but we couldn't apply
-      them because the filenames were missing. */
-
-      /* Recovery complete, start verifying the
-      page LSN on read. */
-||||||| merged common ancestors
-      /* Don't allow IBUF operations for cloned database
-      recovery as it would add extra redo log and we may
-      not have enough margin.
-
-      Don't allow IBUF operations when redo is written
-      in the older format than the current, because we
-      would write new redo records in the current fmt,
-      and end up with file in both formats = invalid. */
-
-      recv_apply_hashed_log_recs(*log_sys,
-                                 !recv_sys->is_cloned_db && !log_upgrade);
-
-      if (recv_sys->found_corrupt_log) {
-        err = DB_ERROR;
-        return (srv_init_abort(err));
-      }
-
-      DBUG_PRINT("ib_log", ("apply completed"));
-
-      /* Check and print if there were any tablespaces
-      which had redo log records but we couldn't apply
-      them because the filenames were missing. */
-
-      /* Recovery complete, start verifying the
-      page LSN on read. */
-=======
       /* Recovery complete, start verifying the page LSN on read. */
->>>>>>> mysql-9.2.0
       recv_lsn_checks_on = true;
     }
 
@@ -2213,6 +2125,7 @@ dberr_t srv_start(bool create_new_db) {
     /* We could possibly execute it much later if not the current dict_persist
     functionality implementation, which requires it to work properly. */
     err = dict_boot();
+    DBUG_EXECUTE_IF("ib_dic_boot_error", err = DB_ERROR;);
 
     if (err != DB_SUCCESS) {
       return (srv_init_abort(err));

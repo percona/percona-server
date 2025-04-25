@@ -27,15 +27,8 @@ perl;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build
-<<<<<<< HEAD
-  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops version-suffix
-                     percona-telemetry-disable/;
-||||||| merged common ancestors
-  @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops/;
-=======
   @build_specific=qw/auto-generate-certs lock-order tls-version admin-tls-version debug-enable-extended-set-ops
-               enable-diagnostic-log log-diagnostic/;
->>>>>>> mysql-9.2.0
+               enable-diagnostic-log log-diagnostic version-suffix percona-telemetry-disable/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file

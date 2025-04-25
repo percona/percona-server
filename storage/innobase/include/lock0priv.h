@@ -253,7 +253,6 @@ struct alignas(8 /* For efficient Bitmap::find_set */) lock_t {
         ut_error;
     }
   }
-<<<<<<< HEAD
   /** @overload */
   Bitset<const byte> bitset() const {
     ut_ad(is_record_lock());
@@ -286,107 +285,6 @@ struct TableLockGetNode {
   static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
     return lock.tab_lock.locks;
   }
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-  /** @overload */
-  Bitset<const byte> bitset() const {
-    ut_ad(is_record_lock());
-    /* On a 32-bit system alignof(uint64_t) might be 4. Still, the
-    Bitmap::find_set goes into slow path if address is not a multiple of 8. */
-    static_assert(8 <= alignof(lock_t),
-                  "lock_t and thus the bitmap after lock_t should be aligned "
-                  "for efficient 64-bit access");
-    const byte *bitmap = (const byte *)&this[1];
-    /* static_assert verified the theory, but the actual allocation algorithm
-    used could assign a wrong address in practice */
-    ut_ad(reinterpret_cast<uintptr_t>(bitmap) % 8 == 0);
-    ut_ad(rec_lock.n_bits % 8 == 0);
-    return {bitmap, rec_lock.n_bits / 8};
-  }
-  /** Gets access to the LOCK_REC's bitmap, which indicates heap_no-s, which are
-  the subject of this lock request. This should be used directly only in the
-  lock-sys code. Use lock_rec_bitmap_reset(), lock_rec_reset_nth_bit(),
-  lock_rec_set_nth_bit(), and lock_rec_get_nth_bit() wrappers instead. In
-  particular this bitset might be shorter than actual number of heap_no-s on the
-  page! */
-  Bitset<byte> bitset() {
-    auto immutable = const_cast<const ib_lock_t *>(this)->bitset();
-    return {const_cast<byte *>(immutable.data()), immutable.size_bytes()};
-  }
-};
-
-struct TableLockGetNode {
-  /** Functor for accessing the embedded node within a table lock. */
-  static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
-    return lock.tab_lock.locks;
-  }
-||||||||| 7cc96f7b502e
-=========
-  /** @overload */
-  Bitset<const byte> bitset() const {
-    ut_ad(is_record_lock());
-    static_assert(alignof(uint64_t) <= alignof(lock_t),
-                  "lock_t and thus the bitmap after lock_t should be aligned "
-                  "for efficient 64-bit access");
-    const byte *bitmap = (const byte *)&this[1];
-    /* static_assert verified the theory, but the actual allocation algorithm
-    used could assign a wrong address in practice */
-    ut_ad(reinterpret_cast<uintptr_t>(bitmap) % 8 == 0);
-    ut_ad(rec_lock.n_bits % 8 == 0);
-    return {bitmap, rec_lock.n_bits / 8};
-  }
-  /** Gets access to the LOCK_REC's bitmap, which indicates heap_no-s, which are
-  the subject of this lock request. This should be used directly only in the
-  lock-sys code. Use lock_rec_bitmap_reset(), lock_rec_reset_nth_bit(),
-  lock_rec_set_nth_bit(), and lock_rec_get_nth_bit() wrappers instead. In
-  particular this bitset might be shorter than actual number of heap_no-s on the
-  page! */
-  Bitset<byte> bitset() {
-    auto immutable = const_cast<const ib_lock_t *>(this)->bitset();
-    return {const_cast<byte *>(immutable.data()), immutable.size_bytes()};
-  }
-};
-
-struct TableLockGetNode {
-  /** Functor for accessing the embedded node within a table lock. */
-  static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
-    return lock.tab_lock.locks;
-  }
->>>>>>>>> Temporary merge branch 2
-=======
-  /** @overload */
-  Bitset<const byte> bitset() const {
-    ut_ad(is_record_lock());
-    /* On a 32-bit system alignof(uint64_t) might be 4. Still, the
-    Bitmap::find_set goes into slow path if address is not a multiple of 8. */
-    static_assert(8 <= alignof(lock_t),
-                  "lock_t and thus the bitmap after lock_t should be aligned "
-                  "for efficient 64-bit access");
-    const byte *bitmap = (const byte *)&this[1];
-    /* static_assert verified the theory, but the actual allocation algorithm
-    used could assign a wrong address in practice */
-    ut_ad(reinterpret_cast<uintptr_t>(bitmap) % 8 == 0);
-    ut_ad(rec_lock.n_bits % 8 == 0);
-    return {bitmap, rec_lock.n_bits / 8};
-  }
-  /** Gets access to the LOCK_REC's bitmap, which indicates heap_no-s, which are
-  the subject of this lock request. This should be used directly only in the
-  lock-sys code. Use lock_rec_bitmap_reset(), lock_rec_reset_nth_bit(),
-  lock_rec_set_nth_bit(), and lock_rec_get_nth_bit() wrappers instead. In
-  particular this bitset might be shorter than actual number of heap_no-s on the
-  page! */
-  Bitset<byte> bitset() {
-    auto immutable = const_cast<const ib_lock_t *>(this)->bitset();
-    return {const_cast<byte *>(immutable.data()), immutable.size_bytes()};
-  }
-};
-
-struct TableLockGetNode {
-  /** Functor for accessing the embedded node within a table lock. */
-  static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
-    return lock.tab_lock.locks;
-  }
->>>>>>> mysql-9.2.0
 };
 
 UT_LIST_NODE_GETTER_DEFINITION(lock_t, trx_locks)

@@ -15761,26 +15761,16 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   }
 
   alter_info->create_list.swap(new_create_list);
-<<<<<<< HEAD
-  alter_info->key_list.clear();
-  alter_info->key_list.resize(new_key_list.size());
-  std::copy(new_key_list.begin(), new_key_list.end(),
-            alter_info->key_list.begin());
-  alter_info->delayed_key_list.clear();
-  alter_info->delayed_key_list.resize(delayed_key_list.size());
-  std::copy(delayed_key_list.cbegin(), delayed_key_list.cend(),
-            alter_info->delayed_key_list.begin());
-||||||| merged common ancestors
-  alter_info->key_list.clear();
-  alter_info->key_list.resize(new_key_list.size());
-  std::copy(new_key_list.begin(), new_key_list.end(),
-            alter_info->key_list.begin());
-=======
   if (alter_info->key_list.resize(new_key_list.size())) {
     return true;
   }
   std::ranges::copy(new_key_list, alter_info->key_list.begin());
->>>>>>> mysql-9.2.0
+  alter_info->delayed_key_list.clear();
+  if (alter_info->delayed_key_list.resize(delayed_key_list.size())) {
+    return true;
+  }
+  std::copy(delayed_key_list.cbegin(), delayed_key_list.cend(),
+            alter_info->delayed_key_list.begin());
 
   return false;
 }

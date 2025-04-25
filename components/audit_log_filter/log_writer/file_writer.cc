@@ -15,6 +15,7 @@
 
 #include "file_writer.h"
 
+#define ALLOW_COMPONENT_INCLUDE // for plugin.h
 #include "file_handle.h"
 
 namespace audit_log_filter::log_writer {

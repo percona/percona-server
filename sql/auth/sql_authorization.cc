@@ -1608,18 +1608,9 @@ class Get_access_maps : public boost::default_bfs_visitor {
   Get_access_maps(ACL_USER *acl_user, Access_bitmask *access,
                   Db_access_map *db_map, Db_access_map *db_wild_map,
                   Table_access_map *table_map, SP_access_map *sp_map,
-<<<<<<< HEAD
-                  SP_access_map *func_map, Grant_acl_set *with_admin_acl,
-                  Dynamic_privileges *dyn_acl, Restrictions *restrictions,
-                  bool effective_grants)
-||||||| merged common ancestors
-                  SP_access_map *func_map, Grant_acl_set *with_admin_acl,
-                  Dynamic_privileges *dyn_acl, Restrictions *restrictions)
-=======
                   SP_access_map *func_map, SP_access_map *lib_map,
                   Grant_acl_set *with_admin_acl, Dynamic_privileges *dyn_acl,
-                  Restrictions *restrictions)
->>>>>>> mysql-9.2.0
+                  Restrictions *restrictions, bool effective_grants)
       : m_access(access),
         m_db_map(db_map),
         m_db_wild_map(db_wild_map),
@@ -1680,7 +1671,8 @@ class Get_access_maps : public boost::default_bfs_visitor {
                       m_effective_grants);
 
     /* Add user library access */
-    get_sp_access_map(&acl_user, m_lib_map, library_priv_hash.get());
+    get_sp_access_map(&acl_user, m_lib_map, library_priv_hash.get(),
+                      m_effective_grants);
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
@@ -4819,18 +4811,9 @@ void get_privilege_access_maps(
     ACL_USER *acl_user, const List_of_auth_id_refs *using_roles,
     Access_bitmask *access, Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
-<<<<<<< HEAD
-    List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions,
-    bool effective_grants) {
-||||||| merged common ancestors
-    List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions) {
-=======
     SP_access_map *lib_map, List_of_granted_roles *granted_roles,
     Grant_acl_set *with_admin_acl, Dynamic_privileges *dynamic_acl,
-    Restrictions &restrictions) {
->>>>>>> mysql-9.2.0
+    Restrictions &restrictions, bool effective_grants) {
   DBUG_TRACE;
   assert(assert_acl_cache_read_lock(current_thd));
   List_of_auth_id_refs activated_roles_ref;
@@ -4849,15 +4832,9 @@ void get_privilege_access_maps(
   // get stored procedure privileges
   get_sp_access_map(acl_user, sp_map, proc_priv_hash.get(), effective_grants);
   // get user function privileges
-<<<<<<< HEAD
   get_sp_access_map(acl_user, func_map, func_priv_hash.get(), effective_grants);
-||||||| merged common ancestors
-  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
-=======
-  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
   // get library privileges
-  get_sp_access_map(acl_user, lib_map, library_priv_hash.get());
->>>>>>> mysql-9.2.0
+  get_sp_access_map(acl_user, lib_map, library_priv_hash.get(), effective_grants);
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
   /* Find out the existing restrictions of the current user. */
@@ -4887,19 +4864,9 @@ void get_privilege_access_maps(
   boost::vector_property_map<boost::default_color_type> v_color(
       boost::num_vertices(*g_granted_roles));
 
-<<<<<<< HEAD
-  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map, sp_map,
-                      func_map, with_admin_acl, dynamic_acl, &restrictions,
-                      effective_grants);
-||||||| merged common ancestors
-  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map,
-                            sp_map, func_map, with_admin_acl, dynamic_acl,
-                            &restrictions);
-=======
   const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map,
                             sp_map, func_map, lib_map, with_admin_acl,
-                            dynamic_acl, &restrictions);
->>>>>>> mysql-9.2.0
+                            dynamic_acl, &restrictions, effective_grants);
   if (has_granted_roles || mandatory_roles.size() > 0) {
     bool acl_user_has_vertex = (user_vertex_it != g_authid_to_vertex->end());
     if (!acl_user_has_vertex) return;
@@ -5070,16 +5037,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
                             &db_wild_map, &table_map, &sp_map, &func_map,
-<<<<<<< HEAD
-                            &granted_roles, &with_admin_acl, &dynamic_acl,
-                            restrictions, effective_grants);
-||||||| merged common ancestors
-                            &granted_roles, &with_admin_acl, &dynamic_acl,
-                            restrictions);
-=======
                             &lib_map, &granted_roles, &with_admin_acl,
-                            &dynamic_acl, restrictions);
->>>>>>> mysql-9.2.0
+                            &dynamic_acl, restrictions, effective_grants);
   String output;
   make_global_privilege_statement(thd, access, acl_user, &output);
   Protocol *protocol = thd->get_protocol();

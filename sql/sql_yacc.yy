@@ -564,13 +564,7 @@ void warn_on_deprecated_user_defined_collation(
   2. We should not introduce new shift/reduce conflicts any more.
 */
 
-<<<<<<< HEAD
-%expect 62
-||||||| merged common ancestors
-%expect 59
-=======
-%expect 37
->>>>>>> mysql-9.2.0
+%expect 40
 
 /*
    MAINTAINER:
@@ -1470,7 +1464,6 @@ void warn_on_deprecated_user_defined_collation(
   NOTE! When adding new non-standard keywords, make sure they are added to the
   list ident_keywords_unambiguous lest they become reserved keywords.
 */
-
 
 /*
    Tokens from Percona Server 5.7 and older

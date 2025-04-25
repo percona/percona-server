@@ -283,18 +283,9 @@ void get_privilege_access_maps(
     ACL_USER *acl_user, const List_of_auth_id_refs *using_roles,
     Access_bitmask *access, Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
-<<<<<<< HEAD
-    List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions,
-    bool effective_grants);
-||||||| merged common ancestors
-    List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions);
-=======
     SP_access_map *lib_map, List_of_granted_roles *granted_roles,
     Grant_acl_set *with_admin_acl, Dynamic_privileges *dynamic_acl,
-    Restrictions &restrictions);
->>>>>>> mysql-9.2.0
+    Restrictions &restrictions, bool effective_grants);
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id> *default_roles);

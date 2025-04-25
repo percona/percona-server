@@ -46,6 +46,7 @@
 #include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql_com.h"
+#include "mysys/stream_cipher.h"
 #include "sql/current_thd.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"  // THD

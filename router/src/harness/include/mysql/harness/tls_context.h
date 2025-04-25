@@ -177,13 +177,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @see has_curves()
    *
    * @param curves colon-separated names of curves
-<<<<<<< HEAD
-   * @throws TlsError in case of TLS error
-||||||| merged common ancestors
-   * @throws TlsError
-=======
    * @throws TlsError If thrown by the underlying library.
->>>>>>> mysql-9.2.0
    * @throws std::invalid_argument if API isn't supported
    * @see has_set_curves_list()
    */

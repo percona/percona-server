@@ -54,12 +54,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "sql_const.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-<<<<<<< HEAD
 #include "trx0trx.h"
-||||||| merged common ancestors
-=======
 #include "ut0counting_semaphore.h"
->>>>>>> mysql-9.2.0
 #ifndef UNIV_HOTBACKUP
 #include "os0event.h"
 #include "os0thread.h"
@@ -7096,38 +7092,14 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   while (!io_dispatched) {
     {
       auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
-                                      e_block);
+                                      e_block, space_id);
       if (srv_use_native_aio) {
         if (type.is_read()) {
+          trx_stats::bump_io_read(trx, n);
+
           ++os_n_file_reads;
 
-<<<<<<< HEAD
-  auto array = AIO::select_slot_array(type, read_only, aio_mode);
-
-  auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
-                                  e_block, space_id);
-
-  if (type.is_read()) {
-    trx_stats::bump_io_read(trx, n);
-
-    if (srv_use_native_aio) {
-      ++os_n_file_reads;
-
-      os_bytes_read_since_printout += n;
-||||||| merged common ancestors
-  auto array = AIO::select_slot_array(type, read_only, aio_mode);
-
-  auto slot =
-      array->reserve_slot(type, m1, m2, file, name, buf, offset, n, e_block);
-
-  if (type.is_read()) {
-    if (srv_use_native_aio) {
-      ++os_n_file_reads;
-
-      os_bytes_read_since_printout += n;
-=======
           os_bytes_read_since_printout += n;
->>>>>>> mysql-9.2.0
 #ifdef _WIN32
           /* If `ReadFile` returns positive value, then the request was
           completed synchronously. This is fine, may happen when the file was
@@ -7145,51 +7117,9 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                                    &slot->n_bytes, &slot->control) ||
                           (GetLastError() == ERROR_IO_PENDING);
 #elif defined(LINUX_NATIVE_AIO)
-<<<<<<< HEAD
-      if (!array->linux_dispatch(slot, should_buffer)) {
-        goto err_exit;
-      }
-#endif /* !_WIN32 && LINUX_NATIVE_AIO */
-    } else if (type.is_wake()) {
-      AIO::wake_simulated_handler_thread(
-          AIO::get_segment_no_from_slot(array, slot));
-    }
-  } else if (type.is_write()) {
-    if (srv_use_native_aio) {
-      ++os_n_file_writes;
-
-#ifdef _WIN32
-      ret = WriteFile(file.m_file, slot->ptr, slot->len, &slot->n_bytes,
-                      &slot->control);
-#elif defined(LINUX_NATIVE_AIO)
-      if (!array->linux_dispatch(slot, false)) {
-        goto err_exit;
-      }
-||||||| merged common ancestors
-      if (!array->linux_dispatch(slot)) {
-        goto err_exit;
-      }
-#endif /* !_WIN32 && LINUX_NATIVE_AIO */
-    } else if (type.is_wake()) {
-      AIO::wake_simulated_handler_thread(
-          AIO::get_segment_no_from_slot(array, slot));
-    }
-  } else if (type.is_write()) {
-    if (srv_use_native_aio) {
-      ++os_n_file_writes;
-
-#ifdef _WIN32
-      ret = WriteFile(file.m_file, slot->ptr, slot->len, &slot->n_bytes,
-                      &slot->control);
-#elif defined(LINUX_NATIVE_AIO)
-      if (!array->linux_dispatch(slot)) {
-        goto err_exit;
-      }
-=======
-          io_dispatched = array->linux_dispatch(slot);
+          io_dispatched = array->linux_dispatch(slot, should_buffer);
 #else
           ut_error;
->>>>>>> mysql-9.2.0
 #endif /* !_WIN32 && LINUX_NATIVE_AIO */
 
         } else if (type.is_write()) {
@@ -7212,7 +7142,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                                     &slot->n_bytes, &slot->control) ||
                           (GetLastError() == ERROR_IO_PENDING);
 #elif defined(LINUX_NATIVE_AIO)
-          io_dispatched = array->linux_dispatch(slot);
+          io_dispatched = array->linux_dispatch(slot, false);
 #else
           ut_error;
 #endif /* !_WIN32 && LINUX_NATIVE_AIO */
@@ -7221,6 +7151,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
           ut_error;
         }
       } else {
+        if (type.is_read()) trx_stats::bump_io_read(trx, n);
         /* For simulated AIO the fact of reserving of the slot is effectively
         the dispatching. */
         io_dispatched = true;

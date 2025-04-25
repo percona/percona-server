@@ -1641,7 +1641,6 @@ include/assert.inc ['last record timestamp extracted via get_last_record_timesta
 DELETE FROM loaded_ts;
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/filtered_binlog_file' INTO TABLE loaded_ts;
 include/assert.inc ['last record timestamp extracted via get_last_record_timestamp_by_binlog() for stage 16 should match the value extracted via mysqlbinlog']
-DROP TABLE loaded_ts;
+# restart
 UNINSTALL COMPONENT 'file://component_binlog_utils_udf';
-DROP TABLE captured_gtid;
 DROP TABLE t1;

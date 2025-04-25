@@ -30,6 +30,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
+#include <span>
 
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -397,14 +398,14 @@ int SortBufferIndirectIterator::Read() {
   }
 }
 
-SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
-                                 unique_ptr_destroy_only<RowIterator> source,
-                                 ha_rows num_rows_estimate,
-                                 table_map tables_to_get_rowid_for,
-                                 ha_rows *examined_rows)
+SortingIterator::SortingIterator(
+    THD *thd, Filesort *filesort, unique_ptr_destroy_only<RowIterator> source,
+    std::span<AccessPath *> single_row_index_lookups, ha_rows num_rows_estimate,
+    table_map tables_to_get_rowid_for, ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
       m_source_iterator(std::move(source)),
+      m_single_row_index_lookups(single_row_index_lookups),
       m_num_rows_estimate(num_rows_estimate),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for),
       m_examined_rows(examined_rows) {}
@@ -437,6 +438,14 @@ void SortingIterator::ReleaseBuffers() {
 
 bool SortingIterator::Init() {
   ReleaseBuffers();
+
+  // Invalidate the cache in all single-row index lookups below us. The previous
+  // execution of the sorting iterator may have overwritten the cached value in
+  // EQRefIterator with a value from a different row, and the next read from the
+  // EQRefIterator must read the correct value from the index.
+  for (AccessPath *lookup : m_single_row_index_lookups) {
+    lookup->eq_ref().ref->key_err = true;
+  }
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly

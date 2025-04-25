@@ -36,6 +36,7 @@
 #include "plugin/group_replication/include/gcs_event_handlers.h"
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/opt_tracker.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
@@ -2154,6 +2155,8 @@ void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
       if (disable_server_read_mode()) {
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED);
+      } else {
+        track_group_replication_enabled(true);
       }
     }
   }

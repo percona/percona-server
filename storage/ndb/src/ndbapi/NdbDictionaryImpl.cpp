@@ -57,6 +57,12 @@
 
 #define INCOMPATIBLE_VERSION -2
 
+/*
+ * See portable_sizeof_char_ptr in sql/field.h.
+ * Used for MySQL blob representation.
+ */
+static constexpr size_t portable_sizeof_char_ptr = 8;
+
 /**
  * Signal response timeouts
  *
@@ -6855,6 +6861,24 @@ bool NdbDictionaryImpl::validateRecordSpec(
       m_error.code = 4556;
       return false;
     }
+    if (flags & NdbDictionary::RecPerColumnFlags &&
+        recSpec[rs].column_flags &
+            NdbDictionary::RecordSpecification::MysqldLongBlob) {
+      const int len = col->getLength();
+      if ((col->getType() == NdbDictionary::Column::Longvarbinary ||
+           col->getType() == NdbDictionary::Column::Longvarchar) &&
+          (0 <= len)) {
+        /*
+         * Using MySQL Longblob format in record. No data in record but
+         * length and pointer to data (not pointer to NdbBlob).
+         */
+        static constexpr Uint32 length_bytes = 4;
+        elementByteLength = length_bytes + portable_sizeof_char_ptr;
+      } else {
+        m_error.code = 4556;
+        return false;
+      }
+    }
 
     const NdbDictionary::Column::Type type = col->getType();
     if ((type == NdbDictionary::Column::Bit) &&
@@ -6947,6 +6971,8 @@ static Uint32 ndb_set_record_specification(
     spec->nullbit_byte_offset = ~0;
     spec->nullbit_bit_in_byte = ~0;
   }
+
+  spec->column_flags = 0;
 
   return storageOffset + sizeOfElement;
 }
@@ -7144,6 +7170,17 @@ int NdbDictionaryImpl::initialiseColumnData(
   recCol->index_attrId = ~0;
   recCol->offset = recSpec->offset;
   recCol->maxSize = col->getSizeInBytesForRecord();
+
+  if (flags & NdbDictionary::RecPerColumnFlags &&
+      recSpec->column_flags ==
+          NdbDictionary::RecordSpecification::MysqldLongBlob) {
+    // The true value size including length bytes
+    recCol->maxValueSize = recCol->maxSize;
+    // Value is not stored in record, only length and value pointer
+    static constexpr Uint32 length_bytes = 4;
+    recCol->maxSize = length_bytes + portable_sizeof_char_ptr;
+  }
+
   recCol->orgAttrSize = col->m_orgAttrSize;
   if (recCol->offset + recCol->maxSize > rec->m_row_size)
     rec->m_row_size = recCol->offset + recCol->maxSize;
@@ -7193,8 +7230,14 @@ int NdbDictionaryImpl::initialiseColumnData(
     recCol->bitCount = 0;
   if (col->m_distributionKey) recCol->flags |= NdbRecord::IsDistributionKey;
   if (col->getBlobType()) {
-    recCol->flags |= NdbRecord::IsBlob;
-    rec->flags |= NdbRecord::RecHasBlob;
+    recCol->flags |= NdbRecord::UsesBlobHandle;
+    rec->flags |= NdbRecord::RecUsesBlobHandles;
+  } else if (flags & NdbDictionary::RecPerColumnFlags &&
+             (recSpec->column_flags &
+              NdbDictionary::RecordSpecification::MysqldLongBlob)) {
+    recCol->flags |= NdbRecord::IsMysqldBlob;
+    recCol->flags |= NdbRecord::UsesRowSideBuffer;
+    rec->m_row_side_buffer_size += col->getLength();
   }
   return 0;
 }
@@ -7304,6 +7347,7 @@ NdbRecord *NdbDictionaryImpl::createRecordInternal(
   }
 
   rec->m_row_size = 0;
+  rec->m_row_side_buffer_size = 0;
   for (i = 0; i < length; i++) {
     const NdbDictionary::RecordSpecification *rs = &recSpec[i];
 

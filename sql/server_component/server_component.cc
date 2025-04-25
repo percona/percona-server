@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/mysql_command_consumer.h"
 #include "mysql/components/services/mysql_command_services.h"
 #include "mysql/components/services/mysql_cond_service.h"
+#include "mysql/components/services/mysql_library.h"
 #include "mysql/components/services/mysql_mutex_service.h"
 #include "mysql/components/services/mysql_psi_system_service.h"
 #include "mysql/components/services/mysql_query_attributes.h"
@@ -82,6 +83,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 #include "mysql_global_variable_attributes_service_imp.h"
+#include "mysql_library_imp.h"
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "mysql_page_track_imp.h"
 #include "mysql_runtime_error_imp.h"
@@ -349,8 +351,8 @@ mysql_clone_start_statement, mysql_clone_finish_statement,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_convert)
 Bulk_data_convert::mysql_format, Bulk_data_convert::mysql_format_from_raw,
     Bulk_data_convert::mysql_format_using_key, Bulk_data_convert::is_killed,
-    Bulk_data_convert::compare_keys,
-    Bulk_data_convert::get_row_metadata END_SERVICE_IMPLEMENTATION();
+    Bulk_data_convert::compare_keys, Bulk_data_convert::get_row_metadata_all,
+    Bulk_data_convert::get_table_metadata, END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_load)
 Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::open_blob,
@@ -813,6 +815,11 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_stored_program_return_value_float)
 mysql_stored_program_return_value_float_imp::set, END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_import_metadata_query)
+mysql_stored_program_import_metadata_query_imp::get,
+    END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_simple_error_log)
 mysql_simple_error_log_imp::emit END_SERVICE_IMPLEMENTATION();
 
@@ -885,6 +892,11 @@ Applier_metrics_service_handler::get_applier_metrics,
     Applier_metrics_service_handler::enable_metric_collection,
     Applier_metrics_service_handler::disable_metric_collection,
     END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_library)
+mysql_library_imp::exists, mysql_library_imp::init, mysql_library_imp::get_body,
+    mysql_library_imp::get_language,
+    mysql_library_imp::deinit END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
@@ -968,9 +980,11 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
     PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
-    /* Deprecated, use psi_mdl_v2. */
+    /* Deprecated, use psi_mdl_v3. */
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
+    /* Deprecated, use psi_mdl_v3. */
     PROVIDES_SERVICE(performance_schema, psi_mdl_v2),
+    PROVIDES_SERVICE(performance_schema, psi_mdl_v3),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
     PROVIDES_SERVICE(performance_schema, psi_memory_v2),
     PROVIDES_SERVICE(performance_schema, psi_mutex_v1),
@@ -1116,6 +1130,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_return_value_unsigned_int),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_float),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_import_metadata_query),
     PROVIDES_SERVICE(mysql_server, thread_cleanup_register),
     PROVIDES_SERVICE(mysql_server, mysql_simple_error_log),
     PROVIDES_SERVICE(mysql_server, mysql_stmt_factory),
@@ -1141,7 +1156,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
 
     PROVIDES_SERVICE(mysql_server, table_access_binlog),
     PROVIDES_SERVICE(mysql_server, replication_applier_metrics),
-    END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, mysql_library), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

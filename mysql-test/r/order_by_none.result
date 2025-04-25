@@ -3378,4 +3378,37 @@ z
 y
 x
 DROP TABLE t1;
+#
+# Bug#37177744: Wrong ordering of outer join results with
+#               the hypergraph optimizer
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT t2.a FROM t1 LEFT JOIN t1 AS t2 ON t1.a = t2.a AND t2.a = 2
+ORDER BY t2.a;
+a
+NULL
+NULL
+2
+CREATE TABLE t2(a INT, b INT);
+INSERT INTO t2 VALUES (2, 0);
+SELECT t2.b + t3.b AS expr FROM
+t1 LEFT JOIN (t2 JOIN t2 AS t3 ON t2.a = t3.a)
+ON t1.a = t2.a AND t1.a = t3.a AND t2.b + t3.b = 0
+ORDER BY expr;
+expr
+NULL
+NULL
+0
+SELECT t2.b + t3.b + t4.b AS expr FROM
+t1 LEFT JOIN
+(t2 JOIN t2 AS t3 ON t2.a = t3.a JOIN t2 AS t4 ON t3.a = t4.a)
+ON t1.a <=> t2.a AND t2.a <=> t3.a AND t3.a <=> t4.a AND
+t2.b + t3.b + t4.b = 0
+ORDER BY expr;
+expr
+NULL
+NULL
+0
+DROP TABLE t1, t2;
 set optimizer_switch=default;

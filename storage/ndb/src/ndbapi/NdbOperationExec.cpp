@@ -954,7 +954,7 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       /* Blob head reads are defined as extra GetValues,
        * processed below, not here.
        */
-      if (unlikely(col->flags & NdbRecord::IsBlob)) continue;
+      if (unlikely(col->flags & NdbRecord::UsesBlobHandle)) continue;
 
       if (col->flags & NdbRecord::IsDisk) no_disk_flag = 0;
 
@@ -1048,6 +1048,8 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
     NdbBlob *currentBlob = theBlobList;
 
     for (Uint32 i = 0; i < attr_rec->noOfColumns; i++) {
+      char prefix[2];
+      Uint32 prefix_length = 0;
       const NdbRecord::Attr *col;
 
       col = &attr_rec->columns[i];
@@ -1065,8 +1067,8 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
       Uint32 length;
       const char *data;
 
-      if (likely(!(col->flags &
-                   (NdbRecord::IsBlob | NdbRecord::IsMysqldBitfield)))) {
+      if (likely(!(col->flags & (NdbRecord::UsesBlobHandle |
+                                 NdbRecord::IsMysqldBitfield)))) {
         int idxColNum = -1;
         const NdbRecord::Attr *idxCol = nullptr;
 
@@ -1084,14 +1086,39 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
            * This allows scan-takeover update to update pk within
            * collation rules
            */
+          data = &updRow[col->offset];
           if (col->is_null(updRow))
             length = 0;
-          else if (!col->get_var_length(updRow, length)) {
+          else if (col->flags & NdbRecord::IsMysqldBlob) {
+            /*
+             * Convert user supplied 'MySQL LongBlob' format data (4 byte
+             * length, data ptr) into expected NdbApi VAR* format for
+             * sending (2 byte length, data).
+             */
+            assert(col->flags & NdbRecord::IsVar2ByteLen);
+            static constexpr int length_bytes = 4;  // MySQL Longblob
+            assert(col->maxSize == length_bytes + 8 /* portable ptr size */);
+            length = 0;
+            for (int i = length_bytes - 1; i >= 0; i--)
+              length = 256 * length + (uchar)updRow[col->offset + i];
+            // Extract data pointer from user supplied row.
+            memcpy(&data, updRow + col->offset + length_bytes, 8);
+            /*
+             * max size in AttributeHeader 0xFFFC and minus two length bytes
+             * for Longvarbinary
+             */
+            if (length > 0xFFFC - 2) {
+              setErrorCodeAbort(4209);
+              return -1;
+            }
+            prefix[0] = length % 256;
+            prefix[1] = length / 256;
+            prefix_length = 2;
+          } else if (!col->get_var_length(updRow, length)) {
             /* Hm, corrupt varchar length. */
             setErrorCodeAbort(4209);
             return -1;
           }
-          data = &updRow[col->offset];
         } else {
           /* For Insert/Write where user provides key columns,
            * take them from the key record row to avoid sending different
@@ -1175,10 +1202,14 @@ int NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
         }
       }  // if Blob or Bitfield
 
-      res = insertATTRINFOHdr_NdbRecord(attrId, length);
+      res = insertATTRINFOHdr_NdbRecord(attrId, prefix_length + length);
       if (res) return res;
-      if (length > 0) {
-        res = insertATTRINFOData_NdbRecord(data, length);
+      if (prefix_length + length > 0) {
+        if (prefix_length == 0)
+          res = insertATTRINFOData_NdbRecord(data, length);
+        else
+          res =
+              insertATTRINFOData_NdbRecord(prefix, prefix_length, data, length);
         if (res) return res;
       }
     }  // for noOfColumns
@@ -1483,6 +1514,52 @@ int NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 attrId, Uint32 attrLen) {
 
   theCurrentATTRINFO->setLength(NdbApiSignal::MaxSignalWords - attrInfoRemain);
 
+  return 0;
+}
+
+int NdbOperation::insertATTRINFOData_NdbRecord(const char *value1,
+                                               Uint32 byteSize1,
+                                               const char *value2,
+                                               Uint32 byteSize2) {
+  /* Words are added to a list of Signal objects pointed to
+   * by theFirstATTRINFO
+   * This list is then used to form the ATTRINFO
+   * section of the TCKEYREQ long signal
+   * No ATTRINFO signal train is sent.
+   *
+   * This method variant first copies data from two sources and then pads with
+   * zeros to even words.
+   */
+  theTotalCurrAI_Len += (byteSize1 + byteSize2 + 3) / 4;
+
+  Uint32 space_bytes = attrInfoRemain * 4;
+  unsigned char *space_ptr = (unsigned char *)theATTRINFOptr;
+
+  for (int i = 0; i < 2; i++) {
+    Uint32 value_bytes = (i == 0) ? byteSize1 : byteSize2;
+    const char *value_ptr = (i == 0) ? value1 : value2;
+    while (value_bytes > 0) {
+      if (space_bytes == 0) {
+        int res = allocAttrInfo();
+        if (res) return res;
+        space_bytes = attrInfoRemain * 4;
+        space_ptr = (unsigned char *)theATTRINFOptr;
+      }
+      Uint32 copy_bytes = std::min(value_bytes, space_bytes);
+      memcpy(space_ptr, value_ptr, copy_bytes);
+      space_ptr += copy_bytes;
+      value_ptr += copy_bytes;
+      space_bytes -= copy_bytes;
+      value_bytes -= copy_bytes;
+    }
+  }
+  while (space_bytes % 4) {
+    *space_ptr++ = 0;
+    space_bytes--;
+  }
+  theATTRINFOptr = (Uint32 *)space_ptr;
+  attrInfoRemain = space_bytes / 4;
+  theCurrentATTRINFO->setLength(NdbApiSignal::MaxSignalWords - attrInfoRemain);
   return 0;
 }
 

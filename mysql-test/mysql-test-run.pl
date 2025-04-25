@@ -301,6 +301,7 @@ our @DEFAULT_SUITES = qw(
   test_services
   x
   component_keyring_file
+<<<<<<< HEAD
 
   component_audit_log_filter
   percona
@@ -322,6 +323,10 @@ our @DEFAULT_SUITES = qw(
   group_replication
   jp
   stress
+||||||| merged common ancestors
+=======
+  component_connection_control
+>>>>>>> mysql-9.2.0
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
@@ -6260,6 +6265,8 @@ sub check_expected_crash_and_restart($$) {
 
         if ($tinfo->{'secondary-engine'}) {
           my $restart_flag = 1;
+          my $pre_config_state = prepare_secondary_engine_plugin_for_config($mysqld, $tinfo);
+          configure_secondary_engine_plugin($mysqld, $tinfo, $pre_config_state);
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
         }
@@ -6779,8 +6786,7 @@ sub mysqld_start ($$$$) {
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
 
   # Set $AWS_SHARED_CREDENTIALS_FILE required by some AWS tests
-  push(@opt_mysqld_envs,
-       "AWS_SHARED_CREDENTIALS_FILE=$opt_vardir/tmp/credentials");
+  $ENV{'AWS_SHARED_CREDENTIALS_FILE'} = "$opt_vardir/tmp/credentials";
 
   if (defined $exe) {
     $mysqld->{'proc'} =
@@ -7339,9 +7345,6 @@ sub start_servers($) {
   }
 
   if ($tinfo->{'secondary-engine'}) {
-    # Start secondary engine servers.
-    start_secondary_engine_servers($tinfo);
-
     # Set an environment variable to indicate that the test needs
     # secondary engine.
     $ENV{'SECONDARY_ENGINE_TEST'} = 1;
@@ -7350,6 +7353,15 @@ sub start_servers($) {
     foreach my $mysqld (mysqlds()) {
       install_external_engine_plugin($mysqld);
       install_secondary_engine_plugin($mysqld);
+      my $pre_config_state = prepare_secondary_engine_plugin_for_config($mysqld, $tinfo);
+      configure_secondary_engine_plugin($mysqld, $tinfo, $pre_config_state);
+    }
+
+    # Start secondary engine servers.
+    start_secondary_engine_servers($tinfo);
+
+    foreach my $mysqld (mysqlds()) {
+      wait_till_secondary_engine_plugin_active($mysqld);
     }
   }
 

@@ -132,6 +132,7 @@ SET(MTR_TESTS_FOR_PROFILING
   sysschema
   thread_pool
   x
+  component_connection_control
   )
 STRING(REPLACE ";" "," MTR_SUITE_STRING "${MTR_TESTS_FOR_PROFILING}")
 

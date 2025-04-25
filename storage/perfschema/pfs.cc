@@ -7538,6 +7538,8 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type) {
       return OBJECT_TYPE_FUNCTION;
     case enum_sp_type::PROCEDURE:
       return OBJECT_TYPE_PROCEDURE;
+    case enum_sp_type::LIBRARY:
+      return OBJECT_TYPE_LIBRARY;
     case enum_sp_type::TRIGGER:
       return OBJECT_TYPE_TRIGGER;
     case enum_sp_type::EVENT:
@@ -8860,6 +8862,13 @@ void pfs_set_metadata_lock_duration_vc(PSI_metadata_lock *lock,
   pfs->m_mdl_duration = mdl_duration;
 }
 
+void pfs_set_metadata_lock_type_vc(PSI_metadata_lock *lock,
+                                   opaque_mdl_type mdl_type) {
+  auto *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
+  assert(pfs != nullptr);
+  pfs->m_mdl_type = mdl_type;
+}
+
 void pfs_destroy_metadata_lock_vc(PSI_metadata_lock *lock) {
   auto *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
   assert(pfs != nullptr);
@@ -9581,6 +9590,13 @@ PSI_mdl_service_v2 pfs_mdl_service_v2 = {
     pfs_set_metadata_lock_duration_vc, pfs_destroy_metadata_lock_vc,
     pfs_start_metadata_wait_vc,        pfs_end_metadata_wait_vc};
 
+PSI_mdl_service_v3 pfs_mdl_service_v3 = {
+    /* Old interface, for plugins. */
+    pfs_create_metadata_lock_vc,       pfs_set_metadata_lock_status_vc,
+    pfs_set_metadata_lock_duration_vc, pfs_set_metadata_lock_type_vc,
+    pfs_destroy_metadata_lock_vc,      pfs_start_metadata_wait_vc,
+    pfs_end_metadata_wait_vc};
+
 SERVICE_TYPE(psi_mdl_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v1) = {
     /* New interface, for components. */
@@ -9594,6 +9610,14 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v2) = {
     pfs_create_metadata_lock_vc,       pfs_set_metadata_lock_status_vc,
     pfs_set_metadata_lock_duration_vc, pfs_destroy_metadata_lock_vc,
     pfs_start_metadata_wait_vc,        pfs_end_metadata_wait_vc};
+
+SERVICE_TYPE(psi_mdl_v3)
+SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v3) = {
+    /* New interface, for components. */
+    pfs_create_metadata_lock_vc,       pfs_set_metadata_lock_status_vc,
+    pfs_set_metadata_lock_duration_vc, pfs_set_metadata_lock_type_vc,
+    pfs_destroy_metadata_lock_vc,      pfs_start_metadata_wait_vc,
+    pfs_end_metadata_wait_vc};
 
 PSI_idle_service_v1 pfs_idle_service_v1 = {
     /* Old interface, for plugins. */
@@ -9862,6 +9886,8 @@ static void *get_mdl_interface(int version) {
       return &pfs_mdl_service_v1;
     case PSI_MDL_VERSION_2:
       return &pfs_mdl_service_v2;
+    case PSI_MDL_VERSION_3:
+      return &pfs_mdl_service_v3;
     default:
       return nullptr;
   }
@@ -10064,9 +10090,11 @@ static void *services[] = {
     REFERENCES_SERVICE(performance_schema, psi_error_v1),
     REFERENCES_SERVICE(performance_schema, psi_file_v2),
     REFERENCES_SERVICE(performance_schema, psi_idle_v1),
-    /* Deprecated, use psi_mdl_v2. */
+    /* Deprecated, use psi_mdl_v3. */
     REFERENCES_SERVICE(performance_schema, psi_mdl_v1),
+    /* Deprecated, use psi_mdl_v3. */
     REFERENCES_SERVICE(performance_schema, psi_mdl_v2),
+    REFERENCES_SERVICE(performance_schema, psi_mdl_v3),
     REFERENCES_SERVICE(performance_schema, psi_memory_v2),
     REFERENCES_SERVICE(performance_schema, psi_mutex_v1),
     REFERENCES_SERVICE(performance_schema, psi_rwlock_v2),

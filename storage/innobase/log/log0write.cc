@@ -73,7 +73,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* redo_log_archive_produce */
 #include "log0meb.h"
 
-/* recv_no_ibuf_operations */
+/* recv_recovery_is_on */
 #include "log0recv.h"
 
 /* log_t::X */
@@ -1072,10 +1072,9 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   Note that redo log is actually flushed, because changes to the page
   are caused by applying the redo. */
 
-  if (recv_no_ibuf_operations) {
+  if (recv_recovery_is_on()) {
     /* Recovery is running and no operations on the log files are
-    allowed yet, which is implicitly deduced from the fact, that
-    still ibuf merges are disallowed. */
+    allowed yet. */
     return Wait_stats{0};
   }
 

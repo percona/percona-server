@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=90100
+Current I_S_VERSION=90200
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -875,6 +875,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   LEFT JOIN mysql.collations coll_result ON coll_result.id=rtn.result_collation_id
   LEFT JOIN mysql.character_sets cs_result ON cs_result.id=coll_result.character_set_id WHERE 
   CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.type IN ('FUNCTION', 'PROCEDURE')
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROUTINES AS SELECT 
   rtn.name AS SPECIFIC_NAME,
@@ -918,6 +919,73 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   LEFT JOIN mysql.collations coll_result ON coll_result.id=rtn.result_collation_id
   LEFT JOIN mysql.character_sets cs_result ON cs_result.id=coll_result.character_set_id WHERE 
   CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.type IN ('FUNCTION', 'PROCEDURE')
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROUTINE_LIBRARIES AS SELECT 
+  cat.name AS ROUTINE_CATALOG,
+  sch.name AS ROUTINE_SCHEMA,
+  rtn.name AS ROUTINE_NAME,
+  rtn.type AS ROUTINE_TYPE,
+  IF(ISNULL(lib.catalog), cat.name, lib.catalog) AS LIBRARY_CATALOG,
+  IF(ISNULL(lib.sch), sch.name, lib.sch) AS LIBRARY_SCHEMA,
+  lib.library_name AS LIBRARY_NAME,
+  lib.version AS LIBRARY_VERSION FROM 
+  mysql.routines rtn
+  JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  JOIN JSON_TABLE(GET_DD_PROPERTY_KEY_VALUE(rtn.options,'libraries'), '$[*]' COLUMNS(catalog VARCHAR(64) character set utf8mb4 PATH '$.catalog', sch VARCHAR(100) character set utf8mb4 PATH '$.schema', library_name VARCHAR(100) character set utf8mb4 PATH '$.name', version VARCHAR(100) character set utf8mb4 PATH '$.version' ) ) as lib WHERE 
+  CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.options IS NOT NULL
+  AND JSON_VALID(GET_DD_PROPERTY_KEY_VALUE(rtn.options,'libraries')) = 1
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROUTINE_LIBRARIES AS SELECT 
+  cat.name AS ROUTINE_CATALOG,
+  sch.name AS ROUTINE_SCHEMA,
+  rtn.name AS ROUTINE_NAME,
+  rtn.type AS ROUTINE_TYPE,
+  IF(ISNULL(lib.catalog), cat.name, lib.catalog) AS LIBRARY_CATALOG,
+  IF(ISNULL(lib.sch), sch.name, lib.sch) AS LIBRARY_SCHEMA,
+  lib.library_name AS LIBRARY_NAME,
+  lib.version AS LIBRARY_VERSION FROM 
+  mysql.routines rtn
+  JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  JOIN JSON_TABLE(GET_DD_PROPERTY_KEY_VALUE(rtn.options,'libraries'), '$[*]' COLUMNS(catalog VARCHAR(64) character set utf8mb4 PATH '$.catalog', sch VARCHAR(100) character set utf8mb4 PATH '$.schema', library_name VARCHAR(100) character set utf8mb4 PATH '$.name', version VARCHAR(100) character set utf8mb4 PATH '$.version' ) ) as lib WHERE 
+  CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.options IS NOT NULL
+  AND JSON_VALID(GET_DD_PROPERTY_KEY_VALUE(rtn.options,'libraries')) = 1
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.LIBRARIES AS SELECT 
+  cat.name AS LIBRARY_CATALOG,
+  sch.name AS LIBRARY_SCHEMA,
+  rtn.name AS LIBRARY_NAME,
+  IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),    rtn.definition_utf8, NULL) AS LIBRARY_DEFINITION,
+  rtn.external_language AS LANGUAGE,
+  rtn.created AS CREATED,
+  rtn.last_altered AS LAST_ALTERED,
+  rtn.sql_mode AS SQL_MODE,
+  rtn.definer AS CREATOR FROM 
+  mysql.routines rtn
+  JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.type = 'LIBRARY'
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.LIBRARIES AS SELECT 
+  cat.name AS LIBRARY_CATALOG,
+  sch.name AS LIBRARY_SCHEMA,
+  rtn.name AS LIBRARY_NAME,
+  IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),    rtn.definition_utf8, NULL) AS LIBRARY_DEFINITION,
+  rtn.external_language AS LANGUAGE,
+  rtn.created AS CREATED,
+  rtn.last_altered AS LAST_ALTERED,
+  rtn.sql_mode AS SQL_MODE,
+  rtn.definer AS CREATOR FROM 
+  mysql.routines rtn
+  JOIN mysql.schemata sch ON rtn.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)
+  AND rtn.type = 'LIBRARY'
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.SHOW_STATISTICS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -1685,8 +1753,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 90100.
+The schema checksum corresponds to I_S version 90200.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 90100 stored on disk.]
+IS_VERSION 90200 stored on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

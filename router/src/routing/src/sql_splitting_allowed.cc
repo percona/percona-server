@@ -418,6 +418,16 @@ SplittingAllowedParser::parse() {
     return Allowed::Always;
   } else if (accept(BINLOG_SYM)) {
     return Allowed::Always;
+  } else if (accept(END_OF_INPUT)) {
+    // - empty string
+    // - ignored whitespace
+    // - comments
+    return Allowed::Always;
+  } else if (accept(';')) {
+    if (accept(END_OF_INPUT)) {
+      // a empty statement;
+      return Allowed::Always;
+    }
   }
 
   // - HANDLER

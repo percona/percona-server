@@ -173,6 +173,9 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
   reg_reg = reinterpret_cast<SERVICE_TYPE(registry_registration) *>(h_reg_svc);
   if (connection_control_plugin_option_usage_init()) return 1;
 
+  LogPluginErr(WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+               "connection_control plugin", "component_connection_control");
+
   connection_control_plugin_info = plugin_info;
   Connection_control_error_handler error_handler;
   g_connection_event_coordinator = new Connection_event_coordinator();

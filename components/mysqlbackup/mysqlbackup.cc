@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/library_mysys/my_memory.h"
 #include "mysql/components/services/psi_memory.h"
 #include "mysql/service_security_context.h"
+#include "mysql_version.h"
 #include "mysqld_error.h"
 #include "string_with_len.h"
 

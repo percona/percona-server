@@ -60,14 +60,14 @@ const sql_mode_t FieldDateTest::strict_modes[no_modes] = {
 const type_conversion_status FieldDateTest::nozero_expected_status[] = {
     TYPE_ERR_BAD_VALUE, TYPE_ERR_BAD_VALUE, TYPE_ERR_BAD_VALUE};
 
-class Mock_field_date : public Field_newdate {
+class Mock_field_date : public Field_date {
  public:
   Mock_field_date()
-      : Field_newdate(nullptr,                    // ptr_arg
-                      &Field::dummy_null_buffer,  // null_ptr_arg
-                      1,                          // null_bit_arg
-                      Field::NONE,                // auto_flags_arg
-                      "field_name")               // field_name_arg
+      : Field_date(nullptr,                    // ptr_arg
+                   &Field::dummy_null_buffer,  // null_ptr_arg
+                   1,                          // null_bit_arg
+                   Field::NONE,                // auto_flags_arg
+                   "field_name")               // field_name_arg
   {}
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index()); }

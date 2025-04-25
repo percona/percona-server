@@ -40,6 +40,7 @@
 #include "sql/dd/impl/types/index_element_impl.h"
 #include "sql/dd/impl/types/index_impl.h"
 #include "sql/dd/impl/types/index_stat_impl.h"
+#include "sql/dd/impl/types/library_impl.h"
 #include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/impl/types/partition_index_impl.h"
 #include "sql/dd/impl/types/partition_value_impl.h"
@@ -93,6 +94,7 @@ template Foreign_key_element *create_object<Foreign_key_element>();
 template Index *create_object<Index>();
 template Index_element *create_object<Index_element>();
 template Index_stat *create_object<Index_stat>();
+template Library *create_object<Library>();
 template Partition *create_object<Partition>();
 template Partition_index *create_object<Partition_index>();
 template Partition_value *create_object<Partition_value>();

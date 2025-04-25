@@ -93,7 +93,13 @@ class RestClientFrontend {
    * @returns exit-code
    * @retval EXIT_SUCESS success
    * @retval EXIT_FAILURE on error
+<<<<<<< HEAD
    * @throws FrontendError if there is an error
+||||||| merged common ancestors
+   * @throws FrontendError
+=======
+   * @throws FrontendError If the frontend reports an error.
+>>>>>>> mysql-9.2.0
    */
   int run();
 

@@ -453,6 +453,31 @@ class Multisource_info {
   }
 
   /**
+    Get the number of configured asynchronous replication channels,
+    ignoring the Group Replication channels.
+
+    @return The number of channels.
+  */
+  size_t get_number_of_configured_channels() {
+    DBUG_TRACE;
+    m_channel_map_lock->assert_some_lock();
+    size_t count = 0;
+
+    replication_channel_map::iterator map_it =
+        rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+    for (mi_map::iterator it = map_it->second.begin();
+         it != map_it->second.end(); it++) {
+      Master_info *mi = it->second;
+      if (Master_info::is_configured(mi)) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  /**
     Get the number of running channels which have asynchronous replication
     failover feature, i.e. CHANGE REPLICATION SOURCE TO option
     SOURCE_CONNECTION_AUTO_FAILOVER, enabled.

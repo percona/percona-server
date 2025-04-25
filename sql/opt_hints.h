@@ -41,7 +41,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/sql_bitmap.h"      // Bitmap
-#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_show.h"        // append_identifier_*
 #include "sql_string.h"          // String
 #include "string_with_len.h"
 

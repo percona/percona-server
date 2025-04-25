@@ -1417,9 +1417,22 @@ loop:
     return block;
   }
 
+<<<<<<< HEAD
   if (started_time == std::chrono::steady_clock::time_point{})
     started_time = std::chrono::steady_clock::now();
 
+||||||| merged common ancestors
+=======
+  /* No free blocks found on the free list, we need to run a LRU scan to find a
+  block. In meantime, we wake up simulated AIO threads that may have requests
+  queued with IOREquest::DO_NOT_WAKE waiting for them to wake up. If one of
+  threads that are requesting the new IOs waits for a new block to place the
+  read IO for that block, this would deadlock. Waking up the simulated AIO
+  threads may cause some blocks to be IO_FIX unfixed and become available to
+  evict. */
+  os_aio_simulated_wake_handler_threads();
+
+>>>>>>> mysql-9.2.0
   MONITOR_INC(MONITOR_LRU_GET_FREE_LOOPS);
 
   freed = false;

@@ -25,11 +25,12 @@
 #define RPL_LOG_ENCRYPTION_INCLUDED
 
 #include <openssl/evp.h>
-#include <sql/stream_cipher.h>
 #include <stdint.h>
 #include <map>
 #include <string>
+
 #include "my_inttypes.h"
+#include "mysys/stream_cipher.h"
 
 class Basic_istream;
 class Basic_ostream;

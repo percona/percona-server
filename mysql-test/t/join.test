@@ -721,7 +721,6 @@ flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 --echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
---skip_if_hypergraph  # Does not support this access method yet.
 show status like 'Handler_read%'; 
 drop table t1, t2, t3;
 
@@ -1269,7 +1268,7 @@ INSERT INTO t SELECT NULL, NULL FROM t;
 ANALYZE TABLE t;
 
 # Verify that we indeed get a backwards index scan.
---skip_if_hypergraph  # Does not support this access method yet.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
 
 FLUSH STATUS;
@@ -1278,7 +1277,6 @@ SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DE
 --enable_result_log
 
 # Check that we skipped nearly all of the key lookups.
---skip_if_hypergraph  # Does not support this access method yet.
 SHOW STATUS LIKE 'Handler_read_key';
 
 DROP TABLE t;

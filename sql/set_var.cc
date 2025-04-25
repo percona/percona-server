@@ -71,7 +71,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_plugin_var.h"
 #include "sql/sql_select.h"        // free_underlaid_joins
-#include "sql/sql_show.h"          // append_identifier
+#include "sql/sql_show.h"          // append_identifier_*
 #include "sql/sys_vars_shared.h"   // PolyLock_mutex
 #include "sql/system_variables.h"  // system_variables
 #include "sql/table.h"             // table

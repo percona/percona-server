@@ -553,8 +553,8 @@ static int federated_done(void *) {
   @retval false OK
   @retval true  There was an error appending to the string.
 
-  @note This function is based upon the append_identifier() function
-        in sql_show.cc except that quoting always occurs.
+  @note See similar function append_identifier()
+  in sql_show.cc that always quotes based on sql mode.
 */
 
 static bool append_ident(String *string, const char *name, size_t length,

@@ -31,6 +31,17 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
+// at start, .connects is undefined
+// at first connect, set it to 0
+// at each following connect, increment it.
+//
+// .globals is shared between mock-server threads
+if (mysqld.global.connects === undefined) {
+  mysqld.global.connects = 0;
+} else {
+  mysqld.global.connects = mysqld.global.connects + 1;
+}
+
 if (mysqld.global.view_id === undefined) {
   mysqld.global.view_id = 0;
 }
@@ -72,6 +83,10 @@ var nodes = function(host, port_and_state) {
   });
 };
 
+if (mysqld.global.server_version === undefined) {
+  mysqld.global.server_version = "8.3.0";
+}
+
 var cluster_nodes = gr_memberships.cluster_nodes(
     mysqld.global.gr_node_host, mysqld.global.cluster_nodes)
 
@@ -108,6 +123,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_select_view_id_v2_ar",
       "router_select_router_options_view",
+      "get_guidelines_router_info",
+      "get_routing_guidelines",
     ],
     options);
 
@@ -125,7 +142,8 @@ var router_select_cluster_type =
     auth: {
       username: mysqld.global.user,
       password: mysqld.global.password,
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     if (stmt === select_port.stmt) {

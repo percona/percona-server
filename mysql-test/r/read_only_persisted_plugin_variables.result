@@ -321,6 +321,8 @@ RESET PERSIST;
 # Install version token plugin
 ##################
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+Warnings:
+Warning	1681	'version_tokens plugin' is deprecated and will be removed in a future release.
 SELECT @@version_tokens_session_number;
 @@version_tokens_session_number
 0

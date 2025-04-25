@@ -1253,6 +1253,7 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         the certification info.
         */
 
+<<<<<<< HEAD
       /* get the starttime in 1us unit */
       ulonglong starttime = my_micro_time();
 
@@ -1264,7 +1265,19 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         GTIDs in the original code blocked the transaction processing
         for about 1s.
        */
+||||||| merged common ancestors
+=======
+      uint64 garbage_collector_counter =
+          metrics_handler->get_certification_garbage_collector_count();
+
+      DBUG_EXECUTE_IF("group_replication_garbage_collect_counter_overflow", {
+        DBUG_SET("-d,group_replication_garbage_collect_counter_overflow");
+        garbage_collector_counter = 0;
+      });
+
+>>>>>>> mysql-9.2.0
       while (it != certification_info.end()) {
+<<<<<<< HEAD
         stable_gtid_set_lock->wrlock();
 
         /* Needs to increase the rate if it takes too long, add a chunk
@@ -1280,7 +1293,38 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
         for (ulong i = 0; i < chunk_size; ++i) {
           if (it == certification_info.end()) {
             break;
+||||||| merged common ancestors
+        if (it->second->is_subset_not_equals(stable_gtid_set)) {
+          if (it->second->unlink() == 0) {
+            /*
+              Claim Gtid_set_ref used memory to
+              `thread/group_rpl/THD_certifier_broadcast` thread, since this is
+              thread that does release the memory.
+            */
+            it->second->claim_memory_ownership(true);
+            delete it->second;
+=======
+        uint64 write_set_counter = it->second->get_garbage_collect_counter();
+
+        /*
+           we need to clear gtid_set_ref if marked with UINT64_MAX or
+           subset_not_equals of stable_gtid_set
+        */
+        if (write_set_counter == UINT64_MAX ||
+            (write_set_counter < garbage_collector_counter &&
+             it->second->is_subset_not_equals(stable_gtid_set))) {
+          it->second->set_garbage_collect_counter(UINT64_MAX);
+          if (it->second->unlink() == 0) {
+            /*
+              Claim Gtid_set_ref used memory to
+              `thread/group_rpl/THD_certifier_broadcast` thread, since this is
+              thread that does release the memory.
+            */
+            it->second->claim_memory_ownership(true);
+            delete it->second;
+>>>>>>> mysql-9.2.0
           }
+<<<<<<< HEAD
           if (it->second->is_subset_not_equals(stable_gtid_set)) {
             if (it->second->unlink() == 0) {
               /*
@@ -1320,6 +1364,23 @@ void Certifier::garbage_collect_internal(Gtid_set *executed_gtid_set,
           }
         }
       } /* while loop */
+||||||| merged common ancestors
+          certification_info.erase(it++);
+        } else
+          ++it;
+      }
+      stable_gtid_set_lock->unlock();
+=======
+          certification_info.erase(it++);
+        } else {
+          DBUG_EXECUTE_IF("group_replication_ci_rows_counter_high",
+                          { assert(write_set_counter > 0); });
+          it->second->set_garbage_collect_counter(garbage_collector_counter);
+          ++it;
+        }
+      }
+      stable_gtid_set_lock->unlock();
+>>>>>>> mysql-9.2.0
     }
 
     /*

@@ -33,6 +33,7 @@
 #endif
 
 #include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
@@ -45,9 +46,11 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
+#include "mysqlrouter/routing_guidelines_version.h"
 #include "mysqlrouter/utils.h"  // strtoui_checked
 #include "mysqlrouter/utils_sqlstring.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
+#include "routing_guidelines/routing_guidelines.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -223,12 +226,34 @@ class ConfigurationDefaults {
     const auto update_schema_str =
         std::string(ConfigurationUpdateJsonSchema::data(),
                     ConfigurationUpdateJsonSchema::size());
+
     JsonDocument changes_schema;
-    changes_schema.Parse<0>(update_schema_str);
+    changes_schema.Parse<rapidjson::kParseCommentsFlag>(update_schema_str);
+
+    if (changes_schema.HasParseError()) {
+      throw std::runtime_error("json parse error: " +
+                               std::string(rapidjson::GetParseError_En(
+                                   changes_schema.GetParseError())) +
+                               " at offset " +
+                               std::to_string(changes_schema.GetErrorOffset()));
+    }
+
+    JsonDocument guidelines_schema_doc;
+    guidelines_schema_doc.Parse<rapidjson::kParseCommentsFlag>(
+        routing_guidelines::Routing_guidelines_engine::get_schema());
+    if (guidelines_schema_doc.HasParseError()) {
+      throw std::runtime_error(
+          "json parse error: " +
+          std::string(rapidjson::GetParseError_En(
+              guidelines_schema_doc.GetParseError())) +
+          " at offset " +
+          std::to_string(guidelines_schema_doc.GetErrorOffset()));
+    }
 
     version_obj.AddMember("Defaults", defaults, allocator);
     version_obj.AddMember("ConfigurationChangesSchema", changes_schema,
                           allocator);
+    version_obj.AddMember("GuidelinesSchema", guidelines_schema_doc, allocator);
     config_obj.AddMember(MYSQL_ROUTER_VERSION, version_obj, allocator);
     result_obj.AddMember("Configuration", config_obj, allocator);
 
@@ -252,7 +277,7 @@ void update_router_info_v2(
     const std::string &rw_endpoint, const std::string &ro_endpoint,
     const std::string &rw_split_endpoint, const std::string &rw_x_endpoint,
     const std::string &ro_x_endpoint, const std::string &username,
-    MySQLSession *mysql) {
+    const std::string &local_cluster, MySQLSession *mysql) {
   const std::string cluster_id_field =
       cluster_type == mysqlrouter::ClusterType::GR_CS ? "clusterset_id"
                                                       : "cluster_id";
@@ -260,7 +285,7 @@ void update_router_info_v2(
       "UPDATE mysql_innodb_cluster_metadata.v2_routers"
       " SET attributes = "
       "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET("
-      "JSON_SET("
+      "JSON_SET(JSON_SET("
       "IF(attributes IS NULL, '{}', attributes),"
       "    '$.RWEndpoint', ?),"
       "    '$.ROEndpoint', ?),"
@@ -268,14 +293,18 @@ void update_router_info_v2(
       "    '$.RWXEndpoint', ?),"
       "    '$.ROXEndpoint', ?),"
       "    '$.MetadataUser', ?),"
+      "    '$.SupportedRoutingGuidelinesVersion', ?),"
       "    '$.bootstrapTargetType', ?),"
       "    '$.Configuration', CAST(? as JSON)),"
       " version = ?, ! = ?"
       " WHERE router_id = ?",
       {mysqlrouter::QuoteOnlyIfNeeded});
 
+  const auto supported_routing_guidelines_version = mysqlrouter::to_string(
+      mysqlrouter::get_routing_guidelines_supported_version());
   query << rw_endpoint << ro_endpoint << rw_split_endpoint << rw_x_endpoint
-        << ro_x_endpoint << username << to_string_md(cluster_type)
+        << ro_x_endpoint << username << supported_routing_guidelines_version
+        << to_string_md(cluster_type)
         << mysql_harness::DynamicConfig::instance().get_json_as_string(
                mysql_harness::DynamicConfig::ValueType::ConfiguredValue)
         << MYSQL_ROUTER_VERSION << cluster_id_field << cluster_id << router_id
@@ -295,6 +324,18 @@ void update_router_info_v2(
     mysql->execute(query_options);
   }
 
+  if (!local_cluster.empty()) {
+    sqlstring query_options(
+        "UPDATE mysql_innodb_cluster_metadata.v2_routers"
+        " SET attributes = JSON_SET(IF(attributes IS NULL, '{}', attributes),"
+        " '$.LocalCluster', ?)"
+        " WHERE router_id = ?");
+
+    query_options << local_cluster << router_id << sqlstring::end;
+
+    mysql->execute(query_options);
+  }
+
   ConfigurationDefaults(cluster_type, cluster_id, mysql).update();
 }
 
@@ -305,11 +346,11 @@ void ClusterMetadataGRV2::update_router_info(
     const std::string &target_cluster, const std::string &rw_endpoint,
     const std::string &ro_endpoint, const std::string &rw_split_endpoint,
     const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-    const std::string &username) {
+    const std::string &username, const std::string &local_cluster) {
   update_router_info_v2(mysqlrouter::ClusterType::GR_V2, router_id, cluster_id,
                         target_cluster, rw_endpoint, ro_endpoint,
                         rw_split_endpoint, rw_x_endpoint, ro_x_endpoint,
-                        username, mysql_);
+                        username, local_cluster, mysql_);
 }
 
 void ClusterMetadataAR::update_router_info(
@@ -317,11 +358,11 @@ void ClusterMetadataAR::update_router_info(
     const std::string &target_cluster, const std::string &rw_endpoint,
     const std::string &ro_endpoint, const std::string &rw_split_endpoint,
     const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-    const std::string &username) {
+    const std::string &username, const std::string &local_cluster) {
   update_router_info_v2(mysqlrouter::ClusterType::RS_V2, router_id, cluster_id,
                         target_cluster, rw_endpoint, ro_endpoint,
                         rw_split_endpoint, rw_x_endpoint, ro_x_endpoint,
-                        username, mysql_);
+                        username, local_cluster, mysql_);
 }
 
 void ClusterMetadataGRInClusterSet::update_router_info(
@@ -329,11 +370,11 @@ void ClusterMetadataGRInClusterSet::update_router_info(
     const std::string &target_cluster, const std::string &rw_endpoint,
     const std::string &ro_endpoint, const std::string &rw_split_endpoint,
     const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-    const std::string &username) {
+    const std::string &username, const std::string &local_cluster) {
   update_router_info_v2(mysqlrouter::ClusterType::GR_CS, router_id, cluster_id,
                         target_cluster, rw_endpoint, ro_endpoint,
                         rw_split_endpoint, rw_x_endpoint, ro_x_endpoint,
-                        username, mysql_);
+                        username, local_cluster, mysql_);
 }
 
 namespace {
@@ -413,6 +454,45 @@ std::string get_metadata_schema_uncompatible_msg(
          "using 'dba.upgradeMetadata()'. Expected metadata version compatible "
          "with '" +
          to_string(mysqlrouter::kRequiredRoutingMetadataSchemaVersion) + "'";
+}
+
+void verify_routing_guidelines_version(MySQLSession *mysql,
+                                       const std::uint32_t router_id) {
+  std::unique_ptr<MySQLSession::ResultRow> result;
+
+  try {
+    result = mysql->query_one(
+        R"(SELECT guideline->>'$.version' FROM
+mysql_innodb_cluster_metadata.routing_guidelines WHERE guideline_id = (
+  SELECT COALESCE(RO.router_options->>'$.guideline',
+                  CS.router_options->>'$.guideline',
+                  CL.router_options->>'$.guideline')
+  FROM
+    mysql_innodb_cluster_metadata.v2_router_options AS RO
+  LEFT JOIN
+    mysql_innodb_cluster_metadata.clustersets AS CS ON RO.clusterset_id = CS.clusterset_id
+  LEFT JOIN
+    mysql_innodb_cluster_metadata.clusters AS CL ON RO.cluster_id = CL.cluster_id
+  WHERE RO.router_id = )" +
+        std::to_string(router_id) + ")");
+  } catch (const std::exception &) {
+    return;  // user defined policies are not supported
+  }
+
+  // No custom routing guidelines in use, default is always ok
+  if (!result || result->size() == 0) return;
+
+  const std::string &version = (*result)[0];
+
+  const auto &supported_version = get_routing_guidelines_supported_version();
+  if (!routing_guidelines_version_is_compatible(
+          supported_version,
+          routing_guidelines_version_from_string((version)))) {
+    throw std::runtime_error(
+        "Routing guidelines version not supported. Router supported version "
+        "is " +
+        to_string(supported_version) + " but got " + version);
+  }
 }
 
 std::string to_string(const MetadataSchemaVersion &version) {
@@ -533,6 +613,10 @@ void ClusterMetadata::require_metadata_is_ok() {
         "recreated using dba.dropMetadataSchema() and dba.createCluster() with "
         "adoptFromGR parameter set to true.");
   }
+}
+
+std::string ClusterMetadata::get_local_cluster() {
+  return fetch_metadata_servers().name;
 }
 
 void ClusterMetadataGR::require_cluster_is_ok() {
@@ -876,6 +960,25 @@ ClusterMetadataGRInClusterSet::fetch_cluster_hosts() {
   return result;
 }
 
+std::string ClusterMetadataGRInClusterSet::get_local_cluster() {
+  const std::string q{
+      "select cluster_name from "
+      "mysql_innodb_cluster_metadata.v2_this_instance"};
+
+  auto result = mysql_->query_one(q);
+  if (result) {
+    if (result->size() != 1) {
+      throw std::out_of_range(
+          "Invalid number of values returned from cluster_name query expected "
+          "1 got " +
+          std::to_string(result->size()));
+    }
+    return std::string((*result)[0]);
+  }
+
+  throw std::logic_error("No result returned for metadata query");
+}
+
 std::string ClusterMetadataGRInClusterSet::get_cluster_type_specific_id() {
   const std::string q =
       "select CSM.clusterset_id from "
@@ -924,7 +1027,7 @@ static std::vector<std::string> do_get_routing_mode_queries(
     MySQLSession *mysql) {
   const std::string fetch_instances_query =
       "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
-      "I.endpoint, I.xendpoint, I.attributes "
+      "I.endpoint, I.xendpoint, I.attributes, I.label "
       "from mysql_innodb_cluster_metadata.v2_instances I join "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
       "C.cluster_id where C.cluster_name = " +
@@ -1019,7 +1122,7 @@ std::string ClusterMetadataAR::get_cluster_type_specific_id() {
 std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries() {
   return {// source: ClusterMetadata::fetch_instances_from_metadata_server()
           "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
-          "I.endpoint, I.xendpoint, I.attributes from "
+          "I.endpoint, I.xendpoint, I.attributes, I.label from "
           "mysql_innodb_cluster_metadata.v2_instances I join "
           "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
           "C.cluster_id where C.cluster_name = " +
@@ -1315,6 +1418,22 @@ std::string to_string(
 
   assert(policy == TargetCluster::InvalidatedClusterRoutingPolicy::DropAll);
   return "drop_all";
+}
+
+// We do not support server with version highier than our version
+// Patch is .99 as we only care about major and minor
+static constexpr const unsigned long max_suported_version_ulong =
+    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
+
+bool is_server_version_supported(MySQLSession *mysql) {
+  return max_suported_version_ulong >= mysql->server_version();
+}
+
+std::string get_unsupported_server_version_msg(MySQLSession *mysql) {
+  return "Unsupported MySQL Server version '" +
+         std::to_string(mysql->server_version()) +
+         "'. Maximal supported version is '" +
+         std::to_string(max_suported_version_ulong) + "'.";
 }
 
 }  // namespace mysqlrouter

@@ -24,10 +24,8 @@
 #ifndef APPLIER_METRICS_SERVICE_IMP_H
 #define APPLIER_METRICS_SERVICE_IMP_H
 
-#include <mysql/components/my_service.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/rpl_applier_metrics_service.h>
-#include <string>
+#include <mysql/components/service_implementation.h>  // DEFINE_BOOL_METHOD
+#include <mysql/components/services/rpl_applier_metrics_service.h>  // Applier_metrics_table
 
 class Applier_metrics_service_handler {
  public:

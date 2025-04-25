@@ -499,11 +499,12 @@ class ha_innobase : public handler {
 
   /** Begin parallel bulk data load to the table.
   @param[in] thd       user session
+  @param[in] keynr     key number to identify the index.
   @param[in] data_size total data size in bytes
   @param[in] memory buffer pool memory to be used
   @param[in] num_threads Number of concurrent threads used for load.
   @return bulk load context or nullptr if unsuccessful. */
-  void *bulk_load_begin(THD *thd, size_t data_size, size_t memory,
+  void *bulk_load_begin(THD *thd, size_t keynr, size_t data_size, size_t memory,
                         size_t num_threads) override;
 
   /** Execute bulk load operation. To be called by each of the concurrent

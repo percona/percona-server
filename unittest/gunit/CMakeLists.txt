@@ -79,10 +79,8 @@ ADD_STATIC_LIBRARY(gunit_large
   gunit_test_main_server.cc
   test_utils.cc
   thread_utils.cc
-  LINK_LIBRARIES ext::icu ext::zlib
+  LINK_LIBRARIES ext::icu ext::zlib extra::unordered_dense
 )
-TARGET_INCLUDE_DIRECTORIES(gunit_large SYSTEM PRIVATE 
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
 
 # Add a library for enable_win_jemalloc.cc
 # and link it with both gunit_small and gunit_large below.
@@ -133,6 +131,7 @@ SET(TESTS
   mutex_lock
   my_alloc
   my_bitmap
+  my_char_traits
   my_error
   my_fileutils
   my_gcvt
@@ -360,7 +359,6 @@ ENDFOREACH()
 SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
-  ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
   ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
@@ -396,10 +394,6 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
 IF(MY_COMPILER_IS_GNU)
   TARGET_LINK_OPTIONS(merge_large_tests-t PRIVATE -Wno-alloc-size-larger-than)
 ENDIF()
-
-TARGET_INCLUDE_DIRECTORIES(merge_large_tests-t SYSTEM PRIVATE
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
-
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc

@@ -335,14 +335,14 @@ ulonglong get_field_set(Field *f) {
 /* DATE TYPE */
 void set_field_date(Field *f, const char *value, uint len) {
   assert(f->real_type() == MYSQL_TYPE_NEWDATE);
-  auto *f2 = (Field_newdate *)f;
+  auto *f2 = down_cast<Field_date *>(f);
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_date(Field *f, char *val, uint *len) {
   assert(f->real_type() == MYSQL_TYPE_NEWDATE);
   String temp;
-  const auto *f2 = (Field_newdate *)f;
+  const auto *f2 = down_cast<Field_date *>(f);
   f2->val_str(&temp, nullptr);
   *len = temp.length();
   strncpy(val, temp.ptr(), *len);
@@ -775,6 +775,11 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
       break;
     case MDL_key::PROCEDURE:
       m_object_type = OBJECT_TYPE_PROCEDURE;
+      with_schema = true;
+      with_object = true;
+      break;
+    case MDL_key::LIBRARY:
+      m_object_type = OBJECT_TYPE_LIBRARY;
       with_schema = true;
       with_object = true;
       break;

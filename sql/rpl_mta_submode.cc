@@ -538,8 +538,9 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
   if ((!rli->info_thd->killed && !is_error) &&
       !clock_leq(last_committed_arg, get_lwm_timestamp(rli, true))) {
     PSI_stage_info old_stage;
-    auto &coord_stats = rli->get_applier_metrics();
-    coord_stats.get_transaction_dependency_wait_metric().start_timer();
+    auto guard = rli->get_applier_metrics()
+                     .get_transaction_dependency_wait_metric()
+                     .time_scope();
 
     assert(rli->gaq->get_length() >= 2);  // there's someone to wait
 
@@ -552,7 +553,6 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
     min_waited_timestamp.store(SEQ_UNINIT);  // reset waiting flag
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
-    coord_stats.get_transaction_dependency_wait_metric().stop_timer();
   } else {
     min_waited_timestamp.store(SEQ_UNINIT);
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
@@ -578,6 +578,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
                                                    Log_event *ev) {
   longlong last_sequence_number = sequence_number;
   bool gap_successor = false;
+  static_assert(SEQ_UNINIT == 0, "MTA scheduling code assumes SEQ_UNINIT is 0");
 
   DBUG_TRACE;
   // We should check if the SQL thread was already killed before we schedule
@@ -638,23 +639,19 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
       ptr_group->sequence_number = sequence_number = SEQ_UNINIT;
       ptr_group->last_committed = last_committed = SEQ_UNINIT;
     }
-    /*
-      Transaction sequence as scheduled may have gaps, even in
-      relay log. In such case a transaction that succeeds a gap will
-      wait for all earlier that were scheduled to finish. It's marked
-      as gap successor now.
-    */
-    static_assert(SEQ_UNINIT == 0, "");
-    if (unlikely(sequence_number > last_sequence_number + 1)) {
-      /*
-        TODO: account autopositioning
-        assert(rli->replicate_same_server_id);
-      */
-      DBUG_PRINT("info", ("sequence_number gap found, "
-                          "last_sequence_number %lld, sequence_number %lld",
-                          last_sequence_number, sequence_number));
-      gap_successor = true;
-    }
+  }
+
+  /*
+    Transaction sequence as scheduled may have gaps, even in
+    relay log. In such case a transaction that succeeds a gap will
+    wait for all earlier that were scheduled to finish. It's marked
+    as gap successor now.
+  */
+  if (unlikely(sequence_number > last_sequence_number + 1)) {
+    DBUG_PRINT("info", ("sequence_number gap found, "
+                        "last_sequence_number %lld, sequence_number %lld",
+                        last_sequence_number, sequence_number));
+    gap_successor = true;
   }
 
   /*
@@ -747,12 +744,12 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
         The malformed group is handled exceptionally each event is executed
         as a solitary group yet by the same (zero id) worker.
     */
-    coord_metrics.get_transaction_dependency_wait_metric().start_timer();
-    bool error_on_worker_wait = (-1 == wait_for_workers_to_finish(rli));
-    coord_metrics.get_transaction_dependency_wait_metric().stop_timer();
+    {
+      auto guard =
+          coord_metrics.get_transaction_dependency_wait_metric().time_scope();
+      bool error_on_worker_wait = (-1 == wait_for_workers_to_finish(rli));
 
-    if (error_on_worker_wait) {
-      return ER_MTA_INCONSISTENT_DATA;
+      if (error_on_worker_wait) return ER_MTA_INCONSISTENT_DATA;
     }
 
     rli->mts_group_status = Relay_log_info::MTS_IN_GROUP;  // wait set it to NOT
@@ -911,8 +908,9 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
            rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
     if (worker == nullptr) {
-      auto &coord_stats = rli->get_applier_metrics();
-      coord_stats.get_workers_available_wait_metric().start_timer();
+      auto guard = rli->get_applier_metrics()
+                       .get_workers_available_wait_metric()
+                       .time_scope();
       // Update thd info as waiting for workers to finish.
       thd->enter_stage(&stage_replica_waiting_for_workers_to_process_queue,
                        old_stage, __func__, __FILE__, __LINE__);
@@ -935,7 +933,6 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
         worker = get_free_worker(rli);
       }
       THD_STAGE_INFO(thd, *old_stage);
-      coord_stats.get_workers_available_wait_metric().stop_timer();
 
       /*
         Even OPTION_BEGIN is set, the 'BEGIN' event is not dispatched to

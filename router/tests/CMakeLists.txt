@@ -42,6 +42,7 @@ SET(helper_sources
   helpers/tcp_port_pool.cc
   helpers/rest_api_testutils.cc
   helpers/rest_metadata_client.cc
+  helpers/routing_guidelines_builder.cc
 )
 
 IF(MY_COMPILER_IS_CLANG)

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,17 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_keyword_list
 )
 
+<<<<<<< HEAD
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
+||||||| merged common ancestors
+ADD_DEFINITIONS(-DMYSQL_SERVER)
+=======
+IF(WITH_LOG_DIAGNOSTIC)
+  ADD_DEFINITIONS(-DHAVE_LOG_DIAGNOSTIC)
+ENDIF()
+
+ADD_DEFINITIONS(-DMYSQL_SERVER)
+>>>>>>> mysql-9.2.0
 ADD_SUBDIRECTORY(server_component)
 ADD_SUBDIRECTORY(protobuf)
 
@@ -174,6 +184,7 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/keywords.cc
+  dd/impl/system_views/libraries.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/partitions.cc
   dd/impl/system_views/referential_constraints.cc
@@ -181,6 +192,7 @@ SET(DD_SOURCES
   dd/impl/system_views/role_column_grants.cc
   dd/impl/system_views/role_routine_grants.cc
   dd/impl/system_views/role_table_grants.cc
+  dd/impl/system_views/routine_libraries.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/schemata_extensions.cc
@@ -246,6 +258,7 @@ SET(DD_SOURCES
   dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/library_impl.cc
   dd/impl/types/object_table_impl.cc
   dd/impl/types/object_table_definition_impl.cc
   dd/impl/types/parameter_impl.cc
@@ -431,6 +444,7 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/print_utils.cc
   join_optimizer/relational_expression.cc
   join_optimizer/replace_item.cc
+  join_optimizer/secondary_statistics.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -507,6 +521,7 @@ SET(SQL_SHARED_SOURCES
   statement/statement_runnable.cc
   statement/utils.cc
   rpl_group_replication.cc
+  rpl_opt_tracker.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
   rpl_write_set_handler.cc
@@ -537,6 +552,7 @@ SET(SQL_SHARED_SOURCES
   sql_class.cc
   sql_component.cc
   sql_const_folding.cc
+  sql_cmd_ddl.cc
   sql_cmd_ddl_table.cc
   sql_cmd_srs.cc
   sql_connect.cc
@@ -641,6 +657,7 @@ SET(SQL_SHARED_SOURCES
   reference_caching_setup.cc
   sql_event_tracking_to_audit_event_mapping.cc
   command_mapping.cc
+  srv_event_plugin_handles.cc
   )
 
 IF(BUILD_IS_SINGLE_CONFIG)
@@ -843,30 +860,6 @@ MY_ADD_COMPILE_DEFINITIONS(
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
   )
 
-# Workaround for Apple Clang bug on ARM.
-# When linking mysqld (and executables using server_unittest_library)
-# we get linker warnings about
-# ld: warning: direct access in function ....
-#     to global weak symbol 'typeinfo for .... '
-# It turns out we end up with conflicting visibilities for typeinfo symbols:
-# e.g. in in singleton.cc.o  vs  histogram.cc.o
-# (__DATA,__const) weak external __ZTIN10histograms9SingletonI6StringEE
-# (__DATA,__const) weak private external __ZTIN10histograms9SingletonI6StringEE
-#
-# Setting an explicit visibility here fixes the warnings.
-# Note that the LINK_PUBLIC for server_unittest_library
-# will make unit tests pick up histogram symbols from libsql_main.a.
-IF(APPLE_ARM)
-  ADD_COMPILE_FLAGS(
-    histograms/equi_height.cc
-    histograms/equi_height_bucket.cc
-    histograms/histogram.cc
-    histograms/singleton.cc
-    histograms/value_map.cc
-    COMPILE_FLAGS -fvisibility=hidden
-    )
-ENDIF()
-
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   iterators/hash_join_iterator.cc
@@ -985,11 +978,23 @@ ELSEIF(WITH_SHOW_PARSE_TREE_DEFAULT STREQUAL "default")
     $<$<CONFIG:Debug>:WITH_SHOW_PARSE_TREE=1>)
 ENDIF()
 
+<<<<<<< HEAD
 TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
   ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
 
+||||||| merged common ancestors
+TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
+
+TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
+  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
+
+=======
+TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
+
+>>>>>>> mysql-9.2.0
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
-  mysql_server_component_services mysys strings vio
+  mysql_server_component_services mysys library_mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto
   extra::rapidjson extra::boost)
 
@@ -1090,7 +1095,6 @@ SET(BINLOG_SOURCE
   rpl_trx_tracking.cc
   rpl_utility.cc
   sql_binlog.cc
-  stream_cipher.cc
   )
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog mysql_binlog_event)

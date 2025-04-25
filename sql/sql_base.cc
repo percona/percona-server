@@ -141,7 +141,7 @@
 #include "sql/sql_parse.h"    // is_update_query
 #include "sql/sql_prepare.h"  // Reprepare_observer
 #include "sql/sql_select.h"   // reset_statement_timer
-#include "sql/sql_show.h"     // append_identifier
+#include "sql/sql_show.h"     // append_identifier_*
 #include "sql/sql_sort.h"
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/sql_update.h"  // records_are_comparable
@@ -6967,18 +6967,25 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
 
   // Replace the TABLE objects in the Table_ref with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
-  Table_ref *tl = lex->query_tables;
+  Table_ref *tr = lex->query_tables;
   // For INSERT INTO SELECT and CTAS statements, the table to insert into does
   // not have to have a secondary engine. This table is always first in the list
   if ((lex->sql_command == SQLCOM_INSERT_SELECT ||
        lex->sql_command == SQLCOM_CREATE_TABLE) &&
-      tl != nullptr)
-    tl = tl->next_global;
-  for (; tl != nullptr; tl = tl->next_global) {
-    if (tl->is_placeholder()) continue;
-    TABLE *primary_table = tl->table;
-    tl->table = nullptr;
-    if (open_table(thd, tl, &ot_ctx)) {
+      tr != nullptr) {
+    tr = tr->next_global;
+  }
+  // Re-open the tables belonging to the query, but not those belonging to
+  // associated triggers (query_tables_own_last will point to the boundary).
+  for (; tr != nullptr && (lex->query_tables_own_last == nullptr ||
+                           tr != lex->query_tables_own_last[0]);
+       tr = tr->next_global) {
+    if (tr->is_placeholder()) {
+      continue;
+    }
+    TABLE *primary_table = tr->table;
+    tr->table = nullptr;
+    if (open_table(thd, tr, &ot_ctx)) {
       if (!thd->is_error()) {
         /*
           open_table() has not registered any error, implying that we can
@@ -6991,8 +6998,8 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       }
       return true;
     }
-    assert(tl->table->s->is_secondary_engine());
-    tl->table->file->ha_set_primary_handler(primary_table->file);
+    assert(tr->table->s->is_secondary_engine());
+    tr->table->file->ha_set_primary_handler(primary_table->file);
   }
 
   // Prepare the secondary engine for executing the statement.

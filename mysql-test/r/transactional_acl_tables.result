@@ -660,6 +660,8 @@ FLUSH PRIVILEGES;;
 COMMIT;
 
 # Connection: con1
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 
 # Connection: default
 SELECT user, host FROM mysql.user WHERE host = 'h';
@@ -986,6 +988,7 @@ FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug='-d,wl7158_grant_load_1';
@@ -994,6 +997,7 @@ FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug='-d,wl7158_grant_load_proc_1';
@@ -1002,6 +1006,7 @@ FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug='-d,wl7158_grant_load_2';
@@ -1010,20 +1015,26 @@ FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug="-d,wl7158_grant_load_proc_2";
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 GRANT EXECUTE on PROCEDURE p to u1@h;
 SET debug="+d,wl7158_grant_load_proc_3";
 FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug="-d,wl7158_grant_load_proc_3";
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 CREATE TABLE t1(a INT);
 GRANT SELECT ON t1 TO u1@h;
 SET debug='+d,wl7158_grant_load_3';
@@ -1031,6 +1042,7 @@ FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 Error	1105	Unknown error
 SET debug='-d,wl7158_grant_load_3';
@@ -1857,6 +1869,8 @@ GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
 GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 DROP USER u1@h;
 DROP TABLE t1;
 #

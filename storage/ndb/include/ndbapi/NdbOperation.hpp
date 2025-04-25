@@ -1071,7 +1071,8 @@ class NdbOperation {
       OO_NOT_QUEUABLE = 0x200,
       OO_DEFERRED_CONSTAINTS = 0x400,
       OO_DISABLE_FK = 0x800,
-      OO_NOWAIT = 0x1000
+      OO_NOWAIT = 0x1000,
+      OO_ROW_SIDE_BUFFER = 0x2000
     };
 
     /* An operation-specific abort option.
@@ -1101,6 +1102,17 @@ class NdbOperation {
 
     /* customData ptr for this operation */
     void *customData;
+
+    /*
+     * For columns that should be returned as MySQL blobs (length + pointer)
+     * in row, see NdbDictionary::RecordSpecification::MysqldLongBlob. The
+     * actual value bytes (without length bytes) are stored in the below
+     * rowSizeBuffer. The buffer need to be big enough to store all values of
+     * such columns for a row, typically the sum of the max length of each
+     * column.
+     */
+    void *rowSideBuffer;
+    Uint32 rowSideBufferSize;
   };
 
   /* getLockHandle
@@ -1300,7 +1312,9 @@ class NdbOperation {
   int allocAttrInfo();
   int insertKEYINFO_NdbRecord(const char *value, Uint32 byteSize);
   int insertATTRINFOHdr_NdbRecord(Uint32 attrId, Uint32 attrLen);
-  int insertATTRINFOData_NdbRecord(const char *value, Uint32 size);
+  int insertATTRINFOData_NdbRecord(const char *value, Uint32 byteSize);
+  int insertATTRINFOData_NdbRecord(const char *value1, Uint32 byteSize1,
+                                   const char *value2, Uint32 byteSize2);
 
   int receiveTCKEYREF(const NdbApiSignal *);
 
@@ -1564,6 +1578,9 @@ class NdbOperation {
   bool m_blob_lock_upgraded; /* Did Blob code upgrade LM_CommittedRead
                               * to LM_Read?
                               */
+
+  char *m_row_side_buffer;
+  Uint32 m_row_side_buffer_size;
 
  private:
   NdbOperation(const NdbOperation &);  // Not impl.

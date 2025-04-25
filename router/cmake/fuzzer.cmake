@@ -28,6 +28,11 @@ IF(NOT MY_COMPILER_IS_CLANG)
   RETURN()
 ENDIF()
 
+# Some of the fuzzed target dependencies are not supported by Xcode.
+IF(APPLE_XCODE)
+  RETURN()
+ENDIF()
+
 # ld.lld: error:
 # /usr/lib64/clang/7.0.1/lib/linux/libclang_rt.fuzzer-x86_64.a
 # (FuzzerLoop.cpp.o): unsupported SHT_GROUP format

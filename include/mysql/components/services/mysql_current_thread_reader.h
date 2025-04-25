@@ -25,13 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define MYSQL_CURRENT_THREAD_READER_H
 
 #include <mysql/components/service.h>
-
-#ifdef __cplusplus
-class THD;
-#define MYSQL_THD THD *
-#else
-#define MYSQL_THD void *
-#endif
+#include <mysql/components/services/bits/thd.h>
 
 /**
   @ingroup group_components_services_inventory

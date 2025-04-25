@@ -42,6 +42,7 @@ ADD_SUBDIRECTORY(rest_router)
 ADD_SUBDIRECTORY(rest_routing)
 ADD_SUBDIRECTORY(router)
 ADD_SUBDIRECTORY(routing)
+ADD_SUBDIRECTORY(routing_guidelines)
 
 # Directory layout after 'make install' is different.
 # Create symlinks to ssl libraries for both: build and install layouts

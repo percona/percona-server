@@ -178,7 +178,7 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
           (added + nodes->node_list_len) * sizeof(node_address));
       np = &nodes->node_list_val[nodes->node_list_len];
       for (i = 0; i < n; i++) {
-        /* 			IFDBG(D_NONE, FN; STREXP(names[i])); */
+        /* 			XCOM_IFDBG(D_NONE, FN; STREXP(names[i])); */
         if (!exists(&names[i], nodes, FALSE)) {
           clone_node_address(np, &names[i]);
           np++;

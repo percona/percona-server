@@ -592,6 +592,11 @@ struct Sql_cmd_event : public Sql_cmd_event_base {
       return false;
     }
 
+    auto set_event_body_to_nullptr_guard = create_scope_guard([&]() {
+      if (!is_prepared()) {
+        event_parse_data.event_body = nullptr;
+      }
+    });
     if (!is_prepared()) {
       // For a non-prepared statement the sp_head created by the parser
       // is copied so that the event code can always find it in the same
@@ -726,7 +731,10 @@ Event_parse_data *get_event_parse_data(LEX *lex) {
 void cleanup_event_parse_data(LEX *lex) {
   if (lex->sql_command == SQLCOM_CREATE_EVENT ||
       lex->sql_command == SQLCOM_ALTER_EVENT) {
-    sp_head::destroy(pointer_cast<Sql_cmd_event_base *>(lex->m_sql_cmd)
-                         ->event_parse_data.event_body);
+    sp_head *event_body = pointer_cast<Sql_cmd_event_base *>(lex->m_sql_cmd)
+                              ->event_parse_data.event_body;
+    if (event_body != nullptr) {
+      sp_head::destroy(event_body);
+    }
   }
 }

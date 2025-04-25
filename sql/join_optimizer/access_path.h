@@ -158,6 +158,17 @@ struct Predicate {
   // sargable predicate.
   bool was_join_condition = false;
 
+  // Whether this predicate references tables that could be NULL-complemented
+  // later by an outer join. This could for example be true for degenerate outer
+  // join conditions that are pushed down as a table filter on one of the inner
+  // tables, or for join conditions in inner joins that are on the inner side of
+  // an outer join.
+  //
+  // We keep track of this here in order to prevent collection of functional
+  // dependencies from such predicates if the functional dependencies are not
+  // valid after the outer join.
+  bool possibly_null_complemented_later = false;
+
   // If this is a join condition that came from a multiple equality,
   // and we have decided to create a mesh from that multiple equality,
   // returns the index of it into the “multiple_equalities” array
@@ -1512,6 +1523,8 @@ inline AccessPath *NewNestedLoopSemiJoinWithDuplicateRemovalAccessPath(
   path->nested_loop_semijoin_with_duplicate_removal().table = table;
   path->nested_loop_semijoin_with_duplicate_removal().key = key;
   path->nested_loop_semijoin_with_duplicate_removal().key_len = key_len;
+  path->has_group_skip_scan =
+      outer->has_group_skip_scan || inner->has_group_skip_scan;
   return path;
 }
 
@@ -1571,8 +1584,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
   path->limit_offset().count_all_rows = count_all_rows;
   path->limit_offset().reject_multiple_rows = reject_multiple_rows;
   path->limit_offset().send_records_override = send_records_override;
-  path->ordering_state = child->ordering_state;
-  path->has_group_skip_scan = child->has_group_skip_scan;
+  CopyBasicProperties(*child, path);
   EstimateLimitOffsetCost(path);
   return path;
 }
@@ -1836,7 +1848,7 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
                                     table_map immediate_tables);
 
 AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
-                                    table_map delete_tables,
+                                    table_map update_tables,
                                     table_map immediate_tables);
 
 /**

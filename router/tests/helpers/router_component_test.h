@@ -131,6 +131,13 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     ASSERT_EQ(*port_res, expected_port);
   }
 
+  static void verify_port(MySQLSession *session,
+                          std::vector<uint16_t> possible_node_ports) {
+    auto port_res = select_port(session);
+    ASSERT_TRUE(port_res) << port_res.error().message();
+    EXPECT_THAT(possible_node_ports, ::testing::Contains(port_res.value()));
+  }
+
   /*
    * check if an existing connection allows to execute a query.
    *

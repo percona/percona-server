@@ -313,8 +313,8 @@ static bool equal_engines(const LEX_CSTRING &engine1,
 // engine.
 const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(const LEX *lex) {
   // Don't use secondary storage engines for statements that call stored
-  // routines.
-  if (lex->uses_stored_routines()) return nullptr;
+  // functions.
+  if (lex->has_stored_functions) return nullptr;
   // Now check if the opened tables are available in a secondary
   // storage engine. Only use the secondary tables if all the tables
   // have a secondary tables, and they are all in the same secondary
@@ -430,11 +430,9 @@ void find_and_set_offload_fail_reason(const LEX *lex) {
   // check known unsupported features and raise a specific offload error.
   std::string err_msg{};
   const Table_ref *tref = nullptr;
-  if (lex->uses_stored_routines() ||
-      (lex->m_sql_cmd != nullptr && lex->m_sql_cmd->is_part_of_sp()) ||
-      lex->thd->sp_runtime_ctx != nullptr) {
+  if (lex->has_stored_functions) {
     // We don't support secondary storage engine execution,
-    // if the query has statements that call stored routines.
+    // if the query has statements that call stored functions.
     err_msg =
         "Statements that reference stored functions are not supported in "
         "secondary engines.";
@@ -931,12 +929,8 @@ void accumulate_statement_cost(const LEX *lex) {
  */
 bool SecondaryEngineCallPrePrepareHook(THD *thd,
                                        const LEX_CSTRING &secondary_engine) {
-  handlerton *hton = nullptr;
-  plugin_ref ref = ha_resolve_by_name(thd, &secondary_engine, false);
-  if (ref != nullptr) {
-    hton = plugin_data<handlerton *>(ref);
-  }
-
+  const handlerton *hton =
+      EligibleSecondaryEngineHandlerton(thd, &secondary_engine);
   if (hton != nullptr) {
     secondary_engine_pre_prepare_hook_t secondary_engine_pre_prepare_hook =
         hton->secondary_engine_pre_prepare_hook;
@@ -1012,7 +1006,6 @@ bool optimize_secondary_engine(THD *thd) {
   if (retry_engine.has_value() &&
       (thd->lex->can_execute_only_in_secondary_engine() ||
        SecondaryEngineCallPrePrepareHook(thd, *retry_engine))) {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
     DBUG_EXECUTE_IF("emulate_user_query_kill", {
       thd->get_stmt_da()->set_error_status(thd, ER_QUERY_INTERRUPTED);
       return true;
@@ -1048,25 +1041,39 @@ bool optimize_secondary_engine(THD *thd) {
 }
 
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
-  /* Return if one of the 2 conditions is true:
+  /* Return if secondary engine is not forced and one of the 2 conditions is
+   * true:
    * 1. when secondary engine statement context is not present, query cost is
    * lower than the secondary than the engine threshold.
    * 2. When secondary engine statement context is present, primary engine
    * is the better execution engine for this query.
    * This prevents calling plugin_foreach for short queries, reducing the
    * overhead. */
-  if (((thd->secondary_engine_statement_context() == nullptr) &&
-       thd->m_current_query_cost <=
-           thd->variables.secondary_engine_cost_threshold) ||
-      ((thd->secondary_engine_statement_context() != nullptr) &&
-       thd->secondary_engine_statement_context()
-           ->is_primary_engine_optimal())) {
+  bool is_secondary_engine_not_forced =
+      thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED;
+  if (is_secondary_engine_not_forced &&
+      ((thd->secondary_engine_statement_context() == nullptr &&
+        thd->m_current_query_cost <=
+            thd->variables.secondary_engine_cost_threshold) ||
+       (thd->secondary_engine_statement_context() != nullptr &&
+        thd->secondary_engine_statement_context()
+            ->is_primary_engine_optimal()))) {
     return;
   }
+
   auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
                          ? SelectExecutedIn::kSecondaryEngine
                          : SelectExecutedIn::kPrimaryEngine;
+  /* if secondary engine has been cached */
+  if (thd->eligible_secondary_engine_handlerton() != nullptr &&
+      thd->eligible_secondary_engine_handlerton()->notify_after_select !=
+          nullptr) {
+    thd->eligible_secondary_engine_handlerton()->notify_after_select(
+        thd, executed_in);
+    return;
+  }
 
+  /* if secondary engine has not been cached, check for all plugins */
   plugin_foreach(
       thd,
       [](THD *t, plugin_ref plugin, void *arg) -> bool {
@@ -1517,7 +1524,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     Applicability conditions are as follows:
 
     @par DuplicateWeedout strategy
-
+    Join order:
     @code
       (ot|nt)*  [ it ((it|ot|nt)* (it|ot))]  (nt)*
       +------+  +=========================+  +---+
@@ -1534,7 +1541,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     -# The suffix of outer non-correlated tables.
 
     @par FirstMatch strategy
-
+    Join order:
     @code
       (ot|nt)*  [ it (it)* ]  (nt)*
       +------+  +==========+  +---+
@@ -1548,7 +1555,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     -# The suffix of outer non-correlated tables.
 
     @par LooseScan strategy
-
+    Join order:
     @code
      (ot|ct|nt) [ loosescan_tbl (ot|nt|it)* it ]  (ot|nt)*
      +--------+   +===========+ +=============+   +------+
@@ -1573,7 +1580,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     -# The suffix of outer correlated and non-correlated tables.
 
     @par MaterializeLookup strategy
-
+    Join order:
     @code
      (ot|nt)*  [ it (it)* ]  (nt)*
      +------+  +==========+  +---+
@@ -1589,7 +1596,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     -# The suffix of outer non-correlated tables.
 
     @par MaterializeScan strategy
-
+    Join order:
     @code
      (ot|nt)*  [ it (it)* ]  (ot|nt)*
      +------+  +==========+  +-----+
@@ -2442,7 +2449,8 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                                    key_part_info, key_buff, nullable);
   if (unlikely(!s_key || thd->is_error())) return true;
 
-  if (used_tables & ~INNER_TABLE_BIT) {
+  if (used_tables & ~INNER_TABLE_BIT ||
+      !evaluate_during_optimization(val, thd->lex->current_query_block())) {
     /* Comparing against a non-constant. */
     ref->key_copy[part_no] = s_key;
   } else {
@@ -3206,7 +3214,6 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_exec->table_param = Temp_table_param();
   count_field_types(query_block, &sjm_exec->table_param,
                     emb_sj_nest->nested_join->sj_inner_exprs, false, true);
-  sjm_exec->table_param.bit_fields_as_long = true;
 
   char buffer[NAME_LEN];
   const size_t len = snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
@@ -4486,9 +4493,20 @@ bool JOIN::make_tmp_tables_info() {
     computed for each group. Thus all MIN/MAX functions should be
     treated as regular functions, and there is no need to perform
     grouping in the main execution loop.
-    Notice that currently loose index scan is applicable only for
-    single table queries, thus it is sufficient to test only the first
-    join_tab element of the plan for its access method.
+    Currently loose index scan is only applicable for single table queries. The
+    only exception is when a single table query becomes a multi-table query
+    because of a semijoin transformation. We check the first join_tab element
+    of the plan for its access method here, which holds good even for the
+    multi-table query, but only when optimizer has picked nested loop joins.
+    Skip scan is enabled only for the original table in the query which is the
+    first table in the join order for a nested loop join. However, for hash
+    joins it does not hold good. So, we see an additional de-duplication step
+    when hash join is picked as it is not aware that de-duplication is taken
+    care by the access method picked.
+
+    TODO: Make optimize_distinct_group_order() understand that de-duplication
+    is taken care by the chosen access method, so that we avoid the additional
+    de-duplication step.
   */
   if (qep_tab && qep_tab[0].range_scan() &&
       is_loose_index_scan(qep_tab[0].range_scan()))

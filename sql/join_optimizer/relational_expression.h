@@ -285,9 +285,11 @@ inline bool OperatorIsCommutative(const RelationalExpression &expr) {
 
 // Call the given functor on each non-table operator in the tree below expr,
 // including expr itself, in post-traversal order.
-template <class Func>
-  requires std::is_invocable_v<Func, RelationalExpression *>
-void ForEachJoinOperator(RelationalExpression *expr, Func &&func) {
+template <class Operator, class Func>
+  requires std::is_same_v<RelationalExpression,
+                          std::remove_const_t<Operator>> &&
+           std::is_invocable_v<Func, Operator *>
+void ForEachJoinOperator(Operator *expr, Func &&func) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }

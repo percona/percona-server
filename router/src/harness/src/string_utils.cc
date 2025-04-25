@@ -72,6 +72,15 @@ void trim(std::string &str) {
   right_trim(str);
 }
 
+bool ieq(const std::string_view &a, const std::string_view &b) {
+  if (a.size() != b.size()) return false;
+
+  return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                    [](char lhs, char rhs) {
+                      return std::tolower(lhs) == std::tolower(rhs);
+                    });
+}
+
 namespace {
 
 /** @brief Finds n-th occurence of character c in string s
@@ -128,6 +137,13 @@ std::string limit_lines(const std::string &str, const size_t limit,
   }
 
   return str;
+}
+
+stdx::expected<bool, std::error_code> bool_from_string(std::string str) {
+  if (ieq(str, "true")) return {true};
+  if (ieq(str, "false")) return {false};
+
+  return stdx::unexpected(make_error_code(std::errc::invalid_argument));
 }
 
 }  // namespace mysql_harness

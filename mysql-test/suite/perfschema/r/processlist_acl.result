@@ -26,6 +26,8 @@ grant ALL   on *.* to user_all@localhost;
 grant USAGE on *.* to user_none@localhost;
 
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 
 SHOW GRANTS FOR user_all@localhost;
 Grants for user_all@localhost
@@ -75,6 +77,7 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
+<<<<<<< HEAD
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -86,10 +89,37 @@ Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| merged common ancestors
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+=======
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+>>>>>>> mysql-9.2.0
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -101,6 +131,32 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 
@@ -142,6 +198,7 @@ Warnings:
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -153,6 +210,32 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 

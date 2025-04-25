@@ -306,22 +306,22 @@ String *Item_func_sha2::val_str_ascii(String *str) {
 #ifndef OPENSSL_NO_SHA512
     case 512:
       digest_length = SHA512_DIGEST_LENGTH;
-      (void)SHA_EVP512(input_ptr, input_len, digest_buf);
+      SHA_EVP512(input_ptr, input_len, digest_buf);
       break;
     case 384:
       digest_length = SHA384_DIGEST_LENGTH;
-      (void)SHA_EVP384(input_ptr, input_len, digest_buf);
+      SHA_EVP384(input_ptr, input_len, digest_buf);
       break;
 #endif
 #ifndef OPENSSL_NO_SHA256
     case 224:
       digest_length = SHA224_DIGEST_LENGTH;
-      (void)SHA_EVP224(input_ptr, input_len, digest_buf);
+      SHA_EVP224(input_ptr, input_len, digest_buf);
       break;
     case 256:
     case 0:  // SHA-256 is the default
       digest_length = SHA256_DIGEST_LENGTH;
-      (void)SHA_EVP256(input_ptr, input_len, digest_buf);
+      SHA_EVP256(input_ptr, input_len, digest_buf);
       break;
 #endif
     default:
@@ -402,121 +402,115 @@ const int max_kdf_option_size{256};
 const int max_kdf_iterations_size{65535};
 const int min_kdf_iterations_size{1000};
 
-class kdf_argument {
-  char tmp_option_buff[max_kdf_option_size]{'\0'};
-  String tmp_option_value;
+static bool parse_kdf_option(String *kdf_option_value, string &kdf_option,
+                             bool *error_generated,
+                             const size_t max_size_allowed) {
+  /*
+    For large KDF option value, KDF option value will be set as nullptr by
+    function callers.
+    It gives warning: Warning | 1301 | Result of repeat() was
+    larger than max_allowed_packet (16777216) - truncated Here arg_count >
 
- public:
-  kdf_argument()
-      : tmp_option_value(tmp_option_buff, sizeof(tmp_option_buff),
-                         system_charset_info) {}
-
-  bool parse_kdf_option(String *kdf_option_value, string &kdf_option,
-                        bool *error_generated, const size_t max_size_allowed) {
-    /*
-      For large KDF option value, KDF option value will be set as nullptr by
-      function callers.
-      It gives warning: Warning | 1301 | Result of repeat() was
-      larger than max_allowed_packet (16777216) - truncated Here arg_count >
-
-      KDF option value as nullptr will be treated as invalid KDF option value.
-    */
-    if (!kdf_option_value) {
-      my_error(ER_AES_INVALID_KDF_OPTION_SIZE, MYF(0), max_size_allowed);
-      *error_generated = true;
-      return false;
-    }
-    if (kdf_option_value->length() > (max_size_allowed - 1)) {
-      my_error(ER_AES_INVALID_KDF_OPTION_SIZE, MYF(0), max_size_allowed);
-      *error_generated = true;
-      return false;
-    }
-    kdf_option = to_string(*kdf_option_value);
-    return true;
-  }
-
-  /**
-     Validate the options and retrieve the KDF options value.
-
-     @param arg_count   number of parameters passed to the function
-     @param args        array of arguments passed to the function
-     @param func_name   the name of the function (for errors)
-     @param [out] error_generated  set to true if error was generated.
-
-     @return retrieved KDF option values
+    KDF option value as nullptr will be treated as invalid KDF option value.
   */
-  vector<string> retrieve_kdf_options(uint arg_count, Item **args,
-                                      const char *func_name,
-                                      bool *error_generated) {
-    vector<string> kdf_options;
-    String *kdf_option_value{nullptr};
-    string kdf_option;
-
-    *error_generated = false;
-
-    if (arg_count > 3) {
-      kdf_option_value = args[3]->val_str(&tmp_option_value);
-    } else {
-      return kdf_options;
-    }
-    // KDF funtion name
-    if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
-                          max_kdf_option_size))
-      return kdf_options;
-
-      // KDF function name should be valid
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    if (kdf_option == "pbkdf2_hmac") {
-#else
-    if (kdf_option == "hkdf" || kdf_option == "pbkdf2_hmac") {
-#endif
-      kdf_options.push_back(kdf_option);
-    } else {
-      my_error(ER_AES_INVALID_KDF_NAME, MYF(0), func_name);
-      *error_generated = true;
-      return kdf_options;
-    }
-
-    kdf_option_value = nullptr;
-    if (arg_count > 4) {
-      kdf_option_value = args[4]->val_str(&tmp_option_value);
-    } else {
-      return kdf_options;
-    }
-    // For hkdf and pbkdf2_hmac option 1 is salt
-    if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
-                          max_kdf_option_size))
-      return kdf_options;
-    kdf_options.push_back(kdf_option);
-
-    kdf_option_value = nullptr;
-    if (arg_count > 5) {
-      kdf_option_value = args[5]->val_str(&tmp_option_value);
-    } else {
-      return kdf_options;
-    }
-    // For hkdf option 2 is info
-    // For pbkdf2_hmac option 2 is iterations
-    size_t max_size_allowed = max_kdf_option_size;
-    if (kdf_options[0] == "pbkdf2_hmac") {
-      // 4 bytes for integer (65535).
-      max_size_allowed = 6;
-    }
-    if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
-                          max_size_allowed))
-      return kdf_options;
-    kdf_options.push_back(kdf_option);
-
-    if ((kdf_options[0] == "pbkdf2_hmac") && (kdf_options.size() > 2)) {
-      int iter = atoi(kdf_options[2].c_str());
-      if (iter < min_kdf_iterations_size || iter > max_kdf_iterations_size) {
-        *error_generated = true;
-        my_error(ER_AES_INVALID_KDF_ITERATIONS, MYF(0), func_name);
-      }
-    }
-    return kdf_options;
+  if (kdf_option_value == nullptr) {
+    my_error(ER_AES_INVALID_KDF_OPTION_SIZE, MYF(0), max_size_allowed);
+    *error_generated = true;
+    return false;
   }
-};
+  if (kdf_option_value->length() > (max_size_allowed - 1)) {
+    my_error(ER_AES_INVALID_KDF_OPTION_SIZE, MYF(0), max_size_allowed);
+    *error_generated = true;
+    return false;
+  }
+  kdf_option = to_string(*kdf_option_value);
+  return true;
+}
+
+/**
+   Validate the options and retrieve the KDF options value.
+
+   @param arg_count   number of parameters passed to the function
+   @param args        array of arguments passed to the function
+   @param func_name   the name of the function (for errors)
+   @param [out] error_generated  set to true if error was generated.
+   @param [out] result  retrieved KDF option values
+*/
+static void retrieve_kdf_options(uint arg_count, Item **args,
+                                 const char *func_name, bool *error_generated,
+                                 vector<string> &result) {
+  *error_generated = false;
+
+  if (arg_count < 4) {
+    return;
+  }
+
+  char tmp_option_buff[max_kdf_option_size]{'\0'};
+  String tmp_option_value(tmp_option_buff, sizeof(tmp_option_buff),
+                          system_charset_info);
+
+  String *kdf_option_value = args[3]->val_str(&tmp_option_value);
+
+  // KDF funtion name
+  string kdf_option;
+  if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
+                        max_kdf_option_size)) {
+    return;
+  }
+
+  // KDF function name should be valid
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  if (kdf_option == "pbkdf2_hmac") {
+#else
+  if (kdf_option == "hkdf" || kdf_option == "pbkdf2_hmac") {
+#endif
+    result.push_back(kdf_option);
+  } else {
+    my_error(ER_AES_INVALID_KDF_NAME, MYF(0), func_name);
+    *error_generated = true;
+    return;
+  }
+
+  kdf_option_value = nullptr;
+  if (arg_count > 4) {
+    kdf_option_value = args[4]->val_str(&tmp_option_value);
+  } else {
+    return;
+  }
+  // For hkdf and pbkdf2_hmac option 1 is salt
+  if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
+                        max_kdf_option_size)) {
+    return;
+  }
+  result.push_back(kdf_option);
+
+  kdf_option_value = nullptr;
+  if (arg_count > 5) {
+    kdf_option_value = args[5]->val_str(&tmp_option_value);
+  } else {
+    return;
+  }
+  // For hkdf option 2 is info
+  // For pbkdf2_hmac option 2 is iterations
+  size_t max_size_allowed = max_kdf_option_size;
+  if (result[0] == "pbkdf2_hmac") {
+    // 4 bytes for integer (65535).
+    max_size_allowed = 6;
+  }
+  if (!parse_kdf_option(kdf_option_value, kdf_option, error_generated,
+                        max_size_allowed)) {
+    return;
+  }
+  result.push_back(kdf_option);
+
+  if ((result[0] == "pbkdf2_hmac") && (result.size() > 2)) {
+    const int iter = atoi(result[2].c_str());
+    if (iter < min_kdf_iterations_size || iter > max_kdf_iterations_size) {
+      *error_generated = true;
+      my_error(ER_AES_INVALID_KDF_ITERATIONS, MYF(0), func_name);
+    }
+  }
+}
 
 /** helper class to process an IV argument to aes_encrypt/aes_decrypt */
 class iv_argument {
@@ -575,6 +569,20 @@ class iv_argument {
   }
 };
 
+void Item_func_aes_encrypt::create_op_context() {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ctx = &stack_ctx;
+#else
+  ctx = EVP_CIPHER_CTX_new();
+#endif
+}
+
+void Item_func_aes_encrypt::destroy_op_context() {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_CIPHER_CTX_free(ctx);
+#endif
+}
+
 bool Item_func_aes_encrypt::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::do_itemize(pc, res)) return true;
@@ -599,7 +607,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
   String *key = args[1]->val_str(&tmp_key_value);  // key
   if (key == nullptr) return error_str();
 
-  my_aes_opmode aes_opmode =
+  const auto aes_opmode =
       static_cast<my_aes_opmode>(thd->variables.my_aes_mode);
   assert(aes_opmode <= MY_AES_END);
 
@@ -608,30 +616,35 @@ String *Item_func_aes_encrypt::val_str(String *str) {
   if (null_value) return error_str();
 
   vector<string> kdf_options;
-  kdf_argument kdf_arg;
-  kdf_options =
-      kdf_arg.retrieve_kdf_options(arg_count, args, func_name(), &null_value);
+  retrieve_kdf_options(arg_count, args, func_name(), &null_value, kdf_options);
   if (null_value) return error_str();
 
   // Calculate result length
-  int aes_length = my_aes_get_size(sptr->length(), aes_opmode);
+  const int aes_length = my_aes_get_size(sptr->length(), aes_opmode);
 
   tmp_value.set_charset(&my_charset_bin);
   const uint rkey_size = my_aes_opmode_key_sizes[aes_opmode] / 8;
   const uint key_size = key->length();
-  if ((key_size > rkey_size) && (kdf_options.size() == 0)) {
+  if ((key_size > rkey_size) && kdf_options.empty()) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, WARN_AES_KEY_SIZE,
                         ER_THD(thd, WARN_AES_KEY_SIZE), rkey_size);
   }
   if (tmp_value.alloc(aes_length)) return error_str();
 
   // Finally encrypt directly to allocated buffer.
-  if (my_aes_encrypt(pointer_cast<unsigned char *>(sptr->ptr()), sptr->length(),
-                     pointer_cast<unsigned char *>(tmp_value.ptr()),
-                     pointer_cast<unsigned char *>(key->ptr()), key->length(),
-                     aes_opmode, iv_str, true,
-                     (kdf_options.size() > 0) ? &kdf_options : nullptr) ==
-      aes_length) {
+  const int length = my_aes_encrypt(
+      ctx, pointer_cast<unsigned char *>(sptr->ptr()), sptr->length(),
+      pointer_cast<unsigned char *>(tmp_value.ptr()),
+      pointer_cast<unsigned char *>(key->ptr()), key->length(), aes_opmode,
+      iv_str, true, kdf_options.empty() ? nullptr : &kdf_options);
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX_reset(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
+  if (length == aes_length) {
     // We got the expected result length
     tmp_value.length(static_cast<size_t>(aes_length));
     return &tmp_value;
@@ -647,6 +660,20 @@ bool Item_func_aes_encrypt::resolve_type(THD *thd) {
   set_data_type_string(static_cast<ulonglong>(
       my_aes_get_size(args[0]->max_length, (enum my_aes_opmode)aes_opmode)));
   return false;
+}
+
+void Item_func_aes_decrypt::create_op_context() {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ctx = &stack_ctx;
+#else
+  ctx = EVP_CIPHER_CTX_new();
+#endif
+}
+
+void Item_func_aes_decrypt::destroy_op_context() {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_CIPHER_CTX_free(ctx);
+#endif
 }
 
 bool Item_func_aes_decrypt::do_itemize(Parse_context *pc, Item **res) {
@@ -685,19 +712,23 @@ String *Item_func_aes_decrypt::val_str(String *str) {
   if (str_value.alloc(sptr->length())) return error_str();
 
   // Finally decrypt directly to allocated buffer.
-  int length;
   vector<string> kdf_options;
-  kdf_argument kdf_arg;
-  kdf_options =
-      kdf_arg.retrieve_kdf_options(arg_count, args, func_name(), &null_value);
+  retrieve_kdf_options(arg_count, args, func_name(), &null_value, kdf_options);
   if (null_value) {
     return error_str();
   }
-  length = my_aes_decrypt(
-      pointer_cast<unsigned char *>(sptr->ptr()), sptr->length(),
+  const int length = my_aes_decrypt(
+      ctx, pointer_cast<unsigned char *>(sptr->ptr()), sptr->length(),
       pointer_cast<unsigned char *>(str_value.ptr()),
       pointer_cast<unsigned char *>(key->ptr()), key->length(), aes_opmode,
       iv_str, true, (kdf_options.size() > 0) ? &kdf_options : nullptr);
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX_reset(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
   if (length >= 0)  // if we got correct data data
   {
     str_value.length((uint)length);

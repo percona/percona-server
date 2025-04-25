@@ -37,6 +37,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"      /* DBUG instrumentation */
 #include "my_inttypes.h"  // IWYU pragma: keep
+#include "my_ssl_algo_cache.h"
 #include "sql/auth/i_sha2_password_common.h"
 
 namespace sha2_password {
@@ -136,7 +137,7 @@ void SHA256_digest::init() {
     return;
   }
 
-  m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), nullptr);
+  m_ok = (bool)EVP_DigestInit_ex(md_context, my_EVP_sha256(), nullptr);
 
   if (!m_ok) {
     EVP_MD_CTX_destroy(md_context);

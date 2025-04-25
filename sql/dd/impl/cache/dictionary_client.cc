@@ -79,6 +79,7 @@
 #include "sql/dd/types/event.h"              // Event
 #include "sql/dd/types/function.h"           // Function
 #include "sql/dd/types/index_stat.h"         // Index_stat
+#include "sql/dd/types/library.h"            // Library
 #include "sql/dd/types/procedure.h"          // Procedure
 #include "sql/dd/types/resource_group.h"     // Resource_group
 #include "sql/dd/types/routine.h"
@@ -2120,6 +2121,18 @@ bool Dictionary_client::fetch_schema_component_names<Function>(
                                                            fetch_criteria);
 }
 
+template <>
+bool Dictionary_client::fetch_schema_component_names<Library>(
+    const Schema *schema, std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) {
+    return static_cast<dd::Routine::enum_routine_type>(
+               r->read_int(dd::tables::Routines::FIELD_TYPE)) ==
+           dd::Routine::RT_LIBRARY;  // Select only LIBRARIES.
+  };
+  return fetch_schema_component_names_by_criteria<Routine>(m_thd, schema, names,
+                                                           fetch_criteria);
+}
+
 // Fetch the names of object type T that belong to schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
@@ -3213,6 +3226,20 @@ template bool Dictionary_client::drop(const Procedure *);
 template bool Dictionary_client::store(Procedure *);
 template bool Dictionary_client::update(Procedure *);
 
+template bool Dictionary_client::acquire_uncached(Object_id, Library **);
+template bool Dictionary_client::acquire(Object_id, const Library **);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Library **);
+template void Dictionary_client::remove_uncommitted_objects<Library>(bool);
+template bool Dictionary_client::acquire(const String_type &,
+                                         const String_type &, const Library **);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          const String_type &,
+                                                          Library **);
+template bool Dictionary_client::drop(const Library *);
+template bool Dictionary_client::store(Library *);
+template bool Dictionary_client::update(Library *);
+
 template bool Dictionary_client::drop(const Routine *);
 template void Dictionary_client::remove_uncommitted_objects<Routine>(bool);
 template bool Dictionary_client::update(Routine *);
@@ -3225,9 +3252,14 @@ template bool Dictionary_client::acquire<Function>(
 template bool Dictionary_client::acquire<Procedure>(
     const String_type &, const String_type &,
     const Procedure::Cache_partition **);
+template bool Dictionary_client::acquire<Library>(
+    const String_type &, const String_type &,
+    const Procedure::Cache_partition **);
 template bool Dictionary_client::acquire_for_modification<Function>(
     const String_type &, const String_type &, Function::Cache_partition **);
 template bool Dictionary_client::acquire_for_modification<Procedure>(
+    const String_type &, const String_type &, Procedure::Cache_partition **);
+template bool Dictionary_client::acquire_for_modification<Library>(
     const String_type &, const String_type &, Procedure::Cache_partition **);
 
 template bool Dictionary_client::acquire_uncached(Object_id, Routine **);

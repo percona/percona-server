@@ -22,6 +22,8 @@ grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 
 use test;
 create table test.t1 (s1 int, s2 int, s3 int, s4 int);
@@ -60,6 +62,7 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
+<<<<<<< HEAD
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -68,10 +71,31 @@ Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| merged common ancestors
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+=======
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+>>>>>>> mysql-9.2.0
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -80,6 +104,26 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 
@@ -117,6 +161,7 @@ Warnings:
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -125,6 +170,26 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 
@@ -157,6 +222,7 @@ SET DEBUG_SYNC='now WAIT_FOR pfs_processlist_pfs';
 SET DEBUG_SYNC='now SIGNAL continue';
 
 # Connection default, reap
+<<<<<<< HEAD
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -165,6 +231,26 @@ Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| merged common ancestors
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>
+=======
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	<Info>
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>
+>>>>>>> mysql-9.2.0
 
 
 ### Verify legacy code path

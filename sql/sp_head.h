@@ -45,6 +45,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/sql_cmd_ddl.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
@@ -307,6 +308,11 @@ class sp_parser_data {
   */
   void do_cont_backpatch(uint dest);
 
+  /// Returns pointer to the topmost lex object.
+  LEX *get_top_lex() {
+    return m_lex_stack.is_empty() ? nullptr : m_lex_stack.head();
+  }
+
  private:
   /// Start of the current statement's query string.
   const char *m_current_stmt_start_ptr;
@@ -378,7 +384,7 @@ struct SP_TABLE;
 
 /**
   sp_head represents one instance of a stored program. It might be of any type
-  (stored procedure, function, trigger, event).
+  (stored procedure, function, library, trigger, event).
 */
 class sp_head {
  public:
@@ -1059,6 +1065,9 @@ class sp_head {
 
   friend sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type,
                                    sp_name *sp_name);
+
+  // Sql_cmd_create_library::execute() creates stand-alone sp_head object
+  friend Sql_cmd_create_library;
 
   // Prevent use of copy constructor and assignment operator.
   sp_head(const sp_head &);

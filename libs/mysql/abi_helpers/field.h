@@ -27,12 +27,19 @@
 /// @file
 /// Experimental API header
 
-#include <cstdlib>  // std::size_t
+#include <cstdlib>      // std::size_t
+#include <type_traits>  // std::is_enum_v
 
 /// @addtogroup GroupLibsMysqlAbiHelpers
 /// @{
 
 namespace mysql::abi_helpers {
+
+union Value_union {
+  long long m_int;
+  bool m_bool;
+  char *m_string;
+};
 
 /// A type code and a value that is either a 64 bit integer, a boolean, or a
 /// bounded-length string.
@@ -46,11 +53,7 @@ class Field {
   Type_enum_t m_type;
 
   /// @brief The data of the field
-  union {
-    long long m_int;
-    bool m_bool;
-    char *m_string;
-  } m_data;
+  Value_union m_data;
 };
 
 }  // namespace mysql::abi_helpers

@@ -73,9 +73,8 @@ enum class PathComparisonResult {
   IDENTICAL,
 };
 
-PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
-                                        const AccessPath &a,
-                                        const AccessPath &b,
-                                        OrderingSet obsolete_orderings);
+PathComparisonResult CompareAccessPaths(
+    const LogicalOrderings &orderings, const AccessPath &a, const AccessPath &b,
+    OrderingSet obsolete_orderings, bool need_rowid, bool use_first_row_cost);
 
 #endif  // SQL_JOIN_OPTIMIZER_COMPARE_ACCESS_PATHS_H

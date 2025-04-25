@@ -1861,7 +1861,16 @@ class NdbDictionary {
         Used for MySQLD char(0) column
         Used only with RecMysqldBitfield flag
       */
-      BitColMapsNullBitOnly = 0x1
+      BitColMapsNullBitOnly = 0x1,
+      /*
+        In record store only length as 4 byte little endian unsigned integer
+        followed by a 8 byte native pointer (like MySQL LONGBLOB).
+        This flag can only be used for columns which is either Longvarbinary or
+        Longvarchar.
+        To read such column one also need to provide operation option
+        OO_ROW_SIDE_BUFFER.
+       */
+      MysqldLongBlob = 0x2
     };
     Uint32 column_flags;
   };

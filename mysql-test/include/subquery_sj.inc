@@ -574,6 +574,18 @@ explain select * from t1 where a in (select a from t1);
 drop table t1;
 
 #
+# BIT type checks
+#
+SET internal_tmp_mem_storage_engine='memory';
+--source include/subquery_sj_type_bit.inc
+SET internal_tmp_mem_storage_engine='TempTable';
+--source include/subquery_sj_type_bit.inc
+SET internal_tmp_mem_storage_engine=default;
+SET SESSION big_tables=true;
+--source include/subquery_sj_type_bit.inc
+SET SESSION big_tables=default;
+
+#
 # SJ-Materialization-scan for non-first table
 #
 create table t1 (a int);

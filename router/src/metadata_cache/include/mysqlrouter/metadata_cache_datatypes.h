@@ -28,14 +28,14 @@
 
 #include "mysqlrouter/metadata_cache_export.h"
 
-#include <algorithm>
 #include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
 
-#include "mysqlrouter/datatypes.h"  // UserCredentials
-#include "tcp_address.h"
+#include "mysql/harness/destination.h"
+#include "mysqlrouter/cluster_metadata.h"  // InstanceType
+#include "mysqlrouter/datatypes.h"         // UserCredentials
 
 namespace metadata_cache {
 
@@ -46,7 +46,8 @@ enum class metadata_errc {
   metadata_refresh_terminated,
   cluster_not_found,
   invalid_cluster_type,
-  outdated_view_id
+  outdated_view_id,
+  schema_version_too_low
 };
 }  // namespace metadata_cache
 
@@ -77,6 +78,8 @@ inline const std::error_category &metadata_cache_category() noexcept {
           return "unexpected cluster type";
         case metadata_errc::outdated_view_id:
           return "highier view_id seen";
+        case metadata_errc::schema_version_too_low:
+          return "metadata schema version not supported";
         default:
           return "unknown";
       }
@@ -104,13 +107,17 @@ class METADATA_CACHE_EXPORT ManagedInstance {
                   const std::string &p_mysql_server_uuid,
                   const ServerMode p_mode, const ServerRole p_role,
                   const std::string &p_host, const uint16_t p_port,
-                  const uint16_t p_xport);
+                  const uint16_t p_xport, std::string label);
 
-  using TCPAddress = mysql_harness::TCPAddress;
+  ManagedInstance(const ManagedInstance &) = default;
+  ManagedInstance &operator=(const ManagedInstance &) = default;
+  ManagedInstance(ManagedInstance &&) = default;
+  ManagedInstance &operator=(ManagedInstance &&) = default;
+
   explicit ManagedInstance(mysqlrouter::InstanceType p_type);
   explicit ManagedInstance(mysqlrouter::InstanceType p_type,
-                           const TCPAddress &addr);
-  operator TCPAddress() const;
+                           const mysql_harness::TcpDestination &dest);
+  operator mysql_harness::TcpDestination() const;
   bool operator==(const ManagedInstance &other) const;
 
   /** @brief Instance type */
@@ -130,18 +137,33 @@ class METADATA_CACHE_EXPORT ManagedInstance {
   /** Node atributes as a json string from metadata */
   std::string attributes;
   /** Should the node be hidden from the application to use it */
-  bool hidden;
+  bool hidden{mysqlrouter::kNodeTagHiddenDefault};
   /** Should the Router disconnect existing client sessions to the node when it
    * is hidden */
-  bool disconnect_existing_sessions_when_hidden;
+  bool disconnect_existing_sessions_when_hidden{
+      mysqlrouter::kNodeTagDisconnectWhenHiddenDefault};
   /** Should the node be ignored for new and existing connections (for example
    * due to the read_only_targets option) */
   bool ignore{false};
+
+  /** Server tags as defined in the metadata, parsed as a key-value pairs */
+  std::map<std::string, std::string, std::less<>> tags{};
+
+  uint32_t version{0};
+
+  std::string label;
+
+  std::string to_string() const {
+    std::string result = "uuid: " + mysql_server_uuid + "\n";
+    result += "address: " + host + ":" + std::to_string(port) + "\n";
+
+    return result;
+  }
 };
 
 using cluster_nodes_list_t = std::vector<ManagedInstance>;
 
-using metadata_server_t = mysql_harness::TCPAddress;
+using metadata_server_t = mysql_harness::TcpDestination;
 
 using metadata_servers_list_t = std::vector<metadata_server_t>;
 
@@ -176,6 +198,8 @@ class METADATA_CACHE_EXPORT ManagedCluster {
 
   void clear() noexcept { members.clear(); }
 };
+
+using clusters_list_t = std::vector<ManagedCluster>;
 
 /** @class ClusterTopology
  * Represents a cluster (a GR group or AR members) and its metadata servers

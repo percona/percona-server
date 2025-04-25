@@ -76,6 +76,7 @@
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/http_constants.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/routing_guidelines_version.h"
 #include "mysqlrouter/supported_connection_pool_options.h"
 #include "mysqlrouter/supported_http_options.h"
 #include "mysqlrouter/supported_metadata_cache_options.h"
@@ -88,6 +89,7 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_config.h"
+#include "routing_guidelines/routing_guidelines.h"
 #include "scope_guard.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/
 IMPORT_LOG_FUNCTIONS()
@@ -461,6 +463,11 @@ void ConfigGenerator::init(
 
   // throws std::runtime_error, std::logic_error,
   connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
+
+  if (!is_server_version_supported(mysql_.get())) {
+    throw std::runtime_error(get_unsupported_server_version_msg(mysql_.get()));
+  }
+
   schema_version_ = mysqlrouter::get_metadata_schema_version(mysql_.get());
 
   if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
@@ -1079,6 +1086,11 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   options.target_cluster = get_opt(user_options, "target-cluster", "");
   options.target_cluster_by_name =
       get_opt(user_options, "target-cluster-by-name", "");
+
+  options.local_cluster = get_opt(user_options, "local-cluster", "");
+  if (options.local_cluster.empty()) {
+    options.local_cluster = metadata_->get_local_cluster();
+  }
 
   return options;
 }
@@ -2003,12 +2015,18 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
       mysqlrouter::ClusterType::GR_CS == metadata_->get_type()
           ? cluster_specific_id_
           : cluster_info.cluster_id;
+  const std::string &local_cluster = str(options.local_cluster);
 
-  metadata_->update_router_info(router_id, cluster_id, target_cluster,
-                                rw_endpoint, ro_endpoint, rw_split_endpoint,
-                                rw_x_endpoint, ro_x_endpoint, username);
+  metadata_->update_router_info(
+      router_id, cluster_id, target_cluster, rw_endpoint, ro_endpoint,
+      rw_split_endpoint, rw_x_endpoint, ro_x_endpoint, username, local_cluster);
 
   transaction.commit();
+
+  if (metadata_schema_version_is_compatible(kRoutingGuidelinesMetadataVersion,
+                                            schema_version_)) {
+    verify_routing_guidelines_version(mysql_.get(), router_id);
+  }
 
   return std::make_tuple(password);
 }

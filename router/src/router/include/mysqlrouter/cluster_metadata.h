@@ -27,6 +27,7 @@
 #define MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 
 #include "mysqlrouter/router_cluster_export.h"
+#include "mysqlrouter/version_base.h"
 
 #include <chrono>
 #include <optional>
@@ -39,43 +40,7 @@ namespace mysqlrouter {
 
 class MySQLSession;
 
-struct MetadataSchemaVersion {
-  unsigned int major;
-  unsigned int minor;
-  unsigned int patch;
-
-  bool operator<(const MetadataSchemaVersion &o) const {
-    if (major == o.major) {
-      if (minor == o.minor) {
-        return patch < o.patch;
-      } else {
-        return minor < o.minor;
-      }
-    } else {
-      return major < o.major;
-    }
-  }
-
-  bool operator<=(const MetadataSchemaVersion &o) const {
-    return operator<(o) || operator==(o);
-  }
-
-  bool operator>(const MetadataSchemaVersion &o) const {
-    return operator!=(o) && !operator<(o);
-  }
-
-  bool operator>=(const MetadataSchemaVersion &o) const {
-    return operator>(o) || operator==(o);
-  }
-
-  bool operator==(const MetadataSchemaVersion &o) const {
-    return major == o.major && minor == o.minor && patch == o.patch;
-  }
-
-  bool operator!=(const MetadataSchemaVersion &o) const {
-    return !operator==(o);
-  }
-};
+struct MetadataSchemaVersion : public VersionBase {};
 
 std::string ROUTER_CLUSTER_EXPORT
 to_string(const MetadataSchemaVersion &version);
@@ -92,6 +57,9 @@ constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
 
 // Version that introduced support for ClusterSets
 constexpr MetadataSchemaVersion kClusterSetsMetadataVersion{2, 1, 0};
+
+//  Version that introduced support for Routing guidelines
+constexpr MetadataSchemaVersion kRoutingGuidelinesMetadataVersion{2, 3, 0};
 
 // Version that will be is set while the metadata is being updated
 constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
@@ -112,6 +80,11 @@ bool ROUTER_CLUSTER_EXPORT check_group_replication_online(MySQLSession *mysql);
 // throws MySQLSession::Error, std::logic_error, std::out_of_range
 bool ROUTER_CLUSTER_EXPORT check_group_has_quorum(MySQLSession *mysql);
 
+bool ROUTER_CLUSTER_EXPORT is_server_version_supported(MySQLSession *mysql);
+
+std::string ROUTER_CLUSTER_EXPORT
+get_unsupported_server_version_msg(MySQLSession *mysql);
+
 template <size_t N>
 bool metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion (&required)[N],
@@ -123,6 +96,9 @@ bool metadata_schema_version_is_compatible(
 
   return false;
 }
+
+void ROUTER_CLUSTER_EXPORT verify_routing_guidelines_version(
+    MySQLSession *mysql, const std::uint32_t router_id);
 
 template <size_t N>
 std::string to_string(const mysqlrouter::MetadataSchemaVersion (&version)[N]) {
@@ -214,6 +190,9 @@ constexpr const std::chrono::milliseconds kDefaultMetadataTTLClusterSet{
             // Notifications are used or not
 const bool kDefaultUseGRNotificationsCluster = false;
 const bool kDefaultUseGRNotificationsClusterSet = true;
+
+const bool kDefaultCloseConnectionAfterRefreshCluster = false;
+const bool kDefaultCloseConnectionAfterRefreshClusterSet = true;
 
 }  // namespace mysqlrouter
 #endif

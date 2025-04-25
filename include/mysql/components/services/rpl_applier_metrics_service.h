@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef RPL_APPLIER_METRICS_SERVICE_H
 #define RPL_APPLIER_METRICS_SERVICE_H
 
-#include <mysql/components/service.h>
+#include <mysql/components/service.h>       // BEGIN_SERVICE_DEFINITION
 #include "mysql/abi_helpers/abi_helpers.h"  // Array_view
 
 /// @brief Gives a type to each piece of data extracted

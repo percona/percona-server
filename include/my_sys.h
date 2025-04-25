@@ -55,6 +55,7 @@
 
 #include <atomic>  // error_handler_hook
 #include <cstring>
+#include <string>
 
 #include "my_compiler.h"
 #include "my_compress.h"
@@ -66,6 +67,7 @@
 
 #include "my_sharedlib.h"
 #include "mysql/components/services/bits/my_io_bits.h"
+#include "mysql/components/services/bits/my_syslog_bits.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -74,7 +76,6 @@
 #include "mysql/components/services/bits/psi_metric_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/bits/server_telemetry_logs_client_bits.h"
-#include "sql/stream_cipher.h"
 #include "string_with_len.h"
 
 class MY_CHARSET_LOADER;
@@ -331,6 +332,7 @@ struct IO_CACHE_SHARE {
   int error;           /* Last error. */
 };
 
+class Stream_cipher;
 struct IO_CACHE /* Used when caching files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
@@ -622,9 +624,6 @@ void memset_s(void *dest, size_t dest_max, int c, size_t n);
 
 // Maximum size of message  that will be logged.
 #define MAX_SYSLOG_MESSAGE_SIZE 1024
-
-/* Platform-independent SysLog support */
-enum my_syslog_options { MY_SYSLOG_PIDS = 1 };
 
 extern int my_openlog(const char *eventSourceName, int option, int facility);
 extern int my_closelog();

@@ -322,7 +322,7 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
 
   } else {
     dict_stats_update_result =
-        dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
+        dict_stats_update_retry(table, DICT_STATS_RECALC_PERSISTENT, 30);
   }
 
   dict_sys_mutex_enter();

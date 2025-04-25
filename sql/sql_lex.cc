@@ -71,7 +71,7 @@
 #include "sql/sql_parse.h"      // add_to_list
 #include "sql/sql_plugin.h"     // plugin_unlock_list
 #include "sql/sql_profile.h"
-#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_show.h"   // append_identifier_*
 #include "sql/sql_table.h"  // primary_key_name
 #include "sql/sql_yacc.h"
 #include "sql/system_variables.h"
@@ -498,6 +498,8 @@ void LEX::reset() {
   set_execute_only_in_hypergraph_optimizer(
       /*execute_in_hypergraph_optimizer_param=*/false,
       SUPPORTED_IN_BOTH_OPTIMIZERS);
+
+  sp_chistics.reset();
 }
 
 /**
@@ -2590,22 +2592,6 @@ bool Query_block::setup_base_ref_items(THD *thd) {
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num *= 2;
 
-  // create_distinct_group() may need some extra space
-  if (is_distinct()) {
-    uint bitcount = 0;
-    for (Item *item : visible_fields()) {
-      /*
-        Same test as in create_distinct_group, when it pushes new items to the
-        end of base_ref_items. An extra test for 'fixed' which, at this
-        stage, will be true only for columns inserted for a '*' wildcard.
-      */
-      if (item->fixed && item->type() == Item::FIELD_ITEM &&
-          item->data_type() == MYSQL_TYPE_BIT)
-        ++bitcount;
-    }
-    order_group_num += bitcount;
-  }
-
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
@@ -2617,10 +2603,9 @@ bool Query_block::setup_base_ref_items(THD *thd) {
 
   /*
     If it is possible that we transform IN(subquery) to a join to a derived
-    table, we will be adding DISTINCT (this possibly has the problem of BIT
-    columns as in the logic above), and we will also be adding one expression to
-    the SELECT list per decorrelated equality in WHERE. So we have to allocate
-    more space.
+    table, we will be adding DISTINCT, and we will also be adding one
+    expression to the SELECT list per decorrelated equality in WHERE. So we
+    have to allocate more space.
 
     The number of decorrelatable equalities is bounded by
     select_n_where_fields. Indeed an equality isn't counted in
@@ -3661,6 +3646,7 @@ void Query_tables_list::reset_query_tables_list(bool init) {
   sroutines_list.clear();
   sroutines_list_own_last = sroutines_list.next;
   sroutines_list_own_elements = 0;
+  has_stored_functions = false;
   binlog_stmt_flags = 0;
   stmt_accessed_table_flag = 0;
   lock_tables_state = LTS_NOT_LOCKED;
@@ -5283,4 +5269,46 @@ void get_select_options_str(ulonglong options, std::string *str) {
 
   // Delete the last space character.
   if (str->length() > len) str->pop_back();
+}
+
+Acl_type lex_type_to_acl_type(ulong lex_type) {
+  if (lex_type == TYPE_ENUM_FUNCTION) {
+    return Acl_type::FUNCTION;
+  }
+  if (lex_type == TYPE_ENUM_PROCEDURE) {
+    return Acl_type::PROCEDURE;
+  }
+  if (lex_type == TYPE_ENUM_LIBRARY) {
+    return Acl_type::LIBRARY;
+  }
+  assert(false);
+  return Acl_type::INVALID_TYPE;
+}
+
+enum_sp_type acl_type_to_enum_sp_type(Acl_type type) {
+  if (type == Acl_type::FUNCTION) {
+    return enum_sp_type::FUNCTION;
+  }
+  if (type == Acl_type::PROCEDURE) {
+    return enum_sp_type::PROCEDURE;
+  }
+  if (type == Acl_type::LIBRARY) {
+    return enum_sp_type::LIBRARY;
+  }
+  assert(false);
+  return enum_sp_type::INVALID_SP_TYPE;
+}
+
+Acl_type enum_sp_type_to_acl_type(enum_sp_type type) {
+  if (type == enum_sp_type::FUNCTION) {
+    return Acl_type::FUNCTION;
+  }
+  if (type == enum_sp_type::PROCEDURE) {
+    return Acl_type::PROCEDURE;
+  }
+  if (type == enum_sp_type::LIBRARY) {
+    return Acl_type::LIBRARY;
+  }
+  assert(false);
+  return Acl_type::INVALID_TYPE;
 }

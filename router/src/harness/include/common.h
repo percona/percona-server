@@ -26,6 +26,8 @@
 #ifndef MYSQL_HARNESS_COMMON_INCLUDED
 #define MYSQL_HARNESS_COMMON_INCLUDED
 
+#include <algorithm>
+#include <concepts>
 #include <cstdlib>
 #include <functional>
 #include <map>

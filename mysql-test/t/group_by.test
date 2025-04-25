@@ -1460,7 +1460,6 @@ DROP TABLE t1;
 SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
---skip_if_hypergraph  # Does not use MyISAM temp tables, so no such restriction.
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
 --skip_if_hypergraph  # Different warnings.
@@ -3540,6 +3539,15 @@ SELECT t1.x, dt.* FROM t1, LATERAL (
 --sorted_result
 --eval $query
 
+# Variant of the above that still gave wrong results with hypergraph
+# after the original fix. Fixed in bug#37057380.
+--sorted_result
+SELECT t1.x, dt.* FROM t1, LATERAL (
+  SELECT SQL_BIG_RESULT t2.y, SUM(t3.x)
+  FROM t2 LEFT JOIN t3 ON t2.x = t3.id AND t2.y + t3.y < t1.y AND t3.x < 100
+  GROUP BY t2.y
+) AS dt;
+
 DROP TABLE t1, t2, t3;
 
 # For extra coverage, also add a simpler reproduction of the problem
@@ -3667,3 +3675,26 @@ SHOW CREATE VIEW v;
 DROP VIEW v;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#37309915 ER_DUP_KEY on temporary table 
+--echo #
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, i INT, c VARCHAR(1));
+CREATE TABLE t2(pk INTEGER PRIMARY KEY, i INT, c VARCHAR(1));
+
+INSERT INTO t1 VALUES (0, 1433358016,'9');
+
+INSERT INTO t2 VALUES (0, -1877116806,'X'),
+                      (1, -1089884900,'䩎');
+
+SELECT  ( SELECT MIN(t1_alias1.i)
+           FROM t1 AS t1_alias1, t1
+           WHERE t1_alias1.i > t1_outer.i ) AS field1,
+        COUNT(t2.i) AS field2,
+        t1_outer.c AS field3,
+        ( SELECT SUM(t2.i)
+          FROM t2 AS t2_a, t2 ) AS field4
+FROM t1 AS t1_outer, t2
+GROUP BY field1, field3, field4;
+
+DROP TABLE t1, t2;

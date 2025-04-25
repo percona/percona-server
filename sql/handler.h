@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <atomic>
 #include <bitset>
 #include <functional>
 #include <map>
@@ -150,6 +151,7 @@ typedef bool(stat_print_fn)(THD *thd, const char *type, size_t type_len,
                             const char *status, size_t status_len);
 
 class ha_statistics;
+class ha_column_statistics;
 class ha_tablespace_statistics;
 class Unique_on_insert;
 
@@ -2177,6 +2179,18 @@ typedef bool (*get_table_statistics_t)(
     ha_statistics *stats);
 
 /**
+  Retrieve column_statistics from SE.
+
+  @param db_name                  Name of schema
+  @param table_name               Name of table
+  @param column_name              Name of column
+
+  @returns The statistics if available, empty value otherwise.
+*/
+typedef std::optional<ha_column_statistics> (*get_column_statistics_t)(
+    const char *db_name, const char *table_name, const char *column_name);
+
+/**
   @brief
   Retrieve index column cardinality from SE.
 
@@ -2439,9 +2453,11 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
                                                  double *secondary_engine_cost);
 
 /**
-  Evaluates the cost of executing the given access path in this secondary
+  Evaluates/Views the cost of executing the given access path in the secondary
   storage engine, and potentially modifies the cost estimates that are in the
-  access path. This function is only called from the hypergraph join optimizer.
+  access path when optimization is being done for secondary engine. For primary
+  engine, the cost should be only viewed. This function is only called from the
+  hypergraph join optimizer.
 
   The function is called on every access path that the join optimizer might
   compare to an alternative access path. This includes both paths that represent
@@ -2487,7 +2503,7 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
   @retval false on success.
   @retval true if the plan is to be rejected, or if an error was raised.
 */
-using secondary_engine_modify_access_path_cost_t = bool (*)(
+using secondary_engine_modify_view_ap_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
 /**
@@ -2552,12 +2568,14 @@ struct SecondaryEngineGraphSimplificationRequestParameters {
   SecondaryEngineGraphSimplificationRequest secondary_engine_optimizer_request;
   /** Subgraph pairs requested by the secondary engine. */
   int subgraph_pair_limit;
+  /** Indicates if simplification is guided using secondary engine */
+  bool is_enabled;
 };
 
 /**
-  Hook for secondary engine to evaluate the current hypergraph optimization
-  state, and returns the state that hypergraph should transition to. Usually
-  invoked after secondary_engine_modify_access_path_cost_t is invoked via
+  Hook to evaluate the current hypergraph optimization state in optimization for
+  all the engines, and returns the state that hypergraph should transition to.
+  Usually invoked after secondary_engine_modify_view_ap_cost_t is invoked via
   the optimizer.  The state is returned as object of type
   SecondaryEngineGraphSimplificationRequestParameters, and can lead to
   simplification of hypergraph search space, or resetting the graph and starting
@@ -2617,6 +2635,13 @@ constexpr SecondaryEngineFlags MakeSecondaryEngineFlags(
 /// or nullptr if a secondary engine is not used.
 const handlerton *SecondaryEngineHandlerton(const THD *thd);
 
+/// Returns the handlerton of the eligible secondary engine that is used in the
+/// session, If found, also initialises the thd member which caches this
+/// eligible secondary engine, or returns nullptr if a secondary engine is not
+/// used.
+const handlerton *EligibleSecondaryEngineHandlerton(
+    THD *thd, const LEX_CSTRING *secondary_engine_in_name);
+
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 using se_before_commit_t = void (*)(void *arg);
@@ -2660,10 +2685,24 @@ using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
 using secondary_engine_pre_prepare_hook_t = bool (*)(THD *thd);
 
 /**
+  Hook used to estimate the cardinality of table Node objects in the
+  JoinHypergraph. For each Node, it attempts to estimate the cardinality,
+  and if successful, stores it in the field `cardinality`.
+
+  @param thd The thread context.
+  @param graph The JoinHypergraph where the estimates are to be made.
+*/
+using cardinality_estimation_hook_t = void (*)(THD *thd, JoinHypergraph *graph);
+
+/**
  * Notify plugins when a table is dropped.
  */
 using notify_drop_table_t = void (*)(Table_ref *tab);
 
+/**
+ * Store the name of default secondary engine, if any.
+ */
+extern std::atomic<const char *> default_secondary_engine_name;
 /*
   Page Tracking : interfaces to handlerton functions which starts/stops page
   tracking, and purges/fetches page tracking information.
@@ -2928,6 +2967,7 @@ struct handlerton {
   redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
+  get_column_statistics_t get_column_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
   get_tablespace_statistics_t get_tablespace_statistics;
 
@@ -3005,9 +3045,8 @@ struct handlerton {
   /// Pointer to a function that evaluates the cost of executing an access path
   /// in a secondary storage engine.
   ///
-  /// @see secondary_engine_modify_access_path_cost_t for function signature.
-  secondary_engine_modify_access_path_cost_t
-      secondary_engine_modify_access_path_cost;
+  /// @see secondary_engine_modify_view_ap_cost_t for function signature.
+  secondary_engine_modify_view_ap_cost_t secondary_engine_modify_view_ap_cost;
 
   /// Pointer to a function that returns the query offload or exec failure
   /// reason as a string given a thread context (representing the query) when
@@ -3046,6 +3085,10 @@ struct handlerton {
    * optimization stage, which also decides that the statement should be
    * attempted offloaded to a secondary storage engine. */
   secondary_engine_pre_prepare_hook_t secondary_engine_pre_prepare_hook;
+
+  /* Pointer to a function to request table filter estimation to the
+   * secondary_engine. */
+  cardinality_estimation_hook_t cardinality_estimation_hook;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
@@ -4193,6 +4236,13 @@ class ha_statistics {
         table_in_mem_estimate(IN_MEMORY_ESTIMATE_UNKNOWN) {}
 };
 
+class ha_column_statistics {
+ public:
+  ha_rows num_distinct_values{0};
+
+  ha_column_statistics() {}
+};
+
 /**
   Calculates length of key.
 
@@ -5204,6 +5254,7 @@ class handler {
   @param[in] num_threads number of concurrent threads used for load.
   @return bulk load context or nullptr if unsuccessful. */
   virtual void *bulk_load_begin(THD *thd [[maybe_unused]],
+                                size_t keynr [[maybe_unused]],
                                 size_t data_size [[maybe_unused]],
                                 size_t memory [[maybe_unused]],
                                 size_t num_threads [[maybe_unused]]) {

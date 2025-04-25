@@ -477,7 +477,7 @@ bool Query_result_materialize::prepare(THD *thd,
   */
   if (create_result_table(thd, *unit->get_unit_column_types(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                          "", false, false)) {
+                          "", false)) {
     ::destroy_at(m_cursor);
     return true;
   }

@@ -62,6 +62,17 @@ const std::string config_file_name = "component_keyring_file.cnf";
 /* Config names */
 const std::string config_options[] = {"read_local_config", "path", "read_only"};
 
+template <typename T>
+bool get_mandatory_element(const std::unique_ptr<Config_reader> &config_reader,
+                           const std::string &element_name, T &element_value,
+                           std::string &err) {
+  if (config_reader->get_element(element_name, element_value)) {
+    err = "Could not find '" + element_name + "' value in configuration file";
+    return true;
+  }
+  return false;
+}
+
 bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
                                std::string &err) {
   config_pod = std::make_unique<Config_pod>();
@@ -83,11 +94,10 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
     err = "Failed to set path to configuration file";
     return true;
   }
-
   /* Read config file that's located at shared library location */
   std::unique_ptr<Config_reader> config_reader(new (std::nothrow)
                                                    Config_reader(path));
-
+  if (!config_reader->is_valid(err)) goto error;
   {
     bool read_local_config = false;
     if (!config_reader->get_element<bool>(config_options[0],
@@ -102,24 +112,19 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod,
         std::string instance_path(g_instance_path);
         if (set_config_path(instance_path)) instance_path = config_file_name;
         config_reader = std::make_unique<Config_reader>(instance_path);
+        if (!config_reader->is_valid(err)) goto error;
       }
     }
   }
-  std::string missing_option;
-  if (config_reader->get_element<std::string>(config_options[1],
-                                              config_pod->config_file_path_)) {
-    missing_option = config_options[1];
+  if (get_mandatory_element(config_reader, config_options[1],
+                            config_pod->config_file_path_, err))
     goto error;
-  }
-  if (config_reader->get_element<bool>(config_options[2],
-                                       config_pod->read_only_)) {
-    missing_option = config_options[2];
+  if (get_mandatory_element(config_reader, config_options[2],
+                            config_pod->read_only_, err))
     goto error;
-  }
   return false;
 error:
   config_pod.reset();
-  err = "Could not find '" + missing_option + "' value in configuration file";
   return true;
 }
 

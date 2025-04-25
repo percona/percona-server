@@ -250,13 +250,26 @@ enum enum_object_type : char {
   OBJECT_TYPE_BACKUP_LOCK = 16,
   OBJECT_TYPE_RESOURCE_GROUPS = 17,
   OBJECT_TYPE_FOREIGN_KEY = 18,
+<<<<<<< HEAD
   OBJECT_TYPE_CHECK_CONSTRAINT = 19,
   OBJECT_TYPE_BACKUP_TABLES = 20
+||||||| merged common ancestors
+  OBJECT_TYPE_CHECK_CONSTRAINT = 19
+=======
+  OBJECT_TYPE_CHECK_CONSTRAINT = 19,
+  OBJECT_TYPE_LIBRARY = 20
+>>>>>>> mysql-9.2.0
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
+<<<<<<< HEAD
 #define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_BACKUP_TABLES))
+||||||| merged common ancestors
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_CHECK_CONSTRAINT))
+=======
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_LIBRARY))
+>>>>>>> mysql-9.2.0
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 

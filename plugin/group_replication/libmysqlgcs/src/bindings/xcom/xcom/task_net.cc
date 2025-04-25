@@ -91,14 +91,14 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   if (errval && errval != EAI_NONAME && errval != EAI_AGAIN) {
 #endif
 #if !defined(_WIN32)
-    IFDBG(
+    XCOM_IFDBG(
         D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval));
         if (errval == EAI_SYSTEM) {
           NUMEXP(errno);
           STREXP(g_strerror(errno));
         });
 #else
-    IFDBG(D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval)));
+    XCOM_IFDBG(D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval)));
 #endif
   }
   assert((errval == 0 && *res) || (errval != 0 && *res == nullptr));

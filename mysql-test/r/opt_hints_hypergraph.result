@@ -103,6 +103,7 @@ WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
+    -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
@@ -110,6 +111,7 @@ WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
+    -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
@@ -117,6 +119,7 @@ WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
+    -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
 # Expected warning for f1_idx key, unresolved name.
 EXPLAIN SELECT f2 FROM
@@ -125,6 +128,7 @@ WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
+    -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
@@ -135,6 +139,7 @@ WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=10)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 27 < f1)  (rows=10)
+    -> Index range scan on t3 using PRIMARY over (27 < f1)  (rows=35)
 
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
@@ -545,6 +550,7 @@ WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 EXPLAIN
 -> Intersect rows sorted by row ID  (rows=16)
     -> Index range scan on t3 using f3_idx over (f3 = 'poiu' AND 2 < f1)  (rows=16)
+    -> Index range scan on t3 using PRIMARY over (2 < f1)  (rows=54)
 
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
@@ -918,7 +924,8 @@ f2 int NOT NULL DEFAULT '0',
 f3 int NOT NULL DEFAULT '0',
 INDEX idx1(f2, f3), INDEX idx2(f3)
 );
-INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f1) WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<99) SELECT n FROM qn;
 INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -947,13 +954,13 @@ f1	f2	f3
 0	3	4
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
-Handler_read_first	1
+Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	11
+Handler_read_rnd_next	0
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
 -> Filter: (t1.f2 <= 3)  (rows=2)
@@ -962,14 +969,14 @@ EXPLAIN
 # Turn off MRR. MRR should not be used.
 EXPLAIN SELECT /*+ NO_MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn off MRR. MRR should not be used.
 EXPLAIN SELECT /*+ NO_MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn off MRR for unused key. MRR should be used.
 EXPLAIN SELECT /*+ NO_MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -980,8 +987,8 @@ EXPLAIN
 set optimizer_switch='mrr=off,mrr_cost_based=off';
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -998,14 +1005,14 @@ EXPLAIN
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 set optimizer_switch='mrr=off,mrr_cost_based=on';
 EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -1022,8 +1029,8 @@ EXPLAIN
 # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 EXPLAIN
--> Filter: ((t1.f2 <= 3) and (3 <= t1.f3))  (rows=2)
-    -> Table scan on t1  (rows=10)
+-> Filter: (t1.f2 <= 3)  (rows=2)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (rows=2)
 
 DROP TABLE t1;
 #
@@ -2496,13 +2503,14 @@ explain update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t1 where a>1) dt);
 EXPLAIN
--> Update t3 (immediate)  (rows=0.133)
-    -> Nested loop semijoin (FirstMatch)  (rows=0.133)
+-> Update t3 (buffered)  (rows=0.133)
+    -> Hash semijoin (FirstMatch) (t3.a = dt.a)  (rows=0.133)
         -> Table scan on t3  (rows=2)
-        -> Covering index lookup on dt using <auto_key0> (a = t3.a)  (rows=0.0667)
-            -> Materialize  (rows=0.667)
-                -> Filter: (t1.a > 1)  (rows=0.667)
-                    -> Table scan on t1  (rows=2)
+        -> Hash
+            -> Table scan on dt  (rows=0.667)
+                -> Materialize  (rows=0.667)
+                    -> Filter: (t1.a > 1)  (rows=0.667)
+                        -> Table scan on t1  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
@@ -2539,13 +2547,14 @@ explain update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a
 from (select * from t3 where b>1) dt);
 EXPLAIN
--> Update t3 (immediate)  (rows=0.133)
-    -> Nested loop semijoin (FirstMatch)  (rows=0.133)
+-> Update t3 (buffered)  (rows=0.133)
+    -> Hash semijoin (FirstMatch) (t3.a = dt.a)  (rows=0.133)
         -> Table scan on t3  (rows=2)
-        -> Index lookup on dt using <auto_key0> (a = t3.a)  (rows=0.0667)
-            -> Materialize  (rows=0.667)
-                -> Filter: (t3.b > 1)  (rows=0.667)
-                    -> Table scan on t3  (rows=2)
+        -> Hash
+            -> Table scan on dt  (rows=0.667)
+                -> Materialize  (rows=0.667)
+                    -> Filter: (t3.b > 1)  (rows=0.667)
+                        -> Table scan on t3  (rows=2)
 
 update t3 set b=NULL
 where a in (select /*+ qb_name(sub) */ a

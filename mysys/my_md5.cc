@@ -32,34 +32,32 @@
 */
 
 #include "my_md5.h"
+#include "my_compiler.h"
+#include "my_ssl_algo_cache.h"
+#include "template_utils.h"
 
 #include <openssl/crypto.h>
 #include <openssl/err.h>
-
-#include "template_utils.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/evp.h>
-#include <openssl/provider.h>
-#else
 #include <openssl/md5.h>
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 // returns 1 for success and 0 for failure
 [[nodiscard]] int my_md5_hash(unsigned char *digest, unsigned const char *buf,
                               size_t len) {
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  /*
-    EVP_Digest() is a wrapper around the EVP_DigestInit_ex(),
-    EVP_Update() and EVP_Final_ex() functions.
-  */
-  return EVP_Digest(buf, len, digest, nullptr, EVP_md5(), nullptr);
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  // OpenSSL3.x EVP API is 1.5x-4x slower than this (deprecated) API
+  // (depending if caching algorithm pointer etc.)
+  // Issue reported at: https://github.com/openssl/openssl/issues/25858
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4996)
+
   MD5_CTX ctx;
   MD5_Init(&ctx);
   MD5_Update(&ctx, buf, len);
   return MD5_Final(digest, &ctx);
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
+  // restore clang/gcc checks for -Wdeprecated-declarations
+  MY_COMPILER_DIAGNOSTIC_POP()
 }
 
 /**
@@ -73,24 +71,16 @@
    mode (ON/STRICT)
 */
 int compute_md5_hash(char *digest, const char *buf, size_t len) {
-  int retval = 0;
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  int fips_mode = EVP_default_properties_is_fips_enabled(nullptr) &&
-                  OSSL_PROVIDER_available(nullptr, "fips");
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
-  int fips_mode = FIPS_mode();
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
-
   /* If fips mode is ON/STRICT restricted method calls will result into abort,
    * skipping call. */
-  if (fips_mode == 0) {
-    retval = (0 == my_md5_hash(pointer_cast<unsigned char *>(digest),
-                               pointer_cast<unsigned const char *>(buf), len));
-  } else {
-    retval = 1;
+  const bool is_fips = (my_get_fips_mode() != 0);
+  const int retval =
+      is_fips ||
+      (0 == my_md5_hash(pointer_cast<unsigned char *>(digest),
+                        pointer_cast<unsigned const char *>(buf), len));
+  if (!is_fips && retval) {
+    ERR_clear_error();
   }
 
-  ERR_clear_error();
   return retval;
 }

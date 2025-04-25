@@ -166,6 +166,8 @@ Routines::Routines() {
   m_target_def.add_where(
       "CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, "
       "rtn.definer, FALSE)");
+
+  m_target_def.add_where("AND rtn.type IN ('FUNCTION', 'PROCEDURE')");
 }
 
 }  // namespace system_views

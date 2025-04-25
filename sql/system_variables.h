@@ -582,6 +582,10 @@ struct System_variables {
   /** Used for controlling preparation of queries against secondary engine. */
   ulong use_secondary_engine;
 
+  /** Used to determine if statistics from secondary engine can be used
+      by the hypergraph optimizer. */
+  bool enable_secondary_engine_statistics;
+
   /**
     Used for controlling which statements to execute in a secondary
     storage engine. Only queries with an estimated cost higher than

@@ -235,14 +235,15 @@ static void fts_tokenize_document_next(fts_doc_t *doc, ulint add_pos,
                                        fts_doc_t *result,
                                        st_mysql_ftparser *parser);
 
+namespace detail {
 /** Create the vector of fts_get_doc_t instances.
 @param[in,out]  cache   fts cache
 @return vector of fts_get_doc_t instances */
-static ib_vector_t *fts_get_docs_create(fts_cache_t *cache);
+ib_vector_t *fts_get_docs_create(fts_cache_t *cache);
 
 /** Free the FTS cache.
 @param[in,out]  cache to be freed */
-static void fts_cache_destroy(fts_cache_t *cache) {
+void fts_cache_destroy(fts_cache_t *cache) {
   rw_lock_free(&cache->lock);
   rw_lock_free(&cache->init_lock);
   mutex_free(&cache->optimize_lock);
@@ -260,6 +261,10 @@ static void fts_cache_destroy(fts_cache_t *cache) {
 
   mem_heap_free(cache->cache_heap);
 }
+
+}  // namespace detail
+using detail::fts_cache_destroy;
+using detail::fts_get_docs_create;
 
 /** Get a character set based on precise type.
 @param prtype precise type
@@ -603,32 +608,34 @@ void fts_add_index(dict_index_t *index, /*!< FTS index to be added */
   rw_lock_x_unlock(&cache->init_lock);
 }
 
-/** recalibrate get_doc structure after index_cache in cache->indexes changed */
-static void fts_reset_get_doc(fts_cache_t *cache) /*!< in: FTS index cache */
-{
-  fts_get_doc_t *get_doc;
-  ulint i;
+namespace detail {
 
+/** recalibrate get_doc structure after index_cache in cache->indexes changed */
+void fts_reset_get_doc(fts_cache_t *cache) /*!< in: FTS index cache */
+{
   ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 
   ib_vector_reset(cache->get_docs);
 
-  for (i = 0; i < ib_vector_size(cache->indexes); i++) {
-    fts_index_cache_t *ind_cache;
-
-    ind_cache =
+  for (unsigned long i = 0; i < ib_vector_size(cache->indexes); i++) {
+    fts_index_cache_t *ind_cache =
         static_cast<fts_index_cache_t *>(ib_vector_get(cache->indexes, i));
 
-    get_doc =
+    fts_get_doc_t *get_doc =
         static_cast<fts_get_doc_t *>(ib_vector_push(cache->get_docs, nullptr));
 
     memset(get_doc, 0x0, sizeof(*get_doc));
 
     get_doc->index_cache = ind_cache;
+    get_doc->cache = cache;
   }
 
   ut_ad(ib_vector_size(cache->get_docs) == ib_vector_size(cache->indexes));
 }
+
+}  // namespace detail
+
+using detail::fts_reset_get_doc;
 
 /** Check an index is in the table->indexes list
  @return true if it exists */
@@ -1071,7 +1078,6 @@ void fts_cache_node_add_positions(
   ulint enc_len;
   ulint last_pos;
   byte *ptr_start;
-  ulint doc_id_delta;
 
 #ifdef UNIV_DEBUG
   if (cache) {
@@ -1082,7 +1088,7 @@ void fts_cache_node_add_positions(
   ut_ad(doc_id >= node->last_doc_id);
 
   /* Calculate the space required to store the ilist. */
-  doc_id_delta = (ulint)(doc_id - node->last_doc_id);
+  const uint64_t doc_id_delta = doc_id - node->last_doc_id;
   enc_len = fts_get_encoded_len(doc_id_delta);
 
   last_pos = 0;
@@ -3208,11 +3214,13 @@ dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
   ib_rbt_t *rows;
   dberr_t error = DB_SUCCESS;
   fts_cache_t *cache = ftt->table->fts->cache;
-  trx_t *trx = trx_allocate_for_background();
+  trx_t *trx = nullptr;
+  if (!ftt->fts_trx->trx) {
+    trx = trx_allocate_for_background();
+    ftt->fts_trx->trx = trx;
+  }
 
   rows = ftt->rows;
-
-  ftt->fts_trx->trx = trx;
 
   if (cache->get_docs == nullptr) {
     rw_lock_x_lock(&cache->init_lock, UT_LOCATION_HERE);
@@ -3244,9 +3252,14 @@ dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
     }
   }
 
-  fts_sql_commit(trx);
+  if (trx) {
+    fts_sql_commit(trx);
+    trx_free_for_background(trx);
+    ftt->fts_trx->trx = nullptr;
+  }
 
-  trx_free_for_background(trx);
+  DBUG_EXECUTE_IF("fts_sync_cache_and_crash_after_commit_table",
+                  { DBUG_SUICIDE(); });
 
   return (error);
 }
@@ -3265,11 +3278,17 @@ dberr_t fts_commit(trx_t *trx) /*!< in: transaction */
       static_cast<fts_savepoint_t *>(ib_vector_last(trx->fts_trx->savepoints));
   tables = savepoint->tables;
 
+  trx_t *fts_trx = nullptr;
+  if (trx->state.load(std::memory_order_acquire) == TRX_STATE_ACTIVE) {
+    fts_trx = trx;
+  }
+
   for (node = rbt_first(tables), error = DB_SUCCESS;
        node != nullptr && error == DB_SUCCESS; node = rbt_next(tables, node)) {
     fts_trx_table_t **ftt;
 
     ftt = rbt_value(fts_trx_table_t *, node);
+    (*ftt)->fts_trx->trx = fts_trx;
 
     error = fts_commit_table(*ftt);
   }
@@ -4872,10 +4891,11 @@ static void fts_tokenize_document_next(fts_doc_t *doc, ulint add_pos,
   }
 }
 
+namespace detail {
 /** Create the vector of fts_get_doc_t instances.
 @param[in,out]  cache   fts cache
 @return vector of fts_get_doc_t instances */
-static ib_vector_t *fts_get_docs_create(fts_cache_t *cache) {
+ib_vector_t *fts_get_docs_create(fts_cache_t *cache) {
   ib_vector_t *get_docs;
 
   ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
@@ -4904,6 +4924,7 @@ static ib_vector_t *fts_get_docs_create(fts_cache_t *cache) {
 
   return (get_docs);
 }
+}  // namespace detail
 
 /********************************************************************
 Release any resources held by the fts_get_doc_t instances. */
@@ -6151,7 +6172,7 @@ static bool fts_init_recover_doc(void *row,      /*!< in: sel_node_t* */
   fts_doc_init(&doc);
   doc.found = true;
 
-  ut_ad(cache);
+  ut_a(cache);
 
   /* Copy each indexed column content into doc->text.f_str */
   while (exp) {
@@ -6177,7 +6198,7 @@ static bool fts_init_recover_doc(void *row,      /*!< in: sel_node_t* */
       continue;
     }
 
-    ut_ad(get_doc);
+    ut_a(get_doc);
 
     if (!get_doc->index_cache->charset) {
       get_doc->index_cache->charset = fts_get_charset(dfield->type.prtype);

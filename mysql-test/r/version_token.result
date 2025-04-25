@@ -7,16 +7,22 @@ SELECT version_tokens_show();
 ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plugin is not installed.
 # Testing installing the plugin twice while there's a UDF defined
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+Warnings:
+Warning	1681	'version_tokens plugin' is deprecated and will be removed in a future release.
 UNINSTALL PLUGIN version_tokens;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+Warnings:
+Warning	1681	'version_tokens plugin' is deprecated and will be removed in a future release.
 UNINSTALL PLUGIN version_tokens;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Should not crash when unloading the so through removing the UDF
 drop function version_tokens_show;
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+Warnings:
+Warning	1681	'version_tokens plugin' is deprecated and will be removed in a future release.
 create function version_tokens_set returns string soname 'version_token.so';
 create function version_tokens_show returns string soname 'version_token.so';
 create function version_tokens_edit returns string soname 'version_token.so';
@@ -60,82 +66,127 @@ CREATE USER vbhagi@localhost;
 select version_tokens_set("token1    =     abc;token2=       def");
 version_tokens_set("token1    =     abc;token2=       def")
 2 version tokens set.
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=abc;token2=def;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_set("");
 version_tokens_set("")
 Version tokens list cleared.
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 NULL
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_set("token1    =     abc;token2=       def");
 version_tokens_set("token1    =     abc;token2=       def")
 2 version tokens set.
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=abc;token2=def;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_edit("token1= 123;         token3     =         asdf");
 version_tokens_edit("token1= 123;         token3     =         asdf")
 2 version tokens updated.
+Warnings:
+Warning	1681	'version_tokens_edit' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=123;token2=def;token3=asdf;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 do version_tokens_set("token1    =     def;;;;      ;invalid_token; token2= abc;;");
 Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 Warning	42000	Invalid version token pair encountered. The list provided is only partially updated.
 select version_tokens_show();
 version_tokens_show()
 token1=def;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 do version_tokens_set("token1    =     def;; token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=123;;      ;invalid_token; token2= abc;;");
 Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 Warning	42000	Lengthy version token name encountered. Maximum length allowed for a token name is 64 characters. The list provided is only partially updated.
 select version_tokens_show();
 version_tokens_show()
 token1=def;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 do version_tokens_set("token1    =     none;;;;      ;invalid_token; token2= 123;;");
 Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 Warning	42000	Invalid version token pair encountered. The list provided is only partially updated.
 select version_tokens_show();
 version_tokens_show()
 token1=none;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 do version_tokens_set("token1=def;token2= abc;          ;token3=ghi");
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=def;token2=abc;token3=ghi;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_delete("invalid=token");
 version_tokens_delete("invalid=token")
 0 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=def;token2=abc;token3=ghi;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_delete("token1;token3");
 version_tokens_delete("token1;token3")
 2 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token2=abc;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 select version_tokens_delete("*");
 version_tokens_delete("*")
 0 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token2=abc;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 do version_tokens_set("token1=def;token2= abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112");
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 select version_tokens_show();
 version_tokens_show()
 token1=def;token2=abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 
 # Connection: con1
 
@@ -220,19 +271,27 @@ GRANT VERSION_TOKEN_ADMIN ON *.* TO u1@localhost;
 SELECT version_tokens_set("a=aa;b=bb;c=cc");
 version_tokens_set("a=aa;b=bb;c=cc")
 3 version tokens set.
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 set @@version_tokens_session= "a=aa";
 SELECT sleep(6); # sleep for 6 seconds in background.;
 # Connection: vtcon2
 SELECT version_tokens_lock_exclusive("b",20);
 version_tokens_lock_exclusive("b",20)
 1
+Warnings:
+Warning	1681	'version_tokens_lock_exclusive' is deprecated and will be removed in a future release.
 # Connection: vtcon3
 SELECT version_tokens_lock_exclusive("a",20);
 version_tokens_lock_exclusive("a",20)
 1
+Warnings:
+Warning	1681	'version_tokens_lock_exclusive' is deprecated and will be removed in a future release.
 SELECT version_tokens_unlock();
 version_tokens_unlock()
 1
+Warnings:
+Warning	1681	'version_tokens_unlock' is deprecated and will be removed in a future release.
 # Connection: vtcon1
 sleep(6)
 0
@@ -266,6 +325,7 @@ BINLOG_ADMIN	Server Admin
 BINLOG_ENCRYPTION_ADMIN	Server Admin	
 CLONE_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
+CREATE_SPATIAL_REFERENCE_SYSTEM	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles
 Create routine	Databases	To use CREATE FUNCTION/PROCEDURE

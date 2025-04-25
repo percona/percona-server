@@ -70,13 +70,13 @@ SET(TESTS
   test_vt100.cc
   test_string_utils.cc
   test_process_launcher.cc
-  test_tcp_address.cc
   test_config_builder.cc
   test_event_state_tracker.cc
   test_config_option.cc
   test_hexify.cc
   test_configuration_update_schema.cc
   test_dynamic_config.cc
+  test_destination.cc
 )
 
 FOREACH(TEST ${TESTS})

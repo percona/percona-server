@@ -73,6 +73,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   "EXISTS source_line THEN unset source_line."
 
 #include <mysqld_error.h>
+#include <cctype>
 #include "../sql/sql_error.h"
 
 #include <mysql/components/component_implementation.h>
@@ -81,8 +82,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
-
-#include "../sql/set_var.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);

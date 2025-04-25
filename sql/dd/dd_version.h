@@ -222,10 +222,17 @@
   ----------------------------------------------------------------------------
   Changes:
   - WL#16081: Native Vector Embeddings Support In MySQL And HeatWave
+
+  90200:
+  ----------------------------------------------------------------------------
+  Changes:
+  - WL#16358: Support for 3rd party JavaScript libraries
+    > Adds a new entry 'LIBRARY' to the TYPE enum in the mysql.routines
+      table, and a new DD type 'Library'.
  */
 namespace dd {
 
-static const uint DD_VERSION = 90000;
+static const uint DD_VERSION = 90200;
 static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 

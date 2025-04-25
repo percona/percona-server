@@ -562,7 +562,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   const NdbOperation *pk_unique_index_read_key(uint idx, const uchar *key,
                                                uchar *buf,
                                                NdbOperation::LockMode lm,
-                                               Uint32 *ppartition_id);
+                                               Uint32 *ppartition_id,
+                                               uchar *row_side_buffer);
   int pk_unique_index_read_key_pushed(uint idx, const uchar *key);
 
   int read_multi_range_fetch_next();
@@ -709,6 +710,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                  const NdbDictionary::Table *ndbtab) const;
   } copying_alter;
 
+  MY_BITMAP m_in_row_side_buffer;
+
+  uint m_row_side_buffer_size;
+  uint m_mrr_reclength;
+  uchar *m_row_side_buffer;
+
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
   uint m_blob_expected_count_per_row;
@@ -741,5 +748,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 };
 
 int ndb_to_mysql_error(const NdbError *ndberr);
+int fail_index_offline(TABLE *t, int index);
 
 #endif

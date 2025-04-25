@@ -96,6 +96,8 @@ class PT_item_list;
 class PT_joined_table;
 class PT_json_table_column;
 class PT_key_part_specification;
+class PT_library_list;
+class PT_library_with_alias;
 class PT_limit_clause;
 class PT_locking_clause;
 class PT_locking_clause_list;
@@ -125,7 +127,6 @@ class PT_start_option_value_list_following_option_type;
 class PT_sub_partition;
 class PT_subpartition;
 class PT_subquery;
-class PT_subselect;
 class PT_table_constraint_def;
 class PT_table_element;
 class PT_table_reference;
@@ -426,7 +427,6 @@ union MY_SQL_PARSER_STYPE {
   } trg_characteristics;
   Index_hint *key_usage_element;
   List<Index_hint> *key_usage_list;
-  PT_subselect *subselect;
   PT_item_list *item_list2;
   PT_order_expr *order_expr;
   PT_order_list *order_list;
@@ -462,8 +462,10 @@ union MY_SQL_PARSER_STYPE {
   PT_start_option_value_list_following_option_type
       *start_option_value_list_following_option_type;
   PT_set *set;
-  Line_separators line_separators;
-  Field_separators field_separators;
+  Line_separators *line_separators;
+  Field_separators *field_separators;
+  URI_information *outfile_uri;
+  File_information *outfile_file_info;
   PT_into_destination *into_destination;
   PT_select_var *select_var_ident;
   PT_select_var_list *select_var_list;
@@ -489,12 +491,12 @@ union MY_SQL_PARSER_STYPE {
   } column_value_pair;
   struct {
     PT_item_list *column_list;
-    PT_item_list *value_list;
-  } column_value_list_pair;
-  struct {
-    PT_item_list *column_list;
     PT_insert_values_list *row_value_list;
   } column_row_value_list_pair;
+  struct {
+    PT_item_list *column_list;
+    PT_item_list *value_list;
+  } column_value_list_pair;
   struct {
     PT_item_list *column_list;
     PT_query_expression_body *insert_query_expression;
@@ -722,6 +724,9 @@ union MY_SQL_PARSER_STYPE {
     Parse_tree_root *statement;
     LEX_CSTRING schema_name_for_explain;
   } explainable_stmt;
+
+  PT_library_list *library_list;
+  PT_library_with_alias *library_with_alias;
 };
 
 static_assert(sizeof(MY_SQL_PARSER_STYPE) <= 32, "YYSTYPE is too big");

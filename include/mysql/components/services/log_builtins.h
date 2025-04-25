@@ -805,6 +805,22 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
       .function(__FUNCTION__)        \
       .lookup(ecode, ##__VA_ARGS__)
 
+#ifdef HAVE_LOG_DIAGNOSTIC
+#define LogDiag(severity, ecode, ...) \
+  LogEvent()                          \
+      .prio(severity)                 \
+      .errcode(ecode)                 \
+      .subsys(LOG_SUBSYSTEM_TAG)      \
+      .component(LOG_COMPONENT_TAG)   \
+      .source_line(__LINE__)          \
+      .source_file(MY_BASENAME)       \
+      .function(__FUNCTION__)         \
+      .type(LOG_TYPE_DIAG)            \
+      .lookup(ecode, ##__VA_ARGS__)
+#else
+#define LogDiag(...)
+#endif /* HAVE_LOG_DIAGNOSTIC */
+
 #define LogComponentErr(severity, ecode, ...)                           \
   LogEvent()                                                            \
       .prio(severity)                                                   \
@@ -863,6 +879,20 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
       .function(__FUNCTION__)        \
       .lookup(ecode, ##__VA_ARGS__)
 
+#ifdef HAVE_LOG_DIAGNOSTIC
+#define LogDiag(severity, ecode, ...) \
+  LogEvent()                          \
+      .prio(severity)                 \
+      .errcode(ecode)                 \
+      .subsys(LOG_SUBSYSTEM_TAG)      \
+      .source_line(__LINE__)          \
+      .source_file(MY_BASENAME)       \
+      .function(__FUNCTION__)         \
+      .type(LOG_TYPE_DIAG)            \
+      .lookup(ecode, ##__VA_ARGS__)
+#else
+#define LogDiag(...)
+#endif /* HAVE_LOG_DIAGNOSTIC */
 #endif
 
 #else

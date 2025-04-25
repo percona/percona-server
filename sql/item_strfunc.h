@@ -51,6 +51,8 @@
 #include "sql_string.h"
 #include "template_utils.h"  // pointer_cast
 
+#include <openssl/evp.h>
+
 class MY_LOCALE;
 class PT_item_list;
 class THD;
@@ -280,20 +282,38 @@ class Item_func_from_base64 final : public Item_str_func {
 class Item_func_aes_encrypt final : public Item_str_func {
   String tmp_value;
   typedef Item_str_func super;
+  EVP_CIPHER_CTX *ctx{nullptr};
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX stack_ctx;
+#endif
 
  public:
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b)
-      : Item_str_func(pos, a, b) {}
+      : Item_str_func(pos, a, b) {
+    create_op_context();
+  }
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_str_func(pos, a, b, c) {}
+      : Item_str_func(pos, a, b, c) {
+    create_op_context();
+  }
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
-      : Item_str_func(pos, a, b, c, d) {}
+      : Item_str_func(pos, a, b, c, d) {
+    create_op_context();
+  }
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e)
-      : Item_str_func(pos, a, b, c, d, e) {}
+      : Item_str_func(pos, a, b, c, d, e) {
+    create_op_context();
+  }
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e, Item *f)
-      : Item_str_func(pos, a, b, c, d, e, f) {}
+      : Item_str_func(pos, a, b, c, d, e, f) {
+    create_op_context();
+  }
+  ~Item_func_aes_encrypt() override { destroy_op_context(); }
+
+  void create_op_context();
+  void destroy_op_context();
   bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
@@ -302,20 +322,38 @@ class Item_func_aes_encrypt final : public Item_str_func {
 
 class Item_func_aes_decrypt : public Item_str_func {
   typedef Item_str_func super;
+  EVP_CIPHER_CTX *ctx{nullptr};
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX stack_ctx;
+#endif
 
  public:
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b)
-      : Item_str_func(pos, a, b) {}
+      : Item_str_func(pos, a, b) {
+    create_op_context();
+  }
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_str_func(pos, a, b, c) {}
+      : Item_str_func(pos, a, b, c) {
+    create_op_context();
+  }
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
-      : Item_str_func(pos, a, b, c, d) {}
+      : Item_str_func(pos, a, b, c, d) {
+    create_op_context();
+  }
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e)
-      : Item_str_func(pos, a, b, c, d, e) {}
+      : Item_str_func(pos, a, b, c, d, e) {
+    create_op_context();
+  }
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e, Item *f)
-      : Item_str_func(pos, a, b, c, d, e, f) {}
+      : Item_str_func(pos, a, b, c, d, e, f) {
+    create_op_context();
+  }
+  ~Item_func_aes_decrypt() override { destroy_op_context(); }
+
+  void create_op_context();
+  void destroy_op_context();
   bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;

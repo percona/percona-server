@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/components/service.h"
 #include "mysql/components/services/bits/thd.h"
+#include "mysql/components/services/defs/mysql_string_defs.h"
 
 /**
   The handle is created by the caller of
@@ -142,5 +143,42 @@ DECLARE_BOOL_METHOD(execute, (external_program_handle lang_sp,
                               stored_program_statement_handle sp_statement));
 
 END_SERVICE_DEFINITION(external_program_execution)
+
+/**
+  @ingroup group_components_services_inventory
+
+  A service to parse library code
+*/
+BEGIN_SERVICE_DEFINITION(external_library)
+
+/**
+  Check if the language of the library is supported
+
+  @param [in]  language   Language of the library source code
+  @param [out] result     Returns true if the language is supported
+
+  @return Status of the performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(is_language_supported,
+                    (mysql_cstring_with_length language, bool *result));
+
+/**
+  Parses library code.
+
+  @param [in]  name       Name of the library
+  @param [in]  language   Language of the library source code
+  @param [in]  body       Library's source code in UTF8MB4 charset
+
+  @return Status of the performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(parse, (mysql_cstring_with_length name,
+                            mysql_cstring_with_length language,
+                            mysql_cstring_with_length body));
+
+END_SERVICE_DEFINITION(external_library)
 
 #endif /* LANGUAGE_SERVICE_GUARD */

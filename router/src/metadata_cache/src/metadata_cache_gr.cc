@@ -422,18 +422,16 @@ std::string get_ignored_info(const metadata_cache::ManagedInstance &instance) {
 }  // namespace
 
 bool GRMetadataCache::refresh(bool needs_writable_node) {
-  bool changed{false};
+  bool topology_changed{false};
   uint64_t view_id{0};
   size_t metadata_server_id{0};
-  changed = false;
   std::size_t instance_id;
-
-  const bool whole_topology = fetch_whole_topology();
 
   // Fetch the metadata and store it in a temporary variable.
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
-      needs_writable_node, clusterset_id_, whole_topology, instance_id);
+      needs_writable_node, clusterset_id_, instance_id,
+      current_routing_guidelines_doc_);
 
   if (!res) {
     const bool md_servers_reachable =
@@ -454,20 +452,20 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
     if (cluster_topology_ != cluster_topology) {
       cluster_topology_ = cluster_topology;
-      changed = true;
+      topology_changed = true;
     } else {
       cluster_topology_.writable_server = cluster_topology.writable_server;
     }
   }
 
-  on_md_refresh(changed, cluster_topology_);
+  on_md_refresh(topology_changed, current_routing_guidelines_doc_);
 
   // we want to trigger those actions not only if the metadata has really
   // changed but also when something external (like unsuccessful client
   // connection) triggered the refresh so that we verified if this wasn't
   // false alarm and turn it off if it was
   view_id = cluster_topology_.view_id;
-  if (changed) {
+  if (topology_changed) {
     log_info(
         "Potential changes detected in cluster after metadata refresh "
         "(view_id=%" PRIu64 ")",
@@ -491,8 +489,7 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_topology,
-                         view_id);
+    on_instances_changed(/*md_servers_reachable=*/true, view_id);
     // never let the list that we iterate over become empty as we would
     // not recover from that
     if (!cluster_topology.metadata_servers.empty()) {

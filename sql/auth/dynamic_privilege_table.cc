@@ -161,9 +161,6 @@ bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
       const LEX_CSTRING str_user = {user, strlen(user)};
       const LEX_CSTRING str_host = {host, strlen(host)};
       Update_dynamic_privilege_table no_update;
-      if (is_dynamic_privilege_deprecated(priv))
-        LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER, priv,
-               user ? user : "", host ? host : "");
       if (grant_dynamic_privilege(str_priv, str_user, str_host,
                                   (*with_grant_option == 'Y' ? true : false),
                                   no_update)) {

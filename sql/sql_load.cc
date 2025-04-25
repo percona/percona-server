@@ -87,6 +87,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
+#include "sql/sql_exchange.h"
 #include "sql/sql_insert.h"  // check_that_all_fields_are_given_values,
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -570,7 +571,8 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
 
   auto load_handle = load_driver->create_bulk_loader(
       thd, thd->thread_id(), table, src,
-      m_exchange.cs ? m_exchange.cs : thd->variables.collation_database);
+      (m_exchange.file_info.cs != nullptr) ? m_exchange.file_info.cs
+                                           : thd->variables.collation_database);
 
   /* Set schema, table, file name string options. */
   std::string schema_name(table->s->db.str, table->s->db.length);
@@ -981,7 +983,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
 
   READ_INFO read_info(
       file, tot_length,
-      m_exchange.cs ? m_exchange.cs : thd->variables.collation_database,
+      (m_exchange.file_info.cs != nullptr) ? m_exchange.file_info.cs
+                                           : thd->variables.collation_database,
       *field_term, *m_exchange.line.line_start, *m_exchange.line.line_term,
       *enclosed, info.escape_char, m_is_local_file, is_fifo);
   if (read_info.error) {
@@ -1000,8 +1003,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
   thd->num_truncated_fields = 0L;
   /* Skip lines if there is a line terminator */
-  if (m_exchange.line.line_term->length() &&
-      m_exchange.filetype != FILETYPE_XML) {
+  if (m_exchange.line.line_term->length() != 0 &&
+      m_exchange.file_info.filetype != FILETYPE_XML) {
     /* m_exchange.skip_lines needs to be preserved for logging */
     while (skip_lines > 0) {
       skip_lines--;
@@ -1020,7 +1023,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       table->file->ha_start_bulk_insert((ha_rows)0);
     table->copy_blobs = true;
 
-    if (m_exchange.filetype == FILETYPE_XML) /* load xml */
+    if (m_exchange.file_info.filetype == FILETYPE_XML) /* load xml */
       error =
           read_xml_field(thd, info, insert_table_ref, read_info, skip_lines);
     else if (!field_term->length() && !enclosed->length())
@@ -2589,7 +2592,7 @@ bool Sql_cmd_load_table::execute(THD *thd) {
   bool need_file_acl = false;
 
   if (m_is_bulk_operation) {
-    if (m_exchange.filetype == FILETYPE_XML) {
+    if (m_exchange.file_info.filetype == FILETYPE_XML) {
       my_error(ER_WRONG_USAGE, MYF(0), "LOAD XML", "BULK Algorithm");
       return true;
     }

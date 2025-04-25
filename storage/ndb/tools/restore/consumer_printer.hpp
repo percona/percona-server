@@ -43,9 +43,6 @@ class BackupPrinter : public BackupConsumer {
   }
 
   bool table(const TableS &) override;
-#ifdef USE_MYSQL
-  virtual bool table(const TableS &, MYSQL *mysqlp);
-#endif
   bool tuple(const TupleS &, Uint32 fragId) override;
   bool logEntry(const LogEntry &) override;
   void endOfTuples() override {}

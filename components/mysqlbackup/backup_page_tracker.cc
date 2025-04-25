@@ -34,8 +34,14 @@
 #include <sys/stat.h>
 
 #include "backup_comp_constants.h"
-#include "mysql/plugin.h"
+#include "mysql/components/services/bits/my_err_bits.h"
 #include "mysqld_error.h"
+
+#ifdef _WIN32
+#define OS_PATH_SEPARATOR '\\'
+#else
+#define OS_PATH_SEPARATOR '/'
+#endif /* _WIN32 */
 
 // defined in mysqlbackup component definition
 extern char *mysqlbackup_backup_id;
@@ -405,7 +411,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
 
   free(m_changed_pages_file);
   m_changed_pages_file =
-      strdup((changed_pages_file_dir + FN_LIBCHAR + backupid +
+      strdup((changed_pages_file_dir + OS_PATH_SEPARATOR + backupid +
               Backup_comp_constants::change_file_extension)
                  .c_str());
 

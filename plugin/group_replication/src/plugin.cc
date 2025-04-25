@@ -37,6 +37,7 @@
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
 #include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/opt_tracker.h"
 #include "plugin/group_replication/include/perfschema/pfs.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -49,6 +50,7 @@
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/services/flow_control/get_metrics.h"
+#include "plugin/group_replication/include/services/management/management.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/status_service/status_service.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
@@ -703,6 +705,12 @@ int plugin_group_replication_start(char **error_message) {
   // Reset the coordinator in case there was a previous stop.
   group_action_coordinator->reset_coordinator_process();
 
+  /*
+    Reset start time before join the group to avoid that the
+    eviction service sees a old start time.
+  */
+  GR_start_time_maintain::reset_start_time();
+
   // GR delayed initialization.
   if (!server_engine_initialized()) {
     lv.wait_on_engine_initialization = true;
@@ -894,6 +902,7 @@ int initialize_plugin_and_join(
   lv.group_replication_running = true;
   lv.plugin_is_stopping = false;
   log_primary_member_details();
+  track_group_replication_enabled(true);
 
 err:
 
@@ -1390,6 +1399,7 @@ int plugin_group_replication_stop(char **error_message) {
   if (!error && lv.recovery_timeout_issue_on_stop)
     error = GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT;
 
+  track_group_replication_enabled(false);
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STOPPED);
   return error;
 }
@@ -1884,6 +1894,12 @@ bool attempt_rejoin() {
   if (initialize_plugin_modules(modules_mask)) goto end;
 
   /*
+    Reset start time before join the group to avoid that the
+    eviction service sees a old start time.
+  */
+  GR_start_time_maintain::reset_start_time();
+
+  /*
     Finally we attempt the join itself.
   */
   DBUG_EXECUTE_IF("group_replication_fail_rejoin", goto end;);
@@ -2177,6 +2193,11 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
                  "mode) service.");
     return 1;
   }
+  if (register_group_replication_management_services()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Failed to initialize Group Replication Management service");
+    return 1;
+  }
 
   if (gr::flow_control_metrics_service::
           register_gr_flow_control_metrics_service()) {
@@ -2221,6 +2242,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   // Set the atomic var to the value of the base plugin variable
   ov.transaction_size_limit_var = ov.transaction_size_limit_base_var;
 
+  track_group_replication_available();
+
   if (ov.start_group_replication_at_boot_var &&
       plugin_group_replication_start()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_START_ON_BOOT);
@@ -2244,12 +2267,15 @@ int plugin_group_replication_deinit(void *p) {
   finalize_perfschema_module();
 
   gr::status_service::unregister_gr_status_service();
+  unregister_group_replication_management_services();
 
   gr::flow_control_metrics_service::
       unregister_gr_flow_control_metrics_service();
 
   if (plugin_group_replication_stop())
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL);
+
+  track_group_replication_unavailable();
 
   if (group_member_mgr != nullptr) {
     delete group_member_mgr;

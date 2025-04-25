@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <cassert>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "my_alloc.h"
@@ -46,6 +47,7 @@
 
 class Item;
 class THD;
+struct AccessPath;
 
 struct ChunkPair {
   HashJoinChunk probe_chunk;
@@ -306,6 +308,8 @@ class HashJoinIterator final : public RowIterator {
   ///   A list of extra conditions that the iterator will evaluate after a
   ///   lookup in the hash table is done, but before the row is returned. The
   ///   conditions are AND-ed together into a single Item.
+  /// @param single_row_index_lookups
+  ///   All the single-row index lookups in the build input and probe input.
   /// @param first_input
   ///   The first input (build or probe) to read from. (If this is empty, we
   ///   will not have to read from the other.)
@@ -329,6 +333,7 @@ class HashJoinIterator final : public RowIterator {
                    const std::vector<HashJoinCondition> &join_conditions,
                    bool allow_spill_to_disk, JoinType join_type,
                    const Mem_root_array<Item *> &extra_conditions,
+                   std::span<AccessPath *> single_row_index_lookups,
                    HashJoinInput first_input, bool probe_input_batch_mode,
                    uint64_t *hash_table_generation);
 
@@ -364,6 +369,12 @@ class HashJoinIterator final : public RowIterator {
   ///
   /// @retval true in case of error
   bool BuildHashTable();
+
+  /// Write all the remaining rows from the build table input to chunk files on
+  /// disk.
+  ///
+  /// @return True on error, false on success.
+  bool WriteBuildTableToChunkFiles();
 
   /// Read all rows from the next chunk file into the in-memory hash table.
   /// See the class comment for details.
@@ -533,7 +544,6 @@ class HashJoinIterator final : public RowIterator {
   // compute the join key when needed.
   pack_rows::TableCollection m_probe_input_tables;
   pack_rows::TableCollection m_build_input_tables;
-  const table_map m_tables_to_get_rowid_for;
 
   // An in-memory hash table that holds rows from the build input (directly from
   // the build input iterator, or from a chunk file). See the class comment for
@@ -642,6 +652,9 @@ class HashJoinIterator final : public RowIterator {
   // the probe row saving read file contains is contained in the HashJoinChunk
   // (see m_probe_row_saving_read_file).
   ha_rows m_probe_row_saving_read_file_current_row{0};
+
+  // All the single-row index lookups that provide rows to this iterator.
+  std::span<AccessPath *> m_single_row_index_lookups;
 
   // The "type" of hash join we are executing. We currently have three different
   // types of hash join:

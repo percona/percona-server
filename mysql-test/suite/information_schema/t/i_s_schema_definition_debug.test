@@ -301,10 +301,10 @@ INSERT INTO I_S_published_schema
         'd8f5013771e8f2d28283159286ec85ec7a481724e3cfdda3c098b7cf2acd9a64');
 INSERT INTO I_S_published_schema
   VALUES ('80029', '80029', 1,
-        '06bdff30a209ee9b41bf1b654048010e0ca67399ccca594600659816fb3ee036');  
+        '06bdff30a209ee9b41bf1b654048010e0ca67399ccca594600659816fb3ee036');
 INSERT INTO I_S_published_schema
   VALUES ('80030', '80030', 0,
-        'f2f9eac78a7fe69de079bd55831bb4451236c492a76f9195e43051db44e84510');  
+        'f2f9eac78a7fe69de079bd55831bb4451236c492a76f9195e43051db44e84510');
 INSERT INTO I_S_published_schema
   VALUES ('80030', '80030', 1,
         '4399948df993b3a2084c4a6dd80d76e38b2ff874e68b7e33a16b907eeb090ff0');
@@ -337,7 +337,19 @@ INSERT INTO I_S_published_schema
         'a56fc79fa3f89917c73d98db0caf677de807e2c125a775939fe4a85aa77e5b09');
 INSERT INTO I_S_published_schema
   VALUES ('90100', '90100', 1,
+<<<<<<< HEAD
         '861f363b762cdc63f0152eb0cbc59d1cf3230e3679d357cdfdf498182721cc9e');
+||||||| merged common ancestors
+        '4401b727bf9ec5e1e56f8c114f9da8d7a5ee35f6fedb72b3335a0bf7e5ea6f4e');
+=======
+        '4401b727bf9ec5e1e56f8c114f9da8d7a5ee35f6fedb72b3335a0bf7e5ea6f4e');
+INSERT INTO I_S_published_schema
+  VALUES ('90200', '90200', 0,
+        'e5e697e8d1047c52c799820e39aad1b3557c8691563defe4af3d9869a3db6e16');
+INSERT INTO I_S_published_schema
+  VALUES ('90200', '90200', 1,
+        'c6bac6a1f2b4d7fd42aadffd69df5b51f17629714fd83a3666f6ff79874889f2');
+>>>>>>> mysql-9.2.0
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

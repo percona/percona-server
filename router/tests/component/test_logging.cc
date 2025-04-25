@@ -2097,13 +2097,18 @@ TEST_F(MetadataCacheLoggingTest,
   TempDirectory conf_dir;
 
   // launch the router with metadata-cache configuration
-  auto &router =
-      launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
-                    EXIT_SUCCESS,  // expected-exit-code
-                    false,         // catch-stderr
-                    false,         // with-sudo
-                    -1s            // wait-ready
-      );
+  auto &router = launch_router(
+      {"-c", init_keyring_and_config_file(
+                 conf_dir.name(),
+                 metadata_cache_section + "\n" +
+                     //  the DEBUG check below needs the reconnect
+                     "close_connection_after_refresh=1\n" + routing_section,
+                 false)},
+      EXIT_SUCCESS,  // expected-exit-code
+      false,         // catch-stderr
+      false,         // with-sudo
+      -1s            // wait-ready
+  );
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
@@ -2144,16 +2149,21 @@ TEST_F(MetadataCacheLoggingTest,
 
   // We report to log info that we have connected only if there was an error,
   // otherwise those reports should be treated as debug
-  const auto connect_msg = "Connected with metadata server";
-  EXPECT_TRUE(get_log_timestamp(
-      router.get_logfile_path(),
-      std::string{".*metadata_cache INFO.*"} + connect_msg, 1, 20 * ttl_));
-  EXPECT_FALSE(get_log_timestamp(
-      router.get_logfile_path(),
-      std::string{".*metadata_cache INFO.*"} + connect_msg, 3, 5 * ttl_));
-  EXPECT_TRUE(get_log_timestamp(
-      router.get_logfile_path(),
-      std::string{".*metadata_cache DEBUG.*"} + connect_msg, 1, 20 * ttl_));
+  SCOPED_TRACE("// wait for 1x 'INFO connected with metadata server' message");
+  EXPECT_TRUE(get_log_timestamp(router.get_logfile_path(),
+                                ".*metadata_cache INFO.*"
+                                "Connected with metadata server",
+                                1, 20 * ttl_));
+  SCOPED_TRACE("// wait for 3x 'INFO connected with metadata server' message");
+  EXPECT_FALSE(get_log_timestamp(router.get_logfile_path(),
+                                 ".*metadata_cache INFO.*"
+                                 "Connected with metadata server",
+                                 3, 5 * ttl_));
+  SCOPED_TRACE("// wait for 1x 'DEBUG connected with metadata server' message");
+  EXPECT_TRUE(get_log_timestamp(router.get_logfile_path(),
+                                ".*metadata_cache DEBUG.*"
+                                "Connected with metadata server",
+                                1, 20 * ttl_));
 
   server.send_clean_shutdown_event();
   server.wait_for_exit();
@@ -2187,8 +2197,13 @@ TEST_F(MetadataCacheLoggingTest,
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
-      false, -1s);
+      {"-c", init_keyring_and_config_file(
+                 conf_dir.name(),
+                 metadata_cache_section + "\n" +
+                     //  the DEBUG check below needs the reconnect
+                     "close_connection_after_refresh=1\n" + routing_section,
+                 false)},
+      EXIT_SUCCESS, true, false, -1s);
 
   // expect something like this to appear on STDERR:
   //

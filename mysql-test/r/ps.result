@@ -2093,8 +2093,14 @@ execute abc;
 deallocate prepare abc;
 create procedure proc_1() flush privileges;
 call proc_1();
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 call proc_1();
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 call proc_1();
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 create function func_1() returns int begin flush privileges; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function func_1() returns int begin call proc_1(); return 1; end|

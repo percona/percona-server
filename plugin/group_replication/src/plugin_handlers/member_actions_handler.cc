@@ -23,6 +23,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/leave_group_on_failure.h"
+#include "plugin/group_replication/include/opt_tracker.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler_configuration.h"
 
@@ -382,6 +383,8 @@ int Member_actions_handler::run_internal_action(
 
       if (error) {
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_DISABLE_READ_ONLY_FAILED);
+      } else {
+        track_group_replication_enabled(true);
       }
 
       return error;

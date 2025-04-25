@@ -25,14 +25,10 @@
 
 #include "mysql/harness/plugin_config.h"
 
-#include <stdexcept>
-
 #ifndef _WIN32
 #include <sys/un.h>
 #include <unistd.h>
 #endif
-
-#include "tcp_address.h"
 
 namespace mysql_harness {
 

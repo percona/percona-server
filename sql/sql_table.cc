@@ -41,6 +41,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -4042,6 +4043,8 @@ namespace {
 
 struct sort_keys {
   bool operator()(const KEY &a, const KEY &b) const {
+    // std::sort may compare an element to itself:
+    if (&a == &b) return false;
     // Sort UNIQUE before not UNIQUE.
     if ((a.flags ^ b.flags) & HA_NOSAME) return a.flags & HA_NOSAME;
 
@@ -15758,6 +15761,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   }
 
   alter_info->create_list.swap(new_create_list);
+<<<<<<< HEAD
   alter_info->key_list.clear();
   alter_info->key_list.resize(new_key_list.size());
   std::copy(new_key_list.begin(), new_key_list.end(),
@@ -15766,6 +15770,17 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   alter_info->delayed_key_list.resize(delayed_key_list.size());
   std::copy(delayed_key_list.cbegin(), delayed_key_list.cend(),
             alter_info->delayed_key_list.begin());
+||||||| merged common ancestors
+  alter_info->key_list.clear();
+  alter_info->key_list.resize(new_key_list.size());
+  std::copy(new_key_list.begin(), new_key_list.end(),
+            alter_info->key_list.begin());
+=======
+  if (alter_info->key_list.resize(new_key_list.size())) {
+    return true;
+  }
+  std::ranges::copy(new_key_list, alter_info->key_list.begin());
+>>>>>>> mysql-9.2.0
 
   return false;
 }
@@ -15832,6 +15847,7 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
     /* when removing the secondary_engine, remove also part_info from
      * HA_CREATE_INFO */
     create_info->part_info = nullptr;
+    create_info->secondary_load = false;
   }
 
   if (!(used_fields & HA_CREATE_USED_AUTO) && table->found_next_number_field) {
@@ -20529,10 +20545,12 @@ static bool prepare_check_constraints_for_alter(
     }
   }
 
-  alter_info->check_constraint_spec_list.clear();
-  alter_info->check_constraint_spec_list.resize(new_check_cons_list.size());
-  std::move(new_check_cons_list.begin(), new_check_cons_list.end(),
-            alter_info->check_constraint_spec_list.begin());
+  if (alter_info->check_constraint_spec_list.resize(
+          new_check_cons_list.size())) {
+    return true;
+  }
+  std::ranges::move(new_check_cons_list,
+                    alter_info->check_constraint_spec_list.begin());
 
   return false;
 }

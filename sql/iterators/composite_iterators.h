@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,6 +54,7 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/iterators/row_iterator.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
@@ -207,7 +209,9 @@ class LimitOffsetIterator final : public RowIterator {
 class AggregateIterator final : public RowIterator {
  public:
   AggregateIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                    JOIN *join, pack_rows::TableCollection tables, bool rollup);
+                    JOIN *join, pack_rows::TableCollection tables,
+                    std::span<AccessPath *> single_row_index_lookups,
+                    bool rollup);
 
   bool Init() override;
   int Read() override;
@@ -298,6 +302,9 @@ class AggregateIterator final : public RowIterator {
     StoreFromTableBuffers() will automatically allocate more space if needed.)
    */
   String m_first_row_next_group;
+
+  /// All the single-row index lookups that provide rows to this iterator.
+  std::span<AccessPath *> m_single_row_index_lookups;
 
   /**
     The slice we're setting when returning rows. See the comment in the

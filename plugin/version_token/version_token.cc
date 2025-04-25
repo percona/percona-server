@@ -59,6 +59,10 @@
 #define PLUGIN_EXPORT extern "C"
 #endif
 
+inline static void push_version_token_deprecation_warning(const char *what) {
+  push_deprecated_warn_no_replacement(current_thd, what);
+}
+
 using std::pair;
 using std::sort;
 using std::string;
@@ -543,6 +547,8 @@ static struct st_mysql_audit version_token_descriptor = {
 
 /** Plugin init. */
 static int version_tokens_init(void *arg [[maybe_unused]]) {
+  push_version_token_deprecation_warning("version_tokens plugin");
+
 #ifdef HAVE_PSI_INTERFACE
   // Initialize psi keys.
   vtoken_init_psi_keys();
@@ -605,7 +611,7 @@ mysql_declare_plugin(version_tokens){
     "version token check",     /* description                     */
     PLUGIN_LICENSE_GPL,
     version_tokens_init,   /* init function (when loaded)     */
-    nullptr,               /* cwcheck uninstall function      */
+    nullptr,               /* check uninstall function        */
     version_tokens_deinit, /* deinit function (when unloaded) */
     0x0101,                /* version          */
     nullptr,               /* status variables */
@@ -646,6 +652,8 @@ static bool is_hash_inited(const char *function, unsigned char *error) {
 PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT *, UDF_ARGS *args,
                                            char *message) {
   THD *thd = current_thd;
+
+  push_version_token_deprecation_warning("version_tokens_set");
 
   if (!has_required_privileges(thd)) {
     my_stpcpy(message, "The user is not privileged to use this function.");
@@ -727,6 +735,8 @@ PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *, UDF_ARGS *args,
                                             char *message) {
   THD *thd = current_thd;
 
+  push_version_token_deprecation_warning("version_tokens_edit");
+
   if (!version_tokens_hash_inited.is_set()) {
     my_stpcpy(message, "version_token plugin is not installed.");
     return true;
@@ -799,6 +809,8 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *, UDF_ARGS *args,
 PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *, UDF_ARGS *args,
                                               char *message) {
   THD *thd = current_thd;
+
+  push_version_token_deprecation_warning("version_tokens_delete");
 
   if (!version_tokens_hash_inited.is_set()) {
     my_stpcpy(message, "version_token plugin is not installed.");
@@ -886,6 +898,8 @@ PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                             char *message) {
   size_t str_size = 0;
   char *result_str;
+
+  push_version_token_deprecation_warning("version_tokens_show");
 
   THD *thd = current_thd;
   if (!has_required_privileges(thd)) {
@@ -1011,6 +1025,8 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
 PLUGIN_EXPORT bool version_tokens_lock_shared_init(UDF_INIT *initid,
                                                    UDF_ARGS *args,
                                                    char *message) {
+  push_version_token_deprecation_warning("version_tokens_lock_shared");
+
   return init_acquire(initid, args, message);
 }
 
@@ -1038,6 +1054,8 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *, UDF_ARGS *args,
 PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(UDF_INIT *initid,
                                                       UDF_ARGS *args,
                                                       char *message) {
+  push_version_token_deprecation_warning("version_tokens_lock_exclusive");
+
   return init_acquire(initid, args, message);
 }
 
@@ -1066,6 +1084,8 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *,
 PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT *, UDF_ARGS *args,
                                               char *message) {
   THD *thd = current_thd;
+
+  push_version_token_deprecation_warning("version_tokens_unlock");
 
   if (!has_required_privileges(thd)) {
     my_stpcpy(message, "The user is not privileged to use this function.");

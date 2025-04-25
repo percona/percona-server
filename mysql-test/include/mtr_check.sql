@@ -221,6 +221,7 @@ BEGIN
       AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
+<<<<<<< HEAD
   -- During the installation of Percona Telemetry Component we create 'percona.telemetry'.
   -- It happens during the server startup, so servers started during the test will have the same user
   -- with different password_last_changed timestamps.
@@ -239,6 +240,17 @@ BEGIN
     Drop_role_priv, Password_reuse_history, Password_reuse_time, Password_require_current, User_attributes 
   FROM mysql.user ORDER BY Host, User;
 
+||||||| merged common ancestors
+=======
+  -- Ensure that libraries are all dropped at the end of test-runs.
+  SELECT * FROM INFORMATION_SCHEMA.LIBRARIES
+  ORDER BY LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME;
+  -- Ensure that stored program imports are also cleared at the end of test-runs.
+  # BUG#37382579 The SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES fails when a queried from the hypergraph.
+  # SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES
+  # ORDER BY ROUTINE_CATALOG, ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_VERSION;
+
+>>>>>>> mysql-9.2.0
   -- Checksum system tables to make sure they have been properly
   -- restored after test.
   -- skip mysql.proc however, as created timestamps may have been updated by

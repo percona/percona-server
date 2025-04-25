@@ -26,7 +26,7 @@
 #include <memory>
 #include <string>
 #include "include/my_rnd.h"
-#include "sql/stream_cipher.h"
+#include "mysys/stream_cipher.h"
 
 /*
   Tests of replication ciphers used in binary log encryption.

@@ -53,6 +53,7 @@ struct GroupReplicationMember {
   uint16_t port;
   State state;
   Role role;
+  std::string version;
 };
 
 /** Fetches the list of group replication members known to the instance of the

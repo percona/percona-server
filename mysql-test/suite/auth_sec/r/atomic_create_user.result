@@ -81,6 +81,8 @@ userZ
 # This event sequence pattern MUST NOT be present in binlog: !Q(CREATE USER.*)
 include/rpl/assert_binlog_events.inc
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 DROP USER userW, userX, userY, userZ;
 include/rpl/save_binlog_file_position.inc
 # End : Tests for CREATE USER

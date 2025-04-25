@@ -545,3 +545,5 @@ INSERT INTO t2 SELECT SQL_SMALL_RESULT DISTINCT * FROM t1;
 SELECT a, hex(b) FROM t2 ORDER BY 1,2;
 
 DROP TABLE t1, t2, t3;
+
+--source include/type_bit.inc

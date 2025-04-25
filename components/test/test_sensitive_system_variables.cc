@@ -23,10 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/component_sys_var_service.h>
-#include <mysql/plugin.h>
 
-#include "my_macros.h"
 #include "scope_guard.h"
 #include "typelib.h"
 

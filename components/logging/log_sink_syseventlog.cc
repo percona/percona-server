@@ -21,22 +21,19 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/components/services/log_builtins.h>
-
 #include "log_service_imp.h"
 #include "m_string.h"  // native_strncasecmp()/native_strcasecmp()
 #include "my_compiler.h"
-#include "my_io.h"
-#include "my_sys.h"
 #include "mysqld_error.h"  // so we can throw ER_LOG_SYSLOG_*
 
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_builtins.h>
 
+#include <mysql/components/services/bits/my_io_bits.h>
+#include <mysql/components/services/bits/my_syslog_bits.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
-
-#include "../sql/set_var.h"
 
 #ifndef _WIN32
 #include <syslog.h>  // LOG_DAEMON etc. -- facility names
@@ -90,6 +87,12 @@ static SYSLOG_FACILITY syslog_facility[] = {
 #define OPT_PID "include_pid"
 #endif
 #define OPT_TAG "tag"
+
+#ifdef _WIN32
+#define OS_PATH_SEPARATOR '\\'
+#else
+#define OS_PATH_SEPARATOR '/'
+#endif /* _WIN32 */
 
 static bool inited = false; /**< component initialized */
 
@@ -295,7 +298,8 @@ static int var_update_tag(const char *tag) {
   bool ident_changed = false;
 
   // tag must not contain directory separators
-  if ((tag != nullptr) && (strchr(tag, FN_LIBCHAR) != nullptr)) return -1;
+  if ((tag != nullptr) && (strchr(tag, OS_PATH_SEPARATOR) != nullptr))
+    return -1;
 
   /*
     make ident

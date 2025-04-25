@@ -53,7 +53,12 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // reset_mqh
 #include "sql/sql_const.h"
+<<<<<<< HEAD
 #include "sql/sql_profile.h"
+||||||| merged common ancestors
+=======
+#include "sql/sql_error.h"    // push_deprecated_warn_no_replacement
+>>>>>>> mysql-9.2.0
 #include "sql/sql_servers.h"  // servers_reload
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -153,6 +158,8 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
 
   if (options & REFRESH_GRANT) {
     THD *tmp_thd = nullptr;
+    if (thd != nullptr)
+      push_deprecated_warn_no_replacement(thd, "FLUSH PRIVILEGES");
     /*
       If handle_reload_request() is called from SIGHUP handler we have to
       allocate temporary THD for execution of acl_reload()/grant_reload().
@@ -163,7 +170,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
 
     if (thd) {
-      bool reload_acl_failed = reload_acl_caches(thd, false);
+      bool reload_acl_failed = reload_acl_caches(thd, false, false, nullptr);
       bool reload_servers_failed = servers_reload(thd);
       notify_flush_event(thd);
       if (reload_acl_failed || reload_servers_failed) {

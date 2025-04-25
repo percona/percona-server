@@ -6373,83 +6373,52 @@ Note	1003	/* select#1 */ select `test`.`upper`.`a` AS `a` from `test`.`t` `upper
 DROP TABLE t;
 #
 # Check window aggregate referencing columns from an outside query
-# All results checked against Postgresql which also allows this.
+#
 CREATE TABLE t1(i INT, j INT, k INT);
 INSERT INTO t1 VALUES (1,1,1),(2,2,2);
 SELECT (SELECT ROW_NUMBER() OVER (ORDER BY upper.j) FROM t1 LIMIT 1)
 FROM t1 AS upper;
-(SELECT ROW_NUMBER() OVER (ORDER BY upper.j) FROM t1 LIMIT 1)
-1
-1
+ERROR HY000: Outer reference test.upper.j in window's ORDER BY or PARTITION BY clause not allowed.
 SELECT (SELECT ROW_NUMBER() OVER (PARTITION BY upper.j) FROM t1 LIMIT 1)
 FROM t1 AS upper;
-(SELECT ROW_NUMBER() OVER (PARTITION BY upper.j) FROM t1 LIMIT 1)
-1
-1
-SELECT (SELECT ROW_NUMBER() OVER (PARTITION BY upper.j)
-FROM t1 LIMIT 1 OFFSET 1)
-FROM t1 AS upper;
-(SELECT ROW_NUMBER() OVER (PARTITION BY upper.j)
-FROM t1 LIMIT 1 OFFSET 1)
-2
-2
-SELECT (SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j) FROM tAccepted LIMIT Accepted)
-FROM tAccepted AS upper;
-(SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j) FROM tAccepted LIMIT Accepted)
-Accepted
-Accepted
-SELECT (SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM tAccepted LIMIT Accepted)
-FROM tAccepted AS upper;
-(SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM tAccepted LIMIT Accepted)
-Accepted
-Accepted
-SELECT (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j DESC)
+ERROR HY000: Outer reference test.upper.j in window's ORDER BY or PARTITION BY clause not allowed.
+SELECT (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.j DESC)
 FROM t1 LIMIT 1)
 FROM t1 AS upper;
-(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j DESC)
+(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.j DESC)
 FROM t1 LIMIT 1)
 1
 2
-SELECT (SELECT LAST_VALUE(j) OVER (ORDER BY upper.j) FROM tAccepted LIMIT Accepted)
-FROM tAccepted AS upper;
-(SELECT LAST_VALUE(j) OVER (ORDER BY upper.j) FROM tAccepted LIMIT Accepted)
-Accepted
-Accepted
-SELECT (SELECT LAST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM tAccepted LIMIT Accepted)
-FROM tAccepted AS upper;
-(SELECT LAST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM tAccepted LIMIT Accepted)
-Accepted
-Accepted
 SELECT * FROM t1 AS upper
-WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1) = 1
 ;
 i	j	k
 1	1	1
 SELECT * FROM t1 AS upper
-WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1) = 2;
 i	j	k
 2	2	2
 SELECT FIRST_VALUE(j) OVER (ORDER BY 0 +
-(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1))
 FROM t1 AS upper;
 FIRST_VALUE(j) OVER (ORDER BY 0 +
-(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1))
 1
 1
 SELECT LAST_VALUE(j)  OVER (ORDER BY 0 +
-(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1))
 FROM t1 AS upper;
 LAST_VALUE(j)  OVER (ORDER BY 0 +
-(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+(SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1))
 1
 2
-SELECT * FROM t1 AS upper ORDER BY (0 + (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+SELECT * FROM t1 AS upper ORDER BY (0 + (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY t1.i)
 FROM t1 LIMIT 1));
 i	j	k
 1	1	1
@@ -9203,8 +9172,8 @@ SELECT AVG(i) FROM t1 ORDER BY RANK() OVER (PARTITION BY AVG(i) ORDER BY i);
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window '<unnamed window>' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
 SELECT AVG(i), RANK() OVER w FROM t1 WINDOW w AS (ORDER BY i);
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window 'w' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
-SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
-ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+SELECT (SELECT AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
+ERROR HY000: Outer reference test.t1.i in window's ORDER BY or PARTITION BY clause not allowed.
 DROP TABLE t1;
 # End of checking for errors
 #

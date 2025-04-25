@@ -2459,3 +2459,24 @@ HAVING 1 IN (SELECT min(x.x) FROM (SELECT 1) AS w(w))
 )
 WHERE 1 = 2;
 col
+#
+# Bug#37243446: Assertion: item->contextualized in Item::Item
+#
+CREATE TABLE t (c integer);
+SELECT (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+f
+SELECT c IN (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+f
+SELECT c >ANY (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+f
+SELECT EXISTS (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+f
+DROP TABLE t;

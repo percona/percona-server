@@ -1246,7 +1246,7 @@ test.t6	analyze	status	OK
 test.t7	analyze	status	OK
 test.t10	analyze	status	OK
 test.t11	analyze	status	OK
-EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias11,alias8) */ 1
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias8,alias5,alias11,alias4) */ 1
 FROM t4 AS alias4
 LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
 LEFT JOIN t7 AS alias7 JOIN t2 AS alias8 ON alias7.f1 = alias8.f1
@@ -1257,21 +1257,21 @@ EXPLAIN
 -> Inner hash join (alias10.f1 = alias11.f1)  (rows=1)
     -> Table scan on alias10  (rows=1)
     -> Hash
-        -> Inner hash join (cast(alias4.f2 as double) = cast(alias11.f2 as double))  (rows=1)
-            -> Left hash join (alias4.f2 = alias5.f2)  (rows=1)
+        -> Left hash join (alias4.f2 = alias5.f2)  (rows=1)
+            -> Inner hash join (cast(alias4.f2 as double) = cast(alias11.f2 as double))  (rows=1)
                 -> Table scan on alias4  (rows=1)
                 -> Hash
-                    -> Left hash join (alias5.f1 = alias8.f2)  (rows=1)
-                        -> Inner hash join (alias5.f2 = alias6.f1)  (rows=1)
-                            -> Table scan on alias5  (rows=1)
-                            -> Hash
-                                -> Table scan on alias6  (rows=1)
-                        -> Hash
-                            -> Inner hash join (<hash>(alias7.f1)=<hash>(alias8.f1)), extra conditions: (alias7.f1 = alias8.f1)  (rows=1)
-                                -> Table scan on alias7  (rows=1)
-                                -> Hash
-                                    -> Table scan on alias8  (rows=1)
+                    -> Table scan on alias11  (rows=1)
             -> Hash
-                -> Table scan on alias11  (rows=1)
+                -> Left hash join (alias5.f1 = alias8.f2)  (rows=1)
+                    -> Inner hash join (alias5.f2 = alias6.f1)  (rows=1)
+                        -> Table scan on alias5  (rows=1)
+                        -> Hash
+                            -> Table scan on alias6  (rows=1)
+                    -> Hash
+                        -> Inner hash join (<hash>(alias7.f1)=<hash>(alias8.f1)), extra conditions: (alias7.f1 = alias8.f1)  (rows=1)
+                            -> Table scan on alias7  (rows=1)
+                            -> Hash
+                                -> Table scan on alias8  (rows=1)
 
 DROP TABLES t2, t4, t5, t6, t7, t10, t11;

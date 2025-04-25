@@ -3231,5 +3231,89 @@ REVOKE DROP ON performance_schema.* FROM bug33578113;
 
 DROP USER bug33578113;
 
+--echo #
+--echo # Bug#37003502 inconsistency in whether SHOW GRANTS quotes Function or Stored Procedure's name
+--echo #
+
+CREATE DATABASE test_db;
+USE test_db;
+
+DELIMITER |;
+CREATE PROCEDURE sp_test()
+BEGIN
+    SELECT 'Hello, World!';
+END|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE FUNCTION fc_test()
+RETURNS VARCHAR(50)
+BEGIN
+    RETURN 'Hello, World!';
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (
+    id INT PRIMARY KEY
+);
+
+CREATE USER test;
+
+GRANT EXECUTE ON FUNCTION fc_test TO test;
+
+GRANT EXECUTE ON PROCEDURE sp_test TO test;
+
+GRANT SELECT ON t1 TO test;
+
+GRANT ALL ON test_db.t1 TO test;
+
+GRANT EXECUTE ON test_db.* TO test;
+
+SET sql_mode='ANSI_QUOTES';
+
+CREATE DATABASE "test_.'`db";
+USE "test_.'`db";
+
+DELIMITER |;
+CREATE PROCEDURE "sp.'`_test"()
+BEGIN
+    SELECT 'Hello, World!';
+END|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE FUNCTION "fc_.'`test"()
+RETURNS VARCHAR(50)
+BEGIN
+    RETURN 'Hello, World!';
+END|
+DELIMITER ;|
+
+CREATE TABLE "t.'`1" (
+    id INT PRIMARY KEY
+);
+
+GRANT EXECUTE ON FUNCTION "fc_.'`test" TO test;
+
+GRANT EXECUTE ON PROCEDURE "sp.'`_test" TO test;
+
+GRANT SELECT ON "t.'`1" TO test;
+
+GRANT ALL ON "test_.'`db"."t.'`1" TO test;
+
+GRANT EXECUTE ON "test_.'`db".* TO test;
+
+SHOW GRANTS FOR test;
+
+SET sql_mode='';
+
+SHOW GRANTS FOR test;
+
+SET SQL_MODE='ANSI_QUOTES';
+
+DROP DATABASE "test_.'`db";
+DROP DATABASE test_db;
+DROP USER test;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

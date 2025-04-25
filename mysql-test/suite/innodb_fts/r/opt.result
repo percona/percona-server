@@ -765,7 +765,7 @@ Sort_rows	2
 Sort_scan	1
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+FROM wp FORCE INDEX (idx)
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
 1	0.5756555199623108
@@ -802,15 +802,15 @@ Sort_range	0
 Sort_rows	2
 Sort_scan	1
 EXPLAIN SELECT COUNT(*) 
-FROM wp 
+FROM wp FORCE INDEX (idx)
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` FORCE INDEX (`idx`) where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
 FLUSH STATUS;
 SELECT COUNT(*) 
-FROM wp 
+FROM wp FORCE INDEX (idx)
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 COUNT(*)
 2

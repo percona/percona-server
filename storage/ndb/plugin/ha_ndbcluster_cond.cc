@@ -982,8 +982,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 type != MYSQL_TYPE_TINY_BLOB &&
                 type != MYSQL_TYPE_MEDIUM_BLOB &&
                 type != MYSQL_TYPE_LONG_BLOB && type != MYSQL_TYPE_BLOB &&
-                type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY &&
-                type != MYSQL_TYPE_VECTOR) {
+                type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY) {
               // Found a Field_item of a supported type
 
               assert(item->used_tables() != 0);
@@ -1078,8 +1077,11 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                        * same for equality like conditions, since value will be
                        * zero padded when compared in NdbSqlUtil::cmpBinary.
                        */
-                      if (type == MYSQL_TYPE_STRING && field->binary())
+                      if ((type == MYSQL_TYPE_STRING ||
+                           type == MYSQL_TYPE_VECTOR) &&
+                          field->binary()) {
                         context->expect_min_length(field->field_length);
+                      }
                       context->expect_max_length(field->field_length);
                       break;
                     case REAL_RESULT:
@@ -1253,6 +1255,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 context->expect_only_field_type(MYSQL_TYPE_STRING);
                 context->expect_field_type(MYSQL_TYPE_VAR_STRING);
                 context->expect_field_type(MYSQL_TYPE_VARCHAR);
+                context->expect_field_type(MYSQL_TYPE_VECTOR);
                 context->expect_field_result(STRING_RESULT);
                 expect_next->expect(Item::STRING_ITEM);
                 expect_next->expect(Item::FUNC_ITEM);

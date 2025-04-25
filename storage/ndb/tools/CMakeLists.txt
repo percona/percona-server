@@ -153,7 +153,6 @@ NDB_ADD_EXECUTABLE(ndb_perror
   )
 NDB_ADD_EXECUTABLE(ndb_restore
   restore/restore_main.cpp
-  restore/consumer.cpp
   restore/consumer_restore.cpp
   restore/consumer_printer.cpp
   restore/Restore.cpp

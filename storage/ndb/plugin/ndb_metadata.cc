@@ -971,6 +971,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     const dd::enum_column_types column2_type = column2->type();
     if (column1_type != dd::enum_column_types::BIT &&
         column1_type != dd::enum_column_types::LONG_BLOB &&
+        column1_type != dd::enum_column_types::VARCHAR &&
         column2_type != dd::enum_column_types::ENUM &&
         column2_type != dd::enum_column_types::SET)
       ctx.compare(Compare_context::COLUMN, column_name, "type",

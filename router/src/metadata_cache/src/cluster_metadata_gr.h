@@ -79,12 +79,18 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
    * for writable node
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet)
-   * @param whole_topology return all usable nodes, ignore potential metadata
-   * filters or policies (like target_cluster etc.)
    * @param [out] instance_id of the server the metadata was fetched from
+   * @param [out] guidelines routing guidelines document feched from the
+   * metadata
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
+<<<<<<< HEAD
    * @throws metadata_cache::metadata_error on failure
+||||||| merged common ancestors
+   * @throws metadata_cache::metadata_error
+=======
+   * @throws metadata_cache::metadata_error If fetching metadata fails.
+>>>>>>> mysql-9.2.0
    */
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(
@@ -92,7 +98,7 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
       bool needs_writable_node, const std::string &clusterset_id,
-      bool whole_topology, std::size_t &instance_id) override;
+      std::size_t &instance_id, std::string &guidelines) override;
 
   /** @brief Initializes the notifications listener thread (if a given cluster
    * type supports it)

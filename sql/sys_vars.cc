@@ -2521,6 +2521,20 @@ static Sys_var_charptr Sys_log_error(
     DEFAULT(disabled_my_option), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
 
+#ifdef HAVE_LOG_DIAGNOSTIC
+static Sys_var_charptr Sys_log_diagnostic(
+    "log_diagnostic", "Diagnostic log file",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(log_dia_dest),
+    CMD_LINE(OPT_ARG, OPT_LOG_DIAGNOSTIC), IN_FS_CHARSET,
+    DEFAULT(disabled_my_option), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
+
+static Sys_var_bool Sys_log_diagnostic_enable(
+    "log_diagnostic_enable", "Enable diagnostic output",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(log_diagnostic_enable), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
+#endif /* HAVE_LOG_DIAGNOSTIC */
+
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
   // test whether syntax is OK and services exist
   size_t pos;
@@ -7669,6 +7683,14 @@ static Sys_var_enum Sys_use_secondary_engine(
     HINT_UPDATEABLE SESSION_ONLY(use_secondary_engine), NO_CMD_LINE,
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_enable_secondary_engine_statistics(
+    "enable_secondary_engine_statistics",
+    "When this option is enabled, the hypergraph query optimizer may fetch"
+    "statistics from the secondary engine, if available",
+    HINT_UPDATEABLE SESSION_VAR(enable_secondary_engine_statistics),
+    CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_session_special Sys_statement_id(
     "statement_id",

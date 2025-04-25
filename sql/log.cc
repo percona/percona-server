@@ -78,6 +78,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/auth/auth_acls.h"
@@ -2340,6 +2341,10 @@ static mysql_mutex_t LOCK_error_log;
 // E.g. log_error_dest is "stderr" if we are not logging to file.
 static const char *error_log_file = nullptr;
 
+// This variable is different from log_dia_dest.
+// E.g. log_dia_dest is "stdout" if we are not logging to file.
+static const char *dia_log_file = nullptr;
+
 void discard_error_log_messages() {
   log_sink_buffer_flush(LOG_BUFFER_DISCARD_ONLY);
 }
@@ -2359,13 +2364,15 @@ bool init_error_log() {
 
   if (log_builtins_init() < 0) {
     log_write_errstream(
-        STRING_WITH_LEN("failed to initialize basic error logging"));
+        STRING_WITH_LEN("failed to initialize basic error logging"),
+        LOG_TYPE_ERROR);
     return true;
   } else
     return false;
 }
 
-bool open_error_log(const char *filename, bool get_lock) {
+bool open_error_log(const char *filename, bool get_lock, uint log_type) {
+  assert(log_type != LOG_TYPE_DIAG || log_diagnostic_enable);
   assert(filename);
   int retries = 2, errors = 0;
   MY_STAT f_stat;
@@ -2388,16 +2395,22 @@ bool open_error_log(const char *filename, bool get_lock) {
 
   do {
     errors = 0;
-    if (!my_freopen(filename, "a", stderr)) errors++;
-    if (!my_freopen(filename, "a", stdout)) errors++;
+    if (log_type & LOG_TYPE_ERROR && !my_freopen(filename, "a", stderr))
+      errors++;
+    if (log_type & LOG_TYPE_DIAG && !my_freopen(filename, "a", stdout))
+      errors++;
   } while (retries-- && errors);
 
   if (errors) goto fail;
 
-  /* The error stream must be unbuffered. */
-  setbuf(stderr, nullptr);
-
-  error_log_file = filename;  // Remember name for later reopen
+  /* The stream must be unbuffered. */
+  if (log_type & LOG_TYPE_ERROR) {
+    setbuf(stderr, nullptr);
+    error_log_file = filename;
+  } else if (log_type & LOG_TYPE_DIAG) {
+    setbuf(stdout, nullptr);
+    dia_log_file = filename;
+  }
 
   return false;
 
@@ -2422,19 +2435,22 @@ void destroy_error_log() {
   if (error_log_initialized) {
     error_log_initialized = false;
     error_log_file = nullptr;
+    dia_log_file = nullptr;
     mysql_mutex_destroy(&LOCK_error_log);
     log_builtins_exit();
   }
 }
 
-bool reopen_error_log() {
+static bool reopen_error_log(const char *filename, uint log_type) {
   int component_failures;
   bool result = false;
 
   assert(error_log_initialized);
+  assert(log_type != LOG_TYPE_DIAG || log_diagnostic_enable);
 
-  // call flush function in all logging services
-  if ((component_failures = log_builtins_error_stack_flush()) < 0) {
+  // call flush function in all logging services if we reopen the error log
+  if (log_type & LOG_TYPE_ERROR &&
+      (component_failures = log_builtins_error_stack_flush()) < 0) {
     // If flushing failed and there is a user session, alert the user.
     if (current_thd)
       push_warning_printf(
@@ -2447,9 +2463,9 @@ bool reopen_error_log() {
     LogErr(ERROR_LEVEL, ER_LOG_COMPONENT_FLUSH_FAILED, -component_failures);
   }
 
-  if (error_log_file) {
+  if (filename) {
     mysql_mutex_lock(&LOCK_error_log);
-    result = open_error_log(error_log_file, true);
+    result = open_error_log(filename, true, log_type);
     mysql_mutex_unlock(&LOCK_error_log);
 
     /*
@@ -2460,16 +2476,27 @@ bool reopen_error_log() {
       log_builtins_error_stack_flush() above.
     */
     if (result)
-      my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".",
+      my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), filename, ".",
                ""); /* purecov: inspected */
   }
 
   return result;
 }
 
-void log_write_errstream(const char *buffer, size_t length) {
+bool reopen_error_log() {
+  if (log_diagnostic_enable)
+    return reopen_error_log(error_log_file, LOG_TYPE_ERROR) ||
+           reopen_error_log(dia_log_file, LOG_TYPE_DIAG);
+
+  return reopen_error_log(error_log_file, LOG_TYPE_ERROR | LOG_TYPE_DIAG);
+}
+
+void log_write_errstream(const char *buffer, size_t length,
+                         enum enum_log_type log_type) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("buffer: %s", buffer));
+
+  assert(log_type != LOG_TYPE_DIAG || log_diagnostic_enable);
 
   /*
     This must work even if the mutex has not been initialized yet.
@@ -2478,8 +2505,9 @@ void log_write_errstream(const char *buffer, size_t length) {
   */
   if (error_log_initialized) mysql_mutex_lock(&LOCK_error_log);
 
-  fprintf(stderr, "%.*s\n", (int)length, buffer);
-  fflush(stderr);
+  FILE *stream = (log_type == LOG_TYPE_DIAG ? stdout : stderr);
+  fprintf(stream, "%.*s\n", (int)length, buffer);
+  fflush(stream);
 
   if (error_log_initialized) mysql_mutex_unlock(&LOCK_error_log);
 }

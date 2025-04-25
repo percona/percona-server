@@ -52,7 +52,7 @@ typedef unsigned long long synode_cnt;
 
 #define SET_EXECUTED_MSG(x) \
   do {                      \
-    IFDBG(D_NONE, FN);      \
+    XCOM_IFDBG(D_NONE, FN); \
     set_executed_msg(x);    \
   } while (0)
 

@@ -55,7 +55,7 @@ public interface DomainTypeHandler<T> {
 
     public DomainFieldHandler getFieldHandler(String fieldName);
 
-    public Class<?>[] getProxyInterfaces();
+    public Class<?> getProxyClass();
 
     public T newInstance(Db db);
 

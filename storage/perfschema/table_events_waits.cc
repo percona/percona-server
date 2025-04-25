@@ -431,6 +431,13 @@ int table_events_waits_common::make_metadata_lock_object_columns(
         m_row.m_object_name_length = mdl->name_length();
         m_row.m_index_name_length = 0;
         break;
+      case MDL_key::LIBRARY:
+        m_row.m_object_type = "LIBRARY";
+        m_row.m_object_type_length = 7;
+        set_schema_name(&m_row.m_object_schema, mdl);
+        m_row.m_object_name_length = mdl->name_length();
+        m_row.m_index_name_length = 0;
+        break;
       case MDL_key::TRIGGER:
         m_row.m_object_type = "TRIGGER";
         m_row.m_object_type_length = 7;

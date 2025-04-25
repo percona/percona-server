@@ -108,17 +108,29 @@ class ClusterMetadata {
       const std::string &target_cluster, const std::string &rw_endpoint,
       const std::string &ro_endpoint, const std::string &rw_split_endpoint,
       const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-      const std::string &username) = 0;
+      const std::string &username, const std::string &local_cluster) = 0;
 
   virtual std::vector<std::string> get_routing_mode_queries() = 0;
 
   /** @brief Verify that host is a valid metadata server
    *
    *
+<<<<<<< HEAD
    * @throws MySQLSession::Error on failure
    * @throws std::runtime_error on failure
    * @throws std::out_of_range on failure
    * @throws std::logic_error on failure
+||||||| merged common ancestors
+   * @throws MySQLSession::Error
+   * @throws std::runtime_error
+   * @throws std::out_of_range
+   * @throws std::logic_error
+=======
+   * @throws MySQLSession::Error  On error.
+   * @throws std::runtime_error   On error.
+   * @throws std::out_of_range    On error.
+   * @throws std::logic_error     On error.
+>>>>>>> mysql-9.2.0
    *
    * checks that the server
    *
@@ -131,10 +143,22 @@ class ClusterMetadata {
   /** @brief Verify that host is a valid cluster member (either Group
    * Replication or ReplicaSet cluster)
    *
+<<<<<<< HEAD
    * @throws MySQLSession::Error on failure
    * @throws std::runtime_error on failure
    * @throws std::out_of_range on failure
    * @throws std::logic_error on failure
+||||||| merged common ancestors
+   * @throws MySQLSession::Error
+   * @throws std::runtime_error
+   * @throws std::out_of_range
+   * @throws std::logic_error
+=======
+   * @throws MySQLSession::Error On error.
+   * @throws std::runtime_error  On error.
+   * @throws std::out_of_range   On error.
+   * @throws std::logic_error    On error.
+>>>>>>> mysql-9.2.0
    */
   virtual void require_cluster_is_ok() = 0;
 
@@ -149,6 +173,11 @@ class ClusterMetadata {
 
   virtual std::vector<std::tuple<std::string, unsigned long>>
   fetch_cluster_hosts() = 0;
+
+  /**
+   * Get name of the cluster that was used for bootstrap.
+   */
+  virtual std::string get_local_cluster();
 
   MySQLSession &get_session() { return *mysql_; }
 
@@ -213,7 +242,7 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
       const std::string &target_cluster, const std::string &rw_endpoint,
       const std::string &ro_endpoint, const std::string &rw_split_endpoint,
       const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-      const std::string &username) override;
+      const std::string &username, const std::string &local_cluster) override;
 
   uint32_t register_router(const std::string &router_name, const bool overwrite,
                            const std::string &hostname_override = "") override;
@@ -247,6 +276,8 @@ class ClusterMetadataGRInClusterSet : public ClusterMetadataGRV2 {
   std::vector<std::tuple<std::string, unsigned long>> fetch_cluster_hosts()
       override;
 
+  std::string get_local_cluster() override;
+
   enum class TargetClusterType {
     // target should be the cluster on which we bootstrap
     targetClusterCurrent,
@@ -264,7 +295,7 @@ class ClusterMetadataGRInClusterSet : public ClusterMetadataGRV2 {
       const std::string &target_cluster, const std::string &rw_endpoint,
       const std::string &ro_endpoint, const std::string &rw_split_endpoint,
       const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-      const std::string &username) override;
+      const std::string &username, const std::string &local_cluster) override;
 
  protected:
   TargetClusterType target_cluster_type_;
@@ -310,7 +341,7 @@ class ClusterMetadataAR : public ClusterMetadata {
       const std::string &target_cluster, const std::string &rw_endpoint,
       const std::string &ro_endpoint, const std::string &rw_split_endpoint,
       const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-      const std::string &username) override;
+      const std::string &username, const std::string &local_cluster) override;
 
   uint32_t register_router(const std::string &router_name, const bool overwrite,
                            const std::string &hostname_override = "") override;

@@ -37,6 +37,7 @@
 #include "my_base.h"
 
 #include "my_inttypes.h"  // TODO: replace with cstdint
+#include "my_list.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -56,6 +57,7 @@
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 #include "sql/set_var.h"
+#include "sql/sp_head.h"
 #include "sql/sql_admin.h"  // Sql_cmd_shutdown etc.
 #include "sql/sql_alter.h"
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
@@ -835,9 +837,9 @@ class PT_locking_clause_list : public Parse_tree_node {
 class PT_query_expression_body : public Parse_tree_node {
  public:
   explicit PT_query_expression_body(const POS &pos) : Parse_tree_node(pos) {}
-
+  enum Setop_type { NONE, UNION, INTERSECT, EXCEPT };
+  virtual Setop_type type() const { return NONE; }
   virtual bool is_set_operation() const = 0;
-
   /**
     True if this query expression can absorb an extraneous order by/limit
     clause. The `ORDER BY`/`LIMIT` syntax is mostly consistestent, i.e. a
@@ -1305,19 +1307,45 @@ class PT_into_destination_outfile final : public PT_into_destination {
 
  public:
   PT_into_destination_outfile(const POS &pos, const LEX_STRING &file_name_arg,
-                              const CHARSET_INFO *charset_arg,
-                              const Field_separators &field_term_arg,
-                              const Line_separators &line_term_arg)
-      : PT_into_destination(pos), m_exchange(file_name_arg.str, false) {
-    m_exchange.cs = charset_arg;
+                              File_information *file_info,
+                              const Field_separators *field_term_arg,
+                              const Line_separators *line_term_arg,
+                              enum_destination dumpfile_flag)
+      : PT_into_destination(pos),
+        m_exchange(file_name_arg.str, dumpfile_flag),
+        dumpfile_dest(dumpfile_flag) {
+    m_exchange.file_info.merge_file_information(file_info);
     m_exchange.field.merge_field_separators(field_term_arg);
     m_exchange.line.merge_line_separators(line_term_arg);
+  }
+
+  PT_into_destination_outfile(const POS &pos, LEX_CSTRING attr,
+                              enum_destination dumpfile_flag)
+      : PT_into_destination(pos),
+        m_exchange(dumpfile_flag),
+        dumpfile_dest(dumpfile_flag) {
+    m_exchange.outfile_json = attr;
+  }
+
+  PT_into_destination_outfile(const POS &pos, URI_information *outfile_uri_arg,
+                              File_information *file_info,
+                              const Field_separators *field_term_arg,
+                              const Line_separators *line_term_arg,
+                              enum_destination dumpfile_flag)
+      : PT_into_destination(pos),
+        m_exchange(dumpfile_flag),
+        dumpfile_dest(dumpfile_flag) {
+    m_exchange.file_info.merge_file_information(file_info);
+    m_exchange.field.merge_field_separators(field_term_arg);
+    m_exchange.line.merge_line_separators(line_term_arg);
+    m_exchange.uri_info.merge_uri_info_separators(outfile_uri_arg);
   }
 
   bool do_contextualize(Parse_context *pc) override;
 
  private:
   sql_exchange m_exchange;
+  enum_destination dumpfile_dest;
 };
 
 class PT_into_destination_dumpfile final : public PT_into_destination {
@@ -1325,7 +1353,8 @@ class PT_into_destination_dumpfile final : public PT_into_destination {
 
  public:
   PT_into_destination_dumpfile(const POS &pos, const LEX_STRING &file_name_arg)
-      : PT_into_destination(pos), m_exchange(file_name_arg.str, true) {}
+      : PT_into_destination(pos),
+        m_exchange(file_name_arg.str, DUMPFILE_DEST) {}
 
   bool do_contextualize(Parse_context *pc) override;
 
@@ -1812,36 +1841,43 @@ class PT_set_operation : public PT_query_expression_body {
                    bool is_distinct, PT_query_expression_body *rhs,
                    bool is_rhs_in_parentheses = false)
       : super(pos),
-        m_lhs(lhs),
         m_is_distinct(is_distinct),
-        m_rhs(rhs),
-        m_is_rhs_in_parentheses{is_rhs_in_parentheses} {}
+        m_is_rhs_in_parentheses{is_rhs_in_parentheses} {
+    m_list.push_back(lhs);
+    m_list.push_back(rhs);
+  }
 
   void merge_descendants(Parse_context *pc, Query_term_set_op *setop,
                          QueryLevel &ql);
   bool is_set_operation() const override { return true; }
 
   bool has_into_clause() const override {
-    return m_lhs->has_into_clause() || m_rhs->has_into_clause();
+    return std::any_of(m_list.cbegin(), m_list.cend(),
+                       [](const PT_query_expression_body &body) {
+                         return body.has_into_clause();
+                       });
   }
   bool has_trailing_into_clause() const override {
-    return !m_is_rhs_in_parentheses && m_rhs->has_trailing_into_clause();
+    return !m_is_rhs_in_parentheses &&
+           m_list[m_list.elements - 1]->has_trailing_into_clause();
   }
 
   bool can_absorb_order_and_limit(bool, bool) const override { return false; }
 
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
+  bool is_distinct() const { return m_is_distinct; }
+
+  List<PT_query_expression_body> m_list;
+  void set_is_rhs_in_parentheses(bool v) { m_is_rhs_in_parentheses = v; }
 
  protected:
   bool contextualize_setop(Parse_context *pc, Query_term_type setop_type,
                            Surrounding_context context);
-  PT_query_expression_body *m_lhs;
+  void merge_children(Query_term_set_op *setop, Query_term_set_op *lower);
   bool m_is_distinct;
-  PT_query_expression_body *m_rhs;
   PT_into_destination *m_into{nullptr};
-  const bool m_is_rhs_in_parentheses;
-
+  bool m_is_rhs_in_parentheses;
   void add_json_info(Json_object *obj) override {
     obj->add_alias("distinct", create_dom_ptr<Json_boolean>(m_is_distinct));
     obj->add_alias("rhs_in_parentheses",
@@ -1855,6 +1891,7 @@ class PT_union : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool do_contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return UNION; }
 };
 
 class PT_except : public PT_set_operation {
@@ -1863,6 +1900,7 @@ class PT_except : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool do_contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return EXCEPT; }
 };
 
 class PT_intersect : public PT_set_operation {
@@ -1871,6 +1909,7 @@ class PT_intersect : public PT_set_operation {
  public:
   using PT_set_operation::PT_set_operation;
   bool do_contextualize(Parse_context *pc) override;
+  enum Setop_type type() const override { return INTERSECT; }
 };
 
 class PT_select_stmt : public Parse_tree_root {
@@ -3508,6 +3547,21 @@ class PT_show_create_function final : public PT_show_base {
   sp_name *const m_spname;
 
   Sql_cmd_show_create_function m_sql_cmd;
+};
+
+/// Parse tree node for SHOW CREATE LIBRARY statement
+
+class PT_show_create_library final : public PT_show_base {
+ public:
+  PT_show_create_library(const POS &pos, sp_name *library_name)
+      : PT_show_base(pos, SQLCOM_SHOW_CREATE_LIBRARY), m_spname(library_name) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  sp_name *const m_spname;
+
+  Sql_cmd_show_create_library m_sql_cmd;
 };
 
 /// Parse tree node for SHOW CREATE PROCEDURE statement
@@ -5597,8 +5651,8 @@ class PT_load_table final : public Parse_tree_root {
                 List<String> *opt_partitions, const CHARSET_INFO *opt_charset,
                 LEX_CSTRING compression_algorithm,
                 String *opt_xml_rows_identified_by,
-                const Field_separators &opt_field_separators,
-                const Line_separators &opt_line_separators,
+                const Field_separators *opt_field_separators,
+                const Line_separators *opt_line_separators,
                 ulong opt_ignore_lines, PT_item_list *opt_fields_or_vars,
                 PT_item_list *opt_set_fields, PT_item_list *opt_set_exprs,
                 List<String> *opt_set_expr_strings, ulong parallel,
@@ -5624,6 +5678,62 @@ class PT_load_table final : public Parse_tree_root {
   Sql_cmd_load_table m_cmd;
 
   const thr_lock_type m_lock_type;
+};
+
+class PT_create_library_stmt final : public Parse_tree_root {
+ public:
+  PT_create_library_stmt(const POS &pos, THD *thd, bool if_not_exists,
+                         sp_name *lib_name, LEX_STRING language,
+                         LEX_STRING lib_source)
+      : Parse_tree_root(pos),
+        m_cmd(thd, if_not_exists, lib_name, language, lib_source) {}
+
+  Sql_cmd *make_cmd(THD *) override { return &m_cmd; }
+
+ private:
+  Sql_cmd_create_library m_cmd;
+};
+
+class PT_drop_library_stmt final : public Parse_tree_root {
+ public:
+  PT_drop_library_stmt(const POS &pos, bool if_exists, sp_name *lib_name)
+      : Parse_tree_root(pos), m_cmd(if_exists, lib_name) {}
+
+  Sql_cmd *make_cmd(THD *) override { return &m_cmd; }
+
+ private:
+  Sql_cmd_drop_library m_cmd;
+};
+
+class PT_library_with_alias final : public Parse_tree_node {
+  typedef Parse_tree_node super;
+
+  sp_name_with_alias m_library;
+
+ public:
+  explicit PT_library_with_alias(const POS &pos, sp_name *lib_name,
+                                 const LEX_CSTRING &alias)
+      : super(pos), m_library(lib_name->m_db, lib_name->m_name, alias) {}
+
+  sp_name_with_alias library() { return m_library; }
+};
+
+class PT_library_list final : public Parse_tree_node {
+  typedef Parse_tree_node super;
+
+  mem_root_deque<sp_name_with_alias> m_libraries;
+
+ public:
+  explicit PT_library_list(const POS &pos)
+      : super(pos), m_libraries(*THR_MALLOC) {}
+
+  bool push_back(PT_library_with_alias *lib) {
+    if (lib == nullptr) return true;  // OOM
+    m_libraries.push_back(lib->library());
+    return false;
+  }
+
+  mem_root_deque<sp_name_with_alias> &get_libraries() { return m_libraries; }
 };
 
 /**
@@ -5666,4 +5776,69 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
 PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
                                                             LEX_CSTRING);
+
+/**
+  Helper function to imitate \c dynamic_cast for \c PT_set_operation hierarchy.
+
+  Template parameter @p To is the destination type (@c PT_union, \c PT_except or
+  \c PT_intersect). For \c PT_intersect we return nullptr if ALL due to impl.
+  restriction: we cannot merge INTERSECT ALL.
+
+  @param from        source item
+  @param is_distinct true if distinct
+  @return typecast   item to the type To or NULL
+*/
+template <class To, PT_set_operation::Setop_type Tag>
+To *setop_cast(PT_query_expression_body *from, bool is_distinct) {
+  return (from->type() == Tag &&
+          down_cast<PT_set_operation *>(from)->is_distinct() == is_distinct &&
+          (Tag != PT_query_expression_body::INTERSECT || is_distinct))
+             ? static_cast<To *>(from)
+             : nullptr;
+}
+
+/**
+  Flatten set operators at parse time
+
+  This function flattens UNION ALL/DISTINCT, EXCEPT All/DISTINCT
+  and INTERSECT DISTINCT (not ALL due to implementation restrictions) operators
+  at parse time if applicable, otherwise it creates
+  new \c PT_<setop> nodes respectively of the two input operands.
+
+  Template parameter @p Class is @c PT_union or @c PT_intersect
+  Template parameter @p Tag is @c PT_query_specification::UNION or
+                     @c ::INTERSECT
+
+  @param mem_root       MEM_ROOT
+  @param pos            parse location
+  @param left           left argument of the operator
+  @param is_distinct    true if DISTINCT
+  @param right          right argument of the operator
+  @param is_right_in_parentheses
+                        true if right hand size is parenthesized
+  @return resulting parse tree Item
+*/
+template <class Class, PT_set_operation::Setop_type Tag>
+PT_set_operation *flatten_equal_set_ops(MEM_ROOT *mem_root, const POS &pos,
+                                        PT_query_expression_body *left,
+                                        bool is_distinct,
+                                        PT_query_expression_body *right,
+                                        bool is_right_in_parentheses) {
+  if (left == nullptr || right == nullptr) return nullptr;
+  Class *left_setop = setop_cast<Class, Tag>(left, is_distinct);
+  Class *right_setop [[maybe_unused]] =
+      setop_cast<Class, Tag>(right, is_distinct);
+  assert(right_setop == nullptr);  // doesn't happen
+  if (left_setop != nullptr) {
+    // X1 op X2 op Y ==> op (X1, X2, Y)
+    left_setop->m_list.push_back(right);
+    left_setop->set_is_rhs_in_parentheses(is_right_in_parentheses);
+    return left_setop;
+  } else {
+    /* X op Y */
+    return new (mem_root)
+        Class(pos, left, is_distinct, right, is_right_in_parentheses);
+  }
+}
+
 #endif /* PARSE_TREE_NODES_INCLUDED */

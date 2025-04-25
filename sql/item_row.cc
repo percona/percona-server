@@ -80,6 +80,7 @@ bool Item_row::do_itemize(Parse_context *pc, Item **res) {
   if (super::do_itemize(pc, res)) return true;
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->itemize(pc, &items[i])) return true;
+    add_accum_properties(items[i]);
   }
   return false;
 }

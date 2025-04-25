@@ -9,6 +9,8 @@ struct MYSQL_LEX_CSTRING {
 };
 #include "plugin.h"
 #include "status_var.h"
+#include "mysql/components/services/bits/status_variables_bits.h"
+#include "mysql/components/services/bits/thd.h"
 enum enum_mysql_show_type {
   SHOW_UNDEF,
   SHOW_BOOL,
@@ -56,6 +58,7 @@ struct MYSQL_XID {
   char data[128];
 };
 #include <mysql/components/services/bits/system_variables_bits.h>
+#include "mysql/components/services/bits/thd.h"
 struct st_mysql_value {
   int (*value_type)(struct st_mysql_value *);
   const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
@@ -68,6 +71,9 @@ typedef int (*mysql_var_check_func)(void * thd, SYS_VAR *var, void *save,
                                     struct st_mysql_value *value);
 typedef void (*mysql_var_update_func)(void * thd, SYS_VAR *var,
                                       void *var_ptr, const void *save);
+struct SYS_VAR {
+  int flags; const char *name; const char *comment; mysql_var_check_func check; mysql_var_update_func update;
+};
 struct st_mysql_plugin {
   int type;
   void *info;
@@ -356,6 +362,7 @@ enum enum_sql_command {
   SQLCOM_CREATE_SRS,
   SQLCOM_DROP_SRS,
   SQLCOM_SHOW_PARSE_TREE,
+<<<<<<< HEAD
   SQLCOM_SHOW_USER_STATS,
   SQLCOM_SHOW_TABLE_STATS,
   SQLCOM_SHOW_INDEX_STATS,
@@ -364,6 +371,12 @@ enum enum_sql_command {
   SQLCOM_LOCK_TABLES_FOR_BACKUP,
   SQLCOM_CREATE_COMPRESSION_DICTIONARY,
   SQLCOM_DROP_COMPRESSION_DICTIONARY,
+||||||| merged common ancestors
+=======
+  SQLCOM_CREATE_LIBRARY,
+  SQLCOM_DROP_LIBRARY,
+  SQLCOM_SHOW_CREATE_LIBRARY,
+>>>>>>> mysql-9.2.0
   SQLCOM_END
 };
 #include "plugin_audit_message_types.h"

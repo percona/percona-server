@@ -642,3 +642,16 @@ get_log_timestamp(const std::string &log_file, const std::string &log_regex,
 
   return result;
 }
+
+std::string escape_regexp(std::string input) {
+  std::string output;
+  std::for_each(std::begin(input), std::end(input), [&output](const char c) {
+    if (c == '\\' || c == '.' || c == '^' || c == '$' || c == '*' || c == '+' ||
+        c == '?' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' ||
+        c == '}' || c == '|') {
+      output += "\\";
+    }
+    output += c;
+  });
+  return output;
+}

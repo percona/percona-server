@@ -171,6 +171,14 @@ IF(WIN32)
   )
 ENDIF()
 
+# WL#16504 stuff
+IF(WIN32)
+  LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
+    my_EVP_sha1
+    my_EVP_sha256
+  )
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(
   router_mysqlclient_shim
 
@@ -252,7 +260,6 @@ SET(harness_source
   signal_handler.cc
   sd_notify.cc
   socket_operations.cc
-  tcp_address.cc
   tls_cipher.cc
   tty.cc
   vt100.cc
@@ -265,6 +272,10 @@ SET(harness_source
   log_reopen_component.cc
   dynamic_config.cc
   section_config_exposer.cc
+  destination.cc
+  destination_acceptor.cc
+  destination_endpoint.cc
+  destination_socket.cc
   )
 
 IF(WIN32)

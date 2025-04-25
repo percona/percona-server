@@ -192,7 +192,7 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     std::chrono::milliseconds wait_for_exit_timeout,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     const std::vector<std::string> &extra_router_options) {
-  std::string cluster_name("mycluster");
+  std::string cluster_name("my-cluster");
 
   std::vector<uint16_t> classic_ports;
   for (const auto &mock_server_config : mock_server_configs) {

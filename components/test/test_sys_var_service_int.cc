@@ -22,13 +22,17 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <fcntl.h>
+#include <stdio.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/mysql_system_variable.h>
-#include <mysql/plugin.h>
 
-#include "my_macros.h"
 #include "typelib.h"
 
 #define VARIABLE_BUFFER_SIZE 1023

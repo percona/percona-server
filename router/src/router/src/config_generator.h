@@ -44,7 +44,6 @@
 #include "mysqlrouter/sys_user_operations.h"
 #include "mysqlrouter/uri.h"
 #include "random_generator.h"
-#include "tcp_address.h"
 #include "unique_ptr.h"
 
 namespace mysql_harness {
@@ -77,7 +76,13 @@ class ConfigGenerator {
    * @param server_url server to bootstrap from
    * @param bootstrap_options bootstrap options
    *
+<<<<<<< HEAD
    * @throws std::runtime_error on failure
+||||||| merged common ancestors
+   * @throws std::runtime_error
+=======
+   * @throws std::runtime_error On error.
+>>>>>>> mysql-9.2.0
    */
   void init(const std::string &server_url,
             const std::map<std::string, std::string> &bootstrap_options);
@@ -90,7 +95,13 @@ class ConfigGenerator {
    * @returns false if SSL mode is set to PREFERRED and SSL is not being used,
    *          true otherwise
    *
+<<<<<<< HEAD
    * @throws std::runtime_error on failure
+||||||| merged common ancestors
+   * @throws std::runtime_error
+=======
+   * @throws std::runtime_error On error.
+>>>>>>> mysql-9.2.0
    */
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options);
 
@@ -174,6 +185,7 @@ class ConfigGenerator {
     // only relevant for ClusterSet
     std::string target_cluster;
     std::string target_cluster_by_name;
+    std::string local_cluster;
   };
 
   void set_file_owner(
@@ -218,8 +230,16 @@ class ConfigGenerator {
    * argumenent)
    * @param bootstrap_options bootstrap command-line options
    *
+<<<<<<< HEAD
    * @throws std::runtime_error on failure
    * @throws std::logic_error on failure
+||||||| merged common ancestors
+   * @throws std::runtime_error
+   * @throws std::logic_error
+=======
+   * @throws std::runtime_error On error.
+   * @throws std::logic_error On error.
+>>>>>>> mysql-9.2.0
    */
   void connect_to_metadata_server(
       const URI &u, const std::string &bootstrap_socket,
@@ -232,7 +252,13 @@ class ConfigGenerator {
    * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
    * argumenent)
    *
+<<<<<<< HEAD
    * @throws TODO on failure
+||||||| merged common ancestors
+   * @throws TODO
+=======
+   * @throws exception TODO
+>>>>>>> mysql-9.2.0
    */
   void init_gr_data(const URI &u, const std::string &bootstrap_socket);
 
@@ -242,6 +268,7 @@ class ConfigGenerator {
     std::string username;
     uint16_t rw_x_port{0};
     uint16_t ro_x_port{0};
+    std::string local_cluster_name;
   };
 
   Options fill_options(const std::map<std::string, std::string> &user_options,

@@ -774,10 +774,8 @@ ulint mtr_t::Command::prepare_write() {
       ut_o(return 0);
   }
 
-  /* An ibuf merge could happen when loading page to apply log
-  records during recovery. During the ibuf merge mtr is used. */
-
-  ut_a(!recv_recovery_is_on() || !recv_no_ibuf_operations);
+  /* No logs records can be produced during recovery. */
+  ut_a(!recv_recovery_is_on());
 
   ulint len = m_impl->m_log.size();
   ut_ad(len > 0);

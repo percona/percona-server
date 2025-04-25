@@ -2040,3 +2040,63 @@ CALL sp;
 1
 DROP PROCEDURE sp;
 SET sql_log_off = DEFAULT;
+#
+# Bug#36322812 - RAPID global variables accept 'OF' as valid bool value
+# Bug#36924845 - RAPID session variables accept 'OF' as valid bool value
+#
+SET GLOBAL slow_query_log = 'O';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'O'
+SET GLOBAL slow_query_log = 'OX';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OX'
+SET GLOBAL slow_query_log = 'ONX';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'ONX'
+SET GLOBAL slow_query_log = 'ONN';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'ONN'
+SET GLOBAL slow_query_log = 'OF';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OF'
+SET GLOBAL slow_query_log = 'OFX';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OFX'
+SET GLOBAL slow_query_log = 'OFFF';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OFFF'
+SET GLOBAL slow_query_log = 'OFFX';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OFFX'
+SET GLOBAL slow_query_log = 'ONF';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'ONF'
+SET GLOBAL slow_query_log = 'OFN';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'OFN'
+SET GLOBAL slow_query_log = '1';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of '1'
+SET GLOBAL slow_query_log = '0';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of '0'
+SET GLOBAL slow_query_log = 'true';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'true'
+SET GLOBAL slow_query_log = 'false';
+ERROR 42000: Variable 'slow_query_log' can't be set to the value of 'false'
+SET GLOBAL innodb_strict_mode = 'O';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'O'
+SET GLOBAL innodb_strict_mode = 'OX';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OX'
+SET GLOBAL innodb_strict_mode = 'ONX';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'ONX'
+SET GLOBAL innodb_strict_mode = 'ONN';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'ONN'
+SET GLOBAL innodb_strict_mode = 'OF';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OF'
+SET GLOBAL innodb_strict_mode = 'OFX';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OFX'
+SET GLOBAL innodb_strict_mode = 'OFFF';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OFFF'
+SET GLOBAL innodb_strict_mode = 'OFFX';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OFFX'
+SET GLOBAL innodb_strict_mode = 'ONF';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'ONF'
+SET GLOBAL innodb_strict_mode = 'OFN';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'OFN'
+SET GLOBAL innodb_strict_mode = '1';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of '1'
+SET GLOBAL innodb_strict_mode = '0';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of '0'
+SET GLOBAL innodb_strict_mode = 'true';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'true'
+SET GLOBAL innodb_strict_mode = 'false';
+ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'false'

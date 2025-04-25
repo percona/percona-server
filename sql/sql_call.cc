@@ -59,7 +59,7 @@ using std::max;
 bool Sql_cmd_call::precheck(THD *thd) {
   // Check execute privilege on stored procedure
   if (check_routine_access(thd, EXECUTE_ACL, proc_name->m_db.str,
-                           proc_name->m_name.str, true, false))
+                           proc_name->m_name.str, Acl_type::PROCEDURE, false))
     return true;
 
   // Check SELECT privileges for any subqueries
@@ -71,7 +71,7 @@ bool Sql_cmd_call::precheck(THD *thd) {
 
 bool Sql_cmd_call::check_privileges(THD *thd) {
   if (check_routine_access(thd, EXECUTE_ACL, proc_name->m_db.str,
-                           proc_name->m_name.str, true, false))
+                           proc_name->m_name.str, Acl_type::PROCEDURE, false))
     return true;
 
   if (check_all_table_privileges(thd)) {

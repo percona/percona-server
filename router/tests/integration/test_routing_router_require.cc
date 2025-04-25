@@ -44,7 +44,9 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
+#endif
 
 #include <rapidjson/pointer.h>
 
@@ -193,8 +195,7 @@ class SharedRouter {
     dests.reserve(servers.size());
 
     for (const auto &s : servers) {
-      dests.push_back(s->server_host() + ":" +
-                      std::to_string(s->server_port()));
+      dests.push_back(s->classic_tcp_destination().str());
     }
 
     return dests;
@@ -206,8 +207,7 @@ class SharedRouter {
     dests.reserve(servers.size());
 
     for (const auto &s : servers) {
-      dests.push_back(s->server_host() + ":" +
-                      std::to_string(s->server_mysqlx_port()));
+      dests.push_back(s->x_tcp_destination().str());
     }
 
     return dests;
@@ -2008,9 +2008,8 @@ class RouterRequireConnectionPoolTest : public RouterComponentTest {
     std::vector<std::string> dests;
     dests.reserve(servers.size());
 
-    for (const auto &s : servers) {
-      dests.push_back(s->server_host() + ":" +
-                      std::to_string(s->server_port()));
+    for (const auto &srv : servers) {
+      dests.push_back(srv->classic_tcp_destination().str());
     }
 
     return dests;

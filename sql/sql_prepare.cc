@@ -1328,6 +1328,8 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_CREATE_EVENT:
     case SQLCOM_ALTER_EVENT:
     case SQLCOM_DROP_EVENT:
+    case SQLCOM_CREATE_LIBRARY:
+    case SQLCOM_DROP_LIBRARY:
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_DELETE:
@@ -1348,6 +1350,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_SHOW_CREATE_FUNC:
     case SQLCOM_SHOW_CREATE_PROC:
     case SQLCOM_SHOW_CREATE:
+    case SQLCOM_SHOW_CREATE_LIBRARY:
     case SQLCOM_SHOW_CREATE_TRIGGER:
     case SQLCOM_SHOW_CREATE_USER:
     case SQLCOM_SHOW_DATABASES:
@@ -3098,7 +3101,7 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
   MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, used_secondary);
   mysql_thread_set_secondary_engine(used_secondary);
   mysql_statement_set_secondary_engine(thd->m_statement_psi, used_secondary);
-  thd->set_secondary_engine_statement_context(nullptr);
+  thd->cleanup_after_statement_execution();
   m_first_execution = false;
 
   return error;

@@ -397,9 +397,54 @@ class Trx_by_id_with_min {
   Reads can be performed without any latch before accessing m_by_id,
   but care must be taken to interpret the result -
   @see trx_rw_is_active for details.*/
-  std::atomic<trx_id_t> m_min_id{0};
+  std::atomic<trx_id_t> m_min_id{TRX_ID_MAX};
+
+  /** This value is guaranteed to be always smaller or equal than any id in
+  any of the shards of transactions which finished calling insert(id).
+  I.e. a shard can already contain an id smaller than this value, if
+  insert(id) has still not finished.
+  This is sufficient guarantee, if you only care about "active" transactions
+  in the sense that insert(id) for them has happened before the call.
+  For example, when you want to check if a record you look at could have been
+  modified by any of active transactions, then this is a valid assumption
+  as creating a record happens after insert(id).
+  This value may be way lower than actual minimum, as it is only updated
+  from time to time by get_better_lower_bound_for_already_active_id(). */
+  static std::atomic<trx_id_t> s_lower_bound;
+
+  /** This is used during get_better_lower_bound_for_already_active_id() to
+  announce that it is trying to establish new value for s_lower_bound, and
+  this is the current candidate. This value is 0 if no such process is under
+  way, and changed to non-zero by the only thread chosen to perform it, thus
+  it also serves the purpose of "mutex". Transactions executing insert(id)
+  should limit this atomic to id, to help the process. */
+  static std::atomic<trx_id_t> s_lower_bound_candidate;
+
+  /** Performs an equivalent of if(upper_bound<v)v=upper_bound atomically.
+  @param[in] a           The atomic we want to limit to upper_bound
+  @param[in] upper_bound The upper_bound we want to impose on a */
+  static void limit_to(std::atomic<trx_id_t> &a, trx_id_t upper_bound) {
+    trx_id_t v = a.load();
+    while (upper_bound < v) {
+      a.compare_exchange_weak(v, upper_bound);
+    }
+  }
 
  public:
+  /** Returns a value which is lower or equal to id of any transaction
+  for which insert(id) happened before the call started, and erase(id)
+  has not happened before the start of the call. @see s_lower_bound
+  Note that this value never increases unless someone calls
+  @see get_better_lower_bound_for_already_active_id() */
+  static trx_id_t get_cheap_lower_bound_for_already_active_id() {
+    return s_lower_bound.load();
+  }
+  /** @see get_cheap_lower_bound_for_already_active_id() from which this
+  function differs by executing a tighter estimation. If it is indeed
+  better, then as a side effect it will bump the value of s_lower_bound
+  used by get_cheap_lower_bound_for_already_active_id()*/
+  static trx_id_t get_better_lower_bound_for_already_active_id();
+
   By_id const &by_id() const { return m_by_id; }
   trx_id_t min_id() const { return m_min_id.load(); }
   trx_t *get(trx_id_t trx_id) const {
@@ -416,19 +461,46 @@ class Trx_by_id_with_min {
     const trx_id_t trx_id = trx.id;
     ut_ad(0 == m_by_id.count(trx_id));
     m_by_id.emplace(trx_id, &trx);
-    if (m_by_id.size() == 1 ||
-        trx_id < m_min_id.load(std::memory_order_relaxed)) {
-      m_min_id.store(trx_id, std::memory_order_release);
+    if (trx_id < m_min_id.load(std::memory_order_relaxed)) {
+      /* The order of the 3 operations matters!
+      If m_min_id.store() was using just memory_order_release, it could happen,
+      that s_lower_bound_candidate.load() will return 0, right after that
+      another thread starts updating s_lower_bound_candidate, and will not see
+      our stored m_min_id, and thus will set s_lower_bound, to too large value.
+      Also, updating s_lower_bound_candidate before s_lower_bound is crucial for
+      correctness CAS loop in get_better_lower_bound_for_already_active_id. */
+      m_min_id.store(trx_id);
+      limit_to(s_lower_bound_candidate, trx_id);
+      limit_to(s_lower_bound, trx_id);
     }
   }
   void erase(trx_id_t trx_id) {
     ut_ad(1 == m_by_id.count(trx_id));
     m_by_id.erase(trx_id);
     if (m_min_id.load(std::memory_order_relaxed) == trx_id) {
-      // We want at most 1 release store, so we use a local variable for the
-      // loop.
-      trx_id_t new_min = trx_id + TRX_SHARDS_N;
-      if (!m_by_id.empty()) {
+      if (m_by_id.empty()) {
+        /* Note that this value is not equal to shard id modulo TRX_SHARDS_N,
+        and that changing to TRX_ID_MAX back and forth means the m_min_id is
+        not monotone over time. None of this is really a requirement for the
+        solution to work correctly, and m_min_id was never guaranteed to be
+        monotone really, as ids passed to insert(id) are not monotone. */
+        m_min_id.store(TRX_ID_MAX, std::memory_order_release);
+      } else {
+        /* We want at most 1 release store, so we use a local variable for the
+        loop. The m_by_id isn't ordered, so we find the min value by iterating
+        over all possible values in this shard. We know we will find something
+        eventually, because the shard is not empty, and we start the loop from
+        its old minimum. The number of iterations in total life of the
+        application is in practice roughly equal to the number of transactions,
+        because we visit each candidate value at most once, usually. There's an
+        edge case though: the ids passed to insert(id) are not necessarily
+        monotonically increasing, as ids are assigned independently from
+        inserting them - even though the two operations are close to each other
+        in source, the operations from two threads can get interleaved in a way
+        which makes the new minimum smaller - this is not only rare, but also
+        the range of such disorder is rather short, thus this doesn't impact
+        performance as at most just a few candidate values are rechecked. */
+        trx_id_t new_min = trx_id + TRX_SHARDS_N;
 #ifdef UNIV_DEBUG
         // These asserts ensure while loop terminates:
         const trx_id_t some_id = m_by_id.begin()->first;
@@ -438,8 +510,8 @@ class Trx_by_id_with_min {
         while (m_by_id.count(new_min) == 0) {
           new_min += TRX_SHARDS_N;
         }
+        m_min_id.store(new_min, std::memory_order_release);
       }
-      m_min_id.store(new_min, std::memory_order_release);
     }
   }
 };

@@ -197,7 +197,9 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
                                      const sp_name *name, bool lookup_only,
                                      sp_head **sp);
 
-bool sp_exist_routines(THD *thd, Table_ref *procs, bool is_proc);
+bool sp_exists_library(THD *thd, sp_name *name);
+
+bool sp_exist_routines(THD *thd, Table_ref *procs, enum_sp_type sp_type);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 

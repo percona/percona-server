@@ -385,6 +385,7 @@ struct MDL_key {
      - TABLE is for tables and views.
      - FUNCTION is for stored functions.
      - PROCEDURE is for stored procedures.
+     - LIBRARY is for libraries.
      - TRIGGER is for triggers.
      - EVENT is for event scheduler events.
      - COMMIT is for enabling the global read lock to block commits.
@@ -418,7 +419,12 @@ struct MDL_key {
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
+<<<<<<< HEAD
     BACKUP_TABLES, /* Percona LOCK TABLES FOR BACKUP */
+||||||| merged common ancestors
+=======
+    LIBRARY,
+>>>>>>> mysql-9.2.0
     /* This should be the last ! */
     NAMESPACE_END
   };
@@ -780,8 +786,8 @@ struct MDL_key {
   */
   bool use_normalized_object_name() const {
     return (mdl_namespace() == FUNCTION || mdl_namespace() == PROCEDURE ||
-            mdl_namespace() == EVENT || mdl_namespace() == RESOURCE_GROUPS ||
-            mdl_namespace() == TRIGGER);
+            mdl_namespace() == LIBRARY || mdl_namespace() == EVENT ||
+            mdl_namespace() == RESOURCE_GROUPS || mdl_namespace() == TRIGGER);
   }
 
  private:
@@ -1359,22 +1365,6 @@ class MDL_wait {
   enum_wait_status timed_wait(MDL_context_owner *owner,
                               struct timespec *abs_timeout, bool signal_timeout,
                               const PSI_stage_info *wait_state_name);
-  /// @brief Wait for the status to be assigned to this wait slot.
-  ///        This method varies from the above as it tracks the time waited
-  ///        The called can collect this time on a tracker function
-  /// @param owner MDL context owner.
-  /// @param abs_timeout time after which waiting should stop.
-  /// @param signal_timeout  true  - If in case of timeout waiting
-  ///                                context should close the wait slot by
-  ///                                sending TIMEOUT to itself.
-  ///                        false - Otherwise.
-  /// @param tracker_function collects the waited time at 1 sec intervals
-  /// @param wait_state_name Thread state name to be set for duration of wait.
-  /// @return Signal posted.
-  enum_wait_status observable_timed_wait(
-      MDL_context_owner *owner, unsigned long abs_timeout, bool signal_timeout,
-      std::function<void(unsigned long)> tracker_function,
-      const PSI_stage_info *wait_state_name);
 
  private:
   /**

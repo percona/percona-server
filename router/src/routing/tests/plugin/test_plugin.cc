@@ -450,9 +450,8 @@ TEST_F(RoutingPluginTests, InvalidIpv6) {
     FAIL() << "expected to throw, but succeeded";
   } catch (const std::exception &e) {
     EXPECT_THAT(e.what(),
-                ::testing::HasSubstr(
-                    "address in destination list "
-                    "'[fe80::3617:ebff:fecb:587e@3]:3306' is invalid"));
+                ::testing::HasSubstr("invalid destination address "
+                                     "'[fe80::3617:ebff:fecb:587e@3]:3306'"));
   }
 }
 

@@ -26,11 +26,11 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/base_protocol.h"
 #include "mysqlrouter/mysql_session.h"
 
 #include <chrono>
-#include <map>
 #include <string>
 
 namespace routing {
@@ -263,11 +263,10 @@ enum class AccessMode {
 
 /** @brief Routing strategies supported by Routing plugin */
 enum class RoutingStrategy {
-  kUndefined = 0,
-  kFirstAvailable = 1,
-  kNextAvailable = 2,
-  kRoundRobin = 3,
-  kRoundRobinWithFallback = 4,
+  kFirstAvailable = 0,
+  kNextAvailable = 1,
+  kRoundRobin = 2,
+  kRoundRobinWithFallback = 3,
 };
 
 /**
@@ -309,13 +308,11 @@ std::string get_routing_strategy_names(bool metadata_cache);
 
 /** @brief Returns RoutingStrategy for its literal representation
  *
- * If no RoutingStrategy is found for given string,
- * RoutingStrategy::kUndefined is returned.
- *
  * @param value literal representation of the access mode
- * @return RoutingStrategy for the given string or RoutingStrategy::kUndefined
+ * @return RoutingStrategy for the given string
  */
-RoutingStrategy get_routing_strategy(const std::string &value);
+stdx::expected<RoutingStrategy, std::error_code> get_routing_strategy(
+    std::string_view value);
 
 /** @brief Returns literal name of given routing strategy
  *

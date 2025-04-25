@@ -35,6 +35,18 @@
 #include <string>
 #include <vector>
 
+<<<<<<< HEAD
+||||||| merged common ancestors
+using std::string;
+using std::vector;
+
+=======
+#include <openssl/evp.h>
+
+using std::string;
+using std::vector;
+
+>>>>>>> mysql-9.2.0
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
 #define MY_AES_IV_SIZE 16
 
@@ -97,6 +109,32 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    std::vector<std::string> *kdf_options = nullptr);
 
 /**
+  Encrypt a buffer using AES.
+  This version accepts operation context as parameter,
+  for possible performance improvement.
+
+  @param [in] ctx              Pointer to OpenSSL operation context
+  @param [in] source           Pointer to data for encryption
+  @param [in] source_length    Size of encryption data
+  @param [out] dest            Buffer to place encrypted data (must be large
+  enough and not overlap with source)
+  @param [in] key              Key to be used for encryption
+  @param [in] key_length       Length of the key. Will handle keys of any length
+  @param [in] mode             encryption mode
+  @param [in] iv               16 bytes initialization vector if needed.
+  Otherwise NULL
+  @param [in] padding          if padding needed.
+  @param kdf_options           KDF options
+  @return              size of encrypted data, or negative in case of error
+*/
+
+int my_aes_encrypt(EVP_CIPHER_CTX *ctx, const unsigned char *source,
+                   uint32 source_length, unsigned char *dest,
+                   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding = true, vector<string> *kdf_options = nullptr);
+
+/**
   Decrypt an AES encrypted buffer
 
   @param source         Pointer to data for decryption
@@ -116,6 +154,30 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding = true,
                    std::vector<std::string> *kdf_options = nullptr);
+
+/**
+  Decrypt an AES encrypted buffer.
+  This version accepts operation context as parameter,
+  for possible performance improvement.
+
+  @param ctx            Pointer to OpenSSL operation context
+  @param source         Pointer to data for decryption
+  @param source_length  size of encrypted data
+  @param dest           buffer to place decrypted data (must be large enough)
+  @param key            Key to be used for decryption
+  @param key_length     Length of the key. Will handle keys of any length
+  @param mode           encryption mode
+  @param iv             16 bytes initialization vector if needed. Otherwise NULL
+  @param padding        if padding needed.
+  @param kdf_options    KDF options
+  @return size of original data.
+*/
+
+int my_aes_decrypt(EVP_CIPHER_CTX *ctx, const unsigned char *source,
+                   uint32 source_length, unsigned char *dest,
+                   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding = true, vector<string> *kdf_options = nullptr);
 
 /**
   Calculate the size of a buffer large enough for encrypted data.

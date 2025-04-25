@@ -38,6 +38,8 @@ IF(MY_COMPILER_IS_CLANG)
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_C "/imsvc ")
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "/imsvc ")
   ADD_DEFINITIONS(-DWIN32_CLANG)
+ELSE()
+  SET(WIN32_VS 1)
 ENDIF()
 
 # avoid running system checks by using pre-cached check results

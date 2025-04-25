@@ -39,7 +39,7 @@ class RouterComponentMetadataTest : public RouterComponentClusterSetTest {
  protected:
   std::string get_metadata_cache_section(
       ClusterType cluster_type = ClusterType::GR_V2,
-      const std::string &ttl = "0.5", const std::string &cluster_name = "test",
+      const std::string &ttl = "0.1", const std::string &cluster_name = "test",
       const std::string &ssl_mode = "");
 
   std::string get_metadata_cache_routing_section(

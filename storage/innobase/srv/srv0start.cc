@@ -2053,6 +2053,7 @@ dberr_t srv_start(bool create_new_db) {
       return srv_init_abort(err);
     }
 
+<<<<<<< HEAD
     if (err == DB_SUCCESS) {
       arch_page_sys->post_recovery_init();
 
@@ -2069,30 +2070,33 @@ dberr_t srv_start(bool create_new_db) {
 
       return (srv_init_abort(err));
     }
+||||||| merged common ancestors
+    if (err == DB_SUCCESS) {
+      arch_page_sys->post_recovery_init();
+
+      /* Initialize the change buffer. */
+      err = dict_boot();
+    }
+
+    if (err != DB_SUCCESS) {
+      return (srv_init_abort(err));
+    }
+=======
+    arch_page_sys->post_recovery_init();
+>>>>>>> mysql-9.2.0
 
     ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
 
-    const bool redo_writes_allowed = !srv_read_only_mode;
-
-    ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO || !redo_writes_allowed);
-
-    if (redo_writes_allowed) {
-      /* We need to start log threads now, because recovery
-      could result in execution of ibuf merges. These merges
-      could result in new redo records. In the read-only mode
-      we do not need log threads, because we disallow new redo
-      records in such mode. If upgrade was forced, or the data
-      directory was cloned, we will start redo threads later. */
-      log_start_background_threads(*log_sys);
-    }
+    ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO || srv_read_only_mode);
+    const lsn_t checkpoint_lsn_after_recovery =
+        log_sys->last_checkpoint_lsn.load();
+    const lsn_t write_lsn_after_recovery = log_get_lsn(*log_sys);
+    ut_a(!recv_sys->found_corrupt_log);
 
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-      /* Apply the hashed log records to the
-      respective file pages, for the last batch of
-      recv_group_scan_log_recs(). */
-
       RECOVERY_CRASH(2);
 
+<<<<<<< HEAD
       /* Don't allow IBUF operations for cloned database
       recovery as it would add extra redo log and we may
       not have enough margin.
@@ -2122,6 +2126,35 @@ dberr_t srv_start(bool create_new_db) {
 
       /* Recovery complete, start verifying the
       page LSN on read. */
+||||||| merged common ancestors
+      /* Don't allow IBUF operations for cloned database
+      recovery as it would add extra redo log and we may
+      not have enough margin.
+
+      Don't allow IBUF operations when redo is written
+      in the older format than the current, because we
+      would write new redo records in the current fmt,
+      and end up with file in both formats = invalid. */
+
+      recv_apply_hashed_log_recs(*log_sys,
+                                 !recv_sys->is_cloned_db && !log_upgrade);
+
+      if (recv_sys->found_corrupt_log) {
+        err = DB_ERROR;
+        return (srv_init_abort(err));
+      }
+
+      DBUG_PRINT("ib_log", ("apply completed"));
+
+      /* Check and print if there were any tablespaces
+      which had redo log records but we couldn't apply
+      them because the filenames were missing. */
+
+      /* Recovery complete, start verifying the
+      page LSN on read. */
+=======
+      /* Recovery complete, start verifying the page LSN on read. */
+>>>>>>> mysql-9.2.0
       recv_lsn_checks_on = true;
     }
 
@@ -2156,6 +2189,8 @@ dberr_t srv_start(bool create_new_db) {
       buf_flush_sync_all_buf_pools();
     }
 
+    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
+    ut_a(write_lsn_after_recovery == log_get_lsn(*log_sys));
     RECOVERY_CRASH(3);
 
     auto *dict_metadata = recv_recovery_from_checkpoint_finish(false);
@@ -2166,6 +2201,22 @@ dberr_t srv_start(bool create_new_db) {
     lost by any future checkpoint. Since DD and data dictionary in memory
     objects are not fully initialized at this point, the usual mechanism to
     persist dynamic metadata at checkpoint wouldn't work. */
+    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
+    ut_a(write_lsn_after_recovery == log_get_lsn(*log_sys));
+
+    /* We must start the log threads because we might need to write out the dict
+    persistent data into redolog, if the server is not in read-only mode. */
+    if (!srv_read_only_mode) {
+      log_start_background_threads(*log_sys);
+    }
+
+    /* We could possibly execute it much later if not the current dict_persist
+    functionality implementation, which requires it to work properly. */
+    err = dict_boot();
+
+    if (err != DB_SUCCESS) {
+      return (srv_init_abort(err));
+    }
 
     DBUG_EXECUTE_IF("log_first_rec_group_test", {
       const lsn_t end_lsn = mtr_commit_mlog_test();
@@ -2174,7 +2225,7 @@ dberr_t srv_start(bool create_new_db) {
     });
 
     if (!recv_sys->is_cloned_db && !dict_metadata->empty()) {
-      ut_a(redo_writes_allowed);
+      ut_a(!srv_read_only_mode);
 
       /* Open this table in case dict_metadata should be applied to this
       table before checkpoint. And because DD is not fully up yet, the table
@@ -2205,31 +2256,27 @@ dberr_t srv_start(bool create_new_db) {
       log_buffer_flush_to_disk(*log_sys);
     }
     ut::delete_(dict_metadata);
+    ut_a(checkpoint_lsn_after_recovery == log_sys->last_checkpoint_lsn.load());
 
     RECOVERY_CRASH(4);
 
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
 
+    /* for a restored database we reset creator for log. To do this we stop
+    background log processing for unknown reason, possibly just in case. */
     if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
       buf_pool_wait_for_no_pending_io();
 
-      /* Reset creator for log */
+      ut_a(!srv_read_only_mode);
 
-      if (redo_writes_allowed) {
-        log_stop_background_threads(*log_sys);
-      }
+      log_stop_background_threads(*log_sys);
 
       ut_ad(buf_pool_pending_io_reads_count() == 0);
-
       err = log_files_reset_creator_and_set_full(*log_sys);
       if (err != DB_SUCCESS) {
         return srv_init_abort(err);
       }
-
       log_start_background_threads(*log_sys);
-
-    } else {
-      ut_a(redo_writes_allowed || srv_read_only_mode);
     }
 
     if (sum_of_new_sizes > 0) {

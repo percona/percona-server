@@ -22,6 +22,8 @@ grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 
 show grants for user1@localhost;
 Grants for user1@localhost
@@ -44,6 +46,7 @@ Warnings:
 Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
+<<<<<<< HEAD
 Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
@@ -52,10 +55,31 @@ Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>
+||||||| merged common ancestors
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+=======
+Id	User	Host	db	Command	Time	State	Info
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+>>>>>>> mysql-9.2.0
 
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -64,6 +88,26 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 
@@ -102,6 +146,7 @@ Warnings:
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
@@ -110,6 +155,26 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTIO
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
+||||||| merged common ancestors
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	system user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+>>>>>>> mysql-9.2.0
 
 # Information Schema processlist table
 
@@ -131,6 +196,7 @@ Warnings:
 ***SUCCESS*** The SHOW PROCESSLIST Host fields match
 
 ### Compare the processlist  Host column between Performance Schema and the Information Schema
+The expectation is that the row count in P_S.processlist is >= I_S.processlist.
 
 # Connection con_user0
 

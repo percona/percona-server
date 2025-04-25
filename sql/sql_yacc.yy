@@ -564,7 +564,13 @@ void warn_on_deprecated_user_defined_collation(
   2. We should not introduce new shift/reduce conflicts any more.
 */
 
+<<<<<<< HEAD
 %expect 62
+||||||| merged common ancestors
+%expect 59
+=======
+%expect 37
+>>>>>>> mysql-9.2.0
 
 /*
    MAINTAINER:
@@ -1455,12 +1461,16 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> BERNOULLI_SYM              1213  /* SQL-2016-N */
 %token<lexer.keyword> TABLESAMPLE_SYM            1214  /* SQL-2016-R */
 
-%token<lexer.keyword> VECTOR_SYM 1215
+%token<lexer.keyword> VECTOR_SYM      1215     /* MYSQL */
+%token<lexer.keyword> PARAMETERS_SYM  1216     /* MYSQL */
+%token<lexer.keyword> HEADER_SYM      1217     /* MYSQL */
+%token                LIBRARY_SYM     1218     /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
   list ident_keywords_unambiguous lest they become reserved keywords.
 */
+
 
 /*
    Tokens from Percona Server 5.7 and older
@@ -1555,6 +1565,7 @@ void warn_on_deprecated_user_defined_collation(
         persisted_variable_ident
         routine_string
         opt_explain_into
+        opt_library_alias
 
 %type <lex_cstr>
         key_cache_name
@@ -1940,6 +1951,11 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <field_separators> field_term field_term_list opt_field_term
 
+%type <outfile_uri> outfile_uri
+
+%type <outfile_file_info> opt_outfile_file_info outfile_file_info_list
+        outfile_file_info_elem
+
 %type <into_destination> into_destination into_clause
 
 %type <select_var_ident> select_var_ident
@@ -1975,6 +1991,7 @@ void warn_on_deprecated_user_defined_collation(
         call_stmt
         check_table_stmt
         create_index_stmt
+        create_library_stmt
         create_resource_group_stmt
         create_role_stmt
         create_srs_stmt
@@ -1983,6 +2000,7 @@ void warn_on_deprecated_user_defined_collation(
         describe_stmt
         do_stmt
         drop_index_stmt
+        drop_library_stmt
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
@@ -2011,6 +2029,7 @@ void warn_on_deprecated_user_defined_collation(
         show_create_database_stmt
         show_create_event_stmt
         show_create_function_stmt
+        show_create_library_stmt
         show_create_procedure_stmt
         show_create_table_stmt
         show_create_trigger_stmt
@@ -2299,6 +2318,8 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <query_id> opt_for_query
 
+%type <library_list> library_list
+%type <library_with_alias> library_name
 %%
 
 /*
@@ -2448,6 +2469,7 @@ simple_statement:
         | commit                        { $$= nullptr; }
         | create                        { $$= nullptr; }
         | create_index_stmt
+        | create_library_stmt
         | create_resource_group_stmt
         | create_role_stmt
         | create_srs_stmt
@@ -2460,6 +2482,7 @@ simple_statement:
         | drop_event_stmt               { $$= nullptr; }
         | drop_function_stmt            { $$= nullptr; }
         | drop_index_stmt
+        | drop_library_stmt
         | drop_logfile_stmt             { $$= nullptr; }
         | drop_procedure_stmt           { $$= nullptr; }
         | drop_resource_group_stmt
@@ -2516,6 +2539,7 @@ simple_statement:
         | show_create_database_stmt
         | show_create_event_stmt
         | show_create_function_stmt
+        | show_create_library_stmt
         | show_create_procedure_stmt
         | show_create_table_stmt
         | show_create_trigger_stmt
@@ -3738,7 +3762,6 @@ ev_sql_stmt:
 
             lex->sphead= sp;
 
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
 
             // Default language is SQL
@@ -3846,6 +3869,44 @@ sp_c_chistic:
           sp_chistic            { }
         | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= true; }
         | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= false; }
+        | USING '(' library_list ')'
+          {
+            if (Lex->sp_chistics.add_imported_libraries($3->get_libraries(),
+                                                        YYMEM_ROOT)) {
+               YYTHD->syntax_error_at(@$, "You have an error in your SQL syntax"
+               "; Multiple USING clauses are not supported");
+               MYSQL_YYABORT;
+            }
+          }
+        ;
+
+library_list:
+          library_list ',' library_name
+          {
+            if ($1 == nullptr || $1->push_back($3))
+              MYSQL_YYABORT;
+            $$ = $1;
+            $$->m_pos = @$;
+          }
+        | library_name
+          {
+            $$ = NEW_PTN PT_library_list(@$);
+            if ($$ == nullptr || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        ;
+
+library_name:
+          sp_name opt_library_alias
+          {
+            $$ = NEW_PTN PT_library_with_alias(@$, $1, to_lex_cstring($2));
+          }
+        ;
+
+opt_library_alias:
+            %empty { $$ = null_lex_str; }
+          | AS ident { $$ = $2; }
+          | ident { $$ = $1; }
         ;
 
 sp_suid:
@@ -8113,7 +8174,6 @@ alter_procedure_stmt:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
               MYSQL_YYABORT;
             }
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -8135,7 +8195,6 @@ alter_function_stmt:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
               MYSQL_YYABORT;
             }
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -9911,17 +9970,26 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_union(@$, $1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_union,
+                                        PT_set_operation::UNION>(
+                      YYMEM_ROOT, @$, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         | query_expression_body EXCEPT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_except(@$, $1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_except,
+                                        PT_set_operation::EXCEPT>(
+                      YYMEM_ROOT, @$, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         | query_expression_body INTERSECT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_intersect(@$, $1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {flatten_equal_set_ops<PT_intersect,
+                                        PT_set_operation::INTERSECT>(
+                      YYMEM_ROOT, @$, $1.body, $3, $4.body,
+                      $4.is_parenthesized),
                   false};
           }
         ;
@@ -12831,12 +12899,77 @@ into_clause:
           }
         ;
 
-into_destination:
-          OUTFILE TEXT_STRING_filesystem
-          opt_load_data_charset
-          opt_field_term opt_line_term
+outfile_uri:
+          URL_SYM text_string
           {
-            $$= NEW_PTN PT_into_destination_outfile(@$, $2, $3, $4, $5);
+            $$= NEW_PTN URI_information();
+            $$->uri= $2;
+          }
+          ;
+
+opt_outfile_file_info:
+          %empty { $$= nullptr; }
+        | outfile_file_info_list
+          {
+            $$= $1;
+          }
+        ;
+
+outfile_file_info_list:
+          outfile_file_info_list outfile_file_info_elem
+          {
+            $$= $1;
+            $$->merge_file_information($2);
+          }
+        | outfile_file_info_elem
+          {
+            $$=$1;
+          }
+        ;
+
+outfile_file_info_elem:
+          FORMAT_SYM ident
+          {
+            $$= NEW_PTN File_information();
+            $$->filetype_str= $2.str;
+          }
+        | COMPRESSION_SYM text_string
+          {
+            $$= NEW_PTN File_information();
+            $$->compression= $2;
+          }
+        | HEADER_SYM ON_SYM
+          {
+            $$= NEW_PTN File_information();
+            $$->with_header= enum_with_header::WITH_HEADER;
+          }
+        | HEADER_SYM OFF_SYM
+          {
+            $$= NEW_PTN File_information();
+            $$->with_header= enum_with_header::WITHOUT_HEADER;
+          }
+        | character_set charset_name
+          {
+            $$= NEW_PTN File_information();
+            $$->cs = $2;
+          }
+        ;
+
+into_destination:
+          OUTFILE outfile_uri opt_outfile_file_info  opt_field_term opt_line_term
+          {
+            $$= NEW_PTN
+        PT_into_destination_outfile(@$, $2, $3, $4, $5, OBJECT_STORE_DEST);
+          }
+        | OUTFILE WITH PARAMETERS_SYM json_attribute
+          {
+            $$= NEW_PTN PT_into_destination_outfile(@$, $4, OBJECT_STORE_DEST);
+          }
+        | OUTFILE TEXT_STRING_filesystem
+          opt_outfile_file_info opt_field_term opt_line_term
+          {
+            $$= NEW_PTN
+            PT_into_destination_outfile(@$, $2, $3, $4, $5, OUTFILE_DEST);
           }
         | DUMPFILE TEXT_STRING_filesystem
           {
@@ -14005,6 +14138,13 @@ show_create_function_stmt:
           }
         ;
 
+show_create_library_stmt:
+          SHOW CREATE LIBRARY_SYM sp_name
+          {
+            $$ = NEW_PTN PT_show_create_library(@$, $4);
+          }
+        ;
+
 show_create_trigger_stmt:
           SHOW CREATE TRIGGER_SYM sp_name
           {
@@ -14637,7 +14777,7 @@ load_stmt:
         ;
 
 data_or_xml:
-          DATA_SYM{ $$= FILETYPE_CSV; }
+          DATA_SYM{ $$= FILETYPE_TEXT; }
         | XML_SYM { $$= FILETYPE_XML; }
         ;
 
@@ -14697,7 +14837,7 @@ duplicate:
         ;
 
 opt_field_term:
-          %empty { $$.cleanup(); }
+          %empty { $$= nullptr; }
         | COLUMNS field_term_list { $$= $2; }
         ;
 
@@ -14705,7 +14845,7 @@ field_term_list:
           field_term_list field_term
           {
             $$= $1;
-            $$.merge_field_separators($2);
+            $$->merge_field_separators($2);
           }
         | field_term
         ;
@@ -14713,29 +14853,53 @@ field_term_list:
 field_term:
           TERMINATED BY text_string
           {
-            $$.cleanup();
-            $$.field_term= $3;
+            $$= NEW_PTN Field_separators();
+            $$->field_term= $3;
           }
         | OPTIONALLY ENCLOSED BY text_string
           {
-            $$.cleanup();
-            $$.enclosed= $4;
-            $$.opt_enclosed= 1;
+            $$= NEW_PTN Field_separators();
+            $$->enclosed= $4;
+            $$->opt_enclosed= 1;
           }
         | ENCLOSED BY text_string
           {
-            $$.cleanup();
-            $$.enclosed= $3;
+            $$= NEW_PTN Field_separators();
+            $$->enclosed= $3;
+          }
+        | NOT_SYM ENCLOSED
+          {
+            $$= NEW_PTN Field_separators();
+            $$->not_enclosed=1;
           }
         | ESCAPED BY text_string
           {
-            $$.cleanup();
-            $$.escaped= $3;
+            $$= NEW_PTN Field_separators();
+            $$->escaped= $3;
+          }
+        | DATE_SYM FORMAT_SYM text_string
+          {
+            $$= NEW_PTN Field_separators();
+            $$->date_format= $3;
+          }
+        | TIME_SYM FORMAT_SYM text_string
+          {
+            $$= NEW_PTN Field_separators();
+            $$->time_format= $3;
+          }
+        | NULL_SYM AS text_string
+          {
+            $$= NEW_PTN Field_separators();
+            $$->null_value= $3;
+          }
+        | EMPTY_SYM VALUE_SYM text_string {
+            $$= NEW_PTN Field_separators();
+            $$->empty_value= $3;
           }
         ;
 
 opt_line_term:
-          %empty { $$.cleanup(); }
+          %empty { $$= nullptr; }
         | LINES line_term_list { $$= $2; }
         ;
 
@@ -14743,7 +14907,7 @@ line_term_list:
           line_term_list line_term
           {
             $$= $1;
-            $$.merge_line_separators($2);
+            $$->merge_line_separators($2);
           }
         | line_term
         ;
@@ -14751,13 +14915,13 @@ line_term_list:
 line_term:
           TERMINATED BY text_string
           {
-            $$.cleanup();
-            $$.line_term= $3;
+            $$= NEW_PTN Line_separators();
+            $$->line_term= $3;
           }
         | STARTING BY text_string
           {
-            $$.cleanup();
-            $$.line_start= $3;
+            $$= NEW_PTN Line_separators();
+            $$->line_start= $3;
           }
         ;
 
@@ -15440,6 +15604,7 @@ ident_keywords_ambiguous_1_roles_and_labels:
 ident_keywords_ambiguous_2_labels:
           ASCII_SYM
         | BEGIN_SYM
+        | BINLOG_SYM
         | BYTE_SYM
         | CACHE_SYM
         | CHARSET
@@ -15535,7 +15700,6 @@ ident_keywords_unambiguous:
         | AVG_SYM
         | BACKUP_SYM
         | BERNOULLI_SYM
-        | BINLOG_SYM
         | BIT_SYM %prec KEYWORD_USED_AS_IDENT
         | BLOCK_SYM
         | BOOLEAN_SYM
@@ -15645,6 +15809,7 @@ ident_keywords_unambiguous:
         | GTIDS_SYM
         | GTID_ONLY_SYM
         | HASH_SYM
+        | HEADER_SYM
         | HISTOGRAM_SYM
         | HISTORY_SYM
         | HOSTS_SYM
@@ -15751,6 +15916,7 @@ ident_keywords_unambiguous:
         | POINT_SYM
         | POLYGON_SYM
         | PORT_SYM
+        | PARAMETERS_SYM
         | PRECEDING_SYM
         | PRESERVE_SYM
         | PREV_SYM
@@ -16740,6 +16906,7 @@ opt_acl_type:
         | TABLE_SYM     { $$= Acl_type::TABLE; }
         | FUNCTION_SYM  { $$= Acl_type::FUNCTION; }
         | PROCEDURE_SYM { $$= Acl_type::PROCEDURE; }
+        | LIBRARY_SYM   { $$= Acl_type::LIBRARY; }
         ;
 
 opt_privileges:
@@ -17890,7 +18057,6 @@ trigger_tail:
             lex->sphead= sp;
             lex->spname= $3;
 
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             sp->m_chistics= &lex->sp_chistics;
 
             // Default language is SQL
@@ -18078,8 +18244,6 @@ sf_tail:
                                         &sp->m_return_field_def))
               MYSQL_YYABORT;
 
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
-
             // Default language is SQL
             lex->sp_chistics.language = {"SQL",3};
           }
@@ -18209,7 +18373,6 @@ sp_tail:
             LEX *lex= thd->lex;
 
             lex->sphead->m_parser_data.set_parameter_end_ptr(@8.cpp.start);
-            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
 
             // Default language is SQL
             lex->sp_chistics.language = {"SQL",3};
@@ -18226,6 +18389,26 @@ sp_tail:
           {                     /*$13*/
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+          }
+        ;
+
+create_library_stmt:
+          CREATE LIBRARY_SYM
+          opt_if_not_exists     /*$3*/
+          sp_name               /*$4*/
+          LANGUAGE_SYM ident    /*$6*/
+          AS routine_string     /*$8*/
+          {
+            Lex->sql_command = SQLCOM_CREATE_LIBRARY;
+            $$ = NEW_PTN PT_create_library_stmt(@$, YYTHD, $3, $4, $6, $8);
+          }
+        ;
+
+drop_library_stmt:
+          DROP LIBRARY_SYM if_exists sp_name
+          {
+            Lex->sql_command = SQLCOM_DROP_LIBRARY;
+            $$ = NEW_PTN PT_drop_library_stmt(@$, $3, $4);
           }
         ;
 

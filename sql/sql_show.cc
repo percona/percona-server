@@ -131,7 +131,8 @@
 #include "sql/sql_partition.h"  // HA_USE_AUTO_PARTITION
 #include "sql/sql_plugin.h"     // PLUGIN_IS_DELETED, LOCK_plugin
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_profile.h"    // query_profile_statistics_info
+#include "sql/sql_profile.h"  // query_profile_statistics_info
+#include "sql/sql_rewrite.h"
 #include "sql/sql_table.h"      // primary_key_name
 #include "sql/sql_tmp_table.h"  // create_ondisk_from_heap
 #include "sql/sql_trigger.h"    // acquire_shared_mdl_for_trigger
@@ -345,6 +346,12 @@ bool Sql_cmd_show_create_function::check_privileges(THD *) { return false; }
 
 bool Sql_cmd_show_create_function::execute_inner(THD *thd) {
   return sp_show_create_routine(thd, enum_sp_type::FUNCTION, lex->spname);
+}
+
+bool Sql_cmd_show_create_library::check_privileges(THD *) { return false; }
+
+bool Sql_cmd_show_create_library::execute_inner(THD *thd) {
+  return sp_show_create_routine(thd, enum_sp_type::LIBRARY, lex->spname);
 }
 
 bool Sql_cmd_show_create_procedure::check_privileges(THD *) { return false; }
@@ -1482,7 +1489,8 @@ static const char *require_quotes(const char *name, size_t name_length) {
   @param length                length of the appending identifier
 */
 
-void append_identifier(String *packet, const char *name, size_t length) {
+void append_identifier_with_backtick(String *packet, const char *name,
+                                     size_t length) {
   const char *name_end;
   const char quote_char = '`';
 
@@ -1520,6 +1528,8 @@ void append_identifier(String *packet, const char *name, size_t length) {
 /**
   Convert and quote the given identifier if needed and append it to the
   target string. If the given identifier is empty, it will be quoted.
+  This function use the backtick or double quotes as escape char based on
+  sql_mode.
 
   @param thd                   thread handler
   @param packet                target string
@@ -1532,6 +1542,8 @@ void append_identifier(String *packet, const char *name, size_t length) {
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,
                        const CHARSET_INFO *to_cs) {
+  if (thd == nullptr)
+    return append_identifier_with_backtick(packet, name, length);
   const char *name_end;
   char quote_char;
   int q;
@@ -1555,8 +1567,7 @@ void append_identifier(const THD *thd, String *packet, const char *name,
     cs_info = to_cs;
   }
 
-  q = thd != nullptr ? get_quote_char_for_identifier(thd, to_name, to_length)
-                     : '`';
+  q = get_quote_char_for_identifier(thd, to_name, to_length);
 
   if (q == EOF) {
     packet->append(to_name, to_length, packet->charset());
@@ -1621,14 +1632,6 @@ int get_quote_char_for_identifier(const THD *thd, const char *name,
     return EOF;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES) return '"';
   return '`';
-}
-
-void append_identifier(const THD *thd, String *packet, const char *name,
-                       size_t length) {
-  if (thd == nullptr)
-    append_identifier(packet, name, length);
-  else
-    append_identifier(thd, packet, name, length, nullptr, nullptr);
 }
 
 /* Append directory name (if exists) to CREATE INFO */
@@ -2589,8 +2592,28 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
 
     if (share->engine_attribute.length) {
       packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE="));
-      append_unescaped(packet, share->engine_attribute.str,
-                       share->engine_attribute.length);
+
+      if (for_show_create_stmt &&
+          check_table_access(thd, CREATE_ACL, table_list, false, 1, true) &&
+          check_table_access(thd, ALTER_ACL, table_list, false, 1, true)) {
+        String rlb;
+        String original_query_str(share->engine_attribute.str,
+                                  share->engine_attribute.length,
+                                  system_charset_info);
+        redact_par_url(original_query_str, rlb);
+
+        append_unescaped(packet, rlb.ptr(), rlb.length());
+        // inform users without privileges that the result of SHOW CREATE
+        // TABLE is redacted. Useful for the case of redacted mysqldump
+        // result.
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_WARN_REDACTED_PRIVILEGES,
+            ER_THD(thd, ER_WARN_REDACTED_PRIVILEGES), share->table_name.str);
+
+      } else {
+        append_unescaped(packet, share->engine_attribute.str,
+                         share->engine_attribute.length);
+      }
       packet->append(STRING_WITH_LEN(" */"));
     }
     if (share->secondary_engine_attribute.length) {
@@ -2819,8 +2842,8 @@ class thread_info_compare {
 
 static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   DBUG_TRACE;
-  if (inspected_thd->get_protocol()->get_rw_status()) {
-    if (inspected_thd->get_protocol()->get_rw_status() == 2)
+  if (inspected_thd->get_protocol_rw_status()) {
+    if (inspected_thd->get_protocol_rw_status() == 2)
       return "Sending to client";
     if (inspected_thd->get_command() == COM_SLEEP) return "";
     return "Receiving from client";

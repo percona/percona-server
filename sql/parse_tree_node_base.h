@@ -230,6 +230,7 @@ class Show_parse_tree {
 template <typename Context>
 class Parse_tree_node_tmpl {
   friend class Item;  // for direct access to the "contextualized" field
+  friend class Item_subselect;
 
   Parse_tree_node_tmpl(const Parse_tree_node_tmpl &);  // undefined
   void operator=(const Parse_tree_node_tmpl &);        // undefined

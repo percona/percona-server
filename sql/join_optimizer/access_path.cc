@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "mem_root_deque.h"
@@ -72,7 +73,6 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_update.h"
 #include "sql/system_variables.h"
@@ -308,30 +308,34 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
   return tables;
 }
 
-/**
-  Get the tables that are accessed by EQ_REF and can be on the inner side of an
-  outer join. These need some extra care in AggregateIterator when handling
-  NULL-complemented rows, so that the cache in EQRefIterator is not disturbed by
-  AggregateIterator's switching between groups.
- */
-static table_map GetNullableEqRefTables(const AccessPath *root_path) {
-  table_map tables = 0;
-  WalkAccessPaths(
-      root_path, /*join=*/nullptr,
-      WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-      [&tables](const AccessPath *path, const JOIN *) {
-        if (path->type == AccessPath::EQ_REF) {
-          const auto &param = path->eq_ref();
-          if (param.table->is_nullable() && !param.ref->disable_cache) {
-            tables |= param.table->pos_in_table_list->map();
-          }
-        }
-        return false;
-      });
-  return tables;
-}
-
 namespace {
+
+/**
+  Collect all the single-row index lookups that are located below the given path
+  with no intermediate materialization step in between, and which cache the
+  result of the index lookup.
+
+  These are used by iterators that may overwrite the contents of
+  table->record[0] in a way that disturbs EQRefIterator's cache, and which
+  therefore need to mark the cache as invalid to force the next read from the
+  EQRefIterator to read again from the index. Examples of iterators that may
+  disturb EQRefIterator's cache include AggregateIterator, SortingIterator,
+  HashJoinIterator and BKAIterator.
+ */
+std::span<AccessPath *> CollectSingleRowIndexLookups(THD *thd,
+                                                     AccessPath *root) {
+  Mem_root_array<AccessPath *> lookups(thd->mem_root);
+  WalkAccessPaths(root, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&lookups](AccessPath *path, const JOIN *) {
+                    if (path->type == AccessPath::EQ_REF &&
+                        !path->eq_ref().ref->disable_cache) {
+                      return lookups.push_back(path);
+                    }
+                    return false;
+                  });
+  return {lookups};
+}
 
 // Mirrors QEP_TAB::pfs_batch_update(), with one addition:
 // If there is more than one table, batch mode will be handled by the join
@@ -374,9 +378,16 @@ bool IsForcedMaterialization(THD *thd, Item *cond) {
                if (!is_quantified_comp_predicate(item)) return false;
                Item_in_subselect *item_subs =
                    down_cast<Item_in_subselect *>(item);
-               Query_block *qb = item_subs->query_expr()->first_query_block();
-               if (qb->subquery_strategy(thd) ==
-                   Subquery_strategy::SUBQ_MATERIALIZATION) {
+               const Query_expression *query_expr = item_subs->query_expr();
+               Query_block *qb = query_expr->first_query_block();
+               // Sometimes a query block is marked for materialization
+               // during resolving. However, because of an always false
+               // condition detected elsewhere in the query during
+               // optimization, this query block may not be optimized.
+               // So, check that before forcing materialization.
+               if (query_expr->is_optimized() &&
+                   qb->subquery_strategy(thd) ==
+                       Subquery_strategy::SUBQ_MATERIALIZATION) {
                  force_materialization = true;
                  return true;
                }
@@ -414,8 +425,13 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
           // This subquery is already set up for materialization.
           return false;
         }
-        Query_block *qb = item_subs->query_expr()->first_query_block();
+        const Query_expression *query_expr = item_subs->query_expr();
+        // The subquery is eliminated. Do not materialize.
+        if (!query_expr->is_optimized()) {
+          return false;
+        }
         // If IN-TO-EXISTS is forced, don't materialize.
+        Query_block *qb = query_expr->first_query_block();
         if (qb->subquery_strategy(thd) == Subquery_strategy::SUBQ_EXISTS) {
           return false;
         }
@@ -888,7 +904,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             GetUsedTables(param.outer, /*include_pruned_tables=*/true),
             std::move(job.children[1]), thd->variables.join_buff_size,
             param.mrr_length_per_rec, param.rec_per_key, param.store_rowids,
-            param.tables_to_get_rowid_for, mrr_iterator, param.join_type);
+            param.tables_to_get_rowid_for, mrr_iterator,
+            CollectSingleRowIndexLookups(thd, path), param.join_type);
         break;
       }
       case AccessPath::HASH_JOIN: {
@@ -988,7 +1005,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             param.store_rowids, param.tables_to_get_rowid_for,
             thd->variables.join_buff_size, std::move(conditions),
             param.allow_spill_to_disk, join_type, *extra_conditions,
-            first_input, probe_input_batch_mode, hash_table_generation);
+            CollectSingleRowIndexLookups(thd, path), first_input,
+            probe_input_batch_mode, hash_table_generation);
         break;
       }
       case AccessPath::FILTER: {
@@ -1018,7 +1036,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         Filesort *filesort = param.filesort;
         iterator = NewIterator<SortingIterator>(
             thd, mem_root, filesort, std::move(job.children[0]),
-            num_rows_estimate, param.tables_to_get_rowid_for, examined_rows);
+            CollectSingleRowIndexLookups(thd, param.child), num_rows_estimate,
+            param.tables_to_get_rowid_for, examined_rows);
         if (filesort->m_remove_duplicates) {
           filesort->tables[0]->duplicate_removal_iterator =
               down_cast<SortingIterator *>(iterator->real_iterator());
@@ -1040,9 +1059,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = NewIterator<AggregateIterator>(
             thd, mem_root, std::move(job.children[0]), join,
             TableCollection(tables, /*store_rowids=*/false,
-                            /*tables_to_get_rowid_for=*/0,
-                            GetNullableEqRefTables(param.child)),
-            param.olap == ROLLUP_TYPE);
+                            /*tables_to_get_rowid_for=*/0),
+            CollectSingleRowIndexLookups(thd, path), param.olap == ROLLUP_TYPE);
         break;
       }
       case AccessPath::TEMPTABLE_AGGREGATE: {
@@ -1402,6 +1420,7 @@ void FindTablesToGetRowidFor(AccessPath *path) {
         // it have to be fetched again from the handler by the paths above the
         // sort. Therefore, we don't add any of the tables in the subtree below
         // SORT to handled_by_others.
+        FindTablesToGetRowidFor(subpath);
         return true;  // Skip the rest of the subtree.
       default:
         return false;
@@ -1439,6 +1458,12 @@ void FindTablesToGetRowidFor(AccessPath *path) {
           ~handled_by_others;
       break;
     case AccessPath::SORT:
+      // Enabling use of row IDs must happen before the Filesort object is
+      // created, so assert that we either have not created the Filesort object,
+      // or the Filesort object already has row IDs enabled.
+      assert(path->sort().filesort == nullptr ||
+             !path->sort().filesort->using_addon_fields());
+      path->sort().force_sort_rowids = true;
       WalkAccessPaths(path, /*join=*/nullptr,
                       WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
                       add_tables_handled_by_others);

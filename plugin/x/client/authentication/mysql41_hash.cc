@@ -30,6 +30,7 @@
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+#include "my_ssl_algo_cache.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 int mysql_mysql41_hash_reset(SHA_CTX *context) { return SHA1_Init(context); }
@@ -58,7 +59,7 @@ void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
     EVP_Digest() is a wrapper around the EVP_DigestInit_ex(),
     EVP_Update() and EVP_Final_ex() functions.
   */
-  EVP_Digest(buf, len, digest, nullptr, EVP_sha1(), nullptr);
+  EVP_Digest(buf, len, digest, nullptr, my_EVP_sha1(), nullptr);
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   SHA_CTX mysql41_hash_context;
 
@@ -83,7 +84,7 @@ void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1,
                                 unsigned len2) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_MD_CTX *md_ctx = EVP_MD_CTX_new();
-  EVP_DigestInit_ex(md_ctx, EVP_sha1(), nullptr);
+  EVP_DigestInit_ex(md_ctx, my_EVP_sha1(), nullptr);
   EVP_DigestUpdate(md_ctx, buf1, len1);
   EVP_DigestUpdate(md_ctx, buf2, len2);
   EVP_DigestFinal_ex(md_ctx, digest, nullptr);

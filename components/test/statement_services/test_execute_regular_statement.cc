@@ -35,7 +35,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/defs/mysql_string_defs.h"
 
 #include "field_types.h"
-#include "mysql_com.h"
 #include "scope_guard.h"
 
 #include "utils.h"

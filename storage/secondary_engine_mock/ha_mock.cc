@@ -378,15 +378,20 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
-static bool ModifyAccessPathCost(THD *thd [[maybe_unused]],
-                                 const JoinHypergraph &hypergraph
-                                 [[maybe_unused]],
-                                 AccessPath *path) {
+namespace {
+bool ModifyViewAccessPathCost(THD *thd [[maybe_unused]],
+                              const JoinHypergraph &hypergraph [[maybe_unused]],
+                              AccessPath *path) {
+  if (thd->secondary_engine_optimization() !=
+      Secondary_engine_optimization::SECONDARY) {
+    return false;
+  }
   assert(!thd->is_error());
   assert(hypergraph.query_block()->join == hypergraph.join());
   AssertSupportedPath(path);
   return false;
 }
+}  // namespace
 
 static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
                        MEM_ROOT *mem_root) {
@@ -403,11 +408,12 @@ static int Init(MYSQL_PLUGIN p) {
   hton->db_type = DB_TYPE_UNKNOWN;
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->secondary_engine_pre_prepare_hook = SecondaryEnginePrePrepareHook;
+  hton->cardinality_estimation_hook = nullptr;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
   hton->secondary_engine_flags =
       MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
-  hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
+  hton->secondary_engine_modify_view_ap_cost = ModifyViewAccessPathCost;
   return 0;
 }
 

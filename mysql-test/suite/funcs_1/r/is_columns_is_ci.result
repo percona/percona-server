@@ -210,6 +210,15 @@ def	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	9	NULL	YES
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	LIBRARIES	LIBRARY_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	LIBRARIES	LIBRARY_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	LIBRARIES	LIBRARY_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
+def	information_schema	LIBRARIES	LIBRARY_DEFINITION	4	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	longtext			select			NULL
+def	information_schema	LIBRARIES	LANGUAGE	5	SQL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	LIBRARIES	CREATED	6	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	LIBRARIES	LAST_ALTERED	7	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	LIBRARIES	SQL_MODE	8	NULL	NO	set	520	1560	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')			select			NULL
+def	information_schema	LIBRARIES	CREATOR	9	NULL	NO	varchar	288	864	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(288)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	QUERY	1		NO	varchar	21845	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	TRACE	2		NO	varchar	21845	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int			select			NULL
@@ -229,7 +238,7 @@ def	information_schema	PARAMETERS	DATETIME_PRECISION	12	NULL	YES	int	NULL	NULL	1
 def	information_schema	PARAMETERS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	DTD_IDENTIFIER	15	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	mediumtext			select			NULL
-def	information_schema	PARAMETERS	ROUTINE_TYPE	16	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE')			select			NULL
+def	information_schema	PARAMETERS	ROUTINE_TYPE	16	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')			select			NULL
 def	information_schema	PARTITIONS	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
@@ -329,7 +338,7 @@ def	information_schema	ROUTINES	SPECIFIC_NAME	1	NULL	NO	varchar	64	192	NULL	NULL
 def	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_SCHEMA	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_NAME	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
-def	information_schema	ROUTINES	ROUTINE_TYPE	5	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE')			select			NULL
+def	information_schema	ROUTINES	ROUTINE_TYPE	5	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')			select			NULL
 def	information_schema	ROUTINES	DATA_TYPE	6	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	longtext			select			NULL
 def	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	7	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
@@ -356,6 +365,14 @@ def	information_schema	ROUTINES	DEFINER	28	NULL	NO	varchar	288	864	NULL	NULL	NUL
 def	information_schema	ROUTINES	CHARACTER_SET_CLIENT	29	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	COLLATION_CONNECTION	30	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	DATABASE_COLLATION	31	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	ROUTINE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	ROUTINE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	ROUTINE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	ROUTINE_TYPE	4	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	LIBRARY_CATALOG	5	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	LIBRARY_SCHEMA	6	NULL	YES	varchar	100	400	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	LIBRARY_NAME	7	NULL	YES	varchar	100	400	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)			select			NULL
+def	information_schema	ROUTINE_LIBRARIES	LIBRARY_VERSION	8	NULL	YES	varchar	100	400	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)			select			NULL
 def	information_schema	SCHEMATA	CATALOG_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	SCHEMATA	SCHEMA_NAME	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	SCHEMATA	DEFAULT_CHARACTER_SET_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(64)			select			NULL
@@ -852,6 +869,15 @@ NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	int	NULL	
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	LIBRARIES	LIBRARY_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	LIBRARIES	LIBRARY_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	LIBRARIES	LIBRARY_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
+1.0000	information_schema	LIBRARIES	LIBRARY_DEFINITION	longtext	4294967295	4294967295	utf8mb3	utf8mb3_bin	longtext
+3.0000	information_schema	LIBRARIES	LANGUAGE	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+NULL	information_schema	LIBRARIES	CREATED	timestamp	NULL	NULL	NULL	NULL	timestamp
+NULL	information_schema	LIBRARIES	LAST_ALTERED	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	information_schema	LIBRARIES	SQL_MODE	set	520	1560	utf8mb3	utf8mb3_bin	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')
+3.0000	information_schema	LIBRARIES	CREATOR	varchar	288	864	utf8mb3	utf8mb3_bin	varchar(288)
 3.0000	information_schema	OPTIMIZER_TRACE	QUERY	varchar	21845	65535	utf8mb3	utf8mb3_general_ci	varchar(65535)
 3.0000	information_schema	OPTIMIZER_TRACE	TRACE	varchar	21845	65535	utf8mb3	utf8mb3_general_ci	varchar(65535)
 NULL	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	int	NULL	NULL	NULL	NULL	int
@@ -871,7 +897,7 @@ NULL	information_schema	PARAMETERS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	in
 3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
 1.0000	information_schema	PARAMETERS	DTD_IDENTIFIER	mediumtext	16777215	16777215	utf8mb3	utf8mb3_bin	mediumtext
-3.0000	information_schema	PARAMETERS	ROUTINE_TYPE	enum	9	27	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE')
+3.0000	information_schema	PARAMETERS	ROUTINE_TYPE	enum	9	27	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')
 3.0000	information_schema	PARTITIONS	TABLE_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	PARTITIONS	TABLE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	PARTITIONS	TABLE_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
@@ -971,7 +997,7 @@ NULL	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	int	NULL	NULL	NULL	NULL	
 3.0000	information_schema	ROUTINES	ROUTINE_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
-3.0000	information_schema	ROUTINES	ROUTINE_TYPE	enum	9	27	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE')
+3.0000	information_schema	ROUTINES	ROUTINE_TYPE	enum	9	27	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')
 1.0000	information_schema	ROUTINES	DATA_TYPE	longtext	4294967295	4294967295	utf8mb3	utf8mb3_bin	longtext
 NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
 NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
@@ -998,6 +1024,14 @@ NULL	information_schema	ROUTINES	LAST_ALTERED	timestamp	NULL	NULL	NULL	NULL	time
 3.0000	information_schema	ROUTINES	CHARACTER_SET_CLIENT	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	COLLATION_CONNECTION	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	DATABASE_COLLATION	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
+3.0000	information_schema	ROUTINE_LIBRARIES	ROUTINE_CATALOG	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	ROUTINE_LIBRARIES	ROUTINE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	ROUTINE_LIBRARIES	ROUTINE_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)
+3.0000	information_schema	ROUTINE_LIBRARIES	ROUTINE_TYPE	enum	9	27	utf8mb3	utf8mb3_bin	enum('FUNCTION','PROCEDURE','LIBRARY')
+4.0000	information_schema	ROUTINE_LIBRARIES	LIBRARY_CATALOG	varchar	64	256	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)
+4.0000	information_schema	ROUTINE_LIBRARIES	LIBRARY_SCHEMA	varchar	100	400	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)
+4.0000	information_schema	ROUTINE_LIBRARIES	LIBRARY_NAME	varchar	100	400	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)
+4.0000	information_schema	ROUTINE_LIBRARIES	LIBRARY_VERSION	varchar	100	400	utf8mb4	utf8mb4_0900_ai_ci	varchar(100)
 3.0000	information_schema	SCHEMATA	CATALOG_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	SCHEMATA	SCHEMA_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	SCHEMATA	DEFAULT_CHARACTER_SET_NAME	varchar	64	192	utf8mb3	utf8mb3_general_ci	varchar(64)

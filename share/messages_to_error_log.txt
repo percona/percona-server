@@ -96,7 +96,7 @@ ER_LOG_GENERAL_CANNOT_OPEN
 ER_LOG_CANNOT_WRITE
   eng "Failed to write to %s: %s"
 
-ER_RPL_ZOMBIE_ENCOUNTERED
+OBSOLETE_ER_RPL_ZOMBIE_ENCOUNTERED
   eng "While initializing dump thread for replica with %s <%s>, found a zombie dump thread with the same %s. Source is killing the zombie dump thread(%u)."
 
 ER_RPL_GTID_TABLE_CANNOT_OPEN
@@ -11996,7 +11996,7 @@ ER_BULK_READER_COMMUNICATION_ERROR_LOG
   eng "Bulk reader got error in communication with source server, check the error log for additional details"
 
 ER_BULK_PARSER_MISSING_ENCLOSED_BY_LOG
-  eng "Missing ENCLOSED BY character at row %ld in file %s. Add OPTIONALLY to the ENCLOSED BY clause to allow this input."
+  eng "Missing ENCLOSED BY character at row %ld in file %s."
 
 ER_BULK_PARSER_ROW_BUFFER_MAX_TOTAL_COLS_EXCEEDED_LOG
   eng "The number of input columns that need to be buffered for parsing exceeded predefined buffer max size for file '%s'."
@@ -12298,6 +12298,32 @@ ER_WAITING_FOR_NO_THDS
 ER_IB_INDEX_PART_TOO_LONG
   eng "Index %s of %s.%s exceeds limit of %lu bytes per column."
 
+# The following 4 messages were incorrectly up-merged from 8.0.
+# They now live in the 8.1+ range. This decision was taken as
+# we now had the 4 messages in different ranges in 8.0 vis-a-vis
+# all higher versions, which means that once 8.0 becomes unsupported,
+# only one error number remains for each of these messages (namely
+# the one in the 8.1+ range). That in itself requires nothing else
+# (outside this explanatory message, anyway). We do however block
+# the 8.0 error-numbers of these messages in 8.1+ as OBSOLETE so
+# that if further messages are upmerged from 8.0, they are not
+# assigned the numbers in the 8.0 range of 8.1+ where the messages
+# from the initial broken merge should have been, as that would lead
+# to another batch of symbols that have different numbers in 8.0 and
+# 8.1+. This is less complicated than it sounds. :)
+
+OBSOLETE_ER_DD_UPDATE_DATADIR_FLAG_FAIL
+  eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
+
+OBSOLETE_ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
+
+OBSOLETE_ER_RPL_KILL_OLD_DUMP_THREAD_ENCOUNTERED
+  eng "Upon reconnection with the replica, while initializing the dump thread for %s <%s>, an existing dump thread with the same %s was detected. The source is terminating the previous dump thread (%u), which is normal and expected."
+
+OBSOLETE_ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
+  eng "The transaction '%-.192s' will commit out of order with respect to its source to follow the group global order."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12407,7 +12433,7 @@ ER_FIREWALL_SCHEDULER_REGISTER_FAILED
 ER_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
   eng "Invalid reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
 
-ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER
+OBSOLETE_ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER
    eng "'%s' (granted to '%s@%s') is deprecated and will be removed in a future release."
 
 ER_BULK_MULTI_READER_INFO
@@ -12743,8 +12769,8 @@ ER_LOG_DEPRECATE_NON_COMPOSABLE_MULTIPLE_ENGINE
 ER_DD_UPDATE_DATADIR_FLAG_FAIL
   eng "Failed to update data directory flag for dd table with tablespace id '%llu' when ibd file for '%s' is moved to new location '%s' during server shutdown"
 
-ER_IB_MSG_FIL_STATE_MOVED_PREV_OR_HAS_DATADIR
-  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory. It is either moved or is created with 'DATA DIRECTORY'"
+ER_IB_MSG_FIL_STATE_MOVED_PREV
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', found at '%s' outside default data directory, but DD misses info about DATA DIRECTORY"
 
 ER_LOAD_BULK_JSON_ERROR
   eng "Bulk CSV parser reports JSON error: %s at %zu"
@@ -12787,6 +12813,12 @@ ER_AUTHENTICATION_OPENID_FAILED_TO_UPDATE_CONFIGURATION
 
 ER_SIMPLE_ERROR_LOG_COMPONENT_STATUS
   eng "%s"
+
+ER_RPL_KILL_OLD_DUMP_THREAD_ENCOUNTERED
+  eng "Upon reconnection with the replica, while initializing the dump thread for %s <%s>, an existing dump thread with the same %s was detected. The source is terminating the previous dump thread (%u), which is normal and expected."
+
+ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
+  eng "The transaction '%-.192s' will commit out of order with respect to its source to follow the group global order."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
@@ -12916,6 +12948,7 @@ ER_AUTHENTICATION_OPENID_OPTION_REGISTER
 ER_AUTHENTICATION_OPENID_OPTION_DEREGISTER
   eng "Option deregistration failed."
 
+<<<<<<< HEAD
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13283,6 +13316,81 @@ ER_SSL_FIPS_MODE_ENABLED
 #
 
 
+||||||| merged common ancestors
+=======
+ER_BULK_PARSER_UNEXPECTED_ENCLOSED_BY_CHARACTER_LOG
+  eng "Unexpected enclosed by character found inside unenclosed string at row %ld in file '%s' resulting in malformed CSV."
+
+ER_DIAG_LOG_STRING
+  eng "%s"
+
+ER_FAILED_TO_CREATE_RPL_OPT_TRACKER_THREAD
+  eng "Unable to create the thread that periodically tracks the replication features. The server will continue its bootstrap."
+
+ER_CONNECTION_CONTROL_STATUS_VAR_REG_FAILED
+  eng "component_connection_control status variables registration failed."
+
+ER_CONNECTION_CONTROL_STATUS_VAR_UNREG_FAILED
+  eng "component_connection_control status variables unregistration failed."
+
+ER_CONNECTION_CONTROL_VARIABLE_REGISTRATION_FAILED
+  eng "%s variable registration failed."
+
+ER_CONNECTION_CONTROL_VARIABLE_UNREGISTRATION_FAILED
+  eng "%s variable unregistration failed."
+
+ER_CONNECTION_CONTROL_FAILED_TO_GET_SECURITY_CTX
+  eng "Can't retrieve the security context from thread."
+
+ER_CONNECTION_CONTROL_FAILED_TO_GET_ATTRIBUTE_FROM_SECURITY_CTX
+  eng "Can't retrieve the %s from the security context."
+
+ER_CONNECTION_CONTROL_FAILED_DEINIT
+  eng "Failed to deinit %s."
+
+ER_GR_RM_MEMORY_STATS_FETCH_FAILED
+  eng "Error fetching system memory stats. Retrying in 5 seconds."
+
+ER_GR_RM_MEMORY_STATS_FETCH_SUCCESS
+  eng "Fetching system memory stats successfully resumed."
+
+ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_FAILED
+  eng "Replication channel lag retrieval failed due to query execution error. Retrying in 5 seconds."
+
+ER_GR_RM_CHANNEL_LAG_QUERY_EXECUTION_SUCCESS
+  eng "Replication channel lag retrieved successfully resumed."
+
+ER_GR_RM_GR_MGMT_SERVICE_ACQUIRE_FAILED
+  eng "Failed to acquire Group Replication management service. Verify Group Replication status and configuration."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_QUARANTINE
+  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, since it joined %d seconds ago and the quarantine period is configured to %d seconds, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_APPLIER_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_RECOVERY_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_GR_MEMBER_NOT_REMOVED_MEMORY_THRESHOLD_HIT_N_MEMBERS
+  eng "Member threshold exceeded: memory used of %d%% exceeded tolerance threshold configured to %d%%. However, the group has less than 3 members, the member will not leave the group."
+
+ER_GR_RM_MEMBER_LEAVING_APPLIER_THRESHOLD_HIT
+  eng "Member exiting group: applier channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
+
+ER_GR_RM_MEMBER_LEAVING_RECOVERY_THRESHOLD_HIT
+  eng "Member exiting group: recovery channel lag of %d seconds exceeded tolerance threshold configured to %d seconds."
+
+ER_GR_RM_MEMBER_LEAVING_MEMORY_THRESHOLD_HIT
+  eng "Member exiting group: memory used of %d%% exceeded tolerance threshold configured to %d%%."
+
+>>>>>>> mysql-9.2.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

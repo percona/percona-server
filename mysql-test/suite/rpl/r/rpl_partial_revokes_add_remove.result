@@ -637,6 +637,8 @@ INSERT INTO normal_db.t1 values (1,2), (3,4);
 CREATE TEMPORARY TABLE mysql.db_copy AS SELECT * FROM mysql.db;
 DELETE FROM mysql.db WHERE host='%';
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 CREATE USER ''@'%', ''@'';
 GRANT SELECT ON *.* TO ''@'%' WITH GRANT OPTION;
 REVOKE SELECT ON pr_db.* FROM ''@'%';
@@ -679,6 +681,8 @@ DROP USER foo@localhost,''@'%';
 DELETE FROM mysql.db;
 INSERT INTO mysql.db SELECT * FROM mysql.db_copy;
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 DROP TABLE mysql.db_copy;
 #
 # 12. Hybrid scenarios
@@ -1458,6 +1462,8 @@ GRANT SELECT, INSERT ON *.* TO `bar`@`%`
 REVOKE SELECT, INSERT ON `mysql`.* FROM `bar`@`%`
 INSERT INTO mysql.db(user,host, db, Insert_priv) VALUES('bar', '%', 'mysql', 'Y');
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%`

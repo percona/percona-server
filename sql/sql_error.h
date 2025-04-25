@@ -34,9 +34,10 @@
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
+#include "mysql/components/services/bits/my_err_bits.h"
+#include "mysql/components/services/bits/sql_bits.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
-#include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h" /* I_P_List */
 #include "sql_string.h"    /* String */

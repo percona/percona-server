@@ -91,7 +91,7 @@ class StateFileTest : public RouterComponentBootstrapTest {
         {"cluster_type", (cluster_type == ClusterType::RS_V2) ? "rs" : "gr"},
         {"router_id", "1"},
         {"user", "mysql_router1_user"},
-        {"metadata_cluster", "mycluster"},
+        {"metadata_cluster", "my-cluster"},
         {"connect_timeout", "1"},
         {"ttl", std::to_string(std::chrono::duration<double>(ttl).count())},
     };

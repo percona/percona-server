@@ -323,6 +323,7 @@ NdbTransaction::NdbTransaction(Ndb *aNdb)
       theTransactionIsStarted(false),
       theDBnode(0),
       theReleaseOnClose(false),
+      theForceReleaseOnClose(false),
       // Scan operations
       m_waitForReply(true),
       m_theFirstScanOperation(nullptr),
@@ -1026,6 +1027,8 @@ int NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
             "occur. You have likely hit a NDB Bug. Please "
             "file a bug.");
         DBUG_PRINT("error", ("This timeout should never occure, execute()"));
+        // TODO : Consider removing inline rollback, leave until transaction
+        // release time
         g_eventLogger->error(
             "Forcibly trying to rollback txn (0x%x 0x%x"
             ") to try to clean up data node resources.",
@@ -1035,6 +1038,7 @@ int NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
         theError.status = NdbError::PermanentError;
         theError.classification = NdbError::TimeoutExpired;
         setOperationErrorCodeAbort(4012);  // ndbd timeout
+        theForceReleaseOnClose = true;
         DBUG_RETURN(-1);
       }  // if
 
@@ -2889,8 +2893,9 @@ NdbOperation *NdbTransaction::setupRecordOp(
     if (op->getBlobHandlesNdbRecordDelete(this, (attribute_row != nullptr),
                                           readMask.rep.data) == -1)
       return nullptr;
-  } else if (unlikely((attribute_record->flags & NdbRecord::RecHasBlob) &&
-                      (type != NdbOperation::UnlockRequest))) {
+  } else if (unlikely(
+                 (attribute_record->flags & NdbRecord::RecUsesBlobHandles) &&
+                 (type != NdbOperation::UnlockRequest))) {
     /* Create blob handles for non-delete, non-unlock operations */
     if (op->getBlobHandlesNdbRecord(this, readMask.rep.data) == -1)
       return nullptr;
@@ -2954,7 +2959,8 @@ const NdbOperation *NdbTransaction::readTuple(
   }
 
   /* Setup the record/row for receiving the results. */
-  op->theReceiver.getValues(result_rec, result_row);
+  op->theReceiver.getValues(result_rec, result_row, op->m_row_side_buffer,
+                            op->m_row_side_buffer_size);
 
   return op;
 }
@@ -3030,7 +3036,8 @@ const NdbOperation *NdbTransaction::deleteTuple(
   if (result_row != nullptr)  // readBeforeDelete
   {
     /* Setup the record/row for receiving the results. */
-    op->theReceiver.getValues(result_rec, result_row);
+    op->theReceiver.getValues(result_rec, result_row, op->m_row_side_buffer,
+                              op->m_row_side_buffer_size);
   }
 
   return op;

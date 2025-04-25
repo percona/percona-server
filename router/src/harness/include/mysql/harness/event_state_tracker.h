@@ -57,6 +57,7 @@ class HARNESS_EXPORT EventStateTracker {
     ClusterWasBootstrappedAgainstClusterset,
     NoRightsToUpdateRouterAttributes,
     NoGRQuorum,
+    GuidelinesNotSupported,
   };
 
   /**

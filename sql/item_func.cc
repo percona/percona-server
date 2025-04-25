@@ -140,7 +140,7 @@
 #include "sql/sql_load.h"       // Sql_cmd_load_table
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_parse.h"      // check_stack_overrun
-#include "sql/sql_show.h"       // append_identifier
+#include "sql/sql_show.h"       // append_identifier_*
 #include "sql/sql_time.h"       // TIME_from_longlong_packed
 #include "sql/sql_zip_dict.h"
 #include "sql/strfunc.h"  // find_type
@@ -5853,27 +5853,35 @@ longlong Item_func_benchmark::val_int() {
     return 0;
   }
 
+  const int result_type = args[1]->result_type();
+
   null_value = false;
-  for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
-    switch (args[1]->result_type()) {
-      case REAL_RESULT:
+  switch (result_type) {
+    case REAL_RESULT:
+      for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_real();
-        break;
-      case INT_RESULT:
+      }
+      break;
+    case INT_RESULT:
+      for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_int();
-        break;
-      case STRING_RESULT:
+      }
+      break;
+    case STRING_RESULT:
+      for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_str(&tmp);
-        break;
-      case DECIMAL_RESULT:
+      }
+      break;
+    case DECIMAL_RESULT:
+      for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_decimal(&tmp_decimal);
-        break;
-      case ROW_RESULT:
-      default:
-        // This case should never be chosen
-        assert(0);
-        return 0;
-    }
+      }
+      break;
+    case ROW_RESULT:
+    default:
+      // This case should never be chosen
+      assert(0);
+      return 0;
   }
   return 0;
 }
@@ -7089,8 +7097,8 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref) {
   assert(!fixed);
 
   assert(thd->lex->sql_command == SQLCOM_LOAD);
-  auto exchange_cs =
-      down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)->m_exchange.cs;
+  const auto *exchange_cs = down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)
+                                ->m_exchange.file_info.cs;
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
@@ -8511,7 +8519,7 @@ bool Item_func_sp::sp_check_access(THD *thd) {
   DBUG_TRACE;
   assert(m_sp);
   if (check_routine_access(thd, EXECUTE_ACL, m_sp->m_db.str, m_sp->m_name.str,
-                           false, false))
+                           Acl_type::FUNCTION, false))
     return true;
 
   return false;
@@ -8542,8 +8550,9 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
         thd, m_name_resolution_ctx->view_error_handler,
         m_name_resolution_ctx->view_error_handler_arg);
 
-    const bool res = check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
-                                          m_name->m_name.str, false, false);
+    const bool res =
+        check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
+                             m_name->m_name.str, Acl_type::FUNCTION, false);
     thd->set_security_context(save_security_ctx);
 
     if (res) return res;
@@ -8960,7 +8969,15 @@ longlong Item_func_can_access_routine::val_int() {
   type_ptr->c_ptr_safe();
   definer_ptr->c_ptr_safe();
 
-  const bool is_procedure = (strcmp(type_ptr->ptr(), "PROCEDURE") == 0);
+  enum_sp_type sp_type{};
+  if (strcmp(type_ptr->ptr(), "PROCEDURE") == 0)
+    sp_type = enum_sp_type::PROCEDURE;
+  else if (strcmp(type_ptr->ptr(), "FUNCTION") == 0)
+    sp_type = enum_sp_type::FUNCTION;
+  else if (strcmp(type_ptr->ptr(), "LIBRARY") == 0)
+    sp_type = enum_sp_type::LIBRARY;
+  else
+    assert(false);
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()) ||
@@ -8995,9 +9012,12 @@ longlong Item_func_can_access_routine::val_int() {
 
   if (check_full_access) {
     return full_access ? 1 : 0;
-  } else if (!full_access && !has_partial_view_routine_access(
-                                 thd, schema_name_ptr->ptr(),
-                                 routine_name_ptr->ptr(), is_procedure)) {
+  }
+  assert(sp_type == enum_sp_type::PROCEDURE ||
+         sp_type == enum_sp_type::FUNCTION || sp_type == enum_sp_type::LIBRARY);
+  if (!full_access && !has_partial_view_routine_access(
+                          thd, schema_name_ptr->ptr(), routine_name_ptr->ptr(),
+                          enum_sp_type_to_acl_type(sp_type))) {
     return 0;
   }
 

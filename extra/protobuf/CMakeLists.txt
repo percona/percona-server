@@ -30,6 +30,11 @@ IF(APPLE)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-shorten-64-to-32")
 ENDIF()
 
+# Some of our .proto files generate ASAN failures, disable them.
+IF(HAVE_ASAN AND WIN32_VS)
+  ADD_DEFINITIONS(-DHAVE_ASAN_WIN32_VS=1)
+ENDIF()
+
 # Inhibit warning messages
 IF(MSVC AND NOT WIN32_CLANG)
   # no suitable definition provided for explicit template instantiation

@@ -79,7 +79,7 @@ class TestRoutingConnection : public testing::Test {
   const unsigned int net_buffer_length_{routing::kDefaultNetBufferLength};
   const std::chrono::milliseconds destination_connect_timeout_{10ms};
   const std::chrono::milliseconds client_connect_timeout_{10ms};
-  mysql_harness::TCPAddress bind_address_;
+  mysql_harness::TcpDestination bind_address_;
   mysql_harness::Path bind_named_socket_;
   const unsigned long long max_connect_errors_{100};
   const size_t thread_stack_size_{1000};

@@ -38,6 +38,7 @@
 #include "mysql/components/services/bits/my_io_bits.h"  // File
 #include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"  // ER_*
+#include "sql/sql_exchange.h"
 #include "sql/sql_list.h"
 
 class Item;
@@ -75,6 +76,11 @@ class Query_result {
   virtual ~Query_result() = default;
 
   virtual bool needs_file_privilege() const { return false; }
+
+  /**
+    Returns true if the data has to be exported to object store.
+  */
+  virtual bool export_result_to_object_storage() const { return false; }
 
   /**
     Change wrapped Query_result.
@@ -233,6 +239,24 @@ class Query_result_to_file : public Query_result_interceptor {
   bool check_supports_cursor() const override;
   bool send_eof(THD *thd) override;
   void cleanup() override;
+};
+
+class Query_result_to_object_store : public Query_result_interceptor {
+ protected:
+  sql_exchange *exchange;
+
+ public:
+  explicit Query_result_to_object_store(sql_exchange *ex)
+      : Query_result_interceptor(), exchange(ex) {}
+
+  bool send_data(THD *, const mem_root_deque<Item *> &) override {
+    return false;
+  }
+  bool send_eof(THD *thd) override;
+  void cleanup() override;
+  bool export_result_to_object_storage() const override { return true; }
+  bool use_protocol_adapter() const override { return true; }
+  sql_exchange *get_sql_exchange() { return exchange; }
 };
 
 #define ESCAPE_CHARS "ntrb0ZN"  // keep synchronous with READ_INFO::unescape

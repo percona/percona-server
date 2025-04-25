@@ -30,7 +30,10 @@
 
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
 
@@ -75,6 +78,14 @@ HARNESS_EXPORT
 void trim(std::string &str);
 
 /**
+ * Compares two string values for equality (case insensitive).
+ *
+ * @param a string value to be compared
+ * @param b string value to be compared
+ */
+HARNESS_EXPORT bool ieq(const std::string_view &a, const std::string_view &b);
+
+/**
  * Returns the input string with number of lines reduced to selected value.
  *
  * @param str input string
@@ -89,6 +100,16 @@ void trim(std::string &str);
 HARNESS_EXPORT
 std::string limit_lines(const std::string &str, const size_t limit,
                         const std::string &replace_with = "");
+
+/** Returns a boolean value parsed from a string.
+ *
+ * @param str input string
+ *
+ * @return true if input string contains 'true' and false for 'false' (case
+ * insensitive). Returns error code otherwise.
+ */
+HARNESS_EXPORT
+stdx::expected<bool, std::error_code> bool_from_string(std::string str);
 
 }  // namespace mysql_harness
 

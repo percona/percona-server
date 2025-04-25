@@ -26,9 +26,7 @@
 #include "plugin_config.h"
 
 #include <algorithm>
-#include <array>
 #include <climits>
-#include <exception>
 #include <map>
 #include <stdexcept>
 #include <variant>
@@ -39,6 +37,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/section_config_exposer.h"
 #include "mysql/harness/utility/string.h"  // string_format
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/supported_metadata_cache_options.h"
 #include "mysqlrouter/uri.h"
@@ -77,6 +76,7 @@ std::string MetadataCachePluginConfig::get_default(
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
       {"router_id", "0"},
+      {"close_connection_after_refresh", "0"},
       {"thread_stack_size",
        to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
       {"use_gr_notifications", "0"},
@@ -123,20 +123,16 @@ uint64_t MetadataCachePluginConfig::get_view_id() const {
   return 0;
 }
 
-std::vector<mysql_harness::TCPAddress>
+std::vector<mysql_harness::TcpDestination>
 MetadataCachePluginConfig::get_metadata_servers(uint16_t default_port) const {
-  std::vector<mysql_harness::TCPAddress> address_vector;
+  std::vector<mysql_harness::TcpDestination> address_vector;
 
   auto add_metadata_server = [&](const std::string &address) {
     mysqlrouter::URI u(address);
     if (u.port == 0) u.port = default_port;
 
-    // emplace_back calls TCPAddress ctor, which queries DNS in order to
-    // determine IP address family (IPv4 or IPv6)
-    log_debug("Adding metadata server '%s:%u', also querying DNS ...",
-              u.host.c_str(), u.port);
+    log_debug("Adding metadata server '%s:%d'", u.host.c_str(), u.port);
     address_vector.emplace_back(u.host, u.port);
-    log_debug("Done adding metadata server '%s:%u'", u.host.c_str(), u.port);
   };
 
   if (metadata_cache_dynamic_state) {
@@ -259,14 +255,19 @@ MetadataCachePluginConfig::MetadataCachePluginConfig(
   GET_OPTION_CHECKED(cluster_type, section, "cluster_type",
                      ClusterTypeOption{});
   GET_OPTION_CHECKED(router_id, section, "router_id", IntOption<uint32_t>{});
+  GET_OPTION_CHECKED(close_connection_after_refresh, section,
+                     "close_connection_after_refresh",
+                     mysql_harness::BoolOption{});
 
   ssl_options = make_ssl_options(section);
 
-  if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
-      section->has("use_gr_notifications")) {
-    throw std::invalid_argument(
-        "option 'use_gr_notifications' is not valid for cluster type 'rs'");
+  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
+    if (section->has("use_gr_notifications")) {
+      throw std::invalid_argument(
+          "option 'use_gr_notifications' is not valid for cluster type 'rs'");
+    }
   }
+
   if (auth_cache_ttl > std::chrono::seconds(-1) &&
       auth_cache_ttl < std::chrono::milliseconds(1)) {
     throw std::invalid_argument(
@@ -319,6 +320,11 @@ class MetadataCacheConfigExposer : public mysql_harness::SectionConfigExposer {
     expose_option("use_gr_notifications", plugin_config_.use_gr_notifications,
                   mysqlrouter::kDefaultUseGRNotificationsCluster,
                   mysqlrouter::kDefaultUseGRNotificationsClusterSet, false);
+    expose_option("close_connection_after_refresh",
+                  plugin_config_.close_connection_after_refresh,
+                  mysqlrouter::kDefaultCloseConnectionAfterRefreshCluster,
+                  mysqlrouter::kDefaultCloseConnectionAfterRefreshClusterSet,
+                  false);
 
     expose_option(
         "thread_stack_size", plugin_config_.thread_stack_size,

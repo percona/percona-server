@@ -28,6 +28,7 @@
 
 #include "mysqlrouter/router_cluster_export.h"
 
+#include <map>
 #include <string>
 
 #include "mysql/harness/stdx/expected.h"
@@ -41,11 +42,17 @@ struct InstanceAttributes {
                     const mysqlrouter::InstanceType default_instance_type);
 
   static stdx::expected<bool, std::string> ROUTER_CLUSTER_EXPORT
-  get_hidden(const std::string &attributes, bool default_res);
+  get_hidden(const std::map<std::string, std::string, std::less<>> &tags,
+             bool default_res);
 
   static stdx::expected<bool, std::string> ROUTER_CLUSTER_EXPORT
-  get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
-                                               bool default_res);
+  get_disconnect_existing_sessions_when_hidden(
+      const std::map<std::string, std::string, std::less<>> &tags,
+      bool default_res);
+
+  static stdx::expected<std::map<std::string, std::string, std::less<>>,
+                        std::string>
+      ROUTER_CLUSTER_EXPORT get_tags(const std::string &attributes);
 };
 
 }  // namespace mysqlrouter

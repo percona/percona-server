@@ -40,7 +40,9 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
+#endif
 
 #include <rapidjson/pointer.h>
 
@@ -111,6 +113,18 @@ std::ostream &operator<<(std::ostream &os, MysqlError e) {
 }
 
 namespace {
+
+stdx::expected<void, MysqlError> cli_connect(
+    MysqlClient &cli, const mysql_harness::Destination &dest) {
+  if (dest.is_local()) {
+    const auto &local_dest = dest.as_local();
+    return cli.connect(MysqlClient::unix_socket_t{}, local_dest.path());
+  }
+
+  const auto &tcp_dest = dest.as_tcp();
+  return cli.connect(tcp_dest.hostname(), tcp_dest.port());
+}
+
 std::string find_executable_path(const std::string &name) {
   std::string path(getenv("PATH"));
 
@@ -395,6 +409,14 @@ const ShareConnectionParam share_connection_params[] = {
     },
 };
 
+const std::array is_tcp_values = {
+    true,
+#ifndef _WIN32
+    // no unix-socket support on windows.
+    false,
+#endif
+};
+
 class SharedRouter {
  public:
   SharedRouter(TcpPortPool &port_pool, uint64_t pool_size)
@@ -405,18 +427,32 @@ class SharedRouter {
   integration_tests::Procs &process_manager() { return procs_; }
 
   template <size_t N>
-  static std::vector<std::string> destinations_from_shared_servers(
+  static std::vector<mysql_harness::Destination>
+  tcp_destinations_from_shared_servers(
       const std::array<SharedServer *, N> &servers) {
-    std::vector<std::string> dests;
-    for (const auto &s : servers) {
-      dests.push_back(s->server_host() + ":" +
-                      std::to_string(s->server_port()));
+    std::vector<mysql_harness::Destination> dests;
+    for (const auto &srv : servers) {
+      dests.push_back(srv->classic_tcp_destination());
     }
 
     return dests;
   }
 
-  void spawn_router(const std::vector<std::string> &destinations) {
+  template <size_t N>
+  static std::vector<mysql_harness::Destination>
+  local_destinations_from_shared_servers(
+      const std::array<SharedServer *, N> &servers) {
+    std::vector<mysql_harness::Destination> dests;
+    for (const auto &srv : servers) {
+      dests.push_back(srv->classic_socket_destination());
+    }
+
+    return dests;
+  }
+
+  void spawn_router(
+      const std::vector<mysql_harness::Destination> &tcp_destinations,
+      const std::vector<mysql_harness::Destination> &local_destinations) {
     auto userfile = conf_dir_.file("userfile");
     {
       std::ofstream ofs(userfile);
@@ -452,33 +488,63 @@ class SharedRouter {
         .section("http_server", {{"bind_address", "127.0.0.1"},
                                  {"port", std::to_string(rest_port_)}});
 
+    auto make_destinations =
+        [](const std::vector<mysql_harness::Destination> &destinations) {
+          std::string dests;
+          bool is_first = true;
+          for (const auto &dest : destinations) {
+            if (is_first) {
+              is_first = false;
+            } else {
+              dests += ",";
+            }
+
+            if (dest.is_local()) {
+              dests += "local:";
+#ifdef _WIN32
+              // the path is absolute and starts with the drive-letter, but the
+              // URI's path needs to start with '/'
+              dests += "/";
+#endif
+            }
+
+            dests += dest.str();
+          }
+          return dests;
+        };
+
     for (const auto &param : share_connection_params) {
-      auto port_key =
-          std::make_tuple(param.client_ssl_mode, param.server_ssl_mode);
-      auto ports_it = ports_.find(port_key);
+      for (bool is_tcp : is_tcp_values) {
+        auto port_key = std::make_tuple(param.client_ssl_mode,
+                                        param.server_ssl_mode, is_tcp);
+        auto ports_it = ports_.find(port_key);
 
-      const auto port =
-          ports_it == ports_.end()
-              ? (ports_[port_key] = port_pool_.get_next_available())
-              : ports_it->second;
+        const auto port =
+            ports_it == ports_.end()
+                ? (ports_[port_key] = port_pool_.get_next_available())
+                : ports_it->second;
 
-      writer.section(
-          "routing:classic_" + param.testname,
-          {
-              {"bind_port", std::to_string(port)},
-              {"destinations", mysql_harness::join(destinations, ",")},
-              {"protocol", "classic"},
-              {"routing_strategy", "round-robin"},
+        writer.section(
+            "routing:classic_" + param.testname + (is_tcp ? "_tcp" : "_unix"),
+            {
+                {"bind_port", std::to_string(port)},
+                {"destinations",
+                 make_destinations(is_tcp ? tcp_destinations
+                                          : local_destinations)},
+                {"protocol", "classic"},
+                {"routing_strategy", "round-robin"},
 
-              {"client_ssl_mode", std::string(param.client_ssl_mode)},
-              {"server_ssl_mode", std::string(param.server_ssl_mode)},
+                {"client_ssl_mode", std::string(param.client_ssl_mode)},
+                {"server_ssl_mode", std::string(param.server_ssl_mode)},
 
-              {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-              {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-              {"connection_sharing", "1"},
-              {"connection_sharing_delay", "0"},
-              {"connect_retry_timeout", "0"},
-          });
+                {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+                {"client_ssl_cert",
+                 SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+                {"connection_sharing", "1"},
+                {"connection_sharing_delay", "0"},
+                {"connect_retry_timeout", "0"},
+            });
+      }
     }
 
     auto bindir = process_manager().get_origin();
@@ -495,22 +561,26 @@ class SharedRouter {
                           "mysqlrouter.log");
 
     if (!proc.wait_for_sync_point_result()) {
+      process_manager().dump_logs();
+
       GTEST_SKIP() << "router failed to start";
     }
   }
 
   [[nodiscard]] auto host() const { return router_host_; }
 
-  [[nodiscard]] uint16_t port(const ShareConnectionParam &param) const {
+  [[nodiscard]] uint16_t port(const ShareConnectionParam &param,
+                              bool is_tcp) const {
     return ports_.at(
-        std::make_tuple(param.client_ssl_mode, param.server_ssl_mode));
+        std::make_tuple(param.client_ssl_mode, param.server_ssl_mode, is_tcp));
   }
 
   [[nodiscard]] auto rest_port() const { return rest_port_; }
   [[nodiscard]] auto rest_user() const { return rest_user_; }
   [[nodiscard]] auto rest_pass() const { return rest_pass_; }
 
-  void populate_connection_pool(const ShareConnectionParam &param) {
+  void populate_connection_pool(const ShareConnectionParam &param,
+                                bool is_tcp) {
     // assuming round-robin: add one connection per destination of the route
     using pool_size_type = decltype(pool_size_);
     const pool_size_type num_destinations{3};
@@ -521,7 +591,7 @@ class SharedRouter {
       cli.username("root");
       cli.password("");
 
-      ASSERT_NO_ERROR(cli.connect(host(), port(param)));
+      ASSERT_NO_ERROR(cli.connect(host(), port(param, is_tcp)));
     }
 
     // wait for the connections appear in the pool.
@@ -589,6 +659,8 @@ class SharedRouter {
       if (*int_res == expected_value) return {};
 
       if (clock_type::now() > end_time) {
+        std::cerr << "expected " << expected_value << ", got " << *int_res
+                  << "\n";
         return stdx::unexpected(make_error_code(std::errc::timed_out));
       }
 
@@ -603,7 +675,8 @@ class SharedRouter {
   TempDirectory conf_dir_;
 
   static const constexpr char router_host_[] = "127.0.0.1";
-  std::map<std::tuple<std::string_view, std::string_view>, uint16_t> ports_;
+  std::map<std::tuple<std::string_view, std::string_view, bool>, uint16_t>
+      ports_;
 
   uint64_t pool_size_;
 
@@ -708,7 +781,7 @@ class TestEnv : public ::testing::Environment {
       cli->username(account.username);
       cli->password(account.password);
 
-      auto connect_res = cli->connect(s->server_host(), s->server_port());
+      auto connect_res = cli_connect(*cli, s->classic_tcp_destination());
       ASSERT_NO_ERROR(connect_res);
 
       // install plugin that will be used later with setup_mysqld_accounts.
@@ -799,7 +872,8 @@ class TestWithSharedRouter {
 
       SCOPED_TRACE("// spawn router");
       shared_router_->spawn_router(
-          SharedRouter::destinations_from_shared_servers(servers));
+          SharedRouter::tcp_destinations_from_shared_servers(servers),
+          SharedRouter::local_destinations_from_shared_servers(servers));
     }
   }
 
@@ -879,6 +953,18 @@ class ShareConnectionTestBase : public RouterComponentTest {
     return o;
   }
 
+  static void reset_caching_sha2_cache() {
+    for (auto *cli : admin_clis()) {
+      ASSERT_NO_FATAL_FAILURE(SharedServer::flush_privileges(*cli));
+    }
+  }
+
+  static void reset_router_connection_pool() {
+    for (auto *cli : admin_clis()) {  // reset the router's connection-pool
+      ASSERT_NO_FATAL_FAILURE(SharedServer::close_all_connections(*cli));
+    }
+  }
+
   SharedRouter *shared_router() { return TestWithSharedRouter::router(); }
 
   ~ShareConnectionTestBase() override {
@@ -890,6 +976,56 @@ class ShareConnectionTestBase : public RouterComponentTest {
     }
   }
 
+  static bool can_auth_with_caching_sha2_password_with_password(
+      const ShareConnectionParam &param, bool is_tcp) {
+    if (!is_tcp) return !(param.client_ssl_mode == kDisabled);
+
+    return !(param.client_ssl_mode == kDisabled &&
+             (param.server_ssl_mode == kPreferred ||
+              param.server_ssl_mode == kRequired));
+  }
+
+  // with client-ssl-mode DISABLED, router doesn't have a public-key or a
+  // tls connection to the client.
+  //
+  // The client will ask for the server's public-key instead which the
+  // server will treat as "password" and then fail to authenticate.
+  static bool can_auth_with_sha256_password_with_password(
+      const ShareConnectionParam &param, bool is_tcp) {
+    if (!is_tcp) {
+      return !(param.client_ssl_mode == kDisabled &&
+               param.server_ssl_mode == kRequired);
+    }
+
+    return !(param.client_ssl_mode == kDisabled &&
+             (param.server_ssl_mode == kPreferred ||
+              param.server_ssl_mode == kRequired));
+  }
+
+  static bool can_auth(const SharedServer::Account &account, const auto &param,
+                       bool is_tcp, bool client_is_secure = true) {
+    if (account.auth_method == "caching_sha2_password") {
+      if (!client_is_secure && !is_tcp &&
+          param.client_ssl_mode == kPassthrough) {
+        if (!account.password.empty()) {
+          // client asks for public-key, but server side is encrypted and
+          // will not provide a public-key
+          return false;
+        }
+      }
+
+      return account.password.empty() ||
+             can_auth_with_caching_sha2_password_with_password(param, is_tcp);
+    }
+
+    if (account.auth_method == "sha256_password") {
+      return account.password.empty() ||
+             can_auth_with_sha256_password_with_password(param, is_tcp);
+    }
+
+    return true;
+  }
+
  protected:
   const std::string valid_ssl_key_{SSL_TEST_DATA_DIR "/server-key-sha512.pem"};
   const std::string valid_ssl_cert_{SSL_TEST_DATA_DIR
@@ -899,9 +1035,9 @@ class ShareConnectionTestBase : public RouterComponentTest {
   const std::string empty_password_{""};
 };
 
-class ShareConnectionTest
-    : public ShareConnectionTestBase,
-      public ::testing::WithParamInterface<ShareConnectionParam> {
+class ShareConnectionTest : public ShareConnectionTestBase,
+                            public ::testing::WithParamInterface<
+                                std::tuple<ShareConnectionParam, bool>> {
  public:
 #if 0
 #define TRACE(desc) trace(__func__, __LINE__, (desc))
@@ -910,6 +1046,14 @@ class ShareConnectionTest
 #endif
 
   void SetUp() override {
+#ifdef _WIN32
+    auto is_tcp = std::get<1>(GetParam());
+
+    if (!is_tcp) {
+      GTEST_SKIP() << "unix-sockets are not supported on windows.";
+    }
+#endif
+
     TRACE("");
 
     for (auto [ndx, s] : stdx::views::enumerate(shared_servers())) {
@@ -918,7 +1062,7 @@ class ShareConnectionTest
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        auto cli = admin_clis()[ndx];
+        auto *cli = admin_clis()[ndx];
 
         // reset the router's connection-pool
         ASSERT_NO_ERROR(SharedServer::close_all_connections(*cli));
@@ -935,6 +1079,14 @@ class ShareConnectionTest
         << ": " << desc << "\n";
 
     std::cerr << oss.str();
+  }
+
+  static bool can_auth(const SharedServer::Account &account,
+                       bool client_is_secure = true) {
+    auto [param, is_tcp] = GetParam();
+
+    return ShareConnectionTestBase::can_auth(account, param, is_tcp,
+                                             client_is_secure);
   }
 
  protected:
@@ -961,7 +1113,10 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
       SharedServer::caching_sha2_empty_password_account(),
       SharedServer::caching_sha2_empty_password_account()};
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  bool can_share = param.can_share();
+
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = accounts[ndx];
 
@@ -975,7 +1130,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     }
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     // connection goes out of the pool and back to the pool again.
     if (ndx == 3 && can_share) {
@@ -1107,7 +1262,9 @@ TEST_P(ShareConnectionTest,
                       SharedServer::openid_connect_account(),
                       SharedServer::openid_connect_account()};
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = accounts[ndx];
 
@@ -1131,15 +1288,15 @@ TEST_P(ShareConnectionTest,
           shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
 
-    if (GetParam().client_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kDisabled) {
+    if (param.client_ssl_mode == kDisabled ||
+        (is_tcp && param.server_ssl_mode == kDisabled)) {
       // should fail as the connection is not secure.
       ASSERT_ERROR(connect_res);
-      if (GetParam().server_ssl_mode == kDisabled ||
-          GetParam().server_ssl_mode == kAsClient) {
+      if (is_tcp && (param.server_ssl_mode == kDisabled ||
+                     param.server_ssl_mode == kAsClient)) {
         EXPECT_EQ(connect_res.error().value(), 1045);
       } else {
         EXPECT_EQ(connect_res.error().value(), 2000);
@@ -1277,7 +1434,9 @@ TEST_P(ShareConnectionTest,
 
   auto account = SharedServer::openid_connect_account();
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     // plugin-dir for the openid-connect client plugin.
     cli.set_option(MysqlClient::PluginDir(plugin_output_directory().c_str()));
@@ -1300,15 +1459,15 @@ TEST_P(ShareConnectionTest,
           shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
 
-    if (GetParam().client_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kDisabled) {
+    if (param.client_ssl_mode == kDisabled ||
+        (is_tcp && param.server_ssl_mode == kDisabled)) {
       // should fail as the connection is not secure.
       ASSERT_ERROR(connect_res);
-      if (GetParam().server_ssl_mode == kDisabled ||
-          GetParam().server_ssl_mode == kAsClient) {
+      if (is_tcp && (param.server_ssl_mode == kDisabled ||
+                     param.server_ssl_mode == kAsClient)) {
         EXPECT_EQ(connect_res.error().value(), 1045);
       } else {
         EXPECT_EQ(connect_res.error().value(), 2000);
@@ -1373,7 +1532,9 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
 
   std::array<std::pair<uint16_t, uint64_t>, clis.size()> cli_ids{};
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = accounts[ndx];
 
@@ -1383,7 +1544,7 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
     TRACE("connect");
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     TRACE("connected " + std::to_string(ndx));
 
@@ -1410,7 +1571,7 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
       for (auto id : ids) {
         ASSERT_NO_ERROR(srv_cli->query("KILL " + std::to_string(id)));
 
-        cli_ids[ndx] = std::make_pair(s->server_port(), id);
+        cli_ids[ndx] = std::make_pair(s->classic_tcp_destination().port(), id);
       }
     }
 
@@ -1461,7 +1622,9 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
            std::vector<std::pair<std::string, uint32_t>>>
       last_events{};
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// connection [" + std::to_string(ndx) + "]");
 
@@ -1471,7 +1634,7 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
     cli.password(account.password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     // wait until the connection is in the pool.
     if (can_share) {
@@ -1498,7 +1661,8 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
         auto events_res = changed_event_counters(*srv_cli, id);
         ASSERT_NO_ERROR(events_res);
 
-        auto connection_id = std::make_pair(s->server_port(), id);
+        auto connection_id =
+            std::make_pair(s->classic_tcp_destination().port(), id);
         auto last_it = last_events.find(connection_id);
 
         if (can_share) {
@@ -1563,7 +1727,9 @@ TEST_P(ShareConnectionTest, classic_protocol_share_password_changed_query) {
     SharedServer::create_account(cli, account);
   }
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// connection [" + std::to_string(ndx) + "]");
@@ -1573,7 +1739,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_password_changed_query) {
     cli.set_option(MysqlClient::GetServerPublicKey(true));
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     // wait until the connection is in the pool.
     if (can_share) {
@@ -1630,7 +1796,9 @@ TEST_P(ShareConnectionTest,
       SharedServer::caching_sha2_password_account(),
       SharedServer::caching_sha2_empty_password_account()};
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
+
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = accounts[ndx];
 
@@ -1646,9 +1814,9 @@ TEST_P(ShareConnectionTest,
           shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kDisabled &&
         account.username ==
             SharedServer::caching_sha2_password_account().username) {
       // 2061 Authentication plugin requires secure connection.
@@ -1759,13 +1927,14 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
 
   auto account = SharedServer::caching_sha2_empty_password_account();
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
 
   cli.username(account.username);
   cli.password(account.password);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   std::array<std::string, 2> connection_id{};
 
@@ -1791,9 +1960,7 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
       ASSERT_NO_ERROR(
           shared_router()->wait_for_stashed_server_connections(1, 10s));
 
-      for (auto *admin_cli : admin_clis()) {
-        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-      }
+      ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
       ASSERT_NO_ERROR(
           shared_router()->wait_for_idle_server_connections(0, 10s));
@@ -1810,13 +1977,14 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_pooled) {
 
   auto account = SharedServer::caching_sha2_empty_password_account();
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
 
   cli.username(account.username);
   cli.password(account.password);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   std::array<std::string, 2> connection_id{};
 
@@ -1849,13 +2017,15 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
   // 4 connections are needed as router does round-robin over 3 endpoints
   std::array<MysqlClient, 4> clis;
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
+
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     cli.username("root");
     cli.password("");
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     if (can_share) {
       if (ndx == 0) {
@@ -1938,8 +2108,12 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
   // channels.
   //
   //
-  const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_fetch_password = !(param.client_ssl_mode == kDisabled);
+  const bool can_share = param.can_share();
+
+  // reset the auth-cache to get a full auth each time.
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   {
     auto account = SharedServer::caching_sha2_password_account();
@@ -1948,8 +2122,15 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     cli1.username(account.username);
     cli1.password(account.password);
 
-    ASSERT_NO_ERROR(cli1.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+    auto connect_res = cli1.connect(shared_router()->host(),
+                                    shared_router()->port(param, is_tcp));
+    if (!can_auth(account)) {
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
+      return;
+    }
+
+    ASSERT_NO_ERROR(connect_res);
   }
 
   {
@@ -1960,16 +2141,9 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     cli2.password(account.password);
 
     auto connect_res = cli2.connect(shared_router()->host(),
-                                    shared_router()->port(GetParam()));
+                                    shared_router()->port(param, is_tcp));
 
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kRequired ||
-         GetParam().server_ssl_mode == kPreferred)) {
-      // with client-ssl-mode DISABLED, router doesn't have a public-key or a
-      // tls connection to the client.
-      //
-      // The client will ask for the server's public-key instead which the
-      // server will treat as "password" and then fail to authenticate.
+    if (!can_auth(account)) {
       ASSERT_ERROR(connect_res);
       GTEST_SKIP() << connect_res.error();
     }
@@ -1985,7 +2159,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     cli3.password(account.password);
 
     ASSERT_NO_ERROR(cli3.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+                                 shared_router()->port(param, is_tcp)));
   }
 
   // wait a bit until all connections are moved to the pool to ensure that cli4
@@ -2004,7 +2178,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
     cli4.password(account.password);
 
     ASSERT_NO_ERROR(cli4.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+                                 shared_router()->port(param, is_tcp)));
   }
 
   // wait a bit until the connection cli4 is moved to the pool.
@@ -2165,7 +2339,9 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_ping_with_pool) {
-  shared_router()->populate_connection_pool(GetParam());
+  auto [param, is_tcp] = GetParam();
+
+  shared_router()->populate_connection_pool(param, is_tcp);
 
   SCOPED_TRACE("// fill the pool with connections.");
 
@@ -2179,10 +2355,10 @@ TEST_P(ShareConnectionTest, classic_protocol_ping_with_pool) {
     cli2.password("");
 
     ASSERT_NO_ERROR(cli1.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+                                 shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli2.connect(shared_router()->host(),
-                                 shared_router()->port(GetParam())));
+                                 shared_router()->port(param, is_tcp)));
 
     // should pool
     ASSERT_NO_ERROR(cli1.ping());
@@ -2196,7 +2372,8 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
   // 4 connections are needed as router does round-robin over 3 endpoints
   std::array<MysqlClient, 4> clis;
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
 
   auto account = SharedServer::admin_account();
 
@@ -2211,8 +2388,8 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
           shared_router()->wait_for_stashed_server_connections(3, 10s));
     }
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_NO_ERROR(connect_res);
   }
 
@@ -2263,13 +2440,15 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_server_status_after_command) {
+  auto [param, is_tcp] = GetParam();
+
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // ignore the session-state-changed as it differs if the statement comes from
   // the router or the server due to the 'statement-id' that's not generated for
@@ -2392,14 +2571,16 @@ TEST_P(ShareConnectionTest, classic_protocol_server_status_after_command) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_kill_via_select) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("BEGIN"));
 
@@ -2427,26 +2608,28 @@ TEST_P(ShareConnectionTest, classic_protocol_kill_via_select) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_list_dbs) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.list_dbs());
 }
 
 TEST_P(ShareConnectionTest,
        classic_protocol_change_user_caching_sha2_with_attributes_with_pool) {
-  // reset auth-cache for caching-sha2-password
-  for (auto admin_cli : admin_clis()) {
-    SharedServer::flush_privileges(*admin_cli);
-  }
+  auto [param, is_tcp] = GetParam();
 
-  shared_router()->populate_connection_pool(GetParam());
+  // reset auth-cache for caching-sha2-password
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
+
+  shared_router()->populate_connection_pool(param, is_tcp);
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2460,8 +2643,8 @@ TEST_P(ShareConnectionTest,
   cli.set_option(MysqlClient::ConnectAttributeAdd("foo", "bar"));
 
   // connect
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // check that user, schema are what is expected.
   {
@@ -2482,7 +2665,7 @@ SELECT ATTR_NAME, ATTR_VALUE
  ORDER BY ATTR_NAME)");
     ASSERT_NO_ERROR(query_res);
 
-    if (GetParam().client_ssl_mode == kPassthrough) {
+    if (param.client_ssl_mode == kPassthrough) {
       // passthrough does not add _client_ip or _client_port
       EXPECT_THAT(
           *query_res,
@@ -2490,7 +2673,7 @@ SELECT ATTR_NAME, ATTR_VALUE
                               ElementsAre("foo", "bar")}),
                 Not(Contains(ElementsAre("_client_ip", ::testing::_))),
                 Not(Contains(ElementsAre("_client_port", ::testing::_)))));
-    } else if (GetParam().client_ssl_mode == kDisabled) {
+    } else if (param.client_ssl_mode == kDisabled) {
       // DISABLED adds _client_ip|_port, but not _client_ssl_cipher|_version
       EXPECT_THAT(
           *query_res,
@@ -2513,19 +2696,16 @@ SELECT ATTR_NAME, ATTR_VALUE
     }
   }
 
-  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
-                          (GetParam().server_ssl_mode == kRequired ||
-                           GetParam().server_ssl_mode == kPreferred));
-
   // check the user of the client-connection
   auto account = SharedServer::caching_sha2_password_account();
   {
     auto change_user_res =
         cli.change_user(account.username, account.password, "testing");
-    if (expect_success) {
+    if (can_auth(account)) {
       ASSERT_NO_ERROR(change_user_res);
     } else {
       ASSERT_ERROR(change_user_res);
+      return;
     }
   }
 
@@ -2534,7 +2714,7 @@ SELECT ATTR_NAME, ATTR_VALUE
   // - username
   // - schema
   // - connection attributes.
-  if (expect_success) {
+  {
     {
       auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
       ASSERT_NO_ERROR(query_res);
@@ -2551,7 +2731,7 @@ SELECT ATTR_NAME, ATTR_VALUE
 )");
       ASSERT_NO_ERROR(query_res);
 
-      if (GetParam().client_ssl_mode == kPassthrough) {
+      if (param.client_ssl_mode == kPassthrough) {
         // passthrough does not add _client_ip or _client_port
         EXPECT_THAT(
             *query_res,
@@ -2559,7 +2739,7 @@ SELECT ATTR_NAME, ATTR_VALUE
                                 ElementsAre("foo", "bar")}),
                   Not(Contains(ElementsAre("_client_ip", ::testing::_))),
                   Not(Contains(ElementsAre("_client_port", ::testing::_)))));
-      } else if (GetParam().client_ssl_mode == kDisabled) {
+      } else if (param.client_ssl_mode == kDisabled) {
         EXPECT_THAT(*query_res,
                     AllOf(IsSupersetOf({ElementsAre("_client_name", "libmysql"),
                                         ElementsAre("_client_ip", "127.0.0.1"),
@@ -2584,14 +2764,16 @@ SELECT ATTR_NAME, ATTR_VALUE
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_statistics) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   EXPECT_NO_ERROR(cli.stat());
 
@@ -2599,14 +2781,16 @@ TEST_P(ShareConnectionTest, classic_protocol_statistics) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_reset_connection) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   EXPECT_NO_ERROR(cli.reset_connection());
 
@@ -2614,33 +2798,39 @@ TEST_P(ShareConnectionTest, classic_protocol_reset_connection) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_query_no_result) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("DO 1"));
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_query_with_result) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto query_res = cli.query("SELECT * FROM sys.version");
   ASSERT_NO_ERROR(query_res);
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_query_call) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -2648,8 +2838,8 @@ TEST_P(ShareConnectionTest, classic_protocol_query_call) {
   cli.password("");
   //  cli.flags(CLIENT_MULTI_RESULTS);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = cli.query("CALL testing.multiple_results()");
@@ -2672,14 +2862,16 @@ TEST_P(ShareConnectionTest, classic_protocol_query_call) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_query_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.query("DO");
   ASSERT_ERROR(res);
@@ -2688,6 +2880,8 @@ TEST_P(ShareConnectionTest, classic_protocol_query_fail) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_query_load_data_local_infile) {
+  auto [param, is_tcp] = GetParam();
+
   // enable local_infile
   {
     MysqlClient cli;
@@ -2696,7 +2890,7 @@ TEST_P(ShareConnectionTest, classic_protocol_query_load_data_local_infile) {
     cli.password("");
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     {
       auto query_res = cli.query("SET GLOBAL local_infile=1");
@@ -2712,8 +2906,8 @@ TEST_P(ShareConnectionTest, classic_protocol_query_load_data_local_infile) {
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = cli.query("DROP TABLE IF EXISTS testing.t1");
@@ -2740,6 +2934,8 @@ TEST_P(ShareConnectionTest, classic_protocol_query_load_data_local_infile) {
 
 TEST_P(ShareConnectionTest,
        classic_protocol_query_load_data_local_infile_no_server_support) {
+  auto [param, is_tcp] = GetParam();
+
   // enable local_infile
   {
     MysqlClient cli;
@@ -2748,7 +2944,7 @@ TEST_P(ShareConnectionTest,
     cli.password("");
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.query("SET GLOBAL local_infile=0"));
   }
@@ -2761,8 +2957,8 @@ TEST_P(ShareConnectionTest,
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = cli.query("DROP TABLE IF EXISTS testing.t1");
@@ -2788,14 +2984,16 @@ TEST_P(ShareConnectionTest,
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_use_schema_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
@@ -2820,14 +3018,16 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_fail) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_use_schema) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto res = cli.use_schema("sys");
@@ -2843,6 +3043,8 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_initial_schema) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -2850,8 +3052,8 @@ TEST_P(ShareConnectionTest, classic_protocol_initial_schema) {
   cli.password("");
   cli.use_schema("testing");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = query_one_result(cli, "SELECT SCHEMA()");
@@ -2879,10 +3081,11 @@ TEST_P(ShareConnectionTest,
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = query_one_result(cli, "SELECT SCHEMA()");
@@ -2904,9 +3107,7 @@ TEST_P(ShareConnectionTest,
   }
 
   // close all connections to force a new connection.
-  for (auto *admin_cli : admin_clis()) {
-    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
   // check if the new connection has the same schema.
   {
@@ -2927,6 +3128,8 @@ TEST_P(ShareConnectionTest,
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -2934,8 +3137,8 @@ TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail) {
   cli.password("");
   cli.use_schema("does_not_exist");
 
-  auto connect_res =
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+  auto connect_res = cli.connect(shared_router()->host(),
+                                 shared_router()->port(param, is_tcp));
   ASSERT_ERROR(connect_res);
 
   EXPECT_EQ(connect_res.error(),
@@ -2943,7 +3146,9 @@ TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail_with_pool) {
-  shared_router()->populate_connection_pool(GetParam());
+  auto [param, is_tcp] = GetParam();
+
+  shared_router()->populate_connection_pool(param, is_tcp);
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2952,8 +3157,8 @@ TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail_with_pool) {
   cli.password("");
   cli.use_schema("does_not_exist");
 
-  auto connect_res =
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+  auto connect_res = cli.connect(shared_router()->host(),
+                                 shared_router()->port(param, is_tcp));
   ASSERT_ERROR(connect_res);
 
   EXPECT_EQ(connect_res.error(),
@@ -2964,6 +3169,8 @@ TEST_P(ShareConnectionTest, classic_protocol_initial_schema_fail_with_pool) {
  * connect
  */
 TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -2971,10 +3178,10 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // switch to 'sys' at runtime ... and pool
   {
@@ -2993,9 +3200,7 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
   }
 
   // close the pooled server-connection.
-  for (auto *admin_cli : admin_clis()) {
-    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
   {
     auto query_res =
@@ -3020,7 +3225,9 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_use_schema_drop_schema) {
-  shared_router()->populate_connection_pool(GetParam());
+  auto [param, is_tcp] = GetParam();
+
+  shared_router()->populate_connection_pool(param, is_tcp);
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -3028,8 +3235,8 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_drop_schema) {
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("CREATE SCHEMA droppy"));
 
@@ -3047,16 +3254,18 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_drop_schema) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
   // + set_option
 
   // reset, set_option (+ set_option)
@@ -3121,14 +3330,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_uservar) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("SET @my_user_var = 42"));
 
@@ -3141,14 +3352,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_uservar) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_uservar_via_select) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto query_res = query_one_result(cli, "SELECT @my_user_var := 42");
@@ -3169,6 +3382,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_uservar_via_select) {
  * FR6.2: create temp-table fails, sharing not disabled.
  */
 TEST_P(ShareConnectionTest, classic_protocol_temporary_table_fails_can_share) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -3176,10 +3391,10 @@ TEST_P(ShareConnectionTest, classic_protocol_temporary_table_fails_can_share) {
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // should fail
   ASSERT_ERROR(
@@ -3214,14 +3429,16 @@ TEST_P(ShareConnectionTest, classic_protocol_temporary_table_fails_can_share) {
  * FR2.2: SHOW WARNINGS
  */
 TEST_P(ShareConnectionTest, classic_protocol_show_warnings_after_connect) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = query_one_result(cli, "SHOW WARNINGS");
@@ -3235,14 +3452,16 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings_after_connect) {
  * SHOW WARNINGS
  */
 TEST_P(ShareConnectionTest, classic_protocol_show_warnings) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("DO 0/0");
@@ -3307,14 +3526,16 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings) {
  * after a reset-connection the cached warnings should be empty.
  */
 TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_reset) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("DO 0/0,");
@@ -3396,16 +3617,18 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_reset) {
  * after a change-user the cached warnings should be empty.
  */
 TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_change_user) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto account = SharedServer::caching_sha2_empty_password_account();
 
@@ -3526,22 +3749,24 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_change_user) {
  */
 TEST_P(ShareConnectionTest,
        classic_protocol_show_warnings_without_server_connection) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("DO 0/0"));
 
   if (can_share) {
     // if the server-side connection is not stashed away when the
-    // "close_all_connection()" is called, the close of the server-side
+    // "reset_router_connection_pool()" is called, the close of the server-side
     // connection will also close the client-side connection.
     //
     // But for this test, we want the client connection to stay alive when the
@@ -3551,9 +3776,7 @@ TEST_P(ShareConnectionTest,
         shared_router()->wait_for_stashed_server_connections(1, 10s));
   }
 
-  for (auto *admin_cli : admin_clis()) {
-    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
   {
     auto cmd_res = query_one_result(cli, "SHOW WARNINGS");
@@ -3577,14 +3800,16 @@ TEST_P(ShareConnectionTest,
  * SHOW ERRORS
  */
 TEST_P(ShareConnectionTest, classic_protocol_show_errors_after_connect) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = query_one_result(cli, "SHOW ERRORS");
@@ -3598,6 +3823,8 @@ TEST_P(ShareConnectionTest, classic_protocol_show_errors_after_connect) {
  * check 'USE' via COM_QUERY changes schema and doesn't block sharing.
  */
 TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -3606,10 +3833,10 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
   cli.username(account.username);
   cli.password(account.password);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   ASSERT_NO_ERROR(cli.query("USE testing"));
 
@@ -3881,10 +4108,12 @@ class SelectErrorCountChecker : public Checker {
  * check errors and warnings are handled correctly.
  */
 TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
+  auto [param, is_tcp] = GetParam();
+
   TRACE("start");
 
-  const bool can_share = GetParam().can_share();
-  const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
+  const bool can_share = param.can_share();
+  const bool can_fetch_password = !(param.client_ssl_mode == kDisabled);
 
   SCOPED_TRACE("// connecting to server");
 
@@ -3977,9 +4206,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
       SCOPED_TRACE("// close-connection-before verify: " +
                    std::to_string(close_connection_before_verify));
 
-      for (auto *admin_cli : admin_clis()) {
-        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-      }
+      ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
       TRACE("closed all connections");
       SCOPED_TRACE("// close-connection-before verify: " +
@@ -3993,7 +4220,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
       cli.password(account.password);
 
       ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                  shared_router()->port(GetParam())));
+                                  shared_router()->port(param, is_tcp)));
 
       TRACE("connected");
 
@@ -4007,9 +4234,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
       }
 
       if (close_connection_before_verify) {
-        for (auto *admin_cli : admin_clis()) {
-          ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
-        }
+        ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
       }
 
       if (can_share && can_fetch_password) {
@@ -4025,14 +4250,16 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
  * quoted warning-count: SELECT @@`warning_count`;
  */
 TEST_P(ShareConnectionTest, classic_protocol_select_warning_count_quoted) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("DO");  // syntax error
@@ -4055,14 +4282,16 @@ TEST_P(ShareConnectionTest, classic_protocol_select_warning_count_quoted) {
  * quoted error-count: SELECT @@`error_count`;
  */
 TEST_P(ShareConnectionTest, classic_protocol_select_error_count_quoted) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("DO");  // syntax error
@@ -4085,16 +4314,18 @@ TEST_P(ShareConnectionTest, classic_protocol_select_error_count_quoted) {
  * FRx.x: disabling session-trackers fails.
  */
 TEST_P(ShareConnectionTest, classic_protocol_set_session_trackers) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   std::vector<std::string> set_stmts{
       "Set session_track_gtids = OFF",
@@ -4150,16 +4381,18 @@ TEST_P(ShareConnectionTest, classic_protocol_set_session_trackers) {
  * FR3.5: SET NAMES should work with connnection-sharing.
  */
 TEST_P(ShareConnectionTest, classic_protocol_set_names) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // set-trackers,
   // select,
@@ -4204,16 +4437,18 @@ TEST_P(ShareConnectionTest, classic_protocol_set_names) {
  * FR5.2: LOCK TABLES
  */
 TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
   // set-trackers
 
   {
@@ -4295,16 +4530,18 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
  * FR6.1: GET_LOCK(), no-share until reset
  */
 TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   ASSERT_NO_ERROR(cli.query("DO GET_LOCK('abc', 0)"));
 
@@ -4360,6 +4597,8 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
  * when called outside a transaction.
  */
 TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4367,10 +4606,10 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("START TRANSACTION");
@@ -4450,6 +4689,8 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
  * FR6.1: SERVICE_GET_WRITE_LOCKS(), no-share until reset
  */
 TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4457,10 +4698,10 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("DO SERVICE_GET_WRITE_LOCKS('ns', 'lock1', 0)");
@@ -4545,6 +4786,8 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
  */
 TEST_P(ShareConnectionTest,
        classic_protocol_service_get_write_locks_in_transaction) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4552,10 +4795,10 @@ TEST_P(ShareConnectionTest,
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = cli.query("START TRANSACTION");
@@ -4662,6 +4905,8 @@ TEST_P(ShareConnectionTest,
  * FR6.1: SERVICE_GET_READ_LOCKS(), no-share until reset
  */
 TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4669,11 +4914,11 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connect");
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// check if connection is available for sharing");
   {
@@ -4764,6 +5009,8 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
  */
 TEST_P(ShareConnectionTest,
        classic_protocol_service_get_read_locks_in_transaction) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4771,11 +5018,11 @@ TEST_P(ShareConnectionTest,
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connect");
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// check if connection is available for sharing");
   {
@@ -4883,6 +5130,8 @@ TEST_P(ShareConnectionTest,
  * FR6.1: VERSION_TOKENS_LOCK_SHARED(), no-share until reset
  */
 TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4891,10 +5140,10 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
   cli.use_schema("testing");
 
   SCOPED_TRACE("// connect");
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// check if connection is available for sharing");
   {
@@ -4970,6 +5219,8 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
  * FR6.1: VERSION_TOKENS_LOCK_EXCLUSIVE(), no-share until reset
  */
 TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -4977,11 +5228,11 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
   cli.password("");
   cli.use_schema("testing");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connect");
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// check if connection is available for sharing");
   {
@@ -5055,17 +5306,19 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_prepare_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connect");
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// check if connection is available for sharing");
   {
@@ -5107,16 +5360,18 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_fail) {
  * FR6.3: successful prepared statement: disable sharing until reset-connection
  */
 TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5184,7 +5439,9 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_fetch) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -5192,8 +5449,8 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_fetch) {
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5255,14 +5512,16 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_fetch) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_prepare_append_data_execute) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5345,14 +5604,16 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_append_data_execute) {
 
 TEST_P(ShareConnectionTest,
        classic_protocol_prepare_append_data_reset_execute) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5444,16 +5705,18 @@ TEST_P(ShareConnectionTest,
  * stmt-execute -> ok
  */
 TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("DO ?");
   ASSERT_NO_ERROR(res);
@@ -5526,16 +5789,18 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
  * stmt-execute -> stored-procedure
  */
 TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("CALL testing.multiple_results()");
   ASSERT_NO_ERROR(res);
@@ -5614,6 +5879,8 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
  * COM_STMT_RESET fails for unknown stmt-ids
  */
 TEST_P(ShareConnectionTest, classic_protocol_stmt_reset_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -5623,9 +5890,9 @@ TEST_P(ShareConnectionTest, classic_protocol_stmt_reset_fail) {
   // disable SSL as raw packets will be sent.
   cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
 
-  auto connect_res =
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto connect_res = cli.connect(shared_router()->host(),
+                                 shared_router()->port(param, is_tcp));
+  if (param.client_ssl_mode == kRequired) {
     ASSERT_ERROR(connect_res);
     GTEST_SKIP() << connect_res.error();
   }
@@ -5682,6 +5949,8 @@ TEST_P(ShareConnectionTest, classic_protocol_stmt_reset_fail) {
  * com-register-replica -> error
  */
 TEST_P(ShareConnectionTest, classic_protocol_register_replica_fail) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -5693,9 +5962,9 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_fail) {
   cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
 
   {
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kRequired) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kRequired) {
       ASSERT_ERROR(connect_res);
       GTEST_SKIP() << connect_res.error();
     }
@@ -5750,6 +6019,8 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_fail) {
  * com-register-replica -> no-connection
  */
 TEST_P(ShareConnectionTest, classic_protocol_register_replica_no_connection) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -5761,9 +6032,9 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_no_connection) {
   cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
 
   {
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kRequired) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kRequired) {
       ASSERT_ERROR(connect_res);
       GTEST_SKIP() << connect_res.error();
     }
@@ -5816,6 +6087,8 @@ TEST_P(ShareConnectionTest, classic_protocol_register_replica_no_connection) {
  * com-set-option -> no-connection
  */
 TEST_P(ShareConnectionTest, classic_protocol_set_option_no_connection) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -5826,9 +6099,9 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_no_connection) {
   // disable SSL as raw packets will be sent.
   cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
   {
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kRequired) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kRequired) {
       ASSERT_ERROR(connect_res);
       GTEST_SKIP() << connect_res.error();
     }
@@ -5879,14 +6152,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_no_connection) {
 
 TEST_P(ShareConnectionTest,
        classic_protocol_prepare_execute_missing_bind_param) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5902,14 +6177,16 @@ TEST_P(ShareConnectionTest,
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_prepare_reset) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
@@ -5920,13 +6197,15 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_reset) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_option) {
+  auto [param, is_tcp] = GetParam();
+
   RecordProperty("Description",
                  "check if enabling multi-statement at runtime is handled "
                  "and sharing is allowed.");
 
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -5934,8 +6213,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   if (can_share) {
     ASSERT_NO_ERROR(
@@ -5998,10 +6277,12 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
                  "check if the multi-statement flag is handled at handshake "
                  "when sharing is allowed.");
 
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// ensure the pool is empty");
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
-  const bool can_share = GetParam().can_share();
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -6010,8 +6291,8 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
   cli.password("");
   cli.flags(CLIENT_MULTI_STATEMENTS);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   if (can_share) {
     ASSERT_NO_ERROR(
@@ -6080,14 +6361,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_option_fails) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res =
@@ -6099,14 +6382,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_fails) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_binlog_dump) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // source_binlog_checksum needs to be set to what the server is, otherwise it
   // will fail at binlog_dump();
@@ -6144,14 +6429,16 @@ TEST_P(ShareConnectionTest, classic_protocol_binlog_dump) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_fail_no_checksum) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
   {
     MYSQL_RPL rpl{};
 
@@ -6192,14 +6479,16 @@ TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_fail_no_checksum) {
  * no sharing.
  */
 TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_gtid) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // source_binlog_checksum needs to be set to what the server is, otherwise it
   // will fail at binlog_dump();
@@ -6237,14 +6526,16 @@ TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_gtid) {
 // will fail at binlog_dump();
 TEST_P(ShareConnectionTest,
        classic_protocol_binlog_dump_gtid_fail_no_checksum) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     MYSQL_RPL rpl{};
@@ -6282,14 +6573,16 @@ TEST_P(ShareConnectionTest,
 
 TEST_P(ShareConnectionTest,
        classic_protocol_binlog_dump_gtid_fail_wrong_position) {
+  auto [param, is_tcp] = GetParam();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   MYSQL_RPL rpl{};
 
@@ -6327,9 +6620,9 @@ TEST_P(ShareConnectionTest,
 //
 
 TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
-  }
+  auto [param, is_tcp] = GetParam();
+
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   auto account = SharedServer::caching_sha2_password_account();
 
@@ -6343,9 +6636,9 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kDisabled) {
       // the client side is not encrypted, but caching-sha2 wants SSL.
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
@@ -6363,11 +6656,11 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
     cli.username(username);
     cli.password(wrong_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
 
-    if (GetParam().client_ssl_mode == kDisabled) {
+    if (param.client_ssl_mode == kDisabled) {
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
       // Authentication plugin 'caching_sha2_password' reported error:
       // Authentication requires secure connection.
@@ -6384,8 +6677,8 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
     cli.username(username);
     cli.password(empty_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
     EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
     // "Access denied for user ..."
@@ -6393,9 +6686,9 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
-  }
+  auto [param, is_tcp] = GetParam();
+
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   auto account = SharedServer::caching_sha2_empty_password_account();
 
@@ -6407,7 +6700,7 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
     cli.password(account.password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
   }
 
   {
@@ -6417,10 +6710,10 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
     cli.username(account.username);
     cli.password(wrong_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
-    if (GetParam().client_ssl_mode == kDisabled) {
+    if (param.client_ssl_mode == kDisabled) {
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
       // Authentication plugin 'caching_sha2_password' reported error:
       // Authentication requires secure connection.
@@ -6439,7 +6732,7 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
     cli.password(account.password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
   }
 }
 
@@ -6455,13 +6748,13 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
  */
 TEST_P(ShareConnectionTest,
        classic_protocol_caching_sha2_over_plaintext_with_pass) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   auto account = SharedServer::caching_sha2_single_use_password_account();
 
@@ -6487,8 +6780,8 @@ TEST_P(ShareConnectionTest,
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
     EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
     // Authentication plugin 'caching_sha2_password' reported error:
@@ -6504,9 +6797,9 @@ TEST_P(ShareConnectionTest,
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (param.client_ssl_mode == kDisabled) {
       // the client side is not encrypted, but caching-sha2 wants SSL.
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
@@ -6520,7 +6813,7 @@ TEST_P(ShareConnectionTest,
   SCOPED_TRACE(
       "// caching sha2 password over plain connection should succeed after one "
       "successful auth");
-  if (GetParam().client_ssl_mode != kDisabled) {
+  if (param.client_ssl_mode != kDisabled) {
     MysqlClient cli;
     cli.set_option(MysqlClient::SslMode(SSL_MODE_PREFERRED));
 
@@ -6528,7 +6821,7 @@ TEST_P(ShareConnectionTest,
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
   }
 }
 
@@ -6537,6 +6830,8 @@ TEST_P(ShareConnectionTest,
 //
 
 TEST_P(ShareConnectionTest, classic_protocol_sha256_password_no_pass) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::sha256_empty_password_account();
 
   std::string username(account.username);
@@ -6550,7 +6845,7 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_no_pass) {
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
   }
 
   {
@@ -6560,8 +6855,8 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_no_pass) {
     cli.username(username);
     cli.password(wrong_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
     EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
     // "Access denied for user ..."
@@ -6576,11 +6871,13 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_no_pass) {
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
   }
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::sha256_password_account();
 
   std::string username(account.username);
@@ -6593,11 +6890,9 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kPreferred ||
-         GetParam().server_ssl_mode == kRequired)) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (!can_auth(account)) {
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
       // Access denied for user '...'@'localhost' (using password: YES)
@@ -6613,8 +6908,8 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
     cli.username(username);
     cli.password(wrong_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
 
     EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
@@ -6628,8 +6923,8 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
     cli.username(username);
     cli.password(empty_password_);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     ASSERT_ERROR(connect_res);
     EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
     // "Access denied for user ..."
@@ -6643,11 +6938,9 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kPreferred ||
-         GetParam().server_ssl_mode == kRequired)) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (!can_auth(account)) {
       ASSERT_ERROR(connect_res);
       EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
       // Access denied for user '...'@'localhost' (using password: YES)
@@ -6662,24 +6955,11 @@ TEST_P(ShareConnectionTest, classic_protocol_sha256_password_with_pass) {
  */
 TEST_P(ShareConnectionTest,
        classic_protocol_sha256_password_over_plaintext_with_get_server_key) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
-
-  bool expect_success =
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
-      (GetParam().client_ssl_mode == kDisabled &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient)) ||
-      (GetParam().client_ssl_mode == kPassthrough) ||
-      (GetParam().client_ssl_mode == kPreferred &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient));
-#else
-      !(GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kRequired ||
-         GetParam().server_ssl_mode == kPreferred));
-#endif
 
   auto account = SharedServer::sha256_password_account();
 
@@ -6695,20 +6975,21 @@ TEST_P(ShareConnectionTest,
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (!expect_success) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (!can_auth(account)) {
       // server will treat the public-key-request as wrong password.
       ASSERT_ERROR(connect_res);
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-
-      ASSERT_NO_ERROR(cli.ping());
+      return;
     }
+
+    ASSERT_NO_ERROR(connect_res);
+
+    ASSERT_NO_ERROR(cli.ping());
   }
 
   SCOPED_TRACE("// reuse");
-  if (expect_success) {
+  {
     MysqlClient cli;
     cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
     cli.set_option(MysqlClient::GetServerPublicKey(true));
@@ -6717,7 +6998,7 @@ TEST_P(ShareConnectionTest,
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -6732,7 +7013,9 @@ TEST_P(ShareConnectionTest,
 TEST_P(
     ShareConnectionTest,
     classic_protocol_sha256_password_empty_over_plaintext_with_get_server_key) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
@@ -6751,7 +7034,7 @@ TEST_P(
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -6766,7 +7049,7 @@ TEST_P(
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -6778,32 +7061,13 @@ TEST_P(
 TEST_P(
     ShareConnectionTest,
     classic_protocol_caching_sha2_password_over_plaintext_with_get_server_key) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
-  }
-
-  bool expect_success =
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
-      // DISABLED/DISABLED will get the public-key from the server.
-      //
-      // other modes that should fail, will fail as the router can't get the
-      // public-key from the ssl-certs in openssl 1.0.1
-      (GetParam().client_ssl_mode == kDisabled &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient)) ||
-      (GetParam().client_ssl_mode == kPassthrough) ||
-      (GetParam().client_ssl_mode == kPreferred &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient));
-#else
-      !(GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kRequired ||
-         GetParam().server_ssl_mode == kPreferred));
-#endif
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   auto account = SharedServer::caching_sha2_password_account();
 
@@ -6827,9 +7091,9 @@ TEST_P(
     // works if the auth is using the "cached" part (a earlier successful auth
     // happened)
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (!expect_success) {
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
+    if (!can_auth(account, false)) {
       // - client will request a public-key
       // - router has no public key as "client_ssl_mode = DISABLED"
       // - client will ask for server's public-key but the server will treat
@@ -6843,13 +7107,13 @@ TEST_P(
   }
 
   SCOPED_TRACE("// populate the auth-cache on the server");
-  for (const auto &s : shared_servers()) {
+  for (const auto &srv : shared_servers()) {
     MysqlClient cli;
 
     cli.username(username);
     cli.password(password);
 
-    ASSERT_NO_ERROR(cli.connect(s->server_host(), s->server_port()));
+    ASSERT_NO_ERROR(cli_connect(cli, srv->classic_tcp_destination()));
   }
 
   SCOPED_TRACE("// reuse");
@@ -6862,7 +7126,7 @@ TEST_P(
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -6874,36 +7138,19 @@ TEST_P(
 TEST_P(
     ShareConnectionTest,
     classic_protocol_caching_sha2_password_over_plaintext_with_get_server_key_with_pool) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
-  shared_router()->populate_connection_pool(GetParam());
-
-  bool expect_success =
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
-      // DISABLED/DISABLED will get the public-key from the server.
-      //
-      // other modes that should fail, will fail as the router can't get the
-      // public-key from the ssl-certs in openssl 1.0.1
-      (GetParam().client_ssl_mode == kDisabled &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient)) ||
-      (GetParam().client_ssl_mode == kPassthrough) ||
-      (GetParam().client_ssl_mode == kPreferred &&
-       (GetParam().server_ssl_mode == kDisabled ||
-        GetParam().server_ssl_mode == kAsClient));
-#else
-      !(GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kRequired ||
-         GetParam().server_ssl_mode == kPreferred));
-#endif
+  shared_router()->populate_connection_pool(param, is_tcp);
 
   auto account = SharedServer::caching_sha2_password_account();
+
+  bool expect_success = can_auth(account, false);
 
   std::string username(account.username);
   std::string password(account.password);
@@ -6925,13 +7172,9 @@ TEST_P(
     // works if the auth is using the "cached" part (a earlier successful auth
     // happened)
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     if (!expect_success) {
-      // - client will request a public-key
-      // - router has no public key as "client_ssl_mode = DISABLED"
-      // - client will ask for server's public-key but the server will treat the
-      // request as "password is 0x02" and fail.
       ASSERT_ERROR(connect_res);
     } else {
       ASSERT_NO_ERROR(connect_res);
@@ -6949,8 +7192,8 @@ TEST_P(
     cli.username(username);
     cli.password(password);
 
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    auto connect_res = cli.connect(shared_router()->host(),
+                                   shared_router()->port(param, is_tcp));
     if (!expect_success) {
       ASSERT_ERROR(connect_res);
     } else {
@@ -6967,7 +7210,9 @@ TEST_P(
 TEST_P(
     ShareConnectionTest,
     classic_protocol_caching_sha2_password_empty_over_plaintext_with_get_server_key) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
@@ -6986,7 +7231,7 @@ TEST_P(
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -7001,7 +7246,7 @@ TEST_P(
     cli.password(password);
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
+                                shared_router()->port(param, is_tcp)));
 
     ASSERT_NO_ERROR(cli.ping());
   }
@@ -7013,7 +7258,9 @@ TEST_P(
  * after a unknown command a error packet should be returned.
  */
 TEST_P(ShareConnectionTest, classic_protocol_unknown_command) {
-  if (GetParam().client_ssl_mode == kRequired) {
+  auto [param, is_tcp] = GetParam();
+
+  if (param.client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
@@ -7027,8 +7274,8 @@ TEST_P(ShareConnectionTest, classic_protocol_unknown_command) {
   cli.username("root");
   cli.password("");
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   SCOPED_TRACE("// send an invalid command");
   {
@@ -7071,6 +7318,8 @@ TEST_P(ShareConnectionTest, classic_protocol_unknown_command) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
+  auto [param, is_tcp] = GetParam();
+
   MysqlClient cli;
 
   auto account = SharedServer::caching_sha2_empty_password_account();
@@ -7080,8 +7329,8 @@ TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
 
   cli.set_option(MysqlClient::CharsetName("latin1"));
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   {
     auto cmd_res = query_one_result(
@@ -7094,6 +7343,8 @@ TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
 }
 
 TEST_P(ShareConnectionTest, php_caching_sha2_password_empty_pass) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::caching_sha2_empty_password_account();
 
   auto php = find_executable_path("php");
@@ -7105,31 +7356,33 @@ TEST_P(ShareConnectionTest, php_caching_sha2_password_empty_pass) {
           .spawn({
               "-f",
               get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
+              shared_router()->host(),                               //
+              std::to_string(shared_router()->port(param, is_tcp)),  //
               account.username,
               account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
+              std::to_string(param.client_ssl_mode == kRequired),
+              std::to_string(param.can_share()),
           });
 
   proc.wait_for_exit();
 }
 
 TEST_P(ShareConnectionTest, php_caching_sha2_password_pass) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::caching_sha2_password_account();
 
-  if (GetParam().client_ssl_mode == kDisabled &&
-      (GetParam().server_ssl_mode == kRequired ||
-       GetParam().server_ssl_mode == kPreferred)) {
+  if (is_tcp ? param.client_ssl_mode == kDisabled &&
+                   (param.server_ssl_mode == kRequired ||
+                    param.server_ssl_mode == kPreferred)
+             : (param.client_ssl_mode == kDisabled ||
+                param.client_ssl_mode == kPassthrough)) {
     // skip it as it is expected to fail to auth.
-    return;
+    GTEST_SKIP();
   }
 
   // clean the shared privileges to force a full auth.
-  for (const auto &srv : shared_servers()) {
-    srv->flush_privileges();
-  }
+  ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
 
   auto php = find_executable_path("php");
   if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
@@ -7140,18 +7393,20 @@ TEST_P(ShareConnectionTest, php_caching_sha2_password_pass) {
           .spawn({
               "-f",
               get_data_dir().join("routing_sharing_php_query.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
+              shared_router()->host(),                               //
+              std::to_string(shared_router()->port(param, is_tcp)),  //
               account.username,
               account.password,
-              std::to_string(GetParam().client_ssl_mode == kRequired),
-              std::to_string(GetParam().can_share()),
+              std::to_string(param.client_ssl_mode == kRequired),
+              std::to_string(param.can_share()),
           });
 
   proc.wait_for_exit();
 }
 
 TEST_P(ShareConnectionTest, php_prepared_statement) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::caching_sha2_empty_password_account();
 
   auto php = find_executable_path("php");
@@ -7164,18 +7419,20 @@ TEST_P(ShareConnectionTest, php_prepared_statement) {
                        get_data_dir()
                            .join("routing_sharing_php_prepared_statement.php")
                            .str(),
-                       shared_router()->host(),                            //
-                       std::to_string(shared_router()->port(GetParam())),  //
+                       shared_router()->host(),                               //
+                       std::to_string(shared_router()->port(param, is_tcp)),  //
                        account.username,
                        account.password,
-                       std::to_string(GetParam().client_ssl_mode != kDisabled),
-                       std::to_string(GetParam().can_share()),
+                       std::to_string(param.client_ssl_mode != kDisabled),
+                       std::to_string(param.can_share()),
                    });
 
   proc.wait_for_exit();
 }
 
 TEST_P(ShareConnectionTest, php_all_commands) {
+  auto [param, is_tcp] = GetParam();
+
   auto account = SharedServer::admin_account();
 
   auto php = find_executable_path("php");
@@ -7187,12 +7444,12 @@ TEST_P(ShareConnectionTest, php_all_commands) {
           .spawn({
               "-f",
               get_data_dir().join("routing_sharing_php_all_commands.php").str(),
-              shared_router()->host(),                            //
-              std::to_string(shared_router()->port(GetParam())),  //
+              shared_router()->host(),                               //
+              std::to_string(shared_router()->port(param, is_tcp)),  //
               account.username,
               account.password,
-              std::to_string(GetParam().client_ssl_mode != kDisabled),
-              std::to_string(GetParam().can_share()),
+              std::to_string(param.client_ssl_mode != kDisabled),
+              std::to_string(param.can_share()),
           });
 
   proc.wait_for_exit();
@@ -7203,6 +7460,8 @@ TEST_P(ShareConnectionTest, select_overlong) {
       "Description",
       "Check if overlong statements are properly tokenized and forwarded.");
 
+  auto [param, is_tcp] = GetParam();
+
   MysqlClient cli;
 
   auto account = SharedServer::caching_sha2_empty_password_account();
@@ -7210,8 +7469,8 @@ TEST_P(ShareConnectionTest, select_overlong) {
   cli.username(account.username);
   cli.password(account.password);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   // send a statement that's longer than 16Mbyte which spans multiple protocol
   // frames.
@@ -7233,6 +7492,8 @@ TEST_P(ShareConnectionTest, aborted_lexing) {
                  "Check that lexing a statement with a non-closed comment "
                  "fails properly.");
 
+  auto [param, is_tcp] = GetParam();
+
   MysqlClient cli;
 
   auto account = SharedServer::caching_sha2_empty_password_account();
@@ -7240,8 +7501,8 @@ TEST_P(ShareConnectionTest, aborted_lexing) {
   cli.username(account.username);
   cli.password(account.password);
 
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                              shared_router()->port(param, is_tcp)));
 
   auto query_res = cli.query("DO 1 /*");
   ASSERT_ERROR(query_res);
@@ -7250,36 +7511,48 @@ TEST_P(ShareConnectionTest, aborted_lexing) {
   EXPECT_EQ(query_res.error().value(), 1064) << query_res.error();
 }
 
-INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
-                         ::testing::ValuesIn(share_connection_params),
-                         [](auto &info) {
-                           return "ssl_modes_" + info.param.testname;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ShareConnectionTest,
+    ::testing::Combine(::testing::ValuesIn(share_connection_params),
+                       ::testing::ValuesIn(is_tcp_values)),
+    [](const auto &info) {
+      auto param = std::get<0>(info.param);
+      auto is_tcp = std::get<1>(info.param);
+
+      return "ssl_modes_" + param.testname + (is_tcp ? "_tcp" : "_socket");
+    });
 
 class ShareConnectionReconnectTest
     : public ShareConnectionTestBase,
-      public ::testing::WithParamInterface<ShareConnectionParam> {
+      public ::testing::WithParamInterface<
+          std::tuple<ShareConnectionParam, bool>> {
  public:
   void SetUp() override {
+    auto [param, is_tcp] = GetParam();
+#ifdef _WIN32
+    if (!is_tcp) {
+      GTEST_SKIP() << "unix-sockets are not supported on windows.";
+    }
+#endif
+
     SharedServer::Account account{
         "onetime",
         "",  // no password.
         "caching_sha2_password",
     };
 
-    for (auto *srv : shared_servers()) {
-      auto cli_res = srv->admin_cli();
-      ASSERT_NO_ERROR(cli_res);
+    for (auto *cli : admin_clis()) {
+      ASSERT_NO_ERROR(cli->query("DROP USER IF EXISTS " + account.username));
 
-      auto cli = std::move(*cli_res);
-
-      ASSERT_NO_ERROR(cli.query("DROP USER IF EXISTS " + account.username));
-
-      SharedServer::create_account(cli, account);
-      SharedServer::grant_access(cli, account, "SELECT", "testing");
+      SharedServer::create_account(*cli, account);
+      SharedServer::grant_access(*cli, account, "SELECT", "testing");
     }
 
-    const bool can_share = GetParam().can_share();
+    // ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
+    // ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0,
+    // 10s));
+
+    const bool can_share = param.can_share();
 
     for (auto [ndx, cli] : stdx::views::enumerate(clis_)) {
       SCOPED_TRACE("// connection [" + std::to_string(ndx) + "]");
@@ -7289,7 +7562,7 @@ class ShareConnectionReconnectTest
       cli.set_option(MysqlClient::GetServerPublicKey(true));
 
       ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                  shared_router()->port(GetParam())));
+                                  shared_router()->port(param, is_tcp)));
 
       // wait until the connection is in the pool.
       if (can_share) {
@@ -7302,19 +7575,17 @@ class ShareConnectionReconnectTest
 
     SCOPED_TRACE(
         "// change the password of the 'onetime' user to force a reauth fail.");
-    for (auto *srv : shared_servers()) {
-      auto cli_res = srv->admin_cli();
-      ASSERT_NO_ERROR(cli_res);
-
-      auto cli = std::move(*cli_res);
-
-      ASSERT_NO_ERROR(cli.query("ALTER USER " + account.username +
-                                " IDENTIFIED BY 'someotherpass'"));
+    for (auto *cli : admin_clis()) {
+      ASSERT_NO_ERROR(cli->query("ALTER USER " + account.username +
+                                 " IDENTIFIED BY 'someotherpass'"));
     }
   }
 
   void TearDown() override {
     for (auto &cli : clis_) cli.close();
+
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
   }
 
  protected:
@@ -7323,7 +7594,9 @@ class ShareConnectionReconnectTest
 };
 
 TEST_P(ShareConnectionReconnectTest, ping) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7340,7 +7613,9 @@ TEST_P(ShareConnectionReconnectTest, ping) {
 }
 
 TEST_P(ShareConnectionReconnectTest, query) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7357,7 +7632,9 @@ TEST_P(ShareConnectionReconnectTest, query) {
 }
 
 TEST_P(ShareConnectionReconnectTest, list_schema) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7374,7 +7651,9 @@ TEST_P(ShareConnectionReconnectTest, list_schema) {
 }
 
 TEST_P(ShareConnectionReconnectTest, stat) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7392,7 +7671,9 @@ TEST_P(ShareConnectionReconnectTest, stat) {
 }
 
 TEST_P(ShareConnectionReconnectTest, init_schema) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7409,7 +7690,9 @@ TEST_P(ShareConnectionReconnectTest, init_schema) {
 }
 
 TEST_P(ShareConnectionReconnectTest, reset_connection) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7426,7 +7709,9 @@ TEST_P(ShareConnectionReconnectTest, reset_connection) {
 }
 
 TEST_P(ShareConnectionReconnectTest, prepare_stmt) {
-  const bool can_share = GetParam().can_share();
+  auto [param, is_tcp] = GetParam();
+
+  const bool can_share = param.can_share();
 
   SCOPED_TRACE("// check if a changed password has handled properly.");
 
@@ -7443,15 +7728,17 @@ TEST_P(ShareConnectionReconnectTest, prepare_stmt) {
 }
 
 TEST_P(ShareConnectionReconnectTest, change_user) {
-  SCOPED_TRACE("// check if a changed password has handled properly.");
+  auto [param, is_tcp] = GetParam();
+
+  SCOPED_TRACE("// check if a change_user has handled properly.");
 
   auto &cli = clis_[0];
   const auto cmd_res = cli.change_user("onetime", "someotherpass", "");
-  if (GetParam().client_ssl_mode == kDisabled &&
-      (GetParam().server_ssl_mode == kRequired ||
-       GetParam().server_ssl_mode == kPreferred)) {
+  if (param.client_ssl_mode == kDisabled &&
+      (param.server_ssl_mode == kRequired ||
+       param.server_ssl_mode == kPreferred || !is_tcp)) {
     // caching-sha2-password needs a secure-channel on the client side too if
-    // the server side is secure (Required/Preferred)
+    // the server side is secure (Required/Preferred/unix-socket)
     ASSERT_ERROR(cmd_res);
     EXPECT_EQ(cmd_res.error().value(), 1045) << cmd_res.error();
     EXPECT_THAT(cmd_res.error().message(),
@@ -7461,11 +7748,16 @@ TEST_P(ShareConnectionReconnectTest, change_user) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionReconnectTest,
-                         ::testing::ValuesIn(share_connection_params),
-                         [](auto &info) {
-                           return "ssl_modes_" + info.param.testname;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ShareConnectionReconnectTest,
+    ::testing::Combine(::testing::ValuesIn(share_connection_params),
+                       ::testing::ValuesIn(is_tcp_values)),
+    [](auto &info) {
+      auto param = std::get<0>(info.param);
+      auto is_tcp = std::get<1>(info.param);
+
+      return "ssl_modes_" + param.testname + (is_tcp ? "_tcp" : "_socket");
+    });
 
 struct ChangeUserParam {
   std::string scenario;
@@ -7506,9 +7798,17 @@ static const ChangeUserParam change_user_params[] = {
 class ChangeUserTest
     : public ShareConnectionTestBase,
       public ::testing::WithParamInterface<std::tuple<
-          bool, ShareConnectionParam, ChangeUserParam, std::string>> {
+          bool, bool, ShareConnectionParam, ChangeUserParam, std::string>> {
  public:
   void SetUp() override {
+#ifdef _WIN32
+    auto is_tcp = std::get<1>(GetParam());
+
+    if (!is_tcp) {
+      GTEST_SKIP() << "unix-sockets are not supported on windows.";
+    }
+#endif
+
     for (auto &s : shared_servers()) {
       if (s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "mysql-server failed to start.";
@@ -7521,9 +7821,18 @@ class ChangeUserTest
     ShareConnectionTestBase::TearDownTestSuite();
   }
 
+  static bool can_auth(const SharedServer::Account &account) {
+    auto [client_is_secure, is_tcp, connect_param, test_param, schema] =
+        GetParam();
+
+    return ShareConnectionTestBase::can_auth(account, connect_param, is_tcp,
+                                             client_is_secure);
+  }
+
  protected:
   static std::unique_ptr<MysqlClient> cli_;
   static bool last_with_ssl_;
+  static bool last_is_tcp_;
   static ShareConnectionParam last_connect_param_;
   static int expected_change_user_;
   static int expected_reset_connection_;
@@ -7533,6 +7842,7 @@ class ChangeUserTest
 
 std::unique_ptr<MysqlClient> ChangeUserTest::cli_{};
 bool ChangeUserTest::last_with_ssl_{};
+bool ChangeUserTest::last_is_tcp_{};
 ShareConnectionParam ChangeUserTest::last_connect_param_{};
 int ChangeUserTest::expected_change_user_{0};
 int ChangeUserTest::expected_reset_connection_{0};
@@ -7540,7 +7850,7 @@ int ChangeUserTest::expected_select_{0};
 int ChangeUserTest::expected_set_option_{0};
 
 TEST_P(ChangeUserTest, classic_protocol) {
-  auto [with_ssl, connect_param, test_param, schema] = GetParam();
+  auto [with_ssl, is_tcp, connect_param, test_param, schema] = GetParam();
 
   auto [name, account, expect_success_func] = test_param;
 
@@ -7565,15 +7875,14 @@ TEST_P(ChangeUserTest, classic_protocol) {
   if (cli_ &&
       (with_ssl != last_with_ssl_ ||
        last_connect_param_.client_ssl_mode != connect_param.client_ssl_mode ||
-       last_connect_param_.server_ssl_mode != connect_param.server_ssl_mode)) {
+       last_connect_param_.server_ssl_mode != connect_param.server_ssl_mode ||
+       is_tcp != last_is_tcp_)) {
     cli_.reset();
   }
 
   if (!cli_) {
     // flush the pool to ensure the test can for "wait_for_pooled_connection(1)"
-    for (auto &srv : shared_servers()) {
-      srv->close_all_connections();  // reset the router's connection-pool
-    }
+    ASSERT_NO_FATAL_FAILURE(reset_router_connection_pool());
 
     ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
@@ -7587,9 +7896,10 @@ TEST_P(ChangeUserTest, classic_protocol) {
     cli_->password("");
     last_with_ssl_ = with_ssl;
     last_connect_param_ = connect_param;
+    last_is_tcp_ = is_tcp;
 
-    ASSERT_NO_ERROR(cli_->connect(shared_router()->host(),
-                                  shared_router()->port(connect_param)));
+    ASSERT_NO_ERROR(cli_->connect(
+        shared_router()->host(), shared_router()->port(connect_param, is_tcp)));
 
     expected_reset_connection_ = 0;
     expected_select_ = 0;
@@ -7603,9 +7913,7 @@ TEST_P(ChangeUserTest, classic_protocol) {
   }
 
   if (account.auth_method == "caching_sha2_password") {
-    for (auto &srv : shared_servers()) {
-      srv->flush_privileges();
-    }
+    ASSERT_NO_FATAL_FAILURE(reset_caching_sha2_cache());
   }
 
   {
@@ -7620,15 +7928,7 @@ TEST_P(ChangeUserTest, classic_protocol) {
       }
     }
 
-    if (!account.password.empty() &&
-        (account.auth_method == "caching_sha2_password" ||
-         account.auth_method == "sha256_password") &&
-        connect_param.client_ssl_mode == kDisabled &&
-        (connect_param.server_ssl_mode == kPreferred ||
-         connect_param.server_ssl_mode == kRequired)) {
-      // client will ask for the public-key, but router doesn't have a
-      // public key (as client_ssl_mode is DISABLED and server is SSL and
-      // therefore doesn't have public-key either).
+    if (!can_auth(account)) {
       ASSERT_ERROR(cmd_res);
 
       cli_.reset();
@@ -7758,15 +8058,16 @@ TEST_P(ChangeUserTest, classic_protocol) {
 
 INSTANTIATE_TEST_SUITE_P(
     Spec, ChangeUserTest,
-    ::testing::Combine(::testing::Bool(),
+    ::testing::Combine(::testing::Bool(), ::testing::ValuesIn(is_tcp_values),
                        ::testing::ValuesIn(share_connection_params),
                        ::testing::ValuesIn(change_user_params),
                        ::testing::Values("", "testing")),
     [](auto &info) {
-      auto schema = std::get<3>(info.param);
+      auto schema = std::get<4>(info.param);
       return "with" + std::string(std::get<0>(info.param) ? "" : "out") +
-             "_ssl__via_" + std::get<1>(info.param).testname + "_" +
-             std::get<2>(info.param).scenario +
+             "_ssl_via_" + std::get<2>(info.param).testname + "_over" +
+             (std::get<1>(info.param) ? "_tcp_" : "_socket_") +
+             std::get<3>(info.param).scenario +
              (schema.empty() ? "_without_schema"s : ("_with_schema_" + schema));
     });
 
@@ -7930,7 +8231,7 @@ struct StatementSharableParam {
 class StatementSharableTest
     : public ShareConnectionTestBase,
       public ::testing::WithParamInterface<
-          std::tuple<StatementSharableParam, ShareConnectionParam>> {
+          std::tuple<StatementSharableParam, ShareConnectionParam, bool>> {
  public:
   static void SetUpTestSuite() {
     ShareConnectionTestBase::SetUpTestSuite();
@@ -7950,6 +8251,14 @@ class StatementSharableTest
   }
 
   void SetUp() override {
+#ifdef _WIN32
+    auto is_tcp = std::get<2>(GetParam());
+
+    if (!is_tcp) {
+      GTEST_SKIP() << "unix-sockets are not supported on windows.";
+    }
+#endif
+
     for (auto &srv : shared_servers()) {
       if (srv->mysqld_failed_to_start()) {
         GTEST_SKIP() << "mysql-server failed to start.";
@@ -7979,7 +8288,7 @@ class StatementSharableTest
 };
 
 TEST_P(StatementSharableTest, check) {
-  auto [test_param, connect_param] = GetParam();
+  auto [test_param, connect_param, is_tcp] = GetParam();
 
   auto account = SharedServer::caching_sha2_empty_password_account();
 
@@ -7990,7 +8299,7 @@ TEST_P(StatementSharableTest, check) {
   cli.password(account.password);
 
   auto connect_res = cli.connect(shared_router()->host(),
-                                 shared_router()->port(connect_param));
+                                 shared_router()->port(connect_param, is_tcp));
   ASSERT_NO_ERROR(connect_res);
 
   if (connect_param.can_share()) {
@@ -9388,10 +9697,12 @@ static const StatementSharableParam statement_sharable_params[] = {
 INSTANTIATE_TEST_SUITE_P(
     Spec, StatementSharableTest,
     ::testing::Combine(::testing::ValuesIn(statement_sharable_params),
-                       ::testing::ValuesIn(share_connection_params)),
+                       ::testing::ValuesIn(share_connection_params),
+                       ::testing::ValuesIn(is_tcp_values)),
     [](auto &info) {
       return std::get<0>(info.param).test_name + "_via_" +
-             std::get<1>(info.param).testname;
+             std::get<1>(info.param).testname +
+             (std::get<2>(info.param) ? "_tcp" : "_socket");
     });
 
 int main(int argc, char *argv[]) {

@@ -108,8 +108,9 @@ extern Time_zone *my_tz_UTC;
 extern Time_zone *my_tz_SYSTEM;
 extern Time_zone *my_tz_OFFSET0;
 extern Time_zone *my_tz_find(THD *thd, const String *name);
-extern bool my_tz_init(THD *org_thd, const char *default_tzname,
-                       bool bootstrap);
+
+bool my_tz_minimal_init();
+bool my_tz_full_init(const char *, bool);
 extern void my_tz_free();
 extern my_time_t sec_since_epoch_TIME(MYSQL_TIME *t);
 

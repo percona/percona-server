@@ -1355,10 +1355,10 @@ static bool field_type_forces_var_part(enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VECTOR:
       return true;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
@@ -1468,6 +1468,8 @@ int ha_ndbcluster::get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg) {
   for (uint i = 0; i < ha->table->s->fields; i++) {
     Field *field = ha->table->field[i];
     if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
+    if (ha->m_row_side_buffer && bitmap_is_set(&ha->m_in_row_side_buffer, i))
+      continue;
     NdbValue value = ha->m_value[i];
     if (value.blob == nullptr) {
       DBUG_PRINT("info", ("[%u] skipped", i));
@@ -1538,6 +1540,8 @@ int ha_ndbcluster::get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg) {
     for (uint i = 0; i < ha->table->s->fields; i++) {
       Field *field = ha->table->field[i];
       if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
+      if (ha->m_row_side_buffer && bitmap_is_set(&ha->m_in_row_side_buffer, i))
+        continue;
       NdbValue value = ha->m_value[i];
       if (value.blob == nullptr) {
         DBUG_PRINT("info", ("[%u] skipped", i));
@@ -1584,6 +1588,7 @@ int ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op,
   for (i = 0; i < table_share->fields; i++) {
     Field *field = table->field[i];
     if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
+    if (m_row_side_buffer && bitmap_is_set(&m_in_row_side_buffer, i)) continue;
 
     DBUG_PRINT("info", ("fieldnr=%d", i));
     NdbBlob *ndb_blob;
@@ -1626,6 +1631,10 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
     field_no = *blob_index;
     /* A NULL bitmap sets all blobs. */
     if (bitmap && !bitmap_is_set(bitmap, field_no)) continue;
+
+    if (m_row_side_buffer && bitmap_is_set(&m_in_row_side_buffer, field_no))
+      continue;
+
     Field *field = table->field[field_no];
     if (field->is_virtual_gcol()) continue;
 
@@ -1673,6 +1682,7 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
 
 /**
   Check if any set or get of blob value in current query.
+  Not counting blobs that do not use blob hooks.
 */
 
 bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const {
@@ -1684,7 +1694,9 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const {
   do {
     Field *field = table->field[*blob_index];
     if (bitmap_is_set(bitmap, field->field_index()) &&
-        !field->is_virtual_gcol())
+        !field->is_virtual_gcol() &&
+        !(m_row_side_buffer &&
+          bitmap_is_set(&m_in_row_side_buffer, field->field_index())))
       return true;
   } while (++blob_index != blob_index_end);
   return false;
@@ -1704,7 +1716,7 @@ static bool type_supports_default_value(enum_field_types mysql_type) {
       (mysql_type != MYSQL_TYPE_BLOB && mysql_type != MYSQL_TYPE_TINY_BLOB &&
        mysql_type != MYSQL_TYPE_MEDIUM_BLOB &&
        mysql_type != MYSQL_TYPE_LONG_BLOB && mysql_type != MYSQL_TYPE_JSON &&
-       mysql_type != MYSQL_TYPE_GEOMETRY && mysql_type != MYSQL_TYPE_VECTOR);
+       mysql_type != MYSQL_TYPE_GEOMETRY);
 
   return ret;
 }
@@ -2299,7 +2311,8 @@ static uint null_bit_mask_to_bit_number(uchar bit_mask) {
 
 static void ndb_set_record_specification(
     uint field_no, NdbDictionary::RecordSpecification *spec, const TABLE *table,
-    const NdbDictionary::Column *ndb_column) {
+    const NdbDictionary::Column *ndb_column, uint32 *row_side_buffer_size,
+    MY_BITMAP &in_row_side_buffer, uint fields) {
   DBUG_TRACE;
   assert(ndb_column);
   spec->column = ndb_column;
@@ -2327,6 +2340,14 @@ static void ndb_set_record_specification(
     */
     spec->column_flags |=
         NdbDictionary::RecordSpecification::BitColMapsNullBitOnly;
+  } else if (table->field[field_no]->type() == MYSQL_TYPE_VECTOR) {
+    assert(ndb_column->getType() == NDBCOL::Longvarbinary);
+    spec->column_flags |= NdbDictionary::RecordSpecification::MysqldLongBlob;
+    *row_side_buffer_size += ndb_column->getLength();
+    // If first blob column and no bit map allocated do allocate
+    if (!bitmap_is_valid(&in_row_side_buffer))
+      bitmap_init(&in_row_side_buffer, nullptr, fields);
+    bitmap_set_bit(&in_row_side_buffer, field_no);
   }
   DBUG_PRINT("info",
              ("%s.%s field: %d, col: %d, offset: %d, null bit: %d",
@@ -2341,19 +2362,31 @@ int ha_ndbcluster::add_table_ndb_record(NdbDictionary::Dictionary *dict) {
   NdbRecord *rec;
   uint fieldId, colId;
 
+  uint32 row_side_buffer_size = 0;
   for (fieldId = 0, colId = 0; fieldId < table_share->fields; fieldId++) {
     if (table->field[fieldId]->stored_in_db) {
-      ndb_set_record_specification(fieldId, &spec[colId], table,
-                                   m_table->getColumn(colId));
+      ndb_set_record_specification(
+          fieldId, &spec[colId], table, m_table->getColumn(colId),
+          &row_side_buffer_size, /*by-ref*/ m_in_row_side_buffer,
+          table_share->fields);
       colId++;
     }
   }
 
   rec = dict->createRecord(
-      m_table, spec, colId, sizeof(spec[0]),
+      m_table, (colId > 0) ? spec : nullptr, colId, sizeof(spec[0]),
       NdbDictionary::RecMysqldBitfield | NdbDictionary::RecPerColumnFlags);
   if (!rec) ERR_RETURN(dict->getNdbError());
   m_ndb_record = rec;
+
+  if (row_side_buffer_size) {
+    m_row_side_buffer_size = row_side_buffer_size;
+    m_row_side_buffer = (uchar *)table->s->mem_root.Alloc(row_side_buffer_size);
+  } else {
+    m_row_side_buffer_size = 0;
+    m_row_side_buffer = nullptr;
+  }
+  m_mrr_reclength = table_share->reclength + row_side_buffer_size;
 
   return 0;
 }
@@ -2760,7 +2793,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id) {
     const NdbOperation *op;
     if (!(op = pk_unique_index_read_key(
               table->s->primary_key, key, buf, lm,
-              (m_user_defined_partitioning ? part_id : nullptr))))
+              (m_user_defined_partitioning ? part_id : nullptr),
+              m_row_side_buffer)))
       ERR_RETURN(trans->getNdbError());
 
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 || op->getNdbError().code)
@@ -3036,6 +3070,9 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
         bitmap_is_overlapping(table->write_set, m_key_fields[i])) {
       // Unique index being written
 
+      if (unlikely(m_index[i].type == UNDEFINED_INDEX))
+        return fail_index_offline(table, i);
+
       /*
         It's not possible to lookup a NULL field value in a unique index. But
         since keys with NULLs are not indexed, such rows cannot conflict anyway
@@ -3118,7 +3155,8 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf) {
   } else {
     const NdbOperation *op;
 
-    if (!(op = pk_unique_index_read_key(active_index, key, buf, lm, nullptr)))
+    if (!(op = pk_unique_index_read_key(active_index, key, buf, lm, nullptr,
+                                        m_row_side_buffer)))
       ERR_RETURN(trans->getNdbError());
 
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 || op->getNdbError().code) {
@@ -3497,7 +3535,7 @@ int ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
 */
 const NdbOperation *ha_ndbcluster::pk_unique_index_read_key(
     uint idx, const uchar *key, uchar *buf, NdbOperation::LockMode lm,
-    Uint32 *ppartition_id) {
+    Uint32 *ppartition_id, uchar *row_side_buffer) {
   DBUG_TRACE;
   const NdbOperation *op;
   const NdbRecord *key_rec;
@@ -3528,9 +3566,16 @@ const NdbOperation *ha_ndbcluster::pk_unique_index_read_key(
     assert(m_user_defined_partitioning);
     options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
     options.partitionId = *ppartition_id;
-    poptions = &options;
   }
 
+  if (m_row_side_buffer_size) {
+    options.optionsPresent |=
+        NdbOperation::OperationOptions::OO_ROW_SIDE_BUFFER;
+    options.rowSideBuffer = row_side_buffer;
+    options.rowSideBufferSize = m_row_side_buffer_size;
+  }
+
+  if (options.optionsPresent) poptions = &options;
   /*
     We prepared a ScanFilter. However it turns out that we will
     do a primary/unique key readTuple which does not use ScanFilter (yet)
@@ -3914,6 +3959,10 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
   options.scan_flags =
       guess_scan_flags(lm, m_table_map, m_table, table->read_set);
   options.parallel = DEFAULT_PARALLELISM;
+  DBUG_EXECUTE_IF("ndb_disk_scan", {
+    if (!(options.scan_flags & NdbScanOperation::SF_DiskScan))
+      return ER_INTERNAL_ERROR;
+  });
 
   if (use_set_part_id) {
     assert(m_user_defined_partitioning);
@@ -6075,7 +6124,8 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
     if (!field->stored_in_db) continue;
 
     // Handle Field_blob (BLOB, JSON, GEOMETRY)
-    if (field->is_flag_set(BLOB_FLAG)) {
+    if (field->is_flag_set(BLOB_FLAG) &&
+        !(m_row_side_buffer && bitmap_is_set(&m_in_row_side_buffer, i))) {
       Field_blob *field_blob = (Field_blob *)field;
       NdbBlob *ndb_blob = m_value[i].blob;
       /* unpack_record *only* called for scan result processing
@@ -6191,7 +6241,8 @@ static void get_default_value(void *def_val, Field *field) {
           memcpy(def_val, out, sizeof(longlong));
           field->move_field_offset(-src_offset);
         }
-      } else if (field->is_flag_set(BLOB_FLAG)) {
+      } else if (field->is_flag_set(BLOB_FLAG) &&
+                 field->type() != MYSQL_TYPE_VECTOR) {
         assert(false);
       } else {
         field->move_field_offset(src_offset);
@@ -6210,7 +6261,7 @@ static void get_default_value(void *def_val, Field *field) {
   }
 }
 
-static inline int fail_index_offline(TABLE *t, int index) {
+int fail_index_offline(TABLE *t, int index) {
   KEY *key_info = t->key_info + index;
   push_warning_printf(
       t->in_use, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
@@ -6781,7 +6832,7 @@ int ha_ndbcluster::info(uint flag) {
     */
     stats.mrr_length_per_rec =
         multi_range_fixed_size(1) +
-        multi_range_max_entry(PRIMARY_KEY_INDEX, table_share->reclength);
+        multi_range_max_entry(PRIMARY_KEY_INDEX, m_mrr_reclength);
   }
   if (flag & HA_STATUS_VARIABLE) {
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
@@ -8171,6 +8222,15 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
             }
             mod_size = size;
           }
+          if (col.getPartSize() == 0) {
+            if (thd) {
+              get_thd_ndb(thd)->push_warning(
+                  "BLOB_INLINE_SIZE not supported for BLOB column with no part "
+                  "table (e.g. TINYBLOB), using default value %d",
+                  size);
+            }
+            mod_size = size;
+          }
           col.setInlineSize(mod_size);
         } else {
           col.setInlineSize(size);
@@ -8365,10 +8425,10 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      col.setInlineSize(256);
       // No parts
       col.setPartSize(0);
       col.setStripeSize(0);
+      set_blob_inline_size(thd, col, 256);
       break;
     // mysql_type_blob:
     case MYSQL_TYPE_GEOMETRY:
@@ -8392,12 +8452,13 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         if (field_blob->max_data_length() < (1 << 8))
           goto mysql_type_tiny_blob;
         else if (field_blob->max_data_length() < (1 << 16)) {
-          set_blob_inline_size(thd, col, 256);
-          col.setPartSize(2000);
-          col.setStripeSize(0);
           if (mod_maxblob->m_found) {
             col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
+          } else {
+            col.setPartSize(2000);
           }
+          col.setStripeSize(0);
+          set_blob_inline_size(thd, col, 256);
         } else if (field_blob->max_data_length() < (1 << 24))
           goto mysql_type_medium_blob;
         else
@@ -8412,12 +8473,13 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      set_blob_inline_size(thd, col, 256);
-      col.setPartSize(4000);
-      col.setStripeSize(0);
       if (mod_maxblob->m_found) {
         col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
+      } else {
+        col.setPartSize(4000);
       }
+      col.setStripeSize(0);
+      set_blob_inline_size(thd, col, 256);
       break;
     mysql_type_long_blob:
     case MYSQL_TYPE_LONG_BLOB:
@@ -8427,10 +8489,10 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      set_blob_inline_size(thd, col, 256);
+      // The mod_maxblob modified has no effect here, already at max
       col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
       col.setStripeSize(0);
-      // The mod_maxblob modified has no effect here, already at max
+      set_blob_inline_size(thd, col, 256);
       break;
 
     // MySQL 5.7 binary-encoded JSON type
@@ -8449,11 +8511,32 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       const int NDB_JSON_PART_SIZE = 8100;
 
       col.setType(NDBCOL::Blob);
-      set_blob_inline_size(thd, col, NDB_JSON_INLINE_SIZE);
       col.setPartSize(NDB_JSON_PART_SIZE);
       col.setStripeSize(0);
+      set_blob_inline_size(thd, col, NDB_JSON_INLINE_SIZE);
       break;
     }
+    case MYSQL_TYPE_VECTOR: {
+      /*
+       * MySQL uses Field_blob for vector but NDB will use
+       * Longvarbinary as for MySQL VARBINARY
+       */
+      auto field_vector = down_cast<const Field_vector *>(field);
+      const uint32 max_data_length = field_vector->max_data_length();
+      ndbcluster::ndbrequire(field->is_flag_set(BINARY_FLAG));
+      ndbcluster::ndbrequire(cs == &my_charset_bin);
+      ndbcluster::ndbrequire(field->field_length % 4 == 0);
+      if (max_data_length % 4 != 0) {
+        // Floats are 4-byte each
+        return HA_ERR_UNSUPPORTED;
+      }
+      if (max_data_length < 65536) {
+        col.setType(NDBCOL::Longvarbinary);
+      } else {
+        return HA_ERR_UNSUPPORTED;
+      }
+      col.setLength(max_data_length);
+    } break;
 
     // Other types
     case MYSQL_TYPE_ENUM:
@@ -8473,12 +8556,6 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setLength(no_of_bits);
       break;
     }
-
-    case MYSQL_TYPE_VECTOR:
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_EXTENSION,
-          "VECTOR type is not supported by NDB in this MySQL version");
-      return HA_ERR_UNSUPPORTED;
 
     case MYSQL_TYPE_NULL:
     default:
@@ -9916,7 +9993,6 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     switch (field->real_type()) {
       case MYSQL_TYPE_GEOMETRY:
       case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_VECTOR:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_JSON: {
@@ -10302,7 +10378,6 @@ int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
           key_store_length += HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
-            field->type() == MYSQL_TYPE_VECTOR ||
             field->real_type() == MYSQL_TYPE_VARCHAR ||
             field->type() == MYSQL_TYPE_GEOMETRY) {
           key_store_length += HA_KEY_BLOB_LENGTH;
@@ -11877,6 +11952,8 @@ int ha_ndbcluster::close(void) {
   NdbDictionary::Dictionary *const dict_factory = g_ndb->getDictionary();
   release_metadata(dict_factory, invalidate_dict_cache);
 
+  bitmap_free(&m_in_row_side_buffer);
+
   return 0;
 }
 
@@ -13009,7 +13086,7 @@ ulonglong ha_ndbcluster::table_flags(void) const {
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_PARTIAL_COLUMN_READ |
                 HA_HAS_OWN_BINLOGGING | HA_BINLOG_ROW_CAPABLE |
                 HA_COUNT_ROWS_INSTANT | HA_READ_BEFORE_WRITE_REMOVAL |
-                HA_GENERATED_COLUMNS | 0;
+                HA_GENERATED_COLUMNS | HA_SUPPORTS_DEFAULT_EXPRESSION | 0;
 
   /*
     To allow for logging of NDB tables during stmt based logging;
@@ -13188,7 +13265,7 @@ enum multi_range_types {
    - 1 byte of multi_range_types for this range.
 
    - (Only) for ranges converted to key operations (enum_unique_range and
-     enum_empty_unique_range), this is followed by table_share->reclength
+     enum_empty_unique_range), this is followed by m_mrr_reclength
      bytes of row data.
 */
 
@@ -13433,7 +13510,7 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
    */
   {
     uint save_bufsize = *bufsz;
-    ulong reclength = table_share->reclength;
+    ulong reclength = m_mrr_reclength;
     uint entry_size = multi_range_max_entry(key_type, reclength);
     uint min_total_size = entry_size + multi_range_fixed_size(1);
     DBUG_PRINT("info", ("MRR bufsize suggested=%u want=%u limit=%d",
@@ -13478,7 +13555,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   if (mode & HA_MRR_USE_DEFAULT_IMPL ||
       bufsize < multi_range_fixed_size(1) +
                     multi_range_max_entry(get_index_type(active_index),
-                                          table_share->reclength) ||
+                                          m_mrr_reclength) ||
       (m_pushed_join_operation == PUSHED_ROOT && !m_disable_pushed_join &&
        !m_pushed_join_member->get_query_def().isScanQuery()) ||
       m_delete_cannot_batch || m_update_cannot_batch) {
@@ -13533,7 +13610,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
 
 int ha_ndbcluster::multi_range_start_retrievals(uint starting_range) {
   KEY *key_info = table->key_info + active_index;
-  ulong reclength = table_share->reclength;
+  ulong reclength = m_mrr_reclength;
   const NdbOperation *op;
   NDB_INDEX_TYPE cur_index_type = get_index_type(active_index);
   const NdbOperation *oplist[MRR_MAX_RANGES];
@@ -13828,9 +13905,16 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range) {
                 ", not implemented for UNIQUE KEY 'multi range read'");
             m_thd_ndb->m_pushed_queries_dropped++;
           }
-          if (!(op = pk_unique_index_read_key(
-                    active_index, mrr_cur_range.start_key.key,
-                    multi_range_row(row_buf), lm, ppartitionId)))
+          uchar *row_side_buffer =
+              multi_range_row(row_buf) + table_share->reclength;
+          /*
+           * For pk we can store vectors in the handler buffer,
+           * m_mrr_reclength is extended for that.
+           */
+          if (!(op = pk_unique_index_read_key(active_index,
+                                              mrr_cur_range.start_key.key,
+                                              multi_range_row(row_buf), lm,
+                                              ppartitionId, row_side_buffer)))
             ERR_RETURN(trans->getNdbError());
         }
       }
@@ -13953,8 +14037,8 @@ int ha_ndbcluster::multi_range_read_next(char **range_info) {
             range.
           */
           first_running_range++;
-          m_multi_range_result_ptr = multi_range_next_entry(
-              m_multi_range_result_ptr, table_share->reclength);
+          m_multi_range_result_ptr =
+              multi_range_next_entry(m_multi_range_result_ptr, m_mrr_reclength);
 
           /*
             Clear m_active_cursor; it is used as a flag in update_row() /
@@ -13988,7 +14072,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info) {
                   multi_range_get_custom(multi_range_buffer, expected_range_no);
               first_running_range++;
               m_multi_range_result_ptr = multi_range_next_entry(
-                  m_multi_range_result_ptr, table_share->reclength);
+                  m_multi_range_result_ptr, m_mrr_reclength);
               return res;
             }
           }
@@ -14015,6 +14099,11 @@ int ha_ndbcluster::multi_range_read_next(char **range_info) {
               *range_info =
                   multi_range_get_custom(multi_range_buffer, current_range_no);
               /* Copy out data from the new row. */
+              /*
+               * Where is vector data stored?
+               * Use of table->record[0] indicates only one row at a time is
+               * returned and then vector in NDBAPI scan buffers should be ok.
+               */
               const int ignore = unpack_record_and_set_generated_fields(
                   table->record[0], m_next_row);
               /*
@@ -14057,8 +14146,8 @@ int ha_ndbcluster::multi_range_read_next(char **range_info) {
       }
       /* At this point the current range is done, proceed to next. */
       first_running_range++;
-      m_multi_range_result_ptr = multi_range_next_entry(
-          m_multi_range_result_ptr, table_share->reclength);
+      m_multi_range_result_ptr =
+          multi_range_next_entry(m_multi_range_result_ptr, m_mrr_reclength);
     }
 
     if (m_range_res)  // mrr_funcs.next() has consumed all ranges.
@@ -15414,23 +15503,23 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
         ha_alter_info, "Adding or removing default value is not supported");
   }
 
-  const enum enum_field_types mysql_type = old_field->real_type();
-  char old_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
-  char new_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
-
+  // Check that the default values value does not change
   if ((!old_field->is_flag_set(PRI_KEY_FLAG)) &&
-      type_supports_default_value(mysql_type)) {
+      type_supports_default_value(old_field->real_type())) {
     if (!old_field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
-      ptrdiff_t src_offset = old_field->table->default_values_offset();
-      if ((!old_field->is_real_null(src_offset)) ||
-          (old_field->is_flag_set(NOT_NULL_FLAG))) {
-        DBUG_PRINT("info", ("Checking default value hasn't changed "
+      // Column have default value and supports it
+      {
+        DBUG_PRINT("info", ("Checking default values value hasn't changed "
                             "for field %s",
                             old_field->field_name));
+        char old_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
         memset(old_buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
         get_default_value(old_buf, old_field);
+
+        char new_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
         memset(new_buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
         get_default_value(new_buf, new_field);
+
         if (memcmp(old_buf, new_buf, MAX_ATTR_DEFAULT_VALUE_SIZE)) {
           return inplace_unsupported(ha_alter_info,
                                      "Altering default value is "

@@ -29,15 +29,11 @@
 #include "mysqlrouter/router_utils_export.h"
 
 #include <cstdint>
-#include <exception>
 #include <map>
-#include <stdexcept>
+#include <stdexcept>  // runtime_error
 #include <string>
 #include <tuple>
 #include <vector>
-#ifndef _WIN32
-#include <unistd.h>
-#endif
 
 namespace mysqlrouter {
 

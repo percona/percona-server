@@ -5832,3 +5832,11 @@ ERROR HY000: Invalid utf8mb4 character string: '80'
 #
 DO '' SOUNDS LIKE LEAD(DATABASE(), 1, x'cafe') OVER();
 ERROR HY000: Cannot convert string '\xCA\xFE' from binary to utf8mb3
+#
+# Bug#37086818 mysqld assertion failure `(slen % 4) == 0'
+#              in my_strnncollsp_utf32 at ../strings/ctype-ucs2.cc
+#
+CREATE TABLE t1 (f1 VARCHAR(10) COLLATE UTF32_GENERAL_CI);
+SELECT * FROM t1 WHERE LOCATE('Q',f1,1) BETWEEN 'a' AND 'b';
+f1
+DROP TABLE t1;

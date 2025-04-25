@@ -502,7 +502,7 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT x1.a+0 k, COUNT(x1.b) FROM t1 x1
 LEFT JOIN t2 x2 ON x1.b=x2.a
 LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
 EXPLAIN
@@ -551,8 +551,8 @@ test.t1	histogram	status	Histogram statistics created for column 'b'.
 test.t1	histogram	status	Histogram statistics created for column 'c'.
 EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
 EXPLAIN
--> Table scan on <temporary>  (rows=63.7)
-    -> Temporary table with deduplication  (rows=63.7)
+-> Group (no aggregates)  (rows=63.7)
+    -> Sort: t1.a, t1.b  (rows=101)
         -> Table scan on t1  (rows=101)
 
 EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
@@ -827,7 +827,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT DISTINCT b FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using b  (rows=5) (actual rows=5 loops=1)
+-> Covering index skip scan for deduplication on t1 using b  (rows=2.24) (actual rows=5 loops=1)
 
 EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN
@@ -837,9 +837,8 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT DISTINCT b,c FROM t1;
 EXPLAIN
--> Table scan on <temporary>  (rows=20.6) (actual rows=35 loops=1)
-    -> Temporary table with deduplication  (rows=20.6) (actual rows=35 loops=1)
-        -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
+-> Sort with duplicate removal: t1.b, t1.c  (rows=20.6) (actual rows=35 loops=1)
+    -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
 DROP TABLE t1;
 #
@@ -1790,6 +1789,108 @@ SELECT NULL FROM t AS t1, t AS t2 STRAIGHT_JOIN t AS t3 ON t2.x = t3.x
 1
 DROP TABLE t;
 #
+# Bug#37272285 Assertion `false && "Inconsistent row counts for
+# different AccessPath objects."' failed.
+#
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(x INT);
+CREATE TABLE t3(id INT PRIMARY KEY);
+CREATE TABLE t4(id INT NULL UNIQUE);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t3 VALUES (1), (2), (3);
+INSERT INTO t4 VALUES (1), (2), (3);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE 1 IN
+(SELECT t2.x+1 FROM t2, t3 WHERE t3.id = t1.x+t2.x);
+EXPLAIN
+-> Nested loop semijoin (FirstMatch)  (...)
+    -> Table scan on t1  (...)
+    -> Filter: (t3.id = (t1.x + t2.x))  (...)
+        -> Nested loop inner join  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Single-row covering index lookup on t3 using PRIMARY (id = (t1.x + t2.x))  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
+(SELECT t2.x+1 k FROM t2, t3 WHERE t3.id = t1.x+t2.x) d2 ON 1=k;
+EXPLAIN
+-> Nested loop left join  (...)
+    -> Table scan on t1  (...)
+    -> Filter: (t3.id = (t1.x + t2.x))  (...)
+        -> Nested loop inner join  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Single-row covering index lookup on t3 using PRIMARY (id = (t1.x + t2.x))  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE 1 IN
+(SELECT t2.x+1 FROM t2, t3 WHERE t3.id <=> t1.x+t2.x);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (no condition), extra conditions: (t3.id <=> (t1.x + t2.x))  (...)
+    -> Table scan on t1  (...)
+    -> Hash
+        -> Inner hash join (no condition)  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Hash
+                -> Table scan on t3  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
+(SELECT t2.x+1 k FROM t2, t3 WHERE t3.id <=> t1.x+t2.x) d2 ON 1=k;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t3.id <=> (t1.x + t2.x))  (...)
+    -> Table scan on t1  (...)
+    -> Hash
+        -> Inner hash join (no condition)  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Hash
+                -> Table scan on t3  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE 1 IN
+(SELECT t2.x+1 FROM t2, t4 WHERE t4.id = t1.x+t2.x or t4.id IS NULL);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (no condition), extra conditions: ((t4.id = (t1.x + t2.x)) or (t4.id is null))  (...)
+    -> Table scan on t1  (...)
+    -> Hash
+        -> Inner hash join (no condition)  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Hash
+                -> Table scan on t4  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
+(SELECT t2.x+1 k FROM t2, t4 WHERE t4.id = t1.x+t2.x or t4.id IS NULL) d2
+ON 1=k;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: ((t4.id = (t1.x + t2.x)) or (t4.id is null))  (...)
+    -> Table scan on t1  (...)
+    -> Hash
+        -> Inner hash join (no condition)  (...)
+            -> Filter: (1 = (t2.x + 1))  (...)
+                -> Table scan on t2  (...)
+            -> Hash
+                -> Table scan on t4  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1,t2,t3,t4;
+#
 # Bug#36578613: Hypergraph result difference when querying I_S.TABLES
 #
 CREATE TABLE t(x INT, y LONGTEXT);
@@ -1801,9 +1902,9 @@ EXPLAIN FORMAT=JSON INTO @explain SELECT DISTINCT t1.x, t1.y
 FROM t AS t1, t AS t2 WHERE t1.x = t2.x
 ORDER BY -t1.x;
 SELECT
-JSON_EXTRACT(@explain, '$.access_type') AS sort_for_order_by,
-JSON_EXTRACT(@explain, '$.inputs[0].access_type') AS sort_for_distinct,
-JSON_EXTRACT(@explain, '$.inputs[0].inputs[0].join_algorithm') AS hash_join;
+JSON_EXTRACT(@explain, '$.query_plan.access_type') AS sort_for_order_by,
+JSON_EXTRACT(@explain, '$.query_plan.inputs[0].access_type') AS sort_for_distinct,
+JSON_EXTRACT(@explain, '$.query_plan.inputs[0].inputs[0].join_algorithm') AS hash_join;
 sort_for_order_by	"sort"
 sort_for_distinct	"sort"
 hash_join	"hash"
@@ -1818,6 +1919,46 @@ x	y
 2	b
 1	a
 DROP TABLE t;
+#
+# Bug#36678321: Hypergraph: Sort-ahead doesn't provide row IDs to later
+#               sort that needs them.
+#
+CREATE TABLE t1(int_col1 INT, int_col2 INT);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+CREATE TABLE t2 (int_col_key INT, longtext_col LONGTEXT, KEY (int_col_key));
+INSERT INTO t2
+WITH RECURSIVE src(n) AS (
+SELECT 1 UNION ALL SELECT n + 1 FROM src WHERE n < 50
+)
+SELECT n, n FROM src;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
+FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
+ORDER BY ANY_VALUE(t2.longtext_col);
+EXPLAIN
+-> Sort row IDs: any_value(t2.longtext_col)  (rows=2.45)
+    -> Remove duplicates from input grouped on t1.int_col2  (rows=2.45)
+        -> Nested loop inner join  (rows=24)
+            -> Sort row IDs: t1.int_col2  (rows=6)
+                -> Table scan on t1  (rows=6)
+            -> Index lookup on t2 using int_col_key (int_col_key = t1.int_col1)  (rows=4)
+
+SELECT SQL_BIG_RESULT DISTINCT t1.int_col2
+FROM t1, t2 WHERE t1.int_col1 = t2.int_col_key
+ORDER BY ANY_VALUE(t2.longtext_col);
+int_col2
+1
+2
+3
+4
+5
+6
+DROP TABLE t1, t2;
 #
 # Bug#36715239: Assertion `found_a_plan || is_secondary_engine' failed.
 #
@@ -1853,3 +1994,77 @@ a	b
 3	3
 4	4
 DROP TABLE t;
+#
+# Bug#37079336: Assert failure in
+# Item_eq_base::append_join_key_for_hash_join() with hypergraph
+#
+CREATE TABLE small (id INT PRIMARY KEY, a INT, b TEXT);
+INSERT INTO small VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5);
+CREATE TABLE big (a INT, b TEXT);
+INSERT INTO big
+WITH RECURSIVE s(n) AS (
+SELECT 1 UNION ALL SELECT n+1 FROM s WHERE n < 100
+)
+SELECT n AS a, n AS b FROM s;
+ANALYZE TABLE small, big;
+Table	Op	Msg_type	Msg_text
+test.small	analyze	status	OK
+test.big	analyze	status	OK
+SELECT t1.b, t2.b, t3.b FROM
+big AS t1,
+LATERAL (SELECT * FROM big
+WHERE t1.a <> 100 ORDER BY a LIMIT 2) AS t2,
+small AS t3
+WHERE t1.a = t2.a AND t2.a = t3.id
+ORDER BY t1.a;
+b	b	b
+1	1	1
+2	2	2
+SELECT t1.b, t2.b, t3.b
+FROM small AS t1,
+LATERAL (SELECT DISTINCT * FROM big
+WHERE t1.a <> 100
+ORDER BY a LIMIT 2) AS t2,
+big AS t3 WHERE t1.a = t2.a AND t2.a = t3.a
+ORDER BY t1.a;
+b	b	b
+1	1	1
+2	2	2
+DROP TABLE small, big;
+#
+# Bug#36997713: Hypergraph : Result set mismatch (1 row vs empty set)
+#
+CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(10));
+CREATE TABLE t2 (f1 INTEGER, f2 VARCHAR(10));
+INSERT INTO t1 VALUES (10, 'o');
+INSERT INTO t2 VALUES (100, 'c');
+INSERT INTO t2 VALUES (100, 'o');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT *
+FROM ((SELECT * FROM t1
+WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.f2 >= t1.f2)) AS table1
+INNER JOIN t2 AS table2 ON (table2.f2 = table1.f2))
+WHERE (table2.f2 = 'x' ) OR (table1.f1 > 1);
+EXPLAIN
+-> Inner hash join (table2.f2 = t1.f2), extra conditions: (((table2.f2 = 'x') and (t1.f2 = 'x')) or (t1.f1 > 1))  (rows=0.0151)
+    -> Table scan on table2  (rows=2)
+    -> Hash
+        -> Hash semijoin (FirstMatch) (no condition), extra conditions: (t2.f2 >= t1.f2)  (rows=0.189)
+            -> Filter: ((t1.f2 = 'x') or (t1.f1 > 1))  (rows=0.4)
+                -> Table scan on t1  (rows=1)
+            -> Hash
+                -> Table scan on t2  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f2' of SELECT #3 was resolved in SELECT #2
+SELECT *
+FROM ((SELECT * FROM t1
+WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.f2 >= t1.f2)) AS table1
+INNER JOIN t2 AS table2 ON (table2.f2 = table1.f2))
+WHERE (table2.f2 = 'x' ) OR (table1.f1 > 1);
+f1	f2	f1	f2
+10	o	100	o
+DROP TABLE t1,t2;

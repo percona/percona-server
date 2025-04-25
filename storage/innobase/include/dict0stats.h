@@ -105,10 +105,16 @@ are used in query optimization.
 @param[in]  stats_upd_option  statistics update option (persistent, etc).
 @param[in]  trx  statistics update will be done as part of this transaction.
                  if null, a new transaction will be internally created.
+@param[in]  silent if true, don't report error in the server log file.
+                   if false (default), report error in log file.
 @return DB_* error code or DB_SUCCESS */
 dberr_t dict_stats_update(dict_table_t *table,
                           dict_stats_upd_option_t stats_upd_option,
-                          trx_t *trx = nullptr);
+                          trx_t *trx = nullptr, bool silent = false);
+
+dberr_t dict_stats_update_retry(dict_table_t *table,
+                                dict_stats_upd_option_t stats_upd_option,
+                                size_t max_retries);
 
 /** Removes the information for a particular index's stats from the persistent
  storage if it exists and if there is data stored for this index.

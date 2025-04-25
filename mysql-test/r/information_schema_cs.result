@@ -81,6 +81,7 @@ GLOBAL_TEMPORARY_TABLES
 INDEX_STATISTICS
 KEYWORDS
 KEY_COLUMN_USAGE
+LIBRARIES
 OPTIMIZER_TRACE
 PARAMETERS
 PARTITIONS
@@ -93,6 +94,7 @@ ROLE_COLUMN_GRANTS
 ROLE_ROUTINE_GRANTS
 ROLE_TABLE_GRANTS
 ROUTINES
+ROUTINE_LIBRARIES
 SCHEMATA
 SCHEMATA_EXTENSIONS
 SCHEMA_PRIVILEGES
@@ -480,6 +482,8 @@ delete from mysql.db where user like 'mysqltest%';
 delete from mysql.tables_priv where user like 'mysqltest%';
 delete from mysql.columns_priv where user like 'mysqltest%';
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 drop table t1;
 create table t1 (a int not null, primary key(a));
 alter table t1 add constraint constraint_1 unique (a);
@@ -552,6 +556,8 @@ delete from mysql.db where user='joe';
 delete from mysql.tables_priv where user='joe';
 delete from mysql.columns_priv where user='joe';
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 analyze table t1;
@@ -815,6 +821,7 @@ information_schema	CHECK_CONSTRAINTS	CHECK_CLAUSE
 information_schema	COLUMNS	DATA_TYPE
 information_schema	COLUMNS	GENERATION_EXPRESSION
 information_schema	EVENTS	EVENT_DEFINITION
+information_schema	LIBRARIES	LIBRARY_DEFINITION
 information_schema	PARAMETERS	DATA_TYPE
 information_schema	ROUTINES	DATA_TYPE
 information_schema	ROUTINES	DTD_IDENTIFIER
@@ -907,12 +914,20 @@ VIEW_TABLE_USAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
 table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
+<<<<<<< HEAD
 information_schema	56
+||||||| merged common ancestors
+information_schema	47
+=======
+information_schema	49
+>>>>>>> mysql-9.2.0
 mysql	35
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1382,6 +1397,7 @@ FILES	information_schema.FILES	1
 GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
 INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+LIBRARIES	information_schema.LIBRARIES	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
@@ -1394,6 +1410,7 @@ ROLE_COLUMN_GRANTS	information_schema.ROLE_COLUMN_GRANTS	1
 ROLE_ROUTINE_GRANTS	information_schema.ROLE_ROUTINE_GRANTS	1
 ROLE_TABLE_GRANTS	information_schema.ROLE_TABLE_GRANTS	1
 ROUTINES	information_schema.ROUTINES	1
+ROUTINE_LIBRARIES	information_schema.ROUTINE_LIBRARIES	1
 SCHEMATA	information_schema.SCHEMATA	1
 SCHEMATA_EXTENSIONS	information_schema.SCHEMATA_EXTENSIONS	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
@@ -2535,6 +2552,7 @@ GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
 INDEX_STATISTICS	TABLE_SCHEMA
 KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+LIBRARIES	LIBRARY_SCHEMA
 OPTIMIZER_TRACE	QUERY
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA
@@ -2547,6 +2565,7 @@ ROLE_COLUMN_GRANTS	TABLE_SCHEMA
 ROLE_ROUTINE_GRANTS	SPECIFIC_SCHEMA
 ROLE_TABLE_GRANTS	TABLE_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
+ROUTINE_LIBRARIES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
 SCHEMATA_EXTENSIONS	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
@@ -2610,6 +2629,7 @@ GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
 INDEX_STATISTICS	TABLE_SCHEMA
 KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+LIBRARIES	LIBRARY_SCHEMA
 OPTIMIZER_TRACE	QUERY
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA
@@ -2622,6 +2642,7 @@ ROLE_COLUMN_GRANTS	TABLE_SCHEMA
 ROLE_ROUTINE_GRANTS	SPECIFIC_SCHEMA
 ROLE_TABLE_GRANTS	TABLE_SCHEMA
 ROUTINES	ROUTINE_SCHEMA
+ROUTINE_LIBRARIES	ROUTINE_SCHEMA
 SCHEMATA	SCHEMA_NAME
 SCHEMATA_EXTENSIONS	SCHEMA_NAME
 SCHEMA_PRIVILEGES	TABLE_SCHEMA
@@ -2689,6 +2710,8 @@ Warnings:
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
 # The user specified as a definer ('root'@'localhost') does not exist
 SHOW DATABASES;
@@ -2704,6 +2727,8 @@ Warnings:
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 #
 # Bug#27041452 assertion
 # `ticket->m_lock->m_obtrusive_locks_granted_waiting_count != 0' failed.

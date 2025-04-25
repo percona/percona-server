@@ -23,13 +23,9 @@
 
 ADD_WSHADOW_WARNING()
 
-# Workaround to avoid "cannot allocate memory in static TLS block" error
-STRING(REPLACE "-ftls-model=initial-exec" "-ftls-model=global-dynamic"
-  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}"
-  )
-STRING(REPLACE "-ftls-model=initial-exec" "-ftls-model=global-dynamic"
-  CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}"
-  )
+# Use default value for -ftls-model which is global-dynamic with -fPIC
+REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "-ftls-model=initial-exec")
+REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "-ftls-model=initial-exec")
 
 SET(KEYRING_COMMON_SOURCES
   # Component implementation helpers

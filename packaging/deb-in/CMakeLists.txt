@@ -127,6 +127,7 @@ usr/lib/mysql/plugin/component_scheduler.so
 usr/lib/mysql/plugin/component_telemetry.so
 usr/lib/mysql/plugin/component_option_tracker.so
 usr/lib/mysql/plugin/component_group_replication_flow_control_stats.so
+usr/lib/mysql/plugin/component_group_replication_resource_manager.so
 usr/lib/mysql/plugin/component_replication_applier_metrics.so
 usr/lib/mysql/private/libpolyglot.so
 ")

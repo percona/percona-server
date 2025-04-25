@@ -44,6 +44,7 @@
 #include "sql/dd/impl/system_views/innodb_tablespaces_brief.h"  // Innodb_tablespace_brief
 #include "sql/dd/impl/system_views/key_column_usage.h"  // key_column_usage
 #include "sql/dd/impl/system_views/keywords.h"          // keywords
+#include "sql/dd/impl/system_views/libraries.h"         // Libraries
 #include "sql/dd/impl/system_views/parameters.h"        // Parameters
 #include "sql/dd/impl/system_views/partitions.h"        // Partitions
 #include "sql/dd/impl/system_views/referential_constraints.h"  // Referential_con...
@@ -51,6 +52,7 @@
 #include "sql/dd/impl/system_views/role_column_grants.h"   // Role_column_grant
 #include "sql/dd/impl/system_views/role_routine_grants.h"  // Role_routine_gran
 #include "sql/dd/impl/system_views/role_table_grants.h"    // Role_table_grants
+#include "sql/dd/impl/system_views/routine_libraries.h"    // Routine_libraries
 #include "sql/dd/impl/system_views/routines.h"             // Routines
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
 #include "sql/dd/impl/system_views/schemata_extensions.h"  //Schemata_extensions
@@ -289,6 +291,7 @@ void System_views::init() {
   register_view<dd::system_views::Innodb_tablespaces_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Keywords>(is);
+  register_view<dd::system_views::Libraries>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Referential_constraints>(is);
@@ -296,6 +299,7 @@ void System_views::init() {
   register_view<dd::system_views::Role_column_grants>(non_dd_based_is);
   register_view<dd::system_views::Role_routine_grants>(non_dd_based_is);
   register_view<dd::system_views::Role_table_grants>(non_dd_based_is);
+  register_view<dd::system_views::Routine_libraries>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Schemata_extensions>(is);

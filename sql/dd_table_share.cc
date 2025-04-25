@@ -1690,6 +1690,10 @@ static void get_partition_options(MEM_ROOT *mem_root,
   if (part_options.exists("min_rows"))
     part_options.get("min_rows", &part_elem->part_min_rows);
 
+  if (part_options.exists("secondary_load")) {
+    part_options.get("secondary_load", &part_elem->secondary_load);
+  }
+
   part_elem->data_file_name =
       copy_option_string(mem_root, part_options, "data_file_name");
   part_elem->index_file_name =
@@ -2125,11 +2129,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
       return true;
 
-    const auto &part_options = part_obj->options();
-    if (part_options.exists("secondary_load")) {
-      part_options.get("secondary_load", &curr_part_elem->secondary_load);
-    }
-
     for (const dd::Partition *sub_part_obj : part_obj->subpartitions()) {
       partition_element *curr_sub_part_elem =
           new (&share->mem_root) partition_element;
@@ -2145,12 +2144,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       if (curr_part_elem->subpartitions.push_back(curr_sub_part_elem,
                                                   &share->mem_root))
         return true;
-
-      const auto &sub_part_options = sub_part_obj->options();
-      if (sub_part_options.exists("secondary_load")) {
-        sub_part_options.get("secondary_load",
-                             &curr_sub_part_elem->secondary_load);
-      }
     }
   }
 

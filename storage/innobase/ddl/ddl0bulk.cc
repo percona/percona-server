@@ -45,27 +45,36 @@ namespace ddl_bulk {
 
 void Loader::Thread_data::init(const row_prebuilt_t *prebuilt) {
   dict_table_t *table = prebuilt->table;
-  dict_index_t *primary_key = table->first_index();
+  dict_index_t *index = prebuilt->index;
 
   /* Create tuple heap and the empty tuple. */
   m_heap = mem_heap_create(1024, UT_LOCATION_HERE);
-  auto n_table_cols = table->get_n_cols();
-  m_row = dtuple_create(m_heap, n_table_cols);
-  dict_table_copy_types(m_row, primary_key->table);
+
+  if (index->is_clustered()) {
+    auto n_table_cols = table->get_n_cols();
+    m_row = dtuple_create(m_heap, n_table_cols);
+    dict_table_copy_types(m_row, index->table);
+  } else {
+    auto n_index_cols = dict_index_get_n_fields(index);
+    m_row = dtuple_create(m_heap, n_index_cols);
+    dict_index_copy_types(m_row, index, n_index_cols);
+  }
 
   /* Create the cluster index tuple to be inserted. */
-  auto n_index_cols = dict_index_get_n_fields(primary_key);
-  auto n_unique = dict_index_get_n_unique_in_tree(primary_key);
+  auto n_index_cols = dict_index_get_n_fields(index);
+  auto n_unique = dict_index_get_n_unique_in_tree(index);
   m_entry = dtuple_create(m_heap, n_index_cols);
-  dict_index_copy_types(m_entry, primary_key, n_index_cols);
+  dict_index_copy_types(m_entry, index, n_index_cols);
   dtuple_set_n_fields_cmp(m_entry, n_unique);
 
   trx_start_if_not_started(prebuilt->trx, true, UT_LOCATION_HERE);
 
-  /* Fill the system column data. Set INSERT flag for MVCC. */
-  auto roll_ptr = trx_undo_build_roll_ptr(true, 0, 0, 0);
-  trx_write_trx_id(m_trx_data, prebuilt->trx->id);
-  trx_write_roll_ptr(m_rollptr_data, roll_ptr);
+  if (index->is_clustered()) {
+    /* Fill the system column data. Set INSERT flag for MVCC. */
+    auto roll_ptr = trx_undo_build_roll_ptr(true, 0, 0, 0);
+    trx_write_trx_id(m_trx_data, prebuilt->trx->id);
+    trx_write_roll_ptr(m_rollptr_data, roll_ptr);
+  }
 }
 
 void Loader::get_queue_size(size_t memory, size_t &flush_queue_size,
@@ -96,7 +105,7 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
                       size_t memory) {
   dict_table_t *table = prebuilt->table;
   m_table = table;
-  dict_index_t *primary_key = table->first_index();
+  m_index = prebuilt->index;
 
   m_ctxs.resize(m_num_threads);
 
@@ -109,14 +118,14 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
     m_ctxs[index].init(prebuilt);
 
     auto sub_tree_load = ut::new_withkey<Btree_multi::Btree_load>(
-        ut::make_psi_memory_key(mem_key_ddl), primary_key, prebuilt->trx, index,
+        ut::make_psi_memory_key(mem_key_ddl), m_index, prebuilt->trx, index,
         queue_size, m_extent_allocator);
     sub_tree_load->init();
     m_sub_tree_loads.push_back(sub_tree_load);
   }
 
-  auto extend_size = m_extent_allocator.init(table, prebuilt->trx, data_size,
-                                             m_num_threads, in_pages);
+  auto extend_size = m_extent_allocator.init(
+      table, m_index, prebuilt->trx, data_size, m_num_threads, in_pages);
 
   /* Optimize space extension for bulk operation. */
   fil_space_t *space = fil_space_acquire(table->space);
@@ -189,6 +198,7 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
 
     Btree_multi::Btree_load::Wait_callbacks cbk_set(
         sub_tree, wait_cbk.m_fn_begin, wait_cbk.m_fn_end);
+
     fill_index_entry(prebuilt);
 
     m_err = sub_tree->insert(m_entry, 0);
@@ -207,7 +217,7 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
   }
 
   dict_table_t *table = prebuilt->table;
-  dict_index_t *index = table->first_index();
+  dict_index_t *index = prebuilt->index;
   LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_THREAD_FAIL,
          "ddl_bulk::Loader::Thread_data::load()", (unsigned long)m_err,
          table->name.m_name, index->name());
@@ -281,7 +291,7 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
       }
     } else if (dtype->mtype == DATA_CHAR || dtype->mtype == DATA_VARCHAR ||
                dtype->mtype == DATA_MYSQL || dtype->mtype == DATA_VARMYSQL) {
-      std::string data_str(sql_col.m_data_ptr, sql_col.m_data_len);
+      std::string data_str(sql_col.get_data(), sql_col.m_data_len);
       m_sout << data_str.c_str();
     }
     if (key_index + 1 != n_keys) {
@@ -298,7 +308,7 @@ void Loader::Thread_data::free() {
   m_entry = nullptr;
 }
 
-dberr_t Loader::end(const row_prebuilt_t *prebuilt, bool is_error) {
+dberr_t Loader::end(bool is_error) {
   bool is_subtree = (m_num_threads > 1);
   dberr_t db_err = DB_SUCCESS;
 
@@ -316,7 +326,7 @@ dberr_t Loader::end(const row_prebuilt_t *prebuilt, bool is_error) {
   be performed in post ddl action and would also be executed in case of crash
   recovery. */
   if (!is_error && is_subtree) {
-    db_err = merge_subtrees(prebuilt);
+    db_err = merge_subtrees();
   }
 
   for (auto &ctx : m_ctxs) {
@@ -328,64 +338,12 @@ dberr_t Loader::end(const row_prebuilt_t *prebuilt, bool is_error) {
   for (auto sub_tree_load : m_sub_tree_loads) {
     ut::delete_(sub_tree_load);
   }
+
   m_sub_tree_loads.clear();
 
-  dict_table_t *table = prebuilt->table;
-  fil_space_t *space = fil_space_acquire(table->space);
+  fil_space_t *space = fil_space_acquire(m_table->space);
   space->end_bulk_operation();
   fil_space_release(space);
-
-  if (db_err == DB_SUCCESS) {
-    const dict_stats_upd_option_t option =
-        dict_stats_is_persistent_enabled(table) ? DICT_STATS_RECALC_PERSISTENT
-                                                : DICT_STATS_RECALC_TRANSIENT;
-
-    const size_t MAX_RETRY = 5;
-    dberr_t updated{DB_SUCCESS};
-
-    auto &trx = prebuilt->trx;
-
-    for (size_t retry = 0; retry < MAX_RETRY; ++retry) {
-      if (trx->error_state != DB_SUCCESS) {
-        LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
-               "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
-               (size_t)trx->error_state);
-        break;
-      }
-
-      auto savept = trx_savept_take(trx);
-      updated = dict_stats_update(table, option, trx);
-
-      if (updated != DB_SUCCESS) {
-        LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
-               "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
-               (size_t)trx->error_state);
-
-        if (updated == DB_LOCK_WAIT_TIMEOUT) {
-          trx_rollback_to_savepoint(trx, &savept);
-          const auto ms = std::chrono::milliseconds{20 * (1 + retry)};
-          std::this_thread::sleep_for(ms);
-          LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_INFO,
-                 "ddl_bulk::Loader::end()", "Retrying", table->name.m_name,
-                 (size_t)updated, (size_t)trx->error_state);
-          continue;
-        }
-      }
-
-      break;
-    }
-    if (updated != DB_SUCCESS || trx->error_state != DB_SUCCESS) {
-      LogErr(WARNING_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
-             "ddl_bulk::Loader::end()", table->name.m_name, (size_t)updated,
-             (size_t)trx->error_state);
-    } else {
-      LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_INFO,
-             "ddl_bulk::Loader::end()", "PASS", table->name.m_name,
-             (size_t)updated, (size_t)trx->error_state);
-    }
-  }
-
-  DBUG_EXECUTE_IF("crash_bulk_load_after_stats", DBUG_SUICIDE(););
 
   return db_err;
 }
@@ -409,15 +367,17 @@ void Loader::Thread_data::fill_system_columns(const row_prebuilt_t *prebuilt) {
 }
 
 void Loader::Thread_data::fill_index_entry(const row_prebuilt_t *prebuilt) {
-  dict_index_t *primary_key = prebuilt->table->first_index();
+  dict_index_t *index = prebuilt->index;
 
   /* This function is a miniature of row_ins_index_entry_set_vals(). */
   auto n_fields = dtuple_get_n_fields(m_entry);
 
-  for (size_t index = 0; index < n_fields; index++) {
-    auto field = dtuple_get_nth_field(m_entry, index);
+  for (size_t nth_field = 0; nth_field < n_fields; nth_field++) {
+    auto field = dtuple_get_nth_field(m_entry, nth_field);
 
-    auto column_number = primary_key->get_col_no(index);
+    auto column_number =
+        index->is_clustered() ? index->get_col_no(nth_field) : nth_field;
+
     auto row_field = dtuple_get_nth_field(m_row, column_number);
     auto data = dfield_get_data(row_field);
     auto data_len = dfield_get_len(row_field);
@@ -427,16 +387,30 @@ void Loader::Thread_data::fill_index_entry(const row_prebuilt_t *prebuilt) {
      1. Handle external field
      2. Handle prefix index. */
     if (row_field->is_ext()) {
+      if (!index->is_clustered()) {
+        /* sec indexes cannot contain external fields. */
+        char query[1024];
+        memset(query, '\0', sizeof query);
+        size_t len = innobase_get_stmt_safe(prebuilt->trx->mysql_thd, query,
+                                            sizeof(query));
+        std::cerr << "table=" << index->table_name << std::endl;
+        std::cerr << "index=" << index->name() << std::endl;
+        std::cerr << "query=" << query << std::endl;
+        std::cerr << "query_len=" << len << std::endl;
+
+        ut_a(index->is_clustered());
+      }
       dfield_set_ext(field);
     }
   }
-  fill_system_columns(prebuilt);
+  if (index->is_clustered()) {
+    fill_system_columns(prebuilt);
+  }
 }
 
 dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
                                         const Rows_mysql &rows,
                                         size_t row_index) {
-  ut_ad(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
   ut_ad(prebuilt->mysql_template);
   const space_id_t space_id = prebuilt->space_id();
   TABLE *mysql_table = prebuilt->m_mysql_table;
@@ -446,16 +420,9 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
   size_t column_number = 0;
   auto row_offset = rows.get_row_offset(row_index);
   auto row_size = rows.get_num_cols();
+  const auto n_cols = rows.get_num_cols();
 
-  for (size_t index = 0; index < prebuilt->n_template; index++) {
-    const auto templ = prebuilt->mysql_template + index;
-
-    /* Ignore virtual columns. We would insert into cluster index
-    and don't support any secondary index yet. */
-    if (templ->is_virtual) {
-      continue;
-    }
-
+  for (size_t index = 0; index < n_cols; index++) {
     auto field = share->field[column_number];
     auto dfield = dtuple_get_nth_field(m_row, column_number);
     ut_ad(column_number < row_size);
@@ -468,17 +435,12 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
     ++column_number;
 
     if (sql_col.m_is_null) {
-      if (templ->mysql_null_bit_mask == 0) {
-        ib::info(ER_BULK_LOADER_INFO,
-                 "Innodb: Cannot insert NULL into a not NULL column");
-        return DB_ERROR;
-      }
       dfield_set_null(dfield);
       continue;
     }
 
     auto dtype = dfield_get_type(dfield);
-    auto data_ptr = (byte *)sql_col.m_data_ptr;
+    auto data_ptr = (byte *)sql_col.get_data();
     size_t data_len = sql_col.m_data_len;
 
     /* For integer data, the column is passed as integer and not in mysql
@@ -622,13 +584,11 @@ bool Loader::Thread_data::store_int_col(const Column_mysql &col, byte *data_ptr,
   return true;
 }
 
-dberr_t Loader::merge_subtrees(const row_prebuilt_t *prebuilt) {
-  auto primary_index = prebuilt->table->first_index();
+dberr_t Loader::merge_subtrees() {
+  ut_ad(m_index != nullptr);
 
-  Btree_multi::Btree_load::Merger merger(m_sub_tree_loads, primary_index,
-                                         prebuilt->trx);
-  auto db_err = merger.merge(false);
-  return db_err;
+  Btree_multi::Btree_load::Merger merger(m_sub_tree_loads, m_index, m_trx);
+  return merger.merge(false);
 }
 
 }  // namespace ddl_bulk

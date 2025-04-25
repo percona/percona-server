@@ -188,8 +188,7 @@ void Processor::trace_set_connection_attributes(TraceEvent *ev) {
 
   if (server_conn.is_open()) {
     if (auto ep = connection()->destination_endpoint()) {
-      ev->attrs.emplace_back("mysql.remote.endpoint",
-                             mysqlrouter::to_string(*ep));
+      ev->attrs.emplace_back("mysql.remote.endpoint", ep->str());
     }
     ev->attrs.emplace_back(
         "mysql.remote.connection_id",

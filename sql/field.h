@@ -78,7 +78,7 @@ class Field_long;
 class Field_longlong;
 class Field_medium;
 class Field_new_decimal;
-class Field_newdate;
+class Field_date;
 class Field_num;
 class Field_real;
 class Field_set;
@@ -162,7 +162,7 @@ Field (abstract)
    |  +--Field_timef
    |
    +--Field_temporal_with_date (abstract)
-      +--Field_newdate
+      +--Field_date
       +--Field_temporal_with_date_and_time (abstract)
          +--Field_timestamp
          +--Field_datetime
@@ -2744,7 +2744,7 @@ class Field_temporal : public Field {
 
     Flags depend on the session sql_mode settings, such as
     MODE_NO_ZERO_DATE, MODE_NO_ZERO_IN_DATE.
-    Also, Field_newdate, Field_datetime, Field_datetimef add TIME_FUZZY_DATE
+    Also, Field_date, Field_datetime, Field_datetimef add TIME_FUZZY_DATE
     to the session sql_mode settings, to allow relaxed date format,
     while Field_timestamp, Field_timestampf do not.
 
@@ -3161,7 +3161,7 @@ class Field_year final : public Field_tiny {
   }
 };
 
-class Field_newdate : public Field_temporal_with_date {
+class Field_date : public Field_temporal_with_date {
  protected:
   static const int PACK_LENGTH = 3;
   my_time_flags_t date_flags(const THD *thd) const final;
@@ -3170,12 +3170,12 @@ class Field_newdate : public Field_temporal_with_date {
                                         int *error) final;
 
  public:
-  Field_newdate(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
-                uchar auto_flags_arg, const char *field_name_arg)
+  Field_date(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
+             uchar auto_flags_arg, const char *field_name_arg)
       : Field_temporal_with_date(ptr_arg, null_ptr_arg, null_bit_arg,
                                  auto_flags_arg, field_name_arg, MAX_DATE_WIDTH,
                                  0) {}
-  Field_newdate(bool is_nullable_arg, const char *field_name_arg)
+  Field_date(bool is_nullable_arg, const char *field_name_arg)
       : Field_temporal_with_date(nullptr,
                                  is_nullable_arg ? &dummy_null_buffer : nullptr,
                                  0, NONE, field_name_arg, MAX_DATE_WIDTH, 0) {}
@@ -3195,10 +3195,10 @@ class Field_newdate : public Field_temporal_with_date {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return true; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
-  Field_newdate *clone(MEM_ROOT *mem_root) const final {
+  Field_date *clone(MEM_ROOT *mem_root) const final {
     assert(type() == MYSQL_TYPE_DATE);
     assert(real_type() == MYSQL_TYPE_NEWDATE);
-    return new (mem_root) Field_newdate(*this);
+    return new (mem_root) Field_date(*this);
   }
 };
 
@@ -4022,6 +4022,7 @@ class Field_vector : public Field_blob {
   type_conversion_status store_decimal(const my_decimal *) final;
   type_conversion_status store(const char *from, size_t length,
                                const CHARSET_INFO *cs) final;
+  bool eq_def(const Field *field) const override;
   uint is_equal(const Create_field *new_field) const override;
   String *val_str(String *, String *) const override;
 };

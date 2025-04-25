@@ -125,7 +125,7 @@ node_no xcom_find_node_index(node_list *nodes) {
       /* Get addresses of host */
 
       saved_addr = addr = probe_get_addrinfo(name);
-      IFDBG(D_NONE, FN; STRLIT("name "); STRLIT(name); PTREXP(addr));
+      XCOM_IFDBG(D_NONE, FN; STRLIT("name "); STRLIT(name); PTREXP(addr));
       /* getaddrinfo returns linked list of addrinfo */
       bool using_net_ns = !net_namespace.empty();
       while (addr) {
@@ -189,7 +189,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
     }
 
     saved_addr = addr = probe_get_addrinfo(name);
-    IFDBG(D_NONE, FN; STREXP(name); PTREXP(addr));
+    XCOM_IFDBG(D_NONE, FN; STREXP(name); PTREXP(addr));
     /* getaddrinfo returns linked list of addrinfo */
     using_net_ns = !net_namespace.empty();
     while (addr) {

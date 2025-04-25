@@ -753,8 +753,8 @@ SET explain_json_format_version = 2;
 EXPLAIN FORMAT=JSON INTO @explain
 SELECT id FROM t1 FORCE INDEX (i1) WHERE FIND_IN_SET('Admin', roles)>0;
 SET explain_json_format_version = DEFAULT;
-SELECT COALESCE(JSON_EXTRACT(@explain, '$.inputs[0].operation'),
-JSON_EXTRACT(@explain, '$.operation')) AS scan;
+SELECT COALESCE(JSON_EXTRACT(@explain, '$.query_plan.inputs[0].operation'),
+JSON_EXTRACT(@explain, '$.query_plan.operation')) AS scan;
 scan
 "Index range scan on t1 using i1 over (0 < find_in_set(_utf8mb4'Admin',`roles`))"
 SELECT id FROM t1 WHERE FIND_IN_SET('Admin', roles)>0;

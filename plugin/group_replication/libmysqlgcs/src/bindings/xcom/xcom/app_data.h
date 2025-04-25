@@ -28,11 +28,11 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#define copy_app_data(target, source)                            \
-  {                                                              \
-    IFDBG(D_NONE, FN; STRLIT(" copy_app_data "); PTREXP(target); \
-          PTREXP(*target); PTREXP(source));                      \
-    _replace_app_data_list(target, source);                      \
+#define copy_app_data(target, source)                                 \
+  {                                                                   \
+    XCOM_IFDBG(D_NONE, FN; STRLIT(" copy_app_data "); PTREXP(target); \
+               PTREXP(*target); PTREXP(source));                      \
+    _replace_app_data_list(target, source);                           \
   }
 
 #define steal_app_data(target, source) \

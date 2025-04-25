@@ -309,7 +309,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   // ---- account validation queries ----
   static std::string sql_val1() {
     return "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
-           "I.endpoint, I.xendpoint, I.attributes "
+           "I.endpoint, I.xendpoint, I.attributes, I.label "
            "from mysql_innodb_cluster_metadata.v2_instances I join "
            "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
            "C.cluster_id where C.cluster_name = 'some_cluster_name'";
@@ -427,14 +427,17 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
           &custom_responses,  // custom SQL statements + responses, same form as
                               // common_statements.js
       const std::string &validated_username =
-          "<not set>"  // used during account validation
-  ) {
+          "<not set>",  // used during account validation
+      const std::uint16_t router_id = 1) {
     try {
       MockServerRestClient(server_http_port)
           .set_globals(
               "{"
               "\"router_version\": \"" MYSQL_ROUTER_VERSION
               "\","
+              "\"router_id\": " +
+              std::to_string(router_id) +
+              ","
               "\"custom_responses\": {" +
               custom_responses +
               "},"
@@ -1193,7 +1196,7 @@ TEST_F(AccountReuseTest, simple) {
 
   set_mock_metadata(server_http_port, "00000000-0000-0000-0000-0000000000g1",
                     classic_ports_to_gr_nodes({server_port}), 0, {server_port},
-                    0, false, "127.0.0.1", "", {2, 2, 0}, "mycluster");
+                    0, false, "127.0.0.1", "", {2, 2, 0}, "my-cluster");
 
   // run bootstrap
   ProcessWrapper &router =
@@ -1986,6 +1989,7 @@ TEST_F(AccountReuseReconfigurationTest,
                                            "--force"};
     const std::set<std::string> existing_hosts = {
         "%"};  // kAccountUser@% exists already
+    const std::uint16_t router_id = 123;
 
     // expectations
     int exp_exit_code = EXIT_SUCCESS;
@@ -1993,7 +1997,7 @@ TEST_F(AccountReuseReconfigurationTest,
     const std::string exp_username = kAccountUser;
     const std::string exp_password = kAccountUserPassword;
     const std::set<std::string> exp_attempt_create_hosts = {"%"};
-    CustomResponses cr1 = gen_sql_for_registered_router();
+    CustomResponses cr1 = gen_sql_for_registered_router(router_id);
     CustomResponses cr2 = gen_sql_for_creating_accounts(
         exp_username, exp_attempt_create_hosts, existing_hosts);
     std::vector<std::string> exp_sql = cr1.exp_sql;
@@ -2010,8 +2014,8 @@ TEST_F(AccountReuseReconfigurationTest,
             .port(server_port)
             .http_port(server_http_port)
             .args());
-    set_mock_server_sql_statements(server_http_port,
-                                   cr1.stmts + "," + cr2.stmts);
+    set_mock_server_sql_statements(
+        server_http_port, cr1.stmts + "," + cr2.stmts, "<not set>", router_id);
 
     // run bootstrap
     ProcessWrapper &router = launch_bootstrap(
@@ -4831,7 +4835,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
     set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                       classic_ports_to_gr_nodes({server_port}), 0,
                       {server_port}, 0, false, "127.0.0.1", "", {2, 2, 0},
-                      "mycluster");
+                      "my-cluster");
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstrapping was successful
@@ -4940,7 +4944,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
 
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                     classic_ports_to_gr_nodes({server_port}), 0, {server_port},
-                    0, false, "127.0.0.1", "", {2, 2, 0}, "mycluster");
+                    0, false, "127.0.0.1", "", {2, 2, 0}, "my-cluster");
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
@@ -4980,7 +4984,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
                       classic_ports_to_gr_nodes({server_port}), 0,
                       {server_port}, 0, false, "127.0.0.1", "", {2, 2, 0},
-                      "mycluster");
+                      "my-cluster");
 
     // launch the router in bootstrap mode
     auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true,
@@ -4990,7 +4994,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
-                                     "InnoDB Cluster 'test'"));
+                                     "InnoDB Cluster 'my-cluster'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();

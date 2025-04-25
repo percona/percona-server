@@ -316,10 +316,43 @@ while($stage <= $number_of_stages)
   --inc $stage
 }
 
-# temporary table cleanup
-DROP TABLE loaded_ts;
+
+#
+# PS-9777 - binlog_utils_udf plugin should handle binlog.index entries the same as the server code does
+# Check that binlog_utils_udf plugin handles binlog.index file entries
+# that are filenames (no relative or absolute path) correctly.
+#
+--source include/have_util_sed.inc
+
+# We only expect that the following won't fail at any stage. Actual results don't matter.
+
+# Modify the index file (remove leading ./ leaving only binlog file names)
+--let $index_file = `SELECT @@log_bin_index`
+--exec $SED -i 's|^\./binlog\.|binlog.|' $index_file
+
+# There will be no temp tables after restart
+--let $binlog_file_name = `SELECT binlog_name FROM captured_gtid LIMIT 1`
+--let $gtid_value = `SELECT gtid_value FROM captured_gtid LIMIT 1`
+
+# mysqld uses a cache over index file. Restart the server to fetch the new index file content.
+--source include/restart_mysqld.inc
+
+# restart re-enables query and resutl logs
+--disable_query_log
+--disable_result_log
+eval SELECT get_gtid_set_by_binlog('$binlog_file_name');
+--let $gtidset = `SELECT get_gtid_set_by_binlog('$binlog_file_name')`
+eval SELECT get_binlog_by_gtid_set('$gtidset');
+eval SELECT get_binlog_by_gtid('$gtid_value');
+eval SELECT get_last_gtid_from_binlog('$binlog_file_name');
+eval SELECT get_first_record_timestamp_by_binlog('$binlog_file_name');
+eval SELECT get_last_record_timestamp_by_binlog('$binlog_file_name');
+--enable_query_log
+--enable_result_log
+
+
+# temporary table cleanup not needed as we restarted the server
 
 UNINSTALL COMPONENT 'file://component_binlog_utils_udf';
 
-DROP TABLE captured_gtid;
 DROP TABLE t1;

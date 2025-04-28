@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,11 @@ node_set *realloc_node_set(node_set *set, u_int n) {
   bool_t *old_p = set->node_set_val;
   u_int i;
 
-  set->node_set_val = (int *)realloc(old_p, n * sizeof(bool_t));
+  // If the realloc size value is zero, we will store the
+  // old pointer, in order for it to be free'd by
+  // free_node_set
+  set->node_set_val =
+      n == 0 ? old_p : (int *)realloc(old_p, n * sizeof(bool_t));
   set->node_set_len = n;
   for (i = old_n; i < n; i++) {
     set->node_set_val[i] = 0;

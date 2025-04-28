@@ -555,7 +555,7 @@ if (`SELECT COUNT(*) FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id`)
 {
   echo Detected failure to drop all objects related to t1;
   echo t1_id: $t1_id;
-  SELECT * FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id;
+  eval SELECT * FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id;
   die Failed to drop all objects for t1;
 }
 

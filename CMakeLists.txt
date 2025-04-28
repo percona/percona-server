@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -252,8 +252,11 @@ ENDIF()
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
   STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  IF(NOT CMAKE_MATCH_1)
+    STRING(REGEX MATCH "\\.el(10)\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  ENDIF()
 
-  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9
+  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9 or LINUX_RHEL10
   IF(CMAKE_MATCH_1)
     SET(LINUX_RHEL 1)
     SET(LINUX_RHEL${CMAKE_MATCH_1} 1)
@@ -326,7 +329,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
     ENDIF()
-    IF(LINUX_RHEL)
+    IF(LINUX_RHEL AND NOT LINUX_RHEL10)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
@@ -339,6 +342,8 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         ENDIF()
       ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-12")
+      ELSEIF(LINUX_RHEL10)
+        # Use default /usr/bin/gcc which is 14.2.1
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -2275,6 +2280,7 @@ ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(extra/unordered_dense)
+ADD_SUBDIRECTORY(extra/xxhash)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)

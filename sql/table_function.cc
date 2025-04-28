@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
     if (col->m_jtc_type != enum_jt_column::JTC_NESTED_PATH) {
       col->m_field_idx = m_vt_list.elements;
       m_vt_list.push_back(col);
-      if (check_column_name(col->field_name)) {
+      if (check_column_name(to_lex_cstring(col->field_name))) {
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), col->field_name);
         return true;
       }

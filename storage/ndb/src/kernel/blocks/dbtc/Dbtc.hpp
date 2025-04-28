@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1404,6 +1404,16 @@ class Dbtc : public SimulatedBlock {
 
     Uint32 m_location_domain_id;
 
+    /* Discrete states of API failure handling for logs etc */
+    enum ApiFailStates {
+      AF_IDLE,
+      AF_CHECK_TRANS,
+      AF_CHECK_MARKERS,
+      AF_CHECK_MARKERS_WAIT_TC_TAKEOVER,
+      AF_CHECK_MARKERS_WAIT_TRANS
+    };
+    Uint32 m_af_state;
+    /* Independent steps of Data node failure handling */
     enum NodeFailBits {
       NF_TAKEOVER = 0x1,
       NF_CHECK_SCAN = 0x2,
@@ -1411,7 +1421,7 @@ class Dbtc : public SimulatedBlock {
       NF_BLOCK_HANDLE = 0x8,
       NF_NODE_FAIL_BITS = 0xF  // All bits...
     };
-    Uint32 m_nf_bits;
+    Uint32 m_nf_bits; /* Node fail handling state */
     NdbNodeBitmask _m_lqh_trans_conf;
     /**
      * Indicator if any history to track yet

@@ -2289,3 +2289,60 @@ REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n')
 index_dives_for_eq_ranges": true
 SET SESSION OPTIMIZER_TRACE="enabled=off";
 DROP TABLE t;
+#
+# Bug#36536936 Optimizer hint is unresolved when using VIEW
+# that include UNION
+#
+CREATE TABLE `t1` (
+`id` int NOT NULL,
+`c1` int DEFAULT NULL,
+PRIMARY KEY (`id`),
+KEY `c1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `t3` (
+`id` int NOT NULL,
+`c1` int DEFAULT NULL,
+`c2` int DEFAULT NULL,
+`d1` datetime DEFAULT NULL,
+PRIMARY KEY (`id`),
+KEY `c1` (`c1`),
+KEY `c2` (`c2`),
+KEY `d1` (`d1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE VIEW v1 AS
+SELECT id,c1 FROM t1
+UNION ALL
+SELECT /*+ INDEX(t3 c2) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select /*+ INDEX(`t3`@`select#2` `c2`) */ `t1`.`id` AS `id`,`t1`.`c1` AS `c1` from `t1` union all select `t3`.`id` AS `id`,`t3`.`c1` AS `c1` from `t3` where ((`t3`.`c1` = 1) and (`t3`.`c2` = 9))	utf8mb4	utf8mb4_0900_ai_ci
+EXPLAIN
+SELECT /*+ INDEX(t3@qb2 c2) */ id,c1
+FROM t1
+UNION ALL
+SELECT /*+ QB_NAME(qb2) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	c1	5	NULL	1	100.00	Using index
+2	UNION	t3	NULL	ref	c2	c2	5	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ INDEX(`t3`@`qb2` `c2`) */ `test`.`t1`.`id` AS `id`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` union all /* select#2 */ select /*+ QB_NAME(`qb2`) */ `test`.`t3`.`id` AS `id`,`test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c2` = 9) and (`test`.`t3`.`c1` = 1))
+EXPLAIN
+SELECT /*+ INDEX(t3@qb2 c2) QB_NAME(qb1) */ id,c1
+FROM t1
+UNION ALL
+SELECT /*+ INDEX(t1@qb1 c1) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	c1	5	NULL	1	100.00	Using index
+2	UNION	t3	NULL	ref	c1,c2	c1	5	const	1	100.00	Using where
+Warnings:
+Warning	3127	Query block name `qb2` is not found for INDEX hint
+Note	1003	/* select#1 */ select /*+ QB_NAME(`qb1`) INDEX(`t1`@`qb1` `c1`) */ `test`.`t1`.`id` AS `id`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` union all /* select#2 */ select `test`.`t3`.`id` AS `id`,`test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c2` = 9) and (`test`.`t3`.`c1` = 1))
+DROP view v1;
+DROP TABLE t1,t3;
+#

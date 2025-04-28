@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -5688,12 +5688,16 @@ bool JOIN::extract_const_tables() {
            1. are dependent upon other tables, or
            2. have no exact statistics, or
            3. are full-text searched
+           4. a derived table which has a stored function
         */
+        const bool explain_mode = thd->lex->is_explain();
         if ((table->s->system || table->file->stats.records <= 1 ||
              all_partitions_pruned_away) &&
             !tab->dependent &&                                              // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 2
-            !tl->is_fulltext_searched())                                    // 3
+            !tl->is_fulltext_searched() &&                                  // 3
+            !(explain_mode && tl->is_view_or_derived() &&
+              tl->has_stored_program()))  // 4
           mark_const_table(tab, nullptr);
         break;
     }
@@ -5847,6 +5851,7 @@ bool JOIN::extract_func_dependent_tables() {
              6. are not going to be used, typically because they are streamed
                 instead of materialized
                 (see Query_expression::can_materialize_directly_into_result()).
+             7. key evaluated in stored program in EXPLAIN mode
           */
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !tl->is_fulltext_searched() &&                              // 1
@@ -5854,7 +5859,9 @@ bool JOIN::extract_func_dependent_tables() {
               !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&    // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&  // 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE) &&  // 5
-              table->is_created()) {                                      // 6
+              table->is_created() &&                                      // 6
+              !(thd->lex->is_explain() &&
+                start_keyuse->val->has_stored_program())) {  // 7
             if (table->key_info[key].flags & HA_NOSAME) {
               if (const_ref == eq_part) {  // Found everything for ref.
                 ref_changed = true;
@@ -6285,7 +6292,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
       return 0;
     }
     DBUG_PRINT("warning", ("Couldn't use record count on const keypart"));
-  } else if (tl->is_table_function() || tl->materializable_is_const()) {
+  } else if (tl->is_table_function() || tl->materializable_is_const(thd)) {
     tl->fetch_number_of_rows();
     return tl->table->file->stats.records;
   }
@@ -9041,9 +9048,11 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
     if (ref_item != nullptr && ref_item->eq(right_item, true)) {
-      if (ref_lookup_subsumes_comparison(thd, field, right_item,
-                                         right_item->const_for_execution(),
-                                         redundant)) {
+      if (ref_lookup_subsumes_comparison(
+              thd, field, right_item,
+              right_item->const_for_execution() &&
+                  !(thd->lex->is_explain() && right_item->has_stored_program()),
+              redundant)) {
         return true;
       }
     }
@@ -11491,6 +11500,13 @@ bool evaluate_during_optimization(const Item *item, const Query_block *select) {
 
   // If the Item does not access any tables, it can always be evaluated.
   if (item->const_item()) return true;
+
+  // Do not evaluate stored procedure in EXPLAIN
+  if (current_thd->lex->is_explain() &&
+      WalkItem(item, enum_walk::PREFIX, [](const Item *curitem) {
+        return curitem->has_stored_program();
+      }))
+    return false;
 
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;

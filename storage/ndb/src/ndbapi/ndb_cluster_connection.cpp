@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -421,8 +421,8 @@ class NdbApiInternalLogHandler : public LogHandler {
       : m_defaultHandler(defaultHandler), m_userConsumer(nullptr) {
     m_consumer_mutex = NdbMutex_Create();
     m_handler_mutex = NdbMutex_Create();
-    Logger::LoggerTest::setHandlerPointerAdress(*g_eventLogger,
-                                                &m_defaultHandler);
+    Logger::LoggerTest::setHandlerPointerAddress(*g_eventLogger,
+                                                 &m_defaultHandler);
   }
 
  public:
@@ -506,6 +506,13 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if (g_ndb_connection_count++ == 0) {
+    if (g_eventLogger == nullptr) {
+      [[maybe_unused]] int ret = fprintf(stderr,
+                                         "ERROR: g_eventLogger object is "
+                                         "null. ndb_init() not called?\n");
+      require(g_eventLogger != nullptr);
+    }
+
     NdbColumnImpl::create_pseudo_columns();
     /* Setup singleton InternalLogHandler if needed */
     NdbApiInternalLogHandler::getLogHandlerInstance();

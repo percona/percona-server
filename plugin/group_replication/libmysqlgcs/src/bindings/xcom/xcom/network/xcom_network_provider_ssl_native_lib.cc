@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,15 @@
 #include "xcom/network/include/network_provider.h"
 #include "xcom/network/network_provider_manager.h"
 
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+
+#ifndef _WIN32
+#include <poll.h>
+#endif
+
 #ifndef XCOM_WITHOUT_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
@@ -41,13 +50,20 @@
 #include "my_compiler.h"
 #endif
 
-#include "openssl/engine.h"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include <openssl/engine.h>
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>
 #endif
 
+||||||| 14ba93991ba
+=======
+#include "xcom/retry.h"
+>>>>>>> mysql-8.0.42
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
 
@@ -569,7 +585,9 @@ void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
   }
 
 #if defined(WITH_SSL_STANDALONE)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ENGINE_cleanup();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();
@@ -694,3 +712,76 @@ error:
 #else
 int avoid_compile_warning = 1;
 #endif
+
+std::pair<SSL *, int> Xcom_network_provider_ssl_library::timed_connect_ssl_msec(
+    int fd, SSL_CTX *outgoing_ctx, const std::string &hostname, int timeout) {
+  result ret;
+  int return_value_error = 0;
+
+  /* Set non-blocking */
+  if (unblock_fd(fd) < 0) {
+    return std::make_pair(nullptr, 1);
+  }
+
+  SSL *ssl_fd = SSL_new(outgoing_ctx);
+  G_DEBUG("Trying to connect using SSL.")
+
+  SSL_set_fd(ssl_fd, fd);
+  ERR_clear_error();
+  ret.val = SSL_connect(ssl_fd);
+  ret.funerr = to_ssl_err(SSL_get_error(ssl_fd, ret.val));
+
+  // Start the timer for the global timeout verification
+  auto start = std::chrono::steady_clock::now();
+
+  // Lambda function to verify the timeout.
+  auto has_timed_out = [&]() {
+    auto end = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+               .count() > timeout;
+  };
+
+  bool poll_error = false;
+  while (ret.val != SSL_SUCCESS && can_retry(ret.funerr) && !has_timed_out()) {
+    if (poll_error =
+            Xcom_network_provider_library::poll_for_timed_connects(fd, timeout);
+        poll_error) {
+      break;
+    }
+
+    SET_OS_ERR(0);
+    ERR_clear_error();
+    ret.val = SSL_connect(ssl_fd);
+    ret.funerr = to_ssl_err(SSL_get_error(ssl_fd, ret.val));
+  }
+
+  if (ret.val != SSL_SUCCESS || poll_error) {
+    if (!can_retry(ret.funerr)) {  // Do not emit an error, if it is a WANT_READ
+                                   // or a WANT_WRITE, because it is not an
+                                   // actionable item
+      G_INFO("Error connecting using SSL %d %d", ret.funerr,
+             SSL_get_error(ssl_fd, ret.val));
+    }
+    task_dump_err(ret.funerr);
+
+    return_value_error = 1;
+  } else if (ssl_verify_server_cert(ssl_fd, hostname.c_str())) {
+    G_MESSAGE("Error validating certificate and peer from %s.",
+              hostname.c_str());
+    task_dump_err(ret.funerr);
+
+    return_value_error = 1;
+  }
+
+  /* Set blocking */
+  SET_OS_ERR(0);
+  if (block_fd(fd) < 0) {
+    G_ERROR(
+        "Unable to set socket back to blocking state. "
+        "(socket=%d, error=%d).",
+        fd, GET_OS_ERR);
+    return_value_error = 1;
+  }
+
+  return std::make_pair(ssl_fd, return_value_error);
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1238,6 +1238,7 @@ bool opt_no_monitor = false;
 
 bool opt_no_dd_upgrade = false;
 long opt_upgrade_mode = UPGRADE_AUTO;
+long opt_check_table_funs = CHECK_TABLE_FUN_ABORT;
 bool opt_initialize = false;
 bool dd_init_failed_during_upgrade = false;
 bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
@@ -9332,6 +9333,15 @@ struct my_option my_long_early_options[] = {
      "tables.",
      &opt_noacl, &opt_noacl, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"check-table-functions", 0,
+     "On upgrade, the server attempts to open tables with SQL functions in "
+     "their DEFAULT, INDEX, and PARTITION clauses, virtual columns, and "
+     "CONSTRAINTs. "
+     "WARN runs the test but proceeds even if potential issues are found; "
+     "ABORT (default) stops the server if potential issues are found.",
+     &opt_check_table_funs, &opt_check_table_funs,
+     &check_table_fun_mode_typelib, GET_ENUM, REQUIRED_ARG,
+     CHECK_TABLE_FUN_ABORT, 0, 0, nullptr, 0, nullptr},
     {"help", '?', "Display this help and exit.", &opt_help, &opt_help, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Used with --help option for detailed help.", &opt_verbose,

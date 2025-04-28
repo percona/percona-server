@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,13 +48,11 @@ class NdbRestarter {
   };
 
   int restartOneDbNode(int _nodeId, bool initial = false, bool nostart = false,
-                       bool abort = false, bool force = false,
-                       bool captureError = false);
+                       bool abort = false, bool force = false);
 
-  int restartOneDbNode2(int _nodeId, Uint32 flags, bool captureError = false) {
+  int restartOneDbNode2(int _nodeId, Uint32 flags) {
     return restartOneDbNode(_nodeId, flags & NRRF_INITIAL, flags & NRRF_NOSTART,
-                            flags & NRRF_ABORT, flags & NRRF_FORCE,
-                            captureError);
+                            flags & NRRF_ABORT, flags & NRRF_FORCE);
   }
 
   int restartAll(bool initial = false, bool nostart = false, bool abort = false,
@@ -68,8 +66,7 @@ class NdbRestarter {
   int restartAll3(bool initial = false, bool nostart = false,
                   bool abort = false, bool force = false);
 
-  int restartNodes(int *nodes, int num_nodes, Uint32 flags,
-                   bool captureError = false);
+  int restartNodes(int *nodes, int num_nodes, Uint32 flags);
 
   int startAll();
   int startNodes(const int *_nodes, int _num_nodes);

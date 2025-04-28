@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
+||||||| 14ba93991ba
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+>>>>>>> mysql-8.0.42
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

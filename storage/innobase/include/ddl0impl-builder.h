@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -414,7 +414,7 @@ struct Builder {
   m_n_recs is 0 (no records are inserted yet).
   @param[in]  err    Error hit in online build
   @return the cursor error status. */
-  [[nodiscard]] dberr_t online_build_handle_error(dberr_t err) noexcept;
+  [[nodiscard]] dberr_t handle_error(dberr_t err) noexcept;
 
  private:
   /** Buffer ID. */

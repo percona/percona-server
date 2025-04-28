@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6861,6 +6861,15 @@ void MYSQL_BIN_LOG::dec_prep_xids(THD *thd) {
   }
 }
 
+void MYSQL_BIN_LOG::wait_for_prep_xids() {
+  DBUG_TRACE;
+  mysql_mutex_lock(&LOCK_xids);
+  while (get_prep_xids() > 0) {
+    mysql_cond_wait(&m_prep_xids_cond, &LOCK_xids);
+  }
+  mysql_mutex_unlock(&LOCK_xids);
+}
+
 /*
   Wrappers around new_file_impl to avoid using argument
   to control locking. The argument 1) less readable 2) breaks
@@ -6923,7 +6932,6 @@ int MYSQL_BIN_LOG::new_file_impl(
     mysql_mutex_assert_owner(&LOCK_log);
   DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
                   DEBUG_SYNC(current_thd, "before_rotate_binlog"););
-  mysql_mutex_lock(&LOCK_xids);
   /*
     We need to ensure that the number of prepared XIDs are 0.
 
@@ -6932,10 +6940,7 @@ int MYSQL_BIN_LOG::new_file_impl(
     - We keep the LOCK_log to block new transactions from being
       written to the binary log.
    */
-  while (get_prep_xids() > 0) {
-    mysql_cond_wait(&m_prep_xids_cond, &LOCK_xids);
-  }
-  mysql_mutex_unlock(&LOCK_xids);
+  wait_for_prep_xids();
 
   mysql_mutex_lock(&LOCK_index);
 

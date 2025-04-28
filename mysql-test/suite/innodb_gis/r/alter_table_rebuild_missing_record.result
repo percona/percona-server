@@ -65,6 +65,44 @@ SET SESSION debug="-d,pcursor_move_to_next_block_release_latches";
 # Ensure all data is present after index rebuild.
 # Test cleanup.
 DROP TABLE t1;
+##############################################################
+# Test#3 Bug#37318367 Keep record in first page only
+# to verify the restore API work as intended
+##############################################################
+connection default;
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+CALL insert_records(8);
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id > 1;
+connection con1;
+SET DEBUG_SYNC='ddl_batch_inserter_latches_released SIGNAL latches_released WAIT_FOR go EXECUTE 1';
+# Send ALTER TABLE INPLACE to rebuild the index.
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR latches_released';
+SET GLOBAL innodb_purge_run_now = ON;
+SET DEBUG_SYNC='now SIGNAL go';
+connection con1;
+# Reap ALTER TABLE.
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+# Ensure all data is present after index rebuild.
+# Test cleanup.
+DROP TABLE t1;
+##############################################################
+# Test#4 Bug#37505746 - optimistic restoration of the cursor
+##############################################################
+connection default;
+CREATE TABLE t1 (id int AUTO_INCREMENT NOT NULL, srid POINT NOT NULL SRID 0,
+PRIMARY KEY(id), SPATIAL INDEX spi(srid)) ENGINE=InnoDB;
+CALL insert_records(8);
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
+ALTER TABLE t1 ENGINE=InnoDB, ALGORITHM=INPLACE;
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
+# Ensure all data is present after index rebuild.
+# Test cleanup.
+DROP TABLE t1;
 # cleanup
 connection default;
 DROP PROCEDURE test.insert_records;

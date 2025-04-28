@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4259,11 +4259,9 @@ class Field_typed_array final : public Field_json {
   int key_cmp(const uchar *, const uchar *) const override { return -1; }
   /**
    * @brief This function will behave similarly to MEMBER OF json operation,
-   *        unlike regular key_cmp. Since scans on multi-valued indexes always
-   *        go in the ascending direction, and always start on the first entry
-   *        that is not less than the key, a record not matching the MEMBER OF
-   *        condition is assumed to be greater than the key, so the function
-   *        always returns 1, indicating greater than, for not found.
+   *        unlike regular key_cmp. In case of multi-valued indexes a record
+   *        not matching the MEMBER OF condition indicates out of range, so the
+   *        function returns 1 for not found.
    *        This definition is used in descending ref index scans.
    *        Descending index scan uses handler::ha_index_prev() function to read
    *        from the storage engine which does not compare the index key with

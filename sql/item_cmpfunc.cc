@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2435,6 +2435,22 @@ void Item_in_optimizer::update_used_tables() {
   } else {
     not_null_tables_cache &= subqpred->left_expr->not_null_tables();
   }
+}
+
+bool Item_func_eq::clean_up_after_removal(uchar *arg) {
+  Cleanup_after_removal_context *const ctx =
+      pointer_cast<Cleanup_after_removal_context *>(arg);
+
+  if (ctx->is_stopped(this)) return false;
+
+  if (reference_count() > 1) {
+    (void)decrement_ref_count();
+    ctx->stop_at(this);
+  }
+
+  ctx->get_root()->prune_sj_exprs(this, nullptr);
+
+  return false;
 }
 
 longlong Item_func_eq::val_int() {

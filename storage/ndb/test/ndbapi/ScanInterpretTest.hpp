@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -325,7 +325,6 @@ inline int ScanInterpretTest::scanReadVerify(Ndb *pNdb, int records,
 
     int eof;
     int rows = 0;
-    int rowsNoExist = 0;
     int rowsExist = 0;
     int existingRecordsNotFound = 0;
     int nonExistingRecordsFound = 0;
@@ -357,7 +356,6 @@ inline int ScanInterpretTest::scanReadVerify(Ndb *pNdb, int records,
             return NDBT_FAILED;
           }
         } else {
-          rowsNoExist++;
           if (addRowToCheckTrans(pNdb, pNoExistTrans) != 0) {
             pNdb->closeTransaction(pTrans);
             pNdb->closeTransaction(pExistTrans);

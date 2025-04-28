@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,6 +358,9 @@ void Configuration::setupConfiguration() {
     g_eventLogger->info("Mixology level set to 0x%x", _mixologyLevel);
     globalTransporterRegistry.setMixologyLevel(_mixologyLevel);
   }
+
+  _shutdownHandlingFault = 0;
+  _shutdownHandlingFaultExtra = 0;
 #endif
 
   /**
@@ -644,6 +647,19 @@ void Configuration::setRestartOnErrorInsert(int i) {
 Uint32 Configuration::getMixologyLevel() const { return _mixologyLevel; }
 
 void Configuration::setMixologyLevel(Uint32 l) { _mixologyLevel = l; }
+
+Uint32 Configuration::getShutdownHandlingFault() const {
+  return _shutdownHandlingFault;
+};
+Uint32 Configuration::getShutdownHandlingFaultExtra() const {
+  return _shutdownHandlingFaultExtra;
+};
+
+void Configuration ::setShutdownHandlingFault(Uint32 v, Uint32 extra) {
+  _shutdownHandlingFault = v;
+  _shutdownHandlingFaultExtra = extra;
+};
+
 #endif
 
 const ndb_mgm_configuration_iterator *Configuration::getOwnConfigIterator()

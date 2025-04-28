@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9974,8 +9974,10 @@ bool fill_record_n_invoke_before_triggers(
     }
 
     table->triggers->disable_fields_temporary_nullability();
+    rc = rc || check_inserting_record(thd, table->field);
+    table->triggers->reset_field_nulls();
 
-    return rc || check_inserting_record(thd, table->field);
+    return rc;
   } else {
     if (fill_record(thd, table, fields, values, nullptr, nullptr,
                     raise_autoinc_has_expl_non_null_val))

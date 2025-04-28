@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -370,7 +370,7 @@ table_malloc_stats.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY
-  LINK_LIBRARIES extra::rapidjson ext::zlib)
+  LINK_LIBRARIES extra::rapidjson ext::zlib extra::unordered_dense)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)

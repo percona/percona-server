@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -712,6 +712,7 @@ class Item_func_centroid : public Item_geometry_func {
 
 class Item_func_convex_hull : public Item_geometry_func {
   BG_result_buf_mgr bg_resbuf_mgr;
+  String tmp_value;
 
   template <typename Coordsys>
   bool bg_convex_hull(const Geometry *geom, String *wkb);

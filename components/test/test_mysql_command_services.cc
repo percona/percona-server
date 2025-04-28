@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -103,87 +103,107 @@ static char *test_mysql_command_services_udf(UDF_INIT *, UDF_ARGS *args,
   }
 
   std::string query(args->args[0], args->lengths[0]);
-
-  if (cmd_query_srv->query(mysql_h, query.data(), query.length())) {
-    cmd_error_info_srv->sql_error(mysql_h, &result);
-    *length = strlen(result);
-    goto err;
+  std::size_t number_of_query_executions{1U};
+  if (args->arg_count > 1U && args->arg_type[1] == INT_RESULT) {
+    number_of_query_executions = *reinterpret_cast<long long *>(args->args[1]);
   }
 
-  cmd_query_result_srv->store_result(mysql_h, &mysql_res);
-  if (mysql_res) {
-    if (cmd_query_srv->affected_rows(mysql_h, &row_count)) {
-      result = nullptr;
-      goto err;
-    }
-    if (cmd_field_info_srv->num_fields(mysql_res, &num_column)) {
-      result = nullptr;
-      goto err;
-    }
-    if (cmd_field_info_srv->field_count(mysql_h, &field_count)) {
-      result = nullptr;
+  for (std::size_t u{0U}; u < number_of_query_executions; ++u) {
+    result_set.clear();
+    // It is OK to call free_result() with nullptr MYSQL_RES_H.
+    cmd_query_result_srv->free_result(mysql_res);
+    mysql_res = nullptr;
+
+    if (cmd_query_srv->query(mysql_h, query.data(), query.length())) {
+      cmd_error_info_srv->sql_error(mysql_h, &result);
+      *length = strlen(result);
       goto err;
     }
 
-    if (field_count > 0) {
-      if (cmd_field_info_srv->fetch_field(mysql_res, &field_h)) {
+    cmd_query_result_srv->store_result(mysql_h, &mysql_res);
+    if (mysql_res) {
+      if (cmd_query_srv->affected_rows(mysql_h, &row_count)) {
         result = nullptr;
         goto err;
       }
-      if (cmd_field_info_srv->fetch_fields(mysql_res, &fields_h)) {
+      if (cmd_field_info_srv->num_fields(mysql_res, &num_column)) {
+        result = nullptr;
+        goto err;
+      }
+      if (cmd_field_info_srv->field_count(mysql_h, &field_count)) {
         result = nullptr;
         goto err;
       }
 
-      const char *field_name = nullptr, *table_name = nullptr,
-                 *db_name = nullptr;
-      if (cmd_field_meta_srv->get(field_h, MYSQL_COMMAND_FIELD_METADATA_NAME,
-                                  &field_name) ||
-          !field_name) {
-        result = nullptr;
-        goto err;
-      }
-      if (cmd_field_meta_srv->get(
-              field_h, MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME, &table_name)) {
-        result = nullptr;
-        goto err;
-      }
-      if (cmd_field_meta_srv->get(
-              field_h, MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME, &db_name)) {
-        result = nullptr;
-        goto err;
-      }
-    }
+      if (field_count > 0) {
+        if (cmd_field_info_srv->fetch_field(mysql_res, &field_h)) {
+          result = nullptr;
+          goto err;
+        }
+        if (cmd_field_info_srv->fetch_fields(mysql_res, &fields_h)) {
+          result = nullptr;
+          goto err;
+        }
 
-    for (uint64_t i = 0; i < row_count; i++) {
-      if (cmd_query_result_srv->fetch_row(mysql_res, &row)) {
-        result = nullptr;
-        goto err;
+        const char *field_name = nullptr, *table_name = nullptr,
+                   *db_name = nullptr;
+        if (cmd_field_meta_srv->get(field_h, MYSQL_COMMAND_FIELD_METADATA_NAME,
+                                    &field_name) ||
+            !field_name) {
+          result = nullptr;
+          goto err;
+        }
+        if (cmd_field_meta_srv->get(field_h,
+                                    MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME,
+                                    &table_name)) {
+          result = nullptr;
+          goto err;
+        }
+        if (cmd_field_meta_srv->get(field_h,
+                                    MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME,
+                                    &db_name)) {
+          result = nullptr;
+          goto err;
+        }
       }
-      ulong *length = nullptr;
-      if (cmd_query_result_srv->fetch_lengths(mysql_res, &length)) {
-        result = nullptr;
-        goto err;
+
+      for (uint64_t i = 0; i < row_count; i++) {
+        if (cmd_query_result_srv->fetch_row(mysql_res, &row)) {
+          result = nullptr;
+          goto err;
+        }
+        ulong *length = nullptr;
+        if (cmd_query_result_srv->fetch_lengths(mysql_res, &length)) {
+          result = nullptr;
+          goto err;
+        }
+        for (unsigned int j = 0; j < num_column; j++) {
+          result_set += row[j];
+        }
       }
-      for (unsigned int j = 0; j < num_column; j++) {
-        result_set += row[j];
+      /* The caller has the buffer limit, and the size is of MAX_FIELD_WIDTH
+        size so we are truncating the result of the query output if it has more
+        date
+      */
+      if (u == 0U) {
+        /* Make sure we return results from the very first execution */
+        strncpy(
+            result,
+            reinterpret_cast<char *>(const_cast<char *>(result_set.c_str())),
+            (result_set.length() < *length) ? result_set.length()
+                                            : (*length - 1));
+        *length = (result_set.length() < *length) ? result_set.length()
+                                                  : (*length - 1);
+        result[*length] = '\0';
+      }
+    } else {
+      if (u == 0U) {
+        cmd_error_info_srv->sql_error(mysql_h, &result);
+        cmd_error_info_srv->sql_errno(mysql_h, &err_no);
+        cmd_error_info_srv->sql_state(mysql_h, sqlstate_errmsg);
+        *length = strlen(result);
       }
     }
-    /* The caller has the buffer limit, and the size is of MAX_FIELD_WIDTH size
-       so we are truncating the result of the query output if it has more date
-    */
-    strncpy(
-        result,
-        reinterpret_cast<char *>(const_cast<char *>(result_set.c_str())),
-        (result_set.length() < *length) ? result_set.length() : (*length - 1));
-    *length =
-        (result_set.length() < *length) ? result_set.length() : (*length - 1);
-    result[*length] = '\0';
-  } else {
-    cmd_error_info_srv->sql_error(mysql_h, &result);
-    cmd_error_info_srv->sql_errno(mysql_h, &err_no);
-    cmd_error_info_srv->sql_state(mysql_h, sqlstate_errmsg);
-    *length = strlen(result);
   }
 err:
   *error = 0;

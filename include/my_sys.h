@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
+||||||| 14ba93991ba
+/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+>>>>>>> mysql-8.0.42
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,9 +149,10 @@ struct MEM_ROOT;
 
 #define MYF_RW MYF(MY_WME + MY_NABP) /* For my_read & my_write */
 
-#define MY_CHECK_ERROR 1    /* Params to my_end; Check open-close */
-#define MY_GIVE_INFO 2      /* Give time info about process*/
-#define MY_DONT_FREE_DBUG 4 /* Do not call DBUG_END() in my_end() */
+#define MY_CHECK_ERROR 1        /* Params to my_end; Check open-close */
+#define MY_GIVE_INFO 2          /* Give time info about process*/
+#define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
+#define MY_END_PROXY_MAIN_THD 8 /* Free resources for main thread */
 
 /* Flags for my_error() */
 #define ME_BELL 4          /* DEPRECATED: Ring bell then printing message */

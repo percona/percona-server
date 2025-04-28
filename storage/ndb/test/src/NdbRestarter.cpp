@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,59 +72,25 @@ int NdbRestarter::getDbNodeId(int _i) {
 }
 
 int NdbRestarter::restartOneDbNode(int _nodeId, bool inital, bool nostart,
-                                   bool abort, bool force, bool captureError) {
+                                   bool abort, bool force) {
   return restartNodes(&_nodeId, 1,
                       (inital ? NRRF_INITIAL : 0) |
                           (nostart ? NRRF_NOSTART : 0) |
-                          (abort ? NRRF_ABORT : 0) | (force ? NRRF_FORCE : 0),
-                      captureError);
+                          (abort ? NRRF_ABORT : 0) | (force ? NRRF_FORCE : 0));
 }
 
-int NdbRestarter::restartNodes(int *nodes, int cnt, Uint32 flags,
-                               bool captureError) {
+int NdbRestarter::restartNodes(int *nodes, int cnt, Uint32 flags) {
   if (!isConnected()) return -1;
 
-  int ret = 0;
   int unused;
-  if ((ret = ndb_mgm_restart4(handle, cnt, nodes, (flags & NRRF_INITIAL),
-                              (flags & NRRF_NOSTART), (flags & NRRF_ABORT),
-                              (flags & NRRF_FORCE), &unused)) <= 0) {
-    /**
-     * ndb_mgm_restart4 returned error, one reason could
-     * be that the node have not stopped fast enough!
-     * Check status of the node to see if it's on the
-     * way down. If that's the case ignore the error.
-     *
-     * Bug #11757421 is a special case where the
-     * error code and description is required in
-     * the test case. The call to getStatus()
-     * overwrites the error and is thus avoided
-     * by adding an option to capture the error.
-     */
-
-    if (!captureError && getStatus() != 0) return -1;
-
-    g_info << "ndb_mgm_restart4 returned with error, checking node state"
-           << endl;
-
-    for (int j = 0; j < cnt; j++) {
-      int _nodeId = nodes[j];
-      for (unsigned i = 0; i < ndbNodes.size(); i++) {
-        if (ndbNodes[i].node_id == _nodeId) {
-          g_info << _nodeId << ": status=" << ndbNodes[i].node_status << endl;
-          /* Node found check state */
-          switch (ndbNodes[i].node_status) {
-            case NDB_MGM_NODE_STATUS_RESTARTING:
-            case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-              break;
-            default:
-              MGMERR(handle);
-              g_err << "Could not stop node with id = " << _nodeId << endl;
-              return -1;
-          }
-        }
-      }
-    }
+  if (ndb_mgm_restart4(handle, cnt, nodes, (flags & NRRF_INITIAL),
+                       (flags & NRRF_NOSTART), (flags & NRRF_ABORT),
+                       (flags & NRRF_FORCE), &unused) <= 0) {
+    MGMERR(handle);
+    int err = ndb_mgm_get_latest_error(handle);
+    const bool timedout = (err == ETIMEDOUT);
+    if (timedout) return -2;
+    return -1;
   }
 
   if ((flags & NRRF_NOSTART) == 0) {

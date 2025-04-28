@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ FUNCTION(FIND_SYSTEM_CURL ARG_CURL_INCLUDE_DIR)
   ENDIF()
 ENDFUNCTION(FIND_SYSTEM_CURL)
 
-SET(CURL_VERSION_DIR "curl-8.11.1")
+SET(CURL_VERSION_DIR "curl-8.12.1")
 FUNCTION(MYSQL_USE_BUNDLED_CURL CURL_INCLUDE_DIR)
   SET(WITH_CURL "bundled" CACHE STRING "Bundled curl library")
   ADD_SUBDIRECTORY(extra/curl)

@@ -1448,10 +1448,10 @@ let $query=
 SELECT (SELECT 1 AS foo
         UNION
         SELECT 2
-        ORDER BY COUNT(a)) AS x
+        ORDER BY COUNT(a)
+        LIMIT 1) AS x
 FROM t1;
 
---error ER_AGGREGATE_ORDER_FOR_UNION
 eval $query;
 
 --echo # Subquery, ORDER BY contains set function with outer reference

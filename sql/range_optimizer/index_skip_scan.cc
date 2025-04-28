@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -297,8 +297,8 @@ int IndexSkipScanIterator::Read() {
                distinct_prefix_len);
 
       if (eq_prefix) {
-        past_eq_prefix =
-            key_cmp(index_info->key_part, eq_prefix, eq_prefix_len);
+        past_eq_prefix = key_cmp(index_info->key_part, eq_prefix, eq_prefix_len,
+                                 /*is_reverse_multi_valued_index_scan=*/false);
         assert(past_eq_prefix >= 0);
 
         // We are past the equality prefix, so get the next prefix.

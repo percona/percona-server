@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1623,7 +1623,7 @@ bool Table_ref::optimize_derived(THD *thd) {
   // at execution time (in fact, it will get confused and crash if it has
   // already been materialized).
   if (!thd->lex->using_hypergraph_optimizer()) {
-    if (materializable_is_const() &&
+    if (materializable_is_const(thd) &&
         (create_materialized_table(thd) || materialize_derived(thd)))
       return true;
   }

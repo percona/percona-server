@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "NdbInfo.hpp"
 #include "ndbapi/NdbApi.hpp"
 #include "util/OutputStream.hpp"
+#include "util/cstrbuf.h"
 
 using DictionaryList = NdbDictionary::Dictionary::List;
 
@@ -130,9 +131,13 @@ class VirtualTable {
 
   virtual ~VirtualTable() = 0;
 
+  static constexpr int STRING_BUFFER = 516;  // 512 + final null + padding
+
  protected:
   std::map<int, int> m_index;
   static constexpr int column_buff_size = 512;
+  static constexpr const char *TRUNCATION_MARK = ",...";
+  static constexpr int TRUNCATE_AT = 508;  // 512 - TRUNCATION_MARK size
 };
 
 /*
@@ -543,8 +548,7 @@ int NdbInfoScanVirtual::execute() {
           buffer_size += sizeof(Uint64);
           break;
         case NdbInfo::Column::String:
-          buffer_size += 516;  // Varchar(512) plus terminator plus padding
-          break;
+          buffer_size += VirtualTable::STRING_BUFFER;
       }
     }
 
@@ -1263,6 +1267,27 @@ class IndexStatsTable : public VirtualTable {
   }
 };
 
+/* If a column name contains a dot, backtick, or comma, then quote it in
+   backticks, and escape ` within the name as ``.
+*/
+static BaseString quoteColumnName(BaseString name) {
+  Vector<BaseString> check(2);
+  int split = name.split(check, "`,.", 2);
+  if (likely(split == 1)) return name;
+
+  BaseString result;
+  result.append('`');
+  for (size_t i = 0; i < name.length(); i++) {
+    const char &c = name.c_str()[i];
+    if (c == '`')
+      result.append("``");
+    else
+      result.append(c);
+  }
+  result.append('`');
+  return result;
+}
+
 class DictionaryTablesTable : public VirtualTable {
  public:
   NdbInfo::Table *get_instance() const override {
@@ -1348,8 +1373,7 @@ class DictionaryTablesTable : public VirtualTable {
 
     {
       NdbDictionary::HashMap hashMap;
-      char pk_cols[column_buff_size];
-      size_t s = 0;
+      cstrbuf<column_buff_size> pk_cols;
 
       // Get value for column "dynamic"
       int is_dynamic = [t]() {
@@ -1364,42 +1388,47 @@ class DictionaryTablesTable : public VirtualTable {
 
       // Get value for column "primary_key"
       for (int i = 0; i < t->getNoOfPrimaryKeys(); i++) {
-        if (i) s += snprintf(pk_cols + s, column_buff_size - s, ",");
-        s += snprintf(pk_cols + s, column_buff_size - s, "%s",
-                      t->getPrimaryKey(i));
+        BaseString col = quoteColumnName(t->getPrimaryKey(i));
+        if (pk_cols.length() + 1 + col.length() < TRUNCATE_AT) {
+          if (i) pk_cols.append(",");
+          pk_cols.append(col.c_str());
+        } else {
+          pk_cols.append(TRUNCATION_MARK);
+          break;
+        }
       }
 
       // Get tablespace ID
       Uint32 tablespace_id;
       if (!t->getTablespace(&tablespace_id)) tablespace_id = 0;
 
-      w.write_string(elem->database);                      // database
-      w.write_string(t->getName());                        // name
-      w.write_number(t->getTableId());                     // table_id
-      w.write_number(t->getObjectStatus() + 1);            // status
-      w.write_number(t->getNoOfColumns());                 // attributes
-      w.write_number(t->getNoOfPrimaryKeys());             // primary_key_cols
-      w.write_string(pk_cols),                             // primary_key
-          w.write_number((int)(t->getStorageType()) + 1);  // storage
-      w.write_number(t->getLogging());                     // logging
-      w.write_number(is_dynamic);                          // dynamic
-      w.write_number(t->getReadBackupFlag());              // read_backup
-      w.write_number(t->getFullyReplicated());             // fully_replicated
-      w.write_number(t->getRowChecksumIndicator());        // checksum
-      w.write_number(t->getRowSizeInBytes());              // row_size
-      w.write_number64(t->getMinRows());                   // min_rows
-      w.write_number64(t->getMaxRows());                   // max_rows
-      w.write_number(tablespace_id);                       // tablespace
-      w.write_number((int)t->getFragmentType());           // fragment_type
-      w.write_string(hashMap.getName());                   // hash_map
-      w.write_number(t->getFragmentCount());               // fragments
-      w.write_number(t->getPartitionCount());              // partitions
-      w.write_string(t->getPartitionBalanceString());      // partition_balance
-      w.write_number(t->getRowGCIIndicator());             // contains_GCI
-      w.write_number(t->getSingleUserMode() + 1);          // single_user_mode
-      w.write_number(t->getForceVarPart());                // force_var_part
-      w.write_number(t->getExtraRowGciBits());             // GCI_bits
-      w.write_number(t->getExtraRowAuthorBits());          // author_bits
+      w.write_string(elem->database);                  // database
+      w.write_string(t->getName());                    // name
+      w.write_number(t->getTableId());                 // table_id
+      w.write_number(t->getObjectStatus() + 1);        // status
+      w.write_number(t->getNoOfColumns());             // attributes
+      w.write_number(t->getNoOfPrimaryKeys());         // primary_key_cols
+      w.write_string(pk_cols.c_str());                 // primary_key
+      w.write_number((int)(t->getStorageType()) + 1);  // storage
+      w.write_number(t->getLogging());                 // logging
+      w.write_number(is_dynamic);                      // dynamic
+      w.write_number(t->getReadBackupFlag());          // read_backup
+      w.write_number(t->getFullyReplicated());         // fully_replicated
+      w.write_number(t->getRowChecksumIndicator());    // checksum
+      w.write_number(t->getRowSizeInBytes());          // row_size
+      w.write_number64(t->getMinRows());               // min_rows
+      w.write_number64(t->getMaxRows());               // max_rows
+      w.write_number(tablespace_id);                   // tablespace
+      w.write_number((int)t->getFragmentType());       // fragment_type
+      w.write_string(hashMap.getName());               // hash_map
+      w.write_number(t->getFragmentCount());           // fragments
+      w.write_number(t->getPartitionCount());          // partitions
+      w.write_string(t->getPartitionBalanceString());  // partition_balance
+      w.write_number(t->getRowGCIIndicator());         // contains_GCI
+      w.write_number(t->getSingleUserMode() + 1);      // single_user_mode
+      w.write_number(t->getForceVarPart());            // force_var_part
+      w.write_number(t->getExtraRowGciBits());         // GCI_bits
+      w.write_number(t->getExtraRowAuthorBits());      // author_bits
     }
     return 1;
   }
@@ -1510,16 +1539,20 @@ class EventsTable : public VirtualTable {
     } while (event == nullptr);
 
     {
-      char event_columns[column_buff_size];
-      size_t s = 0;
+      cstrbuf<column_buff_size> event_columns;
       Uint32 reporting = 0;
       Uint32 table_event = 0;
 
       /* columns */
       for (int i = 0; i < event->getNoOfEventColumns(); i++) {
-        if (i) s += snprintf(event_columns + s, column_buff_size - s, ",");
-        s += snprintf(event_columns + s, column_buff_size - s, "%s",
-                      event->getEventColumn(i)->getName());
+        BaseString col = quoteColumnName(event->getEventColumn(i)->getName());
+        if (event_columns.length() + 1 + col.length() < TRUNCATE_AT) {
+          if (i) event_columns.append(",");
+          event_columns.append(col.c_str());
+        } else {
+          event_columns.append(TRUNCATION_MARK);
+          break;
+        }
       }
 
       /* reporting
@@ -1550,7 +1583,7 @@ class EventsTable : public VirtualTable {
       w.write_string(elem->name);                        // name
       w.write_number(event->getTable()->getObjectId());  // table_id
       w.write_number(reporting);                         // reporting
-      w.write_string(event_columns);                     // columns
+      w.write_string(event_columns.c_str());             // columns
       w.write_number(table_event);                       // table_event
     }
     return 1;
@@ -1590,17 +1623,21 @@ class IndexColumnsTable : public VirtualTable {
 
   int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
                Uint32) const override {
-    char index_columns[column_buff_size];
-    size_t s = 0;
+    cstrbuf<column_buff_size> index_columns;
 
     const NdbDictionary::Index *index = ctx->nextIndex();
     if (index == nullptr) return 0;  // end of list
 
     /* columns */
     for (unsigned int i = 0; i < index->getNoOfColumns(); i++) {
-      if (i) s += snprintf(index_columns + s, column_buff_size - s, ",");
-      s += snprintf(index_columns + s, column_buff_size - s, "%s",
-                    index->getColumn(i)->getName());
+      BaseString col = quoteColumnName(index->getColumn(i)->getName());
+      if (index_columns.length() + 1 + col.length() < TRUNCATE_AT) {
+        if (i) index_columns.append(",");
+        index_columns.append(col.c_str());
+      } else {
+        index_columns.append(TRUNCATION_MARK);
+        break;
+      }
     }
 
     w.write_number(ctx->getTable()->getTableId());  // table_id
@@ -1610,7 +1647,7 @@ class IndexColumnsTable : public VirtualTable {
     w.write_string(index->getName());               // index_name
     w.write_number(index->getType());               // index_type
     w.write_number(index->getObjectStatus() + 1);   // status
-    w.write_string(index_columns);                  // columns
+    w.write_string(index_columns.c_str());          // columns
 
     return 1;
   }
@@ -1653,10 +1690,9 @@ class ForeignKeysTable : public VirtualTable {
 
   int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
                Uint32 row) const override {
-    char parent_columns[column_buff_size];
-    char child_columns[column_buff_size];
+    cstrbuf<column_buff_size> parent_columns;
+    cstrbuf<column_buff_size> child_columns;
     static constexpr const char *pk = "PK";
-    size_t s = 0;
 
     NdbDictionary::ForeignKey fk;
     const DictionaryList::Element *elem;
@@ -1668,15 +1704,14 @@ class ForeignKeysTable : public VirtualTable {
 
     /* parent_columns */
     for (unsigned int i = 0; i < fk.getParentColumnCount(); i++) {
-      s += snprintf(parent_columns + s, column_buff_size - s, "%s%d",
-                    i ? "," : "", fk.getParentColumnNo(i));
+      if (i) parent_columns.append(",");
+      parent_columns.appendf("%d", fk.getParentColumnNo(i));
     }
 
     /* child_columns */
-    s = 0;
     for (unsigned int i = 0; i < fk.getChildColumnCount(); i++) {
-      s += snprintf(child_columns + s, column_buff_size - s, "%s%d",
-                    i ? "," : "", fk.getChildColumnNo(i));
+      if (i) child_columns.append(",");
+      child_columns.appendf("%d", fk.getChildColumnNo(i));
     }
 
     const char *childIdx = fk.getChildIndex() ? fk.getChildIndex() : pk;
@@ -1685,9 +1720,9 @@ class ForeignKeysTable : public VirtualTable {
     w.write_number(fk.getObjectId());            // object_id
     w.write_string(fk.getName());                // name
     w.write_string(fk.getParentTable());         // parent_table
-    w.write_string(parent_columns);              // parent_columns
+    w.write_string(parent_columns.c_str());      // parent_columns
     w.write_string(fk.getChildTable());          // child_table
-    w.write_string(child_columns);               // child_columns
+    w.write_string(child_columns.c_str());       // child_columns
     w.write_string(childIdx);                    // parent_index
     w.write_string(parentIdx);                   // child_index
     w.write_number(fk.getOnUpdateAction() + 1);  // on_update

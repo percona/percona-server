@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 #define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
-// Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -83,8 +83,8 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 /// There is another function mbr_equal_logically(), which checks for
 /// equality in logical sense.
 ///
-/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
-/// than or equal to the corresponding coordinates of the maximum corner.
+/// If the spatial index was created in version before 8.0, there is possibility
+/// that MBR can have format of {x,y}min = DBL_MAX, {x,y}max= -DBL_MAX
 ///
 /// @param[in] a The first MBR.
 /// @param[in] b The second MBR.
@@ -141,10 +141,8 @@ bool mbr_disjoint_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 /// @warning Despite the name, this function computes the covered_by relation,
 /// not within.
 ///
-/// @note If the minimum corner coordinates are larger than the corresponding
-/// coordinates of the maximum corner, and if not all a and b coordinates are
-/// the same, the function returns the inverse result, i.e., return true if a is
-/// not covered by b.
+/// @note If for `a` the minimum corner coordinates are larger than the
+/// corresponding coordinates of the maximum corner, we return true.
 ///
 /// @param[in] srs Spatial reference system.
 /// @param[in] a The first MBR.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2335,8 +2335,8 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                                    key_part_info, key_buff, nullable);
   if (unlikely(!s_key || thd->is_error())) return true;
 
-  if (used_tables & ~INNER_TABLE_BIT) {
-    /* Comparing against a non-constant. */
+  if (used_tables & ~INNER_TABLE_BIT ||
+      (thd->lex->is_explain() && val->has_stored_program())) {
     ref->key_copy[part_no] = s_key;
   } else {
     /*

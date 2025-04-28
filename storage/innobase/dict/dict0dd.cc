@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -447,7 +447,6 @@ int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
 
   TABLE_SHARE ts;
   TABLE table_def;
-  dd::Schema *schema;
 
   error =
       acquire_uncached_table(thd, client, &dd_table, tbl_name, &ts, &table_def);
@@ -455,31 +454,39 @@ int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
     return (error);
   }
 
-  char tmp_name[MAX_FULL_NAME_LEN + 1];
-  const char *tab_namep;
-  if (tbl_name) {
-    tab_namep = tbl_name;
-  } else {
-    char tmp_schema[MAX_DATABASE_NAME_LEN + 1];
-    char tmp_tablename[MAX_TABLE_NAME_LEN + 1];
+  const char *table_name = tbl_name;
+  char tmp_name[FN_REFLEN + 1];
+  if (!tbl_name) {
+    dd::Schema *schema;
     error = client->acquire_uncached<dd::Schema>(dd_table.schema_id(), &schema);
     if (error != 0) {
       return error;
     }
-    tablename_to_filename(schema->name().c_str(), tmp_schema,
-                          MAX_DATABASE_NAME_LEN + 1);
-    tablename_to_filename(dd_table.name().c_str(), tmp_tablename,
-                          MAX_TABLE_NAME_LEN + 1);
-    snprintf(tmp_name, sizeof tmp_name, "%s/%s", tmp_schema, tmp_tablename);
-    tab_namep = tmp_name;
+
+    bool truncated;
+    build_table_filename(tmp_name, sizeof(tmp_name) - 1, schema->name().c_str(),
+                         dd_table.name().c_str(), nullptr, 0, &truncated);
+
+    if (truncated) {
+      ut_d(ut_error);
+      ut_o(return DB_TOO_LONG_PATH);
+    }
+    table_name = tmp_name;
   }
+
+  char norm_name[FN_REFLEN];
+  if (!normalize_table_name(norm_name, table_name)) {
+    ut_d(ut_error);
+    ut_o(return DB_TOO_LONG_PATH);
+  }
+
   if (dd_part == nullptr) {
-    table = dd_open_table(client, &table_def, tab_namep, &dd_table, thd);
+    table = dd_open_table(client, &table_def, norm_name, &dd_table, thd);
     if (table == nullptr) {
       error = HA_ERR_GENERIC;
     }
   } else {
-    table = dd_open_table(client, &table_def, tab_namep, dd_part, thd);
+    table = dd_open_table(client, &table_def, norm_name, dd_part, thd);
   }
   release_uncached_table(&ts, &table_def);
   return error;

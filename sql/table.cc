@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3787,16 +3787,24 @@ Ident_name_check check_table_name(const char *name, size_t length) {
   return Ident_name_check::OK;
 }
 
-bool check_column_name(const char *name) {
+bool check_column_name(const Name_string &namestring) {
+  size_t valid_length = 0;
+  bool length_error = false;
+  if (validate_string(system_charset_info, namestring.ptr(),
+                      namestring.length(), &valid_length, &length_error)) {
+    return true;
+  }
+  const char *name = namestring.ptr();
   // name length in symbols
   size_t name_length = 0;
   bool last_char_is_space = true;
+  const char *name_end = name + namestring.length();
+  const bool is_multibyte = use_mb(system_charset_info);
 
   while (*name) {
     last_char_is_space = my_isspace(system_charset_info, *name);
-    if (use_mb(system_charset_info)) {
-      int len = my_ismbchar(system_charset_info, name,
-                            name + system_charset_info->mbmaxlen);
+    if (is_multibyte) {
+      const int len = my_ismbchar(system_charset_info, name, name_end);
       if (len) {
         name += len;
         name_length++;
@@ -6584,12 +6592,19 @@ bool Table_ref::is_mergeable() const {
   return derived->is_mergeable();
 }
 
-bool Table_ref::materializable_is_const() const {
+bool Table_ref::has_stored_program() const {
+  assert(derived != nullptr);
+  return derived->has_stored_program();
+}
+
+bool Table_ref::materializable_is_const(THD *thd) const {
   assert(uses_materialization());
   const Query_expression *unit = derived_query_expression();
+  const bool explain_mode = thd->lex->is_explain();
   return unit->query_result()->estimated_rowcount <= 1 &&
          (unit->first_query_block()->active_options() &
-          OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
+          OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0 &&
+         !(explain_mode && has_stored_program());
 }
 
 /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1119,44 +1119,41 @@ void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
                                                   bool order_only,
                                                   mem_heap_t *heap) {
   DBUG_TRACE;
-
-  ulint i;
-  ulint n_fields;
-  const page_size_t &page_size = dict_table_page_size(index->table);
-
   ut_ad(index);
   ut_ad(!index->table->skip_alter_undo);
 
   dtuple_set_info_bits(entry, update->info_bits);
 
-  if (order_only) {
-    n_fields = dict_index_get_n_unique(index);
-  } else {
-    n_fields = dict_index_get_n_fields(index);
-  }
+  const ulint n_fields = order_only ? dict_index_get_n_unique(index)
+                                    : dict_index_get_n_fields(index);
+  for (ulint field_index = 0; field_index < n_fields; field_index++) {
+    ulint field_no;
+    bool is_virtual{false};
 
-  for (i = 0; i < n_fields; i++) {
-    const dict_field_t *field;
-    const dict_col_t *col;
-    const upd_field_t *uf;
+    const dict_field_t *field = index->get_field(field_index);
+    const dict_col_t *col = field->col;
 
-    field = index->get_field(i);
-    col = field->col;
-    if (col->is_virtual()) {
-      const dict_v_col_t *vcol = reinterpret_cast<const dict_v_col_t *>(col);
-
-      uf = upd_get_field_by_field_no(update, vcol->v_pos, true);
-    } else {
-      uf = upd_get_field_by_field_no(update, i, false);
+    if (col->is_instant_dropped()) {
+      dfield_t *field = dtuple_get_nth_field(entry, field_index);
+      field->reset();
+      continue;
     }
 
-    if (uf) {
+    if (col->is_virtual()) {
+      is_virtual = true;
+      field_no = reinterpret_cast<const dict_v_col_t *>(col)->v_pos;
+    } else {
+      field_no = field_index;
+    }
+
+    if (auto uf = upd_get_field_by_field_no(update, field_no, is_virtual); uf) {
       upd_field_t *tmp = const_cast<upd_field_t *>(uf);
-      dfield_t *dfield = dtuple_get_nth_field(entry, i);
+      dfield_t *dfield = dtuple_get_nth_field(entry, field_index);
       tmp->ext_in_old = dfield_is_ext(dfield);
 
       dfield_copy(&tmp->old_val, dfield);
 
+      const auto &page_size = dict_table_page_size(index->table);
       row_upd_index_replace_new_col_val(index, dfield, field, col, uf, heap,
                                         dict_index_is_sdi(index), page_size);
     }

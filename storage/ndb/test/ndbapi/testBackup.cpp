@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -915,8 +915,6 @@ int runVerifyUndoData(NDBT_Context *ctx, NDBT_Step *step) {
   int records = ctx->getNumRecords();
   Ndb *pNdb = GETNDB(step);
   int count = 0;
-  int num = 5;
-  if (records - 5 < 0) num = 1;
 
   const NdbDictionary::Table *tab =
       GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());

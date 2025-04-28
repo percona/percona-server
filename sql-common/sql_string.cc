@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1106,8 +1106,7 @@ size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
                                 prefix for a character, i.e. the byte length
                                 of that invalid character is undefined.
 
-  @retval true if the whole input byte sequence is a valid character string.
-               The length_error output parameter is undefined.
+  @retval true if the input is invalid.
 
   @return
     if the whole input byte sequence is a valid character string

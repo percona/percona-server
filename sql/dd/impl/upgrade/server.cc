@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include "server.h"
 #include "sql/dd/upgrade/server.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -77,6 +78,11 @@ extern const char *fill_help_tables[];
 const char *upgrade_modes[] = {"NONE", "MINIMAL", "AUTO", "FORCE", NullS};
 TYPELIB upgrade_mode_typelib = {array_elements(upgrade_modes) - 1, "",
                                 upgrade_modes, nullptr};
+
+const char *check_table_fun_modes[] = {"WARN", "ABORT", NullS};
+TYPELIB check_table_fun_mode_typelib = {
+    array_elements(check_table_fun_modes) - 1, "", check_table_fun_modes,
+    nullptr};
 
 namespace dd {
 namespace upgrade {
@@ -597,6 +603,116 @@ static bool get_shared_tablespace_names(
   return thd->dd_client()->foreach<dd::Tablespace>(nullptr, process_spaces);
 }
 
+/*
+  SQL error handler to use during check_table_funs, i.e.
+  while we check table definitions for newly-broken SQL functions.
+  It downgrades errors to warnings, and increases a counter each
+  time each time it does so.
+*/
+class Sql_fun_error_handler : public Internal_error_handler {
+  uint *m_error_count;  ///< Count of downgraded errors.
+
+ public:
+  /**
+     Creates a new Sql_fun_error_handler.
+
+     @param error_count  Address of the error count
+  */
+  explicit Sql_fun_error_handler(uint *error_count)
+      : m_error_count(error_count) {}
+
+ public:
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *sl,
+                        const char *) override {
+    if (*sl == Sql_condition::SL_ERROR) {
+      (*m_error_count)++;
+      return true;
+    }
+    return false;
+  }
+};
+
+/**
+  Check table definitions for SQL functions.
+
+  Sometimes, improving a SQL function's behaviour or diagnostics
+  may result in an error being thrown in situations where this
+  wasn't the case. If that call is part of a table's definition,
+  the error will be thrown during the opening of the table,
+  which will then fail.
+
+  This is something the user will generally want to know before
+  putting an upgraded database into production. Therefore, we
+  inspect all user tables that (potentially) have SQL functions
+  in DEFAULT clauses, PARTITIONing, virtual columns, or indexes.
+  Any such table we try to open. This may take a while, but it
+  is preferable to not being aware of breakage.
+
+  @param  thd          The THD to use.
+  @param  schema       The schema whose tables to examine.
+  @param  error_count  Count of errors (total for all check functions).
+  @return false        True if too many errors were detected, false otherwise.
+*/
+static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
+                             Upgrade_error_counter *error_count) {
+  uint sql_fun_errors = 0;
+
+  // Function called on each table to validate it.
+  auto process_table = [&](std::unique_ptr<dd::Table> &table) {
+    // Skip non-InnoDB tables as their search engine may not be available yet.
+    if (my_strcasecmp(system_charset_info, table->engine().c_str(), "InnoDB"))
+      return false;
+
+    // Are SQL functions used in table def (defaults, virtual columns, etc.)?
+    if (dd::uses_functions(table.get(), schema->name().c_str())) {
+      Open_table_context ot_ctx(
+          thd, MYSQL_OPEN_GET_NEW_TABLE | MYSQL_OPEN_NO_NEW_TABLE_IN_SE);
+      Table_ref tr(schema->name().c_str(), table->name().c_str(), TL_READ);
+
+      // Did trying to open this table throw any new errors?
+      uint old_errors = sql_fun_errors;
+      open_table(thd, &tr, &ot_ctx);
+
+      // Did we catch any errors that would have prevented open_table()?
+      if (sql_fun_errors > old_errors) {
+        // Log that the table has problems.
+        LogErr(WARNING_LEVEL, ER_CHECK_TABLE_FUNCTIONS, schema->name().c_str(),
+               table->name().c_str());
+
+        // On higher log levels, create a detailed description of the table.
+        dd::String_type debug_info;
+        dd::uses_functions(table.get(), schema->name().c_str(), &debug_info);
+        LogErr(INFORMATION_LEVEL, ER_CHECK_TABLE_FUNCTIONS_DETAIL,
+               debug_info.c_str());
+
+        // increase global error count
+        if (opt_check_table_funs == CHECK_TABLE_FUN_ABORT) (*error_count)++;
+      }
+    }
+    return error_count->has_too_many_errors();
+  };
+
+  // Skip pfs.
+  if (0 == schema->name().compare("performance_schema")) return false;
+
+  // Our error handler counts errors and downgrades them to warnings.
+  Sql_fun_error_handler error_handler(&sql_fun_errors);
+  thd->push_internal_handler(&error_handler);
+
+  std::unique_ptr<dd::Object_key> table_key(
+      dd::Table::DD_table::create_key_by_schema_id(schema->id()));
+
+  // Iterate over tables in this schema.
+  bool res =
+      thd->dd_client()->foreach<dd::Table>(table_key.get(), process_table);
+
+  // Clean up.
+  thd->pop_internal_handler();
+
+  return res;
+}
+
 static bool check_tables(THD *thd, std::unique_ptr<Schema> &schema,
                          const std::set<dd::String_type> *shared_spaces,
                          Upgrade_error_counter *error_count) {
@@ -743,7 +859,8 @@ bool do_server_upgrade_checks(THD *thd) {
     return check_tables(thd, schema, &shared_spaces, &error_count) ||
            check_events(thd, schema, &error_count) ||
            check_routines(thd, schema, &error_count) ||
-           check_views(thd, schema, &error_count);
+           check_views(thd, schema, &error_count) ||
+           check_table_funs(thd, schema, &error_count);
   };
 
   if (thd->dd_client()->foreach<dd::Schema>(nullptr, process_schema) ||

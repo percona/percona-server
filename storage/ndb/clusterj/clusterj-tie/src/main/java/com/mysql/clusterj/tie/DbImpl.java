@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+ *  Copyright (c) 2010, 2025, Oracle and/or its affiliates.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             // return the borrowed buffers for the partition key
             for (int i = 0; i < keyPartsSize; ++i) {
                 KeyPart keyPart = keyParts.get(i);
-                bufferManager.returnPartitionKeyPartBuffer(keyPart.length, keyPart.buffer);
+                bufferManager.returnPartitionKeyPartBuffer(keyPart.buffer);
             }
         }
     }
@@ -327,7 +327,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         public static final int STRING_STORAGE_BUFFER_INITIAL_SIZE = 500;
 
         /** String storage buffer current size */
-        private int stringStorageBufferCurrentSize = STRING_BYTE_BUFFER_INITIAL_SIZE;
+        private int stringStorageBufferCurrentSize = STRING_STORAGE_BUFFER_INITIAL_SIZE;
 
         /** Shared buffer for string output operations */
         private ByteBuffer stringStorageBuffer;
@@ -351,10 +351,10 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         /** Release resources for this buffer manager. */
         protected void release() {
             if (this.resultDataBuffer != null) {
-                pool.returnBuffer(resultDataBufferCurrentSize, this.resultDataBuffer);
+                pool.returnBuffer(this.resultDataBuffer);
             }
-            pool.returnBuffer(stringStorageBufferCurrentSize, stringStorageBuffer);
-            pool.returnBuffer(stringByteBufferCurrentSize, stringByteBuffer);
+            pool.returnBuffer(stringStorageBuffer);
+            pool.returnBuffer(stringByteBuffer);
         }
 
         /** Guarantee the size of the string storage buffer to be a minimum size. If the current
@@ -367,7 +367,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
                 if (logger.isDebugEnabled()) logger.debug(local.message("MSG_Reallocated_Byte_Buffer",
                         "string storage", stringStorageBufferCurrentSize, sizeNeeded));
                 // return the existing shared buffer to the pool
-                pool.returnBuffer(stringStorageBufferCurrentSize, stringStorageBuffer);
+                pool.returnBuffer(stringStorageBuffer);
                 stringStorageBuffer = pool.borrowBuffer(sizeNeeded);
                 stringStorageBufferCurrentSize = sizeNeeded;
             }
@@ -415,8 +415,8 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
          }
 
         /** Return a buffer */
-        public void returnBuffer(int length, ByteBuffer buffer) {
-            pool.returnBuffer(length, buffer);
+        public void returnBuffer(ByteBuffer buffer) {
+            pool.returnBuffer(buffer);
         }
 
         /** Guarantee the size of the string byte buffer to be a minimum size. If the current
@@ -426,7 +426,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
          */
         protected void guaranteeStringByteBufferSize(int sizeNeeded) {
             if (sizeNeeded > stringByteBufferCurrentSize) {
-                pool.returnBuffer(stringByteBufferCurrentSize, stringByteBuffer);
+                pool.returnBuffer(stringByteBuffer);
                 stringByteBufferCurrentSize = sizeNeeded;
                 stringByteBuffer = pool.borrowBuffer(sizeNeeded);
                 stringCharBuffer = stringByteBuffer.asCharBuffer();
@@ -458,7 +458,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
                         "result data", resultDataBufferCurrentSize, sizeNeeded));
                 // return the existing result data buffer to the pool
                 if (resultDataBuffer != null) {
-                    pool.returnBuffer(resultDataBufferCurrentSize, resultDataBuffer);
+                    pool.returnBuffer(resultDataBuffer);
                 }
                 resultDataBuffer = pool.borrowBuffer(sizeNeeded);
                 resultDataBufferCurrentSize = sizeNeeded;
@@ -474,8 +474,8 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         }
 
         /** Return a buffer used for a partition key part */
-        public void returnPartitionKeyPartBuffer(int length, ByteBuffer buffer) {
-            pool.returnBuffer(length, buffer);
+        public void returnPartitionKeyPartBuffer(ByteBuffer buffer) {
+            pool.returnBuffer(buffer);
         }
     }
 

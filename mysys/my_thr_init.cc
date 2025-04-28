@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,7 @@ static uint THR_thread_count = 0;
 static Timeout_type my_thread_end_wait_time = 5;
 static my_thread_id thread_id = 0;
 struct st_my_thread_var;
+static st_my_thread_var *THR_mysys_main = nullptr;
 static thread_local st_my_thread_var *THR_mysys = nullptr;
 #endif
 static thread_local int THR_myerrno = 0;
@@ -104,6 +105,8 @@ static int set_mysys_thread_var(struct st_my_thread_var *mysys_var) {
   THR_mysys = mysys_var;
   return 0;
 }
+
+static void free_dbug_and_decr_thread_count(st_my_thread_var *);
 #endif
 
 /**
@@ -285,6 +288,7 @@ extern "C" bool my_thread_init() {
 
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id = ++thread_id;
+  if (thread_id == 1) THR_mysys_main = tmp;
   ++THR_thread_count;
   mysql_mutex_unlock(&THR_LOCK_threads);
   set_mysys_thread_var(tmp);
@@ -307,6 +311,7 @@ bool my_thread_is_inited() {
   return true;
 #endif
 }
+
 /**
   Deallocate memory used by the thread for book-keeping
 
@@ -314,12 +319,7 @@ bool my_thread_is_inited() {
   This happens for example when one calls 'mysql_server_init()'
   mysql_server_end() and then ends with a mysql_end().
 */
-
 extern "C" void my_thread_end() {
-#ifndef NDEBUG
-  struct st_my_thread_var *tmp = mysys_thread_var();
-#endif
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /*
     Remove the instrumentation for this thread.
@@ -330,6 +330,21 @@ extern "C" void my_thread_end() {
 #endif
 
 #if !defined(NDEBUG)
+  free_dbug_and_decr_thread_count(mysys_thread_var());
+  set_mysys_thread_var(nullptr);
+#endif
+}
+
+#if !defined(NDEBUG)
+/* my_main_thread_end() is used when my_end() is called from a different
+   thread than my_init() and with flag MY_END_PROXY_MAIN_THD set.
+*/
+extern void my_main_thread_end() {
+  assert(mysys_thread_var() == nullptr);  // calling thread is not a mysys thd
+  free_dbug_and_decr_thread_count(THR_mysys_main);
+}
+
+static void free_dbug_and_decr_thread_count(st_my_thread_var *tmp) {
   if (tmp) {
     /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug) {
@@ -350,9 +365,8 @@ extern "C" void my_thread_end() {
     if (--THR_thread_count == 0) mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
   }
-  set_mysys_thread_var(nullptr);
-#endif
 }
+#endif
 
 int my_errno() { return THR_myerrno; }
 

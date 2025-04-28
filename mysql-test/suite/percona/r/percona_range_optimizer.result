@@ -1,0 +1,13 @@
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a));
+CREATE TABLE t2 (a INTEGER, b INTEGER, PRIMARY KEY (a, b));
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT t1.b FROM t1 JOIN t2 WHERE t1.a = t2.a AND t2.a = 2 AND t2.b >= t1.b AND t2.b <= t1.b+2;
+EXPLAIN
+-> Filter: ((t2.a = 2) and (t2.b >= '2') and (t2.b <= <cache>(('2' + 2))))  (cost=COST rows=3)
+    -> Covering index range scan on t2 using PRIMARY over (a = 2 AND 2 <= b <= 4)  (cost=COST rows=3)
+
+DROP TABLE t1, t2;

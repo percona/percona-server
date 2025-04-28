@@ -29,11 +29,11 @@ SELECT audit_log_filter_set_filter('filter_1', '');
 --echo #
 --echo # Check too long argument
 --let $too_long_name = `SELECT REPEAT('a', 256)`
---let $too_long_definition = `SELECT REPEAT('a', 1025)`
+SET @too_long_definition = REPEAT('a', 16385);
 --error 1123
 --eval SELECT audit_log_filter_set_filter('$too_long_name', '{"filter": {"class": {"name": "connection"}}}')
 --error 1123
---eval SELECT audit_log_filter_set_filter('filter_1', '$too_long_definition')
+SELECT audit_log_filter_set_filter('filter_1', @too_long_definition);
 
 --disable_query_log
 call mtr.add_suppression("Wrong argument: incorrect rule definition");

@@ -526,12 +526,15 @@ static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file, uint64_t new_
 #endif /* UNIV_PFS_IO */
 
 /** Tries to disable OS caching on an opened file file.
-@param[in]	file		file to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
-message
+@param[in]	file		        file to alter
+@param[in]	file_name	      file name, used in the diagnostic message
+@param[in]	name		        "open" or "create"; used in the diagnostic
+                            message
+@param[in]  on_error_silent if true then don't print any message to the log
 @return true if operation is success and false */
 static inline bool os_file_set_nocache(pfs_os_file_t file, const char *file_name,
-                                       const char *operation_name) {
-  return os_file_set_nocache(file.m_file, file_name, operation_name);
+                                       const char *operation_name,
+                                       bool on_error_silent) {
+  return os_file_set_nocache(file.m_file, file_name, operation_name,
+                             on_error_silent);
 }

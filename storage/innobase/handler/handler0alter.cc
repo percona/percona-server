@@ -5615,7 +5615,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     goto err_exit_no_heap;
   }
 
-<<<<<<< HEAD
   /* create_table_info_t::innobase_table_flags does not set encryption
   flags. There are places where it is done afterwards, there are places
   where it isn't done. We need to inspect all code paths and check if
@@ -5636,12 +5635,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
   }
 
-  max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
-||||||| 14ba93991ba
-  max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
-=======
   const uint32_t max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
->>>>>>> mysql-8.0.42
 
   /* Check each index's column length to make sure they do not
   exceed limit */

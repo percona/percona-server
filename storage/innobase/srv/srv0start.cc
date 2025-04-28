@@ -3020,15 +3020,7 @@ static lsn_t srv_shutdown_log() {
     auto err = fil_write_flushed_lsn(lsn);
     ut_a(err == DB_SUCCESS);
   }
-<<<<<<< HEAD
-  buf_must_be_all_freed();
-||||||| 14ba93991ba
-
-  buf_must_be_all_freed();
-=======
-
   buf_assert_all_are_replaceable();
->>>>>>> mysql-8.0.42
   ut_a(lsn == log_get_lsn(*log_sys));
 
   if (srv_downgrade_logs) {

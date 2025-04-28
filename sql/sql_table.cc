@@ -8906,7 +8906,6 @@ static bool create_table_impl(
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d", db, table_name,
                        internal_tmp_table));
 
-<<<<<<< HEAD
   // Check that we have at least one visible column.
   bool has_visible_column = false;
   for (const Create_field &create_field : alter_info->create_list) {
@@ -8920,25 +8919,8 @@ static bool create_table_impl(
     return true;
   }
 
-  if (check_engine(thd, db, table_name, create_info, alter_info)) return true;
-||||||| 14ba93991ba
-  // Check that we have at least one visible column.
-  bool has_visible_column = false;
-  for (const Create_field &create_field : alter_info->create_list) {
-    if (create_field.hidden == dd::Column::enum_hidden_type::HT_VISIBLE) {
-      has_visible_column = true;
-      break;
-    }
-  }
-  if (!has_visible_column) {
-    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
+  if (check_engine(thd, db, table_name, create_info, alter_info))
     return true;
-  }
-
-  if (check_engine(db, table_name, create_info)) return true;
-=======
-  if (check_engine(db, table_name, create_info)) return true;
->>>>>>> mysql-8.0.42
 
   // Secondary engine cannot be defined for temporary tables.
   if (create_info->secondary_engine.str != nullptr &&

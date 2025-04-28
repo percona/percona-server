@@ -54,16 +54,12 @@
 #include <openssl/engine.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
-<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>
 #endif
 
-||||||| 14ba93991ba
-=======
 #include "xcom/retry.h"
->>>>>>> mysql-8.0.42
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
 

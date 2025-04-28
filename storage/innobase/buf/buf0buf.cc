@@ -1239,31 +1239,12 @@ static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
         break;
       case BUF_BLOCK_FILE_PAGE:
         buf_page_mutex_enter(block);
-<<<<<<< HEAD
-        auto ready = buf_flush_ready_for_replace(&block->page);
-        buf_page_mutex_exit(block);
-
-        if (UNIV_UNLIKELY(block->page.is_corrupt)) {
-          /* corrupt page may remain, it can be
-          skipped */
-          break;
-        }
-
-        if (!ready) {
-          return (block);
-||||||| 14ba93991ba
-        auto ready = buf_flush_ready_for_replace(&block->page);
-        buf_page_mutex_exit(block);
-
-        if (!ready) {
-          return (block);
-=======
         const auto &bpage = block->page;
-        if (!buf_flush_ready_for_replace(&bpage) ||
+        /* corrupt page may remain, it can be skipped */
+        if ((!bpage.is_corrupt && !buf_flush_ready_for_replace(&bpage)) ||
             DBUG_EVALUATE_IF("simulate_dirty_page_at_shutdown", true, false)) {
           ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_PAGE_DIRTY_AT_SHUTDOWN)
               << *block;
->>>>>>> mysql-8.0.42
         }
         buf_page_mutex_exit(block);
         break;

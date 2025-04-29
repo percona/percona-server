@@ -84,7 +84,23 @@ CREATE TABLE `'order'_'items'` (
     UNIQUE KEY (`'order'_'id'`, `product'_'id`)
 );
 
---exec $MYSQL_DUMP bug37607195 --init-command="SET @@sql_mode='ANSI_QUOTES,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'" --result-file=$grep_file 2>&1
+# This part of the MTR test case was backported from 8.4 where 'mysqldump'
+# utility has additional '--init-command="..."' parameter which is
+# unfortunately unavailable in 8.0.
+# Here we simulate this missing command-line option with
+# '@@global.init_connect' server global system variable. However, as this
+# variable affects only non-administrative MySQL users, we also need to create
+# a new user 'dump_user' and grant her with enough privileges to do backups.
+CREATE USER 'dump_user'@'localhost';
+GRANT PROCESS, LOCK TABLES ON *.* TO 'dump_user'@'localhost';
+GRANT SELECT ON bug37607195.* TO 'dump_user'@'localhost';
+SET @saved_init_connect = @@global.init_connect;
+SET GLOBAL init_connect = "SET @@sql_mode='ANSI_QUOTES,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'";
+--exec $MYSQL_DUMP -u dump_user bug37607195 --result-file=$grep_file 2>&1
+SET GLOBAL init_connect = @saved_init_connect;
+REVOKE SELECT ON bug37607195.* FROM 'dump_user'@'localhost';
+REVOKE PROCESS, LOCK TABLES ON *.* FROM 'dump_user'@'localhost';
+DROP USER 'dump_user'@'localhost';
 
 --echo # Table 1: `'order'_'items'`
 --echo # `qua\ntity` must be escaped

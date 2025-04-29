@@ -475,11 +475,17 @@ SET collation_connection=ucs2_czech_ci;
 --echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 --echo #
 
+# CREATE TABLE ... SELECT on MEMORY and MyISAM tables doesn't work in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
+
 SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 --let ENGINE=MyISAM
 --source include/ctype_utf8_ilseq.inc
 --let ENGINE=HEAP
 --source include/ctype_utf8_ilseq.inc
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
 
 --echo #
 --echo # End of 5.5 tests

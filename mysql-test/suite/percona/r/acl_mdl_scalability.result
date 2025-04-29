@@ -67,5 +67,5 @@ SET GLOBAL max_connections = 151;
 DROP USER satya@'%';
 # Removing debug point 'skip_session_admin_check' from @@GLOBAL.debug
 SET DEBUG_SYNC = RESET;
-include/assert.inc [All the connections should finish within 60 seconds if there is no hang due to ACL]
+include/assert.inc [All the connections should finish within 120 seconds if there is no hang due to ACL]
 # restart

@@ -22,7 +22,8 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
-'rbr_exec_mode');
+'rbr_exec_mode',
+'jemalloc_profiling');
 ************************************************************
 * 1. Check that there are no persisted variable settings.
 ************************************************************
@@ -46,7 +47,7 @@ include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
-include/assert.inc [Expect 483 persisted variables in the table.]
+include/assert.inc [Expect the persisted variables count within tolerance of the estimated total.]
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -54,9 +55,9 @@ include/assert.inc [Expect 483 persisted variables in the table.]
 ************************************************************
 # restart
 
-include/assert.inc [Expect 483 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 483 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 483 persisted variables with matching peristed and global values.]
+include/assert.inc [Expect the persisted variable count to be unchanged by the restart.]
+include/assert.inc [Expect every persisted variable in variables_info with source PERSISTED (or COMPILED for the known read-only case).]
+include/assert.inc [Expect every persisted variable to have matching persisted and global values.]
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

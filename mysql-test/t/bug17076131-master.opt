@@ -1,2 +1,3 @@
 --no-console
 --log-error=$MYSQLTEST_VARDIR/tmp/mysql.err
+--innodb-stats-auto-recalc=OFF

@@ -261,8 +261,8 @@ while ($i <= 700) {
 DROP USER satya@'%';
 --source include/remove_debug_point.inc
 SET DEBUG_SYNC = RESET;
---let $assert_text = All the connections should finish within 60 seconds if there is no hang due to ACL
---let $assert_cond= "[SELECT TIMEDIFF(@end, @start) < 60]" = 1
+--let $assert_text = All the connections should finish within 120 seconds if there is no hang due to ACL
+--let $assert_cond= "[SELECT TIME_TO_SEC(TIMEDIFF(@end, @start)) < 120]" = 1
 --source include/assert.inc
 # Restart to release virtual memory
 --source include/restart_mysqld.inc

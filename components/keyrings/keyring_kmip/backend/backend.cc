@@ -33,6 +33,8 @@
 #include <components/keyrings/common/memstore/cache.h>
 #include <components/keyrings/common/memstore/iterator.h>
 #include <components/keyrings/common/utils/utils.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 namespace keyring_kmip {
 
@@ -54,18 +56,30 @@ bool Keyring_kmip_backend::load_cache(
         Keyring_kmip_backend, keyring_common::data::Data_extension<IdExt>>
         &operations) {
   DBUG_TRACE;
+  // We have to load keys and secrets with state==ACTIVE only
+  //TODO: implement better logic with the new KMIP library
   try {
     auto ctx = kmip_ctx();
-
+    // get all keys in the group
     auto keys = (config_.object_group.empty()
                      ? ctx.op_all()
                      : ctx.op_locate_by_group(config_.object_group));
 
     for (auto const &id : keys) {
       auto key = ctx.op_get(id);
+      if (key.empty()) {
+        std::string err_msg =
+            "Cannot get key with ID: " + id + " Cause: " + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        continue;
+      }
       auto key_name = ctx.op_get_name_attr(id);
-
-      if (key_name.empty()) continue;
+      if (key_name.empty()) {
+        std::string err_msg = "Cannot get key name for ID: " + id +
+                              "Cause: " + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        continue;
+      }
 
       Metadata metadata(key_name, "");
 
@@ -74,6 +88,39 @@ bool Keyring_kmip_backend::load_cache(
                    reinterpret_cast<char *>(key.data()), key.size()),
                "AES"},
           IdExt{id});
+
+      if (operations.insert(metadata, data) == true) {
+        return true;
+      }
+    }
+    // get all secrets in the group
+    auto secrets = (config_.object_group.empty()
+                        ? ctx.op_all_secrets()
+                        : ctx.op_locate_secrets_by_group(config_.object_group));
+
+    for (auto const &id : secrets) {
+      auto secret = ctx.op_get_secret(id);
+      if (secret.empty()) {
+        std::string err_msg = "Cannot get secret with ID: " + id +
+                              " Cause: " + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        continue;
+      }
+      auto secret_name = ctx.op_get_name_attr(id);
+
+      if (secret_name.empty()) {
+        std::string err_msg = "Cannot get secret name for ID: " + id +
+                              " Cause: " + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        continue;
+      }
+
+      Metadata metadata(secret_name, "");
+
+      Data_extension<IdExt> data(Data{keyring_common::data::Sensitive_data(
+                                          secret.c_str(), secret.size()),
+                                      "SECRET"},
+                                 IdExt{id});
 
       if (operations.insert(metadata, data) == true) {
         return true;
@@ -98,19 +145,40 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
                                  Data_extension<IdExt> &data) {
   DBUG_TRACE;
   if (!metadata.valid() || !data.valid()) return true;
-  if (data.type() != "AES") {
-    // we only support AES keys
-    return true;
-  }
+  kmippp::context::id_t id;
   try {
     auto ctx = kmip_ctx();
     auto key = data.data().decode();
-    kmippp::context::key_t keyv(key.begin(), key.end());
-    auto id = ctx.op_register(metadata.key_id(), config_.object_group, keyv);
-    if (id.empty()) {
+    if (data.type() == "AES") {
+      kmippp::context::key_t keyv(key.begin(), key.end());
+      id = ctx.op_register(metadata.key_id(), config_.object_group, keyv);
+      if (id.empty()) {
+        std::string err_msg = "Cannot register key with name: " + metadata.key_id()
+         + " and group: " + config_.object_group
+         + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        return true;
+      }
+    } else if (data.type() == "SECRET") {
+      kmippp::context::name_t secret(key);
+      id = ctx.op_register_secret(metadata.key_id(), config_.object_group,
+                                  secret, 1);
+      if (id.empty()) {
+        std::string err_msg = "Cannot register secret with name: " + metadata.key_id()
+         + " and group: " + config_.object_group
+         + ctx.get_last_result();
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+        return true;
+      }
+    } else {  // we only support AES keys and SECRET type (passwords)
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Unsupported KMIP entity" + data.type() + ", can not store");
       return true;
     }
     if (!ctx.op_activate(id)) {
+      std::string err_msg =
+          "Cannot activate key/secret. " + ctx.get_last_result();
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
       return true;
     }
     data.set_extension({id});
@@ -128,8 +196,12 @@ size_t Keyring_kmip_backend::size() const {
     auto keys = (config_.object_group.empty()
                      ? ctx.op_all()
                      : ctx.op_locate_by_group(config_.object_group));
-
-    return keys.size();
+    auto secrets  = (config_.object_group.empty()
+                     ? ctx.op_all_secrets()
+                     : ctx.op_locate_secrets_by_group(config_.object_group));
+    return keys.size() + secrets.size();
+    //we may have deactivated keys counted, so we need to count active keys only
+    //TODO: implement better logic with the new KMIP library
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return 0;
@@ -142,7 +214,23 @@ bool Keyring_kmip_backend::erase(const Metadata &metadata,
   if (!metadata.valid()) return true;
 
   auto ctx = kmip_ctx();
-  return !ctx.op_destroy(data.get_extension().uuid);
+  // reason 1 means deactivate, and then incident occurrence time should be 0.
+  if (!ctx.op_revoke(data.get_extension().uuid, 1, "Deleting the key", 0)) {
+    std::string err_msg =
+        "Cannot deactivate key/secret with ID: "+ data.get_extension().uuid
+      + " Cause: " + ctx.get_last_result();
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    // no reason to fail here, if we're deactivating non-exiting key
+    //TODO: implement better logic with the new KMIP library
+  }
+
+  if (!ctx.op_destroy(data.get_extension().uuid)) {
+    std::string err_msg = "Cannot delete key/secret. " + ctx.get_last_result();
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    // no reason to fail here, if we're deleting non-exiting key
+    // TODO: implement better logic with the new KMIP library
+  }
+  return false;
 }
 
 bool Keyring_kmip_backend::generate(const Metadata &metadata,

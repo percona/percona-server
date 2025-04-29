@@ -6276,9 +6276,13 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
     keys_to_use.merge(tab->skip_scan_keys);
     MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                            thd->variables.range_alloc_block_size);
+    table_map const_tables = tab->join()->found_const_table_map;
+    table_map read_tables = tab->join()->is_executed()
+                                ? (tab->prefix_tables() & ~tab->added_tables())
+                                : const_tables;
     int error = test_quick_select(
-        thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
-        0,  // empty table_map
+        thd, thd->mem_root, &temp_mem_root, keys_to_use, const_tables,
+        read_tables,
         limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),

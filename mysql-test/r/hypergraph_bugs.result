@@ -2434,6 +2434,8 @@ INSERT INTO t2 VALUES
 (9, REPEAT('This is the ninth blob.', 4)),
 (10, REPEAT('This is the tenth blob.', 4));
 SET tmp_table_size = 1024;
+Warnings:
+Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SELECT /*+ NO_MERGE(t2) */ t1.x, t2.y
 FROM t1 JOIN (SELECT * FROM t2) t2 ON t1.x = t2.x
 ORDER BY t1.x, t2.x;

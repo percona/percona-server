@@ -31,6 +31,7 @@ user3	5	host.org	8
 mysql.infoschema	16	localhost	9
 mysql.session	13	localhost	9
 mysql.sys	9	localhost	9
+percona.telemetry	17	localhost	9
 root	4	localhost	9
 GRANT ' role2' TO '  user2'@' host.org';
 Warnings:

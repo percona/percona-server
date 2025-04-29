@@ -7332,6 +7332,7 @@ DROP TABLE t1;
 #
 # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 #
+include/rpl/set_gtid_mode_off.inc
 SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -7840,6 +7841,7 @@ DROP TABLE t1;
 #
 # End of ctype_utf8_ilseq.inc
 #
+include/rpl/set_gtid_mode_on.inc
 #
 # End of 5.5 tests
 #

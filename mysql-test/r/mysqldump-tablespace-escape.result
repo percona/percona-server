@@ -57,6 +57,15 @@ FOREIGN KEY (`'order'_'id'`) REFERENCES "orders"(order_id) ON DELETE CASCADE,
 FOREIGN KEY (`product'_'id`) REFERENCES "prod'ucts"("product`_`id") ON DELETE CASCADE,
 UNIQUE KEY (`'order'_'id'`, `product'_'id`)
 );
+CREATE USER 'dump_user'@'localhost';
+GRANT PROCESS, LOCK TABLES ON *.* TO 'dump_user'@'localhost';
+GRANT SELECT ON bug37607195.* TO 'dump_user'@'localhost';
+SET @saved_init_connect = @@global.init_connect;
+SET GLOBAL init_connect = "SET @@sql_mode='ANSI_QUOTES,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'";
+SET GLOBAL init_connect = @saved_init_connect;
+REVOKE SELECT ON bug37607195.* FROM 'dump_user'@'localhost';
+REVOKE PROCESS, LOCK TABLES ON *.* FROM 'dump_user'@'localhost';
+DROP USER 'dump_user'@'localhost';
 # Table 1: `'order'_'items'`
 # `qua\ntity` must be escaped
 Pattern found.

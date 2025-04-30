@@ -1976,15 +1976,18 @@ done:
   query_cache.end_of_result(thd);
 
 #ifndef EMBEDDED_LIBRARY
-  if (!thd->is_error() && !thd->killed_errno())
-    mysql_audit_notify(thd,
-                       AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
+  if (command != COM_STMT_EXECUTE)
+  {
+    if (!thd->is_error() && !thd->killed_errno())
+      mysql_audit_notify(thd,
+                        AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
 
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
-                     thd->get_stmt_da()->is_error() ?
-                     thd->get_stmt_da()->mysql_errno() : 0,
-                     command_name[command].str,
-                     command_name[command].length);
+    mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                      thd->get_stmt_da()->is_error() ?
+                      thd->get_stmt_da()->mysql_errno() : 0,
+                      command_name[command].str,
+                      command_name[command].length);
+  }
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
@@ -5348,6 +5351,21 @@ finish:
       thd->reset_query_for_display();
     }
   }
+
+#ifndef EMBEDDED_LIBRARY
+  if (thd->get_command() == COM_STMT_EXECUTE)
+  {
+    if (!thd->is_error() && !thd->killed_errno())
+      mysql_audit_notify(thd,
+                        AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, NULL, 0);
+
+    mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                      thd->get_stmt_da()->is_error() ?
+                      thd->get_stmt_da()->mysql_errno() : 0,
+                      command_name[thd->get_command()].str,
+                      command_name[thd->get_command()].length);
+  }
+#endif /* !EMBEDDED_LIBRARY */
 
   lex->unit->cleanup(true);
   /* Free tables */

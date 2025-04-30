@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -242,10 +242,10 @@ trx_undo_log_v_idx(
 
 	ut_ad(n_idx > 0);
 
-	/* Size to reserve, max 5 bytes for each index id and position, plus
+	/* Size to reserve, max (11 + 5) bytes for each index id and position, plus
 	5 bytes for num of indexes, 2 bytes for write total length.
 	1 byte for undo log record format version marker */
-	ulint		size = n_idx * (5 + 5) + 5 + 2 + (first_v_col ? 1 : 0);
+	ulint		size = n_idx * (11 + 5) + 5 + 2 + (first_v_col ? 1 : 0);
 
 	if (trx_undo_left(undo_page, ptr) < size) {
 		return(NULL);
@@ -270,7 +270,7 @@ trx_undo_log_v_idx(
 	     it != vcol->v_indexes->end(); ++it) {
 		dict_v_idx_t	v_index = *it;
 
-		ptr += mach_write_compressed(
+		ptr += mach_u64_write_much_compressed(
 			ptr, static_cast<ulint>(v_index.index->id));
 
 		ptr += mach_write_compressed(ptr, v_index.nth_field);
@@ -309,7 +309,7 @@ trx_undo_read_v_idx_low(
 	dict_index_t*	clust_index = dict_table_get_first_index(table);
 
 	for (ulint i = 0; i < num_idx; i++) {
-		index_id_t	id = mach_read_next_compressed(&ptr);
+		index_id_t	id = mach_read_next_much_compressed(&ptr);
 		ulint		pos = mach_read_next_compressed(&ptr);
 		dict_index_t*	index = dict_table_get_next_index(clust_index);
 

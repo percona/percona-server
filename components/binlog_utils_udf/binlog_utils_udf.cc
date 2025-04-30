@@ -108,6 +108,25 @@ const char *get_short_binlog_name(const std::string &binlog_name) noexcept {
   return binlog_name.c_str() + dirname_length(binlog_name.c_str());
 }
 
+//
+// Retrieves the contents of the index file. Then normalizes its entries (each
+// entry is prefixed with relative or absolute path)
+//
+std::pair<int, std::list<std::string>> get_normalized_log_index() {
+  auto log_index = mysql_bin_log.get_log_index(true /* need_lock_index */);
+
+  auto &binlog_names = log_index.second;
+  auto bg = std::begin(binlog_names);
+  auto en = std::end(binlog_names);
+  std::for_each(bg, en, [](std::string &s) {
+    fn_reflen_buffer buf;
+    check_and_normalize_binlog_name(get_short_binlog_name(s), buf);
+    s.assign(buf);
+  });
+
+  return log_index;
+}
+
 log_event_ptr find_first_event(std::string_view binlog_name) {
   DBUG_TRACE;
 
@@ -317,7 +336,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_binlog_by_gtid_impl::calculate(
       throw std::runtime_error("Cannot parse 'gtid_executed'");
   }
 
-  auto log_index = mysql_bin_log.get_log_index(true /* need_lock_index */);
+  auto log_index = get_normalized_log_index();
   if (log_index.first != LOG_INFO_EOF)
     throw std::runtime_error("Cannot read binary log index'");
   if (log_index.second.empty())
@@ -409,7 +428,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_gtid_set_by_binlog_impl::calculate(
     const mysqlpp::udf_context &ctx) {
   DBUG_TRACE;
 
-  auto log_index = mysql_bin_log.get_log_index(true /* need_lock_index */);
+  auto log_index = get_normalized_log_index();
   if (log_index.first != LOG_INFO_EOF)
     throw std::runtime_error("Cannot read binary log index");
   if (log_index.second.empty())
@@ -508,7 +527,7 @@ mysqlpp::udf_result_t<STRING_RESULT> get_binlog_by_gtid_set_impl::calculate(
       throw std::runtime_error("Cannot parse 'gtid_executed'");
   }
 
-  auto log_index = mysql_bin_log.get_log_index(true /* need_lock_index */);
+  auto log_index = get_normalized_log_index();
   if (log_index.first != LOG_INFO_EOF)
     throw std::runtime_error("Cannot read binary log index'");
   if (log_index.second.empty())

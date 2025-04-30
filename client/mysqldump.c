@@ -2593,7 +2593,7 @@ static void fprintf_string(char *row, ulong row_len, char quote,
     pbuffer = (char *)my_malloc(PSI_NOT_INSTRUMENTED, curr_row_size, MYF(0));
 
   // Put the sanitized row in the buffer.
-  mysql_real_escape_string_quote(mysql, pbuffer, row, row_len, '\'');
+  mysql_real_escape_string_quote(mysql, pbuffer, row, row_len, quote);
 
   // Opening quote
   fputc(quote, md_result_file);
@@ -5494,7 +5494,7 @@ static int dump_tablespaces(char* ts_where)
     mysql_free_result(tableres);
     mysql_query_with_error_report(
         mysql, &tableres,
-        "SELECT 'TN; /*' AS TABLESPACE_NAME, 'FN' AS FILE_NAME, 'LGN' AS "
+        "SELECT 'T`N; /*' AS TABLESPACE_NAME, 'FN' AS FILE_NAME, 'LGN' AS "
         "LOGFILE_GROUP_NAME, 77 AS EXTENT_SIZE, 88 AS INITIAL_SIZE, "
         "'*/\nsystem touch foo;\n' AS ENGINE");
   });

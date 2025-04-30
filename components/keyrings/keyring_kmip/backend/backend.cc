@@ -171,8 +171,10 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
         return true;
       }
     } else {  // we only support AES keys and SECRET type (passwords)
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Unsupported KMIP entity" + data.type() + ", can not store");
+      std::string err_msg = "Unsupported KMIP entity";
+      err_msg += data.type();
+      err_msg += ", can not store";
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
       return true;
     }
     if (!ctx.op_activate(id)) {

@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@ struct LEX;
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
+class Name_string;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -3014,7 +3015,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);
-bool check_column_name(const char *name);
+bool check_column_name(const Name_string &name);
 enum_ident_name_check check_table_name(const char *name, size_t length,
                                        bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);

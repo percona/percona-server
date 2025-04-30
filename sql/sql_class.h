@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5891,7 +5891,7 @@ public:
   */
   static user_var_entry *create(THD *thd, const Name_string &name, const CHARSET_INFO *cs)
   {
-    if (check_column_name(name.ptr()))
+    if (check_column_name(name))
     {
       my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
       return NULL;

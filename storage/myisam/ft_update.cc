@@ -121,11 +121,10 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const uchar *record,
 
 FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const uchar *record,
                             MEM_ROOT *mem_root) {
-  TREE ptree;
+  TREE ptree{};
   MYSQL_FTPARSER_PARAM *param;
   DBUG_TRACE;
   if (!(param = ftparser_call_initializer(info, keynr, 0))) return nullptr;
-  memset(&ptree, 0, sizeof(ptree));
   param->flags = 0;
   if (_mi_ft_parse(&ptree, info, keynr, record, param, mem_root))
     return nullptr;

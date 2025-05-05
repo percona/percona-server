@@ -32,8 +32,8 @@ namespace temptable_allocator_unittest {
 
 // Needed for making it possible to use user-defined literals (e.g. 1_MiB) when
 // instantiating (generating) test-cases below
-using temptable::operator"" _KiB;
-using temptable::operator"" _MiB;
+using temptable::operator""_KiB;
+using temptable::operator""_MiB;
 
 /** GoogleTest macros for testing exceptions (EXPECT_THROW, EXPECT_NO_THROW,
  * EXPECT_ANY_THROW, etc.) do not provide direct means to inspect the value of

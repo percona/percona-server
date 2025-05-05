@@ -1398,11 +1398,10 @@ static int mi_sort_records(MI_CHECK *param, MI_INFO *info, char *name,
   MYISAM_SHARE *share = info->s;
   char llbuff[22], llbuff2[22];
   SORT_INFO sort_info;
-  MI_SORT_PARAM sort_param;
+  MI_SORT_PARAM sort_param{};
   DBUG_TRACE;
 
   memset(&sort_info, 0, sizeof(sort_info));
-  memset(&sort_param, 0, sizeof(sort_param));
   sort_param.sort_info = &sort_info;
   sort_info.param = param;
   keyinfo = &share->keyinfo[sort_key];

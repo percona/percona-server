@@ -219,7 +219,7 @@ static int FT_DOC_cmp(void *, uchar *a_arg, uchar *b_arg) {
 
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
                             uint query_len, uint flags, uchar *record) {
-  TREE wtree;
+  TREE wtree{};
   ALL_IN_ONE aio;
   FT_DOC *dptr;
   st_ft_info_nlq *dlist = nullptr;
@@ -239,8 +239,6 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   aio.keybuff = info->lastkey + info->s->base.max_key_length;
   parser = info->s->keyinfo[keynr].parser;
   if (!(ftparser_param = ftparser_call_initializer(info, keynr, 0))) goto err;
-
-  memset(&wtree, 0, sizeof(wtree));
 
   init_tree(&aio.dtree, 0, sizeof(FT_SUPERDOC), &FT_SUPERDOC_cmp, false,
             nullptr, nullptr);

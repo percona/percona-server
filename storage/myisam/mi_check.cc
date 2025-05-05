@@ -1413,11 +1413,10 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
   MYISAM_SHARE *share = info->s;
   char llbuff[22], llbuff2[22];
   SORT_INFO sort_info;
-  MI_SORT_PARAM sort_param;
+  MI_SORT_PARAM sort_param{};
   DBUG_TRACE;
 
   memset(&sort_info, 0, sizeof(sort_info));
-  memset(&sort_param, 0, sizeof(sort_param));
   start_records = info->state->records;
   new_header_length =
       (param->testflag & T_UNPACK) ? 0L : share->pack.header_length;
@@ -2021,7 +2020,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
   ha_rows start_records;
   my_off_t new_header_length, del;
   File new_file;
-  MI_SORT_PARAM sort_param;
+  MI_SORT_PARAM sort_param{};
   MYISAM_SHARE *share = info->s;
   HA_KEYSEG *keyseg;
   ulong *rec_per_key_part;
@@ -2045,7 +2044,6 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
     param->testflag |= T_CALC_CHECKSUM;
 
   memset(&sort_info, 0, sizeof(sort_info));
-  memset(&sort_param, 0, sizeof(sort_param));
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
                              share->base.max_key_block_length)) ||

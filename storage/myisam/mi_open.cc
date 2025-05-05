@@ -108,7 +108,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
       data_name[FN_REFLEN];
   uchar *disk_cache, *disk_pos, *end_pos;
-  MI_INFO info, *m_info;
+  MI_INFO info{}, *m_info;
   MYISAM_SHARE share_buff, *share;
   ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY * MI_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], key_del[MI_MAX_KEY_BLOCK_SIZE];
@@ -121,7 +121,6 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   lock_error = 1;
   errpos = 0;
   head_length = sizeof(share_buff.state.header);
-  memset(&info, 0, sizeof(info));
 
   realpath_err = my_realpath(
       name_buff, fn_format(org_name, name, "", MI_NAME_IEXT, 4), MYF(0));

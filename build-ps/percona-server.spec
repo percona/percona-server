@@ -1094,6 +1094,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_connection_control.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_telemetry.so
 %endif
@@ -1157,6 +1158,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_connection_control.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_telemetry.so
 %endif
@@ -1612,6 +1614,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_routing_connections.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_routing_guidelines.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_destination_status.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_cluster.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.*

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3072,6 +3072,7 @@ void Qmgr::initData(Signal *signal) {
   c_restartPartitionedTimeout = Uint32(~0);
   c_restartFailureTimeout = Uint32(~0);
   c_restartNoNodegroupTimeout = 15000;
+  c_apiFailureTimeoutSecs = 600;
   ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_METHOD, &arbitMethod);
@@ -3084,6 +3085,8 @@ void Qmgr::initData(Signal *signal) {
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT,
                             &c_restartFailureTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_CONNECT_CHECK_DELAY, &ccInterval);
+  ndb_mgm_get_int_parameter(p, CFG_DB_API_FAILURE_HANDLING_TIMEOUT,
+                            &c_apiFailureTimeoutSecs);
 
   if (c_restartPartialTimeout == 0) {
     c_restartPartialTimeout = Uint32(~0);
@@ -3513,15 +3516,18 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
         sendSignal(TRPMAN_REF, GSN_OPEN_COMORD, signal, 2, JBB);
       } else {
         jam();
-        if (((get_hb_count(nodePtr.i) + 1) % 30) == 0) {
-          jam();
-          char buf[256];
-          if (getNodeInfo(nodePtr.i).m_type == NodeInfo::DB) {
+        const Uint32 secondsElapsed = get_hb_count(nodePtr.i);
+        bool generateDelayLog =
+            (secondsElapsed && ((secondsElapsed % 30) == 0));
+
+        if (getNodeInfo(nodePtr.i).m_type == NodeInfo::DB) {
+          if (generateDelayLog) {
             jam();
+            char buf[256];
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of node %d has not completed"
                                  " in %d seconds - state = %d",
-                                 nodePtr.i, get_hb_count(nodePtr.i),
+                                 nodePtr.i, secondsElapsed,
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
 
@@ -3531,12 +3537,41 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
             signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
             signal->theData[1] = nodePtr.i;
             sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
-          } else {
+          }
+        } else {
+          /* API/MGMD */
+
+          /* Check which timeout value to use */
+          Uint32 maxSeconds = c_apiFailureTimeoutSecs;
+          if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF) {
+            /* Check if we are waiting for DICT */
+            for (Uint32 i = 0; i < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks);
+                 i++) {
+              if (nodePtr.p->m_failconf_blocks[i] == DBDICT) {
+                /* DICT failure handling time can include
+                 * Schema Transaction rollback/forward
+                 */
+                maxSeconds = (7 * 24 * 60 * 60);
+                break;
+              }
+            }
+          }
+          const Uint32 remainSecs =
+              ((maxSeconds > 0) ? (secondsElapsed >= maxSeconds
+                                       ? 0
+                                       : maxSeconds - secondsElapsed)
+                                : UINT32_MAX);
+
+          const bool escalate = (remainSecs == 0);
+          generateDelayLog |= (remainSecs == 5 || escalate);
+
+          if (generateDelayLog) {
             jam();
+            char buf[256];
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of api %u has not completed"
-                                 " in %d seconds - state = %d",
-                                 nodePtr.i, get_hb_count(nodePtr.i),
+                                 " in %d seconds.  Limit %u - state = %d",
+                                 nodePtr.i, secondsElapsed, maxSeconds,
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF) {
@@ -3550,7 +3585,40 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
                                    nodePtr.p->m_failconf_blocks[3],
                                    nodePtr.p->m_failconf_blocks[4]);
               warningEvent("%s", buf);
+
+              /* Ask delayed block(s) to explain themselves */
+              for (Uint32 i = 0;
+                   i < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); i++) {
+                if (nodePtr.p->m_failconf_blocks[i] != 0) {
+                  signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
+                  signal->theData[1] = nodePtr.i;
+                  const Uint32 dstRef =
+                      numberToRef(nodePtr.p->m_failconf_blocks[i], 0);
+                  sendSignal(dstRef, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+                }
+              }
             }
+          }
+
+          if (escalate) {
+            g_eventLogger->error(
+                "Failure handling of api %u has not completed "
+                "in %d seconds.  Limit %d - state = %d blocks "
+                "%u %u %u %u %u",
+                nodePtr.i, secondsElapsed, maxSeconds, nodePtr.p->failState,
+                nodePtr.p->m_failconf_blocks[0],
+                nodePtr.p->m_failconf_blocks[1],
+                nodePtr.p->m_failconf_blocks[2],
+                nodePtr.p->m_failconf_blocks[3],
+                nodePtr.p->m_failconf_blocks[4]);
+
+            CRASH_INSERTION(961);  // Safe exit for testing
+            char buf[100];
+            BaseString::snprintf(
+                buf, sizeof(buf),
+                "Exceeded limit of %u seconds handling failure of Api node %u.",
+                maxSeconds, nodePtr.i);
+            progError(__LINE__, NDBD_EXIT_API_FAIL_HANDLING_TIMEOUT, buf);
           }
         }
       }
@@ -7065,6 +7133,15 @@ void Qmgr::execDUMP_STATE_ORD(Signal *signal) {
     closeCom->failedNodeId = nodeId;
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
                CloseComReqConf::SignalLength, JBB);
+  }
+  if (signal->theData[0] == 909) {
+    jam();
+    if (signal->getLength() == 2) {
+      jam();
+      g_eventLogger->info("QMGR : Setting c_apiFailureTimeoutSecs to %u",
+                          signal->theData[1]);
+      c_apiFailureTimeoutSecs = signal->theData[1];
+    }
   }
 }  // Qmgr::execDUMP_STATE_ORD()
 

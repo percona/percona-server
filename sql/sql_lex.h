@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -729,6 +729,8 @@ class Query_expression {
   bool prepared;   ///< All query blocks in query expression are prepared
   bool optimized;  ///< All query blocks in query expression are optimized
   bool executed;   ///< Query expression has been executed
+  ///< Explain mode: query expression refers stored function
+  bool m_has_stored_program{false};
 
   /// Object to which the result for this query expression is sent.
   /// Not used if we materialize directly into a parent query expression's
@@ -772,6 +774,8 @@ class Query_expression {
   /// @return true for a query expression without UNION/INTERSECT/EXCEPT or
   /// multi-level ORDER, i.e. we have a "simple table".
   bool is_simple() const { return m_query_term->term_type() == QT_QUERY_BLOCK; }
+
+  bool has_stored_program() const { return m_has_stored_program; }
 
   /// Values for Query_expression::cleaned
   enum enum_clean_state {
@@ -1348,8 +1352,11 @@ class Query_block : public Query_term {
   ORDER *find_in_group_list(Item *item, int *rollup_level) const;
   int group_list_size() const;
 
-  /// @returns true if query block contains window functions
+  /// @returns true if query block contains windows
   bool has_windows() const { return m_windows.elements > 0; }
+
+  /// @returns true if query block contains window functions
+  bool has_wfs();
 
   void invalidate();
 
@@ -1741,6 +1748,8 @@ class Query_block : public Query_term {
     @param    visitor  Select_lex_visitor Object
   */
   bool accept(Select_lex_visitor *visitor);
+
+  void prune_sj_exprs(Item_func_eq *item, mem_root_deque<Table_ref *> *nest);
 
   /**
     Cleanup this subtree (this Query_block and all nested Query_blockes and
@@ -2227,6 +2236,10 @@ class Query_block : public Query_term {
   bool exclude_from_table_unique_test{false};
 
   bool no_table_names_allowed{false};  ///< used for global order by
+
+  /// Keeps track of the current ORDER BY expression we are resolving for
+  /// ORDER BY, if any. Not used for GROUP BY or windowing ordering.
+  int m_current_order_by_number{0};
 
   /// Hidden items added during optimization
   /// @note that using this means we modify resolved data during optimization
@@ -5008,4 +5021,12 @@ Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
                      mem_root_deque<Table_ref *> *jlist, size_t table_cnt,
                      const char *legend);
 void get_select_options_str(ulonglong options, std::string *str);
+
+template <typename T>
+inline bool WalkQueryExpression(Query_expression *query_expr, enum_walk walk,
+                                T &&functor) {
+  return query_expr->walk(&Item::walk_helper_thunk<T>, walk,
+                          reinterpret_cast<uchar *>(&functor));
+}
+
 #endif /* SQL_LEX_INCLUDED */

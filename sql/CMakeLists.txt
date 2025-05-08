@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -780,7 +780,6 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
-  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
@@ -845,19 +844,6 @@ IF(WIN32)
               restart_monitor_win.cc
       )
 ENDIF()
-
-MY_ADD_COMPILE_DEFINITIONS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
-  )
-
-ADD_COMPILE_FLAGS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  iterators/hash_join_iterator.cc
-  iterators/composite_iterators.cc
-  rpl_write_set_handler.cc
-  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
-  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
@@ -939,11 +925,18 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
+<<<<<<< HEAD
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
   ADD_COMPILE_FLAGS(sql_planner.cc COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
 
 ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
+||||||| merged common ancestors
+
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
+=======
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
+>>>>>>> mysql-8.4.5
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -1236,12 +1229,14 @@ IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
 
   # Note: for Fedora RPM, this gives ERROR 0008: file '/usr/sbin/mysqld'
   #       contains the $ORIGIN specifier at the wrong position.
-  IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
-    GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
-    LIST(INSERT CURRENT_RPATH_mysqld 0
-      "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
-    SET_TARGET_PROPERTIES(mysqld
-      PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+  IF(NOT LINUX_RHEL10)
+    IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
+      GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+      LIST(INSERT CURRENT_RPATH_mysqld 0
+        "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+      SET_TARGET_PROPERTIES(mysqld
+        PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+    ENDIF()
   ENDIF()
 ENDIF()
 

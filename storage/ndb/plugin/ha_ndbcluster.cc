@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2204,6 +2204,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -2228,6 +2230,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -17613,6 +17617,9 @@ static SHOW_VAR ndb_status_vars[] = {
     {"Ndb", (char *)&show_ndb_metadata_check, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_synced, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_excluded_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ndb_schema_participant_count",
+     (char *)&ndbcluster_binlog_get_schema_participant_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

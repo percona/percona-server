@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1252,7 +1252,7 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
   return DB_SUCCESS;
 }
 
-dberr_t Builder::online_build_handle_error(dberr_t err) noexcept {
+dberr_t Builder::handle_error(dberr_t err) noexcept {
   set_error(err);
 
   if (m_btr_load != nullptr) {
@@ -1291,12 +1291,12 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
     });
 
     if (err != DB_SUCCESS) {
-      return online_build_handle_error(err);
+      return handle_error(err);
     }
   }
 
   DBUG_EXECUTE_IF("builder_insert_direct_no_builder",
-                  { static_cast<void>(online_build_handle_error(DB_ERROR)); });
+                  { static_cast<void>(handle_error(DB_ERROR)); });
 
   if (m_btr_load == nullptr) {
     auto ind = index();
@@ -1496,6 +1496,12 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       ut_a(err == DB_SUCCESS || err == DB_OVERFLOW);
       err = key_buffer_sort(thread_id);
 
+      if (DBUG_EVALUATE_IF("builder_bulk_add_row_trigger_error_1",
+                           (m_btr_load && m_btr_load->get_n_recs() != 0),
+                           false)) {
+        err = DB_DUPLICATE_KEY;
+      }
+
       if (err != DB_SUCCESS) {
         set_error(err);
         return get_error();
@@ -1506,6 +1512,11 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
           /* Copy the row data and release any latches held by the parallel
           scan thread. Required for the log_free_check() during mtr.commit(). */
           err = cursor.copy_row(thread_id, row);
+
+          if (DBUG_EVALUATE_IF("builder_bulk_add_row_trigger_error_2", true,
+                               false)) {
+            err = DB_INVALID_NULL;
+          }
 
           if (err != DB_SUCCESS) {
             set_error(err);
@@ -1525,6 +1536,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
         key_buffer->clear();
 
         if (err != DB_SUCCESS) {
+          /* @insert_direct cleans up m_btr_load in case of error */
           ut_a(m_btr_load == nullptr);
           set_error(err);
           return get_error();
@@ -1552,11 +1564,11 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
 
     IF_ENABLED("ddl_ins_spatial_fail", set_error(DB_FAIL); return get_error();)
 
-    if (!thread_ctx->m_file.m_file.is_open()) {
-      if (!create_file(thread_ctx->m_file)) {
-        set_error(DB_IO_ERROR);
-        return get_error();
-      }
+    if (DBUG_EVALUATE_IF("builder_bulk_add_row_trigger_error_3", true, false) ||
+        (!thread_ctx->m_file.m_file.is_open() &&
+         !create_file(thread_ctx->m_file))) {
+      set_error(DB_IO_ERROR);
+      return get_error();
     }
 
     IF_ENABLED("ddl_write_failure", set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1574,6 +1586,11 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       auto crypt_buffer = thread_ctx->m_io_buffer_crypt;
       auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size,
                              crypt_buffer.first, get_space_id());
+
+      if (DBUG_EVALUATE_IF("builder_bulk_add_row_trigger_error_4", true,
+                           false)) {
+        err = DB_IO_ERROR;
+      }
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1617,13 +1634,17 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
   });
 
   if (err != DB_SUCCESS) {
-    err = online_build_handle_error(err);
+    err = handle_error(err);
   } else if (is_spatial_index()) {
     if (!cursor.eof()) {
       err = batch_add_row(row, thread_id);
     }
   } else {
     err = bulk_add_row(cursor, row, thread_id, std::move(latch_release));
+    if (unlikely(err != DB_OVERFLOW && err != DB_SUCCESS &&
+                 err != DB_END_OF_INDEX)) {
+      err = handle_error(err);
+    }
     clear_virtual_heap();
   }
 

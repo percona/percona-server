@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,7 @@ my $opt_sp_protocol;
 my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
+my $opt_start_test;
 my $opt_strace_client;
 my $opt_strace_server;
 my @opt_perf_servers;
@@ -1402,6 +1403,7 @@ sub run_test_server ($$$) {
             $next->write_test($sock, 'TESTCASE');
             $running{ $next->key() } = $next;
             $num_ndb_tests++ if ($next->{ndb_test});
+<<<<<<< HEAD
           } else {
             # No more test, get shutdown/valgrind reports from the worker, BYE
             # should be sent to the worker for complete exit once report is
@@ -1409,6 +1411,28 @@ sub run_test_server ($$$) {
             print $sock "GETREPORTS\n";
 	        # Mark socket as unused, no more tests will be allocated
 	        $closed_sock{$sock} = 1;
+||||||| merged common ancestors
+          } else {
+            # No more test, tell child to exit
+            print $sock "BYE\n";
+	    # Mark socket as unused, no more tests will be allocated
+	    $closed_sock{$sock} = 1;
+
+=======
+          } elsif($opt_start_test) {
+            # The selected test has been run; now leave the child hanging
+            sleep(1);
+            mtr_print("\nWaiting for server(s) to exit...");
+            My::SafeProcess->wait_any();
+            exit(1);
+          }
+          else {
+            # No more test, tell child to exit
+            print $sock "BYE\n";
+	    # Mark socket as unused, no more tests will be allocated
+	    $closed_sock{$sock} = 1;
+
+>>>>>>> mysql-8.4.5
           }
         }
       }
@@ -1927,6 +1951,7 @@ sub command_line_setup {
     'shutdown-timeout=i'    => \$opt_shutdown_timeout,
     'start'                 => \$opt_start,
     'start-and-exit'        => \$opt_start_exit,
+    'start-and-test'        => \$opt_start_test,
     'start-dirty'           => \$opt_start_dirty,
     'stress=s'              => \$opt_stress,
     'suite-opt=s'           => \$opt_suite_opt,
@@ -2471,6 +2496,16 @@ sub command_line_setup {
 
   if (@opt_perf_servers && $opt_shutdown_timeout == 0) {
     mtr_error("Using perf with --shutdown-timeout=0 produces empty perf.data");
+  }
+
+  if ($opt_start_test) {
+    collect_option('quick-collect', 1);
+    $opt_no_skip = 1;
+    $excluded_string = '';
+    $opt_check_testcases = 0;
+    if(scalar @opt_cases != 1) {
+      mtr_error("Supply a single test case when using --start-and-test");
+    }
   }
 
   mtr_report("Checking supported features");
@@ -3348,6 +3383,10 @@ sub environment_setup {
     $ENV{'SECURE_LOAD_PATH'}      = $glob_mysql_test_dir . "/std_data";
     $ENV{'MYSQL_TEST_LOGIN_FILE'} = $opt_tmpdir . "/.mylogin.cnf";
     $ENV{'MYSQLTEST_VARDIR_ABS'}  = abs_path("$opt_vardir");
+  }
+
+  if($opt_start_test) {
+    $ENV{'MTR_SKIP_TEST_CLEANUP'} = 1;
   }
 
   # Setup env for NDB
@@ -5242,8 +5281,8 @@ sub run_testcase ($) {
   # If '--start' or '--start-dirty' given, stop here to let user manually
   # run tests. If '--wait-all' is also given, do the same, but don't die
   # if one server exits.
-  if ($start_only) {
-    mtr_print("\nStarted",    started(all_servers()));
+  if ($start_only || $opt_start_test) {
+    mtr_print("Started",    started(all_servers()));
     mtr_print("Using config", $tinfo->{template_path});
     mtr_print("Port and socket path for server(s):");
 
@@ -5251,7 +5290,8 @@ sub run_testcase ($) {
       mtr_print($mysqld->name() .
                "  " . $mysqld->value('port') . "  " . $mysqld->value('socket'));
     }
-
+  }
+  if ($start_only) {
     if ($opt_start_exit) {
       mtr_print("Server(s) started, not waiting for them to finish");
       if (IS_WINDOWS) {
@@ -8359,6 +8399,9 @@ Misc options
                           $0 --start alias &
   start-and-exit        Same as --start, but mysql-test-run terminates and
                         leaves just the server running.
+  start-and-test        Like --start, but runs a single specified testcase
+                        with MTR_SKIP_TEST_CLEANUP set, then leaves the
+                        servers running.
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case.
   stress=ARGS           Run stress test, providing options to

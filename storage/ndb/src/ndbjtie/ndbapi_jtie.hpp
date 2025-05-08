@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -11615,6 +11615,17 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(
   return gcall_mfr<ttrait_c_m_n_n_Ndb_cluster_connection_ct,
                    ttrait_char_cp_jutf8null,
                    &Ndb_cluster_connection::get_system_name>(env, obj);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_node_1id(JNIEnv *env,
+                                                                jobject obj) {
+  TRACE(
+      "jint "
+      "Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_node_1id"
+      "(JNIEnv *env, jobject obj)");
+  return gcall_mfr<ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_Uint32,
+                   &Ndb_cluster_connection::node_id>(env, obj);
 }
 
 }  // extern "C"

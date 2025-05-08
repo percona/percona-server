@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,6 +117,10 @@ bool SocketServer::setup(SocketServer::Service *service,
   }
 
   DBUG_PRINT("info", ("NDB_SOCKET: %s", ndb_socket_to_string(sock).c_str()));
+
+  if (ndb_socket_can_disable_sigpipe())
+    if (ndb_socket_disable_sigpipe(sock) == -1)
+      DBUG_PRINT("error", ("setsockopt() - %d - %s", errno, strerror(errno)));
 
   if (ndb_socket_reuseaddr(sock, true) == -1) {
     DBUG_PRINT("error", ("setsockopt() - %d - %s", errno, strerror(errno)));

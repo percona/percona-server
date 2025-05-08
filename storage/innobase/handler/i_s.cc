@@ -39,17 +39,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_time.h>
 #include <sys/types.h>
 #include <time.h>
-<<<<<<< HEAD
+#include <string_view>
+#include <unordered_map>
 #include "sql/debug_sync.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
-||||||| merged common ancestors
-=======
-#include <string_view>
-#include <unordered_map>
->>>>>>> mysql-8.4.5
 
 #include "auth_acls.h"
 #include "btr0btr.h"

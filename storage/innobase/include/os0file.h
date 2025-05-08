@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
-Copyright (c) 2009, 2017, Percona Inc.
-||||||| merged common ancestors
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2025, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-8.4.5
+Copyright (c) 2009, 2017, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -797,35 +789,13 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @param[in]      fd              file descriptor to alter
 @param[in]      file_name       file name, used in the diagnostic message
 @param[in]      operation_name  "open" or "create"; used in the diagnostic
-<<<<<<< HEAD
-                                message
-@return true if operation is success and false */
-bool os_file_set_nocache(int fd, const char *file_name,
-                         const char *operation_name);
-
-/** Tries to disable OS caching on an opened file file.
-@param[in]	file		file to alter
-@param[in]	file_name	file name, used in the diagnostic message
-@param[in]	operation_name	"open" or "create"; used in the diagnostic
-message
-@return true if operation is success and false */
-static inline bool os_file_set_nocache(pfs_os_file_t file,
-                                       const char *file_name,
-                                       const char *operation_name);
-
-||||||| merged common ancestors
-                                message */
-void os_file_set_nocache(int fd, const char *file_name,
-                         const char *operation_name);
-
-=======
                                 message
 @param[in]      on_error_silent if true then don't print any message to the log
-*/
-void os_file_set_nocache(int fd, const char *file_name,
+@return true if operation is success and false */
+bool os_file_set_nocache(int fd, const char *file_name,
                          const char *operation_name,
                          bool on_error_silent = false);
->>>>>>> mysql-8.4.5
+
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.

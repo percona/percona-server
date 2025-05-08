@@ -1403,22 +1403,6 @@ sub run_test_server ($$$) {
             $next->write_test($sock, 'TESTCASE');
             $running{ $next->key() } = $next;
             $num_ndb_tests++ if ($next->{ndb_test});
-<<<<<<< HEAD
-          } else {
-            # No more test, get shutdown/valgrind reports from the worker, BYE
-            # should be sent to the worker for complete exit once report is
-            # received.
-            print $sock "GETREPORTS\n";
-	        # Mark socket as unused, no more tests will be allocated
-	        $closed_sock{$sock} = 1;
-||||||| merged common ancestors
-          } else {
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-	    # Mark socket as unused, no more tests will be allocated
-	    $closed_sock{$sock} = 1;
-
-=======
           } elsif($opt_start_test) {
             # The selected test has been run; now leave the child hanging
             sleep(1);
@@ -1427,12 +1411,12 @@ sub run_test_server ($$$) {
             exit(1);
           }
           else {
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-	    # Mark socket as unused, no more tests will be allocated
-	    $closed_sock{$sock} = 1;
-
->>>>>>> mysql-8.4.5
+            # No more test, get shutdown/valgrind reports from the worker, BYE
+            # should be sent to the worker for complete exit once report is
+            # received.
+            print $sock "GETREPORTS\n";
+	        # Mark socket as unused, no more tests will be allocated
+	        $closed_sock{$sock} = 1;
           }
         }
       }

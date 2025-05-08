@@ -925,18 +925,10 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-<<<<<<< HEAD
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
   ADD_COMPILE_FLAGS(sql_planner.cc COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
-
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
-||||||| merged common ancestors
-
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
-=======
 ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
->>>>>>> mysql-8.4.5
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)

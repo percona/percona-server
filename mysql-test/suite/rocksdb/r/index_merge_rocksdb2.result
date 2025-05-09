@@ -638,21 +638,21 @@ from t0 as a, t0 as b
 where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.key6=1 and a.key7 = 1 or a.key8=1)
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 EXPLAIN
--> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Inner hash join (no condition)  (rows=9)
-        -> Filter: (((b.key7 = 1) and (b.key6 = 1) and (b.key5 = 1) and (b.key4 = 1) and (b.key3 = 1) and (b.key2 = 1) and (b.key1 = 1)) or (b.key8 = 1))  (rows=3)
-            -> Deduplicate rows sorted by row ID  (rows=3)
-                -> Intersect rows sorted by row ID  (rows=1)
-                    -> Index range scan on b using i1 over (key1 = 1)  (rows=2)
-                    -> Index range scan on b using i2 over (key2 = 1)  (rows=2)
-                -> Index range scan on b using i8 over (key8 = 1)  (rows=2)
+-> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (...)
+    -> Inner hash join (no condition)  (...)
+        -> Filter: (((b.key7 = 1) and (b.key6 = 1) and (b.key5 = 1) and (b.key4 = 1) and (b.key3 = 1) and (b.key2 = 1) and (b.key1 = 1)) or (b.key8 = 1))  (...)
+            -> Deduplicate rows sorted by row ID  (...)
+                -> Intersect rows sorted by row ID  (...)
+                    -> Index range scan on b using i1 over (key1 = 1)  (...)
+                    -> Index range scan on b using i2 over (key2 = 1)  (...)
+                -> Index range scan on b using i8 over (key8 = 1)  (...)
         -> Hash
-            -> Filter: (((a.key7 = 1) and (a.key6 = 1) and (a.key5 = 1) and (a.key4 = 1) and (a.key3 = 1) and (a.key2 = 1) and (a.key1 = 1)) or (a.key8 = 1))  (rows=3)
-                -> Deduplicate rows sorted by row ID  (rows=3)
-                    -> Intersect rows sorted by row ID  (rows=1)
-                        -> Index range scan on a using i1 over (key1 = 1)  (rows=2)
-                        -> Index range scan on a using i2 over (key2 = 1)  (rows=2)
-                    -> Index range scan on a using i8 over (key8 = 1)  (rows=2)
+            -> Filter: (((a.key7 = 1) and (a.key6 = 1) and (a.key5 = 1) and (a.key4 = 1) and (a.key3 = 1) and (a.key2 = 1) and (a.key1 = 1)) or (a.key8 = 1))  (...)
+                -> Deduplicate rows sorted by row ID  (...)
+                    -> Intersect rows sorted by row ID  (...)
+                        -> Index range scan on a using i1 over (key1 = 1)  (...)
+                        -> Index range scan on a using i2 over (key2 = 1)  (...)
+                    -> Index range scan on a using i8 over (key8 = 1)  (...)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a, t0 as b
@@ -1773,14 +1773,14 @@ pk1	pk2
 # The expected number of rows can vary depending on page size
 explain select * from t1 where badkey=1 and key1=10;
 EXPLAIN
--> Filter: (t1.badkey = 1)  (rows=0.2)
-    -> Index lookup on t1 using key1 (key1 = 10)  (rows=2)
+-> Filter: (t1.badkey = 1)  (...)
+    -> Index lookup on t1 using key1 (key1 = 10)  (...)
 
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 EXPLAIN
--> Filter: ((t1.key1 = 10) and (t1.pk1 < 7500))  (rows=0.05)
-    -> Index range scan on t1 using PRIMARY over (pk1 < 7500)  (rows=2)
+-> Filter: ((t1.key1 = 10) and (t1.pk1 < 7500))  (...)
+    -> Index range scan on t1 using PRIMARY over (pk1 < 7500)  (...)
 
 # Verify that keys with 'tails' of PK members are ok.
 explain select * from t1 where pktail1ok=1 and key1=10;

@@ -3874,7 +3874,7 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       false,  // RESOURCE_GROUPS
       false,  // FOREIGN_KEY
       false,  // CHECK_CONSTRAINT
-      true,   // LIBRARY
+      false,  // LIBRARY
       false   // BACKUP_TABLES
   };
   static_assert(
@@ -3885,6 +3885,7 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
     MDL_request request;
     if (static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::FUNCTION ||
         static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::PROCEDURE ||
+        static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::LIBRARY ||
         static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::TRIGGER ||
         static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::EVENT ||
         static_cast<MDL_key::enum_mdl_namespace>(i) ==

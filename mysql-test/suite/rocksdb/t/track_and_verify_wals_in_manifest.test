@@ -28,7 +28,7 @@ insert into t2 values (102);
 --let $_server_id= `SELECT @@server_id`
 --let $_custom_err= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.err
 
---source include/send_kill_to_mysqld.inc
+--source include/kill_mysqld.inc
 
 --write_file $MYSQL_TMP_DIR/truncate_tail_wal_N.sh
 #!/bin/bash

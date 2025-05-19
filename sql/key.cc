@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -432,6 +432,8 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   @param key_part		Key part handler
   @param key			Key to compare to value in table->record[0]
   @param key_length		length of 'key'
+  @param[in] is_reverse_multi_valued_index_scan  True in case of reverse
+  multi-valued index scan.
 
   @details
     The function compares given key and key in record buffer, part by part,
@@ -450,7 +452,8 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   @note: keep this function and key_cmp2() in sync
 */
 
-int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
+int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length,
+            bool is_reverse_multi_valued_index_scan) {
   uint store_length;
 
   for (const uchar *end = key + key_length; key < end;
@@ -474,7 +477,11 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
     }
     if ((cmp = key_part->field->key_cmp(key, key_part->length)) < 0)
       return -res;
-    if (cmp > 0) return res;
+    if (cmp > 0) {
+      if (is_reverse_multi_valued_index_scan && key_part->field->is_array())
+        return -res;
+      return res;
+    }
   }
   return 0;  // Keys are equal
 }

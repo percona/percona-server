@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -17684,7 +17684,7 @@ view_tail:
               for (auto column_alias : $4)
               {
                 // Report error if the column name/length is incorrect.
-                if (check_column_name(column_alias.str))
+                if (check_column_name(column_alias))
                 {
                   my_error(ER_WRONG_COLUMN_NAME, MYF(0), column_alias.str);
                   MYSQL_YYABORT;

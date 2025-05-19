@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -14201,7 +14201,7 @@ void Backup::start_execute_lcp(Signal *signal, BackupRecordPtr ptr,
        " prev_row_count: %llu,"
        " memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
        instance(), tabPtr.p->tableId, fragPtr.p->fragmentId,
-       c_lqh->getCreateSchemaVersion(ttabPtr.p->tableId), ptr.p->m_row_count,
+       c_lqh->getCreateSchemaVersion(tabPtr.p->tableId), ptr.p->m_row_count,
        ptr.p->m_row_change_count, ptr.p->m_prev_row_count,
        ptr.p->m_memory_used_in_bytes, ptr.p->m_lcp_max_page_cnt,
        ptr.p->m_current_lcp_lsn));
@@ -16021,6 +16021,8 @@ bool Backup::get_backup_record(BackupRecordPtr &ptr) {
    * return true if a backup record is found and false otherwise.
    */
   c_backups.first(ptr);
+  if (ptr.i == RNIL) return false;
+
   if (ptr.p->is_lcp()) {
     ptr.i = RNIL;
     ptr.p = 0;

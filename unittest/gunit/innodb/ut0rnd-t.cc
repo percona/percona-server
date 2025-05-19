@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "storage/innobase/include/ut0crc32.h"
 #include "storage/innobase/include/ut0rnd.h"
 
-#include "my_xxhash.h"
+#include "extra/xxhash/my_xxhash.h"
 
 namespace innodb_ut0rnd_unittest {
 
@@ -369,7 +369,7 @@ static void test_interval_fast_distribution(uint64_t n) {
   const uint64_t max_score = 17000;
 
   for (uint64_t i = 0; i < max_count; i++) {
-    const auto value = ut::random_from_interval_fast(0, n - 1);
+    const auto value = ut::random_from_interval_fast(0, n);
     for (auto target : target_score) {
       if (value == target[0]) {
         target[1]++;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3261,6 +3261,12 @@ int ha_innopart::records(ha_rows *num_rows) {
 
         *num_rows = HA_POS_ERROR;
         return (HA_ERR_NO_SUCH_TABLE);
+      }
+
+      m_prebuilt->index_usable = m_prebuilt->index->is_usable(trx);
+      if (!m_prebuilt->index_usable) {
+        *num_rows = HA_POS_ERROR;
+        return HA_ERR_TABLE_DEF_CHANGED;
       }
 
       build_template(true);

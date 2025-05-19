@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,12 +149,8 @@ class Certifier_broadcast_thread {
 
   /**
     Terminate broadcast thread.
-
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
   */
-  int terminate();
+  void terminate();
 
   /**
     Broadcast thread worker method.
@@ -240,15 +236,6 @@ class Certifier : public Certifier_interface {
       @retval !=0    Error
   */
   int initialize(ulonglong gtid_assignment_block_size);
-
-  /**
-    Terminate certifier.
-
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int terminate();
 
   /**
     Handle view changes on certifier.

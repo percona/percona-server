@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,6 +201,10 @@ void my_safe_puts_stderr(const char *val, size_t max_len) {
 }
 
 #ifdef HAVE_EXT_BACKTRACE
+static size_t my_write_stderr(const std::string_view &sv) {
+  return my_write_stderr(std::data(sv), std::size(sv));
+}
+
 void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
   my_safe_printf_stderr("stack_bottom = %p thread_stack 0x%lx\n", stack_bottom,
                         thread_stack);
@@ -211,6 +215,8 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
   auto print_callback = [](void *cookie, uintptr_t pc, const char *filename,
                            int lineno, const char *function) {
     auto idx = static_cast<cookie_t *>(cookie)->index++;
+    my_safe_printf_stderr(" #%d 0x%lx ", idx, (unsigned long)pc);
+    my_write_stderr(function == nullptr ? "<unknown>" : function);
     if (filename != nullptr) {
       std::string_view filename_sv{filename};
       constexpr std::string_view parent_dir{"../"};
@@ -223,13 +229,11 @@ void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
           pos != std::string_view::npos) {
         filename_sv.remove_prefix(pos + std::size(mysql_dir));
       }
-      my_safe_printf_stderr(" #%d 0x%lx %s at %s:%d\n", idx, (unsigned long)pc,
-                            function == nullptr ? "<unknown>" : function,
-                            std::data(filename_sv), lineno);
-    } else {
-      my_safe_printf_stderr(" #%d 0x%lx %s\n", idx, (unsigned long)pc,
-                            function == nullptr ? "<unknown>" : function);
+      my_write_stderr(" at ");
+      my_write_stderr(filename_sv);
+      my_safe_printf_stderr(":%d", lineno);
     }
+    my_write_stderr("\n");
 
     return 0;
   };

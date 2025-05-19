@@ -17,6 +17,8 @@
 /* This C++ file's header file */
 #include "./rdb_index_merge.h"
 
+#include <cinttypes>
+
 #include "rdb_utils.h"  // LOG_COMPONENT_TAG for includes below
 
 /* MySQL header files */

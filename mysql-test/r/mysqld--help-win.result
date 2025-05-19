@@ -269,6 +269,12 @@ The following options may be given as the first argument:
  users associated with authentication plugins which signal
  proxy user mapping should be done according to GRANT
  PROXY privilege definition.
+ --check-table-functions=name 
+ On upgrade, the server attempts to open tables with SQL
+ functions in their DEFAULT, INDEX, and PARTITION clauses,
+ virtual columns, and CONSTRAINTs. WARN runs the test but
+ proceeds even if potential issues are found; ABORT
+ (default) stops the server if potential issues are found.
  -r, --chroot=name   Chroot mysqld daemon during startup.
  --collation-server=name 
  Set the default collation.
@@ -1719,6 +1725,7 @@ character-set-filesystem binary
 character-set-server utf8mb4
 character-sets-dir MYSQL_CHARSETSDIR/
 check-proxy-users FALSE
+check-table-functions ABORT
 chroot (No default value)
 collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN

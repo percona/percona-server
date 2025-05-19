@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,13 @@ IF(LINUX_INSTALL_RPATH_ORIGIN)
 ENDIF()
 
 LIST(REMOVE_DUPLICATES CMAKE_INSTALL_RPATH)
+LIST(REMOVE_DUPLICATES ROUTER_INSTALL_RPATH)
+
+# We want all $ORIGIN/... before any /usr/bin or /usr/lib64
+IF(LINUX)
+  LIST(SORT CMAKE_INSTALL_RPATH)
+  LIST(SORT ROUTER_INSTALL_RPATH)
+ENDIF()
 
 SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)

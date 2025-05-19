@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -514,6 +514,29 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
   // Current error state inside and after the insert loop
   bool has_error = false;
+  const bool select_insert = insert_many_values.empty();
+
+  /* Prune after locking if pruning was not completed in prepare phase. */
+  if (!select_insert && insert_table->part_info != nullptr &&
+      !insert_table->part_info->is_pruning_completed) {
+    MY_BITMAP used_partitions;
+    bool prune_needs_default_values = false;
+    enum partition_info::enum_can_prune can_prune_partitions =
+        partition_info::PRUNE_NO;
+
+    if (insert_table->part_info->can_prune_insert(
+            thd, duplicates, update, update_field_list, insert_field_list,
+            value_count == 0, &can_prune_partitions,
+            &prune_needs_default_values, &used_partitions))
+      return true; /* purecov: inspected */
+    if (can_prune_partitions != partition_info::PRUNE_NO) {
+      if (prune_partitions(thd, prune_needs_default_values, insert_field_list,
+                           &used_partitions, insert_table, info,
+                           &can_prune_partitions,
+                           /*tables_locked*/ true))
+        return true;
+    }
+  }
 
   {  // Statement plan is available within these braces
     Modification_plan plan(
@@ -1420,7 +1443,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   }
 
   if (!select_insert && insert_table->part_info) {
-    uint num_partitions = 0;
     enum partition_info::enum_can_prune can_prune_partitions =
         partition_info::PRUNE_NO;
     /*
@@ -1448,6 +1470,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true; /* purecov: inspected */
     MY_BITMAP used_partitions;
     bool prune_needs_default_values = false;
+
     if (insert_table->part_info->can_prune_insert(
             thd, duplicates, update, update_field_list, insert_field_list,
             value_count == 0, &can_prune_partitions,
@@ -1455,76 +1478,11 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true; /* purecov: inspected */
 
     if (can_prune_partitions != partition_info::PRUNE_NO) {
-      auto its = insert_many_values.begin();
-      num_partitions = insert_table->part_info->lock_partitions.n_bits;
-      uint counter = 1;
-      /*
-        Pruning probably possible, all partitions is unmarked for read/lock,
-        and we must now add them on row by row basis.
-
-        Check the first INSERT value.
-
-        PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
-        values, so we only need to check the first INSERT value, since all the
-        rest will be in the same partition.
-      */
-      if (insert_table->part_info->set_used_partition(
-              thd, insert_field_list, /*values=*/*(*its++), info,
-              prune_needs_default_values, &used_partitions)) {
-        can_prune_partitions = partition_info::PRUNE_NO;
-        // set_used_partition may fail.
-        if (thd->is_error()) return true;
-      }
-
-      while (its != insert_many_values.end()) {
-        const mem_root_deque<Item *> *values = *its++;
-        counter++;
-
-        /*
-          We check pruning for each row until we will
-          use all partitions, Even if the number of rows is much higher than the
-          number of partitions.
-          TODO: Cache the calculated part_id and reuse in
-          ha_partition::write_row() if possible.
-        */
-        if (can_prune_partitions == partition_info::PRUNE_YES) {
-          if (insert_table->part_info->set_used_partition(
-                  thd, insert_field_list, *values, info,
-                  prune_needs_default_values, &used_partitions)) {
-            can_prune_partitions = partition_info::PRUNE_NO;
-            // set_used_partition may fail.
-            if (thd->is_error()) return true;
-          }
-          if (!(counter % num_partitions)) {
-            /*
-              Check if we using all partitions in table after adding partition
-              for current row to the set of used partitions. Do it only from
-              time to time to avoid overhead from bitmap_is_set_all() call.
-            */
-            if (bitmap_is_set_all(&used_partitions))
-              can_prune_partitions = partition_info::PRUNE_NO;
-          }
-        }
-      }
-    }
-
-    if (can_prune_partitions != partition_info::PRUNE_NO) {
-      /*
-        Only lock the partitions we will insert into.
-        And also only read from those partitions (duplicates etc.).
-        If explicit partition selection 'INSERT INTO t PARTITION (p1)' is used,
-        the new set of read/lock partitions is the intersection of read/lock
-        partitions and used partitions, i.e only the partitions that exists in
-        both sets will be marked for read/lock.
-        It is also safe for REPLACE, since all potentially conflicting records
-        always belong to the same partition as the one which we try to
-        insert a row. This is because ALL unique/primary keys must
-        include ALL partitioning columns.
-      */
-      bitmap_intersect(&insert_table->part_info->read_partitions,
-                       &used_partitions);
-      bitmap_intersect(&insert_table->part_info->lock_partitions,
-                       &used_partitions);
+      if (prune_partitions(thd, prune_needs_default_values, insert_field_list,
+                           &used_partitions, insert_table, info,
+                           &can_prune_partitions,
+                           /*tables_locked*/ false))
+        return true;
     }
   }
 
@@ -3366,4 +3324,88 @@ Sql_cmd_insert_select::eligible_secondary_storage_engine() const {
   if (is_replace) return nullptr;
 
   return get_eligible_secondary_engine();
+}
+
+/**
+  Perform partition pruning for INSERT query.
+*/
+bool Sql_cmd_insert_base::prune_partitions(
+    THD *thd, bool prune_needs_default_values,
+    const mem_root_deque<Item *> &insert_field_list, MY_BITMAP *used_partitions,
+    TABLE *const insert_table, COPY_INFO &info,
+    partition_info::enum_can_prune *can_prune_partitions, bool tables_locked) {
+  auto its = insert_many_values.begin();
+  uint num_partitions = insert_table->part_info->lock_partitions.n_bits;
+  uint counter = 1;
+  /*
+    Pruning probably possible, all partitions are unmarked for read/lock,
+    and we must now add them on row by row basis.
+
+    Check the first INSERT value.
+
+    PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
+    values, so we only need to check the first INSERT value, since all the
+    rest will be in the same partition.
+  */
+  if (insert_table->part_info->set_used_partition(
+          thd, insert_field_list, /*values=*/*(*its++), info,
+          prune_needs_default_values, used_partitions, tables_locked)) {
+    *can_prune_partitions = partition_info::PRUNE_NO;
+    // set_used_partition may fail.
+    if (thd->is_error()) return true;
+  }
+
+  while (its != insert_many_values.end()) {
+    const mem_root_deque<Item *> *values = *its++;
+    counter++;
+
+    /*
+      We check pruning for each row until we will
+      use all partitions, Even if the number of rows is much higher than the
+      number of partitions.
+      TODO: Cache the calculated part_id and reuse in
+      ha_partition::write_row() if possible.
+    */
+    if (*can_prune_partitions == partition_info::PRUNE_YES) {
+      if (insert_table->part_info->set_used_partition(
+              thd, insert_field_list, *values, info, prune_needs_default_values,
+              used_partitions, tables_locked)) {
+        *can_prune_partitions = partition_info::PRUNE_NO;
+        // set_used_partition may fail.
+        if (thd->is_error()) return true;
+      }
+      if (!(counter % num_partitions)) {
+        /*
+          Check if we using all partitions in table after adding partition
+          for current row to the set of used partitions. Do it only from
+          time to time to avoid overhead from bitmap_is_set_all() call.
+        */
+        if (bitmap_is_set_all(used_partitions)) {
+          *can_prune_partitions = partition_info::PRUNE_NO;
+          insert_table->part_info->is_pruning_completed = true;
+        }
+      }
+    }
+  }
+
+  if (*can_prune_partitions != partition_info::PRUNE_NO) {
+    /*
+      Only lock the partitions we will insert into.
+      And also only read from those partitions (duplicates etc.).
+      If explicit partition selection 'INSERT INTO t PARTITION (p1)' is used,
+      the new set of read/lock partitions is the intersection of read/lock
+      partitions and used partitions, i.e only the partitions that exists in
+      both sets will be marked for read/lock.
+      It is also safe for REPLACE, since all potentially conflicting records
+      always belong to the same partition as the one which we try to
+      insert a row. This is because ALL unique/primary keys must
+      include ALL partitioning columns.
+    */
+    bitmap_intersect(&insert_table->part_info->read_partitions,
+                     used_partitions);
+    bitmap_intersect(&insert_table->part_info->lock_partitions,
+                     used_partitions);
+    insert_table->part_info->is_pruning_completed = true;
+  }
+  return false;
 }

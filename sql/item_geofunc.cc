@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3921,9 +3921,15 @@ String *Item_func_convex_hull::val_str(String *str) {
   // By taking over, str owns swkt->ptr and the memory will be released when
   // str points to another buffer in next call of this function
   // (done in post_fix_result), or when str's owner Item_xxx node is destroyed.
-  if (geom->get_type() == Geometry::wkb_point) str->takeover(*swkb);
-
-  return str;
+  if (geom->get_type() == Geometry::wkb_point) {
+    str->takeover(*swkb);
+    return str;
+  }
+  // Return a different String pointer than the input argument. This shows our
+  // callers, in particular in_string::set(), that the result is not stored or
+  // maintained by 'str' and may need to be copied.
+  tmp_value.set(str->ptr(), str->length(), &my_charset_bin);
+  return &tmp_value;
 }
 
 template <typename Coordsys>

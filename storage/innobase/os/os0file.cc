@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -104,6 +104,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifdef UNIV_HOTBACKUP
 #include <data0type.h>
 #endif /* UNIV_HOTBACKUP */
+
+#ifndef _WIN32
+static_assert(OS_FILE_CLOSED == -1,
+              "Our implementation for OSes other than Windows assumes an "
+              "invalid handle is indicated by -1");
+#endif
 
 /* Flush after each os_fsync_threshold bytes */
 unsigned long long os_fsync_threshold = 0;
@@ -3341,7 +3347,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   ut_a(purpose == OS_LOG_FILE || purpose == OS_LOG_FILE_RESIZING ||
        purpose == OS_DATA_FILE || purpose == OS_DBLWR_FILE ||
        purpose == OS_CLONE_DATA_FILE || purpose == OS_CLONE_LOG_FILE ||
-       purpose == OS_BUFFERED_FILE);
+       purpose == OS_BUFFERED_FILE || OS_DATA_FILE_FOR_SPACE_ID_READ);
 
 #ifdef O_SYNC
   /* We let O_SYNC only affect log files; note that we map O_DSYNC to
@@ -3379,20 +3385,38 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   } while (retry);
 
-  /* Do fsync() on log and parallel doublewrite files
-  when setting O_DIRECT fails.
-  See log_io_complete() and buf_dblwr_flush_buffered_writes() */
+  if (!*success) {
+    ut_a(file.m_file == OS_FILE_CLOSED);
+    return file;
+  }
 
-  if ((!read_only || purpose == OS_CLONE_DATA_FILE) && *success &&
+  bool use_odirect = false;
+
+  if ((!read_only || purpose == OS_CLONE_DATA_FILE) &&
       (purpose == OS_DATA_FILE || purpose == OS_CLONE_DATA_FILE ||
        purpose == OS_DBLWR_FILE) &&
       (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT ||
        srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
-    os_file_set_nocache(file.m_file, name, mode_str);
+    use_odirect = true;
+  }
+
+  /* We also set O_DIRECT for files which are opened at startup to
+  read their space ID from the page header */
+  if (purpose == OS_DATA_FILE_FOR_SPACE_ID_READ) {
+    use_odirect = true;
+  }
+
+  if (use_odirect) {
+    /* Flag for executing os_file_set_nocache() without printing error
+    messages */
+    const bool on_error_silent_for_nocache =
+        (purpose == OS_DATA_FILE_FOR_SPACE_ID_READ);
+    os_file_set_nocache(file.m_file, name, mode_str,
+                        on_error_silent_for_nocache);
   }
 
 #ifdef USE_FILE_LOCK
-  if (!read_only && *success && create_mode != OS_FILE_OPEN_RAW &&
+  if (!read_only && create_mode != OS_FILE_OPEN_RAW &&
       /* Don't acquire file lock while cloning files. */
       purpose != OS_CLONE_DATA_FILE && purpose != OS_CLONE_LOG_FILE &&
       os_file_lock(file.m_file, name)) {
@@ -4348,7 +4372,12 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     /* Do not use unbuffered i/o for the log files because
     we write really a lot and we have log flusher for fsyncs. */
 
-  } else if (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED) {
+  } else if (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED ||
+             purpose == OS_DATA_FILE_FOR_SPACE_ID_READ) {
+    /* We use unbuffered access only when allowed by the
+    'srv_win_file_flush_method', unless the purpose is
+    to read the space ID on the startup, in which case
+    we should always use the unbuffered access */
     attributes |= FILE_FLAG_NO_BUFFERING;
   }
 #endif /* UNIV_NON_BUFFERED_IO */
@@ -5484,12 +5513,13 @@ static bool os_file_handle_error_no_exit(const char *name,
       os_file_handle_error_cond_exit(name, operation, false, on_error_silent));
 }
 
-bool os_file_set_nocache(int fd [[maybe_unused]],
+void os_file_set_nocache(int fd [[maybe_unused]],
                          const char *file_name [[maybe_unused]],
-                         const char *operation_name [[maybe_unused]]) {
+                         const char *operation_name [[maybe_unused]],
+                         bool on_error_silent [[maybe_unused]]) {
 /* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
-  if (directio(fd, DIRECTIO_ON) == -1) {
+  if (directio(fd, DIRECTIO_ON) == -1 && !on_error_silent) {
     int errno_save = errno;
 
     ib::error(ER_IB_MSG_823)
@@ -5497,10 +5527,9 @@ bool os_file_set_nocache(int fd [[maybe_unused]],
         << operation_name << ": " << strerror(errno_save)
         << ","
            " continuing anyway.";
-    return false;
   }
 #elif defined(O_DIRECT)
-  if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
+  if (fcntl(fd, F_SETFL, O_DIRECT) == -1 && !on_error_silent) {
     int errno_save = errno;
     static bool warning_message_printed = false;
     if (errno_save == EINVAL) {
@@ -5527,10 +5556,8 @@ bool os_file_set_nocache(int fd [[maybe_unused]],
                               << "; " << operation_name << " : "
                               << strerror(errno_save) << ", continuing anyway.";
     }
-    return false;
   }
 #endif /* !(UNIV_SOLARIS && DIRECTIO_ON) && O_DIRECT */
-  return true;
 }
 
 bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,

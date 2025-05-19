@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3205,4 +3205,112 @@ bool get_implicit_tablespace_options(THD *thd, const Table *table,
 
   return false;
 }
+
+bool uses_functions(const Table *table_def, const char *schema_name,
+                    String_type *debug) {
+  if (table_def == nullptr) return false;
+
+  Object_id schema_id = table_def->schema_id();
+  if (schema_id == 1) return false;
+
+  const Table::Check_constraint_collection *cons =
+      &table_def->check_constraints();
+  const Table::Partition_collection *parts = &table_def->partitions();
+  const Table::Column_collection *cols = &table_def->columns();
+  const Table::Index_collection *inxs = &table_def->indexes();
+
+  size_t num_cons = cons->size();
+  size_t num_parts = parts->size();
+  size_t num_cols = cols->size();
+  size_t num_gcols = 0;
+  size_t num_defaults = 0;
+  size_t num_inxs = inxs->size();
+
+  // We have the number of columns, but we're only interested in virtual ones.
+  if (num_cols > 0) {
+    for (const Column *col : *cols) {
+      if (col->is_virtual()) {
+        num_gcols++;
+      }
+      if (col->default_value_utf8().length() > 0) {
+        num_defaults++;
+      }
+    }
+  }
+
+  // We're only interested in partitions if functions are used.
+  if ((num_parts > 0) && (table_def->partition_expression_utf8().length() < 1))
+    num_parts = 0;
+
+  if (debug != nullptr) {
+    dd::Stringstream_type ss;
+
+    ss << "TABLE ";
+    if (schema_name != nullptr)
+      ss << "`" << schema_name << "`";
+    else
+      ss << "[#" << schema_id << "]";
+    ss << ".`" << table_def->name() << "` = { ";
+
+    if (num_parts > 0) {
+      ss << "PARTITION = { expr: \"" << table_def->partition_expression_utf8()
+         << "\"; };";
+    }
+
+    if (num_gcols > 0) {
+      ss << "GCOL = {";
+      for (const Column *col : *cols) {
+        if (col->is_virtual() != 0) {
+          ss << "{ ";
+
+          // Find out whether it's part of an index.
+          if (num_inxs > 0) {
+            for (const Index *inx : *inxs) {
+              for (const Index_element *elt : inx->elements()) {
+                if (elt->column().name() == col->name()) {
+                  ss << "index: \"" << inx->name() << "\", ";
+                }
+              }
+            }
+          }
+
+          ss << "name: \"" << col->name() << "\", "
+             << "virtual: " << col->is_virtual() << ", "
+             << "clause: \"" << col->generation_expression_utf8() << "\" }";
+        }
+      }
+      ss << "}; ";
+    }
+
+    if (num_defaults > 0) {
+      ss << "DEFAULTS = {";
+      for (const Column *col : *cols) {
+        String_type dflt = col->default_value_utf8();
+        if (dflt.length() > 0) {
+          ss << "{ name: \"" << col->name() << "\", "
+             << "default: \"" << dflt << "\" }";
+        }
+      }
+      ss << "}; ";
+    }
+
+    if (num_cons > 0) {
+      ss << "CONSTRAINTS = {";
+      for (const Check_constraint *cc : *cons) {
+        ss << "{ name: \"" << cc->name() << "\", ";
+        ss << "clause: \"" << cc->check_clause_utf8() << "\", ";
+        ss << "state: " << cc->constraint_state();
+        ss << " }";
+      }
+      ss << "}; ";
+    }
+
+    ss << "};";
+
+    *debug = ss.str();
+  }
+
+  return ((num_parts + num_cons + num_gcols + num_defaults) > 0);
+}
+
 }  // namespace dd

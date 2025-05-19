@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,6 +319,18 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
       my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
       return true;
     }
+  }
+
+  if (aggr_query_block->master_query_expression()->is_set_operation() &&
+      aggr_query_block == (aggr_query_block->master_query_expression()
+                               ->query_term()
+                               ->query_block())) {
+    // Should only even get here when resolving order by
+    assert(aggr_query_block->m_current_order_by_number > 0);
+
+    my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0),
+             aggr_query_block->m_current_order_by_number);
+    return true;
   }
 
   if (aggr_query_block != base_query_block) {

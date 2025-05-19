@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ bool PTI_expr_with_alias::itemize(Parse_context *pc, Item **res) {
 
   if (alias.str) {
     if (pc->thd->lex->sql_command == SQLCOM_CREATE_VIEW &&
-        check_column_name(alias.str)) {
+        check_column_name(alias)) {
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), alias.str);
       return true;
     }

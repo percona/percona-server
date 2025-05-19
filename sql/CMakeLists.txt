@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -776,7 +776,6 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
-  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
@@ -832,11 +831,6 @@ IF(WIN32)
       )
 ENDIF()
 
-MY_ADD_COMPILE_DEFINITIONS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
-  )
-
 # Workaround for Apple Clang bug on ARM.
 # When linking mysqld (and executables using server_unittest_library)
 # we get linker warnings about
@@ -861,18 +855,6 @@ IF(APPLE_ARM)
     )
 ENDIF()
 
-ADD_COMPILE_FLAGS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  iterators/hash_join_iterator.cc
-  rpl_write_set_handler.cc
-  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
-  )
-
-ADD_COMPILE_FLAGS(
-  iterators/hash_join_buffer.cc
-  COMPILE_FLAGS
-  -I${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include
-  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
@@ -954,8 +936,7 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -980,11 +961,6 @@ ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
 TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
-
-# Suppress warnings for clang-18 or newer
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
-  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -Wno-enum-constexpr-conversion)
-ENDIF()
 
 # This typically saves a few hundred megabytes of disk space.
 IF(COMPRESS_DEBUG_SECTIONS)
@@ -1238,12 +1214,14 @@ IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
 
   # Note: for Fedora RPM, this gives ERROR 0008: file '/usr/sbin/mysqld'
   #       contains the $ORIGIN specifier at the wrong position.
-  IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
-    GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
-    LIST(INSERT CURRENT_RPATH_mysqld 0
-      "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
-    SET_TARGET_PROPERTIES(mysqld
-      PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+  IF(NOT LINUX_RHEL10)
+    IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
+      GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+      LIST(INSERT CURRENT_RPATH_mysqld 0
+        "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+      SET_TARGET_PROPERTIES(mysqld
+        PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+    ENDIF()
   ENDIF()
 ENDIF()
 

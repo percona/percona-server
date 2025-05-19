@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -528,7 +528,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   assert(keynr == NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan = 0;
   ftb->lastpos = HA_OFFSET_ERROR;
-  memset(&ftb->no_dupes, 0, sizeof(TREE));
+  ::new ((void *)&ftb->no_dupes) TREE{};
   ftb->last_word = nullptr;
 
   ::new ((void *)&ftb->mem_root) MEM_ROOT(PSI_INSTRUMENT_ME, 1024);

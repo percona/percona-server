@@ -302,7 +302,7 @@ test/table_part_cap_6#p#p1	Single
 test/table_part_cap_6#p#p2	Single
 test/table_part_cap_6#p#p3	Single
 test/table_part_cap_6#p#p4	Single
-test/table_part_NOPART_CAP_7	General
+test/table_part_nopart_cap_7	General
 test/table_part_sub_1#p#part_1#sp#part_1sp0	Single
 test/table_part_sub_1#p#part_1#sp#part_1sp1	Single
 test/table_part_sub_1#p#part_2#sp#part_2sp0	Single
@@ -1386,7 +1386,7 @@ test/table_part_cap_6#p#p1	Single
 test/table_part_cap_6#p#p2	Single
 test/table_part_cap_6#p#p3	Single
 test/table_part_cap_6#p#p4	Single
-test/table_part_NOPART_CAP_7	General
+test/table_part_nopart_cap_7	General
 test/table_part_sub_1#p#part_1#sp#part_1sp0	Single
 test/table_part_sub_1#p#part_1#sp#part_1sp1	Single
 test/table_part_sub_1#p#part_2#sp#part_2sp0	Single

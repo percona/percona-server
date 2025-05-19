@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -149,6 +149,18 @@ enum buf_page_state : uint8_t {
   /** Hash index should be removed before putting to the free list */
   BUF_BLOCK_REMOVE_HASH
 };
+
+const std::unordered_map<buf_page_state, std::string_view> buf_page_state_str{
+    /* First three states are for compression pages and are not states we would
+       get as we scan pages through buffer blocks */
+    {BUF_BLOCK_POOL_WATCH, ""},
+    {BUF_BLOCK_ZIP_PAGE, ""},
+    {BUF_BLOCK_ZIP_DIRTY, ""},
+    {BUF_BLOCK_NOT_USED, "NOT_USED"},
+    {BUF_BLOCK_READY_FOR_USE, "READY_FOR_USE"},
+    {BUF_BLOCK_FILE_PAGE, "FILE_PAGE"},
+    {BUF_BLOCK_MEMORY, "MEMORY"},
+    {BUF_BLOCK_REMOVE_HASH, "REMOVE_HASH"}};
 
 /** This structure defines information we will fetch from each buffer pool. It
 will be used to print table IO stats */
@@ -677,7 +689,7 @@ double buf_get_modified_ratio_pct(void);
 void buf_refresh_io_stats_all();
 
 /** Assert that all file pages in the buffer are in a replaceable state. */
-void buf_must_be_all_freed(void);
+void buf_assert_all_are_replaceable();
 
 /** Computes number of pending I/O read operations for the buffer pool.
 @return number of pending i/o reads */
@@ -1340,7 +1352,6 @@ class buf_page_t {
   Read under protection of rules described in @see Buf_io_fix_latching_rules */
   copyable_atomic_t<buf_io_fix> io_fix;
 
-#ifdef UNIV_DEBUG
  public:
   /** Checks if io_fix has any of the known enum values.
   @param[in]  io_fix  the value to test
@@ -1357,6 +1368,7 @@ class buf_page_t {
     return false;
   }
 
+#ifdef UNIV_DEBUG
  private:
   /** Checks if io_fix has any of the known enum values.
   @return true iff io_fix has any of the known enum values
@@ -1667,6 +1679,12 @@ class buf_page_t {
   bool in_zip_hash;
 #endif /* UNIV_DEBUG */
 
+  /** Print page metadata in JSON format {"key":"value"}. Asserts that caller
+  holds page mutex and page if file page
+  @param[in,out]  outs  the output stream
+  @param[in]  page  the page whose metadata needs to be printed
+  @return same output stream */
+  friend std::ostream &operator<<(std::ostream &outs, const buf_page_t &page);
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1895,6 +1913,14 @@ struct buf_block_t {
   page_type_t get_page_type() const {
     return (mach_read_from_2(frame + FIL_PAGE_TYPE));
   }
+
+#ifndef UNIV_HOTBACKUP
+  /** Print control block information in JSON format: {"key":"value"}
+  @param[in,out]  outs    the output stream
+  @param[in]  block   the control block whose information needs to be printed
+  @return same output stream */
+  friend std::ostream &operator<<(std::ostream &outs, const buf_block_t &block);
+#endif /* UNIV_HOTBACKUP */
 
   uint16_t get_page_level() const;
   bool is_leaf() const;

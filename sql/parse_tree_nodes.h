@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1501,6 +1501,13 @@ class PT_query_expression final : public PT_query_expression_body {
   bool has_trailing_into_clause() const override {
     return (m_body->has_trailing_into_clause() && m_order == nullptr &&
             m_limit == nullptr);
+  }
+
+  bool contextualize_deferred_hints(Parse_context *pc) {
+    pc->thd->lex->opt_hints_global->deferred_hints_flag = true;
+    pc->thd->lex->opt_hints_global->deferred_hints->contextualize(pc);
+    pc->thd->lex->opt_hints_global->deferred_hints_flag = false;
+    return false;
   }
 
   bool can_absorb_order_and_limit(bool order, bool limit) const override {

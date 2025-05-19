@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2436,6 +2436,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
       row_upd_changes_field_size_or_external(index, offsets, node->update);
 
   if (size_changes) {
+    pcur.close();
     mtr_commit(&mtr);
     return (DB_FAIL);
   }
@@ -2446,6 +2447,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   evicted from the buffer pool it is flushed and we don't lose
   the changes */
   mtr.set_modified();
+  pcur.close();
   mtr_commit(&mtr);
 
   return (DB_SUCCESS);

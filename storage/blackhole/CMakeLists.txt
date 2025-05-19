@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 
 MYSQL_ADD_PLUGIN(blackhole ha_blackhole.cc
   DEFAULT_LEGACY_ENGINE STORAGE_ENGINE
-  LINK_LIBRARIES extra::rapidjson ext::zlib
+  LINK_LIBRARIES extra::rapidjson ext::zlib extra::unordered_dense
   )
 # Exclude blackhole from PGO on Windows to avoid linker error LNK1248
 EXCLUDE_FROM_MSVC_PGO(blackhole)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "extra/xxhash/my_xxhash.h"
 #include "field_types.h"
 #include "mem_root_deque.h"
 #include "my_dbug.h"
@@ -2107,7 +2108,9 @@ int RemoveDuplicatesOnIndexIterator::Read() {
       return 1;
     }
 
-    if (!m_first_row && key_cmp(m_key->key_part, m_key_buf, m_key_len) == 0) {
+    if (!m_first_row &&
+        key_cmp(m_key->key_part, m_key_buf, m_key_len,
+                /*is_reverse_multi_valued_index_scan=*/false) == 0) {
       // Same as previous row, so keep scanning.
       continue;
     }
@@ -2159,7 +2162,8 @@ int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
       }
 
       if (m_deduplicate_against_previous_row &&
-          key_cmp(m_key->key_part, m_key_buf, m_key_len) == 0) {
+          key_cmp(m_key->key_part, m_key_buf, m_key_len,
+                  /*is_reverse_multi_valued_index_scan=*/false) == 0) {
         // Same as previous row, so keep scanning.
         continue;
       }

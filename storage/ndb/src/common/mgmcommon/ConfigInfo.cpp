@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1373,6 +1373,13 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
      "each " DB_TOKEN_PRINT " node",
      ConfigInfo::CI_USED, false, ConfigInfo::CI_INT,
      "0",  // "256K",
+     "0", STR_VALUE(MAX_INT_RNIL)},
+
+    {CFG_DB_API_FAILURE_HANDLING_TIMEOUT, "ApiFailureHandlingTimeout", DB_TOKEN,
+     "Maximum allowed duration of Api failure handling before escalating "
+     "handling.  0 implies no time limit, minimum usable value is 10.",
+     ConfigInfo::CI_USED, false, ConfigInfo::CI_INT,
+     "600",  // 10 minutes
      "0", STR_VALUE(MAX_INT_RNIL)},
 
     /***************************************************************************

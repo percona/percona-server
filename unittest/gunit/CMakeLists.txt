@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -409,11 +409,6 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
     COMPILE_FLAGS "-fno-builtin-memcmp"
     )
 ENDIF()
-
-ADD_COMPILE_FLAGS(
-  hash_join-t.cc
-  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
-  )
 
 FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ max-time: 360
 
 cmd: test_event
 args: -n SubscribeUnsubscribeWithLoad -l1000 T1
-max-time: 360
+max-time: 600
 
 cmd: testFK
 args: -n DropTableWithFKDuringRestart T1
@@ -367,8 +367,20 @@ max-time: 240
 
 cmd: testNdbinfo
 args: -n ScanFragOperationsDuringCreateDropTable -l 10000 T1
-max-time: 180
+max-time: 360
 
 cmd: testNdbinfo
 args: -n ScanFragMemUseDuringCreateDropTable -l 10000 T1
-max-time: 180
+max-time: 360
+
+cmd: test_event
+args: -n SumaOutOfBuffer T3
+max-time: 480
+
+cmd: testNodeRestart
+args: -n multi_apifail T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n timeout_apifail T1
+max-time: 240

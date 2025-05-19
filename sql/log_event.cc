@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9598,7 +9598,8 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
           }
         } while (this->get_general_type_code() ==
                      binary_log::UPDATE_ROWS_EVENT &&
-                 !is_pk_present && (entry = m_hash.get(table, &m_local_cols)));
+                 !is_pk_present && entry &&
+                 (entry = m_hash.get(table, &m_local_cols)));
       } break;
 
       case HA_ERR_RECORD_DELETED:

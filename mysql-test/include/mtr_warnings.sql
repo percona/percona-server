@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2024, Oracle and/or its affiliates.
+-- Copyright (c) 2008, 2025, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -333,6 +333,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Unable to start XCom Network Provider.*"),
  ("\\[GCS\\] Error initializing the group communication engine.*"),
  ("\\[GCS\\] The group communication engine could not set up its internal event notification mechanism.*"),
+ ("\\[GCS\\] Timed out while waiting for a connection via poll.*"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx

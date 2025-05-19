@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -960,7 +960,15 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
     // having them.
     // Expressions which have system variables in the underlying derived
     // table cannot be pushed as of now because Item_func_get_system_var::print
-    // does not print the original expression which leads to an incorrect clone.
+    // does not print the original expression which leads to an incorrect
+    // clone.
+    // Constant expressions from a merged derived table (Item_view_ref to a
+    // const item) which is on the inner side of an outer join has special
+    // handling. However, when such expressions are cloned, they would be
+    // cloned as basic constants i.e. view references are stripped off after
+    // cloning. This leads to wrong results as the used_tables information
+    // (See Item_view_ref::used_tables()) is lost. So we disable condition
+    // pushdown if we have such expressions.
     Query_expression *derived_query_expression =
         derived_table->derived_query_expression();
     Item_result result_type = this->result_type();
@@ -970,24 +978,32 @@ bool Item_field::is_valid_for_pushdown(uchar *arg) {
       if (result_type != item->result_type()) {
         return true;
       }
-      bool has_trigger_field = false;
-      bool has_system_var = false;
-      WalkItem(item, enum_walk::PREFIX,
-               [&has_trigger_field, &has_system_var](Item *inner_item) {
-                 if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
-                   has_trigger_field = true;
-                   return true;
-                 }
-                 if (inner_item->type() == Item::FUNC_ITEM &&
-                     down_cast<Item_func *>(inner_item)->functype() ==
-                         Item_func::GSYSVAR_FUNC) {
-                   has_system_var = true;
-                   return true;
-                 }
-                 return false;
-               });
-      if (item->has_subquery() || item->is_non_deterministic() ||
-          has_trigger_field || has_system_var)
+      if (item->has_subquery() || item->is_non_deterministic()) return true;
+      if (WalkItem(item, enum_walk::PREFIX, [](Item *inner_item) {
+            if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
+              return true;
+            }
+            if (inner_item->type() == Item::FUNC_ITEM &&
+                down_cast<Item_func *>(inner_item)->functype() ==
+                    Item_func::GSYSVAR_FUNC) {
+              return true;
+            }
+            if (inner_item->type() == Item::REF_ITEM &&
+                down_cast<Item_ref *>(inner_item)->ref_type() ==
+                    Item_ref::VIEW_REF) {
+              Item *ref_item = down_cast<Item_ref *>(inner_item);
+              Item *real_item = ref_item->real_item();
+              // A const item from a merged derived inner table that
+              // is part of an outer join may return NULL values and
+              // is hence not const and cannot be pushed down. This is
+              // indicated by having the actual field const and the ref
+              // item non-const.
+              if (real_item->const_item() && !ref_item->const_item()) {
+                return true;
+              }
+            }
+            return false;
+          }))
         return true;
     }
     return false;

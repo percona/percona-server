@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2737,6 +2737,7 @@ class Item : public Parse_tree_node {
     Query_block *const m_root;
 
     friend class Item;
+    friend class Item_func_eq;
     friend class Item_sum;
     friend class Item_subselect;
     friend class Item_ref;
@@ -3592,6 +3593,15 @@ template <class T>
 inline bool WalkItem(Item *item, enum_walk walk, T &&functor) {
   return item->walk(&Item::walk_helper_thunk<T>, walk,
                     reinterpret_cast<uchar *>(&functor));
+}
+
+/**
+   Overload for const 'item' and functor taking 'const Item*' argument.
+*/
+template <class T>
+inline bool WalkItem(const Item *item, enum_walk walk, T &&functor) {
+  auto to_const = [&](const Item *descendant) { return functor(descendant); };
+  return WalkItem(const_cast<Item *>(item), walk, to_const);
 }
 
 /**

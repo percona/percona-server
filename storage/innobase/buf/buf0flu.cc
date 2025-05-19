@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -678,7 +678,7 @@ void buf_flush_insert_sorted_into_flush_list(
   buf_flush_list_mutex_exit(buf_pool);
 }
 
-bool buf_flush_ready_for_replace(buf_page_t *bpage) {
+bool buf_flush_ready_for_replace(const buf_page_t *bpage) {
   ut_d(auto buf_pool = buf_pool_from_bpage(bpage));
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));

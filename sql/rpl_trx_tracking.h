@@ -1,5 +1,5 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <atomic>
-#include <unordered_map>
+#include <map>
 
 #include "libbinlogevents/include/binlog_event.h"
 
+#include <ankerl/unordered_dense.h>
 #include "my_inttypes.h"
 
 class THD;
@@ -163,7 +164,7 @@ class Writeset_trx_dependency_tracker {
     Track the last transaction sequence number that changed each row
     in the database, using row hashes from the writeset as the index.
   */
-  typedef std::unordered_map<uint64, int64> Writeset_history;
+  using Writeset_history = ankerl::unordered_dense::map<uint64, int64>;
   std::shared_ptr<Writeset_history> m_writeset_history;
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2538,8 +2538,16 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   // Resetting THD::where to its default value
   thd->where = THD::DEFAULT_WHERE;
 
-  // Number of arguments has been checked during resolving
-  assert(argcount == m_root_parsing_ctx->context_var_count());
+  /*
+    Re-validate the argument count to verify the Stored Function definition has
+    not changed since preparation.
+  */
+  uint params = m_root_parsing_ctx->context_var_count();
+  if (argcount != params) {
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "FUNCTION", m_qname.str, params,
+             argcount);
+    return true;
+  }
 
   thd->swap_query_arena(call_arena, &backup_arena);
 
@@ -2735,8 +2743,16 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  // Argument count has been validated in prepare function.
-  assert((args != nullptr ? args->size() : 0) == params);
+  /*
+    Re-validate the argument count to verify the Stored Procedure definition has
+    not changed since preparation.
+  */
+  uint argcount = args != nullptr ? args->size() : 0;
+  if (argcount != params) {
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE", m_qname.str, params,
+             argcount);
+    return true;
+  }
 
   if (!parent_sp_runtime_ctx) {
     // Create a temporary old context. We need it to pass OUT-parameter values.

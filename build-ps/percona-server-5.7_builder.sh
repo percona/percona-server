@@ -410,16 +410,15 @@ install_deps() {
             yum -y install Percona-Server-shared-56  
         fi
     else
+        apt-get update
         apt-get -y install dirmngr || true
-      	apt-get update
-        apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget
+        apt-get -y install lsb-release wget curl
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
-	    until sudo apt-get update; do
-    	    sleep 1
+        until apt-get update; do
+            sleep 5
             echo "waiting"
         done
         apt-get -y purge eatmydata || true

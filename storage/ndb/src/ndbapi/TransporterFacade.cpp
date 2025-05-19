@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -441,10 +441,6 @@ int TransporterFacade::start_instance(NodeId nodeId,
   assert(theOwnId == 0);
   theOwnId = nodeId;
   DEBUG_FPRINTF((stderr, "(%u)FAC:start_instance\n", ownId()));
-
-#if defined SIGPIPE && !defined _WIN32
-  (void)signal(SIGPIPE, SIG_IGN);
-#endif
 
   theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == nullptr) {

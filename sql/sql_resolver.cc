@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,7 @@
 #include "sql/sql_union.h"  // Query_result_union
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/visible_fields.h"
@@ -2163,6 +2164,11 @@ static void fix_tables_after_pullout(Query_block *parent_query_block,
       Note that 'tr' might be a common table expression: it means we now have a
       "lateral CTE".
     */
+  }
+
+  if (tr->is_table_function()) {
+    tr->table_function->fix_after_pullout(parent_query_block,
+                                          removed_query_block);
   }
 }
 
@@ -4425,29 +4431,25 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
       continue;
     }
 
+    select->m_current_order_by_number = number;
     if (find_order_in_list(thd, ref_item_array, tables, order, fields, false,
                            false))
       return true;
+
     if ((*order->item)->has_aggregation()) {
       /*
         Aggregated expressions in ORDER BY are not supported by SQL standard,
-        but MySQL has some limited support for them. The limitations are
-        checked below:
+        but MySQL has some limited support for them.
 
         1. A set operation query is not aggregated, so ordering by a set
-           function is always wrong.
-      */
-      if (for_set_operation) {
-        my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-        return true;
-      }
+           function which aggregates in the set operation's query block is
+           always wrong. Checked in check_sum_func.
 
-      /*
-        2. A non-aggregated query combined with a set function in ORDER BY
-           that does not contain an outer reference is illegal, because it
-           would cause the query to become aggregated.
-           (Since is_aggregated is false, this expression would cause
-            agg_func_used() to become true).
+        2. A non-aggregated query combined with a grouped aggregate function in
+           ORDER BY that does not contain an outer reference is illegal,
+           because it would cause the query to become aggregated.  (Since
+           is_aggregated is false, this expression would cause agg_func_used()
+           to become true). This limitation is checked below.
       */
       if (!is_aggregated && select->agg_func_used()) {
         my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
@@ -4630,6 +4632,14 @@ int Query_block::group_list_size() const {
     ++size;
   }
   return size;
+}
+
+bool Query_block::has_wfs() {
+  List_iterator<Window> wi1(m_windows);
+  for (Window *w1 = wi1++; w1 != nullptr; w1 = wi1++) {
+    if (w1->functions().elements > 0) return true;
+  }
+  return false;
 }
 
 /**
@@ -5122,6 +5132,43 @@ bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
     }
   }
   return false;
+}
+
+/// Minion of prune_sj_exprs, q.v.
+static void prune_sj_exprs_from_nest(Item_func_eq *item, Table_ref *nest) {
+  auto it1 = nest->nested_join->sj_outer_exprs.begin();
+  auto it2 = nest->nested_join->sj_inner_exprs.begin();
+  while (it1 != nest->nested_join->sj_outer_exprs.end() &&
+         it2 != nest->nested_join->sj_inner_exprs.end()) {
+    Item *outer = *it1;
+    Item *inner = *it2;
+    if ((outer == item->arguments()[0] && inner == item->arguments()[1]) ||
+        (outer == item->arguments()[1] && inner == item->arguments()[0])) {
+      nest->nested_join->sj_outer_exprs.erase(it1);
+      nest->nested_join->sj_inner_exprs.erase(it2);
+      break;
+    }
+    it1++;
+    it2++;
+  }
+}
+
+/**
+  Recursively look for removed item inside any nested joins'
+  sj_{inner,outer}_exprs. If target for removal is found, remove such entries
+  because the corresponding equality condition has been eliminated.
+
+  @param item   the equality which is being removed.
+  @param nest   the table nest (nullptr means top nest)
+*/
+void Query_block::prune_sj_exprs(Item_func_eq *item,
+                                 mem_root_deque<Table_ref *> *nest) {
+  if (nest == nullptr) nest = &m_table_nest;
+  for (Table_ref *table : *nest) {
+    if (table->nested_join == nullptr) continue;
+    prune_sj_exprs_from_nest(item, table);
+    prune_sj_exprs(item, &table->nested_join->m_tables);
+  }
 }
 
 /**

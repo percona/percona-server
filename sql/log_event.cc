@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
    Copyright (c) 2009, 2016, MariaDB
 
@@ -9507,7 +9507,8 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
           }
         } while (this->get_general_type_code() ==
                      mysql::binlog::event::UPDATE_ROWS_EVENT &&
-                 !is_pk_present && (entry = m_hash.get(table, &m_local_cols)));
+                 !is_pk_present && entry &&
+                 (entry = m_hash.get(table, &m_local_cols)));
       } break;
 
       case HA_ERR_RECORD_DELETED:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -988,21 +988,26 @@ bool optimize_secondary_engine(THD *thd) {
 }
 
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
-  /* Return if one of the 2 conditions is true:
+  /* Return if secondary engine is not forced and one of the 2 conditions is
+   * true:
    * 1. when secondary engine statement context is not present, query cost is
    * lower than the secondary than the engine threshold.
    * 2. When secondary engine statement context is present, primary engine
    * is the better execution engine for this query.
    * This prevents calling plugin_foreach for short queries, reducing the
    * overhead. */
-  if (((thd->secondary_engine_statement_context() == nullptr) &&
-       thd->m_current_query_cost <=
-           thd->variables.secondary_engine_cost_threshold) ||
-      ((thd->secondary_engine_statement_context() != nullptr) &&
-       thd->secondary_engine_statement_context()
-           ->is_primary_engine_optimal())) {
+  bool is_secondary_engine_not_forced =
+      thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED;
+  if (is_secondary_engine_not_forced &&
+      ((thd->secondary_engine_statement_context() == nullptr &&
+        thd->m_current_query_cost <=
+            thd->variables.secondary_engine_cost_threshold) ||
+       (thd->secondary_engine_statement_context() != nullptr &&
+        thd->secondary_engine_statement_context()
+            ->is_primary_engine_optimal()))) {
     return;
   }
+
   auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
                          ? SelectExecutedIn::kSecondaryEngine
                          : SelectExecutedIn::kPrimaryEngine;
@@ -2381,8 +2386,9 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                                    key_part_info, key_buff, nullable);
   if (unlikely(!s_key || thd->is_error())) return true;
 
-  if (used_tables & ~INNER_TABLE_BIT) {
-    /* Comparing against a non-constant. */
+  if (used_tables & ~INNER_TABLE_BIT ||
+      (thd->lex->is_explain() &&
+       val->has_stored_program())) { /* Comparing against a non-constant. */
     ref->key_copy[part_no] = s_key;
   } else {
     /*

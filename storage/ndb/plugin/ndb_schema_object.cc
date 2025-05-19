@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ static uint32 next_schema_op_id() {
   return id;
 }
 
-uint NDB_SCHEMA_OBJECT::decremement_use_count() const {
+uint NDB_SCHEMA_OBJECT::decrement_use_count() const {
   std::lock_guard<std::mutex> lock_state(state.m_lock);
   ndbcluster::ndbrequire(state.m_use_count > 0);
   state.m_use_count--;
@@ -115,6 +115,7 @@ uint NDB_SCHEMA_OBJECT::decremement_use_count() const {
 
 uint NDB_SCHEMA_OBJECT::increment_use_count() const {
   std::lock_guard<std::mutex> lock_state(state.m_lock);
+  ndbcluster::ndbrequire(state.m_use_count > 0);
   state.m_use_count++;
   DBUG_PRINT("info", ("use_count: %d", state.m_use_count));
   return state.m_use_count;
@@ -207,9 +208,7 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(NDB_SCHEMA_OBJECT *schema_object) {
 
   ndbcluster::ndbrequire(schema_object);
 
-  const uint use_count = schema_object->increment_use_count();
-  // Should already have been used before calling this function
-  ndbcluster::ndbrequire(use_count > 1);
+  (void)schema_object->increment_use_count();
 
   return schema_object;
 }
@@ -218,7 +217,8 @@ void NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", ndb_schema_object->m_key.c_str()));
 
-  const uint use_count = ndb_schema_object->decremement_use_count();
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
+  const uint use_count = ndb_schema_object->decrement_use_count();
   if (use_count != 0) {
     // Not the last user
     if (use_count == 1) {
@@ -229,7 +229,6 @@ void NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object) {
   }
 
   // Last user, remove from list of NDB_SCHEMA_OBJECTS and delete instance
-  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
   active_schema_clients.m_hash.erase(ndb_schema_object->m_key);
   delete ndb_schema_object;
 }

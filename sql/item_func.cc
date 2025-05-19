@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5189,7 +5189,7 @@ longlong Item_source_pos_wait::val_int() {
       return 0;
     }
 
-    mi = channel_map.get_mi(channel_str->ptr());
+    mi = channel_map.get_mi(channel_str->c_ptr_safe());
 
   } else {
     if (channel_map.get_num_instances() > 1) {
@@ -6083,7 +6083,7 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
 // static
 user_var_entry *user_var_entry::create(THD *thd, const Name_string &name,
                                        const CHARSET_INFO *cs) {
-  if (check_column_name(name.ptr())) {
+  if (check_column_name(name)) {
     my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
     return nullptr;
   }
@@ -8323,6 +8323,8 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 
 bool Item_func_sp::execute() {
   THD *thd = current_thd;
+
+  assert(!thd->lex->is_explain() || thd->lex->is_explain_analyze);
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);

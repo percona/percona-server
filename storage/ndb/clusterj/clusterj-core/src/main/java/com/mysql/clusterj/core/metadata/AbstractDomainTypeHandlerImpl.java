@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,10 +399,6 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
     }
 
     public ValueHandler createKeyValueHandler(Object keys, Db db) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
-    }
-
-    public T getInstance(ValueHandler handler) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 

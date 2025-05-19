@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,6 +177,11 @@ static const ErrStruct errArray[] = {
     /* LQH */
     {NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL, XIE,
      "LCP fragment scan watchdog detected a problem.  Please report a bug."},
+
+    /* QMGR */
+    {NDBD_EXIT_API_FAIL_HANDLING_TIMEOUT, XIE,
+     "Timeout handling Api failure.  Please check ApiFailureHandlingTimeout "
+     "config or report a bug."},
 
     /* Ndbfs error messages */
     /* Most codes will have additional info, such as OS error code */

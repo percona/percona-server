@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,6 +234,8 @@ void TCP_Transporter::setSocketOptions(ndb_socket_t socket) {
     set_get(socket, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", sockOptTcpMaxSeg);
 #endif
   }
+
+  ndb_socket_disable_sigpipe(socket);
 }
 
 bool TCP_Transporter::setSocketNonBlocking(ndb_socket_t socket) {

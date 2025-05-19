@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -185,7 +185,7 @@ LRU list and block mutexes.
 @param[in]      bpage   buffer control block, must be buf_page_in_file() and
                         in the LRU list
 @return true if can replace immediately */
-bool buf_flush_ready_for_replace(buf_page_t *bpage);
+bool buf_flush_ready_for_replace(const buf_page_t *bpage);
 
 #ifdef UNIV_DEBUG
 struct SYS_VAR;

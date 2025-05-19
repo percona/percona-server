@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4383,6 +4383,11 @@ bool PT_select_var_list::do_contextualize(Parse_context *pc) {
 }
 
 bool PT_query_expression::do_contextualize(Parse_context *pc) {
+  if (!pc->thd->lex->opt_hints_global)
+    pc->thd->lex->opt_hints_global =
+        new (pc->thd->mem_root) Opt_hints_global(pc->thd->mem_root);
+  pc->thd->lex->opt_hints_global->deferred_hints =
+      new (pc->thd->mem_root) PT_hint_list(pc->thd->mem_root);
   pc->m_stack.push_back(
       QueryLevel(pc->mem_root, SC_QUERY_EXPRESSION, m_order != nullptr));
   if (contextualize_safe(pc, m_with_clause))
@@ -4499,6 +4504,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
     } break;
   }
 
+  contextualize_deferred_hints(pc);
   return false;
 }
 

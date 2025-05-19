@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@
 #include <algorithm>
 #include <cctype>
 #include <climits>
-#include <memory>
-#include <sstream>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 
@@ -1187,76 +1186,82 @@ static std::string pct_encode(const std::string &s,
   // assume the common case that nothing has to be encoded.
   encoded.reserve(s.length());
 
-  for (auto &c : s) {
-    if (allowed_chars.find(c) == std::string::npos) {
+  for (const auto &ch : s) {
+    if (allowed_chars.find(ch) == std::string::npos) {
       // not a allowed char, encode
       encoded += '%';
-      encoded += hexchars[(c >> 4) & 0xf];
-      encoded += hexchars[c & 0xf];
+      encoded += hexchars[(ch >> 4) & 0xf];
+      encoded += hexchars[ch & 0xf];
     } else {
-      encoded += c;
+      encoded += ch;
     }
   }
   return encoded;
 }
 
 std::ostream &operator<<(std::ostream &strm, const URI &uri) {
-  bool need_slash = false;
+  strm << uri.str();
 
-  if (!(uri.scheme.empty() && uri.allow_schemeless_)) {
-    strm << uri.scheme << ":";
-  } else {
-    need_slash = true;
-  }
-
-  if (uri.username.length() > 0 || uri.host.length() > 0 || uri.port > 0 ||
-      uri.password.length() > 0) {
-    // we have a authority
-    strm << "//";
-
-    if (uri.username.length() > 0) {
-      strm << pct_encode(uri.username, kUnreserved + kSubDelims);
-    }
-
-    if (uri.password.length() > 0) {
-      strm << ":" << pct_encode(uri.password, kUnreserved + kSubDelims + ":");
-    }
-
-    if (uri.username.length() > 0 || uri.password.length() > 0) {
-      strm << "@";
-    }
-
-    // IPv6, wrap in []
-    if (is_ipv6(uri.host)) {
-      strm << "[" << pct_encode(uri.host, kUnreserved + ":") << "]";
-    } else {
-      strm << pct_encode(uri.host, kUnreserved + kSubDelims);
-    }
-
-    if (uri.port) {
-      strm << ":" << uri.port;
-    }
-
-    need_slash = true;
-  }
-
-  strm << uri.get_path_as_string(need_slash);
-
-  if (uri.query.size() > 0) {
-    strm << "?" << uri.get_query_as_string();
-  }
-  if (uri.fragment.size() > 0) {
-    strm << "#" << pct_encode(uri.fragment, kPathCharNoPctEncoded + "/?");
-  }
   return strm;
 }
 
 std::string URI::str() const {
-  std::stringstream ss;
+  std::string out;
 
-  ss << *this;
+  bool need_slash = false;
 
-  return ss.str();
+  if (!(scheme.empty() && allow_schemeless_)) {
+    out += scheme;
+    out += ":";
+  } else {
+    need_slash = true;
+  }
+
+  if (!username.empty() || !host.empty() || port != 0 || !password.empty()) {
+    // we have a authority
+    out += "//";
+
+    if (!username.empty()) {
+      out += pct_encode(username, kUnreserved + kSubDelims);
+    }
+
+    if (!password.empty()) {
+      out += ":";
+      out += pct_encode(password, kUnreserved + kSubDelims + ":");
+    }
+
+    if (!username.empty() || !password.empty()) {
+      out += "@";
+    }
+
+    // IPv6, wrap in []
+    if (is_ipv6(host)) {
+      out += "[";
+      out += pct_encode(host, kUnreserved + ":");
+      out += "]";
+    } else {
+      out += pct_encode(host, kUnreserved + kSubDelims);
+    }
+
+    if (port != 0) {
+      out += ":";
+      out += std::to_string(port);
+    }
+
+    need_slash = true;
+  }
+
+  out += get_path_as_string(need_slash);
+
+  if (!query.empty()) {
+    out += "?";
+    out += get_query_as_string();
+  }
+  if (!fragment.empty()) {
+    out += "#";
+    out += pct_encode(fragment, kPathCharNoPctEncoded + "/?");
+  }
+  return out;
 }
 
 void URI::init_from_uri(const std::string &uri) {

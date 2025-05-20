@@ -26,6 +26,7 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_CONNECTOR_WARNING_H_
 #define PLUGIN_X_TESTS_DRIVER_CONNECTOR_WARNING_H_
 
+#include <cstdint>
 #include <memory>
 #include <ostream>
 #include <string>

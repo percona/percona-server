@@ -29,6 +29,7 @@
 #include "mysqlrouter/http_common_export.h"
 
 #include <bitset>
+#include <cstdint>
 #include <ctime>
 #include <functional>  // std::function
 #include <memory>

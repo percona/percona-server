@@ -26,6 +26,7 @@
 #include "keyring/keyring_file.h"
 
 #include <array>
+#include <cstdint>
 #include <fstream>
 #include <memory>
 #include <stdexcept>

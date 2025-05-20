@@ -26,6 +26,7 @@
 #ifndef CLUSTER_METADATA_DYNAMIC_STATE_INCLUDED
 #define CLUSTER_METADATA_DYNAMIC_STATE_INCLUDED
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>

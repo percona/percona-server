@@ -361,7 +361,7 @@ install_deps() {
             yum -y install openssl-devel
             yum -y install epel-release
         fi
-        yum -y install patchelf
+        yum -y install patchelf libtirpc wget
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
@@ -412,7 +412,7 @@ install_deps() {
     else
         apt-get update
         apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget curl
+        apt-get -y install lsb-release wget curl rsync
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
@@ -429,9 +429,7 @@ install_deps() {
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl libsasl2-dev
         apt-get -y install python-mysqldb
-        if [ "x${DIST}" = "xnoble" ]; then
-            apt-get -y install libtirpc-dev
-        fi
+        apt-get -y install libtirpc-dev
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 

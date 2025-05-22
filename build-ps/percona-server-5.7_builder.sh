@@ -362,6 +362,7 @@ install_deps() {
             yum -y install epel-release
         fi
         yum -y install patchelf libtirpc wget
+        yum -y install git which
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release

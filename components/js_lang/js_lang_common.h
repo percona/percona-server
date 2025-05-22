@@ -29,6 +29,7 @@
   Services and helper headers provided by SQL core which our component uses.
 */
 #include <mysql/components/services/bits/stored_program_bits.h>
+#include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
@@ -82,6 +83,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_kill_handler);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_store);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
+extern REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
 /**

@@ -83,6 +83,16 @@ void Js_v8::shutdown() {
   s_platform.reset();
 }
 
+int Js_v8::show_contexts(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<long *>(buff);
+  // Number of contexts is the same as number isolates at this point.
+  *value = s_ref_count.load(std::memory_order_relaxed);
+  if (*value < 0) *value = 0;  // Safety to avoid special -1 value.
+  return 0;
+}
+
 bool Js_isolate::Memory_manager::check_mem_limit_at_arr_buff_alloc(
     size_t length) {
   /*
@@ -140,6 +150,9 @@ void Js_isolate::Memory_manager::check_mem_limit_at_GC() {
 
   v8::HeapStatistics heap_stats;
   m_js_isolate->m_isolate->GetHeapStatistics(&heap_stats);
+
+  // Piggy-back on GC callback to update global memory usage counters.
+  update_mem_stats(heap_stats);
 
   const size_t total_size = heap_stats.used_heap_size() + m_arr_buff_allocated;
 
@@ -328,12 +341,94 @@ Js_isolate *Js_isolate::create() {
   return result;
 }
 
+void Js_isolate::Memory_manager::update_mem_stats(v8::HeapStatistics &stats) {
+  // Let us aggregate current memory usage counters for the isolate into
+  // global memory usage counters. To get actual global values, deduct values
+  // which were added to global counters on previous call of this method for
+  // the isolate.
+  s_total_heap_size += (stats.total_heap_size() - m_old_stats.total_heap_size);
+  s_used_heap_size += (stats.used_heap_size() - m_old_stats.used_heap_size);
+  // Using value from v8::HeapStatistics rather than directly from
+  // Memory_manager sounds more future-proof. For example, in future we might
+  // add size of SQL result objects to the amount of externally allocated
+  // memory (by reporting it to V8 using appropriate API).
+  s_external_memory_size +=
+      (stats.external_memory() - m_old_stats.external_memory_size);
+
+  // Save added counter values so they can be deducted on future calls or
+  // isolate destruction.
+  m_old_stats.total_heap_size = stats.total_heap_size();
+  m_old_stats.used_heap_size = stats.used_heap_size();
+  m_old_stats.external_memory_size = stats.external_memory();
+}
+
+void Js_isolate::Memory_manager::get_and_update_mem_stats() {
+  v8::HeapStatistics stats;
+  m_js_isolate->m_isolate->GetHeapStatistics(&stats);
+  update_mem_stats(stats);
+}
+
+std::atomic<size_t> Js_isolate::Memory_manager::s_total_heap_size = 0;
+std::atomic<size_t> Js_isolate::Memory_manager::s_used_heap_size = 0;
+std::atomic<size_t> Js_isolate::Memory_manager::s_external_memory_size = 0;
+
+int Js_isolate::Memory_manager::show_total_heap_size(MYSQL_THD, SHOW_VAR *var,
+                                                     char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<ulonglong *>(buff);
+  *value = s_total_heap_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int Js_isolate::Memory_manager::show_used_heap_size(MYSQL_THD, SHOW_VAR *var,
+                                                    char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<ulonglong *>(buff);
+  *value = s_used_heap_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
+int Js_isolate::Memory_manager::show_external_memory_size(MYSQL_THD,
+                                                          SHOW_VAR *var,
+                                                          char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<ulonglong *>(buff);
+  *value = s_external_memory_size.load(std::memory_order_relaxed);
+  return 0;
+}
+
+SHOW_VAR *Js_isolate::get_status_vars_defs() {
+  // TODO: Consider adding per-isolate/connection/user statistics in future.
+  //       These values probably should be exposed through P_S instead of
+  //       status variable (usage of P_S is the general trend and allows
+  //       to fight with information leakage more easily).
+  static SHOW_VAR status_vars[] = {
+      {"Js_lang_total_heap_size",
+       reinterpret_cast<char *>(&Memory_manager::show_total_heap_size),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_used_heap_size",
+       reinterpret_cast<char *>(&Memory_manager::show_used_heap_size),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_external_memory_size",
+       reinterpret_cast<char *>(&Memory_manager::show_external_memory_size),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      // TODO: In future we might introduce Js_lang_isolates as well.
+      {"Js_lang_contexts", reinterpret_cast<char *>(&Js_v8::show_contexts),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+
+  return status_vars;
+}
+
 constexpr unsigned int MAX_MEM_SIZE_DEFAULT = 8 * 1024 * 1024;
 constexpr unsigned int MAX_MEM_SIZE_MIN = 3 * 1024 * 1024;
 
 unsigned int Js_isolate::Memory_manager::s_max_mem_size = MAX_MEM_SIZE_DEFAULT;
 
-bool Js_isolate::register_sys_var() {
+bool Js_isolate::register_vars() {
   /*
     Register variable for limiting per Isolate memory consumption.
 
@@ -355,7 +450,7 @@ bool Js_isolate::register_sys_var() {
           "Maximum JS memory size for each user and connection", nullptr,
           nullptr, (void *)&max_mem_size_check,
           (void *)&Memory_manager::s_max_mem_size)) {
-    // Registration od system variable is non-trivial, and can fail for
+    // Registration of system variable is non-trivial, and can fail for
     // reasons other than OOM, so we play safe and try to handle error
     // gracefully here.
     my_error(ER_LANGUAGE_COMPONENT, MYF(0),
@@ -364,10 +459,21 @@ bool Js_isolate::register_sys_var() {
     return true;
   }
 
+  if (mysql_service_status_variable_registration->register_variable(
+          get_status_vars_defs())) {
+    // Registration of status variables can't fail unless OOM.
+    // In this case error should have been reported already.
+    //
+    // We can't do much if we the below call fails.
+    (void)mysql_service_component_sys_variable_unregister->unregister_variable(
+        CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME);
+    return true;
+  }
+
   return false;
 }
 
-bool Js_isolate::unregister_sys_var() {
+bool Js_isolate::unregister_vars() {
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
           CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME)) {
     // The above should not fail normally. Still we play safe.
@@ -376,6 +482,11 @@ bool Js_isolate::unregister_sys_var() {
              " system variable for " CURRENT_COMPONENT_NAME_STR " component.");
     return true;
   }
+
+  // Unregistration of status variables can't fail.
+  always_ok(mysql_service_status_variable_registration->unregister_variable(
+      get_status_vars_defs()));
+
   return false;
 }
 
@@ -1054,14 +1165,14 @@ bool unregister_create_privilege() {
   return false;
 }
 
-bool register_sys_vars() {
-  if (Js_isolate::register_sys_var()) return true;
+bool register_vars() {
+  if (Js_isolate::register_vars()) return true;
   if (Js_console::register_sys_var()) return true;
   return false;
 }
 
-bool unregister_sys_vars() {
-  if (Js_isolate::unregister_sys_var() || Js_console::unregister_sys_var())
+bool unregister_vars() {
+  if (Js_isolate::unregister_vars() || Js_console::unregister_sys_var())
     return true;
   return false;
 }

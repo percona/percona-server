@@ -128,6 +128,17 @@ DROP FUNCTION f_longtext_cs_hog;
 DROP FUNCTION f_longblob_hog;
 DROP FUNCTION f_json_hog;
 
+--echo #
+--echo # 5) Let us also test status variables which expose information
+--echo #    about memory usage by JS component.
+--echo #
+--echo # Values of most of these status variables are non-deterministic
+--echo # due to garbage collection.
+--replace_column 2 #
+SHOW STATUS LIKE 'js_lang%';
+--echo # But at least number of contexts is stable.
+SHOW STATUS LIKE 'js_lang_contexts';
+
 --echo # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 

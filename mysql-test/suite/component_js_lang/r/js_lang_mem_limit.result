@@ -107,6 +107,22 @@ DROP FUNCTION f_longtext_hog;
 DROP FUNCTION f_longtext_cs_hog;
 DROP FUNCTION f_longblob_hog;
 DROP FUNCTION f_json_hog;
+#
+# 5) Let us also test status variables which expose information
+#    about memory usage by JS component.
+#
+# Values of most of these status variables are non-deterministic
+# due to garbage collection.
+SHOW STATUS LIKE 'js_lang%';
+Variable_name	Value
+Js_lang_contexts	#
+Js_lang_external_memory_size	#
+Js_lang_total_heap_size	#
+Js_lang_used_heap_size	#
+# But at least number of contexts is stable.
+SHOW STATUS LIKE 'js_lang_contexts';
+Variable_name	Value
+Js_lang_contexts	1
 # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 # Disconnect of default connection to free the only remaining

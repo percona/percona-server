@@ -62,6 +62,9 @@ class Js_v8 {
   */
   static bool is_used_or_shutdown() { return s_ref_count.load() != 0; }
 
+  // Helper implementing js_lang_contexts status variable.
+  static int show_contexts(MYSQL_THD, SHOW_VAR *var, char *buff);
+
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
   static void inc_ref_count() {
@@ -131,6 +134,14 @@ class Js_isolate {
   }
 
   /**
+    Get current memory usage counters for this isolate and aggregate them
+    into global memory usage counters.
+  */
+  void get_and_update_mem_stats() {
+    m_memory_manager.get_and_update_mem_stats();
+  }
+
+  /**
     Helper which allows to check in advance if buffer we are about allocate
     for ArrayBuffer object will fit into the memory limit. If no we mark
     isolate as exceeding the limit and request JS execution to be aborted.
@@ -158,15 +169,18 @@ class Js_isolate {
   */
   static bool check_if_heap_alloc_will_exceed_mem_limit(size_t length);
 
+  /** Get definitions of memory usage status variables. */
+  static SHOW_VAR *get_status_vars_defs();
+
   /**
     Register/unregister system variable which controls per-isolate maximum
-    memory size.
+    memory size as well as global status variables for memory usage.
 
     @retval False - Success.
     @retval True  - Failure (error has been reported).
   */
-  static bool register_sys_var();
-  static bool unregister_sys_var();
+  static bool register_vars();
+  static bool unregister_vars();
 
  private:
   v8::Isolate *m_isolate{nullptr};
@@ -190,6 +204,14 @@ class Js_isolate {
 #ifndef NDEBUG
       always_ok(mysql_service_mysql_current_thread_reader->get(&m_mysql_thd));
 #endif
+    }
+
+    ~Memory_manager() {
+      // Since V8 isolate has been deleted at this point it is good time
+      // to decrease global memory usage counters.
+      s_total_heap_size -= m_old_stats.total_heap_size;
+      s_used_heap_size -= m_old_stats.used_heap_size;
+      s_external_memory_size -= m_old_stats.external_memory_size;
     }
 
     // Block default copy/move semantics.
@@ -251,6 +273,23 @@ class Js_isolate {
 
     /* End of v8::ArrayBuffer::Allocator interface implementation. */
 
+    /**
+      Aggregate current memory usage counters for this isolate into global
+      memory usage counters.
+    */
+    void update_mem_stats(v8::HeapStatistics &stats);
+
+    /**
+      Get current memory usage counters for this isolate and aggregate them
+      into global memory usage counters.
+    */
+    void get_and_update_mem_stats();
+
+    /* Helpers implementing memory usage status variables. */
+    static int show_total_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+    static int show_used_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+    static int show_external_memory_size(MYSQL_THD, SHOW_VAR *var, char *buff);
+
     /** Pointer to isolate to which this memory manager belongs. */
     Js_isolate *m_js_isolate;
 
@@ -309,6 +348,26 @@ class Js_isolate {
       new isolates.
     */
     static unsigned int s_max_mem_size;
+
+    /**
+      Memory usage counter values for this isolate which already have been
+      agreggated into global memory usage counters.
+    */
+    struct {
+      size_t total_heap_size;
+      size_t used_heap_size;
+      size_t external_memory_size;
+    } m_old_stats{0, 0, 0};
+
+    /**
+      Global counters of memory usage to be shown as status variables.
+
+      TODO: Consider partitioning these counters if updating them ever
+            becomes performance bottleneck (though it is unlikely).
+    */
+    static std::atomic<size_t> s_total_heap_size;
+    static std::atomic<size_t> s_used_heap_size;
+    static std::atomic<size_t> s_external_memory_size;
   } m_memory_manager;
 };
 
@@ -574,6 +633,12 @@ class Js_thd {
 
       // Then, setup our custom 'console' object.
       Js_console::prepare_object(context);
+
+      // After both Isolate and Context have been created it is good
+      // time to update global counters of memory usage.
+      // This operation is not cheap, but creation of isolate is
+      // not cheap either!
+      js_isolate->get_and_update_mem_stats();
 
       auto r = m_auth_id_contexts.try_emplace(auth_id, js_isolate, context);
 
@@ -907,18 +972,22 @@ bool unregister_udfs();
 
 /**
   Register system variables allowing to control some of JS routines behavior.
+  Also register status variables allowing to get some information about their
+  execution.
 
   @retval False - Success.
   @retval True  - Failure (error has been reported).
 */
-bool register_sys_vars();
+bool register_vars();
 
 /**
   Unregister system variables allowing to control some of JS routines behavior.
+  Unregister status variables allowing to get some information about their
+  execution.
 
   @retval False - Success.
   @retval True  - Failure (error has been reported).
 */
-bool unregister_sys_vars();
+bool unregister_vars();
 
 #endif /* COMPONENT_JS_LANG_JS_LANG_CORE_H */

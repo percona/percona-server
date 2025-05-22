@@ -2,6 +2,9 @@
 
 ## MyRocks 9.3.1-3
 **This version was shipped with Percona Server 8.0.44-35 and 8.4.7-7.**
+* PS-9680 – Fix potential data corruption in MyRocks after RocksDB 7.10.0 changes
+· [Jira](https://perconadev.atlassian.net/browse/PS-9680) · [Changes](https://github.com/percona/percona-server/commit/247b3ee5a29c)
+
 * PS-10227 – Assertion failure in RocksDB initialization with system CF stats skipped
 · [Jira](https://perconadev.atlassian.net/browse/PS-10227)
 
@@ -19,6 +22,9 @@
 
 * PS-10067 – Improved handling of per-field metadata in `Rdb_convert_to_record_key_decoder::skip()`
 · [Jira](https://perconadev.atlassian.net/browse/PS-10067) · [Changes](https://github.com/percona/percona-server/commit/b2109a4fe1c8)
+
+* PS-9842 – Invalidate iterator on error to prevent crash in MergingIterator::CurrentForward()
+· [Jira](https://perconadev.atlassian.net/browse/PS-9842) · [Changes](https://github.com/percona/percona-server/commit/18993f876eba)
 
 ## MyRocks 9.3.1-2
 **This version was shipped with Percona Server 8.0.43-34 and 8.4.6-6.**

@@ -283,19 +283,54 @@ class js_clear_console_log_impl {
   }
 };
 
+/**
+  Implementation of JS_GET_MEMORY_USAGE_JSON() UDF for getting information
+  about memory usage by JS isolate corresponging to current connection/user
+  pair (if exists) and all JS isolates in the system in JSON format.
+*/
+class js_get_memory_usage_json_impl {
+ public:
+  js_get_memory_usage_json_impl(mysqlpp::udf_context &ctx) {
+    if (ctx.get_number_of_args() != 0)
+      throw std::invalid_argument{"Wrong argument list: should be ()"};
+
+    ctx.mark_result_nullable(false);
+    ctx.mark_result_const(false);
+
+    // TEXT type should be more than enough to fit memory usage info.
+    ctx.set_result_max_length(MAX_TEXT_RESULT_LENGTH);
+
+    mysqlpp::udf_context_charset_extension charset_ext{
+        mysql_service_mysql_udf_metadata};
+    charset_ext.set_return_value_collation(ctx, UTF8_DEFAULT_COLLATION_NAME);
+  }
+  mysqlpp::udf_result_t<STRING_RESULT> calculate(const mysqlpp::udf_context &) {
+    auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+    // Handle the case when JS was never run for in this connection or
+    // for the current user in this connection.
+    auto js_isolate =
+        (auth_id_ctx != nullptr) ? auth_id_ctx->get_js_isolate() : nullptr;
+
+    return Js_isolate::get_mem_stats_json(js_isolate);
+  }
+};
+
 DECLARE_STRING_UDF_AUTO(js_get_last_error)
 DECLARE_STRING_UDF_AUTO(js_get_last_error_info)
 DECLARE_INT_UDF_AUTO(js_clear_last_error)
 DECLARE_STRING_UDF_AUTO(js_get_console_log)
 DECLARE_STRING_UDF_AUTO(js_get_console_log_json)
 DECLARE_INT_UDF_AUTO(js_clear_console_log)
+DECLARE_STRING_UDF_AUTO(js_get_memory_usage_json)
 
 static std::array udfs{DECLARE_UDF_INFO_AUTO(js_get_last_error),
                        DECLARE_UDF_INFO_AUTO(js_get_last_error_info),
                        DECLARE_UDF_INFO_AUTO(js_clear_last_error),
                        DECLARE_UDF_INFO_AUTO(js_get_console_log),
                        DECLARE_UDF_INFO_AUTO(js_get_console_log_json),
-                       DECLARE_UDF_INFO_AUTO(js_clear_console_log)};
+                       DECLARE_UDF_INFO_AUTO(js_clear_console_log),
+                       DECLARE_UDF_INFO_AUTO(js_get_memory_usage_json)};
 
 using udf_bitset_type = mysqlpp::udf_bitset<std::tuple_size_v<decltype(udfs)>>;
 static udf_bitset_type registered_udfs;

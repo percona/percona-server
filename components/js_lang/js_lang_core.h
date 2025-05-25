@@ -62,8 +62,12 @@ class Js_v8 {
   */
   static bool is_used_or_shutdown() { return s_ref_count.load() != 0; }
 
-  // Helper implementing js_lang_contexts status variable.
-  static int show_contexts(MYSQL_THD, SHOW_VAR *var, char *buff);
+  /** Get number of v8::Isolate object around. */
+  static unsigned int get_isolate_count() {
+    auto ref_count = s_ref_count.load(std::memory_order_relaxed);
+    // Play safe, do not return special -1 value to the caller.
+    return (ref_count >= 0) ? ref_count : 0;
+  }
 
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
@@ -137,8 +141,20 @@ class Js_isolate {
     Get current memory usage counters for this isolate and aggregate them
     into global memory usage counters.
   */
-  void get_and_update_mem_stats() {
-    m_memory_manager.get_and_update_mem_stats();
+  void update_global_mem_stats() { m_memory_manager.update_global_mem_stats(); }
+
+  /**
+    Get information about memory usage by the isolate for current connection/
+    user pair (passed as parameter) and by all isolates in the system as JSON
+    object.
+
+    @param js_iso - Pointer to Js_isolate object for current connection/
+                    user pair if exists. nullptr - if there is no such object
+                    (e.g. connection was never used for running JS code).
+  */
+  static std::string get_mem_stats_json(Js_isolate *js_iso) {
+    return Memory_manager::get_mem_stats_json(
+        (js_iso != nullptr) ? &(js_iso->m_memory_manager) : nullptr);
   }
 
   /**
@@ -274,16 +290,28 @@ class Js_isolate {
     /* End of v8::ArrayBuffer::Allocator interface implementation. */
 
     /**
-      Aggregate current memory usage counters for this isolate into global
-      memory usage counters.
+      Aggregate current memory usage counters for this isolate (which are
+      passed in parameter) into global memory usage counters.
     */
-    void update_mem_stats(v8::HeapStatistics &stats);
+    void update_global_mem_stats(v8::HeapStatistics &stats);
 
     /**
       Get current memory usage counters for this isolate and aggregate them
       into global memory usage counters.
     */
-    void get_and_update_mem_stats();
+    void update_global_mem_stats();
+
+    /**
+      Get information about memory usage by the isolate for current connection/
+      user pair (its Memory_manager passed as parameter) and by all isolates in
+      the system as a JSON object.
+
+      @param mem_mgr - Pointer to Memory_manager object for current connection/
+                       user pair's isolate if exists.
+                       nullptr - if there is no such object (e.g. if connection
+                       was never used for running JS code).
+    */
+    static std::string get_mem_stats_json(Memory_manager *mem_mgr);
 
     /* Helpers implementing memory usage status variables. */
     static int show_total_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
@@ -638,7 +666,7 @@ class Js_thd {
       // time to update global counters of memory usage.
       // This operation is not cheap, but creation of isolate is
       // not cheap either!
-      js_isolate->get_and_update_mem_stats();
+      js_isolate->update_global_mem_stats();
 
       auto r = m_auth_id_contexts.try_emplace(auth_id, js_isolate, context);
 

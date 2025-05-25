@@ -123,6 +123,109 @@ Js_lang_used_heap_size	#
 SHOW STATUS LIKE 'js_lang_contexts';
 Variable_name	Value
 Js_lang_contexts	1
+#
+# 6) Test coverage for JS_GET_MEMORY_USAGE_JSON() UDF.
+#
+#    This function returns information about memory usage by isolate
+#    for current connection/user pair and all isolates in the system.
+#
+# 6.1) Some very basic tests.
+#
+# First, let us ensure that this connection/user pair has an isolate
+# and there is something on its heap first.
+CREATE FUNCTION f1() RETURNS INT LANGUAGE JS AS $$ return 1 $$;
+SELECT f1();
+f1()
+1
+# Since most of values in returned JSON are non-deterministic
+# due to garbage collection they have to be masked.
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>
+    },
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+# Since some phases of GC are concurrent even checking that memory
+# usage by the current isolate is lower or equal than the global one
+# is racy.
+#
+# Let us at least check that heap usage is non-zero.
+# Also number of active contexts should be stable.
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.local.totalHeapSize") > 0 AS loc_ths,
+JSON_EXTRACT(@mem_usage, "$.local.usedHeapSize") > 0  AS loc_uhs,
+JSON_EXTRACT(@mem_usage, "$.global.totalHeapSize") > 0 AS glob_ths,
+JSON_EXTRACT(@mem_usage, "$.global.usedHeapSize") > 0  AS glob_uhs,
+JSON_EXTRACT(@mem_usage, "$.global.contexts") AS glob_c;
+loc_ths	loc_uhs	glob_ths	glob_uhs	glob_c
+1	1	1	1	1
+#
+# 6.2) Test what happens when UDF is called for connection which
+#      never run JS before.
+#
+#      In this case 'local' member of returned JSON should be null.
+connect  con_add, localhost, root,,;
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": null,
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+#
+# 6.3) Test what happens when this connection runs some JS.
+#
+# 'local' member should no longer be null.
+SELECT f1();
+f1()
+1
+SELECT JS_GET_MEMORY_USAGE_JSON();
+JS_GET_MEMORY_USAGE_JSON()
+{
+    "local": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>
+    },
+    "global": {
+        "totalHeapSize": <number>,
+        "usedHeapSize": <number>,
+        "externalMemorySize": <number>,
+        "contexts": <number>
+    }
+}
+# Number of active contexts should increase!
+SELECT JSON_EXTRACT(JS_GET_MEMORY_USAGE_JSON(), "$.global.contexts") AS c;
+c
+2
+#
+# 6.4) Finally, let us test that "external"/off-heap allocations
+#      are also tracked.
+CREATE PROCEDURE p1() LANGUAGE JS AS $$ globalThis.a = new ArrayBuffer(1024) $$;
+CALL p1();
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.local.externalMemorySize") >= 1024 AS loc_ems,
+JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") >= 1024  AS glob_ems;
+loc_ems	glob_ems
+1	1
+# Local clean-up.
+disconnect con_add;
+connection default;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
 # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 # Disconnect of default connection to free the only remaining

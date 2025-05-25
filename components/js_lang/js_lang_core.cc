@@ -83,16 +83,6 @@ void Js_v8::shutdown() {
   s_platform.reset();
 }
 
-int Js_v8::show_contexts(MYSQL_THD, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  auto *value = reinterpret_cast<long *>(buff);
-  // Number of contexts is the same as number isolates at this point.
-  *value = s_ref_count.load(std::memory_order_relaxed);
-  if (*value < 0) *value = 0;  // Safety to avoid special -1 value.
-  return 0;
-}
-
 bool Js_isolate::Memory_manager::check_mem_limit_at_arr_buff_alloc(
     size_t length) {
   /*
@@ -152,7 +142,7 @@ void Js_isolate::Memory_manager::check_mem_limit_at_GC() {
   m_js_isolate->m_isolate->GetHeapStatistics(&heap_stats);
 
   // Piggy-back on GC callback to update global memory usage counters.
-  update_mem_stats(heap_stats);
+  update_global_mem_stats(heap_stats);
 
   const size_t total_size = heap_stats.used_heap_size() + m_arr_buff_allocated;
 
@@ -341,7 +331,8 @@ Js_isolate *Js_isolate::create() {
   return result;
 }
 
-void Js_isolate::Memory_manager::update_mem_stats(v8::HeapStatistics &stats) {
+void Js_isolate::Memory_manager::update_global_mem_stats(
+    v8::HeapStatistics &stats) {
   // Let us aggregate current memory usage counters for the isolate into
   // global memory usage counters. To get actual global values, deduct values
   // which were added to global counters on previous call of this method for
@@ -362,10 +353,76 @@ void Js_isolate::Memory_manager::update_mem_stats(v8::HeapStatistics &stats) {
   m_old_stats.external_memory_size = stats.external_memory();
 }
 
-void Js_isolate::Memory_manager::get_and_update_mem_stats() {
+void Js_isolate::Memory_manager::update_global_mem_stats() {
   v8::HeapStatistics stats;
   m_js_isolate->m_isolate->GetHeapStatistics(&stats);
-  update_mem_stats(stats);
+  update_global_mem_stats(stats);
+}
+
+std::string Js_isolate::Memory_manager::get_mem_stats_json(
+    Memory_manager *mem_mgr) {
+  Json_string_buffer string_buffer;
+  Json_writer json_writer(string_buffer);
+
+  json_writer.StartObject();
+
+  // Add information about memory usage by current connection/
+  // user pair's Isolate.
+  json_writer.Key(STRING_WITH_LEN("local"));
+
+  if (mem_mgr != nullptr) {
+    // Case when Js_isolate and Memory_manager for current connection/
+    // user pair exist.
+
+    // Get current memory usage stats from V8.
+    v8::HeapStatistics stats;
+    mem_mgr->m_js_isolate->m_isolate->GetHeapStatistics(&stats);
+
+    // Update global counters to avoid so they do not look
+    // too outdated in resulting JSON.
+    mem_mgr->update_global_mem_stats(stats);
+
+    json_writer.StartObject();
+
+    json_writer.Key(STRING_WITH_LEN("totalHeapSize"));
+    json_writer.Uint64(stats.total_heap_size());
+
+    json_writer.Key(STRING_WITH_LEN("usedHeapSize"));
+    json_writer.Uint64(stats.used_heap_size());
+
+    json_writer.Key(STRING_WITH_LEN("externalMemorySize"));
+    json_writer.Uint64(stats.external_memory());
+
+    json_writer.EndObject();
+  } else {
+    // Handle the case when there is no isolate for current
+    // connection/user pair.
+    json_writer.Null();
+  }
+
+  // Add information about memory usage by all isolates.
+  json_writer.Key(STRING_WITH_LEN("global"));
+
+  json_writer.StartObject();
+
+  json_writer.Key(STRING_WITH_LEN("totalHeapSize"));
+  json_writer.Uint64(s_total_heap_size.load(std::memory_order_relaxed));
+
+  json_writer.Key(STRING_WITH_LEN("usedHeapSize"));
+  json_writer.Uint64(s_used_heap_size.load(std::memory_order_relaxed));
+
+  json_writer.Key(STRING_WITH_LEN("externalMemorySize"));
+  json_writer.Uint64(s_external_memory_size.load(std::memory_order_relaxed));
+
+  // Number of contexts is the same as number isolates at this point.
+  json_writer.Key(STRING_WITH_LEN("contexts"));
+  json_writer.Uint(Js_v8::get_isolate_count());
+
+  json_writer.EndObject();
+
+  json_writer.EndObject();
+
+  return std::string(string_buffer.GetString(), string_buffer.GetSize());
 }
 
 std::atomic<size_t> Js_isolate::Memory_manager::s_total_heap_size = 0;
@@ -400,6 +457,15 @@ int Js_isolate::Memory_manager::show_external_memory_size(MYSQL_THD,
   return 0;
 }
 
+static int show_contexts(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<long *>(buff);
+  // Number of contexts is the same as number isolates at this point.
+  *value = Js_v8::get_isolate_count();
+  return 0;
+}
+
 SHOW_VAR *Js_isolate::get_status_vars_defs() {
   // TODO: Consider adding per-isolate/connection/user statistics in future.
   //       These values probably should be exposed through P_S instead of
@@ -416,8 +482,8 @@ SHOW_VAR *Js_isolate::get_status_vars_defs() {
        reinterpret_cast<char *>(&Memory_manager::show_external_memory_size),
        SHOW_FUNC, SHOW_SCOPE_GLOBAL},
       // TODO: In future we might introduce Js_lang_isolates as well.
-      {"Js_lang_contexts", reinterpret_cast<char *>(&Js_v8::show_contexts),
-       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_contexts", reinterpret_cast<char *>(&show_contexts), SHOW_FUNC,
+       SHOW_SCOPE_GLOBAL},
       {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
   return status_vars;

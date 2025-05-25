@@ -90,7 +90,6 @@ TODO/Future work:
 Short-term
 ----------
 
-- Memory tracking?
 - Handling of async JS features
 - Execution of SQL
 

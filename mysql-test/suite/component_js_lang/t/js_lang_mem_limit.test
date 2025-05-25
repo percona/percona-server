@@ -139,6 +139,75 @@ SHOW STATUS LIKE 'js_lang%';
 --echo # But at least number of contexts is stable.
 SHOW STATUS LIKE 'js_lang_contexts';
 
+--echo #
+--echo # 6) Test coverage for JS_GET_MEMORY_USAGE_JSON() UDF.
+--echo #
+--echo #    This function returns information about memory usage by isolate
+--echo #    for current connection/user pair and all isolates in the system.
+--echo #
+--echo # 6.1) Some very basic tests.
+--echo #
+--echo # First, let us ensure that this connection/user pair has an isolate
+--echo # and there is something on its heap first.
+CREATE FUNCTION f1() RETURNS INT LANGUAGE JS AS $$ return 1 $$;
+SELECT f1();
+
+--echo # Since most of values in returned JSON are non-deterministic
+--echo # due to garbage collection they have to be masked.
+--replace_regex /[0-9]+/<number>/
+SELECT JS_GET_MEMORY_USAGE_JSON();
+
+--echo # Since some phases of GC are concurrent even checking that memory
+--echo # usage by the current isolate is lower or equal than the global one
+--echo # is racy.
+--echo #
+--echo # Let us at least check that heap usage is non-zero.
+--echo # Also number of active contexts should be stable.
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+
+SELECT JSON_EXTRACT(@mem_usage, "$.local.totalHeapSize") > 0 AS loc_ths,
+       JSON_EXTRACT(@mem_usage, "$.local.usedHeapSize") > 0  AS loc_uhs,
+       JSON_EXTRACT(@mem_usage, "$.global.totalHeapSize") > 0 AS glob_ths,
+       JSON_EXTRACT(@mem_usage, "$.global.usedHeapSize") > 0  AS glob_uhs,
+       JSON_EXTRACT(@mem_usage, "$.global.contexts") AS glob_c;
+
+--echo #
+--echo # 6.2) Test what happens when UDF is called for connection which
+--echo #      never run JS before.
+--echo #
+--echo #      In this case 'local' member of returned JSON should be null.
+--connect (con_add, localhost, root,,)
+--replace_regex /[0-9]+/<number>/
+SELECT JS_GET_MEMORY_USAGE_JSON();
+
+--echo #
+--echo # 6.3) Test what happens when this connection runs some JS.
+--echo #
+--echo # 'local' member should no longer be null.
+SELECT f1();
+--replace_regex /[0-9]+/<number>/
+SELECT JS_GET_MEMORY_USAGE_JSON();
+
+--echo # Number of active contexts should increase!
+SELECT JSON_EXTRACT(JS_GET_MEMORY_USAGE_JSON(), "$.global.contexts") AS c;
+
+--echo #
+--echo # 6.4) Finally, let us test that "external"/off-heap allocations
+--echo #      are also tracked.
+CREATE PROCEDURE p1() LANGUAGE JS AS $$ globalThis.a = new ArrayBuffer(1024) $$;
+CALL p1();
+
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.local.externalMemorySize") >= 1024 AS loc_ems,
+       JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") >= 1024  AS glob_ems;
+
+--echo # Local clean-up.
+--disconnect con_add
+--source include/wait_until_disconnected.inc
+--connection default
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+
 --echo # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 

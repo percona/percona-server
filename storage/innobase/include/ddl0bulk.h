@@ -149,11 +149,16 @@ class Loader {
     int m_errcode{0};
 
     std::ostringstream m_sout;
+
+    size_t m_nth_index{std::numeric_limits<size_t>::max()};
   };
 
   /** Loader context constructor.
-  @param[in]  num_threads  Number of threads to use for bulk loading */
-  Loader(size_t num_threads) : m_num_threads(num_threads) {}
+  @param[in]  num_threads  Number of threads to use for bulk loading
+  @param[in]  keynr        index number
+  @param[in]  trx          transaction context. */
+  Loader(size_t num_threads, size_t keynr, const trx_t *trx)
+      : m_num_threads(num_threads), m_keynr(keynr), m_trx(trx) {}
 
   /** Prepare bulk loading by multiple threads.
   @param[in]  prebuilt  prebuilt structures from innodb table handler
@@ -172,6 +177,8 @@ class Loader {
   @return innodb error code */
   dberr_t load(const row_prebuilt_t *prebuilt, size_t thread_index,
                const Rows_mysql &rows, Bulk_load::Stat_callbacks &wait_cbk);
+
+  size_t get_keynr() const { return m_keynr; }
 
  public:
   /** Open a blob.
@@ -203,10 +210,9 @@ class Loader {
 
   /** Finish bulk load operation, combining the sub-trees produced by concurrent
   threads.
-  @param[in]  prebuilt  prebuilt structures from innodb table handler
   @param[in]  is_error  true if called for cleanup and rollback after an error
   @return innodb error code */
-  dberr_t end(const row_prebuilt_t *prebuilt, bool is_error);
+  dberr_t end(bool is_error);
 
   using Btree_loads = std::vector<Btree_multi::Btree_load *,
                                   ut::allocator<Btree_multi::Btree_load *>>;
@@ -223,16 +229,13 @@ class Loader {
   const char *get_table_name() const { return m_table->name.m_name; }
 
   /** @return index name where the data is being loaded. */
-  const char *get_index_name() const {
-    auto index = m_table->first_index();
-    return index->name();
-  }
+  const char *get_index_name() const { return m_index->name(); }
 
  private:
   /** Merge the sub-trees to build the cluster index.
   @param[in]  prebuilt  prebuilt structures from innodb table handler
   @return innodb error code. */
-  dberr_t merge_subtrees(const row_prebuilt_t *prebuilt);
+  dberr_t merge_subtrees();
 
   /** Calculate the flush queue size to be used based on the available memory.
   @param[in] memory total buffer pool memory to use
@@ -244,7 +247,9 @@ class Loader {
 
  private:
   /** Number of threads for bulk loading. */
-  size_t m_num_threads{};
+  const size_t m_num_threads{};
+
+  const size_t m_keynr{};
 
   /** All thread specific data. */
   Thread_ctxs m_ctxs;
@@ -255,8 +260,13 @@ class Loader {
   /** Innodb dictionary table object. */
   dict_table_t *m_table;
 
+  /** Index being loaded. Could be primary or secondary index. */
+  dict_index_t *m_index{};
+
   /** Allocator to extend tablespace and allocate extents. */
   Btree_multi::Bulk_extent_allocator m_extent_allocator;
+
+  const trx_t *const m_trx{};
 };
 
 inline std::string Loader::get_error_string() const {

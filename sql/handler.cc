@@ -258,7 +258,13 @@ st_plugin_int *remove_hton2plugin(uint slot) {
 }
 
 const char *ha_resolve_storage_engine_name(const handlerton *db_type) {
-  return db_type == nullptr ? "UNKNOWN" : hton2plugin(db_type->slot)->name.str;
+  return db_type == nullptr ||
+                 // May happen in unit tests.
+                 num_hton2plugins() == 0 ||
+                 // May happen in unit tests.
+                 hton2plugin(db_type->slot) == nullptr
+             ? "UNKNOWN"
+             : hton2plugin(db_type->slot)->name.str;
 }
 
 static handlerton *installed_htons[128];
@@ -2877,7 +2883,44 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
   /* Copy the partitioning information that exists in the table share */
   if (share->m_part_info != nullptr) {
     part_info = share->m_part_info->get_clone(current_thd);
+    part_info->part_type = share->m_part_info->part_type;
+    /* copy the attribute names on which partitioning takes place */
+    part_info->list_of_part_fields = share->m_part_info->list_of_part_fields;
+    if (share->m_part_info->list_of_part_fields) {
+      part_info->part_func_string = nullptr;
+      part_info->part_field_list.clear();
+      for (auto &part_name : share->m_part_info->part_field_list) {
+        char *attr =
+            strmake_root(current_thd->mem_root, &part_name, strlen(&part_name));
+        part_info->part_field_list.push_back(attr);
+      }
+    } else {
+      // the arithmetic on part_func_string is to remove the surrounding ``
+      part_info->part_func_string = strmake_root(
+          current_thd->mem_root, share->m_part_info->part_func_string + 1,
+          share->m_part_info->part_func_len - 2);
+      part_info->part_func_len = share->m_part_info->part_func_len;
+    }
+    /* Subpartitioning-related info */
     part_info->subpart_type = share->m_part_info->subpart_type;
+    part_info->num_subparts = share->m_part_info->num_subparts;
+    /* copy the attribute names on which subpartitioning takes place */
+    part_info->list_of_subpart_fields =
+        share->m_part_info->list_of_subpart_fields;
+    if (share->m_part_info->list_of_subpart_fields) {
+      part_info->subpart_func_string = nullptr;
+      part_info->subpart_field_list.clear();
+      for (auto &subpart_name : share->m_part_info->subpart_field_list) {
+        char *attr = strmake_root(current_thd->mem_root, &subpart_name,
+                                  strlen(&subpart_name));
+        part_info->subpart_field_list.push_back(attr);
+      }
+    } else if (share->m_part_info->subpart_func_string != nullptr) {
+      // the arithmetic on part_func_string is to remove the surrounding ``
+      part_info->subpart_func_string = strmake_root(
+          current_thd->mem_root, share->m_part_info->subpart_func_string + 1,
+          share->m_part_info->subpart_func_len - 2);
+    }
   }
 
   if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
@@ -6758,8 +6801,8 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   // Cost computation.
   assert(cost->is_zero());
   if (thd->lex->using_hypergraph_optimizer()) {
-    cost->add_cpu(
-        EstimateIndexRangeScanCost(table, keyno, n_ranges, total_rows));
+    cost->add_cpu(EstimateIndexRangeScanCost(
+        table, keyno, RangeScanType::kMultiRange, n_ranges, total_rows));
   } else {
     const Cost_model_table *const cost_model = table->cost_model();
 
@@ -7554,10 +7597,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 
   assert(cost->is_zero());
 
-  if (n_full_steps) {
-    get_sort_and_sweep_cost(table, max_buff_entries, cost);
-    cost->multiply(n_full_steps);
-  } else {
+  if (n_full_steps == 0) {
     /*
       Adjust buffer size since only parts of the buffer will be used:
       1. Adjust record estimate for the last scan to reduce likelihood
@@ -7570,6 +7610,17 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
         max<ha_rows>(static_cast<ha_rows>(1.2 * rows_in_last_step), 100);
     *buffer_size = min<ulong>(*buffer_size,
                               static_cast<ulong>(keys_in_buffer) * elem_size);
+  }
+
+  if (h->ha_thd()->lex->using_hypergraph_optimizer()) {
+    cost->add_cpu(EstimateIndexRangeScanCost(
+        table, keynr, RangeScanType::kMultiRange, 1, rows));
+    return false;
+  }
+
+  if (n_full_steps > 0) {
+    get_sort_and_sweep_cost(table, max_buff_entries, cost);
+    cost->multiply(n_full_steps);
   }
 
   Cost_estimate last_step_cost;
@@ -9345,6 +9396,56 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd) {
     return nullptr;
   }
   return thd->lex->m_sql_cmd->secondary_engine();
+}
+
+std::atomic<const char *> default_secondary_engine_name;
+
+/**
+  Retrieves the secondary engine handlerton if possible.
+
+  @param  thd       Query thd.
+  @param  secondary_engine_in_name  Name of secondary engine if available.
+
+  @retval handlerton    if secondary engine handle found.
+  @retval nullptr       if secondary engine not found.
+*/
+const handlerton *EligibleSecondaryEngineHandlerton(
+    THD *thd, const LEX_CSTRING *secondary_engine_in_name) {
+  // 1st priority - retrieve handlerton cached already in thd.
+  const handlerton *secondary_engine =
+      thd->eligible_secondary_engine_handlerton();
+  if (secondary_engine == nullptr) {
+    // 2nd priority, if secondary engine name provided, then try to
+    // use that  to retrieve handlerton.
+    const LEX_CSTRING *secondary_engine_name = secondary_engine_in_name;
+    LEX_CSTRING cur_name;
+
+    if (secondary_engine_name == nullptr &&
+        default_secondary_engine_name != nullptr) {
+      /** 3rd priority - if no secondary secondary_engine_in_name provided,
+       * attempt to retrieve secondary engine name via
+       * default_secondary_engine_name, if available. */
+      cur_name = to_lex_cstring(default_secondary_engine_name);
+      secondary_engine_name = &cur_name;
+    } else if (secondary_engine_name == nullptr && (thd->lex != nullptr) &&
+               (thd->lex->m_sql_cmd != nullptr)) {
+      /** 4th priority - attempt to retrieve secondary engine name through
+       * eligible_secondary_storage_engine function */
+      secondary_engine_name =
+          thd->lex->m_sql_cmd->eligible_secondary_storage_engine(thd);
+    }
+    /* if secondary_engine_name found via 2,3 or 4th priority lookups, use the
+     * name to retrieve the handlerton */
+    if (secondary_engine_name != nullptr) {
+      plugin_ref ref = ha_resolve_by_name(thd, secondary_engine_name, false);
+      if (ref != nullptr) {
+        thd->set_eligible_secondary_engine_handlerton(
+            plugin_data<handlerton *>(ref));
+        secondary_engine = thd->eligible_secondary_engine_handlerton();
+      }
+    }
+  }
+  return secondary_engine;
 }
 
 /**

@@ -881,11 +881,12 @@ EXPLAIN
 -> Select #2 (subquery in projection; dependent)
     -> Limit: 1 row(s)  (rows=1)
         -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (rows=1)
-            -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
-                -> Covering index lookup on d using <auto_key0> (a = <cache>(t1.a) or NULL)  (rows=4)
-                    -> Materialize  (rows=1)
-                        -> Table scan on t1  (rows=1)
-                -> Table scan on d  (rows=2)
+            -> Filter: <if>(outer_field_is_not_null, ((<cache>(t1.a) = d.a) or (d.a is null)), true)  (rows=1)
+                -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (rows=4)
+                    -> Covering index lookup on d using <auto_key0> (a = <cache>(t1.a) or NULL)  (rows=4)
+                        -> Materialize  (rows=1)
+                            -> Table scan on t1  (rows=1)
+                    -> Table scan on d  (rows=2)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.

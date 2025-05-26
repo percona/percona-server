@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -156,6 +157,9 @@ struct JoinHypergraph {
       m_lateral_dependencies = dependencies;
     }
 
+    /* Estimated rows cardinality after table filters. */
+    std::optional<double> cardinality;
+
    private:
     TABLE *m_table;
     const CompanionSet *m_companion_set;
@@ -189,13 +193,44 @@ struct JoinHypergraph {
   // for more information), so edges[i] corresponds to graph.edges[i*2].
   Mem_root_array<JoinPredicate> edges;
 
-  // The first <num_where_predicates> are WHERE predicates;
-  // the rest are sargable join predicates. The latter are in the array
+  // The first <num_where_predicates> are filter predicates. These are the
+  // predicates that may be added as filters on nodes in the join tree by
+  // setting the corresponding bit in AccessPath::filter_predicates, which at
+  // the end of join optimization gets expanded to proper FILTER access paths by
+  // ExpandFilterAccessPaths(). Despite the name "num_where_predicates", they
+  // are not necessarily WHERE predicates. They include:
+  //
+  // - Actual WHERE predicates that could not be pushed down into one of the
+  //   join conditions.
+  //
+  // - Predicates that could be pushed all the way down and become a table
+  //   filter. These could be WHERE predicates, but they could also be
+  //   predicates that are possible to push all the way down, but not possible
+  //   to pull all the way up. Take for example "SELECT 1 FROM t1 LEFT JOIN t2
+  //   ON t1.a=t2.a AND t2.b=1". The t2.b=1 predicate can be pushed down as a
+  //   table filter, but it cannot be used as a WHERE predicate, as it would
+  //   incorrectly filter out the NULL-complemented rows. Still, such table
+  //   filters are also counted in "num_where_predicates".
+  //
+  // - Predicates that are join conditions in some inner join that is involved
+  //   in a cycle in the join hypergraph. These are applied as filters in the
+  //   join tree if the tables are joined via another edge in the cycle. Such
+  //   predicates are also not necessarily possible to pull up to the WHERE
+  //   clause. If they for example came from an inner join on the inner side of
+  //   some outer join, they cannot be applied as WHERE predicates. Even so,
+  //   they are still counted in "num_where_predicates".
+  //
+  // The rest are sargable join predicates. The latter are in the array
   // solely so they can be part of the regular “applied_filters” bitmap
   // if they are pushed down into an index, so that we know that we
   // don't need to apply them as join conditions later.
+  //
+  // If a sargable join predicate comes from a join that is part of a cycle in
+  // the hypergraph, it could be present in both partitions of the array.
   Mem_root_array<Predicate> predicates;
 
+  // How many of the predicates in "predicates" are filter predicates. The rest
+  // of them are sargable join predicates.
   unsigned num_where_predicates = 0;
 
   // A bitmap over predicates that are, or contain, at least one
@@ -221,10 +256,18 @@ struct JoinHypergraph {
   /// the root cause.
   bool has_reordered_left_joins = false;
 
-  /// The set of tables that are on the inner side of some outer join or
-  /// antijoin. If a table is not part of this set, and it is found to be empty,
-  /// we can assume that the result of the top-level join will also be empty.
-  table_map tables_inner_to_outer_or_anti = 0;
+  /// The set of nodes that are on the inner side of some outer join.
+  hypergraph::NodeMap nodes_inner_to_outer_join = 0;
+
+  /// The set of nodes that are on the inner side of some semijoin.
+  hypergraph::NodeMap nodes_inner_to_semijoin = 0;
+
+  /// The set of nodes that are on the inner side of some antijoin.
+  hypergraph::NodeMap nodes_inner_to_antijoin = 0;
+
+  /// The set of nodes that are represented by table_function. This will be set
+  /// only when optimizing for secondary engine.
+  hypergraph::NodeMap nodes_for_table_function = 0;
 
   int FindSargableJoinPredicate(const Item *predicate) const {
     const auto iter = m_sargable_join_predicates.find(predicate);

@@ -44,7 +44,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "univ.i"
 #include "ut0byte.h"
-#include "ut0rbt.h"
 
 #include "buf/buf.h"
 
@@ -2389,9 +2388,9 @@ struct buf_pool_t {
 
   /** @{ */
 
-  /** Mutex protecting the flush list access. This mutex protects flush_list,
-  flush_rbt and bpage::list pointers when the bpage is on flush_list. It also
-  protects writes to bpage::oldest_modification and flush_list_hp */
+  /** Mutex protecting the flush list access. This mutex protects flush_list and
+  bpage::list pointers when the bpage is on flush_list. It also protects writes
+  to bpage::oldest_modification and flush_list_hp */
   BufListMutex flush_list_mutex;
 
   /** "Hazard pointer" used during scan of flush_list while doing flush list
@@ -2415,14 +2414,6 @@ struct buf_pool_t {
   /** This is in the set state when there is no flush batch of the given type
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
-
-  /** A red-black tree is used exclusively during recovery to speed up
-  insertions in the flush_list. This tree contains blocks in order of
-  oldest_modification LSN and is kept in sync with the flush_list.  Each
-  member of the tree MUST also be on the flush_list.  This tree is relevant
-  only in recovery and is set to NULL once the recovery is over.  Protected
-  by flush_list_mutex */
-  ib_rbt_t *flush_rbt;
 
   /** A sequence number used to count the number of buffer blocks removed from
   the end of the LRU list; NOTE that this counter may wrap around at 4

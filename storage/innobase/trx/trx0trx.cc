@@ -1943,7 +1943,13 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
           ut_d(const size_t trx_shard_no = trx_get_shard_no(trx->id));
           ut_ad(trx_get_shard_no(trx_by_id_with_min.min_id()) == trx_shard_no);
           trx_by_id_with_min.erase(trx->id);
-          ut_ad(trx_get_shard_no(trx_by_id_with_min.min_id()) == trx_shard_no);
+#ifdef UNIV_DEBUG
+          /* This invariant will be needed by future calls to erase() as its
+          body assumes the new minimum can be found by adding k*TRX_SHARDS_N. */
+          const auto new_min_id = trx_by_id_with_min.min_id();
+          ut_ad(new_min_id == TRX_ID_MAX ||
+                trx_get_shard_no(new_min_id) == trx_shard_no);
+#endif
         },
         UT_LOCATION_HERE);
   } else {

@@ -200,8 +200,10 @@ int main(int argc, const char **argv) {
       // Copy the remaining args to child_arg
       for (int j = i + 1; j < argc; j++) {
         arg = argv[j];
-        if (strchr(arg, ' ') && arg[0] != '\"' && arg[strlen(arg)] != '\"') {
-          // Quote arg that contains spaces and are not quoted already
+        if (strlen(arg) == 0 || (strchr(arg, ' ') && arg[0] != '\"' &&
+                                 arg[strlen(arg) - 1] != '\"')) {
+          // Quote an empty arg and arg that contains spaces and are not quoted
+          // already
           to += std::snprintf(to, child_args + sizeof(child_args) - to,
                               "\"%s\" ", arg);
         } else {

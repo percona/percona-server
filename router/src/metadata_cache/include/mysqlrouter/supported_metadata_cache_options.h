@@ -47,6 +47,7 @@ static constexpr std::array metadata_cache_supported_options{
     "ssl_capath",
     "ssl_crl",
     "ssl_crlpath",
+    "close_connection_after_refresh",
 };
 
 #endif /* METADATA_CACHE_SUPPORTED_OPTIONS_INCLUDED */

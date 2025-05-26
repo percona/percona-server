@@ -55,6 +55,8 @@ ERROR HY000: Operation ALTER USER failed for 'userX'@'%'
 # This event sequence pattern MUST NOT be present in binlog: !Q(ALTER USER.*userY.*userX.*)
 include/rpl/assert_binlog_events.inc
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 include/rpl/save_binlog_file_position.inc
 mysql: [Warning] Using a password on the command line interface can be insecure.
 CURRENT_USER()
@@ -115,6 +117,8 @@ Note	3162	Authorization ID 'userX'@'%' does not exist.
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*)
 include/rpl/assert_binlog_events.inc
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 include/rpl/save_binlog_file_position.inc
 # Case 3 : Current session's password must be expired
 GRANT ALL ON *.* TO userY;

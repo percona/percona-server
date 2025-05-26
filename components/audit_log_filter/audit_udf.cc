@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#define ALLOW_COMPONENT_INCLUDE // for plugin.h
 #include "components/audit_log_filter/audit_udf.h"
 #include "components/audit_log_filter/audit_error_log.h"
 
@@ -30,6 +31,7 @@
 
 #include "rapidjson/document.h"
 
+#include <mysql/components/services/bits/my_err_bits.h> // MYSQL_ERRMSG_SIZE
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/security_context.h>
@@ -72,7 +74,8 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
 
   const std::regex user_name_all_regex("^%$");
   const std::regex user_name_regex("(.*)@(.*)");
-  const std::regex deprecated_symbols_regex("[\\*|\\%]");
+  const std::regex deprecated_account_name_characters_regex("[*|%]");
+  const std::regex deprecated_host_name_characters_regex("[*|]");
 
   auto user_info_data = std::make_unique<UserNameInfo>();
 
@@ -106,13 +109,15 @@ std::unique_ptr<UserNameInfo> check_parse_user_name_host(
         return nullptr;
       }
 
-      if (std::regex_search(user_name_match.str(), deprecated_symbols_regex)) {
+      if (std::regex_search(user_name_match.str(),
+                            deprecated_account_name_characters_regex)) {
         std::snprintf(message, MYSQL_ERRMSG_SIZE,
                       "Wrong argument: bad user name format");
         return nullptr;
       }
 
-      if (std::regex_search(user_host_match.str(), deprecated_symbols_regex)) {
+      if (std::regex_search(user_host_match.str(),
+                            deprecated_host_name_characters_regex)) {
         std::snprintf(message, MYSQL_ERRMSG_SIZE,
                       "Wrong argument: bad host name format");
         return nullptr;

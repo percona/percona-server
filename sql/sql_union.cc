@@ -151,7 +151,6 @@ bool Query_result_union::flush() { return false; }
                             duplicates on insert
   @param options            create options
   @param table_alias        name of the temporary table
-  @param bit_fields_as_long convert bit fields to ulonglong
   @param create_table If false, a table handler will not be created when
                       creating the result table.
   @param op                 If we are creating a result table for a set
@@ -169,7 +168,7 @@ bool Query_result_union::flush() { return false; }
 bool Query_result_union::create_result_table(
     THD *thd_arg, const mem_root_deque<Item *> &column_types,
     bool is_union_distinct, ulonglong options, const char *table_alias,
-    bool bit_fields_as_long, bool create_table, Query_term_set_op *op) {
+    bool create_table, Query_term_set_op *op) {
   mem_root_deque<Item *> visible_fields(thd_arg->mem_root);
   for (Item *item : VisibleFields(column_types)) {
     visible_fields.push_back(item);
@@ -180,7 +179,6 @@ bool Query_result_union::create_result_table(
   count_field_types(thd_arg->lex->current_query_block(), &tmp_table_param,
                     visible_fields, false, true);
   tmp_table_param.skip_create_table = !create_table;
-  tmp_table_param.bit_fields_as_long = bit_fields_as_long;
   if (unit != nullptr && op == nullptr) {
     if (unit->is_recursive()) {
       /*
@@ -1392,6 +1390,8 @@ static void cleanup_tmp_tables(Table_ref *list) {
         // Clear indexes added during optimization, keep possible unique index
         TABLE *t = tl->table;
         t->s->keys = t->s->is_distinct ? 1 : 0;
+        t->s->key_parts =
+            t->s->is_distinct ? t->s->key_info[0].user_defined_key_parts : 0;
         t->s->first_unused_tmp_key = 0;
         t->keys_in_use_for_query.clear_all();
         t->keys_in_use_for_group_by.clear_all();

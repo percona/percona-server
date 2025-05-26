@@ -23,6 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// enable using Rapidjson library with std::string
+
 #include "classic_query_forwarder.h"
 
 #include <charconv>
@@ -35,7 +37,9 @@
 #include <system_error>
 #include <variant>
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
+#endif
 
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
@@ -52,6 +56,7 @@
 #include "implicit_commit_parser.h"
 #include "my_sys.h"  // get_charset_by_name
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/string_utils.h"  // ieq
 #include "mysql/harness/tls_error.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqld_error.h"  // mysql errors
@@ -106,16 +111,6 @@ std::string string_from_timepoint(
       // cast to long int as it is "longlong" on 32bit, and "long" on
       // 64bit platforms, but we only have a range of 0-999
       static_cast<long int>(usec.count()));
-}
-
-bool ieq(const std::string_view &a, const std::string_view &b) {
-  return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                    [](char lhs, char rhs) {
-                      auto ascii_tolower = [](char c) {
-                        return c >= 'A' && c <= 'Z' ? c | 0x20 : c;
-                      };
-                      return ascii_tolower(lhs) == ascii_tolower(rhs);
-                    });
 }
 
 #ifdef DEBUG_DUMP_TOKENS
@@ -876,11 +871,11 @@ stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
         -> stdx::expected<
             std::optional<ClientSideClassicProtocolState::AccessMode>,
             std::string> {
-      if (ieq(v, "read_write")) {
+      if (mysql_harness::ieq(v, "read_write")) {
         return ClientSideClassicProtocolState::AccessMode::ReadWrite;
-      } else if (ieq(v, "read_only")) {
+      } else if (mysql_harness::ieq(v, "read_only")) {
         return ClientSideClassicProtocolState::AccessMode::ReadOnly;
-      } else if (ieq(v, "auto")) {
+      } else if (mysql_harness::ieq(v, "auto")) {
         return std::nullopt;
       } else {
         return stdx::unexpected("Expected 'read_write', 'read_only' or 'auto'");
@@ -1212,12 +1207,12 @@ class InterceptedStatementsParser : public ShowWarningsParser {
         }
       }
     } else if (auto tkn = accept(IDENT)) {
-      if (ieq(tkn.text(), "router")) {       // ROUTER
-        if (accept(SET_SYM)) {               // SET
-          if (auto name_tkn = ident()) {     // <name>
-            if (accept(EQ)) {                // =
-              if (auto val = value()) {      // <value>
-                if (accept(END_OF_INPUT)) {  // $
+      if (mysql_harness::ieq(tkn.text(), "router")) {  // ROUTER
+        if (accept(SET_SYM)) {                         // SET
+          if (auto name_tkn = ident()) {               // <name>
+            if (accept(EQ)) {                          // =
+              if (auto val = value()) {                // <value>
+                if (accept(END_OF_INPUT)) {            // $
                   return ret_type{std::in_place,
                                   CommandRouterSet(name_tkn.text(), *val)};
                 } else {

@@ -51,9 +51,7 @@ const std::string kAlphaUpper = kHexUpper + "GHIJKLMNOPQRSTUVWXYZ";
 const std::string kAlpha = kAlphaLower + kAlphaUpper;
 const std::string kUnreserved = kAlpha + kDigit + "-" + "." + "_" + "~";
 const std::string kHexDigit = kDigit + kHexLower + kHexUpper;
-const std::string kGenDelims = ":/?#[]@";
 const std::string kSubDelims = "!$&'()*+,;=";
-const std::string kReserved = kGenDelims + kSubDelims;
 const std::string kPathCharNoPctEncoded = kUnreserved + kSubDelims + ":" + "@";
 const std::string kFragmentOrQuery = "/?";
 

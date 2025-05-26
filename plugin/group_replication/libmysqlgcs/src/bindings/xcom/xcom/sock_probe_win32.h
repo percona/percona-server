@@ -103,9 +103,9 @@ static int init_sock_probe(sock_probe *s) {
   while (curr_addresses) {
     PIP_ADAPTER_UNICAST_ADDRESS_LH curr_unicast_address;
 
-    IFDBG(D_TRANSPORT, STRLIT("Adapter status: ");
-          if (curr_addresses->OperStatus == IfOperStatusUp) STRLIT("UP");
-          else STRLIT("DOWN"););
+    XCOM_IFDBG(D_TRANSPORT, STRLIT("Adapter status: ");
+               if (curr_addresses->OperStatus == IfOperStatusUp) STRLIT("UP");
+               else STRLIT("DOWN"););
 
     curr_unicast_address = curr_addresses->FirstUnicastAddress;
     while (curr_unicast_address) {

@@ -316,8 +316,6 @@ struct Tablespace {
   @param[in]  id    tablespace id */
   explicit Tablespace(space_id_t id)
       : m_id(id),
-        m_num(undo::id2num(id)),
-        m_implicit(true),
         m_new(false),
         m_space_name(),
         m_file_name(),
@@ -329,8 +327,6 @@ struct Tablespace {
   @param[in]  other    undo tablespace to copy */
   Tablespace(Tablespace &other)
       : m_id(other.id()),
-        m_num(undo::id2num(other.id())),
-        m_implicit(other.is_implicit()),
         m_new(other.is_new()),
         m_space_name(),
         m_file_name(),
@@ -466,9 +462,9 @@ struct Tablespace {
   tablespaces use a space_id from the reserved range.
   @return undo tablespace number */
   space_id_t num() {
-    ut_ad(m_num < FSP_MAX_ROLLBACK_SEGMENTS);
-
-    return (m_num);
+    const auto n = undo::id2num(m_id);
+    ut_ad(n < FSP_MAX_ROLLBACK_SEGMENTS);
+    return n;
   }
 
   /** Get a reference to the List of rollback segments within
@@ -479,11 +475,7 @@ struct Tablespace {
   /** Report whether this undo tablespace was explicitly created
   by an SQL statement.
   @return true if the tablespace was created explicitly. */
-  bool is_explicit() { return (!m_implicit); }
-
-  /** Report whether this undo tablespace was implicitly created.
-  @return true if the tablespace was created implicitly. */
-  bool is_implicit() { return (m_implicit); }
+  bool is_explicit() { return num() > FSP_IMPLICIT_UNDO_TABLESPACES; }
 
   /** Report whether this undo tablespace was created at startup.
   @retval true if created at startup.
@@ -627,14 +619,6 @@ struct Tablespace {
  private:
   /** Undo Tablespace ID. */
   space_id_t m_id;
-
-  /** Undo Tablespace number, from 1 to 127. This is the
-  7-bit number that is used in a rollback pointer.
-  Use id2num() to get this number from a space_id. */
-  space_id_t m_num;
-
-  /** True if this is an implicit undo tablespace */
-  bool m_implicit;
 
   /** True if this undo tablespace was implicitly created when
   this instance started up. False if it pre-existed. */

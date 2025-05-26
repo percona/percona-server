@@ -47,7 +47,7 @@ node_set bit_set_to_node_set(bit_set *set, u_int n) {
   alloc_node_set(&new_set, n);
   {
     u_int i;
-    IFDBG(D_NONE, FN; STRLIT("bit_set_to_node_set "); dbg_bitset(set, n););
+    XCOM_IFDBG(D_NONE, FN; STRLIT("bit_set_to_node_set "); dbg_bitset(set, n););
     for (i = 0; i < n; i++) {
       new_set.node_set_val[i] = BIT_ISSET(i, set);
     }

@@ -168,9 +168,8 @@
 #define SET_FLAG 2048              /**< field is a set */
 #define NO_DEFAULT_VALUE_FLAG 4096 /**< Field doesn't have default value */
 #define ON_UPDATE_NOW_FLAG 8192    /**< Field is set to NOW on UPDATE */
-#define NUM_FLAG 32768             /**< Field is num (for clients) */
 #define PART_KEY_FLAG 16384        /**< Intern; Part of some key */
-#define GROUP_FLAG 32768           /**< Intern: Group field */
+#define NUM_FLAG 32768             /**< Field is num (for clients) */
 #define UNIQUE_FLAG 65536          /**< Intern: Used by sql_yacc */
 #define BINCMP_FLAG 131072         /**< Intern: Used by sql_yacc */
 #define GET_FIXED_FIELDS_FLAG                                                  \
@@ -191,7 +190,9 @@
 #define EXPLICIT_NULL_FLAG                        \
   (1 << 27) /**< Field is explicitly specified as \
                NULL by the user */
-/* 1 << 28 is unused. */
+#define GROUP_FLAG                                     \
+  (1 << 28) /**< Intern: Group field. Transient use in \
+                 create_tmp_table */
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)

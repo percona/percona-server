@@ -301,23 +301,23 @@ b	i421	l421
 b	m422	p422
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
+-> Filter: (t1.a1 < 'd')  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=16)
+-> Filter: (t1.a1 >= 'b')  (rows=13)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=13)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=16)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=13)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=13)
 
 explain format=tree select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=16)
+-> Filter: ((t1.a1 >= 'c') or (t1.a1 < 'b'))  (rows=13)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=13)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
@@ -326,58 +326,58 @@ EXPLAIN
 
 explain format=tree select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=16)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=9)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=16)
+-> Filter: ((t1.a1 = 'z') or (t1.a1 = 'b') or (t1.a1 = 'd'))  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=9)
 
 explain format=tree select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=16)
+-> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=9)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=16)
+-> Filter: ((t1.a2 > 'a') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=9)
 
 explain format=tree select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 >= 'b')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=16)
+-> Filter: (t1.a1 >= 'b')  (rows=13)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over ('b' <= a1)  (rows=13)
 
 explain format=tree select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 in ('a','b','d'))  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=16)
+-> Filter: (t1.a1 in ('a','b','d'))  (rows=13)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=13)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=32.8)
+-> Filter: (t2.a1 < 'd')  (rows=21)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=21)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 < 'd')  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=32.8)
+-> Filter: (t2.a1 < 'd')  (rows=21)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'd')  (rows=21)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=32.8)
+-> Filter: (t2.a1 >= 'b')  (rows=24)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=24)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=32.8)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=26)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=26)
 
 explain format=tree select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=32.8)
+-> Filter: ((t2.a1 >= 'c') or (t2.a1 < 'b'))  (rows=26)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (NULL < a1 < 'b') OR ('c' <= a1)  (rows=26)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
 EXPLAIN
@@ -386,33 +386,33 @@ EXPLAIN
 
 explain format=tree select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=32.8)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=13)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=13)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=32.8)
+-> Filter: ((t2.a1 = 'z') or (t2.a1 = 'b') or (t2.a1 = 'd'))  (rows=13)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'b') OR (a1 = 'd') OR (a1 = 'z')  (rows=13)
 
 explain format=tree select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=32.8)
+-> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=12)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=12)
 
 explain format=tree select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=32.8)
+-> Filter: ((t2.a2 > 'a') and ((t2.a1 = 'b') or (t2.a1 = 'd') or (t2.a1 = 'a') or (t2.a1 = 'c')))  (rows=12)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a' AND 'a' < a2) OR (a1 = 'b' AND 'a' < a2) OR (2 more)  (rows=12)
 
 explain format=tree select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 >= 'b')  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=32.8)
+-> Filter: (t2.a1 >= 'b')  (rows=24)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over ('b' <= a1)  (rows=24)
 
 explain format=tree select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 EXPLAIN
--> Filter: (t2.a1 in ('a','b','d'))  (rows=32.8)
-    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=32.8)
+-> Filter: (t2.a1 in ('a','b','d'))  (rows=21)
+    -> Covering index skip scan for grouping on t2 using idx_t2_1 over (a1 = 'a') OR (a1 = 'b') OR (a1 = 'd')  (rows=21)
 
 select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 a1	a2	b	min(c)	max(c)
@@ -1516,8 +1516,8 @@ explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 EXPLAIN
--> Table scan on <temporary>  (rows=16)
-    -> Aggregate using temporary table  (rows=16)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
+    -> Sort: t1.a1, t1.a2, t1.b  (rows=128)
         -> Hash semijoin (FirstMatch) (t1.c = t2.c)  (rows=128)
             -> Covering index scan on t1 using idx_t1_1  (rows=128)
             -> Hash
@@ -1529,8 +1529,8 @@ explain format=tree select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 EXPLAIN
--> Table scan on <temporary>  (rows=16)
-    -> Aggregate using temporary table  (rows=16)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
+    -> Sort: t1.a1, t1.a2, t1.b  (rows=128)
         -> Nested loop inner join (FirstMatch)  (rows=128)
             -> Limit: 1 row(s)  (rows=1)
                 -> Filter: (t2.c > 'b1')  (rows=54.7)
@@ -1797,7 +1797,7 @@ EXPLAIN
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32.8)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32)
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 EXPLAIN
@@ -1961,7 +1961,7 @@ EXPLAIN
 
 explain format=tree select sql_big_result distinct a1,a2,b from t2;
 EXPLAIN
--> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32.8)
+-> Covering index skip scan for deduplication on t2 using idx_t2_1  (rows=32)
 
 explain format=tree select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 EXPLAIN
@@ -2099,23 +2099,23 @@ select 98 + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
 104
 explain format=tree select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
+-> Filter: (t1.a1 < 'd')  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
 
 explain format=tree select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
+-> Filter: (t1.a1 < 'd')  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
 
 explain format=tree select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
+-> Filter: (t1.a1 < 'd')  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
 
 explain format=tree select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
 EXPLAIN
--> Filter: (t1.a1 < 'd')  (rows=16)
-    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=16)
+-> Filter: (t1.a1 < 'd')  (rows=3)
+    -> Covering index skip scan for grouping on t1 using idx_t1_1 over (NULL < a1 < 'd')  (rows=9)
 
 explain format=tree select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 EXPLAIN
@@ -2189,8 +2189,8 @@ concat(ord(min(b)),ord(max(b)))	min(b)	max(b)
 9798	a	b
 explain format=tree select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 EXPLAIN
--> Table scan on <temporary>  (rows=16)
-    -> Aggregate using temporary table  (rows=16)
+-> Group aggregate: min(t1.c), max(t1.c)  (rows=16)
+    -> Sort: t1.a1, t1.a2, t1.b  (rows=128)
         -> Table scan on t1  (rows=128)
 
 explain format=tree select a1,a2,b,d from t1 group by a1,a2,b;
@@ -2217,8 +2217,8 @@ EXPLAIN
 explain format=tree select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
 EXPLAIN
--> Table scan on <temporary>  (rows=25.3)
-    -> Temporary table with deduplication  (rows=25.3)
+-> Group (no aggregates)  (rows=25.3)
+    -> Sort: t1.a1, t1.a2, t1.b, t1.c  (rows=25.3)
         -> Filter: ((t1.a2 > 'a') and (t1.d > 'xy2') and ((t1.a1 = 'b') or (t1.a1 = 'd') or (t1.a1 = 'a') or (t1.a1 = 'c')))  (rows=25.3)
             -> Table scan on t1  (rows=128)
 
@@ -2689,7 +2689,7 @@ INSERT INTO t1 VALUES
 (4), (2), (1), (2), (2), (4), (1), (4);
 EXPLAIN FORMAT=TREE SELECT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (rows=4.9)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=3.16)
 
 SELECT DISTINCT(a) FROM t1;
 a
@@ -2698,7 +2698,7 @@ a
 4
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using idx  (rows=4.9)
+-> Covering index skip scan for deduplication on t1 using idx  (rows=3.16)
 
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 a
@@ -4457,6 +4457,967 @@ ON ra0.k IN (SELECT COUNT(ra0.k) FROM t1);
 k	k
 1	1
 DROP TABLE t1;
+#
+# Bug#35842412 WHERE NOT IN with subquery is much slower on 8.1 than 5.7
+#
+CREATE TABLE t1( b_id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+val VARCHAR(100) NOT NULL, val_n VARCHAR(100),
+KEY ix_val (val, b_id), KEY ix_val_n (val_n, b_id));
+CREATE TABLE t2( a_id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+val VARCHAR(100) NOT NULL, val_n VARCHAR(100),
+UNIQUE KEY ix_val (val), UNIQUE KEY ix_val_n (val_n));
+INSERT INTO t1(val, val_n)
+WITH RECURSIVE DataSource(num, c1, c2) AS (
+SELECT 1, lpad(1,25,'0'), lpad(1,25,'0')
+UNION ALL
+SELECT num + 1, lpad(mod(num+1,30),25,'0'),
+lpad(ELT(num%400 != 0, mod(num+1,30)), 25, '0')
+FROM DataSource
+WHERE num < 1000
+)
+SELECT c1, c2 from DataSource;
+INSERT INTO t2(val, val_n)
+WITH RECURSIVE DataSource(num, c1, c2) AS (
+SELECT 1, lpad(1,25,'0'), lpad(1,25,'0')
+UNION ALL
+SELECT num + 1, lpad(num+1,25,'0'), lpad(ELT(num%13 != 0, num+1), 25, '0')
+FROM DataSource
+WHERE num < 30
+)
+SELECT c1, c2 from DataSource;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	OK
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val);
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT val FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE val IN (SELECT val FROM t2);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+SELECT DISTINCT val FROM t1 WHERE val IN (SELECT val FROM t2);
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE val IN
+(SELECT val FROM t2 WHERE t2.val = t1.val);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val FROM t1 WHERE val IN
+(SELECT val FROM t2 WHERE t2.val = t1.val);
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE val IN (SELECT val FROM t2 ) GROUP BY val;
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+SELECT val FROM t1 WHERE val IN (SELECT val FROM t2 ) GROUP BY val;
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE val IN
+(SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT val FROM t1 WHERE val IN
+(SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+val
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd');
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Single-row covering index lookup on t2 using ix_val (val = 'asd')  (rows=1)
+
+SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd');
+val
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd' ) GROUP BY val;
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Single-row covering index lookup on t2 using ix_val (val = 'asd')  (rows=1)
+
+SELECT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd' ) GROUP BY val;
+val
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE val NOT IN (SELECT val FROM t2);
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+SELECT DISTINCT val FROM t1 WHERE val NOT IN (SELECT val FROM t2);
+val
+0000000000000000000000000
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 WHERE t2.val = t1.val);
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 WHERE t2.val = t1.val);
+val
+0000000000000000000000000
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 ) GROUP BY val;
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+SELECT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 ) GROUP BY val;
+val
+0000000000000000000000000
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT val FROM t1 WHERE val NOT IN
+(SELECT val FROM t2 WHERE t2.val = t1.val ) GROUP BY val;
+val
+0000000000000000000000000
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val);
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val);
+val
+0000000000000000000000000
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=1.73)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+    -> Hash
+        -> Covering index scan on t2 using ix_val  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val' of SELECT #2 was resolved in SELECT #1
+SELECT val FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val = t1.val) GROUP BY val;
+val
+0000000000000000000000000
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE EXISTS (SELECT * FROM t2);
+EXPLAIN
+-> Nested loop inner join (FirstMatch)  (rows=30)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Covering index scan on t2 using PRIMARY  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+
+SELECT DISTINCT val FROM t1 WHERE EXISTS (SELECT * FROM t2);
+val
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE EXISTS (SELECT * FROM t2) GROUP BY val;
+EXPLAIN
+-> Nested loop inner join (FirstMatch)  (rows=30)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Covering index scan on t2 using PRIMARY  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
+
+SELECT val FROM t1 WHERE EXISTS (SELECT * FROM t2) GROUP BY val;
+val
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+# Uses group skip scan with aggregate functions since "t2" is a const
+# table. Hypergraph optimizer does not support const table optimization.
+# So the plan chosen is different.
+EXPLAIN FORMAT=TREE SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd') GROUP BY val;
+EXPLAIN
+-> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=30.3)
+    -> Filter: exists(select #2) is false  (rows=1000)
+        -> Covering index scan on t1 using ix_val  (rows=1000)
+        -> Select #2 (subquery in condition; run only once)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Single-row covering index lookup on t2 using ix_val (val = 'asd')  (rows=1)
+
+SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val = 'asd') GROUP BY val;
+val	MIN(b_id)	MAX(b_id)
+0000000000000000000000000	30	990
+0000000000000000000000001	1	991
+0000000000000000000000002	2	992
+0000000000000000000000003	3	993
+0000000000000000000000004	4	994
+0000000000000000000000005	5	995
+0000000000000000000000006	6	996
+0000000000000000000000007	7	997
+0000000000000000000000008	8	998
+0000000000000000000000009	9	999
+0000000000000000000000010	10	1000
+0000000000000000000000011	11	971
+0000000000000000000000012	12	972
+0000000000000000000000013	13	973
+0000000000000000000000014	14	974
+0000000000000000000000015	15	975
+0000000000000000000000016	16	976
+0000000000000000000000017	17	977
+0000000000000000000000018	18	978
+0000000000000000000000019	19	979
+0000000000000000000000020	20	980
+0000000000000000000000021	21	981
+0000000000000000000000022	22	982
+0000000000000000000000023	23	983
+0000000000000000000000024	24	984
+0000000000000000000000025	25	985
+0000000000000000000000026	26	986
+0000000000000000000000027	27	987
+0000000000000000000000028	28	988
+0000000000000000000000029	29	989
+# Should not use group skip scan on t1. Group skip scan is not supported
+# on multi-table queries with aggregate functions.
+EXPLAIN FORMAT=TREE SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE val
+NOT IN (SELECT val FROM t2) GROUP BY val;
+EXPLAIN
+-> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=30.3)
+    -> Sort: t1.val  (rows=100)
+        -> Hash antijoin (<hash>(t1.val)=<hash>(t2.val)), extra conditions: (t1.val = t2.val)  (rows=100)
+            -> Covering index scan on t1 using ix_val  (rows=1000)
+            -> Hash
+                -> Covering index scan on t2 using ix_val  (rows=30)
+
+SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE val
+NOT IN (SELECT val FROM t2) GROUP BY val;
+val	MIN(b_id)	MAX(b_id)
+0000000000000000000000000	30	990
+EXPLAIN FORMAT=TREE SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+(SELECT * FROM t2) GROUP BY val;
+EXPLAIN
+-> Table scan on <temporary>  (rows=30.3)
+    -> Aggregate using temporary table  (rows=30.3)
+        -> Nested loop inner join (FirstMatch)  (rows=1000)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Covering index scan on t2 using PRIMARY  (rows=30)
+            -> Covering index scan on t1 using ix_val  (rows=1000)
+
+SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+(SELECT * FROM t2) GROUP BY val;
+val	MIN(b_id)	MAX(b_id)
+0000000000000000000000000	30	990
+0000000000000000000000001	1	991
+0000000000000000000000002	2	992
+0000000000000000000000003	3	993
+0000000000000000000000004	4	994
+0000000000000000000000005	5	995
+0000000000000000000000006	6	996
+0000000000000000000000007	7	997
+0000000000000000000000008	8	998
+0000000000000000000000009	9	999
+0000000000000000000000010	10	1000
+0000000000000000000000011	11	971
+0000000000000000000000012	12	972
+0000000000000000000000013	13	973
+0000000000000000000000014	14	974
+0000000000000000000000015	15	975
+0000000000000000000000016	16	976
+0000000000000000000000017	17	977
+0000000000000000000000018	18	978
+0000000000000000000000019	19	979
+0000000000000000000000020	20	980
+0000000000000000000000021	21	981
+0000000000000000000000022	22	982
+0000000000000000000000023	23	983
+0000000000000000000000024	24	984
+0000000000000000000000025	25	985
+0000000000000000000000026	26	986
+0000000000000000000000027	27	987
+0000000000000000000000028	28	988
+0000000000000000000000029	29	989
+# Cover nullable column scenarios
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val_n)=<hash>(t2.val_n)), extra conditions: (t1.val_n = t2.val_n)  (rows=32)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Hash
+        -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val_n FROM t1 WHERE EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+val_n
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE val_n IN (SELECT val_n FROM t2);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (<hash>(t1.val_n)=<hash>(t2.val_n)), extra conditions: (t1.val_n = t2.val_n)  (rows=32)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Hash
+        -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+SELECT DISTINCT val_n FROM t1 WHERE val_n IN (SELECT val_n FROM t2);
+val_n
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000028
+0000000000000000000000029
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val_n = 'asd');
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=32)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Select #2 (subquery in condition; run only once)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Single-row covering index lookup on t2 using ix_val_n (val_n = 'asd')  (rows=1)
+
+SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val_n = 'asd');
+val_n
+NULL
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+(SELECT val_n FROM t2);
+EXPLAIN
+-> Filter: <in_optimizer>(t1.val_n,<exists>(select #2) is false)  (rows=32)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.val_n) = t2.val_n) or (t2.val_n is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(t2.val_n), true))  (rows=30)
+            -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+(SELECT val_n FROM t2);
+val_n
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+(SELECT val_n FROM t2 WHERE t2.val_n = t1.val_n);
+EXPLAIN
+-> Filter: <in_optimizer>(t1.val_n,<exists>(select #2) is false)  (rows=32)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.val_n) = t2.val_n) or (t2.val_n is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(t2.val_n), true))  (rows=1)
+            -> Single-row covering index lookup on t2 using ix_val_n (val_n = t1.val_n)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val_n FROM t1 WHERE val_n NOT IN
+(SELECT val_n FROM t2 WHERE t2.val_n = t1.val_n);
+val_n
+NULL
+0000000000000000000000000
+0000000000000000000000014
+0000000000000000000000027
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val_n)=<hash>(t2.val_n)), extra conditions: (t1.val_n = t2.val_n)  (rows=1.79)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Hash
+        -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n);
+val_n
+NULL
+0000000000000000000000000
+0000000000000000000000014
+0000000000000000000000027
+EXPLAIN FORMAT=TREE SELECT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n) GROUP BY val_n;
+EXPLAIN
+-> Hash antijoin (<hash>(t1.val_n)=<hash>(t2.val_n)), extra conditions: (t1.val_n = t2.val_n)  (rows=1.79)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+    -> Hash
+        -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.val_n' of SELECT #2 was resolved in SELECT #1
+SELECT val_n FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE t2.val_n = t1.val_n) GROUP BY val_n;
+val_n
+NULL
+0000000000000000000000000
+0000000000000000000000014
+0000000000000000000000027
+# Should use group skip scan on t1
+EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE EXISTS (SELECT * FROM t2);
+EXPLAIN
+-> Nested loop inner join (FirstMatch)  (rows=32)
+    -> Limit: 1 row(s)  (rows=1)
+        -> Covering index scan on t2 using PRIMARY  (rows=30)
+    -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
+
+SELECT DISTINCT val_n FROM t1 WHERE EXISTS (SELECT * FROM t2);
+val_n
+NULL
+0000000000000000000000000
+0000000000000000000000001
+0000000000000000000000002
+0000000000000000000000003
+0000000000000000000000004
+0000000000000000000000005
+0000000000000000000000006
+0000000000000000000000007
+0000000000000000000000008
+0000000000000000000000009
+0000000000000000000000010
+0000000000000000000000011
+0000000000000000000000012
+0000000000000000000000013
+0000000000000000000000014
+0000000000000000000000015
+0000000000000000000000016
+0000000000000000000000017
+0000000000000000000000018
+0000000000000000000000019
+0000000000000000000000020
+0000000000000000000000021
+0000000000000000000000022
+0000000000000000000000023
+0000000000000000000000024
+0000000000000000000000025
+0000000000000000000000026
+0000000000000000000000027
+0000000000000000000000028
+0000000000000000000000029
+# Uses group skip scan with aggregate functions since "t2" is a const
+# table. Hypergraph optimizer does not support const table optimization.
+# So the plan chosen is different.
+EXPLAIN FORMAT=TREE SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val_n = 'asd') GROUP BY val_n;
+EXPLAIN
+-> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=32.3)
+    -> Filter: exists(select #2) is false  (rows=1000)
+        -> Covering index scan on t1 using ix_val_n  (rows=1000)
+        -> Select #2 (subquery in condition; run only once)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Single-row covering index lookup on t2 using ix_val_n (val_n = 'asd')  (rows=1)
+
+SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
+(SELECT * FROM t2 WHERE val_n = 'asd') GROUP BY val_n;
+val_n	MIN(b_id)	MAX(b_id)
+NULL	401	801
+0000000000000000000000000	30	990
+0000000000000000000000001	1	991
+0000000000000000000000002	2	992
+0000000000000000000000003	3	993
+0000000000000000000000004	4	994
+0000000000000000000000005	5	995
+0000000000000000000000006	6	996
+0000000000000000000000007	7	997
+0000000000000000000000008	8	998
+0000000000000000000000009	9	999
+0000000000000000000000010	10	1000
+0000000000000000000000011	11	971
+0000000000000000000000012	12	972
+0000000000000000000000013	13	973
+0000000000000000000000014	14	974
+0000000000000000000000015	15	975
+0000000000000000000000016	16	976
+0000000000000000000000017	17	977
+0000000000000000000000018	18	978
+0000000000000000000000019	19	979
+0000000000000000000000020	20	980
+0000000000000000000000021	21	981
+0000000000000000000000022	22	982
+0000000000000000000000023	23	983
+0000000000000000000000024	24	984
+0000000000000000000000025	25	985
+0000000000000000000000026	26	986
+0000000000000000000000027	27	987
+0000000000000000000000028	28	988
+0000000000000000000000029	29	989
+# Should not use group skip scan on t1. Group skip scan is not supported
+# on multi-table queries with aggregate functions.
+EXPLAIN FORMAT=TREE SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE val_n
+NOT IN (SELECT val_n FROM t2) GROUP BY val_n;
+EXPLAIN
+-> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=32.3)
+    -> Filter: <in_optimizer>(t1.val_n,t1.val_n in (select #2) is false)  (rows=1000)
+        -> Covering index scan on t1 using ix_val_n  (rows=1000)
+        -> Select #2 (subquery in condition; run only once)
+            -> Filter: ((t1.val_n = `<materialized_subquery>`.val_n))  (rows=1)
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Index lookup on <materialized_subquery> using <auto_distinct_key> (val_n = t1.val_n)
+                        -> Materialize with deduplication  (rows=30)
+                            -> Covering index scan on t2 using ix_val_n  (rows=30)
+
+SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE val_n
+NOT IN (SELECT val_n FROM t2) GROUP BY val_n;
+val_n	MIN(b_id)	MAX(b_id)
+EXPLAIN FORMAT=TREE SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+(SELECT * FROM t2) GROUP BY val_n;
+EXPLAIN
+-> Table scan on <temporary>  (rows=32.3)
+    -> Aggregate using temporary table  (rows=32.3)
+        -> Nested loop inner join (FirstMatch)  (rows=1000)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Covering index scan on t2 using PRIMARY  (rows=30)
+            -> Covering index scan on t1 using ix_val_n  (rows=1000)
+
+SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE EXISTS
+(SELECT * FROM t2) GROUP BY val_n;
+val_n	MIN(b_id)	MAX(b_id)
+NULL	401	801
+0000000000000000000000000	30	990
+0000000000000000000000001	1	991
+0000000000000000000000002	2	992
+0000000000000000000000003	3	993
+0000000000000000000000004	4	994
+0000000000000000000000005	5	995
+0000000000000000000000006	6	996
+0000000000000000000000007	7	997
+0000000000000000000000008	8	998
+0000000000000000000000009	9	999
+0000000000000000000000010	10	1000
+0000000000000000000000011	11	971
+0000000000000000000000012	12	972
+0000000000000000000000013	13	973
+0000000000000000000000014	14	974
+0000000000000000000000015	15	975
+0000000000000000000000016	16	976
+0000000000000000000000017	17	977
+0000000000000000000000018	18	978
+0000000000000000000000019	19	979
+0000000000000000000000020	20	980
+0000000000000000000000021	21	981
+0000000000000000000000022	22	982
+0000000000000000000000023	23	983
+0000000000000000000000024	24	984
+0000000000000000000000025	25	985
+0000000000000000000000026	26	986
+0000000000000000000000027	27	987
+0000000000000000000000028	28	988
+0000000000000000000000029	29	989
+DROP TABLE t1, t2;
 CREATE TABLE t(a INT, b INT, c INT, KEY k1 (a,b));
 INSERT INTO t(a,b) VALUES (1,1),(1,2),(1,3),(2,1),(2,2),(2,2),(2,2),(2,3),(2,3),(2,4);
 ANALYZE TABLE t;

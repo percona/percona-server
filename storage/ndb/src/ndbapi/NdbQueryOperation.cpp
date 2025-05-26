@@ -982,8 +982,16 @@ void NdbResultStream::prepare() {
       reinterpret_cast<char *>(query.getRowBufferAlloc().allocObjMem(rowSize));
   assert(rowBuffer != nullptr);
 
+  auto rec = m_operation.getNdbRecord();
+  char *rowSideBuffer = rowBuffer;
+  Uint32 rowSideBufferSize = 0;
+  if (rec) {
+    rowSideBuffer = rowBuffer + rec->m_row_size;
+    rowSideBufferSize = rec->m_row_side_buffer_size;
+  }
   m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, &m_operation);
   m_receiver.do_setup_ndbrecord(m_operation.getNdbRecord(), rowBuffer,
+                                rowSideBuffer, rowSideBufferSize,
                                 m_operation.needRangeNo(),
                                 /*read_key_info=*/false);
 }  // NdbResultStream::prepare
@@ -2594,7 +2602,7 @@ NdbQueryImpl::FetchResult NdbQueryImpl::awaitMoreResults(bool forceSend) {
         else if (likely(waitResult == FetchResult_ok))
           continue;
         else if (waitResult == FetchResult_timeOut)
-          setFetchTerminated(Err_ReceiveTimedOut, false);
+          setFetchTerminated(Err_ReceiveTimedOut, true);
         else
           setFetchTerminated(Err_NodeFailCausedAbort, false);
 
@@ -3517,6 +3525,7 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
   const Uint32 timeout = ndb->get_waitfor_timeout();
   const Uint32 nodeId = m_transaction.getConnectedNodeId();
   const Uint32 seq = m_transaction.theNodeSequence;
+  bool timeoutCase = (m_error.code == Err_ReceiveTimedOut);
 
   /* This part needs to be done under mutex due to synchronization with
    * receiver thread.
@@ -3536,9 +3545,10 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
     if (unlikely(ndb->getNodeSequence(nodeId) != seq))
       setFetchTerminated(Err_NodeFailCausedAbort, false);
     else if (unlikely(result != FetchResult_ok)) {
-      if (result == FetchResult_timeOut)
-        setFetchTerminated(Err_ReceiveTimedOut, false);
-      else
+      if (result == FetchResult_timeOut) {
+        setFetchTerminated(Err_ReceiveTimedOut, true);
+        timeoutCase = true;
+      } else
         setFetchTerminated(Err_NodeFailCausedAbort, false);
     }
     if (hasReceivedError()) {
@@ -3567,9 +3577,14 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
       if (unlikely(ndb->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort, false);
       else if (unlikely(result != FetchResult_ok)) {
-        if (result == FetchResult_timeOut)
-          setFetchTerminated(Err_ReceiveTimedOut, false);
-        else
+        if (result == FetchResult_timeOut) {
+          setFetchTerminated(Err_ReceiveTimedOut, true);
+          g_eventLogger->info(
+              "NdbQueryOperation :: closeTcCursor() 4008 scan close failed");
+          /* Kernel ApiConnectRecord in unknown state, cannot use it */
+          /* Still connected, so request TC to release */
+          m_scanTransaction->theForceReleaseOnClose = true;
+        } else
           setFetchTerminated(Err_NodeFailCausedAbort, false);
       }
       if (hasReceivedError()) {
@@ -3577,6 +3592,12 @@ int NdbQueryImpl::closeTcCursor(bool forceSend) {
       }
     }  // while
   }    // if
+
+  if (unlikely(timeoutCase && (m_error.code == 0))) {
+    g_eventLogger->info(
+        "NdbQueryOperation :: closeTcCursor() Successfully closed scan after "
+        "timeout");
+  }
 
   return 0;
 }  // NdbQueryImpl::closeTcCursor
@@ -4266,7 +4287,8 @@ int NdbQueryOperationImpl::fetchRow(NdbResultStream &resultStream) {
       assert(m_resultBuffer != nullptr);
       if (unlikely(m_resultBuffer == nullptr)) return -1;
       // Copy result to buffer supplied by application.
-      memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
+      memcpy(m_resultBuffer, buff,
+             m_ndbRecord->m_row_size + m_ndbRecord->m_row_side_buffer_size);
     }
   }
   return 0;

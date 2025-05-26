@@ -51,9 +51,12 @@ DEFINE_METHOD(int, compare_keys,
               (const Column_mysql &key1, const Column_mysql &key2,
                const Column_meta &col_meta));
 
-DEFINE_METHOD(bool, get_row_metadata,
+DEFINE_METHOD(bool, get_row_metadata_all,
               (THD * thd, const TABLE *table, bool have_key,
-               Row_meta &metadata));
+               std::vector<Row_meta> &row_meta_all));
+
+DEFINE_METHOD(bool, get_table_metadata,
+              (THD * thd, const TABLE *table, Table_meta &table_meta));
 
 }  // namespace Bulk_data_convert
 
@@ -62,6 +65,11 @@ namespace Bulk_data_load {
 DEFINE_METHOD(void *, begin,
               (THD * thd, const TABLE *table, size_t data_size, size_t memory,
                size_t num_threads));
+
+/* Load data to an index. */
+DEFINE_METHOD(void *, begin,
+              (THD * thd, const TABLE *table, size_t nth_key, size_t data_size,
+               size_t memory, size_t num_threads));
 
 DEFINE_METHOD(bool, load,
               (THD * thd, void *ctx, const TABLE *table,

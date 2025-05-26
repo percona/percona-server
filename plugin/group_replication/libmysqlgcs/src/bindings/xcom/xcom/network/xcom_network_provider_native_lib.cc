@@ -1,5 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights
-reserved.
+/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,10 +48,10 @@ static inline void dump_error(int err) {
   if (err) {
 #ifndef XCOM_WITHOUT_OPENSSL
     if (is_ssl_err(err)) {
-      IFDBG(D_BUG, FN; NDBG(from_ssl_err(err), d));
+      XCOM_IFDBG(D_BUG, FN; NDBG(from_ssl_err(err), d));
     } else {
 #endif
-      IFDBG(D_BUG, FN; NDBG(from_errno(err), d); STREXP(strerror(err)));
+      XCOM_IFDBG(D_BUG, FN; NDBG(from_errno(err), d); STREXP(strerror(err)));
 #ifndef XCOM_WITHOUT_OPENSSL
     }
 #endif

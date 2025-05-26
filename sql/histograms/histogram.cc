@@ -1253,8 +1253,9 @@ static bool is_using_data(const HistogramSetting &setting) {
   @param table            Opened table.
   @param[in,out] settings Dynamic array of settings for histograms to update.
   @param results          A container for diagnostics information to the user.
+  @return True on error.
 */
-static void resolve_histogram_fields(THD *thd, TABLE *table,
+static bool resolve_histogram_fields(THD *thd, TABLE *table,
                                      Mem_root_array<HistogramSetting> *settings,
                                      results_map &results) {
   bitmap_clear_all(table->write_set);
@@ -1316,7 +1317,9 @@ static void resolve_histogram_fields(THD *thd, TABLE *table,
     }
     ++i;
   }
-  settings->resize(j);
+  if (settings->resize(j)) {
+    return true;
+  }
 
   // We should only have a single column for UPDATE HISTOGRAM USING DATA.
   if (std::any_of(settings->begin(), settings->end(), is_using_data)) {
@@ -1325,6 +1328,7 @@ static void resolve_histogram_fields(THD *thd, TABLE *table,
       settings->clear();
     }
   }
+  return false;
 }
 
 /**
@@ -1414,7 +1418,9 @@ bool update_histograms(THD *thd, Table_ref *table,
   assert(table->table != nullptr);
   TABLE *tbl = table->table;
 
-  resolve_histogram_fields(thd, tbl, settings, results);
+  if (resolve_histogram_fields(thd, tbl, settings, results)) {
+    return true;
+  }
   if (settings->empty()) return false;
 
   // UPDATE HISTOGRAM ... USING DATA.

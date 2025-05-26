@@ -74,10 +74,26 @@ using std::swap;
 /**
   Helper for CollectFunctionalDependenciesFromPredicates(); also used for
   non-equijoin predicates in CollectFunctionalDependenciesFromJoins().
+
+  @param thd Current thread.
+  @param condition The condition to analyze.
+  @param always_active Whether the functional dependencies are active in the
+  entire join tree. Functional dependencies from table filters are considered
+  always active, whereas join predicates are only active after the join has been
+  performed.
+  @param possibly_null_complemented_later If this is true, the condition is
+  applied in some part of the join tree that is inner to an outer join, and the
+  referenced tables might get NULL-complemented by that outer join. In these
+  cases, don't collect functional dependencies from the condition if they don't
+  hold in NULL-complemented rows.
+  @param orderings The logical orderings.
+
+  @return The index of the collected functional dependency, or -1 if no
+  functional dependency was collected.
  */
-static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
-                                                bool always_active,
-                                                LogicalOrderings *orderings) {
+static int AddFunctionalDependencyFromCondition(
+    THD *thd, Item *condition, bool always_active,
+    bool possibly_null_complemented_later, LogicalOrderings *orderings) {
   if (condition->type() != Item::FUNC_ITEM) {
     return -1;
   }
@@ -112,6 +128,15 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
   }
   if (equality_determines_uniqueness(eq, left, right)) {
     // item = const.
+
+    if (possibly_null_complemented_later) {
+      // If the columns referenced by "item" can be NULL-complemented, we cannot
+      // say that "item" has a unique value, as it could be either "const" or
+      // NULL.
+      return -1;
+    }
+
+    // Add the functional dependency {} -> item.
     FunctionalDependency fd;
     fd.type = FunctionalDependency::FD;
     fd.head = Bounds_checked_array<ItemHandle>();
@@ -168,16 +193,20 @@ static void CollectFunctionalDependenciesFromJoins(
     pred.functional_dependencies_idx.init(thd->mem_root);
     pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size() +
                                              expr->join_conditions.size());
+    const bool inner_to_outer_join =
+        IsSubset(expr->nodes_in_subtree, graph->nodes_inner_to_outer_join);
     for (Item_eq_base *join_condition : expr->equijoin_conditions) {
       int fd_idx = AddFunctionalDependencyFromCondition(
-          thd, join_condition, /*always_active=*/false, orderings);
+          thd, join_condition, /*always_active=*/false, inner_to_outer_join,
+          orderings);
       if (fd_idx != -1) {
         pred.functional_dependencies_idx.push_back(fd_idx);
       }
     }
     for (Item *join_condition : expr->join_conditions) {
       int fd_idx = AddFunctionalDependencyFromCondition(
-          thd, join_condition, /*always_active=*/false, orderings);
+          thd, join_condition, /*always_active=*/false, inner_to_outer_join,
+          orderings);
       if (fd_idx != -1) {
         pred.functional_dependencies_idx.push_back(fd_idx);
       }
@@ -204,8 +233,9 @@ static void CollectFunctionalDependenciesFromPredicates(
     bool always_active =
         !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
         has_single_bit(pred.total_eligibility_set);
-    int fd_idx = AddFunctionalDependencyFromCondition(thd, pred.condition,
-                                                      always_active, orderings);
+    int fd_idx = AddFunctionalDependencyFromCondition(
+        thd, pred.condition, always_active,
+        pred.possibly_null_complemented_later, orderings);
     if (fd_idx != -1) {
       pred.functional_dependencies_idx.push_back(fd_idx);
     }
@@ -260,7 +290,7 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
   }
 }
 
-static size_t CountOrderElements(const ORDER *order) {
+size_t CountOrderElements(const ORDER *order) {
   size_t count = 0;
   for (const ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
     ++count;
@@ -547,8 +577,7 @@ void BuildInterestingOrders(
     bool all_order_fields_used = false;
     ORDER *order = create_order_from_distinct(
         thd, Ref_item_array(), /*order=*/nullptr, join->fields,
-        /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
-        &all_order_fields_used);
+        /*skip_aggregates=*/false, &all_order_fields_used);
 
     if (order == nullptr) {
       *distinct_ordering_idx = 0;  // 0 is the empty ordering.

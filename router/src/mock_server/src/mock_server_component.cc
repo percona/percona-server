@@ -40,7 +40,7 @@ std::shared_ptr<MockServerGlobalScope> MockServerComponent::get_global_scope() {
 void MockServerComponent::register_server(
     const std::string &name,
     std::shared_ptr<server_mock::MySQLServerMock> srv) {
-  srvs_([&](auto srvs) { srvs.emplace(name, srv); });
+  srvs_([&](auto &srvs) { srvs.emplace(name, srv); });
 }
 
 MockServerComponent &MockServerComponent::get_instance() {
@@ -50,7 +50,7 @@ MockServerComponent &MockServerComponent::get_instance() {
 }
 
 void MockServerComponent::close_all_connections() {
-  srvs_([&](auto srvs) {
+  srvs_([&](auto &srvs) {
     for (auto &srv : srvs) {
       // if we have a mock_server instance, call its close_all_connections()
       if (auto server = srv.second.lock()) {

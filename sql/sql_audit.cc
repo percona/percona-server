@@ -963,7 +963,7 @@ int mysql_event_tracking_general_notify(
     const char *subclass_name, int error_code, const char *msg,
     size_t msg_len) {
   mysql_event_tracking_general_data event;
-  char user_buff[MAX_USER_HOST_SIZE];
+  char user_buff[MAX_USER_HOST_SIZE + 1];
 
   assert(thd);
 

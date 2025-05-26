@@ -386,6 +386,39 @@ class weak_service_reference {
     callback_registered = false;
     return false;
   }
+
+  /**
+    @brief Get the service reference, if available
+
+    If you need to call more methods of the service the weak service reference
+    wraps around you can use this cast operator.
+    Warning: it might return a null pointer if the weak reference doesn't hold
+    an active reference (init()'s keep_active_reference_arg parameter is false).
+
+    @sa @ref my_service
+
+    @return Returns a service reference, if available. And a nullptr if mot.
+  */
+  static Service *get_service() {
+    return hton ? ((Service *)hton->service_reference) : nullptr;
+  }
+
+  /**
+    @brief Gets the my_h_service reference, if available
+
+    See the other cast operator for details.
+
+    Warning: it might return a null pointer if the weak reference doesn't hold
+    an active reference (init()'s keep_active_reference_arg parameter is false).
+
+    @return my_h_service Same as the other cast operator, but instead of
+    downcasting to the service class it will return the raw my_h_service.
+
+    @sa @ref my_service
+  */
+  static my_h_service get_my_hservice() {
+    return hton ? hton->service_reference : nullptr;
+  }
 };
 
 #endif /* WEAK_REQUIRES_SERVICE_GUARD */

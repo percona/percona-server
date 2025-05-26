@@ -33,6 +33,7 @@
 #include <functional>
 #include <limits>
 #include <new>
+#include <span>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -68,6 +69,7 @@
 #include "sql/key.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
+#include "sql/pack_rows.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_base.h"
@@ -76,6 +78,7 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_show.h"
 #include "sql/sql_tmp_table.h"
@@ -192,12 +195,14 @@ int LimitOffsetIterator::Read() {
 
 AggregateIterator::AggregateIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
-    TableCollection tables, bool rollup)
+    TableCollection tables, std::span<AccessPath *> single_row_index_lookups,
+    bool rollup)
     : RowIterator(thd),
       m_source(std::move(source)),
       m_join(join),
       m_rollup(rollup),
-      m_tables(std::move(tables)) {
+      m_tables(std::move(tables)),
+      m_single_row_index_lookups(single_row_index_lookups) {
   if (!tables.has_blob_column()) {
     // If blob, we reserve lazily in StoreFromTableBuffers since we can't know
     // upper bound here.
@@ -215,15 +220,12 @@ bool AggregateIterator::Init() {
   m_current_rollup_position = -1;
   SetRollupLevel(INT_MAX);
 
-  // If the iterator has been executed before, restore the state of
-  // the table buffers. This is needed for correctness if there is an
-  // EQRefIterator below this iterator, as the restoring of the
-  // previous group in Read() may have disturbed the cache in
-  // EQRefIterator.
-  if (!m_first_row_next_group.is_empty()) {
-    LoadIntoTableBuffers(
-        m_tables, pointer_cast<const uchar *>(m_first_row_next_group.ptr()));
-    m_first_row_next_group.length(0);
+  // Invalidate the cache in all single-row index lookups below us. The previous
+  // execution of the aggregation may have overwritten the cached value in
+  // EQRefIterator with a value from a different row, and the next read from the
+  // EQRefIterator must read the correct value from the index.
+  for (AccessPath *lookup : m_single_row_index_lookups) {
+    lookup->eq_ref().ref->key_err = true;
   }
 
   if (m_source->Init()) {
@@ -340,6 +342,18 @@ int AggregateIterator::Read() {
         }
       }
 
+      // Invalidate the cache in EQRefIterators, if needed. The call to
+      // LoadIntoTableBuffers() above would usually restore the cache correctly
+      // to the values it had just after the previous call to m_source->Read().
+      // However, if the row was NULL-complemented, LoadIntoTableBuffers() will
+      // have overwritten the cached values with NULLs, and the cache must be
+      // invalidated.
+      for (AccessPath *lookup : m_single_row_index_lookups) {
+        if (lookup->eq_ref().table->has_null_row()) {
+          lookup->eq_ref().ref->key_err = true;
+        }
+      }
+
       // Keep reading rows as long as they are part of the existing group.
       for (;;) {
         int err = m_source->Read();
@@ -347,11 +361,6 @@ int AggregateIterator::Read() {
 
         if (err == -1) {
           m_seen_eof = true;
-
-          // We need to be able to restore the table buffers in Init()
-          // if the iterator is reexecuted (can happen if it's inside
-          // a correlated subquery).
-          StoreFromTableBuffers(m_tables, &m_first_row_next_group);
 
           // End of input rows; return the last group. (One would think this
           // LoadIntoTableBuffers() call is unneeded, since the last row read
@@ -2116,10 +2125,9 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
       return true;
     }
 
-    Prealloced_array<TABLE *, 4> ta(key_memory_hash_op, 1);
-    ta[0] = t;
-    TableCollection tc(ta, false, 0, 0);
-    m_table_collection = tc;
+    m_table_collection = {/*tables=*/{t},
+                          /*store_rowids=*/false,
+                          /*tables_to_get_rowid_for=*/0};
     if (!m_table_collection.has_blob_column()) {
       m_row_size_upper_bound =
           ComputeRowSizeUpperBoundSansBlobs(m_table_collection);
@@ -3037,12 +3045,17 @@ bool SpillState::compute_chunk_file_sets(const Operand *current_operand) {
     }
   }
 
-  m_chunk_files.resize(std::min(m_num_chunks, HashJoinIterator::kMaxChunks));
+  if (m_chunk_files.resize(
+          std::min(m_num_chunks, HashJoinIterator::kMaxChunks))) {
+    return true;
+  }
 
   /// Set aside space for current generation of chunk row counters. This is
   /// a two dimensional matrix. Each element is allocated in
   /// initialize_first_HF_chunk_files
-  m_row_counts.resize(m_chunk_files.size());
+  if (m_row_counts.resize(m_chunk_files.size())) {
+    return true;
+  }
 
   Opt_trace_context *const trace = &m_thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -3067,7 +3080,9 @@ bool SpillState::initialize_first_HF_chunk_files() {
     }
     // Initialize counters matrix
     Mem_root_array<CountPair> ma(m_thd->mem_root, 1);
-    ma.resize(m_no_of_chunk_file_sets);
+    if (ma.resize(m_no_of_chunk_file_sets)) {
+      return true;
+    }
     m_row_counts[i] = std::move(ma);
   }
 
@@ -3501,10 +3516,8 @@ bool SpillState::init(const Operand &left_operand, hash_map_type *hash_map,
   // prepare m_materialized_table as a TableCollection; this is needed by
   // some APIs we use
   {
-    Prealloced_array<TABLE *, 4> ta(key_memory_hash_op, 1);
-    ta[0] = t;
-    pack_rows::TableCollection tc(ta, false, 0, 0);
-    m_table_collection = tc;
+    m_table_collection = {/*tables=*/{t}, /*store_rowids=*/false,
+                          /*tables_to_get_rowid_for=*/0};
   }
   // Use different hash seed for chunking of EXCEPT and INTERSECT
   // to avoid effects of initial set of rows all from one set op

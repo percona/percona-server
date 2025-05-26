@@ -24,7 +24,11 @@
 #ifndef SQL_CMD_DDL_INCLUDED
 #define SQL_CMD_DDL_INCLUDED
 
+#include "lex_string.h"
+#include "my_sqlcommand.h"
 #include "sql/sql_cmd.h"
+
+class THD;
 
 class Sql_cmd_ddl : public Sql_cmd {
  public:
@@ -63,6 +67,44 @@ class Sql_cmd_ddl_dummy final : public Sql_cmd_ddl {
     assert(false);
     return false;
   }
+};
+
+class sp_name;
+
+class Sql_cmd_create_library final : public Sql_cmd_ddl {
+ public:
+  Sql_cmd_create_library(THD *thd, bool if_not_exists, sp_name *lib_name,
+                         LEX_STRING language, LEX_STRING source_code);
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_LIBRARY;
+  }
+
+  bool execute(THD *thd) override;
+
+ private:
+  bool m_if_not_exists;
+  sp_name *m_name;
+  LEX_STRING m_language;
+  // In order to support prepare of routines that contain CREATE LIBRARY
+  // statements, we need to keep a copy of the source code.
+  char *m_source;
+};
+
+class Sql_cmd_drop_library final : public Sql_cmd_ddl {
+ public:
+  Sql_cmd_drop_library(bool if_exists, sp_name *lib_name)
+      : m_if_exists(if_exists), m_name(lib_name) {}
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_LIBRARY;
+  }
+
+  bool execute(THD *thd) override;
+
+ private:
+  bool m_if_exists;
+  sp_name *m_name;
 };
 
 #endif  // SQL_CMD_DDL_INCLUDED

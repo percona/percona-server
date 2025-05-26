@@ -373,6 +373,54 @@ static void spec_adder(RestApiComponent::JsonDocument &spec_doc) {
                                               JsonValue(rapidjson::kObjectType)
                                                   .AddMember("type", "integer",
                                                              allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "X_port",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "integer",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "UUID",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "Cluster_name",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "member_role",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "ClusterSet_name",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "Cluster_role",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "label",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
+                                              allocator)
+                                          .AddMember(
+                                              "tags",
+                                              JsonValue(rapidjson::kObjectType)
+                                                  .AddMember("type", "string",
+                                                             allocator),
                                               allocator),
                                       allocator),
                               allocator),

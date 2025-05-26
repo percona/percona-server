@@ -481,7 +481,9 @@ f2 int NOT NULL DEFAULT '0',
 f3 int NOT NULL DEFAULT '0',
 INDEX idx1(f2, f3), INDEX idx2(f3)
 );
-INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f1) WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<99)
+SELECT n FROM qn;
 INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -502,6 +504,12 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	2
 Handler_read_rnd_next	0
+# Should choose multi-range read.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN
+-> Filter: (t1.f2 <= 3)  (...)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3)  (...)
+
 # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -510,13 +518,19 @@ f1	f2	f3
 0	3	4
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
-Handler_read_first	1
+Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	11
+Handler_read_rnd_next	0
+# Should use non-MRR index scan.
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN
+-> Filter: (t1.f2 <= 3)  (...)
+    -> Index range scan on t1 using idx2 over (3 <= f3)  (...)
+
 set optimizer_switch=default;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
@@ -643,10 +657,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT /*+ SET_VAR(sql_buffer_result=1) */  MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 EXPLAIN
--> Table scan on <temporary>  (cost=10.4..10.4 rows=1)
-    -> Temporary table  (cost=4.64..4.64 rows=1)
-        -> Group aggregate: min(t1.a)  (cost=4.41..4.41 rows=1)
-            -> Covering index lookup on t1 using b (b = 'a')  (cost=0.504..3.03 rows=6)
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table  (rows=1)
+        -> Group aggregate: min(t1.a)  (rows=1)
+            -> Covering index lookup on t1 using b (b = 'a')  (rows=6)
 
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sql_buffer_result=1)", "sql_buffer_result");
@@ -755,44 +769,47 @@ FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 EXPLAIN
 {
   "query": "/* select#1 */ select `test`.`t1`.`id` AS `id`,avg(`test`.`t1`.`id`) OVER `w` AS `avg`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) ",
-  "inputs": [
-    {
-      "inputs": [
-        {
-          "operation": "Table scan on t1",
-          "table_name": "t1",
-          "access_type": "table",
-          "schema_name": "test",
-          "used_columns": [
-            "id"
-          ],
-          "estimated_rows": 9.0,
-          "estimated_total_cost": 2.986175115207373,
-          "estimated_first_row_cost": 0.3317972350230415
-        }
-      ],
-      "operation": "Sort: t1.id",
-      "access_type": "sort",
-      "sort_fields": [
-        "t1.id"
-      ],
-      "estimated_rows": 9.0,
-      "estimated_total_cost": 7.017075000418735,
-      "estimated_first_row_cost": 7.017075000418735
-    }
-  ],
-  "buffering": true,
-  "functions": [
-    "avg(t1.id) OVER w",
-    "sum(t1.id) OVER w",
-    "count(0) OVER w"
-  ],
-  "operation": "Window aggregate with buffering: avg(t1.id) OVER w, sum(t1.id) OVER w, count(0) OVER w",
+  "query_plan": {
+    "inputs": [
+      {
+        "inputs": [
+          {
+            "operation": "Table scan on t1",
+            "table_name": "t1",
+            "access_type": "table",
+            "schema_name": "test",
+            "used_columns": [
+              "id"
+            ],
+            "estimated_rows": 9.0,
+            "estimated_total_cost": 2.986175115207373,
+            "estimated_first_row_cost": 0.3317972350230415
+          }
+        ],
+        "operation": "Sort: t1.id",
+        "access_type": "sort",
+        "sort_fields": [
+          "t1.id"
+        ],
+        "estimated_rows": 9.0,
+        "estimated_total_cost": 7.017075000418735,
+        "estimated_first_row_cost": 7.017075000418735
+      }
+    ],
+    "buffering": true,
+    "functions": [
+      "avg(t1.id) OVER w",
+      "sum(t1.id) OVER w",
+      "count(0) OVER w"
+    ],
+    "operation": "Window aggregate with buffering: avg(t1.id) OVER w, sum(t1.id) OVER w, count(0) OVER w",
+    "access_type": "window",
+    "estimated_rows": 9.0,
+    "estimated_total_cost": 9.090807719312744,
+    "estimated_first_row_cost": 7.247489746962514
+  },
   "query_type": "select",
-  "access_type": "window",
-  "estimated_rows": 9.0,
-  "estimated_total_cost": 9.090807719312744,
-  "estimated_first_row_cost": 7.247489746962514
+  "json_schema_version": "2.0"
 }
 EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
 d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
@@ -800,44 +817,47 @@ FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 EXPLAIN
 {
   "query": "/* select#1 */ select /*+ SET_VAR(windowing_use_high_precision='OFF') */ `test`.`t1`.`d` AS `d`,avg(`test`.`t1`.`d`) OVER `w` AS `avg`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING) ",
-  "inputs": [
-    {
-      "inputs": [
-        {
-          "operation": "Table scan on t1",
-          "table_name": "t1",
-          "access_type": "table",
-          "schema_name": "test",
-          "used_columns": [
-            "d"
-          ],
-          "estimated_rows": 9.0,
-          "estimated_total_cost": 2.986175115207373,
-          "estimated_first_row_cost": 0.3317972350230415
-        }
-      ],
-      "operation": "Sort: t1.d",
-      "access_type": "sort",
-      "sort_fields": [
-        "t1.d"
-      ],
-      "estimated_rows": 9.0,
-      "estimated_total_cost": 7.017075000418735,
-      "estimated_first_row_cost": 7.017075000418735
-    }
-  ],
-  "buffering": true,
-  "functions": [
-    "avg(t1.d) OVER w",
-    "sum(t1.d) OVER w",
-    "count(0) OVER w"
-  ],
-  "operation": "Window aggregate with buffering: avg(t1.d) OVER w, sum(t1.d) OVER w, count(0) OVER w",
+  "query_plan": {
+    "inputs": [
+      {
+        "inputs": [
+          {
+            "operation": "Table scan on t1",
+            "table_name": "t1",
+            "access_type": "table",
+            "schema_name": "test",
+            "used_columns": [
+              "d"
+            ],
+            "estimated_rows": 9.0,
+            "estimated_total_cost": 2.986175115207373,
+            "estimated_first_row_cost": 0.3317972350230415
+          }
+        ],
+        "operation": "Sort: t1.d",
+        "access_type": "sort",
+        "sort_fields": [
+          "t1.d"
+        ],
+        "estimated_rows": 9.0,
+        "estimated_total_cost": 7.017075000418735,
+        "estimated_first_row_cost": 7.017075000418735
+      }
+    ],
+    "buffering": true,
+    "functions": [
+      "avg(t1.d) OVER w",
+      "sum(t1.d) OVER w",
+      "count(0) OVER w"
+    ],
+    "operation": "Window aggregate with buffering: avg(t1.d) OVER w, sum(t1.d) OVER w, count(0) OVER w",
+    "access_type": "window",
+    "estimated_rows": 9.0,
+    "estimated_total_cost": 9.090807719312744,
+    "estimated_first_row_cost": 7.247489746962514
+  },
   "query_type": "select",
-  "access_type": "window",
-  "estimated_rows": 9.0,
-  "estimated_total_cost": 9.090807719312744,
-  "estimated_first_row_cost": 7.247489746962514
+  "json_schema_version": "2.0"
 }
 DROP TABLE t1;
 CALL test_hint("SET_VAR(windowing_use_high_precision=OFF)", "windowing_use_high_precision");

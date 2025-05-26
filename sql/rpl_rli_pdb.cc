@@ -2163,15 +2163,16 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     rli->mts_wq_oversize = true;
     // waiting due to the total size
     rli->worker_queue_mem_exceeded_count++;
-    applier_metrics.get_worker_queues_memory_exceeds_max_wait_metric()
-        .start_timer();
-    thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
-                    &stage_replica_waiting_worker_to_free_events, &old_stage);
-    mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
-    mysql_mutex_unlock(&rli->pending_jobs_lock);
-    thd->EXIT_COND(&old_stage);
-    applier_metrics.get_worker_queues_memory_exceeds_max_wait_metric()
-        .stop_timer();
+    {
+      auto guard =
+          applier_metrics.get_worker_queues_memory_exceeds_max_wait_metric()
+              .time_scope();
+      thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
+                      &stage_replica_waiting_worker_to_free_events, &old_stage);
+      mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
+      mysql_mutex_unlock(&rli->pending_jobs_lock);
+      thd->EXIT_COND(&old_stage);
+    }
 
     if (thd->killed) return true;
     if (rli->worker_queue_mem_exceeded_count % 10 == 1) {
@@ -2236,7 +2237,8 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   while (worker->running_status == Slave_worker::RUNNING && !thd->killed &&
          (ret = worker->jobs.en_queue(job_item)) ==
              Slave_jobs_queue::error_result) {
-    applier_metrics.get_worker_queues_full_wait_metric().start_timer();
+    auto guard =
+        applier_metrics.get_worker_queues_full_wait_metric().time_scope();
     thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
                     &stage_replica_waiting_worker_queue, &old_stage);
     worker->jobs.overfill = true;
@@ -2245,7 +2247,6 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     mysql_mutex_unlock(&worker->jobs_lock);
     thd->EXIT_COND(&old_stage);
     mysql_mutex_lock(&worker->jobs_lock);
-    applier_metrics.get_worker_queues_full_wait_metric().stop_timer();
   }
   if (ret != Slave_jobs_queue::error_result) {
     worker->curr_jobs++;

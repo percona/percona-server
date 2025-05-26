@@ -909,8 +909,6 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 #ifdef UNIV_DEBUG
   if (!recv_recovery_is_on()) {
     log_background_threads_active_validate(log);
-  } else {
-    ut_a(!recv_no_ibuf_operations);
   }
 #endif
 

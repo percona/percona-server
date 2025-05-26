@@ -234,6 +234,7 @@
     "metadata_cache": {
         "auth_cache_refresh_interval": 5.0,
         "auth_cache_ttl": -1.0,
+        "close_connection_after_refresh": true,
         "connect_timeout": 5,
         "read_timeout": 30,
         "ssl_ca": "",

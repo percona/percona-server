@@ -8328,7 +8328,7 @@ ER_MISSING_TABLESPACE_FILE
 ER_PERSIST_ONLY_ACCESS_DENIED_ERROR 42000
   eng "Access denied; you need %-.128s privileges for this operation"
 
-ER_CMD_NEED_SUPER
+OBSOLETE_ER_CMD_NEED_SUPER
   eng "You need the SUPER privilege for command '%-.192s'"
 
 ER_PATH_IN_DATADIR
@@ -9897,7 +9897,7 @@ ER_BULK_LOADER_FILE_CONTAINS_LESS_LINES_THAN_IGNORE_CLAUSE
   eng "The first file being loaded contained less lines than the ignore clause"
 
 ER_BULK_PARSER_MISSING_ENCLOSED_BY
-  eng "Missing ENCLOSED BY character at row %ld in file '%s'. Add OPTIONALLY to the ENCLOSED BY clause to allow this input."
+  eng "Missing ENCLOSED BY character at row %ld in file '%s'."
 
 ER_BULK_PARSER_ROW_BUFFER_MAX_TOTAL_COLS_EXCEEDED
   eng "The number of input columns that need to be buffered for parsing exceeded predefined buffer max size for file '%s'."
@@ -10452,7 +10452,7 @@ start-error-number 6400
 ER_SERVER_OFFLINE_MODE_REASON
   eng "The server is currently in offline mode since %s, reason: %s"
 
-ER_SERVER_OFFLINE_MODE_USER
+OBSOLETE_ER_SERVER_OFFLINE_MODE_USER
   eng "The server is currently in offline mode since %s, set by user %s"
 
 ER_LH_UNSTRUCTURED_NO_DATA_FOUND
@@ -10515,7 +10515,7 @@ ER_LH_CP_NO_VECTOR_STORE
 ER_LH_CP_NO_VALIDATION_MODE
   eng "Lakehouse Incremental Load is not supported with validation mode."
 
-ER_LH_CP_MISSING_FILES_MODE
+OBSOLETE_ER_LH_CP_MISSING_FILES_MODE
   eng "Lakehouse Incremental Load is not supported with allow_missing_files disabled."
 
 ER_LH_CP_COMMIT_FAILED
@@ -10526,6 +10526,31 @@ ER_LH_UNSTRUCTURED_INVALID_LANGUAGE
 
 ER_LH_VECTOR_TOO_MANY_ENTRIES
   eng "Column %d in %s: Vector has more entries than its dimension: %s"
+
+ER_BULK_PARSER_UNEXPECTED_ENCLOSED_BY_CHARACTER
+  eng "Unexpected enclosed by character found inside unenclosed string at row %ld in file '%s' resulting in malformed CSV."
+
+ER_CMD_NEED_SUPER_OR_CREATE_SPATIAL_REFERENCE_SYSTEM
+  eng "You need the SUPER or CREATE_SPATIAL_REFERENCE_SYSTEM privilege for command '%-.192s'"
+
+ER_CLAUSE_IGNORED
+  eng "%s is ignored in %s."
+
+ER_INVALID_CLAUSE_IN_CONTEXT
+  eng "Clause %s is not valid with %s."
+
+ER_INVALID_CLAUSE_COMBINATION
+  eng "Clauses %s and %s cannot be combined."
+
+ER_WARN_REDACTED_PRIVILEGES
+  eng "Result of SHOW was redacted due to insufficient privileges for table %s."
+
+ER_INVALID_OUTER_REFERENCE
+  eng "Outer reference %s in window's ORDER BY or PARTITION BY clause not allowed."
+
+ER_LIBRARIES_NOT_SUPPORTED
+  eng "Libraries are not supported for %s."
+
 #
 #  End of 9.x error messages (server-to-client).
 #

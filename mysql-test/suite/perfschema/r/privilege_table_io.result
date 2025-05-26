@@ -24,6 +24,8 @@ update performance_schema.setup_consumers set enabled='YES';
 update performance_schema.setup_objects set enabled='YES'
   where object_type='TABLE' and object_schema= 'mysql';
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 insert into test.marker set a = 1;
 insert into test.marker set a = 1;
 insert into test.marker set a = 1;
@@ -60,6 +62,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	global_grants	fetch	1

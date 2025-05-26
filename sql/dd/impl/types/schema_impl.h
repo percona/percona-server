@@ -50,6 +50,7 @@ class Function;
 class Object_table;
 class Open_dictionary_tables_ctx;
 class Procedure;
+class Library;
 class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
@@ -191,6 +192,8 @@ class Schema_impl : public Entity_object_impl, public Schema {
   Function *create_function(THD *thd) const override;
 
   Procedure *create_procedure(THD *thd) const override;
+
+  Library *create_library(THD *thd) const override;
 
   Table *create_table(THD *thd) const override;
 

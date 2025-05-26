@@ -338,7 +338,7 @@ char *dbg_app_data(app_data_ptr a) {
 /* Replace target with copy of source list */
 
 void _replace_app_data_list(app_data_list target, app_data_ptr source) {
-  IFDBG(D_NONE, FN; PTREXP(target); PTREXP(source));
+  XCOM_IFDBG(D_NONE, FN; PTREXP(target); PTREXP(source));
   XCOM_XDR_FREE(xdr_app_data, *target); /* Will remove the whole list */
   *target = clone_app_data(source);
 }
@@ -347,18 +347,18 @@ void _replace_app_data_list(app_data_list target, app_data_ptr source) {
    Insert p after l.
  */
 void follow(app_data_list l, app_data_ptr p) {
-  IFDBG(D_NONE, FN; PTREXP(p));
+  XCOM_IFDBG(D_NONE, FN; PTREXP(p));
   if (p) {
     if (p->next) {
-      IFDBG(D_NONE, FN; STRLIT("unexpected next ");
-            COPY_AND_FREE_GOUT(dbg_app_data(p)));
+      XCOM_IFDBG(D_NONE, FN; STRLIT("unexpected next ");
+                 COPY_AND_FREE_GOUT(dbg_app_data(p)));
     }
     assert(p->next == nullptr);
     p->next = *l;
   }
   *l = p;
   assert(!p || p->next != p);
-  IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_app_data(p)));
+  XCOM_IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_app_data(p)));
 }
 
 /* purecov: begin deadcode */

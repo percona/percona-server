@@ -30,6 +30,7 @@
 #include "classic_flow.h"
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "transport_constraints.h"
 
 void MysqlRoutingClassicConnection::async_run() {
   this->accepted();
@@ -49,7 +50,9 @@ void MysqlRoutingClassicConnection::stash_server_conn() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage(
           "pool::stashed: fd=" + std::to_string(server_conn().native_handle()) +
-          ", " + server_conn().endpoint()));
+          ", " + server_conn().endpoint() +
+          ", expected-transport-constraints: " +
+          expected_server_transport_constraints().to_string()));
     }
 
     auto ssl_mode = server_conn().ssl_mode();

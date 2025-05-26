@@ -834,11 +834,7 @@ const byte *page_parse_delete_rec_list(
   page_t *page;
   ulint offset;
 
-  ut_ad(type == MLOG_LIST_END_DELETE_8027 ||
-        type == MLOG_LIST_START_DELETE_8027 ||
-        type == MLOG_COMP_LIST_END_DELETE_8027 ||
-        type == MLOG_COMP_LIST_START_DELETE_8027 ||
-        type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE);
+  ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE);
 
   /* Read the record offset as a 2-byte ulint */
 
@@ -857,8 +853,7 @@ const byte *page_parse_delete_rec_list(
 
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
-  if (type == MLOG_LIST_END_DELETE || type == MLOG_COMP_LIST_END_DELETE_8027 ||
-      type == MLOG_LIST_END_DELETE_8027) {
+  if (type == MLOG_LIST_END_DELETE) {
     page_delete_rec_list_end(page + offset, block, index, ULINT_UNDEFINED,
                              ULINT_UNDEFINED, mtr);
   } else {

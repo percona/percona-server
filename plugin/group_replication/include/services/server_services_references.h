@@ -87,6 +87,7 @@ class Server_services_references {
 
   /* clang-format off */
   SERVICE_TYPE(registry) *registry_service{nullptr};
+  SERVICE_TYPE(registry_registration) *registry_registration_service{nullptr};
   SERVICE_TYPE(mysql_charset) *mysql_charset_service{nullptr};
   SERVICE_TYPE(mysql_string_factory) *mysql_string_factory_service{nullptr};
   SERVICE_TYPE(mysql_string_charset_converter) *mysql_string_charset_converter_service{nullptr};
@@ -98,6 +99,7 @@ class Server_services_references {
 
  private:
   /* clang-format off */
+  my_h_service m_registry_registration_handle{nullptr};
   my_h_service m_mysql_charset_handle{nullptr};
   my_h_service m_mysql_string_factory_handle{nullptr};
   my_h_service m_mysql_string_charset_converter_handle{nullptr};

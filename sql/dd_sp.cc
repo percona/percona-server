@@ -58,7 +58,48 @@
 #include "string_with_len.h"
 #include "typelib.h"
 
-void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
+#include <my_rapidjson_size_t.h>  // NOLINT(misc-include-cleaner)
+#include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
+struct imported_library {
+  std::string database;
+  std::string name;
+  std::string alias;
+};
+
+static std::vector<imported_library> get_imported_libraries(
+    const dd::String_type &options) {
+  if (options.empty()) return {};  // nothing to do.
+  std::vector<imported_library> result{};
+
+  rapidjson::Document document;
+  if (document.Parse(options.c_str(), size_t{options.length()}).HasParseError())
+    return {};
+  if (!document.IsArray()) return {};
+  for (auto &node : document.GetArray()) {
+    if (!node.HasMember("name") || !node["name"].IsString()) continue;
+    std::string_view name{node["name"].GetString(),
+                          node["name"].GetStringLength()};
+    std::string_view alias;
+    if (node.HasMember("alias") && node["alias"].IsString())
+      alias = {node["alias"].GetString(), node["alias"].GetStringLength()};
+    std::string_view schema;
+    if (node.HasMember("schema") && node["schema"].IsString())
+      schema = {node["schema"].GetString(), node["schema"].GetStringLength()};
+
+    result.emplace_back(
+        imported_library{std::string{schema.data(), size_t{schema.length()}},
+                         std::string{name.data(), size_t{name.length()}},
+                         std::string{alias.data(), size_t{alias.length()}}});
+  }
+
+  return result;
+}
+
+void prepare_sp_chistics_from_dd_routine(THD *thd, const dd::Routine *routine,
                                          st_sp_chistics *sp_chistics) {
   DBUG_TRACE;
 
@@ -100,6 +141,18 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                             routine->comment().length()};
   } else
     sp_chistics->comment = EMPTY_CSTR;
+
+  // The list of the imported libraries.
+  const dd::Properties &routine_options = routine->options();
+  if (routine_options.exists("libraries")) {
+    dd::String_type options{};
+    routine_options.get("libraries", &options);
+    std::vector libraries = get_imported_libraries(options);
+    for (auto &library : libraries)
+      if (sp_chistics->add_imported_library(library.database, library.name,
+                                            library.alias, thd->mem_root))
+        break;
+  }
 }
 
 static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
@@ -227,6 +280,8 @@ void prepare_return_type_string_from_dd_routine(
 void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
                                            dd::String_type *params_str) {
   DBUG_TRACE;
+
+  assert(routine->type() != dd::Routine::RT_LIBRARY);
 
   *params_str = "";
 

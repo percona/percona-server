@@ -163,8 +163,12 @@ static bool commit(THD *thd) {
 }
 
 bool Sql_cmd_create_srs::execute(THD *thd) {
-  if (!(thd->security_context()->check_access(SUPER_ACL))) {
-    my_error(ER_CMD_NEED_SUPER, MYF(0),
+  if (!(thd->security_context()->check_access(SUPER_ACL)) &&
+      !(thd->security_context()
+            ->has_global_grant(
+                STRING_WITH_LEN("CREATE_SPATIAL_REFERENCE_SYSTEM"))
+            .first)) {
+    my_error(ER_CMD_NEED_SUPER_OR_CREATE_SPATIAL_REFERENCE_SYSTEM, MYF(0),
              m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
                           : "CREATE SPATIAL REFERENCE SYSTEM");
     return true;
@@ -235,8 +239,13 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
 }
 
 bool Sql_cmd_drop_srs::execute(THD *thd) {
-  if (!(thd->security_context()->check_access(SUPER_ACL))) {
-    my_error(ER_CMD_NEED_SUPER, MYF(0), "DROP SPATIAL REFERENCE SYSTEM");
+  if (!(thd->security_context()->check_access(SUPER_ACL)) &&
+      !(thd->security_context()
+            ->has_global_grant(
+                STRING_WITH_LEN("CREATE_SPATIAL_REFERENCE_SYSTEM"))
+            .first)) {
+    my_error(ER_CMD_NEED_SUPER_OR_CREATE_SPATIAL_REFERENCE_SYSTEM, MYF(0),
+             "DROP SPATIAL REFERENCE SYSTEM");
     return true;
   }
 

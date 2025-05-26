@@ -622,6 +622,8 @@ unsigned MySQLSession::warning_count() noexcept {
   return mysql_warning_count(connection_);
 }
 
+int MySQLSession::ping() { return mysql_ping(connection_); }
+
 std::string MySQLSession::quote(const std::string &s, char qchar) const {
   std::string r;
   r.resize(s.length() * 2 + 3);

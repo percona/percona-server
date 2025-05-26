@@ -803,6 +803,8 @@ struct dtuple_t {
     return false;
   }
 
+  /** Choose a field suitable for storing externally. */
+  dfield_t *choose_ext(dict_index_t *index);
   dtuple_t *deep_copy(mem_heap_t *heap) const;
 };
 

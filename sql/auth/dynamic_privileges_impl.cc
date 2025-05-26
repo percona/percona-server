@@ -270,6 +270,9 @@ bool dynamic_privilege_init(void) {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
       "dynamic_privilege_register.mysql_server", srv_registry);
   assert(service.is_valid());
+  my_service<SERVICE_TYPE(dynamic_privilege_deprecation)> deprecation_svc(
+      "dynamic_privilege_deprecation.mysql_server", srv_registry);
+  assert(deprecation_svc.is_valid());
   ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
@@ -300,12 +303,15 @@ bool dynamic_privilege_init(void) {
   ret += service->register_privilege(STRING_WITH_LEN("TELEMETRY_LOG_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
   ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
+  ret += service->register_privilege(
+      STRING_WITH_LEN("CREATE_SPATIAL_REFERENCE_SYSTEM"));
   ret += service->register_privilege(STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_OPTIMIZER_COSTS"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_STATUS"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
   ret += service->register_privilege(STRING_WITH_LEN("FLUSH_PRIVILEGES"));
+  ret += deprecation_svc->add(STRING_WITH_LEN("FLUSH_PRIVILEGES"));
   ret +=
       service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_STREAM"));
   ret += service->register_privilege(

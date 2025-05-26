@@ -33,12 +33,13 @@ struct st_sp_chistics;
   Method to prepare sp_chistics object using the dd::Routine object read
   from the Data Dictionary.
 
+  @param[in]  thd         Thread object.
   @param[in]  routine     Routine object read from the Data Dictionary.
   @param[out] sp_chistics st_sp_chistics type's object to be prepared from the
                           routine param.
 */
 
-void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
+void prepare_sp_chistics_from_dd_routine(THD *thd, const dd::Routine *routine,
                                          st_sp_chistics *sp_chistics);
 
 /**

@@ -286,4 +286,13 @@ get_log_timestamp(
     const unsigned occurence = 1,
     const std::chrono::milliseconds timeout = std::chrono::seconds(1));
 
+/**
+ * Escape special regexp characters with '\'.
+ *
+ * @param input Input string.
+ *
+ * @returns input string with special regexp characters escaped with '\'
+ */
+std::string escape_regexp(std::string input);
+
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

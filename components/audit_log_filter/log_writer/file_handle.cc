@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#define ALLOW_COMPONENT_INCLUDE // for plugin.h
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/audit_psi_info.h"
 #include "components/audit_log_filter/log_writer/file_name.h"

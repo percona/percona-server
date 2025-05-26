@@ -304,7 +304,7 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          // MYSQL_TYPE_DATE         MYSQL_TYPE_TIME
          MYSQL_TYPE_VARCHAR, MYSQL_TYPE_VARCHAR,
          // MYSQL_TYPE_DATETIME     MYSQL_TYPE_YEAR
-         MYSQL_TYPE_VARCHAR, MYSQL_TYPE_TINY,
+         MYSQL_TYPE_VARCHAR, MYSQL_TYPE_SHORT,
          // MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
          MYSQL_TYPE_VARCHAR, MYSQL_TYPE_VARCHAR,
          // MYSQL_TYPE_BIT
@@ -313,7 +313,7 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          MYSQL_TYPE_INVALID,
          // MYSQL_TYPE_INVALID
          MYSQL_TYPE_INVALID,
-         // MYSQL_TYPE_BOOL         MYSQL_TYPE_TINY
+         // MYSQL_TYPE_BOOL         MYSQL_TYPE_JSON
          MYSQL_TYPE_TINY, MYSQL_TYPE_VARCHAR,
          // MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
          MYSQL_TYPE_NEWDECIMAL, MYSQL_TYPE_VARCHAR,
@@ -712,7 +712,7 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          MYSQL_TYPE_STRING, MYSQL_TYPE_VARCHAR},
         /* MYSQL_TYPE_YEAR -> */
         {// MYSQL_TYPE_DECIMAL      MYSQL_TYPE_TINY
-         MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
+         MYSQL_TYPE_DECIMAL, MYSQL_TYPE_SHORT,
          // MYSQL_TYPE_SHORT        MYSQL_TYPE_LONG
          MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
          // MYSQL_TYPE_FLOAT        MYSQL_TYPE_DOUBLE
@@ -5775,7 +5775,7 @@ type_conversion_status Field_timef::store_internal(const MYSQL_TIME *ltime,
   type_conversion_status rc = store_packed(TIME_to_longlong_time_packed(*time));
   if (rc == TYPE_OK && non_zero_date(*ltime)) {
     /*
-      The DATE part got lost; we warn, like in Field_newdate::store_internal,
+      The DATE part got lost; we warn, like in Field_date::store_internal,
       and trigger some code in get_mm_leaf()
       (see err==TYPE_NOTE_TIME_TRUNCATED there).
     */
@@ -5917,12 +5917,12 @@ void Field_year::sql_type(String &res) const {
 ** In number context: YYYYMMDD
 ****************************************************************************/
 
-my_time_flags_t Field_newdate::date_flags(const THD *thd) const {
+my_time_flags_t Field_date::date_flags(const THD *thd) const {
   return TIME_FUZZY_DATE | DatetimeConversionFlags(thd);
 }
 
-type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
-                                                     int *warnings) {
+type_conversion_status Field_date::store_internal(const MYSQL_TIME *ltime,
+                                                  int *warnings) {
   /*
     If time zone displacement information is present in "ltime"
     - adjust the value to UTC based on the time zone
@@ -5947,7 +5947,7 @@ type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
   return TYPE_OK;
 }
 
-bool Field_newdate::get_date_internal(MYSQL_TIME *ltime) const {
+bool Field_date::get_date_internal(MYSQL_TIME *ltime) const {
   const uint32 tmp = uint3korr(ptr);
   ltime->day = tmp & 31;
   ltime->month = (tmp >> 5) & 15;
@@ -5959,39 +5959,39 @@ bool Field_newdate::get_date_internal(MYSQL_TIME *ltime) const {
   return false;
 }
 
-type_conversion_status Field_newdate::store_packed(longlong nr) {
+type_conversion_status Field_date::store_packed(longlong nr) {
   int warnings = 0;
   MYSQL_TIME ltime;
   TIME_from_longlong_date_packed(&ltime, nr);
   return store_internal(&ltime, &warnings);
 }
 
-bool Field_newdate::send_to_protocol(Protocol *protocol) const {
+bool Field_date::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
   MYSQL_TIME ltime;
   get_date(&ltime, 0);
   return protocol->store_date(ltime);
 }
 
-longlong Field_newdate::val_int() const {
+longlong Field_date::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   ulong j = uint3korr(ptr);
   j = (j % 32L) + (j / 32L % 16L) * 100L + (j / (16L * 32L)) * 10000L;
   return (longlong)j;
 }
 
-longlong Field_newdate::val_date_temporal() const {
+longlong Field_date::val_date_temporal() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   return get_date_internal(&ltime) ? 0 : TIME_to_longlong_date_packed(ltime);
 }
 
-longlong Field_newdate::val_time_temporal() const {
+longlong Field_date::val_time_temporal() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   return 0;
 }
 
-String *Field_newdate::val_str(String *val_buffer, String *) const {
+String *Field_date::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
@@ -6021,20 +6021,19 @@ String *Field_newdate::val_str(String *val_buffer, String *) const {
   return val_buffer;
 }
 
-bool Field_newdate::get_date(MYSQL_TIME *ltime,
-                             my_time_flags_t fuzzydate) const {
+bool Field_date::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const {
   return get_internal_check_zero(ltime, fuzzydate) ||
          check_fuzzy_date(*ltime, fuzzydate);
 }
 
-int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
+int Field_date::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   uint32 a, b;
   a = uint3korr(a_ptr);
   b = uint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_newdate::make_sort_key(uchar *to, size_t length) const {
+size_t Field_date::make_sort_key(uchar *to, size_t length) const {
   memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
@@ -6042,7 +6041,7 @@ size_t Field_newdate::make_sort_key(uchar *to, size_t length) const {
   return 3;
 }
 
-void Field_newdate::sql_type(String &res) const {
+void Field_date::sql_type(String &res) const {
   res.set_ascii(STRING_WITH_LEN("date"));
 }
 
@@ -7789,6 +7788,11 @@ uint Field_blob::is_equal(const Create_field *new_field) const {
   }
 
   return IS_EQUAL_PACK_LENGTH;
+}
+
+bool Field_vector::eq_def(const Field *field) const {
+  return Field::eq_def(field) &&
+         (max_data_length() == field->max_data_length());
 }
 
 uint Field_vector::is_equal(const Create_field *new_field) const {
@@ -9848,7 +9852,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
           Field_year(ptr, null_pos, null_bit, auto_flags, field_name);
     case MYSQL_TYPE_NEWDATE:
       return new (mem_root)
-          Field_newdate(ptr, null_pos, null_bit, auto_flags, field_name);
+          Field_date(ptr, null_pos, null_bit, auto_flags, field_name);
 
     case MYSQL_TYPE_TIME:
       return new (mem_root)
@@ -10819,7 +10823,7 @@ Create_field *generate_create_field(THD *thd, Item *source_item,
     Field *default_field;
     tmp_table_field = create_tmp_field(
         thd, tmp_table, source_item, source_item->type(), nullptr, &from_field,
-        &default_field, false, false, false, false);
+        &default_field, false, false, false);
   }
   if (!tmp_table_field) return nullptr; /* purecov: inspected */
 

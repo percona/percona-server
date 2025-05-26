@@ -24,6 +24,7 @@
 #ifndef PLUGIN_INCLUDE
 #define PLUGIN_INCLUDE
 
+#include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
@@ -63,12 +64,6 @@ class Consensus_leaders_handler;
 class Mysql_thread;
 
 // Definition of system var structures
-
-// Definition of system vars structure for access their information in the
-// plugin
-struct SYS_VAR {
-  MYSQL_PLUGIN_VAR_HEADER;
-};
 
 /**
   Position of channel observation manager's in channel_observation_manager_list

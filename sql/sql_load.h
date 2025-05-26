@@ -54,13 +54,13 @@ class Sql_cmd_load_table final : public Sql_cmd {
       On_duplicate on_duplicate, Table_ident *table,
       List<String> *opt_partitions, const CHARSET_INFO *opt_charset,
       LEX_CSTRING compression_algorithm, String *opt_xml_rows_identified_by,
-      const Field_separators &field_separators,
-      const Line_separators &line_separators, ulong skip_lines,
+      const Field_separators *field_separators,
+      const Line_separators *line_separators, ulong skip_lines,
       mem_root_deque<Item *> *opt_fields_or_vars,
       mem_root_deque<Item *> *opt_set_fields,
       mem_root_deque<Item *> *opt_set_exprs, List<String> *opt_set_expr_strings,
       ulong concurrency, ulonglong memory_size, bool is_bulk_operation)
-      : m_exchange(filename.str, false, filetype),
+      : m_exchange(filename.str, UNDEFINED_DEST, filetype),
         m_is_local_file(is_local_file),
         m_bulk_source(source_type),
         m_file_count(file_count),
@@ -85,13 +85,14 @@ class Sql_cmd_load_table final : public Sql_cmd {
       m_opt_set_exprs = std::move(*opt_set_exprs);
     }
 
-    m_exchange.cs = opt_charset;
+    m_exchange.file_info.cs = opt_charset;
 
     if (opt_xml_rows_identified_by != nullptr)
       m_exchange.line.line_term = opt_xml_rows_identified_by;
 
     m_exchange.field.merge_field_separators(field_separators);
     m_exchange.line.merge_line_separators(line_separators);
+    m_exchange.assign_default_values();
     m_exchange.skip_lines = skip_lines;
   }
 

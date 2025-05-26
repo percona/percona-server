@@ -23,8 +23,6 @@
 #include <mysql/components/services/mysql_query_attributes.h>
 #include <mysql/components/services/mysql_string.h>
 
-#include "sql/sql_class.h"
-
 #include <scope_guard.h>
 
 namespace audit_log_filter::event_field_action {

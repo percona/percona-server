@@ -18,6 +18,7 @@
 #include "components/audit_log_filter/audit_log_filter.h"
 #include "components/audit_log_filter/audit_log_reader.h"
 
+#define ALLOW_COMPONENT_INCLUDE // for my_io.h and plugin.h
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"

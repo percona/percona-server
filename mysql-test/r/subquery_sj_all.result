@@ -4450,6 +4450,587 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
 drop table t1;
+SET internal_tmp_mem_storage_engine='memory';
+CREATE TABLE t1 (a BIT(7)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=MyISAM;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=HEAP;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+SET internal_tmp_mem_storage_engine='TempTable';
+CREATE TABLE t1 (a BIT(7)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=MyISAM;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=HEAP;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+SET internal_tmp_mem_storage_engine=default;
+SET SESSION big_tables=true;
+CREATE TABLE t1 (a BIT(7)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=InnoDB;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=MyISAM;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a BIT(7)) ENGINE=HEAP;
+INSERT INTO t1 VALUES (64),(65),(65),(NULL),(66);
+CREATE TABLE t2 (a INT)  ENGINE=HEAP;
+INSERT INTO t2 VALUES (61),(64),(65);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t2	analyze	note	The storage engine for the table doesn't support analyze
+SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+a
+64
+65
+EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t2.a = t1.a)  (rows=3)
+    -> Table scan on t2  (rows=3)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+a
+@
+A
+A
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (rows=3)
+    -> Inner hash join (t1.a = t2.a)  (rows=3)
+        -> Table scan on t1  (rows=5)
+        -> Hash
+            -> Table scan on t2  (rows=3)
+
+SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+a
+@
+A
+A
+B
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t1`.`a`)
+EXPLAIN format=tree SELECT * FROM t1 WHERE a IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin (FirstMatch) (t1.a = t1.a)  (rows=5)
+    -> Table scan on t1  (rows=5)
+    -> Hash
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1, t2;
+SET SESSION big_tables=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;

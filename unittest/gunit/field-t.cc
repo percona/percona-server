@@ -615,7 +615,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("field_newdate");
-    Field_newdate fnd(false, "");
+    Field_date fnd(false, "");
     uchar from[] = {'3', '2', '1'};
     uchar expected[] = {'1', '2', '3'};
     test_make_sort_key(&fnd, from, expected, 3);

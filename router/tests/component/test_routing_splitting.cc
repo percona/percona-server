@@ -2230,6 +2230,35 @@ TEST_F(RoutingSplittingTest, multi_statements_are_forbidden) {
   }
 }
 
+TEST_F(RoutingSplittingTest, empty_lines) {
+  RecordProperty("Description",
+                 "empty lines and comments should be forwarded as is.");
+
+  SCOPED_TRACE("// connect");
+
+  MysqlClient cli;
+
+  cli.username("foo");
+  cli.password("bar");
+
+  ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+  for (std::string stmt : {"", "  ", ";"}) {
+    SCOPED_TRACE("// stmt: " + stmt);
+
+    auto query_res = cli.query(stmt);
+    ASSERT_ERROR(query_res);
+    EXPECT_EQ(query_res.error().value(), 1065) << query_res.error();
+  }
+
+  for (std::string stmt : {"-- ", "/* */"}) {
+    SCOPED_TRACE("// stmt: " + stmt);
+
+    auto query_res = cli.query(stmt);
+    ASSERT_NO_ERROR(query_res);
+  }
+}
+
 // wait for my writes
 
 TEST_F(RoutingSplittingTest, wait_for_my_writes_default) {

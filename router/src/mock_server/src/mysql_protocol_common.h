@@ -26,8 +26,6 @@
 #ifndef MYSQLD_MOCK_MYSQL_PROTOCOL_COMMON_INCLUDED
 #define MYSQLD_MOCK_MYSQL_PROTOCOL_COMMON_INCLUDED
 
-#include <string>
-
 namespace server_mock {
 
 /** @enum MySQLColumnType

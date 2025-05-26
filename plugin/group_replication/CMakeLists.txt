@@ -62,6 +62,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/observer_server_channels.cc
   src/observer_server_state.cc
   src/observer_trans.cc
+  src/opt_tracker.cc
   src/perfschema/pfs.cc
   src/perfschema/table_replication_group_configuration_version.cc
   src/perfschema/table_replication_group_member_actions.cc
@@ -110,6 +111,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery_channel_state_observer.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
+  src/services/management/management.cc
   src/services/message_service/message_service.cc
   src/services/notification/notification.cc
   src/services/status_service/status_service.cc
@@ -220,6 +222,7 @@ MYSQL_ADD_PLUGIN(group_replication
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
   extra::rapidjson
+  library_mysys
   mysql_containers
   mysql_gtid
   MODULE_ONLY

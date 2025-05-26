@@ -13,6 +13,8 @@ alter user ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST
 alter user ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 alter user ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 connect(localhost,ssl_user5,,test,SOURCE_PORT,SOURCE_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
@@ -260,6 +262,8 @@ is still running; no cipher request crashed the server
 CREATE USER bug42158@localhost REQUIRE X509;
 GRANT SELECT ON test.* TO bug42158@localhost;
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER

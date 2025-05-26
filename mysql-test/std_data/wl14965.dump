@@ -439,6 +439,7 @@ CREATE TABLE `procs_priv` (
 
 LOCK TABLES `procs_priv` WRITE;
 /*!40000 ALTER TABLE `procs_priv` DISABLE KEYS */;
+INSERT INTO `procs_priv` VALUES ('localhost','DB1','userExecutesSingleFunc','lib_uses_both','FUNCTION','root@localhost','Execute','2024-11-18 17:01:27');
 /*!40000 ALTER TABLE `procs_priv` ENABLE KEYS */;
 UNLOCK TABLES;
 

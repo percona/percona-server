@@ -27,6 +27,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys/my_kdf.h"
+#include "my_ssl_algo_cache.h"
 
 #include <openssl/evp.h>
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -109,7 +110,7 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
   if (EVP_PKEY_derive_init(pctx) <= 0) {
     EVP_PKEY_CTX_free(pctx);
   }
-  if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
+  if (EVP_PKEY_CTX_set_hkdf_md(pctx, my_EVP_sha512()) <= 0) {
     EVP_PKEY_CTX_free(pctx);
     return 1;
   }
@@ -189,6 +190,6 @@ int Key_pbkdf2_hmac_function::derive_key(const unsigned char *key,
   int res{0};
   res = PKCS5_PBKDF2_HMAC((const char *)key, key_length,
                           (const unsigned char *)salt_.c_str(), salt_.length(),
-                          iterations_, EVP_sha512(), key_size, rkey);
+                          iterations_, my_EVP_sha512(), key_size, rkey);
   return res ? 0 : 1;
 }

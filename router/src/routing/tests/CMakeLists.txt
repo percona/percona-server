@@ -41,10 +41,8 @@ SET(test_files
   test_block_clients.cc
   # test_connection.cc
   test_connection_container.cc
-  test_first_available.cc
   test_metadata_cache_group.cc
-  test_next_available.cc
-  test_round_robin.cc
+  test_static_routing.cc
   test_routing.cc
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc

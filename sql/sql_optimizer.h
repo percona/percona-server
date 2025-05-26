@@ -1062,7 +1062,8 @@ class JOIN {
 
   /** @{ Helpers for create_access_paths. */
   AccessPath *create_root_access_path_for_join();
-  AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path) const;
+  AccessPath *attach_access_paths_for_having_qualify_limit(
+      AccessPath *path) const;
   AccessPath *attach_access_path_for_update_or_delete(AccessPath *path) const;
   /** @} */
 
@@ -1143,7 +1144,6 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
                                   ORDER *order_list,
                                   mem_root_deque<Item *> *fields,
                                   bool skip_aggregates,
-                                  bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used);
 
 /**
@@ -1308,5 +1308,10 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
 */
 bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
                              table_map right_side);
+
+/**
+  Simply counts the ORDER elements.
+*/
+size_t CountOrderElements(const ORDER *order);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

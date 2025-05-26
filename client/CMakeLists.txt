@@ -233,7 +233,6 @@ SET(MYSQLBINLOG_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
-  ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
   )
 

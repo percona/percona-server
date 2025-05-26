@@ -42,10 +42,11 @@ extern int compute_md5_hash(char *digest, const char *buf, size_t len);
   Used to generate a hexadecimal representation of a message digest.
 */
 static inline void array_to_hex(char *to, const unsigned char *str, uint len) {
-  const unsigned char *str_end = str + len;
-  for (; str != str_end; ++str) {
-    *to++ = dig_vec_lower[((uchar)*str) >> 4];
-    *to++ = dig_vec_lower[((uchar)*str) & 0x0F];
+  static const char *hex_lower = "0123456789abcdef";
+  for (uint i = 0; i < len; ++i) {
+    const uint offset = 2 * i;
+    to[offset] = hex_lower[str[i] >> 4];
+    to[offset + 1] = hex_lower[str[i] & 0x0F];
   }
 }
 

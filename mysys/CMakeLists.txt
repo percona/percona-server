@@ -122,6 +122,7 @@ SET(MYSYS_SOURCES
   typelib.cc
   unhex.cc
   keyring_operations_helper.cc
+  stream_cipher.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
   my_default.cc
@@ -133,6 +134,7 @@ SET(MYSYS_SOURCES
   my_md5.cc
   my_rnd.cc
   my_openssl_fips.cc
+  my_ssl_algo_cache.cc
 )
 LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
 

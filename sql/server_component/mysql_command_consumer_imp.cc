@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/minimal_chassis.h>
 #include "include/my_byteorder.h"
 #include "include/my_sys.h"
+#include "include/my_thread_local.h"
 #include "include/my_time.h"
 #include "include/mysql/service_command.h"
 #include "include/mysql/strings/int2str.h"

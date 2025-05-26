@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 SET EXPLAIN_FORMAT=tree;
 
 CREATE TABLE t1(f1 INT);
@@ -273,7 +275,10 @@ CREATE TABLE t1
   INDEX idx1(f2, f3), INDEX idx2(f3)
 );
 
-INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f1) WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<99)
+SELECT n FROM qn;
+
 INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
 ANALYZE TABLE t1;
 set optimizer_switch='mrr=on,mrr_cost_based=off';
@@ -281,14 +286,21 @@ set optimizer_switch='mrr=on,mrr_cost_based=off';
 --echo # Check statistics without hint
 FLUSH STATUS;
 SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
---skip_if_hypergraph
 SHOW STATUS LIKE 'handler_read%';
+
+--echo # Should choose multi-range read.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --skip_if_hypergraph
 SHOW STATUS LIKE 'handler_read%';
+
+--echo # Should use non-MRR index scan.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 set optimizer_switch=default;
 DROP TABLE t1;
@@ -371,6 +383,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
 INSERT INTO t1 VALUES (1,'a'),(0,'a'),(1,'a'),(0,'a');
 ANALYZE TABLE t1;
+--replace_regex $elide_costs
 EXPLAIN SELECT /*+ SET_VAR(sql_buffer_result=1) */  MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sql_buffer_result=1)", "sql_buffer_result");

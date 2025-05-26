@@ -31,6 +31,7 @@
 #include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
 
+#define ALLOW_COMPONENT_INCLUDE // for my_io.h used by binlog includes
 #include <sql/binlog.h>
 #include <sql/binlog/decompressing_event_object_istream.h>
 #include <sql/binlog_reader.h>

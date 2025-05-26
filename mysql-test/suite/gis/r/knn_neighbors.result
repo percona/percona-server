@@ -83,7 +83,7 @@ EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distan
 ST_Distance(location2, POINT(0,0)) as d2 FROM cafe2 ORDER BY d1, d2 ASC;
 EXPLAIN
 -> Sort: d1, d2  (rows=14)
-    -> Table scan on cafe2  (rows=14)
+    -> Index distance scan on cafe2 using location1  (rows=14)
 
 SET optimizer_trace="enabled=on";
 EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM cafe JOIN cafe2 ON cafe2.id=cafe.id ORDER BY d;

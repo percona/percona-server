@@ -93,7 +93,7 @@ class RestClientFrontend {
    * @returns exit-code
    * @retval EXIT_SUCESS success
    * @retval EXIT_FAILURE on error
-   * @throws FrontendError if there is an error
+   * @throws FrontendError If the frontend reports an error.
    */
   int run();
 

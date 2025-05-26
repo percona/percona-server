@@ -52,6 +52,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0rnd.h"
 #include "ut0ut.h"
 
+#ifndef __FILE_NAME__
+#define __FILE_NAME__ "dict0stats.cc"
+#endif
+
 /* Sampling algorithm description @{
 
 The algorithm is controlled by one number - N_SAMPLE_PAGES(index),
@@ -2097,13 +2101,15 @@ storage.
 @param[in,out]  trx                     in case of NULL the function will
 allocate and free the trx object. If it is not NULL then it will be
 rolled back only in the case of error, but not freed.
+@param[in]      silent     if true, don't report error in the log file.
+                           if false, report error in the log file.
 @return DB_SUCCESS or error code */
 static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
                                           const char *stat_name,
                                           uint64_t stat_value,
                                           uint64_t *sample_size,
                                           const char *stat_description,
-                                          trx_t *trx) {
+                                          trx_t *trx, bool silent) {
   /* During upgrade, the indexes are loaded in dict_load_index_low and the
   clustered indexes are renamed as PRIMARY as MySQL understands only
   PRIMARY indexes. The following condition will be true only if such an index
@@ -2177,7 +2183,7 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
                             "END;",
                             trx);
 
-  if (ret != DB_SUCCESS) {
+  if (ret != DB_SUCCESS && !silent) {
     ib::error(ER_IB_MSG_222)
         << "Cannot save index statistics for table " << index->table->name
         << ", index " << index->name << ", stat name \"" << stat_name
@@ -2194,9 +2200,11 @@ that are not equal to it will not be saved, if NULL, then all indexes' stats
 are saved
 @param[in]      trx  Save stats using this transaction.  If nullptr, then
 create a transaction and use that.
+@param[in]  silent  if true, don't print any warnings to server log file.
 @return DB_SUCCESS or error code */
 static dberr_t dict_stats_save(dict_table_t *table_orig,
-                               const index_id_t *only_for_index, trx_t *trx) {
+                               const index_id_t *only_for_index, trx_t *trx,
+                               bool silent) {
   pars_info_t *pinfo;
   dberr_t ret{};
   dict_table_t *table;
@@ -2276,9 +2284,11 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                             trx);
 
   if (ret != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_223) << "Cannot save table statistics for table "
-                             << table->name << ": " << ut_strerr(ret);
-
+    if (!silent) {
+      ib::error(ER_IB_MSG_223)
+          << "Cannot save table statistics for table " << table->name << ": "
+          << ut_strerr(ret) << " (" << __FILE_NAME__ << ":" << __LINE__ << ")";
+    }
     return (ret);
   }
 
@@ -2340,7 +2350,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
 
       ret = dict_stats_save_index_stat(
           index, now, stat_name, index->stat_n_diff_key_vals[i],
-          &index->stat_n_sample_sizes[i], stat_description, trx);
+          &index->stat_n_sample_sizes[i], stat_description, trx, silent);
 
       if (ret != DB_SUCCESS) {
         return ret;
@@ -2351,7 +2361,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                                      index->stat_n_leaf_pages, nullptr,
                                      "Number of leaf pages "
                                      "in the index",
-                                     trx);
+                                     trx, silent);
     if (ret != DB_SUCCESS) {
       return ret;
     }
@@ -2360,7 +2370,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                                      nullptr,
                                      "Number of pages "
                                      "in the index",
-                                     trx);
+                                     trx, silent);
     if (ret != DB_SUCCESS) {
       return ret;
     }
@@ -2817,7 +2827,8 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     dict_stats_analyze_index(index);
     dict_table_stats_unlock(index->table, RW_X_LATCH);
     index_id_t index_id(index->space, index->id);
-    dict_stats_save(index->table, &index_id, nullptr);
+    const bool silent = false;
+    dict_stats_save(index->table, &index_id, nullptr, silent);
     return;
   }
 
@@ -2826,9 +2837,29 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
   dict_table_stats_unlock(index->table, RW_X_LATCH);
 }
 
+dberr_t dict_stats_update_retry(dict_table_t *table,
+                                dict_stats_upd_option_t stats_upd_option,
+                                size_t max_retries) {
+  dberr_t err{DB_SUCCESS};
+
+  for (size_t i = max_retries; i > 0; --i) {
+    const bool silent = (i == 1) ? false : true;
+    err = dict_stats_update(table, stats_upd_option, nullptr, silent);
+
+    if (err == DB_LOCK_WAIT_TIMEOUT) {
+      std::this_thread::sleep_for(std::chrono::milliseconds{100});
+      continue;
+    }
+
+    break;
+  }
+
+  return err;
+}
+
 dberr_t dict_stats_update(dict_table_t *table,
-                          dict_stats_upd_option_t stats_upd_option,
-                          trx_t *trx) {
+                          dict_stats_upd_option_t stats_upd_option, trx_t *trx,
+                          bool silent) {
   ut_ad(!dict_sys_mutex_own());
 
   if (table->ibd_file_missing) {
@@ -2877,7 +2908,7 @@ dberr_t dict_stats_update(dict_table_t *table,
         return (err);
       }
 
-      return (dict_stats_save(table, nullptr, trx));
+      return (dict_stats_save(table, nullptr, trx, silent));
 
     case DICT_STATS_RECALC_TRANSIENT:
       break;
@@ -2890,7 +2921,7 @@ dberr_t dict_stats_update(dict_table_t *table,
       then save the stats on disk */
 
       if (dict_stats_is_persistent_enabled(table)) {
-        return (dict_stats_save(table, nullptr, trx));
+        return (dict_stats_save(table, nullptr, trx, silent));
       }
 
       return (DB_SUCCESS);

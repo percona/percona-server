@@ -2627,6 +2627,14 @@ SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
 (SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
 SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
 (SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
+# Check that this also works with flatten_equal_set_ops
+# (minimum three operands to check this)
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var);
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
 #
 # Deprecation warning expected:
 #
@@ -2648,6 +2656,34 @@ Warning	3962	The INTO clause is deprecated inside query blocks of query expressi
 (SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
 Warnings:
 Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+# Check that warning also works with flatten_equal_set_ops
+# (minimum three operands to check this)
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FROM DUAL;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+# Check that PT_set_operation::has_into_clause works correctly
+# for more than two operands after flatten_equal_set_ops
+SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL) UNION SELECT 1;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
+SELECT 1 UNION SELECT 1 UNION SELECT * FROM (SELECT 2 UNION SELECT 1 INTO @var FROM DUAL) t;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
+SELECT 1 UNION SELECT 1 UNION SELECT * FROM (SELECT 1 UNION SELECT 1 UNION SELECT 1 INTO @var FROM DUAL) t;
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 #
 # Syntax error expected:
 #
@@ -2856,3 +2892,31 @@ DROP TABLE source_tls_ciphersuites;
 DROP TABLE source_tls_version;
 DROP TABLE source_user;
 DROP TABLE source_zstd_compression_level;
+#
+# Bug#22574003: Non-reserved "BINLOG" keyword costs 22 shift/reduce
+#               conflicts to MySQL grammar
+#
+CREATE TABLE binlog(binlog INTEGER);
+DROP TABLE binlog;
+CREATE ROLE binlog;
+DROP ROLE binlog;
+CREATE PROCEDURE p()
+BEGIN
+DECLARE x INTEGER DEFAULT 3;
+binlog:
+LOOP
+IF x = 0 THEN
+LEAVE binlog;
+END IF;
+SET x = x - 1;
+END LOOP binlog;
+END;
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':
+LOOP
+IF x = 0 THEN
+LEAVE binlog;
+END IF;
+SET x = x - 1;
+END LOOP binlog;
+END' at line 4

@@ -36,11 +36,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <type_traits>
 
 #include "data0data.h"
+#include "dict0dict.h"
 #include "ha_prototypes.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
-#include "dict0dict.h"
 #include "lob0lob.h"
 #include "page0page.h"
 #include "page0zip.h"
@@ -1079,4 +1079,27 @@ dtuple_t *dtuple_t::deep_copy(mem_heap_t *heap) const {
     dfield_dup(&copy->fields[i], heap);
   }
   return copy;
+}
+
+dfield_t *dtuple_t::choose_ext(dict_index_t *index) {
+  uint32_t max_length = 0;
+  dfield_t *result = nullptr;
+
+  for (ulint i = dict_index_get_n_unique_in_tree(index); i < n_fields; i++) {
+    auto dfield = &fields[i];
+    auto ifield = index->get_field(i);
+    const uint32_t len = dfield_get_len(dfield);
+
+    if (ifield->fixed_len || dfield_is_null(dfield) || dfield_is_ext(dfield) ||
+        len <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE) {
+      continue;
+    }
+
+    if (len > max_length) {
+      result = dfield;
+      max_length = len;
+    }
+  }
+
+  return result;
 }

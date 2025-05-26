@@ -46,6 +46,8 @@
 #include "portlib/NdbThread.h"
 #endif
 
+#include "my_ssl_algo_cache.h"
+
 // clang-format off
 #ifndef REQUIRE
 #define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
@@ -274,8 +276,8 @@ size_t ndb_openssl_evp::get_needed_key_iv_pair_count(
     key_iv_pairs = ndb_ceil_div(data_size, data_size_per_key_iv_pair);
   } else {
     // Unknown cipher
-    require((m_evp_cipher == EVP_aes_256_cbc()) ||
-            (m_evp_cipher == EVP_aes_256_xts()));
+    require((m_evp_cipher == my_EVP_aes_256_cbc()) ||
+            (m_evp_cipher == my_EVP_aes_256_xts()));
     abort();  // In case we in future forget to add new cipher in require above.
   }
 
@@ -327,7 +329,7 @@ int ndb_openssl_evp::derive_and_add_key_iv_pair(const byte pwd[],
     // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
     const char *pass = reinterpret_cast<const char *>(pwd);
     r = PKCS5_PBKDF2_HMAC(pass ? pass : "", pwd_len, salt, SALT_LEN, iter_count,
-                          EVP_sha256(), KEY_LEN + IV_LEN, key_iv);
+                          my_EVP_sha256(), KEY_LEN + IV_LEN, key_iv);
   } else {
     /*
      * iter_count == 0 indicates pwd is a key.
@@ -337,7 +339,7 @@ int ndb_openssl_evp::derive_and_add_key_iv_pair(const byte pwd[],
     const char *pass = reinterpret_cast<const char *>(pwd);
     r = PKCS5_PBKDF2_HMAC(pass ? pass : "", pwd_len, salt, SALT_LEN,
                           1,  // one iteration
-                          EVP_sha256(), KEY_LEN + IV_LEN, key_iv);
+                          my_EVP_sha256(), KEY_LEN + IV_LEN, key_iv);
   }
   if (r != 1) {
     RETURN(-1);
@@ -516,7 +518,7 @@ int ndb_openssl_evp::operation::setup_key_iv(ndb_off_t input_position,
 
       size_t data_unit_index = input_position / m_context->m_data_unit_size;
       int key_iv_pair_index;
-      if (m_context->m_evp_cipher == EVP_aes_256_xts()) {
+      if (m_context->m_evp_cipher == my_EVP_aes_256_xts()) {
         key_iv_pair_index = data_unit_index >> 16;
       } else {
         key_iv_pair_index = data_unit_index;
@@ -527,7 +529,7 @@ int ndb_openssl_evp::operation::setup_key_iv(ndb_off_t input_position,
         RETURN(-1);
       }
 
-      if (m_context->m_evp_cipher == EVP_aes_256_xts()) {
+      if (m_context->m_evp_cipher == my_EVP_aes_256_xts()) {
         /*
          * aes_256_xts uses double length key
          * iv should be set as 16 bit sequence number in bigendian
@@ -1008,11 +1010,12 @@ int ndb_openssl_evp::wrap_keys_aeskw256(byte *wrapped, size_t *wrapped_size,
                                         size_t wrapping_key_size) {
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-  if (wrapping_key_size != (size_t)EVP_CIPHER_key_length(EVP_aes_256_wrap())) {
+  if (wrapping_key_size !=
+      (size_t)EVP_CIPHER_key_length(my_EVP_aes_256_wrap())) {
     RETURN(-1);
   }
   if (*wrapped_size < keys_size + AESKW_EXTRA) RETURN(-1);
-  if (EVP_EncryptInit_ex(ctx, EVP_aes_256_wrap(), nullptr, wrapping_key,
+  if (EVP_EncryptInit_ex(ctx, my_EVP_aes_256_wrap(), nullptr, wrapping_key,
                          nullptr) != 1) {
     RETURN(-1);
   }
@@ -1045,12 +1048,13 @@ int ndb_openssl_evp::unwrap_keys_aeskw256(byte *keys, size_t *keys_size,
                                           size_t wrapping_key_size) {
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
-  if (wrapping_key_size != (size_t)EVP_CIPHER_key_length(EVP_aes_256_wrap())) {
+  if (wrapping_key_size !=
+      (size_t)EVP_CIPHER_key_length(my_EVP_aes_256_wrap())) {
     RETURN(-1);
   }
   if (wrapped_size < AESKW_EXTRA) RETURN(-1);
   if (*keys_size < wrapped_size - AESKW_EXTRA) RETURN(-1);
-  if (EVP_DecryptInit_ex(ctx, EVP_aes_256_wrap(), nullptr, wrapping_key,
+  if (EVP_DecryptInit_ex(ctx, my_EVP_aes_256_wrap(), nullptr, wrapping_key,
                          nullptr) != 1) {
     RETURN(-1);
   }

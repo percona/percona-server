@@ -1547,3 +1547,123 @@ SELECT ROW(AVG(vkey) OVER (PARTITION BY vkey), 59) =
 FROM t1 AS outer_t;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#37031285 regression: crash in get_full_func_mm_tree()
+--echo #
+CREATE TABLE t (
+  c0 INT,
+  KEY i1 (c0) # needed for repro
+);
+
+CREATE TABLE tt (
+  c0 INT,
+  c1 INT
+);
+
+INSERT INTO t VALUES (1), (1), (1), (2), (2), (3);
+INSERT INTO tt VALUES (1,2),   # MIN(tt.c1) for group 1 is 2
+                      (1,3),
+                      (1,4),
+                      (2,1),   # MIN(tt.c1) for group 2 is 1
+                      (3,5),   # MIN(tt.c1) for group 3 is 5
+                      (3,6);
+
+SELECT MIN(tt.c1) FROM tt GROUP BY c0;
+
+# MIN(tt.c1) aggregates in the outer block, and has an outer argument
+--error ER_SUBQUERY_NO_1_ROW
+SELECT SUM((SELECT c0
+            FROM t
+            WHERE MIN(tt.c1) > 1
+            GROUP BY c0)) OVER() sum_wf
+FROM tt
+GROUP BY c0;
+
+--skip_if_hypergraph  # Bug#37126568: enable for HG when fixed
+SELECT SUM((SELECT c0
+            FROM t
+            WHERE MIN(tt.c1) > 1
+            GROUP BY c0
+            ORDER BY c0 LIMIT 1)) OVER() sum_wf
+FROM tt
+GROUP BY c0;
+
+# values to convince ourselves the above result is correct
+SELECT c0 FROM t WHERE 2 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
+SELECT c0 FROM t WHERE 1 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
+SELECT c0 FROM t WHERE 5 > 1 GROUP BY c0 ORDER BY c0 LIMIT 1;
+
+--skip_if_hypergraph  # Bug#37126568: enable for HG when fixed
+SELECT SUM((SELECT c0
+            FROM t
+            WHERE MIN(tt.c1) > 1
+            GROUP BY c0
+            ORDER BY c0 DESC LIMIT 1)) OVER() sum_wf
+FROM tt
+GROUP BY c0;
+
+# values to convince ourselves the above result is correct
+SELECT c0 FROM t WHERE 2 > 1 GROUP BY c0 ORDER BY c0 DESC LIMIT 1;
+SELECT c0 FROM t WHERE 1 > 1 GROUP BY c0 ORDER BY c0 DESC LIMIT 1;
+SELECT c0 FROM t WHERE 5 > 1 GROUP BY c0 ORDER BY c0 DESC LIMIT 1;
+
+DROP TABLE t, tt;
+--echo # Bug#36846564 Window function applied to BIT column produces non-BIT type
+--echo #              Same issue with materialized derived table
+
+CREATE TABLE t0 (c0 BIT(8));
+--echo # insert ASCII codes of 'A', 'B'
+INSERT INTO t0 VALUES (65), (66);
+SELECT HEX(c0) FROM t0;
+SELECT c0 FROM t0;
+
+--echo # Window functions used to return INT instead of BIT
+SELECT c0, ':', LEAD(c0) OVER() FROM t0;
+SELECT c0, ':', FIRST_VALUE(c0) OVER() FROM t0;
+--echo # MAX as window function ditto
+SELECT c0, ':', MAX(c0) OVER() FROM t0;
+
+--echo # MAX as non-window aggregate function was ok, returned BIT
+SELECT MAX(c0) FROM t0;
+
+--echo #
+--echo # Same issue for a (materialized) derived table:
+--echo #
+
+--echo # materialized: used to return INT instead of BIT
+SET optimizer_switch="derived_merge=off";
+SELECT c0 FROM (SELECT NULLIF(c0,1) FROM t0) t0 (c0) ORDER BY c0;
+--echo # not materialized: was ok, returned BIT
+SET optimizer_switch="derived_merge=on";
+SELECT c0 FROM (SELECT NULLIF(c0,1) FROM t0) t0 (c0) ORDER BY c0;
+
+--echo # CREATE SELECT: used to return INT instead of BIT
+CREATE TABLE t1 SELECT LEAD(c0) OVER(), MAX(c0) OVER() FROM t0;
+SET optimizer_switch="derived_merge=off";
+CREATE TABLE t2 SELECT c0 FROM (SELECT NULLIF(c0,1) FROM t0) t0 (c0) ORDER BY c0;
+SET optimizer_switch="derived_merge=default";
+DESC t1;
+DESC t2;
+DROP TABLE t0,t1,t2;
+
+--echo #
+--echo # Bug#36921175 Complex Join Predicate with Subquery Not
+--echo #              Possible To Offload to HeatWave
+CREATE TABLE t1(col INT);
+CREATE TABLE t2(col INT);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+INSERT INTO t1 VALUES (0), (1), (2), (NULL);
+ANALYZE TABLE t1;
+
+--error ER_INVALID_OUTER_REFERENCE
+SELECT COUNT(s1.col)
+FROM t1 AS s1 JOIN t1 AS s2
+     ON s2.col IN (WITH RECURSIVE cte1 AS
+                    (SELECT DENSE_RANK() OVER (PARTITION BY s1.col)
+                     FROM t2
+                     WHERE col >= 7
+                    )
+                   SELECT * FROM cte1
+                  );
+DROP TABLE t1, t2;

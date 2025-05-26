@@ -256,6 +256,7 @@ uint thd_get_net_read_write(THD *thd) {
 
 void thd_set_net_read_write(THD *thd, uint val) {
   thd->get_protocol_classic()->get_net()->reading_or_writing = val;
+  thd->store_cached_properties(THD::cached_properties::RW_STATUS);
 }
 
 /**

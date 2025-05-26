@@ -60,8 +60,8 @@ bool RestRoutingHealth::on_handle_request(
 #endif
 
   rapidjson::Document json_doc;
-  const bool is_alive =
-      inst.is_accepting_connections() && !inst.get_destinations().empty();
+  const bool is_alive = inst.is_accepting_connections() &&
+                        !inst.get_destination_candidates().empty();
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 

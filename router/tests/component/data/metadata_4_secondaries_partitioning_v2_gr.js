@@ -58,6 +58,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_update_last_check_in_v2",
       "router_clusterset_present",
       "router_select_router_options_view",
+      "get_guidelines_router_info",
+      "get_routing_guidelines",
     ],
     options);
 

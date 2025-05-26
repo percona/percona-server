@@ -177,6 +177,14 @@ class Procedure_impl : public Routine_impl, public Procedure {
   bool update_name_key(Name_key *key) const override {
     return Routine::update_name_key(key);
   }
+  const Properties &options() const override { return Routine_impl::options(); }
+  Properties &options() override { return Routine_impl::options(); }
+  bool set_options(const Properties &options) override {
+    return Routine_impl::set_options(options);
+  }
+  bool set_options(const String_type &options_raw) override {
+    return Routine_impl::set_options(options_raw);
+  }
 
  private:
   Procedure_impl(const Procedure_impl &src);

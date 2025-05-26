@@ -490,7 +490,9 @@ f2 int NOT NULL DEFAULT '0',
 f3 int NOT NULL DEFAULT '0',
 INDEX idx1(f2, f3), INDEX idx2(f3)
 );
-INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f1) WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<99)
+SELECT n FROM qn;
 INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -511,6 +513,12 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	2
 Handler_read_rnd_next	0
+# Should choose multi-range read.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN
+-> Filter: (t1.f2 <= 3)  (...)
+    -> Index range scan (Multi-Range Read) on t1 using idx2 over (3 <= f3), with index condition: (3 <= t1.f3)  (...)
+
 # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
@@ -526,6 +534,12 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
+# Should use non-MRR index scan.
+EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN
+-> Filter: (t1.f2 <= 3)  (...)
+    -> Index range scan on t1 using idx2 over (3 <= f3), with index condition: (3 <= t1.f3)  (...)
+
 set optimizer_switch=default;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
@@ -652,10 +666,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT /*+ SET_VAR(sql_buffer_result=1) */  MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 EXPLAIN
--> Table scan on <temporary>  (cost=3.24..3.24 rows=1)
-    -> Temporary table  (cost=0.73..0.73 rows=1)
-        -> Filter: (t1.b = 'a')  (cost=0.5 rows=1)
-            -> Covering index skip scan for grouping on t1 using b over (b = 'a')  (cost=0.5 rows=1)
+-> Table scan on <temporary>  (rows=1)
+    -> Temporary table  (rows=1)
+        -> Filter: (t1.b = 'a')  (rows=1)
+            -> Covering index skip scan for grouping on t1 using b over (b = 'a')  (rows=1)
 
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sql_buffer_result=1)", "sql_buffer_result");

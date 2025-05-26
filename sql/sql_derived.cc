@@ -627,11 +627,20 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
     thd->lex = old_lex;
     return nullptr;  // OOM
   }
+  View_creation_ctx *view_creation_ctx =
+      derived_table != nullptr ? derived_table->view_creation_ctx : nullptr;
+
+  const CHARSET_INFO *charset = view_creation_ctx != nullptr
+                                    ? view_creation_ctx->get_client_cs()
+                                    : thd->charset();
+
   // Take care not to print the variable index for stored procedure variables.
   // Also do not write a cloned stored procedure variable to query logs.
   thd->lex->reparse_derived_table_condition = true;
+
   // Get the printout of the expression
-  StringBuffer<1024> str_buf(thd->charset());
+  StringBuffer<1024> str_buf(charset);
+
   // For printing parameters we need to specify the flag QT_NO_DATA_EXPANSION
   // because for a case when statement gets reprepared during execution, we
   // still need Item_param::print() to print the '?' rather than the actual data
@@ -687,8 +696,6 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
 
   // Get a newly created item from parser. Use the view creation
   // context if the item being parsed is part of a view.
-  View_creation_ctx *view_creation_ctx =
-      derived_table != nullptr ? derived_table->view_creation_ctx : nullptr;
   const bool result = parse_sql(thd, &parser_state, view_creation_ctx);
 
   // If a statement is being re-prepared, then all the parameters
@@ -926,7 +933,7 @@ bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
 
     const bool rc = derived_result->create_result_table(
         thd, *derived->get_unit_column_types(), is_distinct, create_options,
-        alias, false, false);
+        alias, false);
 
     if (m_derived_column_names)  // Restore names
       swap_column_names_of_unit_and_tmp_table(*derived->get_unit_column_types(),
@@ -1212,9 +1219,11 @@ bool Condition_pushdown::make_cond_for_derived() {
 
 Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
   cond->marker = Item::MARKER_NONE;
-  if ((m_checking_purpose == CHECK_FOR_DERIVED) && cond->const_item()) {
+  if ((m_checking_purpose == CHECK_FOR_DERIVED) &&
+      (cond->const_item() || cond->has_aggregation())) {
     // There is no benefit in pushing a constant condition, we can as well
     // evaluate it at the top query's level.
+    // We do not pushdown conditions with aggregate functions.
     return nullptr;
   }
   // Make a new condition

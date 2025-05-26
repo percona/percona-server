@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstdint>
 #include "my_dbug.h"  // DBUG instrumentation  NOLINT(build/include_subdir)
+#include "my_ssl_algo_cache.h"
 
 namespace xcl {
 namespace sha256_password {
@@ -130,8 +131,8 @@ void SHA256_digest::init() {
     return;
   }
 
-  m_ok =
-      static_cast<bool>(EVP_DigestInit_ex(md_context, EVP_sha256(), nullptr));
+  m_ok = static_cast<bool>(
+      EVP_DigestInit_ex(md_context, my_EVP_sha256(), nullptr));
 
   if (!m_ok) {
     EVP_MD_CTX_destroy(md_context);

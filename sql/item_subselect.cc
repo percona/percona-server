@@ -114,7 +114,8 @@ class Query_result_scalar_subquery : public Query_result_subquery {
 /**
   Check if a query block is guaranteed to return one row. We know that
   this is the case if it has no tables and is not filtered with WHERE,
-  HAVING or LIMIT clauses.
+  HAVING, QUALIFY or LIMIT/OFFSET clauses. Also, it should not use non-primitive
+  grouping (such as ROLLUP), as that may increase the number of rows.
 
   @param qb  the Query_block to check
 
@@ -123,7 +124,9 @@ class Query_result_scalar_subquery : public Query_result_subquery {
 */
 static bool guaranteed_one_row(const Query_block *qb) {
   return !qb->has_tables() && qb->where_cond() == nullptr &&
-         qb->having_cond() == nullptr && !qb->has_limit();
+         qb->having_cond() == nullptr && qb->qualify_cond() == nullptr &&
+         qb->olap == UNSPECIFIED_OLAP_TYPE &&
+         qb->limit_offset_preserves_first_row();
 }
 
 /**
@@ -364,10 +367,9 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
   if (thd->lex->is_view_context_analysis()) return false;
 
   // A subquery containing a simple selected expression can be eliminated
-  if (!query_expr()->is_set_operation() && !inner->has_tables() &&
+  if (!query_expr()->is_set_operation() && guaranteed_one_row(inner) &&
       single_field != nullptr && !single_field->has_aggregation() &&
-      !single_field->has_wf() && inner->where_cond() == nullptr &&
-      inner->having_cond() == nullptr && !is_maxmin()) {
+      !single_field->has_wf() && !is_maxmin()) {
     if (thd->lex->is_explain()) {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), inner->select_number);
@@ -597,7 +599,9 @@ bool Item_subselect::fix_fields(THD *thd, Item **) {
 
   assert(!fixed);
   assert(indexsubquery_engine == nullptr);
-
+#ifndef NDEBUG
+  assert(contextualized);
+#endif
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar *)&res)) return true;
 
   if (!query_expr()->is_prepared() &&
@@ -889,6 +893,14 @@ bool Query_result_scalar_subquery::send_data(
 
   it->set_value_assigned();
   return false;
+}
+
+Item_singlerow_subselect::Item_singlerow_subselect(const POS &pos,
+                                                   Query_block *query_block)
+    : Item_subselect(pos) {
+  bind(query_block->master_query_expression());
+
+  m_max_columns = UINT_MAX;
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(Query_block *query_block)
@@ -1306,8 +1318,9 @@ bool Query_result_exists_subquery::send_data(THD *,
   return false;
 }
 
-Item_exists_subselect::Item_exists_subselect(Query_block *query_block)
-    : Item_subselect() {
+Item_exists_subselect::Item_exists_subselect(const POS &pos,
+                                             Query_block *query_block)
+    : Item_subselect(pos) {
   DBUG_TRACE;
   bind(query_block->master_query_expression());
 
@@ -1413,8 +1426,9 @@ bool Item_in_subselect::test_limit() {
   return false;
 }
 
-Item_in_subselect::Item_in_subselect(Item *left_exp, Query_block *query_block)
-    : Item_exists_subselect(query_block), pt_subselect(nullptr) {
+Item_in_subselect::Item_in_subselect(const POS &pos, Item *left_exp,
+                                     Query_block *query_block)
+    : Item_exists_subselect(pos, query_block), pt_subselect(nullptr) {
   DBUG_TRACE;
   left_expr = left_exp;
   m_max_columns = UINT_MAX;
@@ -1448,11 +1462,11 @@ bool Item_in_subselect::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-Item_allany_subselect::Item_allany_subselect(Item *left_exp,
+Item_allany_subselect::Item_allany_subselect(const POS &pos, Item *left_exp,
                                              chooser_compare_func_creator fc,
                                              Query_block *query_block,
                                              bool all_arg)
-    : Item_in_subselect(), m_func_creator(fc), m_all(all_arg) {
+    : Item_in_subselect(pos), m_func_creator(fc), m_all(all_arg) {
   DBUG_TRACE;
   left_expr = left_exp;
   m_func = m_func_creator(all_arg);
@@ -1589,7 +1603,7 @@ bool Item_exists_subselect::is_semijoin_candidate(THD *thd) {
       is_deterministic &&                                                  // 12
       choose_semijoin_or_antijoin() &&                                     // 13
       (!cannot_do_antijoin || !can_do_aj) &&                               // 14
-      inner->is_row_count_valid_for_semi_join()) {                         // 15
+      inner->limit_offset_preserves_first_row()) {                         // 15
     return true;
   }
   return false;
@@ -1857,13 +1871,16 @@ bool Item_in_subselect::single_value_transformer(THD *thd, Comp_creator *func,
     1. has a greater than/less than comparison operator, and
     2. is not correlated with the outer query, and
     3. UNKNOWN results are treated as FALSE, by this item or the outer item,
-    or can never be generated.
+       or can never be generated, and
+    4. is for a target engine that supports subqueries.
   */
   if (!func->eqne_op() &&                                              // 1
       !query_expr()->uncacheable &&                                    // 2
       (abort_on_null ||                                                // 3
        (m_upper_item != nullptr && m_upper_item->ignore_unknown()) ||  // 3
-       (!left_expr->is_nullable() && !subquery_maybe_null))) {
+       (!left_expr->is_nullable() && !subquery_maybe_null)) &&         // 3
+      thd->secondary_engine_optimization() !=                          // 4
+          Secondary_engine_optimization::SECONDARY) {                  // 4
     Query_block *select = query_expr()->first_query_block();
 
     Item_singlerow_subselect *subquery;
@@ -2541,13 +2558,14 @@ bool Item_in_subselect::quantified_comp_transformer(THD *thd,
 
   /*
     A table-less IN or NOT IN subquery that is not grouped and has no
-    WHERE clause or HAVING clause can be transformed into a simple
+    WHERE, HAVING or QUALIFY clause can be transformed into a simple
     equality or non-equality.
   */
   if (!query_expr()->is_set_operation() && inner->source_table_is_one_row() &&
       func->eqne_op() && !inner->is_grouped() &&
       inner->where_cond() == nullptr && inner->having_cond() == nullptr &&
-      !inner->has_windows() && left_expr->cols() == 1) {
+      inner->qualify_cond() == nullptr && !inner->has_windows() &&
+      left_expr->cols() == 1) {
     /*
       Keep applicability conditions in sync with
       Item_exists_subselect::truth_transformer().
@@ -3396,7 +3414,7 @@ bool subselect_hash_sj_engine::setup(
           thd, tmp_columns,
           true,  // Eliminate duplicates
           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-          "<materialized_subquery>", true, true))
+          "<materialized_subquery>", true))
     return true;
 
   tmp_table = tmp_result_sink->table;

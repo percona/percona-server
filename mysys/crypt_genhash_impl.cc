@@ -49,6 +49,7 @@
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "my_inttypes.h"
+#include "my_ssl_algo_cache.h"
 
 #include <errno.h>
 
@@ -62,7 +63,7 @@ static void DIGESTCreate(DIGEST_CTX **ctx) {
 }
 
 static void DIGESTInit(DIGEST_CTX *ctx) {
-  EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
+  EVP_DigestInit_ex(ctx, my_EVP_sha256(), nullptr);
 }
 
 static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len) {

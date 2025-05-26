@@ -524,6 +524,8 @@ Warnings:
 Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 CREATE TABLE t1(
 field1 text NOT NULL,
 PRIMARY KEY(field1(750))
@@ -1077,6 +1079,8 @@ delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 drop database mysqltest;
 show plugins;
 create database `mysqlttest\1`;

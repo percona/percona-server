@@ -87,6 +87,7 @@ TODO:
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/int2str.h"
 #include "mysys/mysys_priv.h"
+#include "mysys/stream_cipher.h"
 #include "thr_mutex.h"
 
 PSI_file_key key_file_io_cache;

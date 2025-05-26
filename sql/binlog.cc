@@ -138,7 +138,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // sqlcom_can_generate_row_events
-#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_show.h"   // append_identifier_*
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/transaction_info.h"

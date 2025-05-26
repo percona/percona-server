@@ -274,9 +274,15 @@ namespace info_schema {
   Changes:
   - WL#16268: Support for InnoDB Partitions Phase 2
   A new bool column, SECONDARY_LOAD, is added in the I_S.partitions view
+
+  90200:
+  ----------------------------------------------------------------------------
+  Changes:
+  - WL#16360: Data dictionary support for JavaScript libraries
+  New views: LIBRARIES and ROUTINE_LIBRARIES are added.
 */
 
-static const uint IS_DD_VERSION = 90100;
+static const uint IS_DD_VERSION = 90200;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

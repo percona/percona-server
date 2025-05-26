@@ -123,7 +123,7 @@ IF(WIN32)
   MESSAGE(STATUS "SASL_SCRAM_PLUGIN = ${SASL_SCRAM_PLUGIN}")
   MESSAGE(STATUS "SASL_GSSAPI_PLUGIN = ${SASL_GSSAPI_PLUGIN}")
 
-  # Note that SASL library (libsasl.dll") goes into "bin" directory 
+  # Note that SASL library (libsasl.dll") goes into "bin" directory
   # (where "mysql.exe" and other client executables are located)
   # SASL plugins ("saslSCRAM.dll" and "saslGSSAPI.dll") go into "bin/sasl2" directory
   INSTALL(FILES "${SASL_LIBRARY_DLL}"

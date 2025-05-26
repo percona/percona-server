@@ -3609,8 +3609,9 @@ class Item : public Parse_tree_node {
     /// When doing constant propagation (e.g. change_cond_ref_to_const(), to
     /// remember that we have already processed the item.
     MARKER_CONST_PROPAG = 2,
-    /// When creating an internal temporary table: says how to store BIT fields.
-    MARKER_BIT = 4,
+    /// When creating an internal temporary table: marking group by
+    /// fields
+    MARKER_GROUP_BY_BIT = 4,
     /// When analyzing functional dependencies for only_full_group_by (says
     /// whether a nullable column can be treated at not nullable).
     MARKER_FUNC_DEP_NOT_NULL = 5,

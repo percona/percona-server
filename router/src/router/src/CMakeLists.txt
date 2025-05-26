@@ -33,6 +33,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_utils
   keyring_info.cc
   utils.cc
   uri.cc
+  routing_guidelines_version.cc
 
   OUTPUT_NAME "mysqlrouter_utils"
 
@@ -72,6 +73,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_cluster
   harness-library
   router_utils
   router_mysql
+  routing_guidelines
   )
 
 IF(WIN32)
@@ -100,6 +102,7 @@ ROUTER_ADD_SHARED_LIBRARY(router_lib
   # router_mysql
   OpenSSL::SSL OpenSSL::Crypto
   io_component
+  routing_guidelines
   extra::rapidjson
   )
 

@@ -2075,3 +2075,31 @@ FROM (SELECT 1) AS y(y) JOIN (SELECT 1) AS z(z)
          HAVING 1 IN (SELECT min(x.x) FROM (SELECT 1) AS w(w))
         )
 WHERE 1 = 2;
+
+--echo #
+--echo # Bug#37243446: Assertion: item->contextualized in Item::Item
+--echo #
+
+CREATE TABLE t (c integer);
+
+# This crashes:
+SELECT (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+
+# This works:
+SELECT c IN (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+
+# This works, but does not set contextualized flag
+SELECT c >ANY (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+
+# This crashes:
+SELECT EXISTS (SELECT t.c FROM t) AS f FROM t
+UNION ALL
+SELECT 1 FROM t;
+
+DROP TABLE t;

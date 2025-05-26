@@ -155,10 +155,17 @@ constexpr double kHashProbeOneRowCost = 0.09 / kUnitCostInMicroseconds;
 constexpr double kHashReturnOneRowCost = 0.06 / kUnitCostInMicroseconds;
 
 /// In need of calibration.
-constexpr double kAggregateOneRowCost = 0.1 / kUnitCostInMicroseconds;
-constexpr double kStreamOneRowCost = 0.01 / kUnitCostInMicroseconds;
-constexpr double kMaterializeOneRowCost = 0.1 / kUnitCostInMicroseconds;
+constexpr double kDedupOneRowCost = 0.1 / kUnitCostInMicroseconds;
 constexpr double kWindowOneRowCost = 0.1 / kUnitCostInMicroseconds;
-constexpr double kTempTableAggLookupCost = 0.1 / kUnitCostInMicroseconds;
+
+/// The new Hypergraph cost model no longer uses these constants.
+constexpr double kAggregateOneRowCostOldModel = 0.1 / kUnitCostInMicroseconds;
+constexpr double kMaterializeOneRowCostOldModel = 0.1 / kUnitCostInMicroseconds;
+
+/// For WL16117, all calibration was done on a particular machine where the
+/// cost of reading a row was found to be a bit different than
+/// kUnitCostInMicroseconds. Hence a separate cost constant for these particular
+/// Access paths included in the worklog.
+constexpr double kUnitCostInMicrosecondsWL16117 = 0.492;
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_CONSTANTS_H_

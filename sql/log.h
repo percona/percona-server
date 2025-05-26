@@ -834,8 +834,9 @@ bool init_error_log();
 
   @param filename        Name of error log file
   @param get_lock        Should we acquire LOCK_error_log?
+  @param log_type        Error log, diagnostic log or both.
 */
-bool open_error_log(const char *filename, bool get_lock);
+bool open_error_log(const char *filename, bool get_lock, uint log_type);
 
 /**
   Free any error log resources.
@@ -1618,7 +1619,9 @@ int log_builtins_exit();
 
   @param         buffer       buffer containing serialized error message
   @param         length       number of bytes in buffer
+  @param         log_type     type of log, e.g. error or diagnostic log
 */
-void log_write_errstream(const char *buffer, size_t length);
+void log_write_errstream(const char *buffer, size_t length,
+                         enum enum_log_type log_type);
 
 #endif /* LOG_H */

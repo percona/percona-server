@@ -1,5 +1,7 @@
 # Set up the plugin APIs
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+Warnings:
+Warning	1681	'version_tokens plugin' is deprecated and will be removed in a future release.
 CREATE FUNCTION version_tokens_set RETURNS STRING SONAME 'version_token.so';
 CREATE FUNCTION version_tokens_show RETURNS STRING SONAME 'version_token.so';
 CREATE FUNCTION version_tokens_edit RETURNS STRING SONAME 'version_token.so';
@@ -14,21 +16,33 @@ CREATE FUNCTION version_tokens_unlock RETURNS INT SONAME 'version_token.so';
 SELECT version_tokens_set(' * = a ; y = b ');
 version_tokens_set(' * = a ; y = b ')
 2 version tokens set.
+Warnings:
+Warning	1681	'version_tokens_set' is deprecated and will be removed in a future release.
 SELECT version_tokens_show();
 version_tokens_show()
 *=a;y=b;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 SELECT version_tokens_delete(' * ');
 version_tokens_delete(' * ')
 1 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 SELECT version_tokens_show();
 version_tokens_show()
 y=b;
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 SELECT version_tokens_delete(' ; y ');
 version_tokens_delete(' ; y ')
 1 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 SELECT version_tokens_show();
 version_tokens_show()
 NULL
+Warnings:
+Warning	1681	'version_tokens_show' is deprecated and will be removed in a future release.
 #
 # Bug #21645944: VERSION_TOKENS : CRASH WITH EMPTY TOKEN NAME
 #
@@ -37,6 +51,7 @@ SELECT version_tokens_edit('=');
 version_tokens_edit('=')
 0 version tokens updated.
 Warnings:
+Warning	1681	'version_tokens_edit' is deprecated and will be removed in a future release.
 Warning	42000	Invalid version token pair encountered. The list provided is only partially updated.
 #
 # Bug #21646017: VERSION_TOKENS : CRASH WITH INVALID TIMEOUT PARAMETER
@@ -51,6 +66,8 @@ ERROR 22003: timeout value is out of range in 'version_tokens_lock_shared'
 SELECT version_tokens_delete(null);
 version_tokens_delete(null)
 0 version tokens deleted.
+Warnings:
+Warning	1681	'version_tokens_delete' is deprecated and will be removed in a future release.
 # End of 5.7 tests
 # Clean up the plugin APIs
 UNINSTALL PLUGIN version_tokens;

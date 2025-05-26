@@ -31,6 +31,7 @@
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/types/function.h"   // dd::Function
+#include "sql/dd/types/library.h"    // dd::Library
 #include "sql/dd/types/procedure.h"  // dd::Procedure
 
 struct CHARSET_INFO;
@@ -61,8 +62,9 @@ Routines::Routines() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
-  m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
-                         "type ENUM('FUNCTION', 'PROCEDURE') NOT NULL");
+  m_target_def.add_field(
+      FIELD_TYPE, "FIELD_TYPE",
+      "type ENUM('FUNCTION', 'PROCEDURE', 'LIBRARY') NOT NULL");
   m_target_def.add_field(FIELD_RESULT_DATA_TYPE, "FIELD_RESULT_DATA_TYPE",
                          "result_data_type ENUM(\n"
                          "    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',\n"
@@ -183,8 +185,11 @@ Routine *Routines::create_entity_object(const Raw_record &r) const {
 
   if (routine_type == Routine::RT_FUNCTION)
     return dd::create_object<Function>();
-  else
+  if (routine_type == Routine::RT_PROCEDURE)
     return dd::create_object<Procedure>();
+  if (routine_type == Routine::RT_LIBRARY) return dd::create_object<Library>();
+  assert(false);
+  return {};
 }
 
 ///////////////////////////////////////////////////////////////////////////

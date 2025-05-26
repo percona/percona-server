@@ -384,7 +384,7 @@ CREATE TABLE t11(f1 INT DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL, KEY (f1),KEY (
 ANALYZE TABLE t2, t4, t5, t6, t7, t10, t11;
 
 --replace_regex $elide_costs
-EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias11,alias8) */ 1
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(alias8,alias5,alias11,alias4) */ 1
 FROM t4 AS alias4
   LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
   LEFT JOIN t7 AS alias7 JOIN t2 AS alias8 ON alias7.f1 = alias8.f1

@@ -497,8 +497,8 @@ TEST_P(MetadataConfigTest, MetadataConfig) {
       mysql_harness::ConfigBuilder::build_section(
           "metadata_cache:test", {
                                      {"cluster_type", "gr"},
-                                     {"router_id", "1"},
                                      {"metadata_cluster", "test"},
+                                     {"router_id", "1"},
                                  });
 
   const std::string routing_section =

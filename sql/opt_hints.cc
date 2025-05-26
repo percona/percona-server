@@ -1087,7 +1087,9 @@ void Opt_hints_table::adjust_key_hints(Table_ref *tr) {
   if (!tr->is_base_table()) return;
 
   TABLE *table = tr->table;
-  keyinfo_array.resize(table->s->keys, nullptr);
+  if (keyinfo_array.resize(table->s->keys, nullptr)) {
+    return;
+  }
 
   for (Opt_hints **hint = child_array_ptr()->begin();
        hint < child_array_ptr()->end(); ++hint) {

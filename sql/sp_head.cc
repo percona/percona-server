@@ -90,7 +90,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_parse.h"  // cleanup_items
 #include "sql/sql_profile.h"
-#include "sql/sql_show.h"  // append_identifier
+#include "sql/sql_show.h"  // append_identifier_*
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -1908,7 +1908,11 @@ sp_head::~sp_head() {
 
   for (uint ip = 0; (i = get_instr(ip)) != nullptr; ip++) ::destroy_at(i);
 
-  ::destroy_at(m_root_parsing_ctx);
+  // The libraries do not have parsing context.
+  if (m_type == enum_sp_type::LIBRARY)
+    assert(m_root_parsing_ctx == nullptr);
+  else
+    ::destroy_at(m_root_parsing_ctx);
 
   /*
     If we have non-empty LEX stack then we just came out of parser with
@@ -3275,6 +3279,15 @@ void sp_head::set_info(longlong created, longlong modified,
     m_chistics->comment.str = strmake_root(
         &main_mem_root, m_chistics->comment.str, m_chistics->comment.length);
 
+  m_chistics->m_imported_libraries = nullptr;
+  if (chistics->m_imported_libraries != nullptr)
+    for (auto &library : *chistics->m_imported_libraries)
+      if (m_chistics->add_imported_library(
+              {library.m_db.str, library.m_db.length},
+              {library.m_name.str, library.m_name.length},
+              {library.m_alias.str, library.m_alias.length}, &main_mem_root))
+        break;
+
   m_sql_mode = sql_mode;
 }
 
@@ -3362,7 +3375,7 @@ void sp_head::optimize() {
     }
   }
 
-  m_instructions.resize(dst);
+  m_instructions.erase(m_instructions.begin() + dst, m_instructions.end());
   bp.clear();
 }
 
@@ -3634,13 +3647,18 @@ bool sp_head::check_show_access(THD *thd, bool *full_access) {
 
   *full_access = has_full_view_routine_access(thd, m_db.str, m_definer_user.str,
                                               m_definer_host.str);
-  return *full_access ? false
-                      : !has_partial_view_routine_access(
-                            thd, m_db.str, m_name.str,
-                            m_type == enum_sp_type::PROCEDURE);
+  // User has full access
+  if (*full_access) return false;
+  return !has_partial_view_routine_access(thd, m_db.str, m_name.str,
+                                          enum_sp_type_to_acl_type(m_type));
 }
 
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
+  if (m_type == enum_sp_type::LIBRARY) {
+    // Security context is never switched for the LIBRARY.
+    assert(false);
+    return true;
+  }
   *save_ctx = nullptr;
   const LEX_CSTRING definer_user = {m_definer_user.str, m_definer_user.length};
   const LEX_CSTRING definer_host = {m_definer_host.str, m_definer_host.length};
@@ -3659,7 +3677,7 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
 
   if (*save_ctx &&
       check_routine_access(thd, EXECUTE_ACL, m_db.str, m_name.str,
-                           m_type == enum_sp_type::PROCEDURE, false)) {
+                           enum_sp_type_to_acl_type(m_type), false)) {
     m_security_ctx.restore_security_context(thd, *save_ctx);
     *save_ctx = nullptr;
     return true;

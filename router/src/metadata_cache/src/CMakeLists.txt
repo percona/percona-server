@@ -43,6 +43,8 @@ ROUTER_ADD_SHARED_LIBRARY(metadata_cache
   router_cluster
   router_mysqlxclient
   router_mysqlxmessages
+  router_utils
+  routing_guidelines
   PRIVATE
   extra::rapidjson
 

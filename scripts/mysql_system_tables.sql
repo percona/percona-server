@@ -335,7 +335,7 @@ SET @cmd = "CREATE TABLE IF NOT EXISTS procs_priv
   Db char(64) binary DEFAULT '' NOT NULL,
   User char(32) binary DEFAULT '' NOT NULL,
   Routine_name char(64) COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL,
-  Routine_type enum('FUNCTION','PROCEDURE') NOT NULL,
+  Routine_type enum('FUNCTION','PROCEDURE','LIBRARY') NOT NULL,
   Grantor varchar(288) DEFAULT '' NOT NULL,
   Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8mb3_general_ci DEFAULT '' NOT NULL,
   Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

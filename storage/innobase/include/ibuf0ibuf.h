@@ -209,7 +209,7 @@ static inline bool ibuf_bitmap_page(const page_id_t &page_id,
                                     const page_size_t &page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==true.
+Must not be called when recv_recovery_is_on().
 @param[in]      page_id         page id
 @param[in]      page_size       page size
 @param[in]      x_latch         false if relaxed check (avoid latching the
@@ -225,7 +225,7 @@ in which case a new transaction is created.
                                  mtr_t *mtr) MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==true.
+Must not be called when recv_recovery_is_on().
 @param[in]      page_id         Tablespace/page identifier
 @param[in]      page_size       Page size
 @param[in]  location Location where requested

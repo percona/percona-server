@@ -502,6 +502,9 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       transform_scalar_subqueries_to_join_with_derived(thd))
     return true; /* purecov: inspected */
 
+  /* Preserve the original table map for later reference. */
+  original_tables_map = all_tables_map();
+
   /*
     If GROUPING function is present in having condition -
     1. Set that the evaluation of this condition depends on rollup
@@ -558,23 +561,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
           if (new_item == nullptr) return true;
           *it = new_item;
         }
-      }
-    }
-  }
-
-  if (!thd->lex->using_hypergraph_optimizer() && group_list.elements) {
-    /*
-      Because HEAP tables can't index BIT fields we need to use an
-      additional hidden field for grouping because later it will be
-      converted to a LONG field. Original field will remain of the
-      BIT type and will be returned to a client. Hypergraph optimizer
-      uses hash deduplication for bit types so this is not necessary.
-    */
-    for (ORDER *ord = group_list.first; ord; ord = ord->next) {
-      if ((*ord->item)->type() == Item::FIELD_ITEM &&
-          (*ord->item)->data_type() == MYSQL_TYPE_BIT) {
-        Item_field *field = new Item_field(thd, *(Item_field **)ord->item);
-        ord->item = add_hidden_item(field);
       }
     }
   }
@@ -1397,15 +1383,21 @@ bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
 }
 
 /**
+  Check if the LIMIT/OFFSET clause is specified in a way that makes it always
+  preserve the first row returned by the underlying query. The first row is
+  preserved if LIMIT is unspecified or greater than zero and OFFSET is
+  unspecified or equal to zero.
 
-  Check if the offset and limit are valid for a semijoin. A semijoin
-  can be used only if OFFSET is 0 and select LIMIT is not 0.
+  If the values of LIMIT and OFFSET are unknown at resolve time (because they
+  are parameters and not literals), we cannot say if the first row will always
+  be preserved, and we return false.
 
-  @retval false  if OFFSET and LIMIT does not permit a semijoin,
-  @retval true   otherwise.
+  @retval true If the first row of the underlying query will always be preserved
+  through LIMIT/OFFSET.
+  @retval false If the first row of the underlying query may be filtered out by
+  LIMIT/OFFSET.
 */
-
-bool Query_block::is_row_count_valid_for_semi_join() {
+bool Query_block::limit_offset_preserves_first_row() const {
   if (offset_limit != nullptr &&
       (!offset_limit->const_item() || offset_limit->val_int() != 0))
     return false;
@@ -4359,13 +4351,23 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
     group_fix_field = true is so that we properly reject GROUP BY on
     subqueries with references to group fields.
+
+    is_window_order is used to signal that we do not accept outer references
   */
-  bool save_group_fix_field = thd->lex->current_query_block()->group_fix_field;
-  if (is_group_field) thd->lex->current_query_block()->group_fix_field = true;
+  const bool save_group_fix_field =
+      thd->lex->current_query_block()->group_fix_field;
+  const bool save_window_order =
+      thd->lex->current_query_block()->m_window_order_fix_field;
+  thd->lex->current_query_block()->group_fix_field = is_group_field;
+  thd->lex->current_query_block()->m_window_order_fix_field = is_window_order;
+
   bool ret =
       (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
                               (order_item = *order->item)->check_cols(1)));
+
   thd->lex->current_query_block()->group_fix_field = save_group_fix_field;
+  thd->lex->current_query_block()->m_window_order_fix_field = save_window_order;
+
   if (ret) return true; /* Wrong field. */
 
   uint el = fields->size();
@@ -4745,6 +4747,12 @@ bool WalkAndReplace(
   if (item->type() == Item::FUNC_ITEM ||
       (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)) {
     Item **args = down_cast<Item_func *>(item)->arguments();
+    bool saved = false;
+
+    if (item->m_is_window_function) {
+      saved = thd->lex->splitting_window_expression();
+      thd->lex->set_splitting_window_expression(false);
+    }
     const unsigned arg_count = down_cast<Item_func *>(item)->argument_count();
     for (unsigned argument_idx = 0; argument_idx < arg_count; argument_idx++) {
       if (WalkAndReplaceInner(thd, item, argument_idx, get_new_item,
@@ -4754,6 +4762,7 @@ bool WalkAndReplace(
     }
 
     if (item->m_is_window_function) {
+      thd->lex->set_splitting_window_expression(saved);
       down_cast<Item_sum *>(item)->update_after_wf_arguments_changed(thd);
     }
   } else if (item->type() == Item::ROW_ITEM) {
@@ -4824,15 +4833,19 @@ bool WalkAndReplace(
             return true;
         }
         for (auto &win : qb->m_windows) {
-          for (ORDER *o = win.effective_order_by()->value.first; o != nullptr;
-               o = o->next) {
-            if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-              return true;
+          if (win.effective_order_by() != nullptr) {
+            for (ORDER *o = win.effective_order_by()->value.first; o != nullptr;
+                 o = o->next) {
+              if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+                return true;
+            }
           }
-          for (ORDER *o = win.effective_partition_by()->value.first;
-               o != nullptr; o = o->next) {
-            if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-              return true;
+          if (win.effective_partition_by() != nullptr) {
+            for (ORDER *o = win.effective_partition_by()->value.first;
+                 o != nullptr; o = o->next) {
+              if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
+                return true;
+            }
           }
         }
       }
@@ -5463,7 +5476,9 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   if (subq_pred->subquery_type() == Item_subselect::IN_SUBQUERY) {
     build_sj_exprs(thd, &sj_outer_exprs, &sj_inner_exprs, subq_pred, inner_qb);
     // All these expressions are compared with '=':
-    op_types.resize(sj_outer_exprs.size(), Item_func::EQ_FUNC);
+    if (op_types.resize(sj_outer_exprs.size(), Item_func::EQ_FUNC)) {
+      return true;
+    }
   } else {
     assert(subq_pred->subquery_type() == Item_subselect::EXISTS_SUBQUERY);
 
@@ -6376,6 +6391,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       }
     }
 
+    new_derived->original_tables_map = original_tables_map;
     if (new_derived->has_sj_candidates() &&
         new_derived->flatten_subqueries(thd))
       return true;

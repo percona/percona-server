@@ -408,6 +408,8 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
     return query_one(stmt, [](unsigned, MYSQL_FIELD *) {});
   }
 
+  virtual int ping();
+
   virtual uint64_t last_insert_id() noexcept;
 
   virtual unsigned warning_count() noexcept;

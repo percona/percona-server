@@ -40,6 +40,7 @@
 #include "sql/dd/impl/types/foreign_key_impl.h"
 #include "sql/dd/impl/types/function_impl.h"
 #include "sql/dd/impl/types/index_stat_impl.h"
+#include "sql/dd/impl/types/library_impl.h"
 #include "sql/dd/impl/types/parameter_impl.h"
 #include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/impl/types/procedure_impl.h"

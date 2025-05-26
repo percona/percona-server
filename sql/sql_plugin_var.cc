@@ -704,7 +704,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length)) ||
-        (result = find_type(&bool_typelib, str, length, true) - 1) < 0)
+        (result = find_type(&bool_typelib, str, length, false) - 1) < 0)
       goto err;
   } else {
     if (value->val_int(value, &tmp) < 0) goto err;

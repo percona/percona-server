@@ -225,6 +225,7 @@ DROP TABLE t1;
 CREATE TABLE t(pka INT NOT NULL AUTO_INCREMENT, a1 INT, a2 INT, PRIMARY KEY(pka));
 INSERT INTO t(a1,a2) VALUES (1,3), (2,5), (3,7), (4,8), (5,9), (6,10), (7,11);
 INSERT INTO t(a1,a2) SELECT a1,a2 FROM t;
+ANALYZE TABLE t;
 let $query =
 SELECT * FROM ( (SELECT a1,a2 FROM t ORDER BY a1,a2 ASC)
                 ORDER BY a2/a1 DESC LIMIT 7 ) AS derived;
@@ -283,3 +284,11 @@ SELECT JSON_PRETTY(JSON_EXTRACT(
 FROM information_schema.OPTIMIZER_TRACE AS t;
 SET optimizer_trace='enabled=default';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#37341055 MySQL version 9.1.0 crash with query thats works on version 8
+--echo #
+SELECT 'a' AS f1, 'b' AS f2, 'c' AS f3
+UNION
+SELECT 'a' AS f1 , NULL AS f2, 'c' AS f3
+ORDER BY f2, f3;

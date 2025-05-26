@@ -129,8 +129,8 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
 
   if (!(full_doit || doit)) return;
 
-  IFDBG(D_NONE, FN; PTREXP(pma); PTREXP(app); NDBG(app_status, d);
-        COPY_AND_FREE_GOUT(dbg_app_data(app)));
+  XCOM_IFDBG(D_NONE, FN; PTREXP(pma); PTREXP(app); NDBG(app_status, d);
+             COPY_AND_FREE_GOUT(dbg_app_data(app)));
   if (pma)
     site = find_site_def(pma->synode);
   else
@@ -140,8 +140,8 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
     if (app->body.c_t == app_type) { /* Decode application data */
       if (!(app->unique_id.node == app->app_key.node &&
             app->unique_id.msgno == app->app_key.msgno)) {
-        IFDBG(D_BASE, FN; if (pma) SYCEXP(pma->synode); SYCEXP(app->unique_id);
-              SYCEXP(app->app_key));
+        XCOM_IFDBG(D_BASE, FN; if (pma) SYCEXP(pma->synode);
+                   SYCEXP(app->unique_id); SYCEXP(app->app_key));
       }
       if (full_doit) {
         /* purecov: begin deadcode */

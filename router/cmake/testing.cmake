@@ -150,7 +150,9 @@ FUNCTION(_ADD_TEST_FILE FILE)
     STRING_APPEND(TEST_ENV_PREFIX ";WITH_VALGRIND=1;VALGRIND_EXE=${VALGRIND}")
   ENDIF()
 
-  IF(WITH_ASAN)
+  # For Visual Studio: AddressSanitizer: ERROR: expected '=' in ASAN_OPTIONS
+  # Our asan.supp is empty anyways, and LSAN is not supported on Windows.
+  IF(WITH_ASAN AND NOT WIN32_VS)
     STRING_APPEND(TEST_ENV_PREFIX
       ";ASAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/mysql-test/asan.supp")
     STRING_APPEND(TEST_ENV_PREFIX

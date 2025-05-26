@@ -143,7 +143,8 @@ static char *server_version = nullptr;
 client_query_attributes *telemetry_client_attrs = nullptr;
 
 /** default set of patterns used for history exclusion filter */
-const static std::string HI_DEFAULTS("*IDENTIFIED*:*PASSWORD*");
+const static std::string HI_DEFAULTS(
+    "*IDENTIFIED*:*PASSWORD*:*https?*/p/?*/n/?*/b/?*/o/*");
 
 /** used for matching which history lines to ignore */
 static Pattern_matcher ignore_matcher;
@@ -2863,7 +2864,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
           return true;
       }
       buffer.length(0);
-    } else if (!*ml_comment &&
+    } else if (!*ml_comment && ss_comment != SSC_HINT &&
                (!*in_string &&
                 (inchar == '#' ||
                  (inchar == '-' && pos[1] == '-' &&
@@ -3878,7 +3879,6 @@ static char *fieldflags2str(uint f) {
   ff2s_check_flag(NO_DEFAULT_VALUE);
   ff2s_check_flag(NUM);
   ff2s_check_flag(PART_KEY);
-  ff2s_check_flag(GROUP);
   ff2s_check_flag(UNIQUE);
   ff2s_check_flag(BINCMP);
   ff2s_check_flag(ON_UPDATE_NOW);

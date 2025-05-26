@@ -94,6 +94,10 @@ FOREACH(test_file
     test_socket_close.cc
     test_stacktrace.cc
     test_destination_status.cc
+    test_routing_guidelines_invalid_document.cc
+    test_routing_guidelines_invalid_match.cc
+    test_routing_guidelines_routing.cc
+    test_routing_guidelines_adapter.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"

@@ -84,6 +84,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 
+#include "debug_sync.h" /* CONDITIONAL_SYNC_POINT */
 #include "my_dbug.h"
 #include "my_psi_config.h"
 
@@ -2359,13 +2360,7 @@ static void srv_update_cpu_usage() {
     return;
   }
 
-  int n_cpu = 0;
-  constexpr int MAX_CPU_N = 128;
-  for (int i = 0; i < MAX_CPU_N; ++i) {
-    if (CPU_ISSET(i, &cs)) {
-      ++n_cpu;
-    }
-  }
+  const int n_cpu = CPU_COUNT(&cs);
 
   srv_cpu_usage.n_cpu = n_cpu;
   MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));
@@ -2963,6 +2958,7 @@ bool srv_enable_undo_encryption(THD *thd) {
 static void srv_master_sleep(void) {
   srv_main_thread_op_info = "sleeping";
   std::this_thread::sleep_for(std::chrono::seconds(1));
+  CONDITIONAL_SYNC_POINT("srv_master_sleep");
   srv_main_thread_op_info = "";
 }
 

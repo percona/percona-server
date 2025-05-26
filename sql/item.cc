@@ -88,7 +88,7 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_show.h"  // append_identifier
+#include "sql/sql_show.h"  // append_identifier_*
 #include "sql/sql_time.h"  // Date_time_format
 #include "sql/sql_view.h"  // VIEW_ANY_ACL
 #include "sql/system_variables.h"
@@ -5909,6 +5909,15 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       return true;
     }
     assert(!(base_field != nullptr && ref_field != nullptr));
+    if (qb->m_window_order_fix_field) {
+      // SQL 2016, section 7.15 window clause, SR 4: " Each <column reference>
+      // contained in the <window partition clause> or <window order clause> of
+      // WDEF shall unambiguously reference a column of the derived table T
+      // that is the result of TE (the <table expression> that immediately
+      // contains the <window clause)
+      my_error(ER_INVALID_OUTER_REFERENCE, MYF(0), full_name());
+      return true;
+    }
     if (complete) {  // TODO verify full semantics of "complete"
       if (ref_field != nullptr) {
         *reference = ref_field;
@@ -6555,7 +6564,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
-      field = new (*THR_MALLOC) Field_newdate(m_nullable, item_name.ptr());
+      field = new (*THR_MALLOC) Field_date(m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_TIME:
       field =

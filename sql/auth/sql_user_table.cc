@@ -356,7 +356,7 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("char(64)")},
          {STRING_WITH_LEN("utf8mb3")}},
         {{STRING_WITH_LEN("Routine_type")},
-         {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
+         {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE','LIBRARY')")},
          {nullptr, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
@@ -606,8 +606,9 @@ void acl_notify_htons(THD *thd, enum_sql_command operation,
   @retval True  - Error.
 */
 
-static bool acl_end_trans_and_close_tables(THD *thd,
-                                           bool rollback_transaction) {
+static bool acl_end_trans_and_close_tables(
+    THD *thd, bool rollback_transaction,
+    Lock_state_list *modified_user_lock_state_list) {
   bool result;
 
   /*
@@ -653,7 +654,7 @@ static bool acl_end_trans_and_close_tables(THD *thd,
     */
     DBUG_EXECUTE_IF("wl14084_acl_ddl_error_before_cache_reload_trigger_timeout",
                     sleep(2););
-    reload_acl_caches(thd, true);
+    reload_acl_caches(thd, true, true, modified_user_lock_state_list);
     close_thread_tables(thd);
   }
   thd->mdl_context.release_transactional_locks();
@@ -677,17 +678,22 @@ static bool acl_end_trans_and_close_tables(THD *thd,
   @param write_to_binlog        Skip writing to binlog.
                                 Used for routine grants while
                                 creating routine.
+  @param modified_user_lock_state_list
+                                List of users whose temporary account
+                                locking attributes are likely modified.
 
   @returns status of log and commit
     @retval 0 Successfully committed. Optionally : written to binlog.
     @retval 1 If an error is raised at any stage
 */
 
-bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
-                            std::set<LEX_USER *> *extra_users, /* = NULL */
-                            Rewrite_params *rewrite_params,    /* = NULL */
-                            bool extra_error,                  /* = true */
-                            bool write_to_binlog) {            /* = true */
+bool log_and_commit_acl_ddl(
+    THD *thd, bool transactional_tables,
+    std::set<LEX_USER *> *extra_users,                /* = NULL */
+    Rewrite_params *rewrite_params,                   /* = NULL */
+    bool extra_error,                                 /* = false */
+    bool write_to_binlog,                             /* = true */
+    Lock_state_list *modified_user_lock_state_list) { /* = nullptr */
   bool result = false;
   DBUG_TRACE;
   assert(thd);
@@ -770,7 +776,10 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     mysql_rewrite_acl_query(thd, rlb, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result)) result = true;
+  if (acl_end_trans_and_close_tables(thd, result,
+                                     modified_user_lock_state_list)) {
+    result = true;
+  }
 
   return result;
 }
@@ -1936,7 +1945,7 @@ table_error:
   @param combo   User information.
   @param db      Database name for stored routine.
   @param routine_name  Name for stored routine.
-  @param is_proc  True for stored procedure, false for stored function.
+  @param routine_acl_type  Procedure, function or library
   @param rights  Rights requested.
   @param revoke_grant  Set to true if a REVOKE command is executed.
   @param all_current_privileges Set to true if this is GRANT/REVOKE ALL
@@ -1950,9 +1959,12 @@ table_error:
 
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const LEX_USER &combo, const char *db,
-                          const char *routine_name, bool is_proc,
+                          const char *routine_name, Acl_type routine_acl_type,
                           Access_bitmask rights, bool revoke_grant,
                           bool all_current_privileges) {
+  assert(routine_acl_type == Acl_type::PROCEDURE ||
+         routine_acl_type == Acl_type::FUNCTION ||
+         routine_acl_type == Acl_type::LIBRARY);
   char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error = 0;
@@ -1983,9 +1995,19 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   table->field[2]->store(combo.user.str, combo.user.length, &my_charset_latin1);
   table->field[3]->store(routine_name, strlen(routine_name),
                          &my_charset_latin1);
-  table->field[4]->store((is_proc ? to_longlong(enum_sp_type::PROCEDURE)
-                                  : to_longlong(enum_sp_type::FUNCTION)),
-                         true);
+  switch (routine_acl_type) {
+    case Acl_type::FUNCTION:
+      table->field[4]->store(STRING_WITH_LEN("FUNCTION"), &my_charset_latin1);
+      break;
+    case Acl_type::PROCEDURE:
+      table->field[4]->store(STRING_WITH_LEN("PROCEDURE"), &my_charset_latin1);
+      break;
+    case Acl_type::LIBRARY:
+      table->field[4]->store(STRING_WITH_LEN("LIBRARY"), &my_charset_latin1);
+      break;
+    default:
+      assert(0);
+  }
   store_record(table, record[1]);  // store at pos 1
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
@@ -2090,9 +2112,8 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   if (rights) {
     grant_name->privs = rights;
   } else {
-    erase_specific_element(
-        is_proc ? proc_priv_hash.get() : func_priv_hash.get(),
-        grant_name->hash_key, grant_name);
+    erase_specific_element(get_routine_priv_hash(routine_acl_type),
+                           grant_name->hash_key, grant_name);
   }
   return 0;
 

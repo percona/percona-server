@@ -45,3 +45,4 @@ This is a header-only library, containing various utility functions, such as:
 - nodiscard.h: replacement for [[nodiscard]] that works around gcc bug
   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84476
 - return_status.h: enum { ok, error }
+- type_traits.h: general-purpose type traits and concepts

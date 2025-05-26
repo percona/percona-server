@@ -846,7 +846,9 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
     // Create AccessPaths from the ROR child scans.
     auto *children = new (param->return_mem_root)
         Mem_root_array<AccessPath *>(param->return_mem_root);
-    children->resize(num_scans);
+    if (children == nullptr || children->resize(num_scans)) {
+      return nullptr;
+    }
     for (unsigned i = 0; i < num_scans; ++i) {
       (*children)[i] = MakeRowIdOrderedIndexScanAccessPath(
           best_plan.m_ror_scans[i], table,

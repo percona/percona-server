@@ -586,7 +586,7 @@ class Slave_worker : public Relay_log_info {
   /// @brief Copies data and sets the metric collection flag
   /// @param other the instance to be copied
   void copy_worker_metrics(Slave_worker *other) {
-    m_worker_metrics.copy_stats_from(other->m_worker_metrics);
+    m_worker_metrics = other->m_worker_metrics;
     m_is_worker_metric_collection_enabled =
         other->m_is_worker_metric_collection_enabled;
   }

@@ -15,7 +15,6 @@ call mtr.add_suppression("The plugin 'auth_socket' used to authenticate user .* 
 create table mysql_user_bak as select * from mysql.user;
 
 update mysql.user set plugin='auth_socket';
-flush privileges;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
 --error ER_ACCESS_DENIED_ERROR
@@ -44,7 +43,6 @@ connection default;
 update mysql.user set plugin='';
 delete from mysql.user;
 insert into mysql.user select * from mysql_user_bak;
-flush privileges;
 drop table mysql_user_bak;
 uninstall plugin auth_socket;
 

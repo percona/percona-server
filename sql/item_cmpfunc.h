@@ -1842,13 +1842,14 @@ class cmp_item {
   virtual void store_value_by_template(cmp_item *, Item *item) {
     store_value(item);
   }
+  virtual void set_null_value(bool nv) = 0;
 };
 
 /// cmp_item which stores a scalar (i.e. non-ROW).
 class cmp_item_scalar : public cmp_item {
  protected:
   bool m_null_value;  ///< If stored value is NULL
-  void set_null_value(bool nv) { m_null_value = nv; }
+  void set_null_value(bool nv) override { m_null_value = nv; }
 };
 
 class cmp_item_string final : public cmp_item_scalar {
@@ -2193,14 +2194,12 @@ class Item_func_in final : public Item_func_opt_neg {
 
 class cmp_item_row : public cmp_item {
   cmp_item **comparators{nullptr};
-  uint n;
-
-  // Only used for Mem_root_array::resize()
-  cmp_item_row() : n(0) {}
-
-  friend class Mem_root_array_YY<cmp_item_row>;
+  uint n{0};
 
  public:
+  // Only used for Mem_root_array::resize()
+  cmp_item_row() = default;
+
   cmp_item_row(THD *thd, Item *item) : n(item->cols()) {
     allocate_template_comparators(thd, item);
   }
@@ -2219,6 +2218,11 @@ class cmp_item_row : public cmp_item {
   int compare(const cmp_item *arg) const override;
   cmp_item *make_same() override;
   void store_value_by_template(cmp_item *tmpl, Item *) override;
+  void set_null_value(bool nv) override {
+    for (uint i = 0; i < n; i++) {
+      comparators[i]->set_null_value(nv);
+    }
+  }
 
  private:
   /**

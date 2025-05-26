@@ -106,9 +106,12 @@ class my_decimal : public decimal_t {
     sanity_check();
     rhs.sanity_check();
     if (this == &rhs) return *this;
-    decimal_t::operator=(rhs);
+    decimal_t::intg = rhs.intg;
+    decimal_t::frac = rhs.frac;
+    decimal_t::len = rhs.len;
+    decimal_t::sign = rhs.sign();
     buffer = rhs.buffer;
-    buf = buffer.data();
+    decimal_t::buf = buffer.data();
     return *this;
   }
 

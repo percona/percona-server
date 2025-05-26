@@ -63,6 +63,7 @@ usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxclient.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysqlxmessages.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_routing_connections.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_routing_guidelines.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_utils.so.1
 
 usr/share/mysqlrouter/docs/sample_mysqlrouter.conf

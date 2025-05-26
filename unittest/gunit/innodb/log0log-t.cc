@@ -227,6 +227,16 @@ static bool log_test_recovery() {
   ut_a(log_sys != nullptr);
   log_t &log = *log_sys;
 
+  std::atomic<bool> stop_flushing = false;
+
+  std::thread flush_thread([&stop_flushing] {
+    while (!stop_flushing) {
+      os_event_wait(recv_sys->flush_start);
+      os_event_reset(recv_sys->flush_start);
+      os_event_set(recv_sys->flush_end);
+    }
+  });
+
   err = recv_recovery_from_checkpoint_start(log, LOG_START_LSN);
 
   srv_is_being_started = false;
@@ -238,6 +248,10 @@ static bool log_test_recovery() {
   } else {
     srv_shutdown_state.store(SRV_SHUTDOWN_FLUSH_PHASE);
   }
+
+  stop_flushing = true;
+  os_event_set(recv_sys->flush_start);
+  flush_thread.join();
 
   recv_sys_close();
 

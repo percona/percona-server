@@ -77,7 +77,9 @@ NdbOperation::NdbOperation(Ndb *aNdb, NdbOperation::Type aType)
       m_abortOption(-1),
       m_noErrorPropagation(false),
       theLockHandle(nullptr),
-      m_blob_lock_upgraded(false) {
+      m_blob_lock_upgraded(false),
+      m_row_side_buffer(nullptr),
+      m_row_side_buffer_size(0) {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
   m_customData = nullptr;
@@ -173,6 +175,8 @@ int NdbOperation::init(const NdbTableImpl *tab, NdbTransaction *myConnection) {
   m_extraSetValues = nullptr;
   m_numExtraSetValues = 0;
   m_customData = nullptr;
+  m_row_side_buffer = nullptr;
+  m_row_side_buffer_size = 0;
 
   if (theReceiver.init(NdbReceiver::NDB_OPERATION, this)) {
     // theReceiver sets the error code of its owner

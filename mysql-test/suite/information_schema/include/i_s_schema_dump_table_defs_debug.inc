@@ -140,6 +140,18 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='ROUTINE_LIBRARIES';
+replace_regex /(cat|sch).name COLLATE utf8mb3_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='LIBRARIES';
+replace_regex /(cat|sch).name COLLATE utf8mb3_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='SHOW_STATISTICS';
 replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;

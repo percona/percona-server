@@ -128,7 +128,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -141,7 +141,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -160,7 +160,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -173,7 +173,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -189,7 +189,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -202,7 +202,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -221,7 +221,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -234,7 +234,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -250,7 +250,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -263,7 +263,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -282,7 +282,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -295,7 +295,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -311,7 +311,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -324,7 +324,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -343,7 +343,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.user
@@ -356,7 +356,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -375,7 +375,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -388,7 +388,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X	Acquired row lock on u2/u2x
@@ -408,7 +408,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -421,7 +421,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X	Acquired row lock on u2/u2x
@@ -438,7 +438,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -451,7 +451,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X	Acquired row lock on u2/u2x
@@ -471,7 +471,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -484,7 +484,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X	Acquired row lock on u2/u2x
@@ -501,7 +501,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -514,7 +514,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -534,7 +534,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -547,7 +547,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -564,7 +564,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -577,7 +577,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -597,7 +597,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.db
@@ -610,7 +610,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.db	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.db	User	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -630,7 +630,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -643,7 +643,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -663,7 +663,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -676,7 +676,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -693,7 +693,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -706,7 +706,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -726,7 +726,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -739,7 +739,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -756,7 +756,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -769,7 +769,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -789,7 +789,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -802,7 +802,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -819,7 +819,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -832,7 +832,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -852,7 +852,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.tables_priv
@@ -865,7 +865,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.tables_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.tables_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -885,7 +885,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -898,7 +898,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -917,7 +917,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -930,7 +930,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -946,7 +946,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -959,7 +959,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -978,7 +978,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -991,7 +991,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1007,7 +1007,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -1020,7 +1020,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1039,7 +1039,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -1052,7 +1052,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1068,7 +1068,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -1081,7 +1081,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1100,7 +1100,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.columns_priv
@@ -1113,7 +1113,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.columns_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1132,7 +1132,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1145,7 +1145,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1165,7 +1165,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1178,7 +1178,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1195,7 +1195,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1208,7 +1208,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1228,7 +1228,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1241,7 +1241,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1258,7 +1258,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1271,7 +1271,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1291,7 +1291,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1304,7 +1304,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1321,7 +1321,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1334,7 +1334,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1354,7 +1354,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.procs_priv
@@ -1367,7 +1367,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.procs_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.procs_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1387,7 +1387,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1400,7 +1400,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1420,7 +1420,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1433,7 +1433,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1450,7 +1450,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1463,7 +1463,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1483,7 +1483,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1496,7 +1496,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1513,7 +1513,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1526,7 +1526,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1546,7 +1546,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1559,7 +1559,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1576,7 +1576,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1589,7 +1589,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1609,7 +1609,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.proxies_priv
@@ -1622,7 +1622,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.proxies_priv	Grantor	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 mysql.proxies_priv	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
@@ -1642,7 +1642,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1655,7 +1655,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1674,7 +1674,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1687,7 +1687,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1703,7 +1703,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1716,7 +1716,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1735,7 +1735,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1748,7 +1748,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1764,7 +1764,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1777,7 +1777,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1796,7 +1796,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1809,7 +1809,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1825,7 +1825,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1838,7 +1838,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1857,7 +1857,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.global_grants
@@ -1870,7 +1870,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.global_grants	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -1889,7 +1889,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -1902,7 +1902,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1921,7 +1921,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -1934,7 +1934,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1950,7 +1950,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -1963,7 +1963,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -1982,7 +1982,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -1995,7 +1995,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2011,7 +2011,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -2024,7 +2024,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2043,7 +2043,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -2056,7 +2056,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2072,7 +2072,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -2085,7 +2085,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2104,7 +2104,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.password_history
@@ -2117,7 +2117,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.password_history	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2136,7 +2136,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2149,7 +2149,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2168,7 +2168,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2181,7 +2181,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2197,7 +2197,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2210,7 +2210,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2229,7 +2229,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2242,7 +2242,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2258,7 +2258,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2271,7 +2271,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2290,7 +2290,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2303,7 +2303,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2319,7 +2319,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2332,7 +2332,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2351,7 +2351,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT User FROM mysql.default_roles
@@ -2364,7 +2364,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.default_roles	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2383,7 +2383,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2396,7 +2396,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2415,7 +2415,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2428,7 +2428,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2444,7 +2444,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2457,7 +2457,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2476,7 +2476,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2489,7 +2489,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
@@ -2505,7 +2505,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2518,7 +2518,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2537,7 +2537,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2550,7 +2550,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2566,7 +2566,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2579,7 +2579,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2598,7 +2598,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE
+ORDER BY 1,2,3
 "Allow the same row to be read for update by SELECT FOR UPDATE"
   connection update_con
 SELECT To_user FROM mysql.role_edges
@@ -2611,7 +2611,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.role_edges	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 COMMIT;
@@ -2634,7 +2634,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2665,7 +2665,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2696,7 +2696,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2725,7 +2725,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2753,7 +2753,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2779,7 +2779,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2808,7 +2808,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2837,7 +2837,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2866,7 +2866,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2896,7 +2896,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2923,7 +2923,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -2996,7 +2996,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3027,7 +3027,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3065,7 +3065,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -3098,7 +3098,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3129,7 +3129,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -3162,7 +3162,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -3192,7 +3192,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 # Make sure no record locks are held on ACL table.
 SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
@@ -3200,7 +3200,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3242,7 +3242,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3261,7 +3261,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3298,7 +3298,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3325,7 +3325,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3352,7 +3352,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3377,7 +3377,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3401,7 +3401,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3427,7 +3427,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3452,7 +3452,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3477,7 +3477,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3502,7 +3502,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3528,7 +3528,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3553,7 +3553,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3618,7 +3618,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3645,7 +3645,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3681,7 +3681,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -3712,7 +3712,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3741,7 +3741,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -3772,7 +3772,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -3798,7 +3798,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 # Make sure no record locks are held on ACL table.
 SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
@@ -3806,7 +3806,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3842,7 +3842,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3861,7 +3861,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
@@ -3896,7 +3896,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3923,7 +3923,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3950,7 +3950,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3975,7 +3975,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -3999,7 +3999,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4023,7 +4023,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4048,7 +4048,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4073,7 +4073,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4098,7 +4098,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4124,7 +4124,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4149,7 +4149,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4214,7 +4214,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -4240,7 +4240,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4276,7 +4276,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4307,7 +4307,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4335,7 +4335,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4366,7 +4366,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -4392,7 +4392,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 # Make sure no record locks are held on ACL table.
 SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
@@ -4400,7 +4400,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4436,7 +4436,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4455,7 +4455,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -4489,7 +4489,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4516,7 +4516,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4543,7 +4543,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4568,7 +4568,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4592,7 +4592,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4616,7 +4616,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4641,7 +4641,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4666,7 +4666,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4691,7 +4691,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4717,7 +4717,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4742,7 +4742,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4807,7 +4807,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -4833,7 +4833,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -4869,7 +4869,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4900,7 +4900,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4928,7 +4928,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	S,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL tables.
@@ -4959,7 +4959,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
@@ -4985,7 +4985,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 # Make sure no record locks are held on ACL table.
 SELECT CONCAT(OBJECT_SCHEMA,'.',OBJECT_NAME)
@@ -4993,7 +4993,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -5029,7 +5029,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 DELETE FROM mysql.user WHERE User='u2';
 INSERT INTO mysql.user SELECT * FROM user_bk;
@@ -5048,7 +5048,7 @@ tab,INDEX_NAME,LOCK_MODE, 'Acquired row lock on u2/u2x' AS Has_lock
 FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0)
-ORDER BY tab,INDEX_NAME,LOCK_MODE;
+ORDER BY 1,2,3;
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.

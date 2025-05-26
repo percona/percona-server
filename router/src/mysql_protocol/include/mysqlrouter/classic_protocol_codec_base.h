@@ -136,10 +136,7 @@ stdx::expected<std::pair<size_t, T>, std::error_code> decode(
 template <class T, class... Args>
 stdx::expected<std::pair<size_t, T>, std::error_code> decode(
     const net::const_buffer &buffer, capabilities::value_type caps,
-    // clang-format off
-    Args &&... args
-    // clang-format on
-) {
+    Args &&...args) {
   return Codec<T>::decode(buffer, caps, std::forward<Args>(args)...);
 }
 

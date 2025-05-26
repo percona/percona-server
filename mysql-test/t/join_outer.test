@@ -922,7 +922,6 @@ SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read%';
 
 DROP TABLE t1,t2;
@@ -1610,7 +1609,6 @@ eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 # Without the "not exists" optimization, there would be more read_rnd_next
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 DROP TABLE t1,t2;
 
@@ -2258,19 +2256,16 @@ eval EXPLAIN $query3;
 flush status;
 --sorted_result
 eval $query1;
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_%';
 
 flush status;
 --sorted_result
 eval $query2;
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_%';
 
 flush status;
 --sorted_result
 eval $query3;
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_%';
 
 DROP TABLE t1, t2, t3, t4;

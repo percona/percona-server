@@ -32,6 +32,7 @@
 */
 
 #include "my_inttypes.h"
+#include "my_ssl_algo_cache.h"
 #include "sha1.h"
 
 #include <openssl/evp.h>
@@ -46,7 +47,7 @@
 */
 void compute_sha1_hash(uint8 *digest, const char *buf, size_t len) {
   EVP_MD_CTX *sha1_context = EVP_MD_CTX_create();
-  EVP_DigestInit_ex(sha1_context, EVP_sha1(), nullptr);
+  EVP_DigestInit_ex(sha1_context, my_EVP_sha1(), nullptr);
   EVP_DigestUpdate(sha1_context, buf, len);
   EVP_DigestFinal_ex(sha1_context, digest, nullptr);
   EVP_MD_CTX_destroy(sha1_context);
@@ -66,7 +67,7 @@ void compute_sha1_hash(uint8 *digest, const char *buf, size_t len) {
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2) {
   EVP_MD_CTX *sha1_context = EVP_MD_CTX_create();
-  EVP_DigestInit_ex(sha1_context, EVP_sha1(), nullptr);
+  EVP_DigestInit_ex(sha1_context, my_EVP_sha1(), nullptr);
   EVP_DigestUpdate(sha1_context, buf1, len1);
   EVP_DigestUpdate(sha1_context, buf2, len2);
   EVP_DigestFinal_ex(sha1_context, digest, nullptr);

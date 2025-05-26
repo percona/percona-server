@@ -816,12 +816,6 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT /*!40001 SQL_NO_CACHE */ * FROM `t3`')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
- > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'binary'')
-> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
- > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't3'')
-> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
- > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'utf8mb4'')
-> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
  tm_session_destroy: telemetry session ended, decrease refcount to 1

@@ -30,6 +30,7 @@
 #endif
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <rapidjson/document.h>
 
 #include "dim.h"
@@ -813,7 +814,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
-  wait_connection_dropped(client);
+  ASSERT_TRUE(wait_connection_dropped(client));
 }
 
 TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {

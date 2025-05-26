@@ -24,8 +24,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <mysql_com.h>  // needed only for MYSQL_ERRMSG_SIZE
-
+#include <mysql/components/services/bits/my_err_bits.h> // MYSQL_ERRMSG_SIZE
 #include <mysql/components/services/mysql_command_services.h>
 
 #include "masking_functions/command_service_tuple.hpp"

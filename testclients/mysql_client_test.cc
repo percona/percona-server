@@ -23610,6 +23610,129 @@ static void test_bug36891894() {
   mysql_library_end();
 }
 
+static void test_bug37202066() {
+  myheader("test_bug37202066");
+#ifndef NDEBUG
+  DBUG_SET("+d,test_stmt_ext_allocations");
+  int rc;
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS test_bug37202066");
+  myquery(rc);
+
+  rc = mysql_query(mysql,
+                   "CREATE TABLE test_bug37202066("
+                   "col1 MEDIUMBLOB NOT NULL,"
+                   "col2 TINYINT DEFAULT NULL"
+                   ") Engine=InnoDB;");
+  myquery(rc);
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+  const char *query = "INSERT INTO test_bug37202066 (col1, col2) VALUES (?,?)";
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  MYSQL_BIND bind[2];
+  memset(bind, 0, sizeof(bind));
+
+  long int_data = 0;
+  bool is_null = true;
+  /* should be longer than initial NET buffer size of 8k */
+  unsigned long buflen = 20000;
+  unsigned long len = buflen;
+  auto data_buf = std::make_unique<char[]>(buflen);
+  memset(data_buf.get(), 'A', buflen);
+
+  /* BLOB COLUMN */
+  bind[0].buffer_type = MYSQL_TYPE_BLOB;  // Same thing with MYSQL_TYPE_STRING
+  bind[0].buffer = data_buf.get();
+  bind[0].buffer_length = buflen;
+  bind[0].is_null = nullptr;
+  bind[0].length = &len;
+
+  /* INT COLUMN */
+  bind[1].buffer_type = MYSQL_TYPE_LONG;
+  bind[1].buffer = (char *)&int_data;
+  bind[1].is_null = &is_null;
+
+  /* validates (under valgrind) that multiple bind param
+   * calls in a row do not make the memory usage grow */
+  for (size_t i = 0; i < 10; ++i) {
+    rc = mysql_stmt_bind_named_param(stmt, bind, std::size(bind), nullptr);
+    check_execute(stmt, rc);
+  }
+
+  /* success criteria: should complete */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* cleanup */
+  mysql_stmt_close(stmt);
+  rc = mysql_query(mysql, "DROP TABLE test_bug37202066");
+  myquery(rc);
+
+  DBUG_SET("-d,test_stmt_ext_allocations");
+#endif
+}
+
+static void test_bug37383098() {
+  myheader("test_bug37383098");
+  int rc;
+
+  rc = mysql_query(mysql, "CREATE TABLE t1(a INTEGER, b BIT)");
+  myquery(rc);
+
+  rc = mysql_query(mysql, "INSERT INTO t1 VALUES(0, b'0')");
+  myquery(rc);
+
+  MYSQL_STMT *stmt = nullptr;
+  MYSQL_RES *rs = nullptr;
+
+  const char *query = "SELECT a, b FROM t1";
+
+  const ulong type = (ulong)CURSOR_TYPE_READ_ONLY;
+
+  stmt = mysql_stmt_init(mysql);
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  my_print_result_metadata(rs);
+
+  verify_prepare_field(rs, 0, "a", "a", MYSQL_TYPE_LONG, "t1", "t1", current_db,
+                       11);
+  verify_prepare_field(rs, 1, "b", "b", MYSQL_TYPE_BIT, "t1", "t1", current_db,
+                       1);
+
+  mysql_free_result(rs);
+  mysql_stmt_close(stmt);
+
+  stmt = mysql_stmt_init(mysql);
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rs = mysql_stmt_result_metadata(stmt);
+  my_print_result_metadata(rs);
+
+  verify_prepare_field(rs, 0, "a", "a", MYSQL_TYPE_LONG, "t1", "t1", current_db,
+                       11);
+  verify_prepare_field(rs, 1, "b", "b", MYSQL_TYPE_BIT, "t1", "t1", current_db,
+                       1);
+
+  mysql_free_result(rs);
+  mysql_stmt_close(stmt);
+
+  rc = mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"client_query", client_query},
@@ -23923,6 +24046,8 @@ static struct my_tests_st my_tests[] = {
     {"test_wl16221_reload", test_wl16221_reload},
     {"test_wl16221_bind_param", test_wl16221_bind_param},
     {"test_bug36891894", test_bug36891894},
+    {"test_bug37202066", test_bug37202066},
+    {"test_bug37383098", test_bug37383098},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

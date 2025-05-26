@@ -39,12 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 
-#define WLOG(x)                                                        \
-  {                                                                    \
-    std::cout << "[BULK] thread=" << std::this_thread::get_id() << ":" \
-              << __func__ << ":" << strrchr(__FILE__, '/') + 1 << ":"  \
-              << __LINE__ << ": " << x << std::endl;                   \
-  }
 // ----------------------------------------------------------------------------
 namespace lob {
 

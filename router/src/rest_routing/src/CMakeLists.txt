@@ -34,6 +34,8 @@ ADD_HARNESS_PLUGIN(rest_routing
   rest_routing_plugin.cc
   rest_routing_routes_status.cc
   rest_routing_status.cc
+  rest_routing_guidelines.cc
+  rest_routing_guidelines_schema.cc
   REQUIRES
   routing
   http_server_lib

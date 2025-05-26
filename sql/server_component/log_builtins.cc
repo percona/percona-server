@@ -1046,6 +1046,21 @@ enum loglevel log_prio_from_label(const char *label) {
   @retval false success
 */
 bool log_line_error_stack_run(log_line *ll) {
+  /*
+    If we have enabled the diagnostic log, then the diagnostic messages
+    are treated separately without running through the service stack. If we
+    have not enabled the diagnostic log, then diagnostic messages are ignored.
+  */
+  if (ll->seen & LOG_ITEM_LOG_TYPE) {
+    const int n = log_line_index_by_type(ll, LOG_ITEM_LOG_TYPE);
+    const enum enum_log_type log_type =
+        (enum enum_log_type)ll->item[n].data.data_integer;
+    if (log_type == LOG_TYPE_DIAG) {
+      if (log_diagnostic_enable) log_sink_trad(nullptr, ll);
+      return false;
+    }
+  }
+
   // Get S-lock.
   mysql_rwlock_rdlock(&THR_LOCK_log_stack);
 
@@ -3219,7 +3234,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
   log_errstream *les = static_cast<log_errstream *>(my_errstream);
 
   if ((les == nullptr) || (les->file == nullptr))
-    log_write_errstream(buffer, length);
+    log_write_errstream(buffer, length, LOG_TYPE_ERROR);
   else {
     mysql_mutex_lock(&les->LOCK_errstream);
     fprintf(les->file, "%.*s\n", (int)length, buffer);

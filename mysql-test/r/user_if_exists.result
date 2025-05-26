@@ -2,6 +2,8 @@ CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT E
 CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
 DELETE FROM mysql.user WHERE user = 'wl8540';
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
@@ -167,6 +169,8 @@ COUNT(*)
 3
 DELETE FROM mysql.user WHERE user = 'wl8540';
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 
 
 CREATE USER user1@localhost

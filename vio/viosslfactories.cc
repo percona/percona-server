@@ -409,6 +409,10 @@ static struct st_VioSSLFd *new_VioSSLFd(
                      | SSL_OP_NO_TLSv1_3
 #endif /* HAVE_TLSv13 */
                      | SSL_OP_NO_TICKET);
+  if (!is_client) {
+    ssl_ctx_options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
+  }
+
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
     return nullptr;
@@ -448,6 +452,22 @@ static struct st_VioSSLFd *new_VioSSLFd(
                                     tls13_cipher_list.c_str())) {
     *error = SSL_INITERR_CIPHERS;
     goto error;
+  }
+#endif /* HAVE_TLSv13 */
+
+#ifdef HAVE_TLSv13
+  {
+    /*
+      Set suported signature algorithms for OpenSSL TLS v1.3
+      with preference towards more performant ones (ECDSA).
+    */
+    char sig_algs[] =
+        "ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:ed25519:rsa_pss_pss_sha256:rsa_"
+        "pss_pss_sha384:rsa_pss_pss_sha512:rsa_pss_rsae_sha256:rsa_pss_rsae_"
+        "sha384:rsa_pss_rsae_sha512:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+"
+        "SHA224:RSA+SHA224";
+
+    SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context, sig_algs);
   }
 #endif /* HAVE_TLSv13 */
 
@@ -521,14 +541,14 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 
   /* DH stuff */
-  if (set_dh(ssl_fd->ssl_context)) {
+  if (!is_client && set_dh(ssl_fd->ssl_context)) {
     printf("%s\n", ERR_error_string(ERR_get_error(), nullptr));
     *error = SSL_INITERR_DHFAIL;
     goto error;
   }
 
   /* ECDH stuff */
-  if (set_ecdh(ssl_fd->ssl_context)) {
+  if (!is_client && set_ecdh(ssl_fd->ssl_context)) {
     *error = SSL_INITERR_ECDHFAIL;
     goto error;
   }

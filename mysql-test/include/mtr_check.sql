@@ -221,6 +221,14 @@ BEGIN
       AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
+  -- Ensure that libraries are all dropped at the end of test-runs.
+  SELECT * FROM INFORMATION_SCHEMA.LIBRARIES
+  ORDER BY LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME;
+  -- Ensure that stored program imports are also cleared at the end of test-runs.
+  # BUG#37382579 The SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES fails when a queried from the hypergraph.
+  # SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES
+  # ORDER BY ROUTINE_CATALOG, ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_VERSION;
+
   -- During the installation of Percona Telemetry Component we create 'percona.telemetry'.
   -- It happens during the server startup, so servers started during the test will have the same user
   -- with different password_last_changed timestamps.

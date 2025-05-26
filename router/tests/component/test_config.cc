@@ -540,9 +540,8 @@ TEST_F(RouterConfigTest, RoutingRoutingStrategyRequired) {
                  "stating that it is required option.");
 
   const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
-      "routing:test", {{"bind_port", "6064"},
-                       {"destinations", "127.0.0.1:3060"},
-                       {"mode", "read-only"}});
+      "routing:test",
+      {{"bind_port", "6064"}, {"destinations", "127.0.0.1:3060"}});
 
   TempDirectory conf_dir("conf");
   auto default_section = get_DEFAULT_defaults();

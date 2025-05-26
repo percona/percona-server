@@ -25,6 +25,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,7 @@
 class Filesort;
 class QEP_TAB;
 class THD;
+struct AccessPath;
 
 /**
   An adapter that takes in another RowIterator and produces the same rows,
@@ -66,6 +68,7 @@ class SortingIterator final : public RowIterator {
   // RAM, we never use the priority queue.
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
+                  std::span<AccessPath *> single_row_index_lookups,
                   ha_rows num_rows_estimate, table_map tables_to_get_rowid_for,
                   ha_rows *examined_rows);
   ~SortingIterator() override;
@@ -124,6 +127,9 @@ class SortingIterator final : public RowIterator {
   Filesort_info m_fs_info;
 
   Sort_result m_sort_result;
+
+  // All the single-row index lookups that provide rows to this iterator.
+  std::span<AccessPath *> m_single_row_index_lookups;
 
   const ha_rows m_num_rows_estimate;
   const table_map m_tables_to_get_rowid_for;

@@ -69,7 +69,8 @@ enum enum_log_type {
   LOG_TYPE_GENERAL = 2,
   LOG_TYPE_SLOW = 4,
   LOG_TYPE_AUDIT = 8,
-  LOG_TYPE_MISC = 16
+  LOG_TYPE_MISC = 16,
+  LOG_TYPE_DIAG = 32
 };
 
 /**

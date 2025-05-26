@@ -940,37 +940,32 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
 
   length = length2 = std::min(to_length, from_length);
 
-#if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
   /*
-    Special loop for i386, it allows to refer to a
-    non-aligned memory block as UINT32, which makes
-    it possible to copy four bytes at once. This
-    gives about 10% performance improvement comparing
-    to byte-by-byte loop.
+    We no longer read non-aligned memory in the korr/store functions,
+    but this is still faster than reading byte-by-byte.
   */
-  for (; length >= 4; length -= 4, from += 4, to += 4) {
-    if (uint4korr(from) & 0x80808080) break;
-    int4store(to, uint4korr(from));
-  }
-#endif /* __i386__ */
-
-  for (;; *to++ = *from++, length--) {
-    if (!length) {
-      *errors = 0;
-      return length2;
+  for (; length >= 8; length -= 8, from += 8, to += 8) {
+    if (uint8korr(from) & 0x8080808080808080) {
+      break;
     }
-    if ((static_cast<uint8_t>(*from)) > 0x7F) /* A non-ASCII character */
-    {
-      size_t copied_length = length2 - length;
-      to_length -= copied_length;
-      from_length -= copied_length;
-      return copied_length + my_convert_internal(to, to_length, to_cs, from,
-                                                 from_length, from_cs, errors);
-    }
+    int8store(to, uint8korr(from));
   }
 
-  assert(false);  // Should never get to here
-  return 0;       // Make compiler happy
+  while (length > 0 && static_cast<uchar>(*from) < 0x80) {
+    *to++ = *from++;
+    --length;
+  }
+
+  if (length == 0) {
+    *errors = 0;
+    return length2;
+  }
+
+  size_t copied_length = length2 - length;
+  to_length -= copied_length;
+  from_length -= copied_length;
+  return copied_length + my_convert_internal(to, to_length, to_cs, from,
+                                             from_length, from_cs, errors);
 }
 
 /**

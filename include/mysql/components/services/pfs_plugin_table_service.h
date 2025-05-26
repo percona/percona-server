@@ -88,7 +88,7 @@ struct PFS_string {
 typedef struct PFS_string PFS_string;
 
 /**
-  This is an opaque structure to denote filed in plugin/component code.
+  This is an opaque structure to denote field in plugin/component code.
 */
 typedef struct PSI_field PSI_field;
 /**

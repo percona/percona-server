@@ -32,6 +32,10 @@
 
 #include <mysql/components/services/bits/my_io_bits.h>
 
+#if defined(MYSQL_COMPONENT) && !defined(ALLOW_COMPONENT_INCLUDE)
+#error This header shall not be included in components
+#endif
+
 #ifdef _WIN32
 
 /* Define missing access() modes. */

@@ -876,6 +876,8 @@ AccessPath *CreateNestedLoopAccessPath(THD *thd, AccessPath *outer,
   path->nested_loop_join().outer = outer;
   path->nested_loop_join().inner = inner;
   path->nested_loop_join().join_type = join_type;
+  path->has_group_skip_scan =
+      outer->has_group_skip_scan || inner->has_group_skip_scan;
   if (join_type == JoinType::ANTI || join_type == JoinType::SEMI) {
     // This does not make sense as an optimization for anti- or semijoins.
     path->nested_loop_join().pfs_batch_mode = false;
@@ -962,6 +964,8 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
   // Will be set later if we get a weedout access path as parent.
   path->bka_join().store_rowids = false;
   path->bka_join().tables_to_get_rowid_for = 0;
+  path->has_group_skip_scan =
+      outer_path->has_group_skip_scan || inner_path->has_group_skip_scan;
 
   return path;
 }
@@ -1598,7 +1602,7 @@ static void RecalculateTablePathCost(THD *thd, AccessPath *path,
       break;
 
     case AccessPath::STREAM:
-      EstimateStreamCost(path);
+      EstimateStreamCost(current_thd, path);
       break;
 
     case AccessPath::MATERIALIZE:
@@ -2319,6 +2323,8 @@ static AccessPath *CreateHashJoinAccessPath(
   path->hash_join().store_rowids = false;
   path->hash_join().rewrite_semi_to_inner = false;
   path->hash_join().tables_to_get_rowid_for = 0;
+  path->has_group_skip_scan =
+      probe_path->has_group_skip_scan || build_path->has_group_skip_scan;
 
   SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(), path);
 
@@ -3121,7 +3127,7 @@ void JOIN::create_access_paths() {
   assert(m_root_access_path == nullptr);
 
   AccessPath *path = create_root_access_path_for_join();
-  path = attach_access_paths_for_having_and_limit(path);
+  path = attach_access_paths_for_having_qualify_limit(path);
   path = attach_access_path_for_update_or_delete(path);
 
   m_root_access_path = path;
@@ -3302,8 +3308,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
 
       ORDER *order = create_order_from_distinct(
           thd, ref_items[qep_tab->ref_item_slice], desired_order, select_list,
-          /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
-          &all_order_fields_used);
+          /*skip_aggregates=*/false, &all_order_fields_used);
       if (order == nullptr) {
         // Only const fields.
         limit_1_for_dup_filesort = true;
@@ -3489,15 +3494,20 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   return path;
 }
 
-AccessPath *JOIN::attach_access_paths_for_having_and_limit(
+AccessPath *JOIN::attach_access_paths_for_having_qualify_limit(
     AccessPath *path) const {
-  // Attach HAVING and LIMIT if needed.
+  // Attach HAVING, QUALIFY, LIMIT and OFFSET if needed.
   // NOTE: We can have HAVING even without GROUP BY, although it's not very
   // useful.
   // We don't currently bother with materializing subqueries
   // in HAVING, as they should be rare.
   if (having_cond != nullptr) {
     path = add_filter_access_path(thd, path, having_cond, query_block);
+  }
+
+  if (Item *qualify_cond = query_block->qualify_cond();
+      qualify_cond != nullptr) {
+    path = add_filter_access_path(thd, path, qualify_cond, query_block);
   }
 
   Query_expression *const qe = query_expression();
@@ -3541,12 +3551,11 @@ void JOIN::create_access_paths_for_index_subquery() {
       path = NewMaterializedTableFunctionAccessPath(thd, first_qep_tab->table(),
                                                     tl->table_function, path);
     } else {
-      path = GetAccessPathForDerivedTable(thd, first_qep_tab,
-                                          first_qep_tab->access_path());
+      path = GetAccessPathForDerivedTable(thd, first_qep_tab, path);
     }
   }
 
-  path = attach_access_paths_for_having_and_limit(path);
+  path = attach_access_paths_for_having_qualify_limit(path);
   m_root_access_path = path;
 }
 

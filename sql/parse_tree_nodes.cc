@@ -84,7 +84,9 @@
 #include "sql/sql_delete.h"  // Sql_cmd_delete...
 #include "sql/sql_do.h"      // Sql_cmd_do...
 #include "sql/sql_error.h"
+#include "sql/sql_exchange.h"
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_select.h"  // Sql_cmd_select...
 #include "sql/sql_show.h"    // Sql_cmd_show...
@@ -1517,6 +1519,30 @@ static Surrounding_context qt2sc(Query_term_type qtt) {
   return SC_TOP;
 }
 
+/// Append the children of 'lower' to those of 'setop'.  To avoid excessive
+/// space usage of a large number of similar set ops: instead of the "obvious"
+/// method of copying the operands of the child's array to the parent's array,
+/// we may use the (possibly much) larger lower setop's child array as a basis,
+/// inserting setop's childen at the front and then std::move'ing that (now
+/// discarded) array to be setop's child array.  This makes the space
+/// allocation ~= linear instead of O(N*N/2) in the worst case (N: # of set
+/// operations).
+void PT_set_operation::merge_children(Query_term_set_op *setop,
+                                      Query_term_set_op *lower) {
+  if (lower->m_children.size() <= setop->m_children.size()) {
+    for (auto child : lower->m_children) {
+      setop->m_children.push_back(child);
+    }
+  } else {
+    const size_t lim = setop->m_children.size() - 1;
+    for (size_t i = 0; i < setop->m_children.size(); ++i) {
+      lower->m_children.push_front(setop->m_children[lim - i]);
+    }
+    setop->m_children = std::move(lower->m_children);
+    // lower->m_children is now empty.
+  }
+}
+
 /**
   Possibly merge lower syntactic levels of set operations (UNION, INTERSECT and
   EXCEPT) into setop, and set new last DISTINCT index for setop. We only ever
@@ -1679,8 +1705,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
         // distinct
         last_distinct = count + lower->m_children.size() - 1;
         count = count + lower->m_children.size();
-        // fold in children
-        for (auto child : lower->m_children) setop->m_children.push_back(child);
+        merge_children(setop, lower);
       } else {
         // similar kind of set operation, but contains limit, so do not merge
         count++;
@@ -1719,8 +1744,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
             }
             last_distinct = count + lower->m_last_distinct;
             count = count + lower->m_children.size();
-            for (auto child : lower->m_children)
-              setop->m_children.push_back(child);
+            merge_children(setop, lower);
           }
         } else {
           // upper and lower level are both ALL, so ok to merge, unless we have
@@ -1731,8 +1755,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
               first_distinct = count + lower->m_first_distinct;
             }
             count = count + lower->m_children.size();
-            for (auto child : lower->m_children)
-              setop->m_children.push_back(child);
+            merge_children(setop, lower);
           } else {
             // do not merge INTERSECT ALL: the execution time logic can only
             // handle binary INTERSECT ALL.
@@ -1751,7 +1774,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
           first_distinct = count + lower->m_first_distinct;
         }
         count = count + lower->m_children.size();
-        for (auto child : lower->m_children) setop->m_children.push_back(child);
+        merge_children(setop, lower);
       } else {
         // do not merge
         count++;
@@ -1771,13 +1794,16 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
   pc->m_stack.push_back(QueryLevel(pc->mem_root, context));
   if (super::do_contextualize(pc)) return true;
 
-  if (m_lhs->contextualize(pc)) return true;
+  if (m_list[0]->contextualize(pc)) return true;
 
-  pc->select = pc->thd->lex->new_set_operation_query(pc->select);
-
-  if (pc->select == nullptr || m_rhs->contextualize(pc)) return true;
-
-  pc->thd->lex->pop_context();
+  List_iterator<PT_query_expression_body> it(m_list);
+  PT_query_expression_body *elt;
+  it++;  // skip first
+  while ((elt = it++)) {
+    pc->select = pc->thd->lex->new_set_operation_query(pc->select);
+    if (pc->select == nullptr || elt->contextualize(pc)) return true;
+    pc->thd->lex->pop_context();
+  }
 
   QueryLevel ql = pc->m_stack.back();
   pc->m_stack.pop_back();
@@ -2689,6 +2715,15 @@ Sql_cmd *PT_show_create_event::make_cmd(THD *thd) {
 }
 
 Sql_cmd *PT_show_create_function::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_library::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
@@ -3868,9 +3903,9 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
   Query_block *const select = lex->current_query_block();
 
   if (lex->sphead) {
-    my_error(
-        ER_SP_BADSTATEMENT, MYF(0),
-        m_cmd.m_exchange.filetype == FILETYPE_CSV ? "LOAD DATA" : "LOAD XML");
+    my_error(ER_SP_BADSTATEMENT, MYF(0),
+             m_cmd.m_exchange.file_info.filetype == FILETYPE_TEXT ? "LOAD DATA"
+                                                                  : "LOAD XML");
     return nullptr;
   }
 
@@ -4101,7 +4136,8 @@ void PT_joined_table_using::add_json_info(Json_object *obj) {
   String using_fields_str;
 
   for (String *curr_str = using_fields_it++;;) {
-    append_identifier(&using_fields_str, curr_str->ptr(), curr_str->length());
+    append_identifier_with_backtick(&using_fields_str, curr_str->ptr(),
+                                    curr_str->length());
     if ((curr_str = using_fields_it++) == nullptr) break;
     using_fields_str.append(",", 1, system_charset_info);
   }
@@ -4337,17 +4373,41 @@ bool PT_into_destination::do_contextualize(Parse_context *pc) {
 }
 
 bool PT_into_destination_outfile::do_contextualize(Parse_context *pc) {
-  if (super::do_contextualize(pc)) return true;
+  if (super::do_contextualize(pc) || m_exchange.do_contextualize(pc))
+    return true;
 
+  m_exchange.assign_default_values();
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  lex->result = new (pc->mem_root) Query_result_export(&m_exchange);
+  if (dumpfile_dest == OBJECT_STORE_DEST) {
+    /*
+      To ensure SQL queries containing sensitive information like PAR IDs are
+      safely logged without exposing sensitive data, we need to redact the
+      relevant portions of the query.
+    */
+    auto *const sp = lex->sphead;
+    if (sp != nullptr) {
+      /*
+        If the export query is part of a stored procedure/routine, then call
+        rewrite on the topmost lex.
+      */
+      sp->m_parser_data.get_top_lex()->set_rewrite_required();
+    } else {
+      lex->set_rewrite_required();
+    }
+    lex->set_execute_only_in_secondary_engine(true, OUTFILE_OBJECT_STORE);
+    lex->result = new (pc->mem_root) Query_result_to_object_store(&m_exchange);
+  } else {
+    lex->result = new (pc->mem_root) Query_result_export(&m_exchange);
+  }
   return lex->result == nullptr;
 }
 
 bool PT_into_destination_dumpfile::do_contextualize(Parse_context *pc) {
-  if (super::do_contextualize(pc)) return true;
+  if (super::do_contextualize(pc) || m_exchange.do_contextualize(pc))
+    return true;
 
+  m_exchange.assign_default_values();
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   lex->result = new (pc->mem_root) Query_result_dump(&m_exchange);
@@ -5099,6 +5159,16 @@ PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
                                                     LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
       attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        auto *const sp = pc->thd->lex->sphead;
+        if (sp != nullptr && sp->m_parser_data.get_top_lex() != nullptr) {
+          /*
+            If the export query is part of a stored procedure/function, then
+            call rewrite on the topmost lex.
+          */
+          sp->m_parser_data.get_top_lex()->set_rewrite_required();
+        } else {
+          pc->thd->lex->set_rewrite_required();
+        }
         pc->create_info->engine_attribute = a;
         pc->create_info->used_fields |= HA_CREATE_USED_ENGINE_ATTRIBUTE;
         pc->alter_info->flags |=

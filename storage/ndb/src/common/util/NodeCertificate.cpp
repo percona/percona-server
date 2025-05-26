@@ -41,11 +41,13 @@
 
 #include "debugger/EventLogger.hpp"
 #include "portlib/ndb_localtime.h"
-#include "util/File.hpp"
+#include "util/File.hpp"  // S_IRUSR
 #include "util/ndb_openssl3_compat.h"
 #include "util/require.h"
 
 #include "util/NodeCertificate.hpp"
+
+#include "my_ssl_algo_cache.h"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -86,8 +88,33 @@ static void handle_pem_error(const char fn_name[]) {
  */
 
 bool PkiFile::remove(const PathName &path) {
-  return File_class::remove(path.c_str());
+  return PkiFile::remove(path.c_str());
 }
+
+#ifdef _WIN32
+bool PkiFile::remove(const char *name) {
+  bool mustSetWriteAccess = false;
+  if (_access(name, 06) != 0) {
+    if (errno == ENOENT) return false;
+    mustSetWriteAccess = (errno == EACCES);
+  }
+  if (mustSetWriteAccess)
+    if (_chmod(name, _S_IREAD | _S_IWRITE) != 0) return false;
+
+  if (::remove(name) == 0) return true;  // success
+
+  /* Unusual error: access() has succeeded but remove() has failed .*/
+  g_eventLogger->error("NDB TLS Error %d removing file %s", errno, name);
+
+  if (mustSetWriteAccess) _chmod(name, _S_IREAD);
+  return false;
+}
+
+#else
+
+bool PkiFile::remove(const char *name) { return (::remove(name) == 0); }
+
+#endif
 
 int PkiFile::assign(PathName &path, const char *dir, const char *file) {
   path.clear();
@@ -292,12 +319,12 @@ short PkiFilenames::find_file(const TlsSearchPath *path,
 
 static bool promote_file(const char *pending, const char *active,
                          const char *retired) {
+  PkiFile::remove(retired);  // this may fail if retired does not exist
 #ifdef _WIN32
   rename(active, retired);  // this may fail if active does not exist
 #else
-  File_class::remove(retired);  // this may fail if retired does not exist
-  if (link(active, retired)) {
-  }  // this may fail if active does not exist
+  std::ignore =
+      link(active, retired);  // this may fail if active does not exist
 #endif
   return (rename(pending, active) == 0);
 }
@@ -387,7 +414,6 @@ bool PendingPrivateKey::promote(const PkiFile::PathName &pending_file) {
   retired.append(base);
   retired.append(suffix3);
   if (retired.is_truncated()) return false;
-
   return promote_file(pending_file.c_str(), active.c_str(), retired.c_str());
 }
 
@@ -466,7 +492,7 @@ int SigningRequest::finalise(EVP_PKEY *key) {
   }
 
   /* Sign the CSR with the private key */
-  if (X509_REQ_sign(m_req, key, EVP_sha256()) == 0) return -40;
+  if (X509_REQ_sign(m_req, key, my_EVP_sha256()) == 0) return -40;
 
   m_key = key;
   return 0;
@@ -513,7 +539,7 @@ bool SigningRequest::store(const char *dir) const {
     return true;
   } else {
     fclose(fp);
-    File_class::remove(path);
+    PkiFile::remove(path);
     return false;
   }
 }
@@ -780,7 +806,7 @@ X509 *ClusterCertAuthority::create(EVP_PKEY *key, const CertLifetime &lifetime,
 
 int ClusterCertAuthority::sign(X509 *issuer, EVP_PKEY *key, X509 *cert) {
   if (X509_set_issuer_name(cert, X509_get_subject_name(issuer)) == 0) return 0;
-  return X509_sign(cert, key, EVP_sha256());
+  return X509_sign(cert, key, my_EVP_sha256());
 }
 
 /*
@@ -1243,7 +1269,7 @@ int NodeCertificate::finalise(X509 *CA_cert, EVP_PKEY *CA_key) {
 
   /* Sign the certificate */
   if (CA_key) {
-    if (!X509_sign(m_x509, CA_key, EVP_sha256())) return -40;
+    if (!X509_sign(m_x509, CA_key, my_EVP_sha256())) return -40;
     m_signed = true;
   }
 

@@ -107,17 +107,17 @@ bool Auth_id::operator<(const Auth_id &id) const { return m_key < id.m_key; }
 */
 void Auth_id::auth_str(std::string *out) const {
   String tmp;
-  append_identifier(&tmp, m_user.c_str(), m_user.length());
+  append_identifier_with_backtick(&tmp, m_user.c_str(), m_user.length());
   tmp.append('@');
-  append_identifier(&tmp, m_host.c_str(), m_host.length());
+  append_identifier_with_backtick(&tmp, m_host.c_str(), m_host.length());
   out->append(tmp.ptr());
 }
 
 std::string Auth_id::auth_str() const {
   String tmp;
-  append_identifier(&tmp, m_user.c_str(), m_user.length());
+  append_identifier_with_backtick(&tmp, m_user.c_str(), m_user.length());
   tmp.append('@');
-  append_identifier(&tmp, m_host.c_str(), m_host.length());
+  append_identifier_with_backtick(&tmp, m_host.c_str(), m_host.length());
   return tmp.ptr();
 }
 

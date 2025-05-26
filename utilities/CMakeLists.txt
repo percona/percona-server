@@ -115,6 +115,12 @@ IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
+IF(TARGET copy_asan_lib_target)
+  ADD_DEPENDENCIES(GenError copy_asan_lib_target)
+  ADD_DEPENDENCIES(comp_client_err copy_asan_lib_target)
+  ADD_DEPENDENCIES(comp_err copy_asan_lib_target)
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(static_thread_local_test
   static_thread_local_test.cc
   SKIP_INSTALL

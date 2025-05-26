@@ -15,6 +15,7 @@
 
 #include "components/audit_log_filter/audit_keyring.h"
 
+#define ALLOW_COMPONENT_INCLUDE // for plugin.h
 #include "components/audit_log_filter/audit_error_log.h"
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/sys_vars.h"

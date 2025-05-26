@@ -1330,6 +1330,21 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
+      OptionNames({"--conf-local-cluster"}),
+      "Name of the local cluster used for routing purposes",
+      CmdOptionValueReq::required, "",
+      [this](const std::string &value) {
+        if (value.empty()) {
+          throw std::runtime_error(
+              "Value for parameter '--conf-local-cluster' can't be empty");
+        }
+        this->bootstrap_options_["local-cluster"] = value;
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--conf-local-cluster");
+      });
+
+  arg_handler_.add_option(
       OptionNames({"-d", "--directory"}),
       "Creates a self-contained directory for a new instance of the Router. "
       "(bootstrap)",
@@ -2037,6 +2052,7 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--conf-skip-tcp",
         "--conf-base-port",
         "--conf-use-gr-notifications",
+        "--conf-local-cluster",
         "--connect-timeout",
         "--client-ssl-cert",
         "--client-ssl-cipher",

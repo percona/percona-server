@@ -347,6 +347,11 @@ class Table_function_json final : public Table_function {
     Returns function's name
   */
   const char *func_name() const override { return "json_table"; }
+
+  List<Json_table_column> get_columns() { return *m_columns; }
+
+  Item *get_source() { return source; }
+
   /**
     Initialize the table function before creation of result table
 

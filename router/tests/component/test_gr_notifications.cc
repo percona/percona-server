@@ -686,13 +686,11 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   int md_queries_count = wait_for_md_queries(2, cluster_http_port);
   ASSERT_GT(md_queries_count, 1);
 
-  // there should be no WARNINGs nor ERRORs in the log file
+  // there should be no ERRORs in the log file
   const std::string log_content = router.get_logfile_content();
 
   EXPECT_THAT(log_content,
-              ::testing::Not(::testing::AnyOf(
-                  ::testing::HasSubstr(" metadata_cache ERROR "),
-                  ::testing::HasSubstr(" metadata_cache WARNING "))));
+              ::testing::Not(::testing::HasSubstr(" metadata_cache ERROR ")));
 }
 
 INSTANTIATE_TEST_SUITE_P(GrNotificationMysqlxWaitTimeoutUnsupported,

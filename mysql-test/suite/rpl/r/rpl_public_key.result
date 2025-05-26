@@ -39,6 +39,8 @@ Note	###	Storing MySQL user name or password information in the connection metad
 ==== Remove cached password from master ====
 [connection master]
 FLUSH PRIVILEGES;
+Warnings:
+Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
 ==== Try START REPLICA on slave : I/O thread should throw error ====
 [connection slave]

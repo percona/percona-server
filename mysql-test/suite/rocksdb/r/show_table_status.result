@@ -8,12 +8,12 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS WHERE name IN ( 't1', 't2', 't3' );
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-t2	ROCKSDB	10	Fixed	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-t3	ROCKSDB	10	Fixed	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb3_general_ci	NULL		
+t1	ROCKSDB	10	Dynamic	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	ROCKSDB	10	Dynamic	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	ROCKSDB	10	Dynamic	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb3_general_ci	NULL		
 SHOW TABLE STATUS WHERE name LIKE 't2';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	ROCKSDB	10	Fixed	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	ROCKSDB	10	Dynamic	1000	#	#	0	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 DROP TABLE t1, t2, t3;
 CREATE DATABASE `db_new..............................................end`;
 USE `db_new..............................................end`;
@@ -135,3 +135,48 @@ where table_schema=database() and table_name='t1';
 create_time IS NOT NULL	1
 update_time IS NOT NULL	1
 drop table t1;
+#
+# special table names
+#
+create table `!"#$%&'()*+,./;<=>?@[\]^``test_2023-09-01:`(a int, primary key(a)) engine=rocksdb;
+insert into `!"#$%&'()*+,./;<=>?@[\]^``test_2023-09-01:` value (1),(2);
+select create_time IS NOT NULL, update_time IS NOT NULL, TABLE_COMMENT
+from information_schema.tables 
+where table_schema=database() and table_name like '%test_2023-09-01:%';
+create_time IS NOT NULL	1
+update_time IS NOT NULL	1
+TABLE_COMMENT	
+analyze table `!"#$%&'()*+,./;<=>?@[\]^``test_2023-09-01:`;
+Table	test.!"#$%&'()*+,./;<=>?@[\]^`test_2023-09-01:
+Op	analyze
+Msg_type	status
+Msg_text	OK
+select table_rows > 0, TABLE_COMMENT
+from information_schema.tables 
+where table_schema=database() and table_name like '%test_2023-09-01:%';
+table_rows > 0	1
+TABLE_COMMENT	
+drop table `!"#$%&'()*+,./;<=>?@[\]^``test_2023-09-01:`;
+#
+# special partition table names
+#
+create table `!"#$%&'()*+,./;<=>?@[\]^``ptest_2023-09-01:`(a int, primary key(a)) engine=rocksdb
+partition by hash(a) partitions 2;
+insert into `!"#$%&'()*+,./;<=>?@[\]^``ptest_2023-09-01:` value (1),(2);
+select create_time IS NOT NULL , update_time IS NOT NULL, TABLE_COMMENT
+from information_schema.tables
+where table_schema=database() and table_name like '%ptest_2023-09-01:%';
+create_time IS NOT NULL	1
+update_time IS NOT NULL	1
+TABLE_COMMENT	
+analyze table `!"#$%&'()*+,./;<=>?@[\]^``ptest_2023-09-01:`;
+Table	test.!"#$%&'()*+,./;<=>?@[\]^`ptest_2023-09-01:
+Op	analyze
+Msg_type	status
+Msg_text	OK
+select table_rows > 0, TABLE_COMMENT
+from information_schema.tables 
+where table_schema=database() and table_name like '%ptest_2023-09-01:%';
+table_rows > 0	1
+TABLE_COMMENT	
+drop table `!"#$%&'()*+,./;<=>?@[\]^``ptest_2023-09-01:`;

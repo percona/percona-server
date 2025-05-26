@@ -23,11 +23,8 @@
 #include <string>
 #include <vector>
 
-/* MySQL header files */
-#include "my_stacktrace.h"
-#include "sql/sql_array.h"
-
 /* MyRocks header files */
+#include "./rdb_cf_manager.h"
 #include "./rdb_datadic.h"
 #include "./rdb_utils.h"
 
@@ -41,7 +38,7 @@ std::atomic<uint64_t> rocksdb_num_sst_entry_other(0);
 std::atomic<uint64_t> rocksdb_additional_compaction_triggers(0);
 bool rocksdb_compaction_sequential_deletes_count_sd = true;
 
-Rdb_tbl_prop_coll::Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
+Rdb_tbl_prop_coll::Rdb_tbl_prop_coll(const Rdb_ddl_manager &ddl_manager,
                                      const Rdb_compact_params &params,
                                      const uint32_t cf_id,
                                      const uint8_t table_stats_sampling_pct)
@@ -60,8 +57,6 @@ Rdb_tbl_prop_coll::Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
       m_params(params),
       m_cardinality_collector(table_stats_sampling_pct),
       m_recorded(false) {
-  assert(ddl_manager != nullptr);
-
   m_deleted_rows_window.resize(m_params.m_window, false);
 }
 
@@ -125,22 +120,19 @@ Rdb_index_stats *Rdb_tbl_prop_coll::AccessStats(const rocksdb::Slice &key) {
     m_stats.emplace_back(gl_index_id);
     m_last_stats = &m_stats.back();
 
-    if (m_ddl_manager) {
-      // safe_find() returns a std::shared_ptr<Rdb_key_def> with the count
-      // incremented (so it can't be deleted out from under us) and with
-      // the mutex locked (if setup has not occurred yet).  We must make
-      // sure to free the mutex (via unblock_setup()) when we are done
-      // with this object.  Currently this happens earlier in this function
-      // when we are switching to a new Rdb_key_def and when this object
-      // is destructed.
-      m_keydef = m_ddl_manager->safe_find(gl_index_id);
-      if (m_keydef != nullptr) {
-        // resize the array to the number of columns.
-        // It will be initialized with zeroes
-        m_last_stats->m_distinct_keys_per_prefix.resize(
-            m_keydef->get_key_parts());
-        m_last_stats->m_name = m_keydef->get_name();
-      }
+    // safe_find() returns a std::shared_ptr<Rdb_key_def> with the count
+    // incremented (so it can't be deleted out from under us) and with the mutex
+    // locked (if setup has not occurred yet).  We must make sure to free the
+    // mutex (via unblock_setup()) when we are done with this object.  Currently
+    // this happens earlier in this function when we are switching to a new
+    // Rdb_key_def and when this object is destructed.
+    m_keydef = m_ddl_manager.safe_find(gl_index_id);
+    if (m_keydef != nullptr) {
+      // resize the array to the number of columns.
+      // It will be initialized with zeroes
+      m_last_stats->m_distinct_keys_per_prefix.resize(
+          m_keydef->get_key_parts());
+      m_last_stats->m_name = m_keydef->get_name();
     }
     m_cardinality_collector.Reset();
   }
@@ -345,17 +337,17 @@ std::string Rdb_tbl_prop_coll::GetReadableStats(const Rdb_index_stats &it) {
   Given the properties of an SST file, reads the stats from it and returns it.
 */
 
-void Rdb_tbl_prop_coll::read_stats_from_tbl_props(
-    const std::shared_ptr<const rocksdb::TableProperties> &table_props,
-    std::vector<Rdb_index_stats> *const out_stats_vector) {
-  assert(out_stats_vector != nullptr);
-  const auto &user_properties = table_props->user_collected_properties;
+std::vector<Rdb_index_stats> Rdb_tbl_prop_coll::read_stats_from_tbl_props(
+    const rocksdb::TableProperties &table_props) {
+  std::vector<Rdb_index_stats> res;
+  const auto &user_properties = table_props.user_collected_properties;
   const auto it2 = user_properties.find(std::string(INDEXSTATS_KEY));
   if (it2 != user_properties.end()) {
-    auto result MY_ATTRIBUTE((__unused__)) =
-        Rdb_index_stats::unmaterialize(it2->second, out_stats_vector);
+    const auto result [[maybe_unused]] =
+        Rdb_index_stats::unmaterialize(it2->second, &res);
     assert(result == 0);
   }
+  return res;
 }
 
 /*
@@ -478,10 +470,10 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool increment,
 
     /*
       The Data_length and Avg_row_length are trailing statistics, meaning
-      they don't get updated for the current SST until the next SST is
-      written.  So, if rocksdb reports the data_length as 0,
+      they don't get updated for the current data block until the next data
+      block is written.  So, if rocksdb reports the data_length as 0,
       we make a reasoned estimate for the data_file_length for the
-      index in the current SST.
+      index in the current data block.
     */
     m_actual_disk_size += s.m_actual_disk_size ? s.m_actual_disk_size
                                                : estimated_data_len * s.m_rows;
@@ -497,6 +489,8 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool increment,
     m_data_size -= s.m_data_size;
     m_actual_disk_size -= s.m_actual_disk_size ? s.m_actual_disk_size
                                                : estimated_data_len * s.m_rows;
+    // actual disk size should always >=0
+    if (m_actual_disk_size < 0) m_actual_disk_size = 0;
     m_entry_deletes -= s.m_entry_deletes;
     m_entry_single_deletes -= s.m_entry_single_deletes;
     m_entry_merges -= s.m_entry_merges;
@@ -586,6 +580,23 @@ void Rdb_tbl_card_coll::SetCardinality(Rdb_index_stats *stats) {
     stats->m_distinct_keys_per_prefix[i] +=
         stats->m_distinct_keys_per_prefix[i - 1];
   }
+}
+
+rocksdb::TablePropertiesCollector *
+Rdb_tbl_prop_coll_factory::CreateTablePropertiesCollector(
+    rocksdb::TablePropertiesCollectorFactory::Context context) {
+  // TODO(laurynas): if needed, possible to shorten the critical section by only
+  // copying out the needed non-cost fields
+  rwlock_scoped_lock guard(&lock, false, __FILE__, __LINE__);
+  if (m_skip_system_cf) {
+    auto cf_name = m_cf_manager.get_cf(context.column_family_id);
+    if (cf_name->GetName() == DEFAULT_SYSTEM_CF_NAME) {
+      return nullptr;
+    }
+  }
+  return new Rdb_tbl_prop_coll(m_ddl_manager, m_params,
+                               context.column_family_id,
+                               m_table_stats_sampling_pct);
 }
 
 }  // namespace myrocks

@@ -26,7 +26,6 @@
 #include <deque>
 #include <map>
 #include <regex>
-#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -35,20 +34,13 @@
 /* MySQL header files */
 #include "ib_ut0counter.h"
 #include "my_icp.h"
-#include "mysql/psi/mysql_rwlock.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/sql_bitmap.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
-#include "rocksdb/cache.h"
 #include "rocksdb/merge_operator.h"
-#include "rocksdb/perf_context.h"
-#include "rocksdb/sst_file_manager.h"
-#include "rocksdb/statistics.h"
-#include "rocksdb/utilities/options_util.h"
-#include "rocksdb/utilities/transaction_db.h"
 #include "rocksdb/utilities/write_batch_with_index.h"
 
 /* MyRocks header files */
@@ -79,7 +71,6 @@ class Rdb_writebatch_impl;
 class Rdb_field_encoder;
 class Regex_list_handler;
 
-extern ulong rocksdb_max_row_locks;
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
 #endif
@@ -96,8 +87,6 @@ struct Rdb_table_handler {
   char *m_table_name;
   uint m_table_name_length;
   int m_ref_count;
-
-  my_core::THR_LOCK m_thr_lock;  ///< MySQL latch needed by m_db_lock
 
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
@@ -173,8 +162,6 @@ class blob_buffer {
 */
 
 class ha_rocksdb : public my_core::handler, public blob_buffer {
-  my_core::THR_LOCK_DATA m_db_lock;  ///< MySQL database lock
-
   Rdb_table_handler *m_table_handler;  ///< Open table handler
 
   Rdb_tbl_def *m_tbl_def;
@@ -197,8 +184,14 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   */
   mutable bool m_pk_can_be_decoded;
 
+  // The common buffer for m_pk_packed_tuple, m_sk_packed_tuple,
+  // m_sk_packed_tuple_old, m_sk_packed_tuple_updated, m_end_key_packed_tuple,
+  // & m_pack_buffer.
+  unique_ptr_my_free<uchar[]> buffers;
+
   uchar *m_pk_packed_tuple; /* Buffer for storing PK in StorageFormat */
-  // ^^ todo: change it to 'char*'? TODO: ^ can we join this with last_rowkey?
+  // TODO: ^ can we join this with last_rowkey?
+  // ^^ todo: change it to 'char[]'?
 
   /*
     Temporary buffers for storing the key part of the Key/Value pair
@@ -385,7 +378,7 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   void free_key_buffers();
 
   // the buffer size should be at least 2*Rdb_key_def::INDEX_NUMBER_SIZE
-  rocksdb::Range get_range(const int i, uchar buf[]) const;
+  [[nodiscard]] rocksdb::Range get_range(int i, uchar *buf) const;
 
   void records_in_range_internal(uint inx, key_range *const min_key,
                                  key_range *const max_key, int64 disk_size,
@@ -398,7 +391,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   Rdb_io_perf m_io_perf;
 
  public:
-  static rocksdb::Range get_range(const Rdb_key_def &kd, uchar buf[]);
+  [[nodiscard]] static rocksdb::Range get_range(const Rdb_key_def &kd,
+                                                uchar *buf);
 
   /*
     Update stats
@@ -458,7 +452,15 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                 (rocksdb_column_default_value_as_expression
                      ? HA_SUPPORTS_DEFAULT_EXPRESSION
                      : 0) |
-                HA_ATTACHABLE_TRX_COMPATIBLE);
+                HA_ATTACHABLE_TRX_COMPATIBLE | HA_NO_READ_LOCAL_LOCK);
+  }
+
+  [[nodiscard]] enum row_type get_real_row_type(
+      const HA_CREATE_INFO *create_info) const override {
+    return (create_info->row_type == ROW_TYPE_NOT_USED ||
+            create_info->row_type == ROW_TYPE_DEFAULT)
+               ? ROW_TYPE_DYNAMIC
+               : create_info->row_type;
   }
 
   bool init_with_fields() override;
@@ -559,8 +561,12 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info) const override;
+  [[nodiscard]] uint max_supported_key_part_length(
+      HA_CREATE_INFO *) const override {
+    DBUG_TRACE;
+
+    return MAX_INDEX_COL_LEN;
+  }
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -642,9 +648,10 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   */
   static bool check_bloom_and_set_bounds(
       THD *thd, const Rdb_key_def &kd, const rocksdb::Slice &eq_cond,
-      size_t bound_len, uchar *const lower_bound, uchar *const upper_bound,
+      const rocksdb::Slice *const slice, const rocksdb::Slice *const end_slice,
+      uchar *const lower_bound, uchar *const upper_bound,
       rocksdb::Slice *lower_bound_slice, rocksdb::Slice *upper_bound_slice,
-      bool *check_iterate_bounds);
+      bool *check_iterate_bounds, enum ha_rkey_function find_flag);
   static bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
                                    const rocksdb::Slice &eq_cond);
 
@@ -685,7 +692,10 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
 
     /** ADD COLUMN which can be done instantly, including
     adding stored column only (or along with adding virtual columns) */
-    INSTANT_ADD_COLUMN
+    INSTANT_ADD_COLUMN,
+
+    /** Only reference to an index is being removed. */
+    INSTANT_DROP_INDEX,
   };
 
   [[nodiscard]] int create_table(const std::string &table_name,
@@ -739,23 +749,19 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   enum icp_result check_index_cond() const;
 
   void calc_updated_indexes();
-  int update_write_row(const uchar *const old_data, const uchar *const new_data,
-                       const bool skip_unique_check)
-      MY_ATTRIBUTE((__warn_unused_result__));
+  [[nodiscard]] int update_write_row(const uchar *const old_data,
+                                     const uchar *const new_data);
   int get_pk_for_update(struct update_row_info *const row_info);
-  int check_and_lock_unique_pk(const struct update_row_info &row_info,
-                               bool *const found, const bool skip_unique_check)
-      MY_ATTRIBUTE((__warn_unused_result__));
+  [[nodiscard]] int check_and_lock_unique_pk(
+      const struct update_row_info &row_info, bool *const found);
   int acquire_prefix_lock(const Rdb_key_def &kd, Rdb_transaction *tx,
                           const uchar *data)
       MY_ATTRIBUTE((__warn_unused_result__));
-  int check_and_lock_sk(const uint key_id,
-                        const struct update_row_info &row_info,
-                        bool *const found, const bool skip_unique_check)
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int check_uniqueness_and_lock(const struct update_row_info &row_info,
-                                bool pk_changed, const bool skip_unique_check)
-      MY_ATTRIBUTE((__warn_unused_result__));
+  [[nodiscard]] int check_and_lock_sk(const uint key_id,
+                                      const struct update_row_info &row_info,
+                                      bool *const found);
+  [[nodiscard]] int check_uniqueness_and_lock(
+      const struct update_row_info &row_info, bool pk_changed);
   bool over_bulk_load_threshold(int *err)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_duplicate_sk(const TABLE *table_arg, const Rdb_key_def &key_def,
@@ -869,6 +875,7 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
+  [[nodiscard]] uint lock_count() const override { return 0; }
   THR_LOCK_DATA **store_lock(THD *const thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -1187,7 +1194,13 @@ extern std::atomic<uint64_t> rocksdb_partial_index_rows_materialized;
 extern bool rocksdb_enable_tmp_table;
 extern bool rocksdb_enable_delete_range_for_drop_index;
 extern bool rocksdb_disable_instant_ddl;
+extern bool rocksdb_enable_instant_ddl;
 extern bool rocksdb_partial_index_ignore_killed;
+
+extern bool rocksdb_enable_instant_ddl_for_append_column;
+extern bool rocksdb_enable_instant_ddl_for_column_default_changes;
+extern bool rocksdb_enable_instant_ddl_for_table_comment_changes;
+extern bool rocksdb_enable_instant_ddl_for_drop_index_changes;
 
 extern unsigned long long rocksdb_converter_record_cached_length;
 }  // namespace myrocks

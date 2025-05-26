@@ -1,5 +1,67 @@
 --source include/have_rocksdb.inc
 
+--echo #
+--echo # Check the default row format and the ability to change it
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=RocksDB;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=FIXED;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+DROP TABLE t1;
+
+--replace_column 12 TIMESTAMP
+CREATE TABLE t1 (
+       Host char(255) CHARACTER SET ASCII,
+       PRIMARY KEY Host (Host)) ENGINE=RocksDB;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=FIXED;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+ALTER TABLE t1 ROW_FORMAT=DEFAULT;
+--replace_column 12 TIMESTAMP
+SHOW TABLE STATUS LIKE 't1';
+
+DROP TABLE t1;
+
 # 
 # Check whether ROW_FORMAT option 
 # is supported in CREATE and ALTER TABLE
@@ -16,3 +78,20 @@ ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+--echo #
+--echo # Check error behavior on sysvar changes when row format is not DYNAMIC
+--echo #
+
+SET GLOBAL rocksdb_invalid_create_option_action='PUSH_WARNING';
+CREATE TABLE t1 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=rocksdb CHARSET=latin1 ROW_FORMAT=FIXED;
+
+SET GLOBAL rocksdb_invalid_create_option_action='PUSH_ERROR';
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t2 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=rocksdb CHARSET=latin1 ROW_FORMAT=FIXED;
+
+SET GLOBAL rocksdb_invalid_create_option_action='LOG';
+call mtr.add_suppression("RocksDB only uses DYNAMIC row format, will ignore custom setting for row format");
+CREATE TABLE t2 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=rocksdb CHARSET=latin1 ROW_FORMAT=FIXED;
+
+DROP TABLE t1;
+DROP TABLE t2;

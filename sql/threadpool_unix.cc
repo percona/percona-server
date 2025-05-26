@@ -392,7 +392,8 @@ inline bool too_many_busy_threads(const thread_group_t &thread_group) noexcept {
 inline bool connection_is_high_prio(const connection_t &c) noexcept {
   const ulong mode = c.thd->variables.threadpool_high_prio_mode;
 
-  return (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
+  return c.thd->is_admin_connection() ||  // Admin connection is high prio
+         (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
          (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS && c.tickets > 0 &&
           (thd_is_transaction_active(c.thd) ||
            c.thd->variables.option_bits & OPTION_TABLE_LOCK ||
@@ -993,8 +994,13 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection) {
 
   mysql_mutex_lock(&thread_group->mutex);
   connection->tickets = connection->thd->variables.threadpool_high_prio_tickets;
-  thread_group->queue.push_back(connection);
-
+  // put new admin connection into high prio queue instead of normal
+  // to be able to login when threadpool is exhausted
+  if (connection->thd->is_admin_connection()) {
+    thread_group->high_prio_queue.push_back(connection);
+  } else {
+    thread_group->queue.push_back(connection);
+  }
   if (thread_group->active_thread_count == 0)
     wake_or_create_thread(thread_group, connection->thd->is_admin_connection());
 

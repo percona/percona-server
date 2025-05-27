@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,6 +139,8 @@ class Thread_pool_connection_handler : public Connection_handler {
   bool add_connection(Channel_info *channel_info) override;
 
   uint get_max_threads() const override { return threadpool_max_threads; }
+
+  void post_daemonize_init() override { tp_start_timer_thread(); }
 };
 
 #endif  // CONNECTION_HANDLER_IMPL_INCLUDED

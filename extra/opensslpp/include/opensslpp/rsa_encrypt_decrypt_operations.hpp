@@ -18,25 +18,26 @@
 #define OPENSSLPP_RSA_ENCRYPT_DECRYPT_OPERATIONS_HPP
 
 #include <string>
+#include <string_view>
 
 #include <opensslpp/rsa_key_fwd.hpp>
 
-#include <opensslpp/rsa_padding_fwd.hpp>
+#include <opensslpp/rsa_encryption_padding_fwd.hpp>
 
 namespace opensslpp {
 
-std::string encrypt_with_rsa_public_key(const std::string &input,
+std::string encrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding);
-std::string encrypt_with_rsa_private_key(const std::string &input,
+                                        rsa_encryption_padding padding);
+std::string encrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding);
-std::string decrypt_with_rsa_public_key(const std::string &input,
+                                         rsa_encryption_padding padding);
+std::string decrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding);
-std::string decrypt_with_rsa_private_key(const std::string &input,
+                                        rsa_encryption_padding padding);
+std::string decrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding);
+                                         rsa_encryption_padding padding);
 
 }  // namespace opensslpp
 

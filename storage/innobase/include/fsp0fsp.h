@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -766,7 +766,7 @@ uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact);
 /** Enable encryption for already existing tablespace.
 @param[in,out]	space	tablespace object
 @return true if success, else false */
-MY_NODISCARD
+[[nodiscard]]
 bool fsp_enable_encryption(fil_space_t *space);
 
 /** Calculates the descriptor index within a descriptor page.

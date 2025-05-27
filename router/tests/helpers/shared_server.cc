@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -414,14 +414,16 @@ SharedServer::user_connection_ids(MysqlClient &cli,
   }
 
   auto ids_res = cli.query(
-      "SELECT id FROM performance_schema.processlist WHERE id != "
-      "CONNECTION_ID() AND User IN (" +
+      "SELECT id FROM performance_schema.processlist "
+      "WHERE id != CONNECTION_ID() "
+      "  AND state NOT LIKE 'Group Replication%%' "
+      "  AND User IN (" +
       oss.str() + ")");
   if (!ids_res) return stdx::unexpected(ids_res.error());
 
   std::vector<uint64_t> ids;
   for (const auto &res : *ids_res) {
-    for (auto row : res.rows()) {
+    for (const auto *row : res.rows()) {
       ids.push_back(strtol(row[0], nullptr, 10));
     }
   }

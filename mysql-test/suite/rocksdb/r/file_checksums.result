@@ -12,4 +12,15 @@ a	b
 SET GLOBAL rocksdb_pause_background_work = 1;
 # Kill the server
 # restart
+set global rocksdb_compact_cf='cf1';
+# Kill the server
+# restart
+call mtr.add_suppression("Status: Corruption");
+call mtr.add_suppression("Plugin rocksdb reported: 'BackgroundErrorReason:");
+call mtr.add_suppression("block checksum mismatch");
+set global rocksdb_io_error_action=ignore_error;
+set global rocksdb_compact_cf='cf1';
+ERROR HY000: Internal error: Manual Compaction Failed. Reason: General failures.
+# Kill the server
+# restart
 DROP TABLE t1;

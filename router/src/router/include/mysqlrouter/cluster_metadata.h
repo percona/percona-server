@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,11 @@ bool ROUTER_CLUSTER_EXPORT check_group_replication_online(MySQLSession *mysql);
 
 // throws MySQLSession::Error, std::logic_error, std::out_of_range
 bool ROUTER_CLUSTER_EXPORT check_group_has_quorum(MySQLSession *mysql);
+
+bool ROUTER_CLUSTER_EXPORT is_server_version_supported(MySQLSession *mysql);
+
+std::string ROUTER_CLUSTER_EXPORT
+get_unsupported_server_version_msg(MySQLSession *mysql);
 
 template <size_t N>
 bool metadata_schema_version_is_compatible(

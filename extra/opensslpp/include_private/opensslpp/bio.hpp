@@ -18,7 +18,7 @@
 #define OPENSSLPP_BIO_HPP
 
 #include <memory>
-#include <string>
+#include <string_view>
 
 #include "opensslpp/bio_fwd.hpp"
 
@@ -31,7 +31,7 @@ class bio final {
 
  public:
   bio();
-  bio(const std::string &buffer);
+  explicit bio(std::string_view buffer);
 
   ~bio() noexcept = default;
 
@@ -41,7 +41,7 @@ class bio final {
   bio &operator=(const bio &obj) = delete;
   bio &operator=(bio &&obj) noexcept = default;
 
-  std::string str() const;
+  std::string_view sv() const;
 
  private:
   // should not be declared final as this prevents optimization for empty

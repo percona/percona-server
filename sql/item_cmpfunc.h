@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1065,6 +1065,7 @@ class Item_func_eq final : public Item_eq_base {
   Item *negated_item() override;
   bool equality_substitution_analyzer(uchar **) override { return true; }
   Item *equality_substitution_transformer(uchar *arg) override;
+  bool clean_up_after_removal(uchar *arg) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -1850,13 +1851,14 @@ class cmp_item {
   virtual void store_value_by_template(cmp_item *, Item *item) {
     store_value(item);
   }
+  virtual void set_null_value(bool nv) = 0;
 };
 
 /// cmp_item which stores a scalar (i.e. non-ROW).
 class cmp_item_scalar : public cmp_item {
  protected:
   bool m_null_value;  ///< If stored value is NULL
-  void set_null_value(bool nv) { m_null_value = nv; }
+  void set_null_value(bool nv) override { m_null_value = nv; }
 };
 
 class cmp_item_string final : public cmp_item_scalar {
@@ -2227,6 +2229,11 @@ class cmp_item_row : public cmp_item {
   int compare(const cmp_item *arg) const override;
   cmp_item *make_same() override;
   void store_value_by_template(cmp_item *tmpl, Item *) override;
+  void set_null_value(bool nv) override {
+    for (uint i = 0; i < n; i++) {
+      comparators[i]->set_null_value(nv);
+    }
+  }
 
  private:
   /**

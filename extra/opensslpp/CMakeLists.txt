@@ -66,14 +66,21 @@ set(
   dsa_key.hpp
   dsa_key_fwd.hpp
   dsa_sign_verify_operations.hpp
+  evp_pkey.hpp
+  evp_pkey_fwd.hpp
+  evp_pkey_sign_verify_operations.hpp
+  evp_pkey_algorithm.hpp
+  evp_pkey_algorithm_fwd.hpp
+  evp_pkey_signature_padding.hpp
+  evp_pkey_signature_padding_fwd.hpp
   key_generation_cancellation_callback_fwd.hpp
   operation_cancelled_error.hpp
   operation_cancelled_error_fwd.hpp
   rsa_encrypt_decrypt_operations.hpp
   rsa_key.hpp
   rsa_key_fwd.hpp
-  rsa_padding.hpp
-  rsa_padding_fwd.hpp
+  rsa_encryption_padding.hpp
+  rsa_encryption_padding_fwd.hpp
   rsa_sign_verify_operations.hpp
 )
 list_transform_prepend(PUBLIC_HEADER_LIST "${PUBLIC_INCLUDE_DIR_EX}/")
@@ -87,11 +94,14 @@ set(
   dh_key_accessor.hpp
   digest_context_accessor.hpp
   dsa_key_accessor.hpp
+  evp_pkey_accessor.hpp
+  evp_pkey_algorithm_conversions.hpp
+  evp_pkey_signature_padding_conversions.hpp
   key_generation_cancellation_context.hpp
   key_generation_cancellation_context_accessor.hpp
   key_generation_cancellation_context_fwd.hpp
   rsa_key_accessor.hpp
-  rsa_padding_conversions.hpp
+  rsa_encryption_padding_conversions.hpp
   typed_accessor.hpp
 )
 list_transform_prepend(PRIVATE_HEADER_LIST "${PRIVATE_INCLUDE_DIR_EX}/")
@@ -106,6 +116,8 @@ set(
   digest_operations.cpp
   dsa_key.cpp
   dsa_sign_verify_operations.cpp
+  evp_pkey.cpp
+  evp_pkey_sign_verify_operations.cpp
   key_generation_cancellation_context.cpp
   rsa_encrypt_decrypt_operations.cpp
   rsa_key.cpp
@@ -127,7 +139,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE OPENSSL_SUPPRESS_DEPRECATED)
 set_target_properties(
   ${PROJECT_NAME}
   PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 20
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
     VERSION ${${PROJECT_NAME}_VERSION}

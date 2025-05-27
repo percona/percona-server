@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2228,6 +2228,35 @@ TEST_F(RoutingSplittingTest, multi_statements_are_forbidden) {
       EXPECT_EQ(query_res.error().value(),
                 1273);  // syntax error (from mock-server)
     }
+  }
+}
+
+TEST_F(RoutingSplittingTest, empty_lines) {
+  RecordProperty("Description",
+                 "empty lines and comments should be forwarded as is.");
+
+  SCOPED_TRACE("// connect");
+
+  MysqlClient cli;
+
+  cli.username("foo");
+  cli.password("bar");
+
+  ASSERT_NO_ERROR(cli.connect("127.0.0.1", router_port_));
+
+  for (std::string stmt : {"", "  ", ";"}) {
+    SCOPED_TRACE("// stmt: " + stmt);
+
+    auto query_res = cli.query(stmt);
+    ASSERT_ERROR(query_res);
+    EXPECT_EQ(query_res.error().value(), 1065) << query_res.error();
+  }
+
+  for (std::string stmt : {"-- ", "/* */"}) {
+    SCOPED_TRACE("// stmt: " + stmt);
+
+    auto query_res = cli.query(stmt);
+    ASSERT_NO_ERROR(query_res);
   }
 }
 

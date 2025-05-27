@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ class Encryption {
                   specified explicitly
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm explicitly requested */
-  MY_NODISCARD static bool none_explicitly_specified(
+  [[nodiscard]] static bool none_explicitly_specified(
       bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Generate random encryption value for key and iv.
@@ -379,7 +379,7 @@ class Encryption {
                                 byte *tmp, ulint tmp_len) const noexcept;
 
   /** Check if keyring plugin loaded. */
-  MY_NODISCARD static bool check_keyring() noexcept;
+  [[nodiscard]] static bool check_keyring() noexcept;
 
   /** Get encryption type
   @return encryption type **/

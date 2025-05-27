@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1575,7 +1575,8 @@ bool JOIN::optimize_distinct_group_order() {
     }
   }
   if (!(!group_list.empty() || tmp_table_param.sum_func_count || windowing) &&
-      select_distinct && plan_is_single_table() &&
+      select_distinct &&
+      (plan_is_single_table() || query_block->original_tables_map == 1) &&
       rollup_state == RollupState::NONE) {
     int order_idx = -1, group_idx = -1;
     /*
@@ -5731,12 +5732,16 @@ bool JOIN::extract_const_tables() {
            1. are dependent upon other tables, or
            2. have no exact statistics, or
            3. are full-text searched
+           4. a derived table which has a stored function
         */
+        const bool explain_mode = thd->lex->is_explain();
         if ((table->s->system || table->file->stats.records <= 1 ||
              all_partitions_pruned_away) &&
             !tab->dependent &&                                              // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 2
-            !tl->is_fulltext_searched())                                    // 3
+            !tl->is_fulltext_searched() &&                                  // 3
+            !(explain_mode && tl->is_view_or_derived() &&
+              tl->has_stored_program()))  // 4
           mark_const_table(tab, nullptr);
         break;
     }
@@ -5890,6 +5895,7 @@ bool JOIN::extract_func_dependent_tables() {
              6. are not going to be used, typically because they are streamed
                 instead of materialized
                 (see Query_expression::can_materialize_directly_into_result()).
+             7. key evaluated in stored program in EXPLAIN mode
           */
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !tl->is_fulltext_searched() &&                            // 1
@@ -5898,7 +5904,9 @@ bool JOIN::extract_func_dependent_tables() {
               !(tab->join_cond() &&
                 tab->join_cond()->cost().IsExpensive()) &&                // 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE) &&  // 5
-              table->is_created()) {                                      // 6
+              table->is_created() &&                                      // 6
+              !(thd->lex->is_explain() &&
+                start_keyuse->val->has_stored_program())) {  // 7
             if (table->key_info[key].flags & HA_NOSAME) {
               if (const_ref == eq_part) {  // Found everything for ref.
                 ref_changed = true;
@@ -6315,9 +6323,13 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
     keys_to_use.merge(tab->skip_scan_keys);
     MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                            thd->variables.range_alloc_block_size);
+    table_map const_tables = tab->join()->found_const_table_map;
+    table_map read_tables = tab->join()->is_executed()
+                                ? (tab->prefix_tables() & ~tab->added_tables())
+                                : const_tables;
     const int error = test_quick_select(
-        thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
-        0,  // empty table_map
+        thd, thd->mem_root, &temp_mem_root, keys_to_use, const_tables,
+        read_tables,
         limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
@@ -6331,7 +6343,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
       return 0;
     }
     DBUG_PRINT("warning", ("Couldn't use record count on const keypart"));
-  } else if (tl->is_table_function() || tl->materializable_is_const()) {
+  } else if (tl->is_table_function() || tl->materializable_is_const(thd)) {
     tl->fetch_number_of_rows();
     return tl->table->file->stats.records;
   }
@@ -8130,9 +8142,9 @@ bool is_indexed_agg_distinct(JOIN *join,
   bool result = false;
   Field_map first_aggdistinct_fields;
 
-  if (join->primary_tables > 1 || /* reference more than 1 table */
-      join->select_distinct ||    /* or a DISTINCT */
-
+  if (join->query_block->original_tables_map > 1 ||  /* reference more than 1
+                                                        table originally */
+      join->select_distinct ||                       /* or a DISTINCT */
       join->query_block->is_non_primitive_grouped()) /* Check (B3) for
                                                       non-primitive grouping */
     return false;
@@ -8252,7 +8264,9 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
   const char *cause;
 
   /* Find the indexes that might be used for skip scan queries. */
-  if (join->where_cond && join->primary_tables == 1 &&
+  if (join->where_cond != nullptr &&
+      join->query_block->original_tables_map == 1 &&
+      join->query_block->original_tables_map == join_tab->table_ref->map() &&
       join->group_list.empty() &&
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {
@@ -11542,6 +11556,13 @@ bool evaluate_during_optimization(const Item *item, const Query_block *select) {
 
   // If the Item does not access any tables, it can always be evaluated.
   if (item->const_item()) return true;
+
+  // Do not evaluate stored procedure in EXPLAIN
+  if (current_thd->lex->is_explain() &&
+      WalkItem(item, enum_walk::PREFIX, [](const Item *curitem) {
+        return curitem->has_stored_program();
+      }))
+    return false;
 
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3299,6 +3299,15 @@ void Dbspj::execSCAN_FRAGCONF(Signal *signal) {
   g_eventLogger->info("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(), conf->total_len, DBLQH);
 #endif
+
+  if (ERROR_INSERTED(17123)) {
+    jam();
+    g_eventLogger->info(
+        "Dbspj %u : Error insert stalling SCAN_FRAGCONF for 0.5s", instance());
+    sendSignalWithDelay(reference(), GSN_SCAN_FRAGCONF, signal, 500,
+                        signal->getLength());
+    return;
+  }
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
   ndbrequire(getGuardedPtr(scanFragHandlePtr, conf->senderData));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1119,44 +1119,41 @@ void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
                                                   bool order_only,
                                                   mem_heap_t *heap) {
   DBUG_TRACE;
-
-  ulint i;
-  ulint n_fields;
-  const page_size_t &page_size = dict_table_page_size(index->table);
-
   ut_ad(index);
   ut_ad(!index->table->skip_alter_undo);
 
   dtuple_set_info_bits(entry, update->info_bits);
 
-  if (order_only) {
-    n_fields = dict_index_get_n_unique(index);
-  } else {
-    n_fields = dict_index_get_n_fields(index);
-  }
+  const ulint n_fields = order_only ? dict_index_get_n_unique(index)
+                                    : dict_index_get_n_fields(index);
+  for (ulint field_index = 0; field_index < n_fields; field_index++) {
+    ulint field_no;
+    bool is_virtual{false};
 
-  for (i = 0; i < n_fields; i++) {
-    const dict_field_t *field;
-    const dict_col_t *col;
-    const upd_field_t *uf;
+    const dict_field_t *field = index->get_field(field_index);
+    const dict_col_t *col = field->col;
 
-    field = index->get_field(i);
-    col = field->col;
-    if (col->is_virtual()) {
-      const dict_v_col_t *vcol = reinterpret_cast<const dict_v_col_t *>(col);
-
-      uf = upd_get_field_by_field_no(update, vcol->v_pos, true);
-    } else {
-      uf = upd_get_field_by_field_no(update, i, false);
+    if (col->is_instant_dropped()) {
+      dfield_t *field = dtuple_get_nth_field(entry, field_index);
+      field->reset();
+      continue;
     }
 
-    if (uf) {
+    if (col->is_virtual()) {
+      is_virtual = true;
+      field_no = reinterpret_cast<const dict_v_col_t *>(col)->v_pos;
+    } else {
+      field_no = field_index;
+    }
+
+    if (auto uf = upd_get_field_by_field_no(update, field_no, is_virtual); uf) {
       upd_field_t *tmp = const_cast<upd_field_t *>(uf);
-      dfield_t *dfield = dtuple_get_nth_field(entry, i);
+      dfield_t *dfield = dtuple_get_nth_field(entry, field_index);
       tmp->ext_in_old = dfield_is_ext(dfield);
 
       dfield_copy(&tmp->old_val, dfield);
 
+      const auto &page_size = dict_table_page_size(index->table);
       row_upd_index_replace_new_col_val(index, dfield, field, col, uf, heap,
                                         dict_index_is_sdi(index), page_size);
     }
@@ -1580,7 +1577,12 @@ bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
         mem_heap_free(temp_heap);
       }
 
-      if (!mbr_equal_precise_cmp(old_mbr, new_mbr)) {
+      /* We use mbr_equal_physically() because we would like to skip
+      Updation of Spatial Index only when the existing MBR in Spatial
+      Index matches physically to the MBR of the new geometry.
+      Else it might cause issues later during searching of record, because
+      cmp_geometry_field() does physical comparison.*/
+      if (!mbr_equal_physically(old_mbr, new_mbr)) {
         return (true);
       } else {
         continue;
@@ -2778,24 +2780,27 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
 
 /** Updates a clustered index record of a row when the ordering fields do
  not change.
+ @param[in]      flags         undo logging and locking flags
+ @param[in]      node          row update node
+ @param[in]      index         clustered index
+ @param[in]      offsets       rec_get_offsets() on node->pcur
+ @param[in,out]  offsets_heap  memory heap, can be emptied
+ @param[in]      thr           query thread
+ @param[in]      mtr           mtr; gets committed here
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-[[nodiscard]] static dberr_t row_upd_clust_rec(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    upd_node_t *node,    /*!< in: row update node */
-    dict_index_t *index, /*!< in: clustered index */
-    ulint *offsets,      /*!< in: rec_get_offsets() on node->pcur */
-    mem_heap_t **offsets_heap,
-    /*!< in/out: memory heap, can be emptied */
-    que_thr_t *thr, /*!< in: query thread */
-    mtr_t *mtr)     /*!< in: mtr; gets committed here */
-{
+[[nodiscard]] static dberr_t row_upd_clust_rec(ulint flags, upd_node_t *node,
+                                               dict_index_t *index,
+                                               ulint *offsets,
+                                               mem_heap_t **offsets_heap,
+                                               que_thr_t *thr, mtr_t *mtr) {
   mem_heap_t *heap = nullptr;
   big_rec_t *big_rec = nullptr;
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
   bool persist_autoinc = false;
+  bool is_old_or_new_rec_extern = false;
   const dtuple_t *rebuilt_old_pk = nullptr;
   trx_id_t trx_id = thr_get_trx(thr)->id;
   trx_t *trx = thr_get_trx(thr);
@@ -2813,6 +2818,7 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   ut_ad(rec_offs_validate(btr_cur_get_rec(btr_cur), index, offsets));
 
   if (dict_index_is_online_ddl(index)) {
+    is_old_or_new_rec_extern = rec_offs_any_extern(offsets);
     rebuilt_old_pk = row_log_table_get_pk(btr_cur_get_rec(btr_cur), index,
                                           offsets, nullptr, &heap);
     if (row_log_table_get_error(index) == DB_INDEX_CORRUPT) {
@@ -2903,9 +2909,19 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
       dtuple_t *new_v_row = nullptr;
       dtuple_t *old_v_row = nullptr;
 
+      /* In case UPDATE modifies extern BLOB and makes it fit within record
+      after above update, we still need old virtual col */
+      is_old_or_new_rec_extern |= rec_offs_any_extern(offsets);
+
       if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
         new_v_row = node->upd_row;
         old_v_row = node->update->old_vrow;
+      } else if (is_old_or_new_rec_extern) {
+        /* Row log treats UPDATE on extern BLOB as DELETE + INSERT. This
+        requires virtual col info. Since no change in virtual col, new value is
+        same as old */
+        old_v_row = node->update->old_vrow;
+        new_v_row = old_v_row;
       }
 
       row_log_table_update(btr_cur_get_rec(btr_cur), index, offsets,

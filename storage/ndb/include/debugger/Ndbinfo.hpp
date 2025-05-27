@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,8 @@ class Ndbinfo {
     CPUDATA_20SEC_TABLEID = 48,
     CERTIFICATES_TABLEID = 49,
     THREADBLOCK_DETAILS_TABLEID = 50,
-    TRANSPORTER_DETAILS_TABLEID = 51
+    TRANSPORTER_DETAILS_TABLEID = 51,
+    TRANSACTIONS_FULL_TABLEID = 52
   };
 
   enum BufferId {

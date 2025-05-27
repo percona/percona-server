@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -543,6 +543,16 @@ void Dbacc::set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr) {
 void Dbacc::execACCFRAGREQ(Signal *signal) {
   const AccFragReq *const req = (AccFragReq *)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(3006)) {
+    jam();
+    // Delay each GSN_ACCFRAGREQ only once
+    if (signal->senderBlockRef() != reference()) {
+      jam();
+      sendSignalWithDelay(reference(), GSN_ACCFRAGREQ, signal, 100,
+                          signal->getLength());
+      return;
+    }
+  }
   if (ERROR_INSERTED(3001)) {
     jam();
     addFragRefuse(signal, 1);

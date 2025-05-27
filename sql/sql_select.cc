@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -988,21 +988,26 @@ bool optimize_secondary_engine(THD *thd) {
 }
 
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
-  /* Return if one of the 2 conditions is true:
+  /* Return if secondary engine is not forced and one of the 2 conditions is
+   * true:
    * 1. when secondary engine statement context is not present, query cost is
    * lower than the secondary than the engine threshold.
    * 2. When secondary engine statement context is present, primary engine
    * is the better execution engine for this query.
    * This prevents calling plugin_foreach for short queries, reducing the
    * overhead. */
-  if (((thd->secondary_engine_statement_context() == nullptr) &&
-       thd->m_current_query_cost <=
-           thd->variables.secondary_engine_cost_threshold) ||
-      ((thd->secondary_engine_statement_context() != nullptr) &&
-       thd->secondary_engine_statement_context()
-           ->is_primary_engine_optimal())) {
+  bool is_secondary_engine_not_forced =
+      thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED;
+  if (is_secondary_engine_not_forced &&
+      ((thd->secondary_engine_statement_context() == nullptr &&
+        thd->m_current_query_cost <=
+            thd->variables.secondary_engine_cost_threshold) ||
+       (thd->secondary_engine_statement_context() != nullptr &&
+        thd->secondary_engine_statement_context()
+            ->is_primary_engine_optimal()))) {
     return;
   }
+
   auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
                          ? SelectExecutedIn::kSecondaryEngine
                          : SelectExecutedIn::kPrimaryEngine;
@@ -1414,7 +1419,7 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
   return sjtbl;
 }
 
-/**
+/*
   Setup the strategies to eliminate semi-join duplicates.
 
   @param join           Join to process
@@ -2381,8 +2386,9 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                                    key_part_info, key_buff, nullable);
   if (unlikely(!s_key || thd->is_error())) return true;
 
-  if (used_tables & ~INNER_TABLE_BIT) {
-    /* Comparing against a non-constant. */
+  if (used_tables & ~INNER_TABLE_BIT ||
+      (thd->lex->is_explain() &&
+       val->has_stored_program())) { /* Comparing against a non-constant. */
     ref->key_copy[part_no] = s_key;
   } else {
     /*
@@ -4439,9 +4445,20 @@ bool JOIN::make_tmp_tables_info() {
     computed for each group. Thus all MIN/MAX functions should be
     treated as regular functions, and there is no need to perform
     grouping in the main execution loop.
-    Notice that currently loose index scan is applicable only for
-    single table queries, thus it is sufficient to test only the first
-    join_tab element of the plan for its access method.
+    Currently loose index scan is only applicable for single table queries. The
+    only exception is when a single table query becomes a multi-table query
+    because of a semijoin transformation. We check the first join_tab element
+    of the plan for its access method here, which holds good even for the
+    multi-table query, but only when optimizer has picked nested loop joins.
+    Skip scan is enabled only for the original table in the query which is the
+    first table in the join order for a nested loop join. However, for hash
+    joins it does not hold good. So, we see an additional de-duplication step
+    when hash join is picked as it is not aware that de-duplication is taken
+    care by the access method picked.
+
+    TODO: Make optimize_distinct_group_order() understand that de-duplication
+    is taken care by the chosen access method, so that we avoid the additional
+    de-duplication step.
   */
   if (qep_tab && qep_tab[0].range_scan() &&
       is_loose_index_scan(qep_tab[0].range_scan()))

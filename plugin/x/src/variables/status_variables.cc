@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,11 +197,14 @@ int global_status_variable(THD *, SHOW_VAR *var, char *buff) {
 
   if (!server.container()) return 0;
 
-  if (!server->ssl_context()) return 0;
+  // creating a copy of the context's shared_pointer in order to
+  // extend its lifetime
+  auto context = server->ssl_context();
+  if (!context) return 0;
 
-  auto &context = server->ssl_context()->options();
+  auto &options = context->options();
   auto context_method = method;  // workaround on VC compiler internal error
-  ReturnType result = (context.*context_method)();
+  ReturnType result = (options.*context_method)();
 
   mysqld::xpl_show_var(var).assign(result);
   return 0;

@@ -22,17 +22,17 @@
 #include <opensslpp/rsa_encrypt_decrypt_operations.hpp>
 
 #include <opensslpp/core_error.hpp>
+#include <opensslpp/rsa_encryption_padding.hpp>
 #include <opensslpp/rsa_key.hpp>
-#include <opensslpp/rsa_padding.hpp>
 
+#include "opensslpp/rsa_encryption_padding_conversions.hpp"
 #include "opensslpp/rsa_key_accessor.hpp"
-#include "opensslpp/rsa_padding_conversions.hpp"
 
 namespace opensslpp {
 
-std::string encrypt_with_rsa_public_key(const std::string &input,
+std::string encrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding) {
+                                        rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (input.size() > key.get_max_block_size_in_bytes(padding))
@@ -40,77 +40,85 @@ std::string encrypt_with_rsa_public_key(const std::string &input,
         "encryption block size is too long for the specified padding and RSA "
         "key"};
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(key.get_size_in_bytes());
+  std::string res(key.get_size_in_bytes(), '\0');
 
   auto enc_status = RSA_public_encrypt(
-      input.size(), reinterpret_cast<const unsigned char *>(input.c_str()),
-      res.data(), rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      input.size(), reinterpret_cast<const unsigned char *>(input.data()),
+      reinterpret_cast<unsigned char *>(res.data()),
+      rsa_key_accessor::get_impl_const_casted(key),
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified public RSA key");
 
-  return {reinterpret_cast<char *>(res.data()), res.size()};
+  return res;
 }
 
-std::string encrypt_with_rsa_private_key(const std::string &input,
+std::string encrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding) {
+                                         rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (!key.is_private())
     throw core_error{"RSA key does not have private components"};
+
+  if (padding == rsa_encryption_padding::pkcs1_oaep)
+    throw core_error{
+        "encrypting with RSA private key is not supported for PKCS1 OAEP "
+        "padding"};
 
   if (input.size() > key.get_max_block_size_in_bytes(padding))
     throw core_error{
         "encryption block size is too long for the specified padding and RSA "
         "key"};
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(key.get_size_in_bytes());
+  std::string res(key.get_size_in_bytes(), '\0');
 
   auto enc_status = RSA_private_encrypt(
-      input.size(), reinterpret_cast<const unsigned char *>(input.c_str()),
-      res.data(), rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      input.size(), reinterpret_cast<const unsigned char *>(input.data()),
+      reinterpret_cast<unsigned char *>(res.data()),
+      rsa_key_accessor::get_impl_const_casted(key),
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
         "cannot encrypt data block with the specified private RSA key");
 
-  return {reinterpret_cast<char *>(res.data()), res.size()};
+  return res;
 }
 
-std::string decrypt_with_rsa_public_key(const std::string &input,
+std::string decrypt_with_rsa_public_key(std::string_view input,
                                         const rsa_key &key,
-                                        rsa_padding padding) {
+                                        rsa_encryption_padding padding) {
   assert(!key.is_empty());
+
+  if (padding == rsa_encryption_padding::pkcs1_oaep)
+    throw core_error{
+        "decrypting with RSA public key is not supported for PKCS1 OAEP "
+        "padding"};
 
   if (input.size() != key.get_size_in_bytes())
     throw core_error{
         "decryption block size is not the same as RSA key length in bytes"};
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(key.get_size_in_bytes());
+  std::string res(key.get_size_in_bytes(), '\0');
 
   auto enc_status = RSA_public_decrypt(
-      input.size(), reinterpret_cast<const unsigned char *>(input.c_str()),
-      res.data(), rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      input.size(), reinterpret_cast<const unsigned char *>(input.data()),
+      reinterpret_cast<unsigned char *>(res.data()),
+      rsa_key_accessor::get_impl_const_casted(key),
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
-        "cannot encrypt data block with the specified public RSA key");
+        "cannot decrypt data block with the specified public RSA key");
 
-  return {reinterpret_cast<char *>(res.data()),
-          static_cast<std::size_t>(enc_status)};
+  assert(enc_status >= 0);
+  res.resize(static_cast<std::size_t>(enc_status));
+  return res;
 }
 
-std::string decrypt_with_rsa_private_key(const std::string &input,
+std::string decrypt_with_rsa_private_key(std::string_view input,
                                          const rsa_key &key,
-                                         rsa_padding padding) {
+                                         rsa_encryption_padding padding) {
   assert(!key.is_empty());
 
   if (!key.is_private())
@@ -120,20 +128,21 @@ std::string decrypt_with_rsa_private_key(const std::string &input,
     throw core_error{
         "decryption block size is not the same as RSA key length in bytes"};
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::vector<unsigned char>;
-  buffer_type res(key.get_size_in_bytes());
+  std::string res(key.get_size_in_bytes(), '\0');
 
   auto enc_status = RSA_private_decrypt(
-      input.size(), reinterpret_cast<const unsigned char *>(input.c_str()),
-      res.data(), rsa_key_accessor::get_impl_const_casted(key),
-      rsa_padding_to_native_padding(padding));
+      input.size(), reinterpret_cast<const unsigned char *>(input.data()),
+      reinterpret_cast<unsigned char *>(res.data()),
+      rsa_key_accessor::get_impl_const_casted(key),
+      rsa_encryption_padding_to_native_padding(padding));
   if (enc_status == -1)
     core_error::raise_with_error_string(
-        "cannot encrypt data block with the specified private RSA key");
+        "cannot decrypt data block with the specified private RSA key");
 
-  return {reinterpret_cast<char *>(res.data()),
-          static_cast<std::size_t>(enc_status)};
+  assert(enc_status >= 0);
+  res.resize(static_cast<std::size_t>(enc_status));
+
+  return res;
 }
 
 }  // namespace opensslpp

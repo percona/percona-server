@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Ssl_context_builder {
  public:
   Ssl_context_builder() = default;
 
-  std::unique_ptr<iface::Ssl_context> get_result_context() const;
+  std::shared_ptr<iface::Ssl_context> get_result_context() const;
 
  private:
   struct Ssl_config_local {

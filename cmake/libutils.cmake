@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -358,6 +358,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
 
   IF(APPLE)
     SET_TARGET_PROPERTIES(${TARGET} PROPERTIES MACOSX_RPATH ON)
+    TARGET_LINK_OPTIONS(${TARGET} PRIVATE LINKER:-no_warn_duplicate_libraries)
   ENDIF()
 
   MY_TARGET_LINK_OPTIONS(${TARGET} "${export_link_flags}")
@@ -700,6 +701,10 @@ FUNCTION(ADD_SHARED_LIBRARY TARGET_ARG)
     IF(ARG_WIN_DEF_FILE)
       MY_TARGET_LINK_OPTIONS(${TARGET} "/DEF:${ARG_WIN_DEF_FILE}")
     ENDIF()
+  ENDIF()
+
+  IF(APPLE)
+    TARGET_LINK_OPTIONS(${TARGET} PRIVATE LINKER:-no_warn_duplicate_libraries)
   ENDIF()
 
   ADD_OBJDUMP_TARGET(show_${TARGET} "$<TARGET_FILE:${TARGET}>"

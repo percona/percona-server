@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -592,7 +592,7 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
       if (ec == TlsErrc::kWantRead) return Result::RecvFromClient;
 
       log_info("accepting TLS connection from %s failed: %s",
-               connection()->get_client_address().c_str(),
+               connection()->client_conn().endpoint().c_str(),
                ec.message().c_str());
 
       stage(Stage::Error);

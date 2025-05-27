@@ -146,11 +146,7 @@ ENDIF()
 
 INCLUDE(compiler_features)
 ROCKSDB_SET_BUILD_ARCHITECTURE()  # sets "-march=" using ROCKSDB_BUILD_ARCH or ROCKSDB_DISABLE_MARCH_NATIVE
-ROCKSDB_SET_DEFINTIONS()          # sets HAVE_URING, HAVE_MEMKIND, HAVE_ALIGNED_NEW
-
-IF (HAVE_URING AND ROCKSDB_USE_IO_URING)
-  SET(rocksdb_static_libs ${rocksdb_static_libs} ${URING_LIBRARY})
-ENDIF()
+ROCKSDB_SET_DEFINTIONS()          # sets HAVE_MEMKIND, HAVE_ALIGNED_NEW
 
 IF (HAVE_MEMKIND AND ROCKSDB_USE_MEMKIND)
   SET(rocksdb_static_libs ${rocksdb_static_libs} ${MEMKIND_LIBRARY})
@@ -176,6 +172,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wnon-virtual-dtor)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc rocksdb/env/fs_posix.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-nontrivial-memcall FILES rocksdb/port/mmap.cc)
 ENDIF()
 
 # Suppress warnings for clang-9 or older
@@ -284,6 +281,17 @@ ENDIF()
 
 IF(HAVE_EXTERNAL_ROCKSDB)
   SET(rocksdb_static_libs ${rocksdb_static_libs} "${ROCKSDB_LIB_PATH}/${ROCKSDB_LIB_NAME}")
+ENDIF()
+
+SET(WITH_LIBURING "OFF" CACHE STRING "By default don't use bundled liburing.")
+IF (WITH_LIBURING)
+  FIND_LIBRARY(URING_LIBRARY
+    NAMES liburing${PIC_EXT}.a uring
+    HINTS ${WITH_LIBURING}/lib)
+  SET(rocksdb_static_libs ${rocksdb_static_libs}
+    ${URING_LIBRARY})
+  ADD_DEFINITIONS(-DROCKSDB_USE_IO_URING=1)
+  ADD_DEFINITIONS(-DROCKSDB_IOURING_PRESENT)
 ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ext::zlib ext::zstd ext::lz4 extra::rapidjson "-ldl")

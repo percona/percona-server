@@ -25,8 +25,7 @@ Worker::Worker(Config &config, Storage &storage, DataProvider &data_provider,
       storage_(storage),
       data_provider_(data_provider),
       logger_(logger),
-      stop_worker_thd_(false),
-      caller_active_(ATOMIC_FLAG_INIT) {}
+      stop_worker_thd_(false) {}
 
 bool Worker::start() {
   std::thread thd(&Worker::worker_thd_fn, this);

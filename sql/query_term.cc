@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
           child_block->n_child_sum_items += this_block->n_child_sum_items;
           child_block->n_scalar_subqueries += this_block->n_scalar_subqueries;
 
-          if (this_block->first_inner_query_expression() != nullptr) {
+          if (this_block->order_list.size() > 0) {
             // Change context of any items in ORDER BY to child block
             Item_ident::Change_context ctx(&child_block->context);
             for (ORDER *o = this_block->order_list.first; o; o = o->next) {
@@ -131,7 +131,8 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
                                     enum_walk::POSTFIX,
                                     reinterpret_cast<uchar *>(&ctx));
             }
-
+          }
+          if (this_block->first_inner_query_expression() != nullptr) {
             // Also move any inner query expression's to the child block.
             // This can happen if an ORDER BY expression has a subquery
             Query_expression *qe = this_block->first_inner_query_expression();

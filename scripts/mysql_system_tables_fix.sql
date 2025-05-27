@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+-- Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -1752,3 +1752,9 @@ FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushPrivilegesPriv = 0;
 
 -- SET_USER_ID is removed dynamic privilege, revoke all grants of it.
 DELETE FROM global_grants WHERE PRIV = 'SET_USER_ID';
+
+-- Bug#36808636 System accounts are not converted to non legacy auth plugin during upgrade
+-- Convert authentication of 'mysql.sys' and 'mysql.sessioon' users
+-- from mysql_native_password into caching_sha2_password.
+UPDATE mysql.user SET plugin='caching_sha2_password', authentication_string='$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' WHERE user='mysql.sys';
+UPDATE mysql.user SET plugin='caching_sha2_password', authentication_string='$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' WHERE user='mysql.session';

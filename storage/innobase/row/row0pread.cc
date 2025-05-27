@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -215,50 +215,52 @@ class PCursor {
   PCursor(btr_pcur_t *pcur, mtr_t *mtr, size_t read_level)
       : m_mtr(mtr), m_pcur(pcur), m_read_level(read_level) {}
 
-  /**
-    Restore position of cursor created from Scan_ctx::Range object.
-    Adjust it if starting record of range has been purged.
-  */
-  void restore_position_for_range() noexcept {
-    /*
-      Restore position on the record or its predecessor if the record
-      was purged meanwhile. In the latter case we need to adjust position by
-      moving one step forward as predecessor belongs to another range.
+  /** Store the position of the user record that is added to the key buffer and,
+  commit the mini-transaction. The cursor must not be positioned at infimum
+  or supremum.
+  @note This method must be paired with
+  restore_to_last_processed_user_record() to restore the record position */
+  void save_current_user_record_as_last_processed() noexcept;
 
-      We rely on return value from restore_position() to detect this scenario.
-      This can be done when saved position points to user record which is
-      always the case for saved start of Scan_ctx::Range.
-    */
-    ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
+  /** Restore the cursor to the saved record. If the saved record was physically
+  removed then restore to the largest record which is smaller than the saved
+  record. If all records were removed then restore the cursor to the infimum;
+  this must be fine if the next step of the caller is to advance the cursor.
+  @note This method must be paired with
+  save_current_user_record_as_last_processed() to save the record position */
+  void restore_to_last_processed_user_record() noexcept;
 
-    if (!m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE)) {
-      page_cur_move_to_next(m_pcur->get_page_cur());
-    }
-  }
+  /** This method must be called after all records on a page are processed and
+  cursor is positioned at supremum. Under this assumption, it stores the
+  position of the last user record on the page.
+  This method must be paired with restore_to_first_unprocessed() to restore to
+  a record which comes right after the value of the stored last processed
+  record @see restore_to_first_unprocessed for details. */
+  void save_previous_user_record_as_last_processed() noexcept;
 
-  /** Create a savepoint and commit the mini-transaction.*/
-  void savepoint() noexcept;
-
-  /** Resume from savepoint. */
-  void resume() noexcept;
+  /** Restore the cursor to the record which comes next after the saved
+  position by the paired method save_previous_user_record_as_last_processed().
+  If there is no such record, it will restore to supremum on the last leaf
+  page.
+  @note This method must be paired with
+  save_previous_user_record_as_last_processed() to save the record position */
+  void restore_to_first_unprocessed() noexcept;
 
   /** Move to the next block.
   @param[in]  index             Index being traversed.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t move_to_next_block(dict_index_t *index);
 
+  /** Restore the cursor to the saved record. If the saved record
+  was physically removed, then restore to the largest record which
+  is smaller than the saved record.
+  @return true if restored to the same record, false otherwise */
+  bool restore_to_largest_le_position_saved() noexcept;
+
   /** @return the current page cursor. */
   [[nodiscard]] page_cur_t *get_page_cursor() noexcept {
     return m_pcur->get_page_cur();
   }
-
-  /** Restore from a saved position. Sets position the next user record
-  in the tree if it is cursor pointing to supremum that was saved.
-  @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t restore_from_savepoint() noexcept;
-
-  /** Move to the first user rec on the next page. */
-  [[nodiscard]] dberr_t move_to_next_block_user_rec() noexcept;
 
   /** @return true if cursor is after last on page. */
   [[nodiscard]] bool is_after_last_on_page() const noexcept {
@@ -269,6 +271,61 @@ class PCursor {
   size_t read_level() const noexcept { return m_read_level; }
 
  private:
+  /** This method must be called when cursor is positioned at supremum of
+  the page at the level one of the index. It saves the min-key value of
+  the last leaf page referenced on the page.
+  This method must be paired with restore_level_one_progress() to restore
+  cursor to a record on the non-leaf page which points to the next leaf
+  page to process.
+  @see restore_level_one_progress for details. */
+  void save_level_one_progress() noexcept;
+
+  /** This method must be called to restore to the record on the non-leaf page
+  (level one) of the index. It must be paired with save_level_one_progress().
+  If the cursor was saved to the record <min-key value, child_page_no> position,
+  then the restored cursor is positioned to the
+  <min-key value+, child_page_no^>. The min-key value+ is the value that comes
+  next after the saved value min-key value.
+  As PAGE_CUR_G mode is not supported for level 1, this function searches for
+  such a record in two steps:
+  1. using PAGE_CUR_LE it finds a record which is lower-or-equal min_key value
+  2. adjusts the position by moving one record forward
+  The later step might require moving to the next page, and this function
+  tries to latch the next page without any other thread waiting to latch it.
+  If the latch could not be obtained on the page, then the method returns the
+  DB_LOCK_NOWAIT error code. The caller must implement retry logic to handle
+  this error code.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t restore_level_one_progress() noexcept;
+
+  /** Move to the next block at the leaf level of the index. If other
+  thread(s) are waiting to acquire the latches on the index then first
+  save the last processed user record, pause, give chance to the other
+  threads to execute, then restore the cursor to next unprocessed record,
+  which typically is the first record on next page, if the tree was not
+  modified meanwhile.
+  @param[in]  index   Index being traversed.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t move_to_next_block_at_leaf_level(dict_index_t *index);
+
+  /** Move to the next block at the level one of the index. If other
+  thread(s) are waiting to acquire the latches on the index then first
+  pause, give chance the other threads to execute, then restore the
+  cursor before positioning it to user record on next page. The latch
+  on next page is acquired without waiting in a retry loop, otherwise
+  waiting might cause deadlock with other tree modifying operations.
+  @param[in]  index   Index being traversed.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t move_to_next_block_at_level_one(dict_index_t *index);
+
+  /** Move to the first user record on the next page. Release the latches
+  on the current page and obtain the S-latch on next page. If it is non-leaf
+  level then S-latch is obtained in the optimistic/non-blocking way, which
+  can fail with DB_LOCK_WAIT. Caller must add the retry logic to handle
+  this error code.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t move_to_user_rec_on_next_page() noexcept;
+
   /** Mini-transaction. */
   mtr_t *m_mtr{};
 
@@ -278,9 +335,6 @@ class PCursor {
   /** Level where the cursor is positioned or need to be positioned in case of
   restore. */
   size_t m_read_level{};
-
-  /** Indicates that savepoint created for cursor corresponds to supremum. */
-  bool m_supremum_saved{};
 };
 
 buf_block_t *Parallel_reader::Scan_ctx::block_get_s_latched(
@@ -297,101 +351,145 @@ buf_block_t *Parallel_reader::Scan_ctx::block_get_s_latched(
   return (block);
 }
 
-void PCursor::savepoint() noexcept {
-  /* The below code will not work correctly in all cases if we are to take
-  savepoint of cursor pointing to infimum.
+void PCursor::save_level_one_progress() noexcept {
+  ut_ad(m_read_level == 1);
+  ut_ad(m_pcur->is_after_last_on_page());
 
-  If savepoint is taken for such a cursor, in optimistic restore case we
-  might not detect situation when after mini-trancation commit/latches
-  release concurrent merge from the previous page or concurrent update of
-  the last record on the previous page, which doesn't fit into it, has
-  moved records over infimum (see MySQL bugs #114248 and #115518).
-  As result scan will revisit these records, which can cause, for example,
-  ALTER TABLE failing with a duplicate key error.
+  /* Store the cursor position on the previous user record on the page.
 
-  Luckily, at the moment, savepoint is taken only when cursor points
-  to a user record (when we do save/restore from Parallel_reader::Ctx::m_f
-  callback which processes records) or to the supremum (when we do save/
-  restore from Parallel_reader::m_finish_callback end-of-page callback or
-  before switching to next page in move_to_next_block()). */
-  ut_ad(!m_pcur->is_before_first_on_page());
+  @note: If btr_pcur_t::store_position() detects that cursor is positioned to
+  after the last record then it moves the position to previous user record too.
+  The reason we have to move to previous user record explicitly is that,
+  btr_pcur_t::store_position() changes the relative position to BTR_PCUR_AFTER
+  in that case btr_pcur_t::restore_position() restores the next user record
+  which is not allowed at non-leaf level. We use modified search modes on the
+  non-leaf levels, @see btr_cur_search_to_nth_level for details. Therefore, we
+  explicitly move to cursor position to previous record */
+  m_pcur->move_to_prev_on_page();
 
-  /* If we are taking savepoint for cursor pointing to supremum we are doing
-  one step back. This is necessary to prevent situation when concurrent
-  merge from the next page, which happens after we commit mini-transaction/
-  release latches moves records over supremum to the current page.
-  In this case the optimistic restore of cursor pointing to supremum will
-  result in cursor pointing to supremum, which means moved records will
-  be incorrectly skipped by the scan. */
-  m_supremum_saved = m_pcur->is_after_last_on_page();
-  if (m_supremum_saved) {
-    m_pcur->move_to_prev_on_page();
-    // Only root page can be empty and we are not supposed to get here
-    // in this case.
-    ut_ad(!m_pcur->is_before_first_on_page());
-  }
-
-  /* Thanks to the above we can say that we are saving position of last user
-  record which have processed/ which corresponds to last key value we have
-  processed. */
   m_pcur->store_position(m_mtr);
+
+  ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
 
   m_mtr->commit();
 }
 
-void PCursor::resume() noexcept {
+dberr_t PCursor::restore_level_one_progress() noexcept {
+  ut_ad(m_read_level == 1);
+  ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
   m_mtr->start();
-
   m_mtr->set_log_mode(MTR_LOG_NO_REDO);
 
-  /* Restore position on the record, or its predecessor if the record
-  was purged meanwhile. In extreme case this can be infimum record of
-  the first page in the tree. However, this can never be a supremum
-  record on a page, since we always move cursor one step back when
-  savepoint() is called for infimum record.
+  restore_to_largest_le_position_saved();
 
-  We can be in either of the two situations:
+  /* Move to the next record on the page */
+  page_cur_move_to_next(get_page_cursor());
 
-  1) We do save/restore from Parallel_reader:::Ctx::m_f callback for
-  record processing. In this case we saved position of user-record for
-  which callback was invoked originally, and which we already consider
-  as processed. In theory, such record is not supposed be purged as our
-  transaction holds read view on it. But in practice, it doesn't matter
-  - even if the record was purged then our cursor will still point to
-  last processed user record in the tree after its restoration.
-  And Parallel_reader:::Ctx::m_f callback execution is always followed by
-  page_cur_move_to_next() call, which moves our cursor to the next record
-  and this record has not been processed yet.
+  if (m_pcur->is_on_user_rec()) {
+    /* Cursor is still on a user record so we can claim success */
+    return DB_SUCCESS;
+  }
 
-  2) We do save/restore from the Parallel_reader::m_finish_callback
-  end-of-page callback or from move_to_next_block() before switching
-  the page. In this case our cursor was positioned on supremum record
-  before savepoint() call.
-  Th savepoint() call raised m_supremum_saved flag and saved the position
-  of the user record which preceded the supremum, i.e. the last user record
-  which was processed.
-  After the below call to restore_position() the cursor will point to
-  the latter record, or, if it has been purged meanwhile, its closest
-  non-purged predecessor (in extreme case this can be infimum of the first
-  page in the tree!).
-  By moving to the successor of the saved record we position the cursor
-  either to supremum record (which means we restored original cursor
-  position and can continue switch to the next page as usual) or to
-  some user record which our scan have not processed yet (for example,
-  this record might have been moved from the next page due to page
-  merge or simply inserted to our page concurrently).
-  The latter case is detected by caller by doing !is_after_last_on_page()
-  check and instead of doing switch to the next page we continue processing
-  from the restored user record. */
+  return move_to_user_rec_on_next_page();
+}
 
+void PCursor::save_current_user_record_as_last_processed() noexcept {
+  ut_a(m_pcur->is_on_user_rec());
+  ut_ad(m_read_level == 0);
+  m_pcur->store_position(m_mtr);
+  m_mtr->commit();
+}
+
+void PCursor::restore_to_last_processed_user_record() noexcept {
+  ut_a(m_pcur->m_rel_pos == BTR_PCUR_ON);
+  ut_ad(m_read_level == 0);
+  m_mtr->start();
+  m_mtr->set_log_mode(MTR_LOG_NO_REDO);
+
+  [[maybe_unused]] const auto same_row =
+      m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE);
+
+  /* Restored cursor is positioned on the page at the level intended before */
+  ut_ad(m_read_level == btr_page_get_level(m_pcur->get_page()));
+
+  /* Since m_rel_pos was BTR_PCUR_ON, the state can't be
+  BTR_PCUR_IS_POSITIONED_OPTIMISTIC */
+  ut_a(BTR_PCUR_IS_POSITIONED_OPTIMISTIC != m_pcur->m_pos_state);
+
+  /* If the cursor was pointing to the user record then 'PAGE_CUR_LE' mode
+  used by the btr_pcur_t::restore_position() restores the cursor to a record
+  lower than the original one if it was removed, and in particular, if all
+  smaller ones were removed, cur could be on infimum now. This would be fine,
+  as our next step will be to advance the cursor, anyway.
+  However, right now the only usage of this method is in the bulk inserter
+  for a B-Tree. which only calls it when the current row was visible to the
+  scan, and thus can't be purged. So, we know it can't happen, unless someone
+  reuses this function in a new context, in which case they should probably
+  repeat the proof of correctness. The purpose of following debug assert is
+  to show the limited the scope of this method, and thus how risky it
+  is to use it in new context: */
+  ut_ad(same_row);
+}
+
+void PCursor::save_previous_user_record_as_last_processed() noexcept {
+  ut_a(m_pcur->is_after_last_on_page());
+  ut_ad(m_read_level == 0);
+  /*
+    Instead of simply taking savepoint for cursor pointing to supremum we
+    are doing one step back. This is necessary to prevent situation when
+    concurrent merge from the next page, which happens after we commit
+    mini-transaction/release latches, moves records over supremum to the
+    current page. In this case the optimistic restore of cursor pointing
+    to supremum will result in cursor pointing to supremum, which means
+    moved records will be incorrectly skipped by the scan.
+
+    So, effectively, we are saving position of last user record which we
+    have processed/which corresponds to last key value we have processed!
+  */
+  m_pcur->move_to_prev_on_page();
+  m_pcur->store_position(m_mtr);
+  m_mtr->commit();
+}
+
+void PCursor::restore_to_first_unprocessed() noexcept {
+  ut_ad(m_read_level == 0);
+  m_mtr->start();
+  m_mtr->set_log_mode(MTR_LOG_NO_REDO);
   m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE);
+
+  /* Restored cursor is positioned on the page at the level intended before */
+  ut_ad(m_read_level == btr_page_get_level(m_pcur->get_page()));
+
+  /*
+    The cursor points to last processed record, or, if it has been purged
+    meanwhile, its closest non-purged predecessor.
+    By moving to the successor of the saved record we position the cursor
+    either to supremum record (which means we restored the original cursor
+    position and can continue switch to the next page as usual) or to
+    some user record which our scan have not processed yet (for example,
+    this record might have been moved from the next page due to page
+    merge or simply inserted to our page concurrently).
+
+    The latter case is detected by caller by doing !is_after_last_on_page()
+    check and instead of doing switch to the next page we continue processing
+    from the restored user record.
+  */
+  m_pcur->move_to_next_on_page();
+}
+
+bool PCursor::restore_to_largest_le_position_saved() noexcept {
+  ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
+  ut_ad(m_mtr->is_active());
+
+  const auto same_row =
+      m_pcur->restore_position(BTR_SEARCH_LEAF, m_mtr, UT_LOCATION_HERE);
 
   ut_ad(!m_pcur->is_after_last_on_page());
 
-  if (m_supremum_saved) m_pcur->move_to_next_on_page();
+  return same_row;
 }
 
-dberr_t PCursor::move_to_next_block_user_rec() noexcept {
+dberr_t PCursor::move_to_user_rec_on_next_page() noexcept {
   auto cur = m_pcur->get_page_cur();
   const auto next_page_no = btr_page_get_next(page_cur_get_page(cur), m_mtr);
 
@@ -400,38 +498,42 @@ dberr_t PCursor::move_to_next_block_user_rec() noexcept {
     return DB_END_OF_INDEX;
   }
 
-  auto block = page_cur_get_block(cur);
-  const auto &page_id = block->page.id;
+  buf_block_t *current_block = page_cur_get_block(cur);
+  buf_block_t *next_block{nullptr};
+
+  const auto space_id = current_block->page.id.space();
+  const auto page_size = current_block->page.size;
 
   DEBUG_SYNC_C("parallel_reader_next_block");
 
   /* We never scan undo tablespaces. */
-  ut_a(!fsp_is_undo_tablespace(page_id.space()));
+  ut_a(!fsp_is_undo_tablespace(space_id));
 
   if (m_read_level == 0) {
-    block = buf_page_get_gen(page_id_t(page_id.space(), next_page_no),
-                             block->page.size, RW_S_LATCH, nullptr,
-                             Page_fetch::SCAN, UT_LOCATION_HERE, m_mtr);
+    next_block = buf_page_get_gen(page_id_t(space_id, next_page_no), page_size,
+                                  RW_S_LATCH, nullptr, Page_fetch::SCAN,
+                                  UT_LOCATION_HERE, m_mtr);
   } else {
     /* Read IO should be waited for. But s-latch should be nowait,
     to avoid deadlock opportunity completely. */
-    block = buf_page_get_gen(page_id_t(page_id.space(), next_page_no),
-                             block->page.size, RW_NO_LATCH, nullptr,
-                             Page_fetch::SCAN, UT_LOCATION_HERE, m_mtr);
-    bool success = buf_page_get_known_nowait(
-        RW_S_LATCH, block, Cache_hint::KEEP_OLD, __FILE__, __LINE__, m_mtr);
-    btr_leaf_page_release(block, RW_NO_LATCH, m_mtr);
+    next_block = buf_page_get_gen(page_id_t(space_id, next_page_no), page_size,
+                                  RW_NO_LATCH, nullptr, Page_fetch::SCAN,
+                                  UT_LOCATION_HERE, m_mtr);
+    bool success =
+        buf_page_get_known_nowait(RW_S_LATCH, next_block, Cache_hint::KEEP_OLD,
+                                  __FILE__, __LINE__, m_mtr);
+    btr_leaf_page_release(next_block, RW_NO_LATCH, m_mtr);
 
     if (!success) {
       return DB_LOCK_NOWAIT;
     }
   }
 
-  buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+  buf_block_dbg_add_level(next_block, SYNC_TREE_NODE);
 
-  btr_leaf_page_release(page_cur_get_block(cur), RW_S_LATCH, m_mtr);
+  btr_leaf_page_release(current_block, RW_S_LATCH, m_mtr);
 
-  page_cur_set_before_first(block, cur);
+  page_cur_set_before_first(next_block, cur);
 
   /* Skip the infimum record. */
   page_cur_move_to_next(cur);
@@ -442,44 +544,53 @@ dberr_t PCursor::move_to_next_block_user_rec() noexcept {
   return DB_SUCCESS;
 }
 
-dberr_t PCursor::restore_from_savepoint() noexcept {
-  resume();
-
-  /* We should not get cursor pointing to supremum when restoring cursor
-  which has pointed to user record from the Parallel_reader:::Ctx::m_f
-  callback. Otherwise the below call to move_to_next_block_user_rec()
-  will position the cursor to the first user record on the next page
-  and then calling code will do page_cur_move_to_next() right after
-  that. Which means that one record will be incorrectly skipped by
-  our scan. Luckily, this always holds with current code. */
-  ut_ad(m_supremum_saved || !m_pcur->is_after_last_on_page());
-
-  /* Move to the next user record in the index tree if we are at supremum.
-  Even though this looks awkward from the proper layering point of view,
-  and ideally should have been done on the same code level as iteration
-  over records, doing this here, actually, a) allows to avoid scenario in
-  which savepoint/mini-transaction commit and latch release/restore happen
-  for the same page twice - first time in page-end callback and then in
-  move_to_next_block() call, b) handles a hypotetical situation when
-  the index was reduced to the empty root page while latches were released
-  by detecting it and bailing out early (it is important for us to bail out
-  and not try to call savepoint() method in this case). */
-  return (!m_pcur->is_after_last_on_page()) ? DB_SUCCESS
-                                            : move_to_next_block_user_rec();
+void Parallel_reader::Thread_ctx::
+    save_current_user_record_as_last_processed() noexcept {
+  m_pcursor->save_current_user_record_as_last_processed();
 }
 
-dberr_t Parallel_reader::Thread_ctx::restore_from_savepoint() noexcept {
-  /* If read_level != 0, might return DB_LOCK_NOWAIT error. */
-  ut_ad(m_pcursor->read_level() == 0);
-  return m_pcursor->restore_from_savepoint();
+void Parallel_reader::Thread_ctx::
+    restore_to_last_processed_user_record() noexcept {
+  m_pcursor->restore_to_last_processed_user_record();
 }
 
-void Parallel_reader::Thread_ctx::savepoint() noexcept {
-  m_pcursor->savepoint();
+void Parallel_reader::Thread_ctx::
+    save_previous_user_record_as_last_processed() noexcept {
+  m_pcursor->save_previous_user_record_as_last_processed();
 }
 
-dberr_t PCursor::move_to_next_block(dict_index_t *index) {
-  ut_ad(m_pcur->is_after_last_on_page());
+void Parallel_reader::Thread_ctx::restore_to_first_unprocessed() noexcept {
+  m_pcursor->restore_to_first_unprocessed();
+}
+
+dberr_t PCursor::move_to_next_block_at_leaf_level(dict_index_t *index) {
+  ut_ad(m_read_level == 0);
+  if (DBUG_EVALUATE_IF("pcursor_move_to_next_block_release_latches", true,
+                       rw_lock_get_waiters(dict_index_get_lock(index)))) {
+    save_previous_user_record_as_last_processed();
+    DEBUG_SYNC_C("pcursor_move_to_next_block_latches_released");
+    std::this_thread::yield();
+    restore_to_first_unprocessed();
+    if (m_pcur->is_after_last_on_page()) {
+      /* There's nothing wrong here, as restore_to_first_unprocessed() is not
+      obliged to position the cursor on a *user* record - it can be a
+      supremum. This can happen if
+      a) the block in BP wasn't modified and thus we've restored the cursor
+      exactly where it was, i.e. on supremum
+      b) there is no more records in the table
+      These options aren't mutually exclusive. Both are well handled by: */
+      return move_to_user_rec_on_next_page();
+    }
+    /* This happens if we were descending the B-tree, in which case we try
+    to navigate in such a way to arrive at a user record. */
+    ut_a(m_pcur->is_on_user_rec());
+    return DB_SUCCESS;
+  }
+  return move_to_user_rec_on_next_page();
+}
+
+dberr_t PCursor::move_to_next_block_at_level_one(dict_index_t *index) {
+  ut_ad(m_read_level != 0);
   dberr_t err = DB_SUCCESS;
 
   if (rw_lock_get_waiters(dict_index_get_lock(index))) {
@@ -490,34 +601,42 @@ dberr_t PCursor::move_to_next_block(dict_index_t *index) {
     /* We should always yield on a block boundary. */
     ut_ad(m_pcur->is_after_last_on_page());
 
-    savepoint();
+    save_level_one_progress();
 
     /* Yield so that another thread can proceed. */
     std::this_thread::yield();
 
-    err = restore_from_savepoint();
+    err = restore_level_one_progress();
   } else {
-    err = move_to_next_block_user_rec();
+    err = move_to_user_rec_on_next_page();
   }
 
   int n_retries [[maybe_unused]] = 0;
   while (err == DB_LOCK_NOWAIT) {
     /* We should restore the cursor from index root page,
     to avoid deadlock opportunity. */
-    ut_ad(m_read_level != 0);
 
-    savepoint();
+    save_level_one_progress();
 
     /* Forces to restore from index root. */
     m_pcur->m_block_when_stored.clear();
 
-    err = restore_from_savepoint();
+    err = restore_level_one_progress();
 
     n_retries++;
     ut_ad(n_retries < 10);
   }
 
   return err;
+}
+
+dberr_t PCursor::move_to_next_block(dict_index_t *index) {
+  ut_ad(m_pcur->is_after_last_on_page());
+  if (m_read_level == 0) {
+    return move_to_next_block_at_leaf_level(index);
+  }
+  ut_ad(m_read_level == 1);
+  return move_to_next_block_at_level_one(index);
 }
 
 bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
@@ -682,7 +801,10 @@ dberr_t Parallel_reader::Ctx::traverse() {
   auto &from = m_range.first;
 
   PCursor pcursor(from->m_pcur, &mtr, m_scan_ctx->m_config.m_read_level);
-  pcursor.restore_position_for_range();
+  if (!pcursor.restore_to_largest_le_position_saved()) {
+    /* Move to the next record on the page */
+    page_cur_move_to_next(pcursor.get_page_cursor());
+  }
 
   dberr_t err{DB_SUCCESS};
 
@@ -1223,6 +1345,9 @@ dberr_t Parallel_reader::Scan_ctx::create_ranges(const Scan_range &scan_range,
     start = nullptr;
 
     page_cur_move_to_next(&page_cursor);
+
+    DBUG_EXECUTE_IF("parallel_reader_force_single_range",
+                    page_cur_set_after_last(block, &page_cursor););
   }
 
   savepoints.push_back(savepoint);

@@ -572,6 +572,15 @@ var status_vars = {
     } else if (stmt.match(router_update_attributes.stmt_regex)) {
       mysqld.global.update_attributes_count++;
       return router_update_attributes;
+    } else if (stmt.trim() === "" || stmt === ";") {
+      return {
+        error: {
+          code: 1065,
+          message: "Query was empty",
+        }
+      };
+    } else if (stmt === "/* */" || stmt === "-- ") {
+      return {ok: {}};
     } else {
       console.log(stmt);
       return common_stmts.unknown_statement_response(stmt);

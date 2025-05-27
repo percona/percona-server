@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1618,7 +1618,6 @@ bool space_needed(const Json_wrapper *value, bool large, size_t *needed) {
   @return false on success, true if an error occurred
 
   @par Example of partial update
-
   Given the JSON document [ "abc", "def" ], which is serialized like this in a
   JSON column:
 
@@ -1844,7 +1843,6 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
   @return false on success, true if an error occurred
 
   @par Example of partial update
-
   Take the JSON document { "a": "x", "b": "y", "c": "z" }, whose serialized
   representation looks like the following:
 

@@ -1,0 +1,174 @@
+--source include/have_encryption_udf_component.inc
+
+INSTALL COMPONENT 'file://component_encryption_udf';
+
+--echo **
+--echo ** checking legacy_padding_scheme
+--let $assert_text = default legacy_padding_scheme must be OFF
+--let $assert_cond = @@global.encryption_udf.legacy_padding_scheme IS FALSE
+--source include/assert.inc
+--error ER_GLOBAL_VARIABLE
+SET SESSION encryption_udf.legacy_padding_scheme = ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.encryption_udf.legacy_padding_scheme;
+
+SET @algorithm = 'RSA';
+SET @priv_key = create_asymmetric_priv_key(@algorithm, 1024);
+SET @pub_key = create_asymmetric_pub_key(@algorithm, @priv_key);
+SET @message = 'secret_message';
+
+
+--echo **
+--echo ** checking explicit/implicit padding scheme for RSA encrypt/decrypt
+
+SET @encrypted_message_oaep_explicit = asymmetric_encrypt(@algorithm, @message, @pub_key, 'oaep');
+SET @encrypted_message_pkcs1_explicit = asymmetric_encrypt(@algorithm, @message, @pub_key, 'pkcs1');
+
+SET @encrypted_message_oaep_imlicit = asymmetric_encrypt(@algorithm, @message, @pub_key);
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @encrypted_message_pkcs1_imlicit = asymmetric_encrypt(@algorithm, @message, @pub_key);
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+
+
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_imlicit, @priv_key, 'oaep');
+--let $assert_text = decrypting @encrypted_message_oaep_imlicit with 'oaep' scheme specified explicitly must succeed
+--let $assert_cond = @decrypted_message = @message
+--source include/assert.inc
+
+# Note that decrypting messages with different padding scheme may either fail with an error
+# or succeed but produce garbage depending on random bytes inserted into the encrypted message.
+
+# Therefore adding '--error 0,ER_UDF_ERROR' to handle both cases.
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'oaep');
+--let $assert_text = decrypting @encrypted_message_pkcs1_imlicit with 'oaep' scheme specified explicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
+
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_imlicit, @priv_key, 'pkcs1');
+--let $assert_text = decrypting @encrypted_message_oaep_imlicit with 'pkcs1' scheme specified explicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
+
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_imlicit, @priv_key, 'pkcs1');
+--let $assert_text = decrypting @encrypted_message_pkcs1_imlicit with 'pkcs1' scheme specified explicitly must succeed
+--let $assert_cond = @decrypted_message = @message
+--source include/assert.inc
+
+
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_explicit, @priv_key);
+--let $assert_text = decrypting @encrypted_message_oaep_explicit with 'oaep' scheme specified implicitly must succeed
+--let $assert_cond = @decrypted_message = @message
+--source include/assert.inc
+
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);
+--let $assert_text = decrypting @encrypted_message_pkcs1_explicit with 'oaep' scheme specified implicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
+
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+
+SET @decrypted_message = '';
+--replace_regex /(cannot decrypt data block with the specified private RSA key).*/\1/
+--error 0,ER_UDF_ERROR
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_oaep_explicit, @priv_key);
+--let $assert_text = decrypting @encrypted_message_oaep_explicit with 'pkcs1' scheme specified implicitly must fail
+--let $assert_cond = HEX(@message) <> HEX(@decrypted_message)
+--source include/assert.inc
+
+SET @decrypted_message = asymmetric_decrypt(@algorithm, @encrypted_message_pkcs1_explicit, @priv_key);
+--let $assert_text = decrypting @encrypted_message_pkcs1_explicit with 'pkcs1' scheme specified implicitly must succeed
+--let $assert_cond = @decrypted_message = @message
+--source include/assert.inc
+
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+
+
+--echo **
+--echo ** checking explicit/implicit padding scheme for RSA sign/verify
+
+SET @digest_type = 'SHA256';
+SET @message_digest = create_digest(@digest_type, @message);
+
+SET @signature_pkcs1_pss_explicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type, 'pkcs1_pss');
+SET @signature_pkcs1_explicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type, 'pkcs1');
+
+SET @signature_pkcs1_pss_imlicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type);
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+SET @signature_pkcs1_imlicit = asymmetric_sign(@algorithm, @message_digest, @priv_key, @digest_type);
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_imlicit, @pub_key, @digest_type, 'pkcs1_pss');
+--let $assert_text = verifying @signature_pkcs1_pss_imlicit with 'pkcs1_pss' scheme specified explicitly must succeed
+--let $assert_cond = @verification_result = 1
+--source include/assert.inc
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_imlicit, @pub_key, @digest_type, 'pkcs1_pss');
+--let $assert_text = verifying @signature_pkcs1_imlicit with 'pkcs1_pss' scheme specified explicitly must fail
+--let $assert_cond = @verification_result = 0
+--source include/assert.inc
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_imlicit, @pub_key, @digest_type, 'pkcs1');
+--let $assert_text = verifying @signature_pkcs1_pss_imlicit with 'pkcs1' specified explicitly scheme must fail
+--let $assert_cond = @verification_result = 0
+--source include/assert.inc
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_imlicit, @pub_key, @digest_type, 'pkcs1');
+--let $assert_text = verifying @signature_pkcs1_imlicit with 'pkcs1' specified explicitly scheme must succeed
+--let $assert_cond = @verification_result = 1
+--source include/assert.inc
+
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_explicit, @pub_key, @digest_type);
+--let $assert_text = verifying @signature_pkcs1_pss_explicit with 'pkcs1_pss' scheme specified implicitly must succeed
+--let $assert_cond = @verification_result = 1
+--source include/assert.inc
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_explicit, @pub_key, @digest_type);
+--let $assert_text = verifying @signature_pkcs1_explicit with 'pkcs1_pss' scheme specified implicitly must fail
+--let $assert_cond = @verification_result = 0
+--source include/assert.inc
+
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_pss_explicit, @pub_key, @digest_type);
+--let $assert_text = verifying @signature_pkcs1_pss_explicit with 'pkcs1' specified implicitly scheme must fail
+--let $assert_cond = @verification_result = 0
+--source include/assert.inc
+
+SET @verification_result = asymmetric_verify(@algorithm, @message_digest, @signature_pkcs1_explicit, @pub_key, @digest_type);
+--let $assert_text = verifying @signature_pkcs1_explicit with 'pkcs1' specified implicitly scheme must succeed
+--let $assert_cond = @verification_result = 1
+--source include/assert.inc
+
+SET GLOBAL encryption_udf.legacy_padding_scheme = OFF;
+
+
+--echo **
+--echo ** checking that non-privileged users cannot change legacy_padding_scheme variables
+--source include/count_sessions.inc
+CREATE USER 'usr' IDENTIFIED BY 'password';
+--connect (con1, localhost, usr, password)
+--connection con1
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL encryption_udf.legacy_padding_scheme = ON;
+
+--disconnect con1
+--connection default
+DROP USER 'usr';
+--source include/wait_until_count_sessions.inc
+
+#
+# Dropping functions from encryption_udf
+#
+UNINSTALL COMPONENT 'file://component_encryption_udf';

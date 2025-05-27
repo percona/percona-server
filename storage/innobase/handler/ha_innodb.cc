@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -214,6 +214,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0enc.h"
 #include "os0file.h"
 
+#include <scope_guard.h>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -3644,6 +3645,18 @@ class Validate_files {
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                            size_t thread_id) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
+  THD *internal_thd = nullptr;
+  if (current_thd == nullptr) {
+    internal_thd = create_internal_thd();
+    ut_a(internal_thd);
+    ut_ad(internal_thd == current_thd);
+  }
+
+  const auto thd_guard = create_scope_guard([internal_thd]() {
+    if (internal_thd != nullptr) {
+      destroy_internal_thd(internal_thd);
+    }
+  });
 
   /* Validate all tablespaces if innodb_validate_tablespace_paths=ON OR
   server is in recovery  OR Change buffer is not empty. Change buffer
@@ -3810,9 +3823,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Windows and POSIX. */
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
-
     state = fil_tablespace_path_equals(space_id, space_name, fsp_flags, dd_path,
                                        &new_path);
+
+    if (state == Fil_state::COMPARE_ERROR) {
+      ++m_n_errors;
+      break;
+    }
 
     if (state == Fil_state::MATCHES) {
       new_path.assign(dd_path);
@@ -3825,13 +3842,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     bool file_path_changed = (state == Fil_state::MOVED);
 
     if (state == Fil_state::MATCHES || state == Fil_state::MOVED ||
-        state == Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+        state == Fil_state::MOVED_PREV) {
       /* We need to update space name and table name for partitioned tables
       if letter case is different. */
       if (fil_update_partition_name(space_id, fsp_flags, true, space_str,
                                     new_path)) {
         file_name_changed = true;
-        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+        if (state != Fil_state::MOVED_PREV) {
           state = Fil_state::MOVED;
         }
       }
@@ -3840,13 +3857,15 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       if (space_str.compare(space_name) != 0) {
         old_space.assign(space_name);
         space_name = space_str.c_str();
-        if (state != Fil_state::MOVED_PREV_OR_HAS_DATADIR) {
+        if (state != Fil_state::MOVED_PREV) {
           state = Fil_state::MOVED;
         }
       }
     }
 
     switch (state) {
+      case Fil_state::COMPARE_ERROR:
+        ut_error;
       case Fil_state::MATCHES:
         break;
 
@@ -3911,18 +3930,21 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         }
         break;
 
-      case Fil_state::MOVED_PREV_OR_HAS_DATADIR:
+      case Fil_state::MOVED_PREV:
         fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
                             new_path, true);
         ++m_n_moved;
 
-        if (!old_space.empty()) {
-          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CORRECTED, prefix.c_str(),
-                   static_cast<unsigned long long>(dd_tablespace->id()),
-                   static_cast<unsigned int>(space_id), old_space.c_str(),
-                   space_name);
+        if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
         }
 
+        if (m_n_moved < MOVED_FILES_PRINT_THRESHOLD) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_PREV, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), space_name,
+                   new_path.c_str());
+        }
         break;
 
       case Fil_state::RENAMED:
@@ -19142,6 +19164,16 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
       ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
+      if ((check_opt->flags & T_EXTEND) && (ret == DB_SUCCESS) &&
+          !(n_rows < n_rows_in_table || n_dups < n_rows - n_rows_in_table)) {
+        /* For CHECK TABLE EXTENDED; we also want to make sure that MBR stored
+        in SPATIAL Index is matching the MBR of geometry stored in Clustered
+        record. */
+        m_prebuilt->need_to_access_clustered = true;
+        n_rows = 0;
+        n_dups = 0;
+        ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
+      }
     } else {
       ret = row_scan_index_for_mysql(m_prebuilt, index, max_threads, true,
                                      &n_rows);
@@ -20806,7 +20838,10 @@ int ha_innobase::cmp_ref(
     }
 
     if (result) {
-      return (result);
+      if (key_part->key_part_flag & HA_REVERSE_SORT) {
+        result = -result;
+      }
+      return result;
     }
 
     ref1 += key_part->store_length;
@@ -24169,7 +24204,8 @@ static MYSQL_SYSVAR_ENUM(
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(
     change_buffering_debug, ibuf_debug, PLUGIN_VAR_RQCMDARG,
-    "Debug flags for InnoDB change buffering (0=none, 2=crash at merge)",
+    "Debug flags for InnoDB change buffering (0=none, 1= evict the blocks from "
+    "the buffer pool as much possible,  2=crash at merge)",
     nullptr, nullptr, 0, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(disable_background_merge,

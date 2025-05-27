@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2024, Oracle and/or its affiliates.
+Copyright (c) 1997, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -318,7 +318,12 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
                          reinterpret_cast<double *>(&tmp_mbr), nullptr);
       rtr_read_mbr(sec_field, &sec_mbr);
 
-      if (!mbr_equal_cmp(sec_index->rtr_srs.get(), &sec_mbr, &tmp_mbr)) {
+      /* We use mbr_equal_physically() here because during UPDATE we have
+      skipped updating Spatial Index only when existing MBR was matching
+      physically to MBR of updated geometry.
+      Checking for logical equality here will result in duplicate results
+      if the MBR was logically equal but physically different. */
+      if (!mbr_equal_physically(&sec_mbr, &tmp_mbr)) {
         is_equal = false;
         goto func_exit;
       }
@@ -3434,8 +3439,7 @@ static bool sel_restore_position_for_mysql(
   ut_ad(!success || pcur->m_rel_pos == BTR_PCUR_ON);
 #ifdef UNIV_DEBUG
   if (pcur->m_pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
-    ut_ad(pcur->m_rel_pos == BTR_PCUR_BEFORE ||
-          pcur->m_rel_pos == BTR_PCUR_AFTER);
+    ut_ad(pcur->m_rel_pos == BTR_PCUR_BEFORE);
   } else {
     ut_ad(pcur->m_pos_state == BTR_PCUR_IS_POSITIONED);
     ut_ad((pcur->m_rel_pos == BTR_PCUR_ON) == pcur->is_on_user_rec());
@@ -5706,7 +5710,14 @@ rec_loop:
                                       UT_LOCATION_HERE, &heap);
       rtr_get_mbr_from_rec(rec, index_offsets, &index_mbr);
 
-      if (mbr_equal_precise_cmp(&clust_mbr, &index_mbr)) {
+      /* We use mbr_equal_physically() because we are comparing
+      MBR between Clustured Index & Spatial Index to identify duplicates.
+      As during UPDATE we check for MBR being physically equal, check
+      for duplicate should also happen physically.*/
+      if (mbr_equal_physically(&clust_mbr, &index_mbr)) {
+        ut_ad(!rec_get_deleted_flag(clust_rec, comp));
+        /* Duplicate because it has the same MBR as the record in PK,
+        but the record in PK is not delete marked, while ours is. */
         *is_dup_rec = true;
       }
     }

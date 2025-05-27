@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1073,7 +1073,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
        std::string version_string;
        ASSERT_TRUE(row->get_string(1, &version_string));
        ASSERT_THAT(version_string,
-                   ::testing::SizeIs(::testing::Gt(5)));  // x.y.z
+                   ::testing::SizeIs(::testing::Ge(5)));  // x.y.z
      }},
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
    Copyright (c) 2009, 2016, MariaDB
 
@@ -4448,7 +4448,9 @@ static bool is_silent_error(THD *thd) {
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                     const char *query_arg, size_t q_len_arg) {
   DBUG_TRACE;
-  int expected_error, actual_error = 0;
+  DBUG_EXECUTE_IF("simulate_error_in_ddl", error_code = 1051;);
+  const int expected_error = error_code;
+  int actual_error = 0;
   auto post_filters_actions_guard = create_scope_guard(
       [&]() { thd->rpl_thd_ctx.post_filters_actions().clear(); });
 
@@ -4527,14 +4529,26 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     char llbuff[22];
     if ((error =
              rows_event_stmt_cleanup(const_cast<Relay_log_info *>(rli), thd))) {
+      char buff[MAX_SLAVE_ERRMSG]{0};
+      const char *buff_end = buff + sizeof(buff);
+      char *slider = buff;
+      Diagnostics_area::Sql_condition_iterator it =
+          thd->get_stmt_da()->sql_conditions();
+      for (const Sql_condition *err = it++;
+           err != nullptr && slider < buff_end - 1; err = it++) {
+        slider += snprintf(slider, buff_end - slider, " %s, Error_code: %d;",
+                           err->message_text(), err->mysql_errno());
+      }
       const_cast<Relay_log_info *>(rli)->report(
           ERROR_LEVEL, error,
           "Error in cleaning up after an event preceding the commit; "
-          "the group log file/position: %s %s",
+          "%s the group log file/position: %s %s",
+          buff,
           const_cast<Relay_log_info *>(rli)->get_group_master_log_name_info(),
           llstr(const_cast<Relay_log_info *>(rli)
                     ->get_group_master_log_pos_info(),
                 llbuff));
+      goto compare_errors;
     }
     /*
       Executing a part of rli->stmt_done() logics that does not deal
@@ -4577,9 +4591,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->set_query_id(next_query_id());
     DBUG_PRINT("query", ("%s", thd->query().str));
 
-    DBUG_EXECUTE_IF("simulate_error_in_ddl", error_code = 1051;);
-
-    if (ignored_error_code((expected_error = error_code)) ||
+    if (ignored_error_code((expected_error)) ||
         !unexpected_error_code(expected_error)) {
       if (flags2_inited)
         /*
@@ -7816,7 +7828,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
       m_curr_row_end(nullptr),
       m_key(nullptr),
       m_key_info(nullptr),
-      m_distinct_keys(Key_compare(&m_key_info)),
+      m_distinct_keys(0, Key_hash(&m_key_info), Key_equal(&m_key_info)),
       m_distinct_key_spare_buf(nullptr) {
   DBUG_TRACE;
   common_header->type_code = event_type;
@@ -7907,7 +7919,7 @@ Rows_log_event::Rows_log_event(
       m_curr_row_end(nullptr),
       m_key(nullptr),
       m_key_info(nullptr),
-      m_distinct_keys(Key_compare(&m_key_info)),
+      m_distinct_keys(0, Key_hash(&m_key_info), Key_equal(&m_key_info)),
       m_distinct_key_spare_buf(nullptr)
 #endif
 {
@@ -8974,9 +8986,9 @@ int Rows_log_event::next_record_scan(bool first_read) {
           marker according to the next key value that we have in the list.
          */
         if (error) {
-          if (m_itr != m_distinct_keys.end()) {
-            m_key = *m_itr;
-            m_itr++;
+          if (m_distinct_key_idx != m_distinct_keys_original_order.size()) {
+            m_key = m_distinct_keys_original_order[m_distinct_key_idx];
+            m_distinct_key_idx++;
             first_read = true;
           } else {
             if (!is_trx_retryable_upon_engine_error(error))
@@ -9010,14 +9022,13 @@ int Rows_log_event::open_record_scan() {
 
   if (m_key_index < MAX_KEY) {
     if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN) {
-      /* initialize the iterator over the list of distinct keys that we have */
-      m_itr = m_distinct_keys.begin();
-
-      /* get the first element from the list of keys and increment the
-         iterator
+      /* Initialize the index to go over the vector of distinct keys */
+      m_distinct_key_idx = 0;
+      /* get the first element from the vector of keys and increment the
+         index
        */
-      m_key = *m_itr;
-      m_itr++;
+      m_key = m_distinct_keys_original_order[m_distinct_key_idx];
+      m_distinct_key_idx++;
     } else {
       /* this is an INDEX_SCAN we need to store the key in m_key */
       assert((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) && m_key);
@@ -9064,9 +9075,9 @@ int Rows_log_event::add_key_to_distinct_keyset() {
   DBUG_TRACE;
   assert(m_key_index < MAX_KEY);
   key_copy(m_distinct_key_spare_buf, m_table->record[0], m_key_info, 0);
-  std::pair<std::set<uchar *, Key_compare>::iterator, bool> ret =
-      m_distinct_keys.insert(m_distinct_key_spare_buf);
+  auto ret = m_distinct_keys.insert(m_distinct_key_spare_buf);
   if (ret.second) {
+    m_distinct_keys_original_order.push_back(m_distinct_key_spare_buf);
     /* Insert is successful, so allocate a new buffer for next key */
     m_distinct_key_spare_buf = (uchar *)thd->alloc(m_key_info->key_length);
     if (!m_distinct_key_spare_buf) {
@@ -9496,7 +9507,8 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
           }
         } while (this->get_general_type_code() ==
                      mysql::binlog::event::UPDATE_ROWS_EVENT &&
-                 !is_pk_present && (entry = m_hash.get(table, &m_local_cols)));
+                 !is_pk_present && entry &&
+                 (entry = m_hash.get(table, &m_local_cols)));
       } break;
 
       case HA_ERR_RECORD_DELETED:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,19 +236,22 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             throw ex;
             }
         }
+        /* Below here is currently somewhat dead code. The keyHandler is
+           *always* a SmartValueHandler unless the JVM has been started
+           with option -Dcom.mysql.clusterj.UseSmartValueHandler=false,
+           but with that option some tests do not pass (e.g. BlobTest).
+        */
         try {
             ResultData rs = selectUnique(domainTypeHandler, keyHandler, null);
             if (rs.next()) {
                 // we have a result; initialize the instance
+                if (instance == null) {
+                    if (logger.isDetailEnabled()) logger.detail("Creating instance for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
+                    instance = domainTypeHandler.newInstance(db);
+                }
                 if (instanceHandler == null) {
                     if (logger.isDetailEnabled()) logger.detail("Creating instanceHandler for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
-                    // we need both a new instance and its handler
-                    instance = domainTypeHandler.newInstance(db);
                     instanceHandler = domainTypeHandler.getValueHandler(instance);
-                } else if (instance == null) {
-                if (logger.isDetailEnabled()) logger.detail("Creating instance for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
-                    // we have a handler but no instance
-                    instance = domainTypeHandler.getInstance(instanceHandler);
                 }
                 // found the instance in the datastore
                 instanceHandler.found(Boolean.TRUE);
@@ -1200,10 +1203,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance for which to get the domain type handler
      * @return the domain type handler
      */
-    protected synchronized <T> DomainTypeHandler<T> getDomainTypeHandler(T object) {
-        DomainTypeHandler<T> domainTypeHandler =
-                factory.getDomainTypeHandler(object, dictionary);
-        return domainTypeHandler;
+    protected <T> DomainTypeHandler<T> getDomainTypeHandler(T object) {
+        return factory.getDomainTypeHandler(object, dictionary);
     }
 
     /** Get the domain type handler for a class.
@@ -1211,10 +1212,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class
      * @return the domain type handler
      */
-    public synchronized <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
-        DomainTypeHandler<T> domainTypeHandler =
-                factory.getDomainTypeHandler(cls, dictionary);
-        return domainTypeHandler;
+    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls) {
+        return factory.getDomainTypeHandler(cls, dictionary);
     }
 
     public Dictionary getDictionary() {

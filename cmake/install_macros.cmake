@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -266,13 +266,20 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   # We have a template .cmake.in file for any plugin that needs cleanup.
 
   # NOTE: scripts should work for 'make install' and 'make package'.
-  IF(LINUX AND (UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR WITH_MLE))
+  IF(LINUX AND
+      (UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR
+        WITH_MLE OR WITH_KEYRING_AWS OR
+        INSTALL_RPATH_FOR_FIDO2))
     IF(${target} STREQUAL "mysqld")
       INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
     ENDIF()
-    # These plugins depend, directly or indirectly, on protobuf.
+    # These plugins depend, directly or indirectly, on protobuf or fido2.
     IF(${target} STREQUAL "group_replication" OR
         ${target} STREQUAL "telemetry_client" OR
+        ${target} STREQUAL "authentication_webauthn" OR
+        ${target} STREQUAL "authentication_webauthn_client" OR
+        ${target} STREQUAL "keyring_aws" OR
+        ${target} STREQUAL "component_keyring_aws" OR
         ${target} STREQUAL "component_mle" OR
         ${target} STREQUAL "component_telemetry"
         )

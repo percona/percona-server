@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3833,6 +3833,7 @@ bool MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   }
 
   mdl_ticket->m_type = new_type;
+  mysql_mdl_set_type(mdl_ticket->m_psi, new_type);
 
   lock->m_granted.add_ticket(mdl_ticket);
   /*
@@ -4396,6 +4397,7 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type) {
     }
   }
   m_type = new_type;
+  mysql_mdl_set_type(m_psi, new_type);
   m_lock->m_granted.add_ticket(this);
   m_lock->reschedule_waiters();
   mysql_prlock_unlock(&m_lock->m_rwlock);

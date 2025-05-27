@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -248,7 +248,9 @@ bool rtree_key_cmp(page_cur_mode_t mode, const uchar *a, int a_len,
     case PAGE_CUR_WITHIN:
       return (mbr_within_cmp(srs, &x, &y));
     case PAGE_CUR_MBR_EQUAL:
-      return (mbr_equal_cmp(srs, &x, &y));
+      /* TBD: Why is it important to use mbr_equal_physically()
+      vs mbr_equal_logically() here? */
+      return (mbr_equal_logically(srs, &x, &y));
     case PAGE_CUR_DISJOINT:
       return (mbr_disjoint_cmp(srs, &x, &y));
     default:

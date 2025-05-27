@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,8 +314,8 @@ class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
   Uint8 m_noOfKeys;
   // if all pk = dk then this is zero!
   Uint8 m_noOfDistributionKeys;
-  Uint8 m_noOfBlobs;
-  Uint8 m_noOfDiskColumns;
+  Uint16 m_noOfBlobs;
+  Uint16 m_noOfDiskColumns;
   Uint8 m_replicaCount;
 
   /**

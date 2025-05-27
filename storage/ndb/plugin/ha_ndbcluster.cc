@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2204,6 +2204,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -2228,6 +2230,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -3034,6 +3038,9 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
     if (key_info->flags & HA_NOSAME &&
         bitmap_is_overlapping(table->write_set, m_key_fields[i])) {
       // Unique index being written
+
+      if (unlikely(m_index[i].type == UNDEFINED_INDEX))
+        return fail_index_offline(table, i);
 
       /*
         It's not possible to lookup a NULL field value in a unique index. But
@@ -3913,6 +3920,10 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
   options.scan_flags =
       guess_scan_flags(lm, m_table_map, m_table, table->read_set);
   options.parallel = DEFAULT_PARALLELISM;
+  DBUG_EXECUTE_IF("ndb_disk_scan", {
+    if (!(options.scan_flags & NdbScanOperation::SF_DiskScan))
+      return ER_INTERNAL_ERROR;
+  });
 
   if (use_set_part_id) {
     assert(m_user_defined_partitioning);
@@ -6209,7 +6220,7 @@ static void get_default_value(void *def_val, Field *field) {
   }
 }
 
-static inline int fail_index_offline(TABLE *t, int index) {
+int fail_index_offline(TABLE *t, int index) {
   KEY *key_info = t->key_info + index;
   push_warning_printf(
       t->in_use, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
@@ -8171,6 +8182,15 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
             }
             mod_size = size;
           }
+          if (col.getPartSize() == 0) {
+            if (thd) {
+              get_thd_ndb(thd)->push_warning(
+                  "BLOB_INLINE_SIZE not supported for BLOB column with no part "
+                  "table (e.g. TINYBLOB), using default value %d",
+                  size);
+            }
+            mod_size = size;
+          }
           col.setInlineSize(mod_size);
         } else {
           col.setInlineSize(size);
@@ -8365,10 +8385,10 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      col.setInlineSize(256);
       // No parts
       col.setPartSize(0);
       col.setStripeSize(0);
+      set_blob_inline_size(thd, col, 256);
       break;
     // mysql_type_blob:
     case MYSQL_TYPE_GEOMETRY:
@@ -8392,12 +8412,13 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         if (field_blob->max_data_length() < (1 << 8))
           goto mysql_type_tiny_blob;
         else if (field_blob->max_data_length() < (1 << 16)) {
-          set_blob_inline_size(thd, col, 256);
-          col.setPartSize(2000);
-          col.setStripeSize(0);
           if (mod_maxblob->m_found) {
             col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
+          } else {
+            col.setPartSize(2000);
           }
+          col.setStripeSize(0);
+          set_blob_inline_size(thd, col, 256);
         } else if (field_blob->max_data_length() < (1 << 24))
           goto mysql_type_medium_blob;
         else
@@ -8412,12 +8433,13 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      set_blob_inline_size(thd, col, 256);
-      col.setPartSize(4000);
-      col.setStripeSize(0);
       if (mod_maxblob->m_found) {
         col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
+      } else {
+        col.setPartSize(4000);
       }
+      col.setStripeSize(0);
+      set_blob_inline_size(thd, col, 256);
       break;
     mysql_type_long_blob:
     case MYSQL_TYPE_LONG_BLOB:
@@ -8427,10 +8449,10 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
         col.setType(NDBCOL::Text);
         col.setCharset(cs);
       }
-      set_blob_inline_size(thd, col, 256);
+      // The mod_maxblob modified has no effect here, already at max
       col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
       col.setStripeSize(0);
-      // The mod_maxblob modified has no effect here, already at max
+      set_blob_inline_size(thd, col, 256);
       break;
 
     // MySQL 5.7 binary-encoded JSON type
@@ -8449,9 +8471,9 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       const int NDB_JSON_PART_SIZE = 8100;
 
       col.setType(NDBCOL::Blob);
-      set_blob_inline_size(thd, col, NDB_JSON_INLINE_SIZE);
       col.setPartSize(NDB_JSON_PART_SIZE);
       col.setStripeSize(0);
+      set_blob_inline_size(thd, col, NDB_JSON_INLINE_SIZE);
       break;
     }
 
@@ -17595,6 +17617,9 @@ static SHOW_VAR ndb_status_vars[] = {
     {"Ndb", (char *)&show_ndb_metadata_check, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_synced, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_excluded_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ndb_schema_participant_count",
+     (char *)&ndbcluster_binlog_get_schema_participant_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

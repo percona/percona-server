@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -376,6 +376,7 @@ class Ndb_binlog_thread : public Ndb_component {
 
 #ifndef NDEBUG
   void dbug_log_table_maps(Ndb *ndb, Uint64 current_epoch);
+  void dbug_log_multi_server_id(Ndb *ndb, Uint64 current_epoch);
 #endif
 };
 

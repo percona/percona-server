@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+
+# Too many error: empty paragraph passed to '@throws'
+IF(MY_COMPILER_IS_CLANG AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19)
+  DISABLE_DOCUMENTATION_WARNINGS()
+ENDIF()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
 # but it is basically impossible to trace the actual origin.
@@ -774,7 +780,6 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
-  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
@@ -839,43 +844,6 @@ IF(WIN32)
               restart_monitor_win.cc
       )
 ENDIF()
-
-MY_ADD_COMPILE_DEFINITIONS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
-  )
-
-# Workaround for Apple Clang bug on ARM.
-# When linking mysqld (and executables using server_unittest_library)
-# we get linker warnings about
-# ld: warning: direct access in function ....
-#     to global weak symbol 'typeinfo for .... '
-# It turns out we end up with conflicting visibilities for typeinfo symbols:
-# e.g. in in singleton.cc.o  vs  histogram.cc.o
-# (__DATA,__const) weak external __ZTIN10histograms9SingletonI6StringEE
-# (__DATA,__const) weak private external __ZTIN10histograms9SingletonI6StringEE
-#
-# Setting an explicit visibility here fixes the warnings.
-# Note that the LINK_PUBLIC for server_unittest_library
-# will make unit tests pick up histogram symbols from libsql_main.a.
-IF(APPLE_ARM)
-  ADD_COMPILE_FLAGS(
-    histograms/equi_height.cc
-    histograms/equi_height_bucket.cc
-    histograms/histogram.cc
-    histograms/singleton.cc
-    histograms/value_map.cc
-    COMPILE_FLAGS -fvisibility=hidden
-    )
-ENDIF()
-
-ADD_COMPILE_FLAGS(
-  ${BUNDLED_LZ4_PATH}/xxhash.c
-  iterators/hash_join_iterator.cc
-  iterators/composite_iterators.cc
-  rpl_write_set_handler.cc
-  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
-  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
@@ -960,8 +928,7 @@ ENDIF()
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
   ADD_COMPILE_FLAGS(sql_planner.cc COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
-
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -973,8 +940,7 @@ MYSQL_ADD_PLUGIN(mysql_native_password
   SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
   STATIC_ONLY DEFAULT)
 
-TARGET_INCLUDE_DIRECTORIES(sql_main SYSTEM PUBLIC
-  ${CMAKE_SOURCE_DIR}/extra/unordered_dense/unordered_dense-4.4.0/include)
+TARGET_LINK_LIBRARIES(sql_main extra::unordered_dense)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
@@ -995,11 +961,6 @@ ADD_DEPENDENCIES(sql_gis GenError)
 TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
 TARGET_LINK_LIBRARIES(sql_gis extra::boost)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
-
-# Suppress warnings for clang-18 or newer
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
-  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -Wno-enum-constexpr-conversion)
-ENDIF()
 
 # This typically saves a few hundred megabytes of disk space.
 IF(COMPRESS_DEBUG_SECTIONS)
@@ -1255,12 +1216,14 @@ IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR
 
   # Note: for Fedora RPM, this gives ERROR 0008: file '/usr/sbin/mysqld'
   #       contains the $ORIGIN specifier at the wrong position.
-  IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
-    GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
-    LIST(INSERT CURRENT_RPATH_mysqld 0
-      "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
-    SET_TARGET_PROPERTIES(mysqld
-      PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+  IF(NOT LINUX_RHEL10)
+    IF(INSTALL_LAYOUT STREQUAL "DEB" OR INSTALL_LAYOUT STREQUAL "RPM")
+      GET_TARGET_PROPERTY(CURRENT_RPATH_mysqld mysqld INSTALL_RPATH)
+      LIST(INSERT CURRENT_RPATH_mysqld 0
+        "${CMAKE_INSTALL_PREFIX}/${INSTALL_PRIV_LIBDIR}")
+      SET_TARGET_PROPERTIES(mysqld
+        PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_mysqld}")
+    ENDIF()
   ENDIF()
 ENDIF()
 

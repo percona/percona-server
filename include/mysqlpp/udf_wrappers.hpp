@@ -20,6 +20,7 @@
 #include <cassert>
 #include <cstring>
 #include <exception>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -54,7 +55,7 @@ class udf_base {
   static const char *get_function_label(std::string &buffer,
                                         const char *meta_name,
                                         item_result_type item_result) noexcept {
-    const char *res = "<function_name>";
+    const char *res{nullptr};
     try {
       buffer = meta_name;
       buffer += '<';
@@ -63,6 +64,7 @@ class udf_base {
       buffer += '>';
       res = buffer.c_str();
     } catch (...) {
+      res = "<function_name>";
     }
     return res;
   }
@@ -72,20 +74,11 @@ class udf_base {
     assert(error_reporter != nullptr);
     std::string buffer;
     try {
-      // The following suppression is needed exclusively for Clang 5.0 that
-      // has a bug in noexcept specification diagnostics.
-#if defined(__clang__) && (__clang_major__ == 5)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wexceptions"
-#endif
       // Rethrowing the exception that was previously caught with
       // 'catch(...)' in one of the derived classes
       // This is done to write the sequence of the catch blocks
       // in one place.
       throw;
-#if defined(__clang__) && (__clang_major__ == 5)
-#pragma clang diagnostic pop
-#endif
     } catch (const udf_exception &e) {
       if (e.has_error_code()) {
         auto error_code = e.get_error_code();
@@ -116,20 +109,11 @@ class udf_base {
   static void handle_init_exception(char *message,
                                     std::size_t message_size) noexcept {
     try {
-      // The following suppression is needed exclusively for Clang 5.0 that
-      // has a bug in noexcept specification diagnostics
-#if defined(__clang__) && (__clang_major__ == 5)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wexceptions"
-#endif
       // Rethrowing the exception that was previously caught with
       // 'catch(...)' in one of the derived classes
       // This is done to write the sequence of the catch blocks
       // in one place.
       throw;
-#if defined(__clang__) && (__clang_major__ == 5)
-#pragma clang diagnostic pop
-#endif
     } catch (const std::exception &e) {
       std::strncpy(message, e.what(), message_size);
       message[message_size - 1] = '\0';
@@ -155,18 +139,21 @@ class generic_udf_base : private udf_base {
     udf_context udf_ctx{initid, args};
     extended_impl_t *impl = nullptr;
     try {
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       impl = new extended_impl_t{udf_ctx};
     } catch (...) {
       handle_init_exception(message, MYSQL_ERRMSG_SIZE);
       return true;
     }
 
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     initid->ptr = reinterpret_cast<char *>(impl);
 
     return false;
   }
 
   static void deinit(UDF_INIT *initid) noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     delete get_extended_impl_from_udf_initid(initid);
   }
 
@@ -175,6 +162,7 @@ class generic_udf_base : private udf_base {
 
   static extended_impl_t *get_extended_impl_from_udf_initid(
       UDF_INIT *initid) noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<extended_impl_t *>(initid->ptr);
   }
 };
@@ -207,12 +195,11 @@ class generic_udf<ImplType, STRING_RESULT>
       assert(udf_ctx.is_result_nullabale());
       *is_null = 1;
       return nullptr;
-    } else {
-      *is_null = 0;
-      extended_impl.mixin = std::move(res.value());
-      *length = extended_impl.mixin.size();
-      return const_cast<char *>(extended_impl.mixin.c_str());
     }
+    *is_null = 0;
+    extended_impl.mixin = std::move(*res);
+    *length = extended_impl.mixin.size();
+    return const_cast<char *>(extended_impl.mixin.c_str());
   }
 };
 
@@ -240,10 +227,9 @@ class generic_udf<ImplType, REAL_RESULT>
       assert(udf_ctx.is_result_nullabale());
       *is_null = 1;
       return 0.0;
-    } else {
-      *is_null = 0;
-      return res.value();
     }
+    *is_null = 0;
+    return *res;
   }
 };
 
@@ -271,15 +257,15 @@ class generic_udf<ImplType, INT_RESULT>
       assert(udf_ctx.is_result_nullabale());
       *is_null = 1;
       return 0;
-    } else {
-      *is_null = 0;
-      return res.value();
     }
+    *is_null = 0;
+    return *res;
   }
 };
 
 }  // namespace mysqlpp
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define DECLARE_UDF_META_INFO(IMPL, RESULT_TYPE, NAME)           \
   namespace mysqlpp {                                            \
   template <>                                                    \
@@ -290,40 +276,44 @@ class generic_udf<ImplType, INT_RESULT>
   };                                                             \
   }
 
-#define DECLARE_UDF_INIT(IMPL, RESULT_TYPE, NAME)                        \
+#define DECLARE_UDF_INIT(IMPL, RESULT_TYPE, NAME)                             \
+  MYSQLPP_UDF_EXPORT                                                          \
+  bool NAME##_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {         \
+    static_assert(                                                            \
+        std::is_same_v<decltype(std::addressof(NAME##_init)), Udf_func_init>, \
+        "Invalid UDF init function signature");                               \
+    return mysqlpp::generic_udf<IMPL, RESULT_TYPE>::init(initid, args,        \
+                                                         message);            \
+  }
+
+#define DECLARE_UDF_DEINIT(IMPL, RESULT_TYPE, NAME)                       \
+  MYSQLPP_UDF_EXPORT                                                      \
+  void NAME##_deinit(UDF_INIT *initid) {                                  \
+    static_assert(std::is_same_v<decltype(std::addressof(NAME##_deinit)), \
+                                 Udf_func_deinit>,                        \
+                  "Invalid UDF deinit function signature");               \
+    mysqlpp::generic_udf<IMPL, RESULT_TYPE>::deinit(initid);              \
+  }
+
+#define DECLARE_UDF_STRING_FUNC(IMPL, NAME)                              \
   MYSQLPP_UDF_EXPORT                                                     \
-  bool NAME##_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {    \
-    static_assert(std::is_same_v<decltype(&NAME##_init), Udf_func_init>, \
-                  "Invalid UDF init function signature");                \
-    return mysqlpp::generic_udf<IMPL, RESULT_TYPE>::init(initid, args,   \
-                                                         message);       \
-  }
-
-#define DECLARE_UDF_DEINIT(IMPL, RESULT_TYPE, NAME)                          \
-  MYSQLPP_UDF_EXPORT                                                         \
-  void NAME##_deinit(UDF_INIT *initid) {                                     \
-    static_assert(std::is_same_v<decltype(&NAME##_deinit), Udf_func_deinit>, \
-                  "Invalid UDF deinit function signature");                  \
-    mysqlpp::generic_udf<IMPL, RESULT_TYPE>::deinit(initid);                 \
-  }
-
-#define DECLARE_UDF_STRING_FUNC(IMPL, NAME)                         \
-  MYSQLPP_UDF_EXPORT                                                \
-  char *NAME(UDF_INIT *initid, UDF_ARGS *args, char *result,        \
-             unsigned long *length, unsigned char *is_null,         \
-             unsigned char *error) {                                \
-    static_assert(std::is_same_v<decltype(&NAME), Udf_func_string>, \
-                  "Invalid string UDF function signature");         \
-    return mysqlpp::generic_udf<IMPL, STRING_RESULT>::func(         \
-        initid, args, result, length, is_null, error);              \
+  char *NAME(UDF_INIT *initid, UDF_ARGS *args, char *result,             \
+             unsigned long *length, unsigned char *is_null,              \
+             unsigned char *error) {                                     \
+    static_assert(                                                       \
+        std::is_same_v<decltype(std::addressof(NAME)), Udf_func_string>, \
+        "Invalid string UDF function signature");                        \
+    return mysqlpp::generic_udf<IMPL, STRING_RESULT>::func(              \
+        initid, args, result, length, is_null, error);                   \
   }
 
 #define DECLARE_UDF_REAL_FUNC(IMPL, NAME)                                 \
   MYSQLPP_UDF_EXPORT                                                      \
   double NAME(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,   \
               unsigned char *error) {                                     \
-    static_assert(std::is_same_v<decltype(&NAME), Udf_func_double>,       \
-                  "Invalid real UDF function signature");                 \
+    static_assert(                                                        \
+        std::is_same_v<decltype(std::addressof(NAME)), Udf_func_double>,  \
+        "Invalid real UDF function signature");                           \
     return mysqlpp::generic_udf<IMPL, REAL_RESULT>::func(initid, args,    \
                                                          is_null, error); \
   }
@@ -332,7 +322,8 @@ class generic_udf<ImplType, INT_RESULT>
   MYSQLPP_UDF_EXPORT                                                           \
   long long NAME(UDF_INIT *initid, UDF_ARGS *args, unsigned char *is_null,     \
                  unsigned char *error) {                                       \
-    static_assert(std::is_same<decltype(&NAME), Udf_func_longlong>::value,     \
+    static_assert(std::is_same<decltype(std::addressof(NAME)),                 \
+                               Udf_func_longlong>::value,                      \
                   "Invalid int UDF function signature");                       \
     return mysqlpp::generic_udf<IMPL, INT_RESULT>::func(initid, args, is_null, \
                                                         error);                \
@@ -362,5 +353,7 @@ class generic_udf<ImplType, INT_RESULT>
 #define DECLARE_STRING_UDF_AUTO(NAME) DECLARE_STRING_UDF(NAME##_impl, NAME)
 #define DECLARE_REAL_UDF_AUTO(NAME) DECLARE_REAL_UDF(NAME##_impl, NAME)
 #define DECLARE_INT_UDF_AUTO(NAME) DECLARE_INT_UDF(NAME##_impl, NAME)
+
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 #endif

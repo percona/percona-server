@@ -108,6 +108,7 @@ static bool thread_attach(THD *thd) {
   thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread)(thd->get_psi());
+  mysql_thread_set_psi_THD(thd);
 #endif
   mysql_socket_set_thread_owner(
       thd->get_protocol_classic()->get_vio()->mysql_socket);
@@ -191,6 +192,7 @@ void threadpool_remove_connection(THD *thd) {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  mysql_thread_set_psi_THD(nullptr);
 #endif
 
   Global_THD_manager::get_instance()->remove_thd(thd);
@@ -251,6 +253,7 @@ int threadpool_process_request(THD *thd) {
   }
 
 end:
+  mysql_thread_set_psi_THD(nullptr);
   if (!retval && !thd->m_server_idle) {
     MYSQL_SOCKET_SET_STATE(thd->get_protocol_classic()->get_vio()->mysql_socket,
                            PSI_SOCKET_STATE_IDLE);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
    Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -569,6 +569,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 
     m_current_stage_key = new_stage->m_key;
     set_proc_info(msg);
+    store_cached_properties(cached_properties::RW_STATUS);
 
     m_stage_progress_psi =
         MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
@@ -834,7 +835,7 @@ THD::THD(bool enable_plugins)
   protocol_text->init(this);
   protocol_binary->init(this);
   protocol_text->set_client_capabilities(0);  // minimalistic client
-  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  store_cached_properties();
 
   /*
     Make sure thr_lock_info_init() is called for threads which do not get
@@ -869,6 +870,22 @@ THD::THD(bool enable_plugins)
   if (events_cache_ == nullptr || !events_cache_->valid()) {
     /*ToDo: Raise warning */
   }
+}
+
+void THD::store_cached_properties(cached_properties prop_mask) {
+  DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                  { assert(current_thd == this); });
+
+  auto is_selected = [this, prop_mask](cached_properties property) -> bool {
+    return (this->m_protocol != nullptr &&
+            static_cast<int>(prop_mask) & static_cast<int>(property));
+  };
+
+  if (is_selected(cached_properties::IS_ALIVE))
+    m_cached_is_connection_alive.store(m_protocol->connection_alive());
+
+  if (is_selected(cached_properties::RW_STATUS))
+    m_cached_rw_status.store(m_protocol->get_rw_status());
 }
 
 void THD::copy_table_access_properties(THD *thd) {
@@ -1395,6 +1412,7 @@ void THD::release_resources() {
   if (is_classic_protocol() && get_protocol_classic()->get_vio()) {
     vio_delete(get_protocol_classic()->get_vio());
     get_protocol_classic()->end_net();
+    store_cached_properties();
   }
 
   /* modification plan for UPDATE/DELETE should be freed. */
@@ -1758,6 +1776,8 @@ void THD::disconnect(bool server_shutdown) {
     /* Disconnect even if a active vio is not associated. */
     if (is_classic_protocol() && get_protocol_classic()->get_vio() != vio &&
         get_protocol_classic()->connection_alive()) {
+      DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                      { assert(current_thd == this); });
       m_protocol->shutdown(server_shutdown);
     }
   }
@@ -2466,6 +2486,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->examined_row_count = m_examined_row_count;
   backup->sent_row_count = m_sent_row_count;
   backup->num_truncated_fields = num_truncated_fields;
+  DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                  { assert(current_thd == this); });
   backup->client_capabilities = m_protocol->get_client_capabilities();
   backup->savepoints = get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt =
@@ -3115,6 +3137,8 @@ bool THD::send_result_metadata(const mem_root_deque<Item *> &list, uint flags) {
   DBUG_TRACE;
   uchar buff[MAX_FIELD_WIDTH];
   String tmp((char *)buff, sizeof(buff), &my_charset_bin);
+  DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                  { assert(current_thd == this); });
 
   if (m_protocol->start_result_metadata(CountVisibleFields(list), flags,
                                         variables.character_set_results))
@@ -3155,6 +3179,8 @@ bool THD::send_result_set_row(const mem_root_deque<Item *> &row_items) {
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
 
   DBUG_TRACE;
+  DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                  { assert(current_thd == this); });
 
   for (Item *item : VisibleFields(row_items)) {
     if (item->send(m_protocol, &str_buffer) || is_error()) return true;
@@ -3172,6 +3198,8 @@ void THD::send_statement_status() {
   assert(!get_stmt_da()->is_sent());
   bool error = false;
   Diagnostics_area *da = get_stmt_da();
+  DBUG_EXECUTE_IF("assert_only_current_thd_protocol_access",
+                  { assert(current_thd == this); });
 
   /* Can not be true, but do not take chances in production. */
   if (da->is_sent()) return;
@@ -3478,14 +3506,16 @@ bool THD::is_connected(bool use_cached_connection_alive) {
   return get_protocol()->connection_alive();
 }
 
+uint THD::get_protocol_rw_status() { return m_cached_rw_status.load(); }
+
 Protocol *THD::get_protocol() {
-  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  store_cached_properties();
   return m_protocol;
 }
 
 Protocol_classic *THD::get_protocol_classic() {
   assert(is_classic_protocol());
-  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  store_cached_properties();
   return pointer_cast<Protocol_classic *>(m_protocol);
 }
 
@@ -3494,14 +3524,14 @@ void THD::push_protocol(Protocol *protocol) {
   assert(protocol != nullptr);
   m_protocol->push_protocol(protocol);
   m_protocol = protocol;
-  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  store_cached_properties();
 }
 
 void THD::pop_protocol() {
   assert(m_protocol != nullptr);
   m_protocol = m_protocol->pop_protocol();
   assert(m_protocol != nullptr);
-  m_cached_is_connection_alive.store(m_protocol->connection_alive());
+  store_cached_properties();
 }
 
 void THD::set_time() {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 
 #include "classic_connection_base.h"
 #include "processor.h"
-#include "tracer.h"
 
 class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
  private:
@@ -52,11 +51,7 @@ class MysqlRoutingClassicConnection : public MysqlRoutingClassicConnectionBase {
   //
   template <typename... Args>
   [[nodiscard]] static std::shared_ptr<MysqlRoutingClassicConnectionBase>
-  create(
-      // clang-format off
-      Args &&... args) {
-    // clang-format on
-
+  create(Args &&...args) {
     // can't use make_unique<> here as the constructor is private.
     return std::shared_ptr<MysqlRoutingClassicConnectionBase>(
         new MysqlRoutingClassicConnection(std::forward<Args>(args)...));

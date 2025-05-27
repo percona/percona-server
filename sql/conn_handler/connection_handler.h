@@ -1,7 +1,7 @@
 #ifndef CONNECTION_HANDLER_INCLUDED
 #define CONNECTION_HANDLER_INCLUDED
 
-/* Copyright (c) 2007, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,12 @@ class Connection_handler {
             by this connection handler.
   */
   virtual uint get_max_threads() const = 0;
+
+  /**
+    Performs required initializations after the daemonization of the mysqld
+    process.
+  */
+  virtual void post_daemonize_init() {}
 };
 
 #endif  // CONNECTION_HANDLER_INCLUDED

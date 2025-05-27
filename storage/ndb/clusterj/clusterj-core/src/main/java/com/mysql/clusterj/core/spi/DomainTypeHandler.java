@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,13 +55,11 @@ public interface DomainTypeHandler<T> {
 
     public DomainFieldHandler getFieldHandler(String fieldName);
 
-    public Class<?>[] getProxyInterfaces();
+    public Class<?> getProxyClass();
 
     public T newInstance(Db db);
 
     public ValueHandler getValueHandler(Object instance);
-
-    public T getInstance(ValueHandler handler);
 
     public void objectMarkModified(ValueHandler handler, String fieldName);
 

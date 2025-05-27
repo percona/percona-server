@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public Class<?>[] getProxyInterfaces() {
+               public Class<?> getProxyClass() {
                     throw new UnsupportedOperationException("Nice Job!");
                 }
 
@@ -133,10 +133,6 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                 }
 
                 public ValueHandler getValueHandler(Object instance) {
-                    throw new UnsupportedOperationException("Not supported yet.");
-                }
-
-                public T getInstance(ValueHandler handler) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 

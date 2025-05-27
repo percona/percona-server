@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1586,7 +1586,9 @@ void append_identifier(const THD *thd, String *packet, const char *name,
     if (!to_length) to_length = 1;
     if (to_length == 1 && chr == static_cast<uchar>(quote_char))
       packet->append(&quote_char, 1, system_charset_info);
-    packet->append(to_name, to_length, system_charset_info);
+    packet->append(to_name,
+                   std::min(to_length, static_cast<size_t>(name_end - to_name)),
+                   system_charset_info);
   }
   packet->append(&quote_char, 1, system_charset_info);
 }
@@ -2819,8 +2821,8 @@ class thread_info_compare {
 
 static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
   DBUG_TRACE;
-  if (inspected_thd->get_protocol()->get_rw_status()) {
-    if (inspected_thd->get_protocol()->get_rw_status() == 2)
+  if (inspected_thd->get_protocol_rw_status()) {
+    if (inspected_thd->get_protocol_rw_status() == 2)
       return "Sending to client";
     if (inspected_thd->get_command() == COM_SLEEP) return "";
     return "Receiving from client";
@@ -3948,8 +3950,8 @@ static int fill_schema_user_stats(THD *thd, Table_ref *tables,
   1 - error
 */
 
-static int fill_schema_client_stats(
-    THD *thd, Table_ref *tables, Item *cond [[maybe_unused]]) noexcept {
+static int fill_schema_client_stats(THD *thd, Table_ref *tables,
+                                    Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_client_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -3967,8 +3969,8 @@ static int fill_schema_client_stats(
   DBUG_RETURN(result);
 }
 
-static int fill_schema_thread_stats(
-    THD *thd, Table_ref *tables, Item *cond [[maybe_unused]]) noexcept {
+static int fill_schema_thread_stats(THD *thd, Table_ref *tables,
+                                    Item *cond [[maybe_unused]]) noexcept {
   DBUG_ENTER("fill_schema_thread_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -4619,7 +4621,8 @@ static int fill_temporary_tables(THD *thd, Table_ref *tables, Item *cond) {
 
   for (tmp = thd->temporary_tables; tmp; tmp = tmp->next) {
     if (store_temporary_table_record(thd, tables->table, tmp,
-                                     thd->lex->query_block->db, thd->mem_root)) {
+                                     thd->lex->query_block->db,
+                                     thd->mem_root)) {
       DBUG_RETURN(1);
     }
   }

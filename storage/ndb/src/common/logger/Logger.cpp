@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -485,9 +485,9 @@ TAPTEST(logger) {
 
     static const std::string file = "file.log";
 #ifdef _WIN32
-    static constexpr int async_wait_time_ms = 150;
+    static constexpr int async_wait_time_ms = 250;
 #else
-    static constexpr int async_wait_time_ms = 50;
+    static constexpr int async_wait_time_ms = 100;
 #endif
     clearFile(file);
 

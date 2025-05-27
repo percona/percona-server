@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,6 +187,7 @@ class DumpStateOrd {
     TcSetTransientPoolMaxSize = 2556,
     TcResetTransientPoolMaxSize = 2557,
     TcSetTransErrorLogLevel = 2558,
+    TcNdbInfoApiConnectRecFull = 2559,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     /**

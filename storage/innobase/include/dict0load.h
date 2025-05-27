@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -210,7 +210,7 @@ information from the record and returns to caller.
 @param[out]	data		dict data
 @param[out]	data_len	dict data length
 @return error message, or NULL on success */
-MY_NODISCARD
+[[nodiscard]]
 const char *dict_process_sys_zip_dict(mem_heap_t *heap,
                                       const dict_index_t &index,
                                       const rec_t *rec, ulint *id,

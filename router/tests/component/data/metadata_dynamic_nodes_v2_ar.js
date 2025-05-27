@@ -72,6 +72,10 @@ var nodes = function(host, port_and_state) {
   });
 };
 
+if (mysqld.global.server_version === undefined) {
+  mysqld.global.server_version = "8.3.0";
+}
+
 var cluster_nodes = gr_memberships.cluster_nodes(
     mysqld.global.gr_node_host, mysqld.global.cluster_nodes)
 
@@ -125,7 +129,8 @@ var router_select_cluster_type =
     auth: {
       username: mysqld.global.user,
       password: mysqld.global.password,
-    }
+    },
+    greeting: {server_version: mysqld.global.server_version}
   },
   stmts: function(stmt) {
     if (stmt === select_port.stmt) {

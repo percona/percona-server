@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1408,7 +1408,7 @@ will be closed before the index creation/drop.
 @param[in,out]	share		share structure where index translation table
                                 will be constructed in.
 @return true if index translation table built successfully */
-MY_NODISCARD
+[[nodiscard]]
 bool innobase_build_index_translation(const TABLE *table,
                                       dict_table_t *ib_table,
                                       INNOBASE_SHARE *share);

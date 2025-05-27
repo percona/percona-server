@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -244,6 +244,7 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg,
     };
     init_global_ptrs(tmp, sizeof(tmp) / sizeof(tmp[0]));
   }
+  init_global_block();
 #endif
   // Records with dynamic sizes
   hostRecord = (HostRecord *)allocRecord("HostRecord", sizeof(HostRecord),

@@ -1,5 +1,5 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <atomic>
 #include <map>
 
+#include "atomic_shared_ptr.h"
 #include "mysql/binlog/event/binlog_event.h"
 
 #include <ankerl/unordered_dense.h>
@@ -142,7 +143,10 @@ class Commit_order_trx_dependency_tracker {
 class Writeset_trx_dependency_tracker {
  public:
   Writeset_trx_dependency_tracker(ulong max_history_size)
-      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {}
+      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {
+    atomic_store_shared<Writeset_history>(m_writeset_history,
+                                          std::make_shared<Writeset_history>());
+  }
 
   /**
     Main function that gets the dependencies using the WRITESET tracker.
@@ -175,7 +179,11 @@ class Writeset_trx_dependency_tracker {
     in the database, using row hashes from the writeset as the index.
   */
   using Writeset_history = ankerl::unordered_dense::map<uint64, int64>;
-  Writeset_history m_writeset_history;
+#if defined(__cpp_lib_atomic_shared_ptr)
+  std::atomic<std::shared_ptr<Writeset_history>> m_writeset_history;
+#else
+  std::shared_ptr<Writeset_history> m_writeset_history;
+#endif
 };
 
 /**

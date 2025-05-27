@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -659,6 +659,8 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
           if (service.is_valid())
             mysql_session = service->open(nullptr, nullptr);
           else
+            return true;
+          if (mysql_session == nullptr)
             return true;
           thd = mysql_session->get_thd();
           mcs_ext->is_thd_associated = false;

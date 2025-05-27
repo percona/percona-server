@@ -44,7 +44,7 @@ class Worker {
   DataProvider &data_provider_;
   Logger &logger_;
   std::atomic_bool stop_worker_thd_;
-  std::atomic_flag caller_active_;
+  std::atomic_flag caller_active_ = ATOMIC_FLAG_INIT;
   std::condition_variable cv_;
 
   std::thread thd_;

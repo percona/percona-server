@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2024, Oracle and/or its affiliates.
+Copyright (c) 2005, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -543,7 +543,7 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
   }
 
   if (ctx.m_add_autoinc != ULINT_UNDEFINED) {
-    auto err = ctx.handle_autoinc(m_ptr);
+    auto err = ctx.handle_autoinc(m_ptr, heap);
 
     if (err != DB_SUCCESS) {
       return err;

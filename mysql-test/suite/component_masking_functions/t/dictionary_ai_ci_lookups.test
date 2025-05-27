@@ -1,0 +1,113 @@
+--source include/have_masking_functions_component.inc
+
+--echo #
+--echo # Checking for proper case-insensitive 'utf8mb4_0900_ai_ci' string
+--echo # comparison in Masking Function dictionary operations
+
+--source include/count_sessions.inc
+
+INSTALL COMPONENT 'file://component_masking_functions';
+
+CREATE TABLE mysql.masking_dictionaries(
+    Dictionary VARCHAR(256) NOT NULL,
+    Term VARCHAR(256) NOT NULL,
+    UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries TO 'mysql.session'@'localhost';
+
+CREATE USER udftest_priv@localhost;
+GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
+--connect(con_priv,localhost,udftest_priv,,)
+
+--echo #
+--echo # Polulating dictionary 'dict'
+--let $assert_cond = masking_dictionary_term_add("dict", "gross") = 1
+--let $assert_text = The very first masking_dictionary_term_add() must succeed
+--source include/assert.inc
+
+
+--echo #
+--echo # Checking case-sensitivity and accents in dictionary terms
+--let $assert_cond = masking_dictionary_term_add("dict", "Gross") = 0
+--let $assert_text = Terms with differences in case must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dict", "gröss") = 0
+--let $assert_text = Terms with differences in accent must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dict", "grÖss") = 0
+--let $assert_text = Terms with differences in both case and accent must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dict", "groß") = 0
+--let $assert_text = Terms with German Eszett and "ss" must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dict", "groẞ") = 0
+--let $assert_text = Terms with German Capital Eszett and "ss" must be considered equal
+--source include/assert.inc
+
+
+--echo #
+--echo # Checking case-sensitivity and accents in dictionary names
+--let $assert_cond = masking_dictionary_term_add("Dict", "gross") = 0
+--let $assert_text = Dictionary names with differences in case must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dïct", "gross") = 0
+--let $assert_text = Dictionary names with differences in accent must be considered equal
+--source include/assert.inc
+
+--let $assert_cond = masking_dictionary_term_add("dÏct", "gross") = 0
+--let $assert_text = Dictionary names with differences in both case and accent must be considered equal
+--source include/assert.inc
+
+
+--echo #
+--echo # Polulating dictionary 'dummy' (will be used for substitutions)
+--let $assert_cond = masking_dictionary_term_add("dummy", "klein") = 1
+--let $assert_text = The second meaningful call to masking_dictionary_term_add() must succeed
+--source include/assert.inc
+
+--echo #
+--echo # Checking Dictionary Cache case-insensitive accent-aware lookups via gen_blocklist()
+--let $assert_cond = gen_blocklist("gross", "dict", "dummy") = "klein"
+--let $assert_text = Original term must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("Gross", "dict", "dummy") = "klein"
+--let $assert_text = Term with changed case must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("gröss", "dict", "dummy") = "klein"
+--let $assert_text = Term with changed accent must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("grÖss", "dict", "dummy") = "klein"
+--let $assert_text = Term with both changed case and changed accent must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("groß", "dict", "dummy") = "klein"
+--let $assert_text = Terms with German Eszett must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("groẞ", "dict", "dummy") = "klein"
+--let $assert_text = Terms with German Capital Eszett must be substituted
+--source include/assert.inc
+
+--let $assert_cond = gen_blocklist("grosss", "dict", "dummy")  = "grosss"
+--let $assert_text = Terms with actual differences must not be substituted
+--source include/assert.inc
+
+--disconnect con_priv
+--connection default
+
+DROP USER udftest_priv@localhost;
+
+UNINSTALL COMPONENT 'file://component_masking_functions';
+
+REVOKE SELECT, INSERT, UPDATE, DELETE ON mysql.masking_dictionaries FROM 'mysql.session'@'localhost';
+DROP TABLE mysql.masking_dictionaries;
+
+--source include/wait_until_count_sessions.inc

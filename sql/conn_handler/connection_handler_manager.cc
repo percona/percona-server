@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,6 +227,10 @@ void Connection_handler_manager::wait_till_no_connection() {
     mysql_cond_wait(&COND_connection_count, &LOCK_connection_count);
   }
   mysql_mutex_unlock(&LOCK_connection_count);
+}
+
+void Connection_handler_manager::post_daemonize_init() {
+  m_connection_handler->post_daemonize_init();
 }
 
 void Connection_handler_manager::destroy_instance() {

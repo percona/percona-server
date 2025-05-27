@@ -1,6 +1,6 @@
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-set @saved_rocksdb_instant_ddl=@@global.rocksdb_disable_instant_ddl;
-set global rocksdb_disable_instant_ddl = false;
+set @saved_rocksdb_instant_ddl=@@global.rocksdb_enable_instant_ddl_for_append_column;
+set global rocksdb_enable_instant_ddl_for_append_column = false;
 #
 # query use intrinsic table
 #
@@ -22,7 +22,7 @@ ALTER table t1 add column c1 int default 99;
 INSERT into t1 select  1000 + a,  a,  a,  a from one_k;
 explain SELECT DISTINCT filler from t1 order by filler limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	ROWS	#	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`filler` AS `filler` from `test`.`t1` order by `test`.`t1`.`filler` limit 10
 SELECT DISTINCT filler from t1 order by filler limit 10;
@@ -43,7 +43,7 @@ filler
 CREATE TEMPORARY TABLE t2 select * from t1;
 explain SELECT DISTINCT filler from t2 order by filler limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	ROWS	#	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`filler` AS `filler` from `test`.`t2` order by `test`.`t2`.`filler` limit 10
 SELECT DISTINCT filler from t2 order by filler limit 10;
@@ -89,4 +89,4 @@ SET @@session.max_heap_table_size=default;
 SET @@session.tmp_table_size=default;
 SET @@session.internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
-set global rocksdb_disable_instant_ddl = @saved_rocksdb_instant_ddl;
+set global rocksdb_enable_instant_ddl_for_append_column = @saved_rocksdb_instant_ddl;

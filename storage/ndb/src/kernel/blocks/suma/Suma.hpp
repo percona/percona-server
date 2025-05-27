@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -710,11 +710,67 @@ class Suma : public SimulatedBlock {
                          Uint32 part);
   Uint32 seize_page();
   void free_page(Uint32 page_id, Buffer_page *page);
+
+  /**
+   * Event buffers hold the stream of data changes of unack'd epochs,
+   * which will be resent to subscribers when a peer node
+   * fails. However, during an out-of-buffer (OOB) situation, data
+   * changes could not be buffered and thus creating a gap in the
+   * event stream. This jeopardizes the resendability.
+   *
+   * An OOB is handled by stopping all buffer accessess while they are
+   * being cleared in order to make the space available again.
+   * When buffering is resumed, the ongoing epochs may be bufferred
+   * partially and then new ones will be buffered fully.
+   *
+   * From the time out_of_buffer handling is started until
+   * all unacknowledged epochs are completely buffered,
+   * resending will not be possible.
+   *
+   * Resendability becomes NORMAL when the first fully-buffered
+   * epoch is acked by all the subscribers.
+   *
+   * The flow is described by the following state machine :
+   * States:
+   * NORMAL : Buffering as normal, all unacked epochs are resendable
+   * CLEARING : Not buffering, nothing resendable
+   * PARTIAL : Buffering as normal, nothing resendable
+   *
+   * The states are represented by the variable m_fully_buffering_after_gci :
+   * m_fully_buffering_after_gci == 0   : NORMAL state
+   * m_fully_buffering_after_gci == MAX_UINT64 : CLEARING state
+   * 0 < m_fully_buffering_after_gci < MAX_UINT64 : PARTIAL state
+   *   where the epoch next to m_fully_buffering_after_gci will be the
+   *   first whole epoch buffered
+   */
+
+  /**
+   * Representing the combined states of buffering and resendability.
+   */
+  Uint64 m_fully_buffering_after_gci;
+
+  // Minimum of all buckets' m_max_acked_gci
+  Uint64 m_max_fully_acked_gci;
+
+  // Relevant transitions :
+
+  // NORMAL -> CLEAR : m_fully_buffering_after_gci = UINT_MAX64
+  void disable_buffering();
+  bool buffering_disabled()
+      const;  // (m_fully_buffering_after_gci == UINT_MAX64)
+  // PARTIAL -> NORMAL
+  void enable_normal_resending();
+  // Criteria for resendability :
+  // m_fully_buffering_after_gci <= m_max_fully_acked_gci
+  bool normal_resendable() const;
+  /* End of state machine description */
+
   void out_of_buffer(Signal *);
   void out_of_buffer_release(Signal *signal, Uint32 buck);
 
   Uint32 reformat(Signal *signal, LinearSectionPtr ptr[3],
                   const LinearSectionPtr lsptr[3]);
+
   void start_resend(Signal *, Uint32 bucket);
   void resend_bucket(Signal *, Uint32 bucket, Uint64 gci, Uint32 page_pos,
                      Uint64 last_gci);
@@ -727,7 +783,7 @@ class Suma : public SimulatedBlock {
   Uint64 m_max_seen_gci;       // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;       // FIRE_TRIG_ORD -> send
   Uint64 m_last_complete_gci;  // SUB_GCP_COMPLETE_REP
-  Uint64 m_out_of_buffer_gci;
+
   Uint32 m_gcp_complete_rep_count;
   bool m_missing_data;
 

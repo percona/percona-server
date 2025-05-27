@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -554,6 +554,11 @@ ENDIF()
 
 IF(WITH_PERCONA_TELEMETRY)
   SET(HAVE_PERCONA_TELEMETRY 1)
+ENDIF()
+
+IF(WITH_PERCONA_PROBUILD OR PROBUILD)
+  SET(MYSQL_SERVER_SUFFIX "-pro")
+  SET(HAVE_PERCONA_PROBUILD 1)
 ENDIF()
 
 # Check for gettid() system call

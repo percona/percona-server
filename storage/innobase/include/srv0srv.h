@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1239,7 +1239,7 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 innodb_temp_tablespace_encrypt is TRUE
 @param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
-MY_NODISCARD
+[[nodiscard]]
 dberr_t srv_temp_encryption_update(bool enable);
 
 /** Status variables to be passed to MySQL */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,12 +120,10 @@ class Destinations {
   /**
    * emplace a Destination at the back of the container.
    */
-  // clang-format off
   template <class... Args>
-  auto emplace_back(Args &&... args) {
+  auto emplace_back(Args &&...args) {
     return destinations_.emplace_back(std::forward<Args>(args)...);
   }
-  // clang-format on
 
   void push_back(value_type &&v) { destinations_.push_back(std::move(v)); }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,10 @@
 #include <time.h>
 
 #include <memory>
+
+#ifdef _WIN32
+#include <chrono>
+#endif
 
 #include "xcom/node_connection.h"
 #include "xdr_gen/xcom_vp.h"

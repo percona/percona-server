@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3162,6 +3162,7 @@ int runRefreshLocking(NDBT_Context *ctx, NDBT_Step *step) {
           case OP_LAST:
             abort();
         }
+        if (res) g_err << "  (Note: operation failed: " << res << ")" << endl;
 
         hugoOps.execute_Commit(ndb);
 
@@ -3716,7 +3717,7 @@ int testAbortRace(NDBT_Context *ctx, NDBT_Step *step) {
  * - performs a local checkpoint.
  * - fills the table with #records given in the test context.
  * - performs another local checkpoint. With the pLCP, only the
- *    the records inserted into the context's table is expected to
+ *    records inserted into the context's table is expected to
  *    appear in the LCP-statistics calculated by the test.
  * - Checks the LCP'd records.
  */
@@ -3724,12 +3725,13 @@ int runCheckLCPStats(NDBT_Context *ctx, NDBT_Step *step) {
   NdbRestarter restarter;
   Uint32 master = restarter.getMasterNodeId();
 
-  // Perform an LCP and wait it to start and finish
-  int dump_req[] = {DumpStateOrd::DihStartLcpImmediately};
-  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
   int filter[] = {15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0};
   NdbLogEventHandle handle =
       ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  // Perform an LCP and wait it to start and finish
+  int dump_req[] = {DumpStateOrd::DihStartLcpImmediately};
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
 
   struct ndb_logevent event;
   while (ndb_logevent_get_next(handle, &event, 0) >= 0 &&

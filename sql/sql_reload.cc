@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
 
     if (thd) {
-      bool reload_acl_failed = reload_acl_caches(thd, false);
+      bool reload_acl_failed = reload_acl_caches(thd, false, false, nullptr);
       bool reload_servers_failed = servers_reload(thd);
       notify_flush_event(thd);
       if (reload_acl_failed || reload_servers_failed) {

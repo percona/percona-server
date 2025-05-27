@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,8 @@ NdbSocket SocketClient::connect(ndb_sockaddr server_addr) {
   if (server_addr.need_dual_stack()) {
     [[maybe_unused]] bool ok = ndb_socket_dual_stack(m_sockfd, 1);
   }
+
+  ndb_socket_disable_sigpipe(m_sockfd);
 
   // Start non blocking connect
 #if HAVE_DEBUG_FPRINTF

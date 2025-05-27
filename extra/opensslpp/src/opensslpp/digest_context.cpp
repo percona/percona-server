@@ -68,12 +68,14 @@ void digest_context::swap(digest_context &obj) noexcept {
 }
 
 std::size_t digest_context::get_size_in_bytes() const noexcept {
+  assert(!is_empty());
+
   return EVP_MD_CTX_size(digest_context_accessor::get_impl(*this));
 }
 
-void digest_context::update(const std::string &data) {
+void digest_context::update(std::string_view data) {
   assert(!is_empty());
-  if (EVP_DigestUpdate(digest_context_accessor::get_impl(*this), data.c_str(),
+  if (EVP_DigestUpdate(digest_context_accessor::get_impl(*this), data.data(),
                        data.size()) == 0)
     throw core_error{"cannot hash data into digest context"};
 }
@@ -81,19 +83,19 @@ void digest_context::update(const std::string &data) {
 std::string digest_context::finalize() {
   assert(!is_empty());
 
-  // TODO: use c++17 non-const std::string::data() member here
-  using buffer_type = std::array<unsigned char, EVP_MAX_MD_SIZE + 1>;
-  buffer_type res;
+  auto digest_size = EVP_MD_CTX_size(digest_context_accessor::get_impl(*this));
+  assert(digest_size > 0 && digest_size <= EVP_MAX_MD_SIZE);
+  std::string res(static_cast<std::size_t>(digest_size), '\0');
 
   unsigned int res_size = 0;
-  if (EVP_DigestFinal_ex(digest_context_accessor::get_impl(*this), res.data(),
+  if (EVP_DigestFinal_ex(digest_context_accessor::get_impl(*this),
+                         reinterpret_cast<unsigned char *>(res.data()),
                          &res_size) == 0)
     throw core_error{"cannot finalize digest context"};
-  assert(res_size <= res.size());
+  assert(res_size == res.size());
 
   digest_context_accessor::set_impl(*this, nullptr);
-  return {reinterpret_cast<char *>(res.data()),
-          static_cast<std::size_t>(res_size)};
+  return res;
 }
 
 }  // namespace opensslpp

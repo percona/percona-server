@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -366,8 +366,9 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
   // A subquery containing a simple selected expression can be eliminated
   if (!query_expr()->is_set_operation() && !inner->has_tables() &&
       single_field != nullptr && !single_field->has_aggregation() &&
-      !single_field->has_wf() && inner->where_cond() == nullptr &&
-      inner->having_cond() == nullptr && !is_maxmin()) {
+      inner->olap == UNSPECIFIED_OLAP_TYPE && !single_field->has_wf() &&
+      inner->where_cond() == nullptr && inner->having_cond() == nullptr &&
+      !is_maxmin()) {
     if (thd->lex->is_explain()) {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), inner->select_number);

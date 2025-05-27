@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -829,6 +829,8 @@ void MysqlRoutingXConnection::connect() {
   auto server_connection = std::move(connect_res.value());
 
   server_conn().assign_connection(std::move(server_connection));
+
+  server_address(server_conn().endpoint());
 
   this->connected();
 

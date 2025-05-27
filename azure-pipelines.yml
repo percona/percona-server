@@ -40,7 +40,7 @@ pr:
 jobs:
 - job: BiDiScan
   pool:
-    vmImage: 'ubuntu-20.04'
+    vmImage: 'ubuntu-22.04'
 
   steps:
   - checkout: self
@@ -62,7 +62,7 @@ jobs:
     vmImage: $(imageName)
 
   variables:
-    UBUNTU_CODE_NAME: focal
+    UBUNTU_CODE_NAME: jammy
     USE_CCACHE: 1
     CCACHE_DIR: $(Pipeline.Workspace)/ccache
     CCACHE_COMPRESS: 1
@@ -75,55 +75,86 @@ jobs:
 
   strategy:
     matrix:
-      macOS 13 RelWithDebInfo:
-        imageName: 'macOS-13'
+      macOS 14 RelWithDebInfo:
+        imageName: 'macOS-14'
         Compiler: clang
         BuildType: RelWithDebInfo
 
       # skip for a pull request if branch name doesn't contain "fullci"
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        macOS 13 Debug:
-          imageName: 'macOS-13'
+        macOS 14 Debug:
+          imageName: 'macOS-14'
           Compiler: clang
           BuildType: Debug
 
-      # clang-12 and newer compilers
-      clang-18 RelWithDebInfo [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
+
+      # clang-14 and newer compilers
+      clang-20 RelWithDebInfo [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        UBUNTU_CODE_NAME: noble
         Compiler: clang
-        CompilerVer: 18
+        CompilerVer: 20
         BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-18 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
+        clang-20 RelWithDebInfo INVERTED [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
           Compiler: clang
-          CompilerVer: 18
+          CompilerVer: 20
           BuildType: RelWithDebInfo
           BUILD_PARAMS_TYPE: inverted
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-18 Debug [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
+        clang-20 Debug [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
           Compiler: clang
-          CompilerVer: 18
+          CompilerVer: 20
           BuildType: Debug
 
-      clang-18 Debug INVERTED [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
+      clang-20 Debug INVERTED [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        UBUNTU_CODE_NAME: noble
         Compiler: clang
-        CompilerVer: 18
+        CompilerVer: 20
         BuildType: Debug
         BUILD_PARAMS_TYPE: inverted
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-19 RelWithDebInfo [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
+          Compiler: clang
+          CompilerVer: 19
+          BuildType: RelWithDebInfo
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-19 Debug [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
+          Compiler: clang
+          CompilerVer: 19
+          BuildType: Debug
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
+        clang-18 RelWithDebInfo [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
+          Compiler: clang
+          CompilerVer: 18
+          BuildType: RelWithDebInfo
+
+      clang-18 Debug [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        UBUNTU_CODE_NAME: noble
+        Compiler: clang
+        CompilerVer: 18
+        BuildType: Debug
+
+      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-17 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 17
           BuildType: RelWithDebInfo
@@ -131,7 +162,6 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-17 Debug [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 17
           BuildType: Debug
@@ -139,14 +169,12 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-16 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 16
           BuildType: RelWithDebInfo
 
       clang-16 Debug [Ubuntu 22.04 Jammy]:
         imageName: 'ubuntu-22.04'
-        UBUNTU_CODE_NAME: jammy
         Compiler: clang
         CompilerVer: 16
         BuildType: Debug
@@ -154,7 +182,6 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-15 RelWithDebInfo [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 15
           BuildType: RelWithDebInfo
@@ -162,49 +189,22 @@ jobs:
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
         clang-15 Debug [Ubuntu 22.04 Jammy]:
           imageName: 'ubuntu-22.04'
-          UBUNTU_CODE_NAME: jammy
           Compiler: clang
           CompilerVer: 15
           BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-14 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 14
-          BuildType: RelWithDebInfo
+      clang-14 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
+        Compiler: clang
+        CompilerVer: 14
+        BuildType: RelWithDebInfo
 
-      clang-14 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
+      clang-14 Debug [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
         Compiler: clang
         CompilerVer: 14
         BuildType: Debug
 
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-13 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 13
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-13 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
-          Compiler: clang
-          CompilerVer: 13
-          BuildType: Debug
-
-      clang-12 RelWithDebInfo [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 12
-        BuildType: RelWithDebInfo
-
-      clang-12 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
-        Compiler: clang
-        CompilerVer: 12
-        BuildType: Debug
 
       # gcc-10 and newer compilers
       gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]:
@@ -246,27 +246,27 @@ jobs:
         BuildType: Debug
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-11 RelWithDebInfo [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
+        gcc-11 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
           Compiler: gcc
           CompilerVer: 11
           BuildType: RelWithDebInfo
 
       ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        gcc-11 Debug [Ubuntu 20.04 Focal]:
-          imageName: 'ubuntu-20.04'
+        gcc-11 Debug [Ubuntu 22.04 Jammy]:
+          imageName: 'ubuntu-22.04'
           Compiler: gcc
           CompilerVer: 11
           BuildType: Debug
 
-      gcc-10 RelWithDebInfo [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
+      gcc-10 RelWithDebInfo [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
         Compiler: gcc
         CompilerVer: 10
         BuildType: RelWithDebInfo
 
-      gcc-10 Debug [Ubuntu 20.04 Focal]:
-        imageName: 'ubuntu-20.04'
+      gcc-10 Debug [Ubuntu 22.04 Jammy]:
+        imageName: 'ubuntu-22.04'
         Compiler: gcc
         CompilerVer: 10
         BuildType: Debug
@@ -394,7 +394,7 @@ jobs:
           -DMYSQL_MAINTAINER_MODE=OFF
           -DWITH_PROTOBUF=system
           -DWITH_SYSTEM_LIBS=ON
-          -DWITH_ICU=/usr/local/opt/icu4c
+          -DWITH_ICU=bundled
           -DWITH_SSL=/usr/local/opt/openssl@1.1
           -DWITH_FIDO=bundled
           -DWITH_ZLIB=bundled

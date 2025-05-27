@@ -21,13 +21,14 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include <opensslpp/rsa_key_fwd.hpp>
 
 #include <opensslpp/accessor_fwd.hpp>
 #include <opensslpp/big_number_fwd.hpp>
 #include <opensslpp/key_generation_cancellation_callback_fwd.hpp>
-#include <opensslpp/rsa_padding_fwd.hpp>
+#include <opensslpp/rsa_encryption_padding_fwd.hpp>
 
 namespace opensslpp {
 
@@ -56,7 +57,8 @@ class rsa_key final {
   std::size_t get_size_in_bits() const noexcept;
   std::size_t get_size_in_bytes() const noexcept;
 
-  std::size_t get_max_block_size_in_bytes(rsa_padding padding) const noexcept;
+  std::size_t get_max_block_size_in_bytes(
+      rsa_encryption_padding padding) const noexcept;
 
   rsa_key derive_public_key() const;
 
@@ -68,8 +70,8 @@ class rsa_key final {
   static std::string export_private_pem(const rsa_key &key);
   static std::string export_public_pem(const rsa_key &key);
 
-  static rsa_key import_private_pem(const std::string &pem);
-  static rsa_key import_public_pem(const std::string &pem);
+  static rsa_key import_private_pem(std::string_view pem);
+  static rsa_key import_public_pem(std::string_view pem);
 
  private:
   // should not be declared final as this prevents optimization for empty

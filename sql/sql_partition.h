@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +127,7 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
    @retval true  - On failure.
    @retval false - On success.
 */
-MY_NODISCARD
+[[nodiscard]]
 bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
                               const char *normalized_path,
                               const char *partition_info_str,

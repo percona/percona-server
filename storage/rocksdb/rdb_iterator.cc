@@ -295,7 +295,7 @@ int Rdb_iterator_base::next_with_direction(bool move_forward, bool skip_next) {
     }
 
     // Record is not visible due to TTL, move to next record.
-    if (m_pkd.has_ttl() && rdb_should_hide_ttl_rec(m_kd, value, tx)) {
+    if (m_pkd.has_ttl() && rdb_should_hide_ttl_rec(m_kd, &value, tx)) {
       continue;
     }
 
@@ -357,10 +357,29 @@ int Rdb_iterator_base::seek(enum ha_rkey_function find_flag,
   return rc;
 }
 
+int Rdb_iterator_base::convert_get_status(myrocks::Rdb_transaction &tx,
+                                          const rocksdb::Status &s,
+                                          rocksdb::PinnableSlice *value,
+                                          bool skip_ttl_check) const {
+  int rc = HA_EXIT_SUCCESS;
+  if (!s.IsNotFound() && !s.ok()) {
+    return rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
+  }
+
+  const bool hide_ttl_rec =
+      !skip_ttl_check && m_kd.has_ttl() &&
+      rdb_should_hide_ttl_rec(m_kd, s.IsNotFound() ? nullptr : value, &tx);
+
+  if (hide_ttl_rec || s.IsNotFound()) {
+    return HA_ERR_KEY_NOT_FOUND;
+  }
+
+  return rc;
+}
+
 int Rdb_iterator_base::get(const rocksdb::Slice *key,
                            rocksdb::PinnableSlice *value, Rdb_lock_type type,
                            bool skip_ttl_check, bool skip_wait) {
-  int rc = HA_EXIT_SUCCESS;
   Rdb_transaction *const tx = get_tx_from_thd(m_thd);
   rocksdb::Status s;
   if (type == RDB_LOCK_NONE) {
@@ -374,20 +393,7 @@ int Rdb_iterator_base::get(const rocksdb::Slice *key,
       "rocksdb_return_status_corrupted",
                   { s = rocksdb::Status::Corruption(); });
 
-  if (!s.IsNotFound() && !s.ok()) {
-    return rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
-  }
-
-  if (s.IsNotFound()) {
-    return HA_ERR_KEY_NOT_FOUND;
-  }
-
-  if (!skip_ttl_check && m_kd.has_ttl() &&
-      rdb_should_hide_ttl_rec(m_kd, *value, tx)) {
-    return HA_ERR_KEY_NOT_FOUND;
-  }
-
-  return rc;
+  return convert_get_status(*tx, s, value, skip_ttl_check);
 }
 
 Rdb_iterator_partial::Rdb_iterator_partial(THD *thd, const Rdb_key_def &kd,
@@ -657,7 +663,7 @@ int Rdb_iterator_partial::materialize_prefix() {
     return HA_EXIT_SUCCESS;
   } else if (!s.IsNotFound()) {
     thd_proc_info(m_thd, old_proc_info);
-    return rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
+    return rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
   }
 
   rocksdb::WriteOptions options;
@@ -669,7 +675,7 @@ int Rdb_iterator_partial::materialize_prefix() {
   // Write sentinel key with empty value.
   s = wb->Put(m_kd.get_cf(), cur_prefix_key, rocksdb::Slice());
   if (!s.ok()) {
-    rc = rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
+    rc = rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
     rdb_tx_release_lock(tx, m_kd, cur_prefix_key, true /* force */);
     thd_proc_info(m_thd, old_proc_info);
     return rc;
@@ -711,7 +717,7 @@ int Rdb_iterator_partial::materialize_prefix() {
                 rocksdb::Slice((const char *)m_sk_tails.ptr(),
                                m_sk_tails.get_current_pos()));
     if (!s.ok()) {
-      rc = rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
+      rc = rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
       goto exit;
     }
 
@@ -724,7 +730,7 @@ int Rdb_iterator_partial::materialize_prefix() {
 
   s = rdb_get_rocksdb_db()->Write(options, optimize, wb.get());
   if (!s.ok()) {
-    rc = rdb_tx_set_status_error(tx, s, m_kd, m_tbl_def);
+    rc = rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
     goto exit;
   }
 

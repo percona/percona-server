@@ -52,3 +52,22 @@ TRUNCATE TABLE t;
 --enable_result_log
 
 DROP TABLE t;
+
+
+
+--echo #
+--echo # PS-9666: insert with unique_checks=OFF into table with TTL crashing MyRocks
+--echo # https://perconadev.atlassian.net/browse/PS-9666
+--echo #
+
+CREATE TABLE t1 (
+    `id` varbinary(32) NOT NULL,
+    `ttl_ts` bigint unsigned NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ttl_duration=31536000;ttl_col=ttl_ts;';
+
+SET unique_checks=OFF;
+
+INSERT INTO t1 (`id`, `ttl_ts`) VALUES ('helloworld', 1738737225);
+
+DROP TABLE t1;

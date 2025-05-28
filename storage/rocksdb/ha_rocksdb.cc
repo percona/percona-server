@@ -7739,7 +7739,7 @@ static int rdb_dbug_set_ttl_read_filter_ts();
   snapshots when filtering keys.
 */
 bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
-                             const rocksdb::Slice &ttl_rec_val,
+                             const rocksdb::Slice *const ttl_rec_val,
                              Rdb_transaction *tx) {
   assert(kd.has_ttl());
   assert(kd.m_ttl_rec_offset != UINT_MAX);
@@ -7767,7 +7767,13 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
     return false;
   }
 
-  Rdb_string_reader reader(&ttl_rec_val);
+  // Case: No value supplied, this happens when the key is not found, so we'll
+  // just return that it should be filtered
+  if (!ttl_rec_val) {
+    return true;
+  }
+
+  Rdb_string_reader reader(ttl_rec_val);
 
   /*
     Find where the 8-byte ttl is for each record in this index.
@@ -7779,7 +7785,7 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
       8 byte ttl field in front. Don't filter the record out, and log an error.
     */
     std::string buf;
-    buf = rdb_hexdump(ttl_rec_val.data(), ttl_rec_val.size(),
+    buf = rdb_hexdump(ttl_rec_val->data(), ttl_rec_val->size(),
                       RDB_MAX_HEXDUMP_LEN);
     const GL_INDEX_ID gl_index_id = kd.get_gl_index_id();
     LogPluginErrMsg(
@@ -17263,10 +17269,10 @@ void rdb_tx_release_lock(Rdb_transaction *tx, const Rdb_key_def &kd,
   tx->release_lock(kd, std::string(key.data(), key.size()), force);
 }
 
-int rdb_tx_set_status_error(Rdb_transaction *tx, const rocksdb::Status &s,
+int rdb_tx_set_status_error(Rdb_transaction &tx, const rocksdb::Status &s,
                             const Rdb_key_def &kd,
                             const Rdb_tbl_def *const tbl_def) {
-  return tx->set_status_error(tx->get_thd(), s, kd, tbl_def);
+  return tx.set_status_error(tx.get_thd(), s, kd, tbl_def);
 }
 
 static bool parse_fault_injection_file_type(const std::string &type_str,

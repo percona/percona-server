@@ -68,6 +68,10 @@ class Rdb_iterator_base : public Rdb_iterator {
                        const int bytes_changed_by_succ,
                        const rocksdb::Slice &end_key);
   int next_with_direction(bool move_forward, bool skip_next);
+  [[nodiscard]] int convert_get_status(myrocks::Rdb_transaction &tx,
+                                       const rocksdb::Status &status,
+                                       rocksdb::PinnableSlice *value,
+                                       bool skip_ttl_check) const;
 
  public:
   Rdb_iterator_base(THD *thd, const Rdb_key_def &kd, const Rdb_key_def &pkd,

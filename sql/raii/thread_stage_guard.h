@@ -96,8 +96,6 @@ class Thread_stage_guard {
   const unsigned int m_line;
 };
 
-// NOLINTBEGIN(cppcoreguidelines-macro-usage)
-
 /// Set the thread stage for the given thread, and make it restore the
 /// previous stage at the end of the invoking scope, using the named
 /// local RAII variable.
@@ -111,9 +109,9 @@ class Thread_stage_guard {
 /// @param new_stage The new stage.  `thd` will use this stage until
 /// the end of the scope where the macro is invoked.  At that point,
 /// the stage is reverted to what it was before invoking this macro.
-#define NAMED_THD_STAGE_GUARD(name, thd, new_stage)  \
-  raii::Thread_stage_guard name {                    \
-    (thd), (new_stage), __func__, __FILE__, __LINE__ \
+#define NAMED_THD_STAGE_GUARD(name, thd, new_stage) \
+  raii::Thread_stage_guard name {                   \
+    (thd),(new_stage), __func__, __FILE__, __LINE__ \
   }
 
 /// Set the thread stage for the given thread, and make it restore the
@@ -124,10 +122,8 @@ class Thread_stage_guard {
 /// @param new_stage The new stage.  `thd` will use this stage until
 /// the end of the scope where the macro is invoked.  At that point,
 /// the stage is reverted to what it was before invoking this macro.
-#define THD_STAGE_GUARD(thd, new_stage) \
-  NAMED_THD_STAGE_GUARD(_thread_stage_guard_##new_stage, (thd), (new_stage))
-
-// NOLINTEND(cppcoreguidelines-macro-usage)
+#define THD_STAGE_GUARD(thd,new_stage) \
+  NAMED_THD_STAGE_GUARD(_thread_stage_guard_##new_stage, (thd),(new_stage))
 
 }  // namespace raii
 

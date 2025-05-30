@@ -237,6 +237,18 @@ jobs:
 
 
       # gcc-9 and newer compilers
+      gcc-15 RelWithDebInfo [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        Compiler: gcc
+        CompilerVer: 15
+        BuildType: RelWithDebInfo
+
+      gcc-15 Debug [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        Compiler: gcc
+        CompilerVer: 15
+        BuildType: Debug
+
       gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         Compiler: gcc

@@ -1189,13 +1189,13 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
   if (is_predicate_lock(mode)) {
     rec_lock.n_bits = 8;
 
-    memset(&lock[1], 0x0, 1);
+    memset(static_cast<void *>(&lock[1]), 0x0, 1);
 
   } else {
     ut_ad(8 * size < UINT32_MAX);
     rec_lock.n_bits = static_cast<uint32_t>(8 * size);
 
-    memset(&lock[1], 0x0, size);
+    memset(static_cast<void *>(&lock[1]), 0x0, size);
   }
 
   rec_lock.page_id = rec_id.get_page_id();

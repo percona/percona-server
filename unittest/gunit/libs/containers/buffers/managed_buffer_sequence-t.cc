@@ -79,7 +79,6 @@ using Difference_t =
 // make the program stop with assertion.
 [[maybe_unused]] static int n_assertions = 0;
 static bool _shall_stop_after_assertion = false;
-// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define ASSERTION_TAIL                                                   \
   << debug_output(fileline) << (_shall_stop_after_assertion = true, ""), \
       assert(!_shall_stop_after_assertion)
@@ -93,7 +92,6 @@ static bool _shall_stop_after_assertion = false;
     ASSERT_NE(v1, v2) ASSERTION_TAIL; \
     ++n_assertions;                   \
   } while (0)
-// NOLINTEND(cppcoreguidelines-macro-usage)
 
 // Requirements:
 //
@@ -250,10 +248,8 @@ class Grow_tester {
                  Size_t extra_container_capacity, Size_t position,
                  Size_t capacity, Size_t max_capacity,
                  Size_t requested_capacity, Size_t requested_position) {
-    // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define CHECK_SIZES(POSITION, CAPACITY) \
   check_sizes(FILELINE(), debug_output, mbs, buffer_size, POSITION, CAPACITY)
-    // NOLINTEND(cppcoreguidelines-macro-usage)
 
     // This does the following:
     //

@@ -2,24 +2,49 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: cimg/base:24.04
         auth:
           username: $DOCKERHUB_USERNAME
           password: $DOCKERHUB_PASSWORD
     steps:
       - checkout
       - run:
-          name: Clang-format test
+          name: Ensure all submodules are updated recursively
+          command: git submodule update --init --recursive
+      - run:
+          name: Clang-format and Clang-tidy test
           command: |
             set -o xtrace
-            curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
-            echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-15 main" | sudo tee -a /etc/apt/sources.list > /dev/null
+            UBUNTU_CODE_NAME="noble"
+            BASE_BRANCH="trunk"
+            COMPILER_VERSION="19"
+
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
-            sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-15
-            git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-15 -style=file -p1 >_GIT_DIFF
+            sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
+
+            # Prepare compile_commands.json
+            cd ~/project
+            cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
+
+            git remote add target "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            git fetch --no-tags --no-recurse-submodules target $BASE_BRANCH
+
+            echo "Checking clang-format results"
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF || true
             if [ ! -s _GIT_DIFF ]; then
-               echo The last git commit is clang-formatted;
+              echo The last git commit is clang-formatted;
             else
-               cat _GIT_DIFF;
-               false;
+              cat _GIT_DIFF;
+              false;
+            fi
+
+            echo "Checking clang-tidy static code analysis results"
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-tidy-diff-${COMPILER_VERSION}.py -clang-tidy-binary clang-tidy-${COMPILER_VERSION} -p1 -path /home/circleci/debug-build -export-fixes=fixes.yaml || true
+            clang-apply-replacements-${COMPILER_VERSION} .
+            git diff > _GIT_DIFF_TIDY
+            if [ ! -s _GIT_DIFF_TIDY ]; then
+               echo The last git commit is clang-tidy clean;
+            else
+               echo The last git commit has clang-tidy warnings;
+               cat _GIT_DIFF_TIDY;
             fi

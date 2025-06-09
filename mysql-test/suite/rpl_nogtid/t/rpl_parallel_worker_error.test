@@ -14,7 +14,6 @@
 # via replication
 
 --connection slave
---source include/have_replica_parallel_workers.inc
 call mtr.add_suppression("Replica SQL for channel '': Worker.*failed executing transaction");
 call mtr.add_suppression("Replica SQL for channel '':.*The replica coordinator and worker threads are stopped");
 

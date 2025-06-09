@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4024,6 +4024,35 @@ TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {
   AccessPath *t3 = inner->hash_join().inner;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
   EXPECT_STREQ("t3", t3->table_scan().table->alias);
+}
+
+TEST_F(HypergraphOptimizerTest, HashJoinWithLimit) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x = t2.x AND t2.y = 1 LIMIT 1",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 200;
+  m_fake_tables["t1"]->file->stats.data_file_length = 2000;
+  m_fake_tables["t2"]->file->stats.records = 1000;
+  m_fake_tables["t2"]->file->stats.data_file_length = 10000;
+
+  TraceGuard trace(m_thd);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block);
+  SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect a hash join with t1 as the build table. Since the entire build table
+  // is read before any rows can be returned, we're more likely to reach the
+  // LIMIT if the smaller table is the build table.
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->type);
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->limit_offset().child->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            root->limit_offset().child->hash_join().inner->type);
+  EXPECT_STREQ(
+      "t1",
+      root->limit_offset().child->hash_join().inner->table_scan().table->alias);
 }
 
 namespace {

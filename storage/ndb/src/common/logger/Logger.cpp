@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include "Logger.hpp"
 
-#include <time.h>
+#include <ctime>
 
 #include <ConsoleLogHandler.hpp>
 #include <FileLogHandler.hpp>
@@ -243,7 +243,7 @@ void Logger::startAsync(unsigned buffer_kb) {
   Guard g(m_log_mutex);
 
   if (m_internalBufferedHandler == nullptr) {
-    BufferedLogHandler *blh =
+    auto *blh =
         new BufferedLogHandler(m_internalLogListHandler,
                                false, /* m_internalLogListHandler not owned */
                                m_pCategory, buffer_kb);
@@ -420,7 +420,6 @@ void Logger::format_timestamp(const time_t epoch, char *str, size_t len) {
       tm_buf.tm_mon + 1,  // month is [0,11]. +1 -> [1,12]
       tm_buf.tm_mday, tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec);
   str[len - 1] = 0;
-  return;
 }
 
 #ifdef TEST_LOGGER
@@ -593,8 +592,8 @@ TAPTEST(logger) {
     const std::string fileB = "fileB.log";
     const std::string fileC = "fileC.log";
 
-    Ndb_log_consumer *log_consumer1 = new Ndb_log_consumer(fileB.c_str());
-    Ndb_log_consumer *log_consumer2 = new Ndb_log_consumer(fileC.c_str());
+    auto *log_consumer1 = new Ndb_log_consumer(fileB.c_str());
+    auto *log_consumer2 = new Ndb_log_consumer(fileC.c_str());
 
     g_eventLogger->close();
     clearFile(fileA);

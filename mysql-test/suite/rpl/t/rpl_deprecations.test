@@ -9,7 +9,7 @@
 # default, so skip the test if they are set on the command line while
 # invoking mtr.
 --source include/have_binlog_format_row.inc
-let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order', 'replica_parallel_type', 'replica_transaction_retries';
+let $variable_names = 'replica_preserve_commit_order', 'replica_parallel_type', 'replica_transaction_retries';
 --source include/skip_by_command_line_option.inc
 
 #####################################################################
@@ -31,19 +31,9 @@ let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_type='DATABASE';
 
-# assert deprecation warning replica_parallel_workers 0
-SET GLOBAL replica_parallel_workers=0;
-SET GLOBAL replica_parallel_workers=1;
-
 --let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
 let $messages =
 .* is deprecated and will be removed in a future release.*
-;
---source include/suppress_messages.inc
-
---let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
-let $messages =
-The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
 ;
 --source include/suppress_messages.inc
 
@@ -63,7 +53,7 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --skip-replica-start  --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --skip-replica-start  --replica-parallel-type=LOGICAL_CLOCK
   }
 
   if ($i == 1)
@@ -72,14 +62,9 @@ while($i > 0) {
     SET PERSIST_ONLY replica_parallel_type='DATABASE';
     SET PERSIST_ONLY replica_parallel_type='LOGICAL_CLOCK';
 
-    # Warning is not emitted when setting a deprecated value to
-    # a variable with persist_only
-    SET PERSIST_ONLY replica_parallel_workers=0;
-
     # check that warnings are emited when setting persist as well
     SET PERSIST replica_parallel_type='DATABASE';
     SET PERSIST replica_parallel_type='LOGICAL_CLOCK';
-    SET PERSIST replica_parallel_workers=0;
     SET PERSIST binlog_format=ROW;
     SET PERSIST sync_relay_log_info=10005;
 
@@ -97,7 +82,6 @@ while($i > 0) {
     let $error_pattern = 'binlog_format' is deprecated and will be removed in a future release.
     '--sync-relay-log-info' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
-    The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     ;
     --source include/assert_error_log.inc
   }
@@ -108,8 +92,6 @@ while($i > 0) {
     let $error_pattern = 'binlog_format' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
-    The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
-    The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     '@@binlog_format' is deprecated and will be removed in a future release.
     '@@sync_relay_log_info' is deprecated and will be removed in a future release.
     ;
@@ -123,12 +105,6 @@ while($i > 0) {
 let $messages =
 'binlog_format' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
-;
---source include/suppress_messages.inc
-
---let $suppress_mode = ADD_SUPPRESSIONS
-let $messages =
-The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
 ;
 --source include/suppress_messages.inc
 

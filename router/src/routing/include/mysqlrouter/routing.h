@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -241,6 +241,12 @@ constexpr std::string_view kDefaultClassicRoSectionName{"bootstrap_ro"};
 constexpr std::string_view kDefaultXRwSectionName{"bootstrap_x_rw"};
 constexpr std::string_view kDefaultXRoSectionName{"bootstrap_x_ro"};
 constexpr std::string_view kDefaultRwSplitSectionName{"bootstrap_rw_split"};
+
+/**
+ * Default for the configuration option determining if the Router opens the
+ * accepting port/socket for a routing instance.
+ */
+constexpr bool kDefaultAcceptConnections{true};
 
 /** @brief Modes supported by Routing plugin */
 enum class RoutingMode {

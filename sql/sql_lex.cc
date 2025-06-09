@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2570,6 +2570,21 @@ bool Query_block::add_item_to_list(Item *item) {
   return false;
 }
 
+/**
+  Add a grouping expression to the query block
+
+  @param thd   thread handle
+  @param item  grouping expression to be added
+
+  @returns false if success, true if error
+*/
+bool Query_block::add_grouping_expr(THD *thd, Item *item) {
+  ORDER *grouping = new (thd->mem_root) ORDER(item);
+  if (grouping == nullptr) return true;
+  group_list.link_in_list(grouping, &grouping->next);
+  return false;
+}
+
 bool Query_block::add_ftfunc_to_list(Item_func_match *func) {
   return !func || ftfunc_list->push_back(func);  // end of memory?
 }
@@ -2592,10 +2607,6 @@ bool Query_block::setup_base_ref_items(THD *thd) {
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num *= 2;
 
-  /*
-    We have to create array in prepared statement memory if it is
-    prepared statement
-  */
   Query_arena *arena = thd->stmt_arena;
   uint n_elems = n_sum_items + n_child_sum_items + fields.size() +
                  select_n_having_items + select_n_where_fields +
@@ -2617,14 +2628,13 @@ bool Query_block::setup_base_ref_items(THD *thd) {
     Note that cond_count cannot be used, as setup_cond() hasn't run yet. So we
     use select_n_where_fields instead.
   */
-  if (master_query_expression()->item &&
+  if (master_query_expression()->item != nullptr &&
       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
        (thd->lex->m_sql_cmd != nullptr &&
         thd->secondary_engine_optimization() ==
             Secondary_engine_optimization::SECONDARY))) {
     Item_subselect *subq_predicate = master_query_expression()->item;
-    if (subq_predicate->subquery_type() == Item_subselect::EXISTS_SUBQUERY ||
-        subq_predicate->subquery_type() == Item_subselect::IN_SUBQUERY) {
+    if (subq_predicate->subquery_type() != Item_subselect::SCALAR_SUBQUERY) {
       // might be transformed to derived table, so:
       n_elems +=
           // possible additions to SELECT list from decorrelation of WHERE
@@ -2650,7 +2660,7 @@ bool Query_block::setup_base_ref_items(THD *thd) {
      */
     if (base_ref_items.size() >= n_elems) return false;
   }
-  Item **array = static_cast<Item **>(arena->alloc(sizeof(Item *) * n_elems));
+  Item **array = pointer_cast<Item **>(arena->alloc(sizeof(Item *) * n_elems));
   if (array == nullptr) return true;
 
   base_ref_items = Ref_item_array(array, n_elems);
@@ -3753,6 +3763,7 @@ bool LEX::can_use_merged() {
     case SQLCOM_SHOW_KEYS:
     case SQLCOM_SHOW_STATUS_FUNC:
     case SQLCOM_SHOW_STATUS_PROC:
+    case SQLCOM_SHOW_STATUS_LIBRARY:
     case SQLCOM_SHOW_TABLES:
     case SQLCOM_SHOW_TABLE_STATUS:
     case SQLCOM_SHOW_TRIGGERS:
@@ -3917,7 +3928,7 @@ bool Query_expression::is_mergeable() const {
   Query_block *const select = first_query_block();
   return !select->is_grouped() && select->having_cond() == nullptr &&
          !select->is_distinct() && select->has_tables() &&
-         !select->has_limit() && !select->has_windows();
+         !select->has_limit() && !select->has_wfs();
 }
 
 /**

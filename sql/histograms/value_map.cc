@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@
 
 #include "sql/histograms/value_map.h"
 
-#include <assert.h>
 #include <algorithm>
+#include <cassert>
 #include <new>
 #include <string>  // std::string
 
@@ -64,8 +64,8 @@ bool Histogram_comparator::operator()(const String &lhs,
 template <>
 bool Histogram_comparator::operator()(const MYSQL_TIME &lhs,
                                       const MYSQL_TIME &rhs) const {
-  longlong lhs_packed = TIME_to_longlong_packed(lhs);
-  longlong rhs_packed = TIME_to_longlong_packed(rhs);
+  longlong const lhs_packed = TIME_to_longlong_packed(lhs);
+  longlong const rhs_packed = TIME_to_longlong_packed(rhs);
   return lhs_packed < rhs_packed;
 }
 
@@ -85,7 +85,7 @@ Value_map_base::Value_map_base(const CHARSET_INFO *charset,
 
 template <class T>
 bool Value_map_base::add_values(const T &value, const ha_rows count) {
-  Value_map<T> *value_map = down_cast<Value_map<T> *>(this);
+  auto *value_map = down_cast<Value_map<T> *>(this);
   return value_map->add_values(value, count);
 }
 
@@ -113,7 +113,7 @@ bool Value_map<String>::add_values(const String &value, const ha_rows count) {
     allocated in the MEM_ROOT of the Value_map, so that is is automatically
     reclaimed when the Value_map is destroyed.
   */
-  String substring = value.substr(0, HISTOGRAM_MAX_COMPARE_LENGTH);
+  String const substring = value.substr(0, HISTOGRAM_MAX_COMPARE_LENGTH);
   auto found = m_value_map.find(substring);
   if (found == m_value_map.end()) {
     // Not found, insert a new value.
@@ -121,7 +121,8 @@ bool Value_map<String>::add_values(const String &value, const ha_rows count) {
       char *string_data = substring.dup(&m_mem_root);
       if (string_data == nullptr) return true; /* purecov: deadcode */
 
-      String string_dup(string_data, substring.length(), substring.charset());
+      String const string_dup(string_data, substring.length(),
+                              substring.charset());
       m_value_map.emplace(string_dup, count);
     } catch (const std::bad_alloc &) {
       // Out of memory.

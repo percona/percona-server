@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -7574,11 +7574,11 @@ ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
 ER_SQL_MODE_MERGED
   eng "'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release."
 
-ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
+OBSOLETE_ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
   eng "Version token mismatch for %.*s. Correct value %.*s"
   bgn "Клеймото за версия %.*s не съвпада. Правилната стойност е %.*s"
 
-ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
+OBSOLETE_ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
   eng "Version token %.*s not found."
   bgn "Не е намерено клеймо за версия %.*s"
 
@@ -10550,6 +10550,15 @@ ER_INVALID_OUTER_REFERENCE
 
 ER_LIBRARIES_NOT_SUPPORTED
   eng "Libraries are not supported for %s."
+
+ER_LH_WARN_SUMMARY
+  eng "%s"
+
+ER_LH_WARN_INFER_USE_DEFAULT_DELIMITERS
+  eng "Feature Auto delimiter detection is skipped (%s)."
+
+ER_LIBRARY_INVALID
+        eng "The routine '%-.192s' references a missing library '%-.192s.%-.192s' or definer/invoker of the routine lack rights to use it."
 
 #
 #  End of 9.x error messages (server-to-client).

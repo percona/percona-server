@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "mysqlrouter/metadata_cache_export.h"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -77,7 +78,7 @@ inline const std::error_category &metadata_cache_category() noexcept {
         case metadata_errc::invalid_cluster_type:
           return "unexpected cluster type";
         case metadata_errc::outdated_view_id:
-          return "highier view_id seen";
+          return "higher view_id seen";
         case metadata_errc::schema_version_too_low:
           return "metadata schema version not supported";
         default:

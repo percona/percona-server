@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -896,6 +896,7 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
+<<<<<<< HEAD
 
 /**
   Interface to get the number of VCPUs.
@@ -918,6 +919,14 @@ typedef bool (*ssl_reload_callback_t)(void *);
 bool register_ssl_reload_callback(ssl_reload_callback_t);
 bool deregister_ssl_reload_callback(ssl_reload_callback_t);
 
+||||||| merged common ancestors
+
+/**
+  Interface to get the number of VCPUs.
+*/
+unsigned int thd_get_num_vcpus();
+=======
+>>>>>>> mysql-9.3.0
 #ifdef __cplusplus
 }
 #endif

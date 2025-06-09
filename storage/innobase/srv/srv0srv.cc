@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -87,6 +87,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "debug_sync.h" /* CONDITIONAL_SYNC_POINT */
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/components/library_mysys/my_system.h" /* my_num_vcpus */
 
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0srv.h"
@@ -162,10 +163,6 @@ uint32_t srv_rseg_init_threads = 1;
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
 char *srv_undo_dir = nullptr;
-
-/** The number of implicit undo tablespaces to use for rollback
-segments. */
-ulong srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
 
 #ifndef UNIV_HOTBACKUP
 /* The number of rollback segments per tablespace */
@@ -254,10 +251,6 @@ char *srv_log_group_home_dir = nullptr;
 
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
-
-ulong srv_log_n_files = 100; /* Deprecated (used only for deprecated sysvar). */
-
-ulonglong srv_log_file_size; /* Deprecated (used only for deprecated sysvar). */
 
 ulonglong srv_redo_log_capacity, srv_redo_log_capacity_used;
 
@@ -2353,15 +2346,7 @@ static void srv_update_cpu_usage() {
   srv_cpu_usage.stime_abs = cpu_stime;
 
   /* Calculate relative. */
-
-  cpu_set_t cs;
-  CPU_ZERO(&cs);
-  if (sched_getaffinity(0, sizeof(cs), &cs) != 0) {
-    return;
-  }
-
-  const int n_cpu = CPU_COUNT(&cs);
-
+  const int n_cpu = my_num_vcpus();
   srv_cpu_usage.n_cpu = n_cpu;
   MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));
 
@@ -2449,32 +2434,7 @@ static void srv_update_cpu_usage() {
   srv_cpu_usage.stime_abs = cpu_stime;
 
   /* Calculate relative. */
-
-  DWORD_PTR process_affinity_mask;
-  DWORD_PTR system_affinity_mask;
-  if (!GetProcessAffinityMask(GetCurrentProcess(), &process_affinity_mask,
-                              &system_affinity_mask)) {
-    return;
-  }
-
-  /* If the system has more than 64 processors and the current process
-     contains threads in multiple groups, GetProcessAffinityMask returns
-     zero for both affinity masks.
-  */
-  if ((process_affinity_mask == 0) && (system_affinity_mask == 0)) {
-    return;
-  }
-
-  int n_cpu = 0;
-  constexpr int MAX_CPU_N = 64;
-  uint64_t j = 1;
-  for (int i = 0; i < MAX_CPU_N; ++i) {
-    if (j & process_affinity_mask) {
-      ++n_cpu;
-    }
-    j = j << 1;
-  }
-
+  const int n_cpu = my_num_vcpus();
   srv_cpu_usage.n_cpu = n_cpu;
   MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));
 
@@ -2496,7 +2456,7 @@ static void srv_update_cpu_usage() {
   srv_cpu_usage.utime_abs = 0;
   srv_cpu_usage.stime_pct = 0;
   srv_cpu_usage.stime_abs = 0;
-  srv_cpu_usage.n_cpu = 1;
+  srv_cpu_usage.n_cpu = my_num_vcpus();
 }
 #endif
 

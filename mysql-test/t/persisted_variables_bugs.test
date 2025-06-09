@@ -110,6 +110,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
        @@global.max_join_size;
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # Restart server
 --source include/restart_mysqld.inc
@@ -124,6 +125,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
        @@global.max_join_size;
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 --echo # Cleanup
@@ -182,6 +184,7 @@ SET @@persist_only.binlog_cache_size= default,
     @@persist_only.enforce_gtid_consistency= default,
     @@persist_only.sql_mode= default;
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 --echo # Restart server
@@ -196,6 +199,7 @@ SELECT @@global.optimizer_switch;
 SELECT @@global.enforce_gtid_consistency;
 SELECT @@global.sql_mode;
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 --echo # Cleanup
@@ -209,6 +213,7 @@ SET PERSIST mandatory_roles= default;
 --echo # Restart server and check if server starts
 --source include/restart_mysqld.inc
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 # Cleanup
 RESET PERSIST;

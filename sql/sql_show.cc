@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1296,7 +1296,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   char buff[2048], orig_dbname[NAME_LEN];
   String buffer(buff, sizeof(buff), system_charset_info);
   Security_context *sctx = thd->security_context();
-  uint db_access;
+  Access_bitmask db_access;
   HA_CREATE_INFO create;
   bool schema_read_only{false};
   const uint create_options = create_info ? create_info->options : 0;
@@ -1597,7 +1597,9 @@ void append_identifier(const THD *thd, String *packet, const char *name,
     if (!to_length) to_length = 1;
     if (to_length == 1 && chr == static_cast<uchar>(quote_char))
       packet->append(&quote_char, 1, system_charset_info);
-    packet->append(to_name, to_length, system_charset_info);
+    packet->append(to_name,
+                   std::min(to_length, static_cast<size_t>(name_end - to_name)),
+                   system_charset_info);
   }
   packet->append(&quote_char, 1, system_charset_info);
 }
@@ -1683,6 +1685,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
 /**
   Print "DEFAULT" clause of a field into a string.
 
+
   @param thd               The THD to create the DEFAULT clause for.
   @param field             The field to generate the DEFAULT clause for.
   @param def_value         String to write the DEFAULT clause to to.
@@ -1690,122 +1693,149 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
                            false for not needed (value will became its
                            own field (with its own charset) in a table);
                            true for quote (as part of a SHOW CREATE statement).
+  @param[out] as_a_comment if not null, the function will set it to true when
+                           the default value is invalid, to signal that we
+                           should show it as a comment.
+                           Caller should initialize the value to 'false'.
   @return                  true if field has a DEFAULT value, false otherwise.
 */
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
-                                 bool quoted) {
+                                 bool quoted, bool *as_a_comment) {
   const enum enum_field_types field_type = field->type();
   const bool has_default = (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
                             !(field->auto_flags & Field::NEXT_NUMBER));
 
-  if (field->gcol_info) return false;
+  if (field->gcol_info || !has_default) return false;
 
   def_value->length(0);
-  if (has_default) {
-    if (field->has_insert_default_general_value_expression()) {
-      def_value->append("(");
-      char buffer[128];
-      String s(buffer, sizeof(buffer), system_charset_info);
-      field->m_default_val_expr->print_expr(thd, &s);
-      def_value->append(s);
-      def_value->append(")");
-    } else if (field->has_insert_default_datetime_value_expression()) {
-      /*
-        We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
-        standard.
-      */
-      def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
-      if (field->decimals() > 0)
-        def_value->append_parenthesized(field->decimals());
-      // Not null by default and not a BLOB
-    } else if (!field->is_null() && field_type != FIELD_TYPE_BLOB) {
-      char tmp[MAX_FIELD_WIDTH];
-      String type(tmp, sizeof(tmp), field->charset());
-      // Wrap bit values in b'...'
-      if (field_type == MYSQL_TYPE_BIT) {
-        const longlong dec = field->val_int();
-        char *ptr = longlong2str(dec, tmp + 2, 2);
-        const uint32 length = (uint32)(ptr - tmp);
-        tmp[0] = 'b';
-        tmp[1] = '\'';
-        tmp[length] = '\'';
-        type.length(length + 1);
-        quoted = false;
-      } else
-        field->val_str(&type);
 
-      if (type.length()) {
-        /*
-          value_only will contain only the default value itself,
-          while def_value will contain that, any quotation, escaping,
-          character-set designation, and so on.
-        */
-        String value_only;
+  if (field->has_insert_default_general_value_expression()) {
+    def_value->append("(");
+    char buffer[128];
+    String s(buffer, sizeof(buffer), system_charset_info);
+    field->m_default_val_expr->print_expr(thd, &s);
+    def_value->append(s);
+    def_value->append(")");
 
-        /* Try to convert to system_charset_info (UTF-8). */
-        /* Counter-intuitively, we do not receive an error if we can not
-           create valid UTF-8 with copy(), so we'll have to talk to the
-           lower level functions. */
-
-        const char *well_formed_error_pos;
-        const char *cannot_convert_error_pos;
-        const char *from_end_pos;
-        size_t to_len; /* destination size in bytes (not characters) */
-        size_t bytes_copied;
-
-        to_len = type.length() * system_charset_info->mbmaxlen;
-
-        value_only.reserve(to_len);
-
-        bytes_copied = well_formed_copy_nchars(
-            /* to    */ system_charset_info, value_only.ptr(), to_len,
-            /* from  */ field->charset(), type.ptr(), type.length(),
-            /* chars */ type.length(), &well_formed_error_pos,
-            &cannot_convert_error_pos, &from_end_pos);
-
-        // If conversion failed, hexify string.
-        if ((well_formed_error_pos != nullptr) ||
-            (cannot_convert_error_pos != nullptr)) {
-          unsigned char *p;
-          size_t l = type.length();
-          char
-              hex[3];  // 2 characters as we have 2 nibbles per byte, plus '\0'.
-
-          /*
-            Result length:
-            - 2 characters (for 2 nibbles) for each byte we hexify
-            - plus "0x"
-            - plus '\0'
-          */
-          def_value->reserve(l * 2 + 3);
-          def_value->append("0x");
-          p = (unsigned char *)type.ptr();
-          while (l--) {
-            snprintf(hex, sizeof(hex), "%02X", (int)(*(p++) & 0xff));
-            def_value->append(hex);
-          }
-        }
-
-        /*
-          Charset conversation succeeded or wasn't necessary.
-        */
-        else {
-          value_only.length(bytes_copied);
-
-          if (quoted)
-            append_unescaped(def_value, value_only.ptr(), value_only.length());
-          else
-            def_value->append(value_only.ptr(), value_only.length());
-        }
-
-      } else if (quoted)  // !type.length()
-        def_value->append(STRING_WITH_LEN("''"));
-    } else if (field->is_nullable() && quoted && field_type != FIELD_TYPE_BLOB)
-      def_value->append(STRING_WITH_LEN("NULL"));  // Null as default
-    else
-      return false;
+    return true;
   }
-  return has_default;
+  // BLOB-based columns cannot have a DEFAULT
+  if (field_type == MYSQL_TYPE_BLOB) return false;
+
+  if (field->has_insert_default_datetime_value_expression()) {
+    /*
+      We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
+      standard.
+    */
+    def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
+    if (field->decimals() > 0) {
+      def_value->append_parenthesized(field->decimals());
+    }
+    return true;
+  }
+
+  if (!field->is_null()) {
+    // Print the empty DEFAULT commented out to give the user a chance to fix
+    // it. JSON was  not supposed to have  any non-NULL DEFAULT in the first
+    // place. This check as well as the parameter as_a_comment should be
+    // removed when an error is raised  during CREATE TABLE.
+    if (field_type == MYSQL_TYPE_JSON) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_BLOB_CANT_HAVE_DEFAULT,
+          ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT), field->field_name);
+      if (as_a_comment != nullptr) *as_a_comment = true;
+    }
+    char tmp[MAX_FIELD_WIDTH];
+    String type(tmp, sizeof(tmp), field->charset());
+    // Wrap bit values in b'...'
+    if (field_type == MYSQL_TYPE_BIT) {
+      const longlong dec = field->val_int();
+      char *ptr = longlong2str(dec, tmp + 2, 2);
+      const uint32 length = (uint32)(ptr - tmp);
+      tmp[0] = 'b';
+      tmp[1] = '\'';
+      tmp[length] = '\'';
+      type.length(length + 1);
+      quoted = false;
+    } else {
+      field->val_str(&type);
+    }
+
+    if (type.length()) {
+      /*
+        value_only will contain only the default value itself,
+        while def_value will contain that, any quotation, escaping,
+        character-set designation, and so on.
+      */
+      String value_only;
+
+      /* Try to convert to system_charset_info (UTF-8). */
+      /* Counter-intuitively, we do not receive an error if we can not
+         create valid UTF-8 with copy(), so we'll have to talk to the
+         lower level functions. */
+
+      const char *well_formed_error_pos;
+      const char *cannot_convert_error_pos;
+      const char *from_end_pos;
+      size_t to_len; /* destination size in bytes (not characters) */
+      size_t bytes_copied;
+
+      to_len = type.length() * system_charset_info->mbmaxlen;
+
+      value_only.reserve(to_len);
+
+      bytes_copied = well_formed_copy_nchars(
+          /* to    */ system_charset_info, value_only.ptr(), to_len,
+          /* from  */ field->charset(), type.ptr(), type.length(),
+          /* chars */ type.length(), &well_formed_error_pos,
+          &cannot_convert_error_pos, &from_end_pos);
+
+      // If conversion failed, hexify string.
+      if ((well_formed_error_pos != nullptr) ||
+          (cannot_convert_error_pos != nullptr)) {
+        unsigned char *p;
+        size_t l = type.length();
+        char hex[3];  // 2 characters as we have 2 nibbles per byte, plus '\0'.
+
+        /*
+          Result length:
+          - 2 characters (for 2 nibbles) for each byte we hexify
+          - plus "0x"
+          - plus '\0'
+        */
+        def_value->reserve(l * 2 + 3);
+        def_value->append("0x");
+        p = (unsigned char *)type.ptr();
+        while (l--) {
+          snprintf(hex, sizeof(hex), "%02X", (int)(*(p++) & 0xff));
+          def_value->append(hex);
+        }
+      }
+
+      /*
+        Charset conversation succeeded or wasn't necessary.
+      */
+      else {
+        value_only.length(bytes_copied);
+
+        if (quoted)
+          append_unescaped(def_value, value_only.ptr(), value_only.length());
+        else
+          def_value->append(value_only.ptr(), value_only.length());
+      }
+
+    } else if (quoted) {  // !type.length()
+      def_value->append(STRING_WITH_LEN("''"));
+    }
+    return true;
+  }
+
+  if (field->is_nullable() && quoted) {
+    def_value->append(STRING_WITH_LEN("NULL"));  // Null as default
+    return true;
+  }
+
+  return false;
 }
 
 /*
@@ -2198,9 +2228,12 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
         break;
     }
 
-    if (print_default_clause(thd, field, &def_value, true)) {
+    bool as_a_comment{false};
+    if (print_default_clause(thd, field, &def_value, true, &as_a_comment)) {
+      if (as_a_comment) packet->append(STRING_WITH_LEN(" /* "));
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
+      if (as_a_comment) packet->append(STRING_WITH_LEN(" */ "));
     }
 
     if (print_on_update_clause(field, &def_value, false)) {
@@ -4741,7 +4774,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_DEFAULT
-    if (print_default_clause(thd, field, &type, false)) {
+    if (print_default_clause(thd, field, &type, false, nullptr)) {
       table->field[TMP_TABLE_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(),
                                                             type.length(), cs);
       table->field[TMP_TABLE_COLUMNS_COLUMN_DEFAULT]->set_notnull();
@@ -4775,7 +4808,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
       table->field[TMP_TABLE_COLUMNS_EXTRA]->store(STRING_WITH_LEN("NULL"), cs);
 
     // PRIVILEGES
-    uint col_access;
+    Access_bitmask col_access;
     check_access(thd, SELECT_ACL, db_name.str, &tables->grant.privilege,
                  nullptr, false, tables->schema_table != nullptr);
     col_access = get_column_grant(thd, &tables->grant, db_name.str,

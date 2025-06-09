@@ -1705,28 +1705,32 @@ WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 a	b
 2	20
-3	20
 2	30
+3	20
 EXPLAIN SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE (SELECT MIN(e) FROM t3 as tc
 WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 EXPLAIN
--> Hash semijoin (FirstMatch) (ta.a = tb.c)  (rows=1.71)
-    -> Filter: <nop>(<in_optimizer>((select #3),<exists>(select #4)))  (rows=7)
-        -> Table scan on ta  (rows=7)
-        -> Select #3 (subquery in condition; run only once)
-            -> Aggregate: min(tc.e)  (rows=1)
-                -> Table scan on tc  (rows=4)
-        -> Select #4 (subquery in condition; dependent)
-            -> Filter: ((ta.b = tc.e) and <if>(outer_field_is_not_null, (<cache>((select #3)) < tc.e), true))  (rows=0.4)
-                -> Table scan on tc  (rows=4)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Aggregate: min(tc.e)  (rows=1)
-                        -> Table scan on tc  (rows=4)
+-> Hash semijoin (FirstMatch) (ta.a = tb.c), (ta.b = derived_2_4.Name_exp_3)  (rows=0.14)
+    -> Table scan on ta  (rows=7)
     -> Hash
-        -> Table scan on tb  (rows=6)
+        -> Inner hash join (no condition)  (rows=4)
+            -> Table scan on tb  (rows=6)
+            -> Hash
+                -> Inner hash join (no condition), extra conditions: (derived_2_3.`MIN(e)` < derived_2_4.Name_exp_1)  (rows=0.667)
+                    -> Table scan on derived_2_4  (rows=2)
+                        -> Materialize  (rows=2)
+                            -> Filter: (coalesce(count(0),0) <> 0)  (rows=2)
+                                -> Group aggregate: max(tc.e), count(0)  (rows=2)
+                                    -> Sort: tc.e  (rows=4)
+                                        -> Table scan on tc  (rows=4)
+                    -> Hash
+                        -> Table scan on derived_2_3  (rows=1)
+                            -> Materialize  (rows=1)
+                                -> Aggregate: min(tc.e)  (rows=1)
+                                    -> Table scan on tc  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
@@ -3880,16 +3884,20 @@ EXPLAIN
 -> Left hash join (no condition)  (rows=1)
     -> Table scan on alias1  (rows=1)
     -> Hash
-        -> Left hash join (no condition), extra conditions: <cache>(<nop>((1 <= (select #3))))  (rows=1)
+        -> Left hash join (no condition)  (rows=1)
             -> Table scan on alias2  (rows=1)
             -> Hash
-                -> Table scan on t1  (rows=1)
-            -> Select #3 (subquery in extra conditions; run only once)
-                -> Aggregate: max(c_sq1_alias1.pk)  (rows=1)
-                    -> Inner hash join (no condition)  (rows=1)
-                        -> Table scan on c_sq1_alias1  (rows=1)
-                        -> Hash
-                            -> Table scan on c_sq1_alias2  (rows=1)
+                -> Inner hash join (no condition)  (rows=0.3)
+                    -> Table scan on t1  (rows=1)
+                    -> Hash
+                        -> Filter: ((1 <= derived_2_3.Name_exp_1) and (derived_2_3.Name_exp_2 <> 0))  (rows=0.3)
+                            -> Table scan on derived_2_3  (rows=1)
+                                -> Materialize  (rows=1)
+                                    -> Aggregate: max(c_sq1_alias1.pk), count(0)  (rows=1)
+                                        -> Inner hash join (no condition)  (rows=1)
+                                            -> Table scan on c_sq1_alias1  (rows=1)
+                                            -> Hash
+                                                -> Table scan on c_sq1_alias2  (rows=1)
 
 DROP TABLE t1;
 #
@@ -4814,10 +4822,10 @@ EXPLAIN
         -> Table scan on derived_1_4  (rows=1)
             -> Materialize  (rows=1)
                 -> Aggregate: avg(table2.col_int)  (rows=1)
-                    -> Inner hash join (no condition)  (rows=8.43)
+                    -> Inner hash join (no condition)  (rows=16.2)
                         -> Table scan on table2  (rows=20)
                         -> Hash
-                            -> Filter: ((table1.col_varchar_key = table1.col_varchar_key) and ((((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key)) and (table1.pk = 1)) or (table1.col_varchar_key < 'O')))  (rows=0.422)
+                            -> Filter: ((table1.col_varchar_key = table1.col_varchar_key) and ((((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key)) and (table1.pk = 1)) or (table1.col_varchar_key < 'O')))  (rows=0.812)
                                 -> Table scan on table1  (rows=20)
         -> Hash
             -> Table scan on derived_1_5  (rows=1)
@@ -5386,9 +5394,9 @@ EXPLAIN
 -> Nested loop inner join (FirstMatch)  (rows=0.333)
     -> Limit: 1 row(s)  (rows=1)
         -> Inner hash join (sq2_alias2.col_int = sq2_alias1.pk)  (rows=1)
-            -> Table scan on sq2_alias1  (rows=1)
+            -> Table scan on sq2_alias2  (rows=1)
             -> Hash
-                -> Table scan on sq2_alias2  (rows=1)
+                -> Table scan on sq2_alias1  (rows=1)
     -> Inner hash join (no condition)  (rows=0.333)
         -> Inner hash join (no condition)  (rows=1)
             -> Table scan on alias1  (rows=1)

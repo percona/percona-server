@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,26 @@ void DestinationNodesStateNotifier::register_md_refresh_callback(
 void DestinationNodesStateNotifier::unregister_md_refresh_callback() {
   std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
   md_refresh_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_query_quarantined_destinations(
+    const QueryQuarantinedDestinationsCallback &callback) {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::
+    unregister_query_quarantined_destinations() {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = nullptr;
+}
+
+bool DestinationNodesStateNotifier::is_dynamic() { return false; }
+
+std::string DestinationNodesStateNotifier::get_dynamic_plugin_name() {
+  return {};
 }
 
 mysqlrouter::ServerMode Destination::server_mode() const {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -3264,9 +3264,13 @@ TEST_F(RoutingSplittingTest,
   }
 }
 
-class RouterBootstrapTest : public RouterComponentBootstrapTest {};
+class RouterBootstrapTest : public RouterComponentBootstrapTest,
+                            public ::testing::WithParamInterface<bool> {
+ public:
+  RouterBootstrapTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
 
-TEST_F(RouterBootstrapTest, default_has_rw_split) {
+TEST_P(RouterBootstrapTest, default_has_rw_split) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR18.1");
   RecordProperty("Requirement",
@@ -3294,7 +3298,7 @@ TEST_F(RouterBootstrapTest, default_has_rw_split) {
               ::testing::HasSubstr("[routing:bootstrap_rw_split]"));
 }
 
-TEST_F(RouterBootstrapTest, disable_rw_split) {
+TEST_P(RouterBootstrapTest, disable_rw_split) {
   RecordProperty("Worklog", "12794");
   RecordProperty("RequirementId", "FR18.2");
   RecordProperty("Requirement",
@@ -3325,6 +3329,9 @@ TEST_F(RouterBootstrapTest, disable_rw_split) {
       config_file_str,
       ::testing::Not(::testing::HasSubstr("[routing:bootstrap_rw_split]")));
 }
+
+INSTANTIATE_TEST_SUITE_P(InstantiationOldNewExe, RouterBootstrapTest,
+                         testing::Values(false, true));
 
 // fail-to-start.
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ dd::String_type Ndb_metadata::partition_expression() const {
   dd::String_type expr;
   if (m_ndbtab->getFragmentType() == NdbDictionary::Table::HashMapPartition &&
       m_ndbtab->getDefaultNoPartitionsFlag() &&
-      m_ndbtab->getFragmentCount() == 0 && m_ndbtab->getLinearFlag() == false) {
+      m_ndbtab->getFragmentCount() == 0 && !m_ndbtab->getLinearFlag()) {
     // Default partitioning
     return expr;
   }
@@ -598,7 +598,7 @@ bool Ndb_metadata::create_table_def(Ndb *ndb, dd::Table *table_def) const {
   table_def->set_engine("ndbcluster");
 
   // row_format
-  if (m_ndbtab->getForceVarPart() == false) {
+  if (!m_ndbtab->getForceVarPart()) {
     table_def->set_row_format(dd::Table::RF_FIXED);
   } else {
     table_def->set_row_format(dd::Table::RF_DYNAMIC);
@@ -745,7 +745,8 @@ class Compare_context {
 
  private:
   std::vector<std::string> diffs;
-  void add_diff(const char *property, std::string a, std::string b) {
+  void add_diff(const char *property, const std::string &a,
+                const std::string &b) {
     std::string diff;
     diff.append("Diff in '")
         .append(property)
@@ -758,7 +759,7 @@ class Compare_context {
   }
 
   void add_diff(object_type type, const char *name, const char *property,
-                std::string a, std::string b) {
+                const std::string &a, const std::string &b) {
     std::string object_type_string;
     switch (type) {
       case COLUMN:
@@ -789,7 +790,8 @@ class Compare_context {
   }
 
  public:
-  void compare(const char *property, dd::String_type a, dd::String_type b) {
+  void compare(const char *property, const dd::String_type &a,
+               const dd::String_type &b) {
     if (a == b) return;
     add_diff(property, a.c_str(), b.c_str());
   }
@@ -801,7 +803,7 @@ class Compare_context {
   }
 
   void compare(object_type type, const char *name, const char *property,
-               dd::String_type a, dd::String_type b) {
+               const dd::String_type &a, const dd::String_type &b) {
     if (a == b) return;
     add_diff(type, name, property, a.c_str(), b.c_str());
   }
@@ -813,7 +815,7 @@ class Compare_context {
   }
 
   bool equal() {
-    if (diffs.size() == 0) return true;
+    if (diffs.empty()) return true;
 
     // Print the list of diffs
     ndb_log_error("Metadata check has failed");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,8 +64,8 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
-#include <stdint.h>
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
 
 #include "my_config.h"
 #include "my_inttypes.h"
@@ -76,7 +76,7 @@
 
 #if defined(TIME_WITH_SYS_TIME)
 #include <sys/time.h>
-#include <time.h> /* for clock_gettime */
+#include <ctime> /* for clock_gettime */
 #endif
 
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
@@ -95,7 +95,7 @@
   gethrtime which is okay for solaris.
 */
 
-ulonglong my_timer_cycles(void) {
+ulonglong my_timer_cycles() {
 #if defined(__GNUC__) && defined(__i386__)
   /* This works much better if compiled with "gcc -O3". */
   ulonglong result;
@@ -191,7 +191,7 @@ ulonglong my_timer_cycles(void) {
   (b) really has nanosecond resolution.
 */
 
-ulonglong my_timer_nanoseconds(void) {
+ulonglong my_timer_nanoseconds() {
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* SunOS 5.10+, Solaris, HP-UX: hrtime_t gethrtime(void) */
   return (ulonglong)gethrtime();
@@ -223,7 +223,7 @@ ulonglong my_timer_nanoseconds(void) {
   the frequency is same as the cycle frequency.)
 */
 
-ulonglong my_timer_microseconds(void) {
+ulonglong my_timer_microseconds() {
 #if defined(HAVE_GETTIMEOFDAY)
   {
     struct timeval tv;
@@ -262,7 +262,7 @@ ulonglong my_timer_microseconds(void) {
   GetSystemTimeAsFileTime.
 */
 
-ulonglong my_timer_milliseconds(void) {
+ulonglong my_timer_milliseconds() {
 #if defined(HAVE_GETTIMEOFDAY)
   {
     struct timeval tv;
@@ -299,7 +299,7 @@ ulonglong my_timer_milliseconds(void) {
   bad, sometimes even worse than gettimeofday's overhead.
 */
 
-ulonglong my_timer_ticks(void) {
+ulonglong my_timer_ticks() {
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
   {
     struct tms times_buf;
@@ -316,7 +316,7 @@ ulonglong my_timer_ticks(void) {
   THREAD_CPU timer.
   Expressed in nanoseconds.
 */
-ulonglong my_timer_thread_cpu(void) {
+ulonglong my_timer_thread_cpu() {
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_THREAD_CPUTIME_ID)
   {
     struct timespec tp;
@@ -371,8 +371,8 @@ ulonglong my_timer_thread_cpu(void) {
 */
 
 static void my_timer_init_overhead(ulonglong *overhead,
-                                   ulonglong (*cycle_timer)(void),
-                                   ulonglong (*this_timer)(void),
+                                   ulonglong (*cycle_timer)(),
+                                   ulonglong (*this_timer)(),
                                    ulonglong best_timer_overhead) {
   ulonglong time1, time2;
   int i;
@@ -401,7 +401,7 @@ static void my_timer_init_overhead(ulonglong *overhead,
   Often GetTickCount() has resolution = 15.
   We don't check with ticks because they take too long.
 */
-static ulonglong my_timer_init_resolution(ulonglong (*this_timer)(void),
+static ulonglong my_timer_init_resolution(ulonglong (*this_timer)(),
                                           ulonglong overhead_times_2) {
   ulonglong time1, time2;
   ulonglong best_jump;
@@ -475,7 +475,7 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti) {
 */
 
 void my_timer_init(MY_TIMER_INFO *mti) {
-  ulonglong (*best_timer)(void);
+  ulonglong (*best_timer)();
   ulonglong best_timer_overhead;
 
   /* cycles */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -552,7 +552,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
        [](const JsonValue *value) {
          ASSERT_NE(value, nullptr);
          ASSERT_TRUE(value->IsString());
-         ASSERT_STREQ(value->GetString(), "1.0");
+         ASSERT_STREQ(value->GetString(), "1.1");
        }}},
      kRoutingSwaggerPaths},
     {"routing_guidelines_schema_keywords",

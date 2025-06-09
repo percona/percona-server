@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -912,11 +912,10 @@ GRClusterMetadata::fetch_cluster_topology(
 
         MySQLSession::Transaction transaction(metadata_connection_.get());
 
-        if (!is_server_version_supported(metadata_connection_.get())) {
-          log_warning("%s - skipping", get_unsupported_server_version_msg(
-                                           metadata_connection_.get())
-                                           .c_str());
-          continue;
+        if (!is_server_version_compatible(metadata_connection_.get())) {
+          log_warning("%s", get_incompatible_server_version_msg(
+                                metadata_connection_.get())
+                                .c_str());
         }
 
         // throws metadata_cache::metadata_error and

@@ -1,16 +1,18 @@
 /*
- * Copyright (c) 2024 Oracle and/or its affiliates.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
  * as published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
- * but not limited to OpenSSL) that is licensed under separate terms, as
- * designated in a particular file or component or in included license
+ * This program is designed to work with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
- * separately licensed software that they have included with MySQL.
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
+ *
  * This program is distributed in the hope that it will be useful,  but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
@@ -223,6 +225,16 @@ std::string::size_type span_quote(const std::string &buf,
   throw std::runtime_error(std::string("unclosed ") + quote);
 }
 
+std::string::size_type span_brace(const std::string &buf,
+                                  std::string::size_type offset) {
+  char delim = buf[offset];
+  char needle = delim == '{' ? '}' : ']';
+  for (size_t i = offset + 1; i < buf.length(); i++) {
+    if (buf[i] == needle) return i + 1;
+  }
+  throw std::runtime_error(std::string("unclosed ") + delim);
+}
+
 }  // namespace
 
 static const std::unordered_map<std::string_view, int> keywords = {
@@ -231,7 +243,7 @@ static const std::unordered_map<std::string_view, int> keywords = {
 
 int yylex(union YYSTYPE *lvalp, YYLTYPE *llocp,
           routing_guidelines::Rules_parser *rp) {
-  const auto &buf = *rp->buf_;
+  auto &buf = rp->buf_;
   auto &i = rp->pos_;
   auto loc = Location(llocp);
   bool complex_id = false;
@@ -295,11 +307,34 @@ int yylex(union YYSTYPE *lvalp, YYLTYPE *llocp,
         case '\'':
         case '"': {
           auto cb = span_quote(buf, i - 1);
-          lvalp->str = {buf.c_str() + i, cb - i - 1};
+
+          if (rp->context_->parse_tags_toggled()) {
+            // be sure that the internal delimiter is always \"
+            buf[i - 1] = '\"';
+            buf[cb - 1] = '\"';
+            // String tags should also contain delimiter
+            lvalp->str = {buf.c_str() + i - 1, cb - i + 1};
+          } else {
+            lvalp->str = {buf.c_str() + i, cb - i - 1};
+          }
           i = cb;
           loc += lvalp->str.length() + 1;
           return T_STRING;
         }
+
+        case '{':
+        case '[':
+          if (rp->context_->parse_tags_toggled()) {
+            auto cb = span_brace(buf, i - 1);
+            lvalp->str = {buf.c_str() + i - 1, cb - i + 1};
+            i = cb;
+            loc += lvalp->str.length() + 1;
+            return T_STRING;
+          } else {
+            loc -= 1;
+            throw std::runtime_error(std::string("unexpected character: '") +
+                                     buf[i - 1] + "'");
+          }
 
         default:
           auto c = buf[i - 1];
@@ -310,6 +345,12 @@ int yylex(union YYSTYPE *lvalp, YYLTYPE *llocp,
             double num = 0;
             i = span_num(buf, i - 1, &num);
             loc += i - start;
+
+            if (rp->context_->parse_tags_toggled()) {
+              lvalp->str = {buf.c_str() + start - 1, i - start + 1};
+              return T_STRING;
+            }
+
             lvalp->num = num;
             return T_NUMBER;
           }
@@ -322,7 +363,10 @@ int yylex(union YYSTYPE *lvalp, YYLTYPE *llocp,
             if (!complex_id) {
               auto upid = routing_guidelines::str_upper(sw);
               auto kw = keywords.find(upid);
-              if (kw != keywords.end()) return kw->second;
+              if (kw != keywords.end()) {
+                return rp->context_->parse_tags_toggled() ? T_STRING
+                                                          : kw->second;
+              }
 
               const auto func = routing_guidelines::get_function_def(upid);
               if (func != nullptr) {
@@ -358,17 +402,16 @@ void yyerror(YYLTYPE *llocp, routing_guidelines::Rules_parser *rp,
     rp->error_ += ", ";
   }
   rp->error_ += routing_guidelines::rpn::error_msg(
-      msg, *rp->buf_, llocp->first_column, llocp->last_column);
+      msg, rp->buf_, llocp->first_column, llocp->last_column);
 }
 
 namespace routing_guidelines {
 
-rpn::Expression Rules_parser::parse(const std::string &buf,
-                                    rpn::Context *context) {
+rpn::Expression Rules_parser::parse(std::string buf, rpn::Context *context) {
   const auto scope_guard = context->start_parse_mode();
   rpn_.clear();
   error_.clear();
-  buf_ = &buf;
+  buf_ = std::move(buf);
   pos_ = 0;
   context_ = context;
   if (yyparse(this)) {
@@ -380,7 +423,7 @@ rpn::Expression Rules_parser::parse(const std::string &buf,
     for (const auto &tok : rpn_) msg += to_string(tok, true) + " ";
     tracer_(msg);
   }
-  return rpn::Expression(std::move(rpn_), buf);
+  return rpn::Expression(std::move(rpn_), std::move(buf_));
 }
 
 void Rules_parser::emit(rpn::Token::Type type, const YYLTYPE &loc) {
@@ -692,6 +735,11 @@ bool Rules_parser::emit_reference(std::string_view name, YYLTYPE *llocp,
     if (offset >= 0) {
       emit_num(offset, rpn::Token::Type::VAR_REF);
     } else {
+      if (context_->get_version() > mysqlrouter::kBaseRoutingGuidelines &&
+          (name.starts_with("router.tags") ||
+           name.starts_with("server.tags"))) {
+        context_->parsing_tags_ = true;
+      }
       emit_string(name, rpn::Token::Type::TAG_REF);
     }
     return true;

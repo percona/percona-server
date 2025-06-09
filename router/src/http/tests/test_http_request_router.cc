@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,23 +51,27 @@ class MockRequestHandler : public http::base::RequestHandler {
 class HttpRequestRouterTest : public ::testing::Test {
  public:
   void SetUp() override {
-    rtr_.append("substr", std::make_unique<MockRequestHandler>(
-                              [&](http::base::Request &req [[maybe_unused]]) {
-                                substr_is_matched_ = true;
-                              }));
-    rtr_.append("^/prefix", std::make_unique<MockRequestHandler>(
-                                [&](http::base::Request &req [[maybe_unused]]) {
-                                  prefix_is_matched_ = true;
-                                }));
-    rtr_.append("/suffix$", std::make_unique<MockRequestHandler>(
-                                [&](http::base::Request &req [[maybe_unused]]) {
-                                  suffix_is_matched_ = true;
-                                }));
-    rtr_.append("^/exact$", std::make_unique<MockRequestHandler>(
-                                [&](http::base::Request &req [[maybe_unused]]) {
-                                  exact_is_matched_ = true;
-                                }));
-    rtr_.append("^/r[eE]gex$",
+    rtr_.append("", "substr",
+                std::make_unique<MockRequestHandler>(
+                    [&](http::base::Request &req [[maybe_unused]]) {
+                      substr_is_matched_ = true;
+                    }));
+    rtr_.append("", "^/prefix",
+                std::make_unique<MockRequestHandler>(
+                    [&](http::base::Request &req [[maybe_unused]]) {
+                      prefix_is_matched_ = true;
+                    }));
+    rtr_.append("", "/suffix$",
+                std::make_unique<MockRequestHandler>(
+                    [&](http::base::Request &req [[maybe_unused]]) {
+                      suffix_is_matched_ = true;
+                    }));
+    rtr_.append("", "^/exact$",
+                std::make_unique<MockRequestHandler>(
+                    [&](http::base::Request &req [[maybe_unused]]) {
+                      exact_is_matched_ = true;
+                    }));
+    rtr_.append("", "^/r[eE]gex$",
                 std::make_unique<MockRequestHandler>(
                     [&](http::base::Request &req [[maybe_unused]]) {
                       regex_is_matched_ = true;

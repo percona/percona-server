@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -668,10 +668,6 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   /* The first 2 undo space numbers must be implicit. */
   bool is_default = (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES);
 
-  /* v8.0.12 used innodb_undo_tablespaces to implicitly create undo
-  spaces so there may be more than 2 implicit undo tablespaces.  They
-  must match the default undo filename and must be found in
-  srv_undo_directory. */
   undo::Tablespace undo_space(space_id);
   if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     if (is_default) {

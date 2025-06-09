@@ -66,7 +66,6 @@ SET GLOBAL replica_parallel_workers = 3;
 
 # switched to slave connection
 --source include/have_replica_parallel_type_logical_clock.inc
---source include/have_replica_parallel_workers.inc
 
 --echo #
 --echo # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues

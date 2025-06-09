@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,18 +21,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <errno.h>
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <sstream>
 #include <string>
 
 #ifndef XCOM_STANDALONE
 #include <fcntl.h>
-#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 
 #include "my_dir.h"
 #include "my_io.h"
@@ -69,7 +69,7 @@ Sink_interface *Gcs_async_buffer::get_sink() const { return m_sink; }
 
 enum_gcs_error Gcs_async_buffer::initialize() {
   int ret_thread;
-  enum_gcs_error ret_sink = m_sink->initialize();
+  enum_gcs_error const ret_sink = m_sink->initialize();
 
   if (ret_sink == GCS_NOK) {
     /* purecov: begin deadcode */
@@ -194,7 +194,7 @@ inline void Gcs_async_buffer::produce_events(const char *message,
                                              size_t message_size) {
   Gcs_log_event &entry = get_entry();
   char *buffer = entry.get_buffer();
-  size_t size = std::min(entry.get_max_buffer_size(), message_size);
+  size_t const size = std::min(entry.get_max_buffer_size(), message_size);
   strncpy(buffer, message, size);
   entry.set_buffer_size(size);
   notify_entry(entry);
@@ -232,7 +232,7 @@ void Gcs_async_buffer::consume_events() {
       */
       m_free_buffer_mutex->unlock();
       int64_t to_read, read;
-      int64_t max_entries = (m_buffer_size / 25);
+      int64_t const max_entries = (m_buffer_size / 25);
       assert(number_entries != 0);
       if (number_entries > max_entries && max_entries != 0)
         /* purecov: begin deadcode */
@@ -258,7 +258,7 @@ void Gcs_async_buffer::consume_events() {
 }
 
 void *consumer_function(void *ptr) {
-  Gcs_async_buffer *l = static_cast<Gcs_async_buffer *>(ptr);
+  auto *l = static_cast<Gcs_async_buffer *>(ptr);
   l->consume_events();
 
   My_xp_thread_util::exit(nullptr);
@@ -266,7 +266,7 @@ void *consumer_function(void *ptr) {
   return nullptr;
 }
 
-const std::string Gcs_async_buffer::get_information() const {
+std::string Gcs_async_buffer::get_information() const {
   std::stringstream ss;
 
   ss << "asynchronous:"
@@ -351,7 +351,7 @@ Gcs_file_sink::Gcs_file_sink(const std::string &file_name,
       m_initialized(false) {}
 
 enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const {
-  unsigned int flags = MY_REPLACE_DIR | MY_REPLACE_EXT | MY_SAFE_PATH;
+  unsigned int const flags = MY_REPLACE_DIR | MY_REPLACE_EXT | MY_SAFE_PATH;
 
   /*
     Absolute paths or references to the home directory are not allowed.

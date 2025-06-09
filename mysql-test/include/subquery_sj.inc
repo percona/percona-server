@@ -2,6 +2,7 @@
 # Nested Loops semi-join subquery evaluation tests
 #
 --source include/elide_costs.inc
+--source include/hypergraph_is_active.inc
 
 # This portion of the file vas developed when subquery materialization
 # was rule-based; to preserve the intended test scenarios, we switch
@@ -4351,12 +4352,12 @@ WHERE col_varchar_10_latin1_key IN (
     WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 ANALYZE TABLE t1, t2, t3;
 eval EXPLAIN $query;
-if ($HYPERGRAPH_TEST) {
+if ($hypergraph_is_active) {
   # Different warnings with hypergraph than with old optimizer.
   --disable_warnings
 }
 eval $query;
-if ($HYPERGRAPH_TEST) {
+if ($hypergraph_is_active) {
   --enable_warnings
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@
 #include "sql/events.h"          // Events::reconstruct_interval_expression
 #include "sql/filesort.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"                             // binary_keyword etc
+#include "sql/mysqld.h"
 #include "sql/parse_tree_node_base.h"               // Parse_context
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
@@ -2767,7 +2767,8 @@ String *Item_func_rpad::val_str(String *str) {
     tmp_value.length(res_charpos);  // Shorten result if longer
     return &tmp_value;
   }
-  const size_t pad_char_length = pad->numchars();
+  const size_t pad_char_length =
+      std::max(pad->numchars(), static_cast<size_t>(1));
   const size_t pad_byte_length = pad->length();
 
   remainder_char_length -= res_char_length;
@@ -2779,7 +2780,6 @@ String *Item_func_rpad::val_str(String *str) {
   if (target_byte_size > current_thd->variables.max_allowed_packet) {
     return push_packet_overflow_warning(current_thd, func_name());
   }
-  if (pad_char_length == 0) return make_empty_result();
   /*
     alloc_buffer() doesn't modify 'res' because 'res' is guaranteed too short
     at this stage.
@@ -2975,7 +2975,8 @@ String *Item_func_lpad::val_str(String *str) {
     return &tmp_value;
   }
 
-  const size_t pad_char_length = pad->numchars();
+  const size_t pad_char_length =
+      std::max(pad->numchars(), static_cast<size_t>(1));
 
   remainder_char_length -= res_char_length;
 
@@ -2987,7 +2988,6 @@ String *Item_func_lpad::val_str(String *str) {
     return push_packet_overflow_warning(current_thd, func_name());
   }
 
-  if (pad_char_length == 0) return make_empty_result();
   if (str->alloc(target_byte_size)) {
     my_error(ER_DA_OOM, MYF(0));
     return error_str();
@@ -3124,23 +3124,12 @@ String *Item_func_set_collation::val_str(String *str) {
 
 bool Item_func_set_collation::resolve_type(THD *thd) {
   if (reject_vector_args()) return true;
-  CHARSET_INFO *set_collation;
   String tmp;
   assert(args[1]->basic_const_item());
   String *str = args[1]->val_str(&tmp);
-  const char *colname = str->c_ptr();
-  if (colname == binary_keyword) {
-    set_collation = get_charset_by_csname(args[0]->collation.collation->csname,
-                                          MY_CS_BINSORT, MYF(0));
-    if (set_collation == nullptr) {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), colname,
-               args[0]->collation.collation->csname);
-      return true;
-    }
-  } else {
-    set_collation = mysqld_collation_get_by_name(colname);
-    if (set_collation == nullptr) return true;
-  }
+  const char *collation_name = str->c_ptr();
+  CHARSET_INFO *set_collation = mysqld_collation_get_by_name(collation_name);
+  if (set_collation == nullptr) return true;
 
   if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
       args[0]->propagate_type(
@@ -3150,7 +3139,7 @@ bool Item_func_set_collation::resolve_type(THD *thd) {
 
   if (!my_charset_same(args[0]->collation.collation, set_collation) &&
       args[0]->collation.derivation != DERIVATION_NUMERIC) {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), colname,
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), set_collation->m_coll_name,
              args[0]->collation.collation->csname);
     return true;
   }
@@ -4491,7 +4480,7 @@ String *Item_func_get_dd_column_privileges::val_str(String *str) {
                                       table_name_ptr->c_ptr_safe());
 
       // Get column grants
-      uint col_access;
+      Access_bitmask col_access;
       col_access =
           get_column_grant(thd, &grant_info, schema_name_ptr->c_ptr_safe(),
                            table_name_ptr->c_ptr_safe(),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <openssl/kdf.h>
 #endif
 
-#include <assert.h>
+#include <cassert>
 #include <cstring>
 #include <memory>
 
@@ -48,13 +48,19 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
                    unsigned char *rkey, unsigned int rkey_size,
                    std::vector<std::string> *kdf_options) {
   assert(kdf_options != nullptr);
-  int nkdf_options = kdf_options->size();
+  int const nkdf_options = kdf_options->size();
   assert(nkdf_options > 0);
   if (nkdf_options < 1) {
     return 1;
   }
 
+<<<<<<< HEAD
   std::string kdf_name = (*kdf_options)[0];
+||||||| merged common ancestors
+  string kdf_name = (*kdf_options)[0];
+=======
+  string const kdf_name = (*kdf_options)[0];
+>>>>>>> mysql-9.3.0
   std::unique_ptr<Key_derivation_function> kdf_function;
 
   if (kdf_name == "hkdf") {
@@ -83,7 +89,7 @@ Key_hkdf_function::Key_hkdf_function(std::vector<std::string> *kdf_options) {
   1 error
 */
 int Key_hkdf_function::validate_options() {
-  int nkdf_options = kdf_options_->size();
+  int const nkdf_options = kdf_options_->size();
   if (nkdf_options > 1) {
     salt_ = (*kdf_options_)[1];
   }
@@ -160,14 +166,20 @@ Key_pbkdf2_hmac_function::Key_pbkdf2_hmac_function(
   1 error
 */
 int Key_pbkdf2_hmac_function::validate_options() {
-  int nkdf_options = kdf_options_->size();
+  int const nkdf_options = kdf_options_->size();
   iterations_ = {min_kdf_iterations_size};
 
   if (nkdf_options > 1) {
     salt_ = (*kdf_options_)[1];
   }
   if (nkdf_options > 2) {
+<<<<<<< HEAD
     std::string sIterations = (*kdf_options_)[2];
+||||||| merged common ancestors
+    string sIterations = (*kdf_options_)[2];
+=======
+    string const sIterations = (*kdf_options_)[2];
+>>>>>>> mysql-9.3.0
     iterations_ = atoi(sIterations.c_str());
   }
   if (iterations_ < min_kdf_iterations_size ||

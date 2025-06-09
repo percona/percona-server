@@ -191,7 +191,7 @@ SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 --echo # This is because the collation of the column is different. On trunk,
 --echo # it is utf8_general_ci. With the global DD, it is the collation of the
 --echo # underlying column, which depends on l_c_t_n. For l_c_t_n == 0, this
---echo # is utf8_bin.
+--echo # is utf8mb3_bin.
 
 
 --echo #########################################################
@@ -199,7 +199,7 @@ SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 --echo #                        collate like mysql.tables.name.
 --echo #########################################################
 
---echo # lctn=0 will have table_name as utf8_bin, so we do not match
+--echo # lctn=0 will have table_name as utf8mb3_bin, so we do not match
 --echo # capital information_schema name.
 SELECT COUNT(*)+IF(@@lower_case_table_names=0, 1, 0) FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA' AND

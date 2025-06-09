@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ double my_rnd_ssl(bool *failed) {
   if (my_rand_buffer((unsigned char *)&res, sizeof(res))) {
     *failed = true;
     return 0;
-  } else
-    *failed = false;
+  }
+  *failed = false;
   return (double)res / (double)UINT_MAX;
 }

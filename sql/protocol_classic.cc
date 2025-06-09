@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -717,8 +717,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   </table>
 
   These rules distinguish whether the packet represents OK or EOF:
-  - OK: header = 0 and length of packet > 7
-  - EOF: header = 0xfe and length of packet < 9
+  - OK: header = 0 and length of packet >= 7
+  - EOF: header = 0xfe and length of packet < 8
 
   To ensure backward compatibility between old (prior to 5.7.5) and
   new (5.7.5 and up) versions of MySQL, new clients advertise
@@ -1506,7 +1506,7 @@ int Protocol_classic::read_packet() {
   <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>param_type_and_flag</td>
-      <td>Parameter type (2 bytes). The MSB is reserved for unsigned flag</td></tr>
+      <td>Parameter type (2 bytes). The MSB is reserved for unsigned flag. See @ref enum_field_types </td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
     <td>parameter name</td>
     <td>String</td></tr>
@@ -1952,7 +1952,7 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>reserved_1</td>
       <td>[00] filler</td></tr>
-  <tr><td colspan="3">if (packet_lenght > 12) {</td></tr>
+  <tr><td colspan="3">if (packet_lenght >= 12) {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>warning_count</td>
       <td>Number of warnings</td></tr>
@@ -1998,13 +1998,13 @@ int Protocol_classic::read_packet() {
   @par Example
   for a prepared query like  SELECT CONCAT(?, ?) AS col1 and no ::CLIENT_OPTIONAL_RESULTSET_METADATA
   ~~~~~~~~~~~
-  0c 00 00 01 00 01 00 00    00 01 00 02 00 00 00 00|   ................
+  0c 00 00 01 00 01 00 00    00 01 00 02 00 00 00 00    ................
   17 00 00 02 03 64 65 66    00 00 00 01 3f 00 0c 3f    .....def....?..?
-  00 00 00 00 00 fd 80 00    00 00 00|17 00 00 03 03    ................
+  00 00 00 00 00 fd 80 00    00 00 00 17 00 00 03 03    ................
   64 65 66 00 00 00 01 3f    00 0c 3f 00 00 00 00 00    def....?..?.....
-  fd 80 00 00 00 00|05 00    00 04 fe 00 00 02 00|1a    ................
+  fd 80 00 00 00 00 05 00    00 04 fe 00 00 02 00 1a    ................
   00 00 05 03 64 65 66 00    00 00 04 63 6f 6c 31 00    ....def....col1.
-  0c 3f 00 00 00 00 00 fd    80 00 1f 00 00|05 00 00    .?..............
+  0c 3f 00 00 00 00 00 fd    80 00 1f 00 00 05 00 00    .?..............
   06 fe 00 00 02 00                                     ...
   ~~~~~~~~~~~
 
@@ -2115,7 +2115,7 @@ int Protocol_classic::read_packet() {
   <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>parameter_type</td>
-    <td>Type of the parameter value. See ::enum_field_type</td></tr>
+    <td>Type of the parameter value. See ::enum_field_types. The MSB is reserved for unsigned flag.</td></tr>
   <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>parameter_name</td>
@@ -3084,7 +3084,7 @@ bool Protocol_classic::end_result_metadata() {
       <td>maximum length of the field</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>type</td>
-      <td>type of the column as defined in ::enum_field_types</td></tr>
+      <td>type of the column as defined in @ref enum_field_types</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;2&gt;"</td>
       <td>flags</td>
       <td>Flags as defined in @ref group_cs_column_definition_flags</td></tr>
@@ -3096,6 +3096,14 @@ bool Protocol_classic::end_result_metadata() {
         <li>0x1f for dynamic strings, double, float</li>
         <li>0x00 to 0x51 for decimals</li>
         </ul></td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[2]"</td>
+      <td>reserved</td>
+      <td>reserved for future use.</td></tr>
+  <tr><td colspan="3">if command was COM_FIELD_LIST {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>default value</td>
+      <td>NULL if 0xFB</td></tr>
+  <tr><td colspan="3">}</td></tr>
   </table>
 
   @note `decimals` and `column_length` can be used for text output formatting
@@ -3117,7 +3125,7 @@ bool Protocol_classic::end_result_metadata() {
       <td>[01]</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>type</td>
-      <td>type of the column as defined in ::enum_field_types</td></tr>
+      <td>type of the column as defined in @ref enum_field_types</td></tr>
   <tr><td colspan="3">if capabilities @& ::CLIENT_LONG_FLAG {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
       <td>length of flags + decimals fields</td>
@@ -3140,12 +3148,9 @@ bool Protocol_classic::end_result_metadata() {
       <td>number of decimal digits</td></tr>
   <tr><td colspan="3">}</td></tr>
   <tr><td colspan="3">if command was COM_FIELD_LIST {</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
-      <td>length of default values</td>
-      <td>[02]</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
-      <td>default_values</td>
-      <td></td></tr>
+      <td>default_value</td>
+      <td>NULL if 0xFB</td></tr>
   <tr><td colspan="3">}</td></tr>
   </table>
 

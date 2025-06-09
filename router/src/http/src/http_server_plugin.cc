@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,6 @@ IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kHttpServerSectionName[]{"http_server"};
 static constexpr const char kDefaultBindAddress[]{"0.0.0.0"};
-static constexpr const uint16_t kDefaultPort{8081};
 static constexpr const unsigned kDefaultSsl{0};
 
 using mysql_harness::IntOption;
@@ -120,7 +119,7 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
   std::string get_default(std::string_view option) const override {
     const std::map<std::string_view, std::string> defaults{
         {"bind_address", kDefaultBindAddress},
-        {"port", std::to_string(kDefaultPort)},
+        {"port", std::to_string(kDefaultHttpPort)},
         {"ssl", std::to_string(kDefaultSsl)},
         {"ssl_cipher", get_default_ciphers()},
     };
@@ -262,8 +261,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       // one.
       http_servers.emplace(section->name, HttpServerFactory::create(config));
 
-      log_info("listening on %s:%u", config.srv_address.c_str(),
-               config.srv_port);
+      log_info("listening on %s%s:%u",
+               (config.with_ssl ? "https://" : "http://"),
+               config.srv_address.c_str(), config.srv_port);
 
       auto srv = http_servers.at(section->name);
 
@@ -273,8 +273,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       HttpServerComponent::get_instance().init(srv);
 
       if (!config.static_basedir.empty()) {
-        srv->add_route("", std::make_unique<HttpStaticFolderHandler>(
-                               config.static_basedir, config.require_realm));
+        srv->add_route("", "",
+                       std::make_unique<HttpStaticFolderHandler>(
+                           config.static_basedir, config.require_realm));
       }
     }
   } catch (const std::invalid_argument &exc) {

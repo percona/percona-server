@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
+  For the user manual, see http://dev.mysql.com/doc/en/
 
   This documentation is published for each release, starting with MySQL 8.0.
 
@@ -814,9 +814,10 @@ MySQL clients support the protocol:
 #include "sql/mdl.h"
 #include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/mysqld_daemon.h"
-#include "sql/mysqld_thd_manager.h"              // Global_THD_manager
-#include "sql/opt_costconstantcache.h"           // delete_optimizer_cost_module
-#include "sql/options_mysqld.h"                  // OPT_THREAD_CACHE_SIZE
+#include "sql/mysqld_thd_manager.h"     // Global_THD_manager
+#include "sql/opt_costconstantcache.h"  // delete_optimizer_cost_module
+#include "sql/opt_option_usage.h"       // Option tracker for optimizer usage
+#include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
 #include "sql/partitioning/partition_handler.h"  // partitioning_init
 #include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
@@ -1069,7 +1070,7 @@ static TYPELIB tc_heuristic_recover_typelib = {
     array_elements(tc_heuristic_recover_names) - 1, "",
     tc_heuristic_recover_names, nullptr};
 
-const char *first_keyword = "first", *binary_keyword = "BINARY";
+const char *first_keyword = "first";
 const char *my_localhost = "localhost";
 
 bool opt_large_files = sizeof(my_off_t) > 4;
@@ -1266,6 +1267,7 @@ bool opt_no_monitor = false;
 #endif
 
 long opt_upgrade_mode = UPGRADE_AUTO;
+long opt_check_table_funs = CHECK_TABLE_FUN_ABORT;
 bool opt_initialize = false;
 bool dd_init_failed_during_upgrade = false;
 bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
@@ -2177,7 +2179,8 @@ static void server_component_init() {
   srv_weak_option_option::init(
       srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
-        return 0 != opt->define("MySQL Server", "mysql_server", 1);
+        return 0 != opt->define("MySQL Server", "mysql_server", 1) ||
+               optimizer_options_usage_init(opt, srv_registry);
       },
       false);
 }
@@ -2238,7 +2241,8 @@ static bool component_infrastructure_deinit(bool print_message) {
   srv_weak_option_option::deinit(
       srv_registry_no_lock, srv_registry_registration_no_lock,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
-        return 0 != opt->undefine("MySQL Server");
+        return 0 != opt->undefine("MySQL Server") ||
+               optimizer_options_usage_deinit(opt, srv_registry_no_lock);
       });
   persistent_dynamic_loader_deinit();
   bool retval = false;
@@ -4411,6 +4415,9 @@ SHOW_VAR com_status_vars[] = {
     {"alter_instance",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_ALTER_INSTANCE]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"alter_library",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_ALTER_LIBRARY]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"alter_procedure",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_ALTER_PROCEDURE]),
@@ -4805,6 +4812,10 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_keys",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SHOW_KEYS]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_library_status",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_SHOW_STATUS_LIBRARY]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_binary_log_status",
      (char *)offsetof(System_status_var,
@@ -5539,6 +5550,10 @@ static PSI_metric_info_v1 com_metrics[] = {
      get_metric_aggregated_integer,
      (void *)offsetof(aggregated_stats_buffer,
                       com_stat[(uint)SQLCOM_ALTER_INSTANCE])},
+    {"alter_library", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_LIBRARY])},
     {"alter_procedure", "", COM_COMMON_DESCRIPTION,
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_aggregated_integer,
@@ -6027,6 +6042,11 @@ static PSI_metric_info_v1 com_metrics[] = {
      MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
      (void *)offsetof(aggregated_stats_buffer,
                       com_stat[(uint)SQLCOM_SHOW_KEYS])},
+    {"show_library_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_STATUS_LIBRARY])},
     {"show_binary_log_status", "", COM_COMMON_DESCRIPTION,
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_aggregated_integer,
@@ -11255,6 +11275,15 @@ struct my_option my_long_early_options[] = {
      "tables.",
      &opt_noacl, &opt_noacl, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"check-table-functions", 0,
+     "On upgrade, the server attempts to open tables with SQL functions in "
+     "their DEFAULT, INDEX, and PARTITION clauses, virtual columns, and "
+     "CONSTRAINTs. "
+     "WARN runs the test but proceeds even if potential issues are found; "
+     "ABORT (default) stops the server if potential issues are found.",
+     &opt_check_table_funs, &opt_check_table_funs,
+     &check_table_fun_mode_typelib, GET_ENUM, REQUIRED_ARG,
+     CHECK_TABLE_FUN_ABORT, 0, 0, nullptr, 0, nullptr},
     {"help", '?', "Display this help and exit.", &opt_help, &opt_help, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Used with --help option for detailed help.", &opt_verbose,
@@ -12603,6 +12632,21 @@ SHOW_VAR status_vars[] = {
     {"Deprecated_use_fk_on_non_standard_key_last_timestamp",
      (char *)&show_deprecated_use_fk_on_non_standard_key_last_timestamp,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:Binary Log",
+     reinterpret_cast<char *>(
+         &Rpl_opt_tracker::m_opt_option_tracker_usage_binary_log),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:Replication Replica",
+     reinterpret_cast<char *>(
+         &Rpl_opt_tracker::m_opt_option_tracker_usage_replication_replica),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:Traditional Optimizer",
+     reinterpret_cast<char *>(
+         &option_tracker_traditional_optimizer_usage_count),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:Hypergraph Optimizer",
+     reinterpret_cast<char *>(&option_tracker_hypergraph_optimizer_usage_count),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_FUNC, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
@@ -13685,12 +13729,11 @@ bool mysqld_get_one_option(int optid,
     case OPT_REPLICA_PARALLEL_TYPE:
       push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");
       break;
+#ifndef DBUG_OFF
     case OPT_REPLICA_PARALLEL_WORKERS:
-      if (opt_mts_replica_parallel_workers == 0) {
-        push_deprecated_warn(nullptr, "--replica-parallel-workers=0",
-                             "'--replica-parallel-workers=1'");
-      }
+      assert(opt_mts_replica_parallel_workers != 0);
       break;
+#endif
     case OPT_SYNC_RELAY_LOG_INFO:
       LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
              "--sync-relay-log-info");

@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,7 @@ MYSQL_ADD_COMPONENT(keyring_file
   LINK_LIBRARIES ${KEYRING_FILE_LIBRARIES}
   MODULE_ONLY
 )
+<<<<<<< HEAD
 
 DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
 
@@ -95,3 +96,8 @@ IF(APPLE)
     LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
 
+||||||| merged common ancestors
+
+DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
+=======
+>>>>>>> mysql-9.3.0

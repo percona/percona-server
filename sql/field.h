@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,8 +90,6 @@ class Field_temporal_with_date;
 class Field_temporal_with_date_and_time;
 class Field_temporal_with_date_and_timef;
 class Field_time;
-class Field_time_common;
-class Field_timef;
 class Field_timestamp;
 class Field_tiny;
 class Field_varstring;
@@ -157,9 +155,7 @@ Field (abstract)
 |     +--Field_set
 |
 +--Field_temporal (abstract)
-   +--Field_time_common (abstract)
-   |  +--Field_time
-   |  +--Field_timef
+   +--Field_time
    |
    +--Field_temporal_with_date (abstract)
       +--Field_date
@@ -3203,10 +3199,19 @@ class Field_date : public Field_temporal_with_date {
 };
 
 /**
-  Abstract class for TIME and TIME(N).
+  Field implementing TIME(N) data type, where N=0..6.
 */
-class Field_time_common : public Field_temporal {
+class Field_time final : public Field_temporal {
+ private:
+  int do_save_field_metadata(uchar *metadata_ptr) const final {
+    *metadata_ptr = decimals();
+    return 1;
+  }
+
  protected:
+  type_conversion_status store_internal(const MYSQL_TIME *ltime,
+                                        int *error) final;
+
   bool convert_str_to_TIME(const char *str, size_t len, const CHARSET_INFO *cs,
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status) final;
   /**
@@ -3219,12 +3224,6 @@ class Field_time_common : public Field_temporal {
                                                 MYSQL_TIME *ltime,
                                                 int *warning) final;
   /**
-    Low-level function to store MYSQL_TIME value.
-    The value must be rounded or truncated according to decimals().
-  */
-  type_conversion_status store_internal(const MYSQL_TIME *ltime,
-                                        int *error) override = 0;
-  /**
     Function to store time value.
     The value is rounded/truncated according to decimals() and sql_mode.
   */
@@ -3236,7 +3235,7 @@ class Field_time_common : public Field_temporal {
 
  public:
   /**
-    Constructor for Field_time_common
+    Constructor for Field_time
     @param ptr_arg           See Field definition
     @param null_ptr_arg      See Field definition
     @param null_bit_arg      See Field definition
@@ -3244,102 +3243,36 @@ class Field_time_common : public Field_temporal {
     @param field_name_arg    See Field definition
     @param dec_arg           Number of second fraction digits, 0..6.
   */
-  Field_time_common(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
-                    uchar auto_flags_arg, const char *field_name_arg,
-                    uint8 dec_arg)
+  Field_time(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
+             uchar auto_flags_arg, const char *field_name_arg, uint8 dec_arg)
       : Field_temporal(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                        field_name_arg, MAX_TIME_WIDTH, dec_arg) {}
-  type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
-  String *val_str(String *, String *) const final;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
-  longlong val_date_temporal() const final;
-  bool send_to_protocol(Protocol *protocol) const final;
-};
-
-/*
-  Field implementing TIME data type without fractional seconds.
-  It will be removed eventually.
-*/
-class Field_time final : public Field_time_common {
- protected:
-  type_conversion_status store_internal(const MYSQL_TIME *ltime,
-                                        int *error) final;
-
- public:
-  Field_time(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
-             uchar auto_flags_arg, const char *field_name_arg)
-      : Field_time_common(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                          field_name_arg, 0) {}
-  Field_time(const char *field_name_arg)
-      : Field_time_common(nullptr, nullptr, 0, NONE, field_name_arg, 0) {}
-  enum_field_types type() const final { return MYSQL_TYPE_TIME; }
-  enum ha_base_keytype key_type() const final { return HA_KEYTYPE_INT24; }
-  type_conversion_status store_packed(longlong nr) final;
-  longlong val_int() const final;
-  longlong val_time_temporal() const final;
-  bool get_time(MYSQL_TIME *ltime) const final;
-  int cmp(const uchar *, const uchar *) const final;
-  using Field_time_common::make_sort_key;
-  size_t make_sort_key(uchar *buff, size_t length) const final;
-  uint32 pack_length() const final { return 3; }
-  void sql_type(String &str) const final;
-  bool zero_pack() const final { return true; }
-  Field_time *clone(MEM_ROOT *mem_root) const final {
-    assert(type() == MYSQL_TYPE_TIME);
-    return new (mem_root) Field_time(*this);
-  }
-};
-
-/*
-  Field implementing TIME(N) data type, where N=0..6.
-*/
-class Field_timef final : public Field_time_common {
- private:
-  int do_save_field_metadata(uchar *metadata_ptr) const final {
-    *metadata_ptr = decimals();
-    return 1;
-  }
-
- protected:
-  type_conversion_status store_internal(const MYSQL_TIME *ltime,
-                                        int *error) final;
-
- public:
   /**
-    Constructor for Field_timef
-    @param ptr_arg           See Field definition
-    @param null_ptr_arg      See Field definition
-    @param null_bit_arg      See Field definition
-    @param auto_flags_arg    See Field definition
-    @param field_name_arg    See Field definition
-    @param dec_arg           Number of second fraction digits, 0..6.
-  */
-  Field_timef(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
-              uchar auto_flags_arg, const char *field_name_arg, uint8 dec_arg)
-      : Field_time_common(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                          field_name_arg, dec_arg) {}
-  /**
-    Constructor for Field_timef
+    Constructor for Field_time
     @param is_nullable_arg   See Field definition
     @param field_name_arg    See Field definition
     @param dec_arg           Number of second fraction digits, 0..6.
   */
-  Field_timef(bool is_nullable_arg, const char *field_name_arg, uint8 dec_arg)
-      : Field_time_common(nullptr,
-                          is_nullable_arg ? &dummy_null_buffer : nullptr, 0,
-                          NONE, field_name_arg, dec_arg) {}
-  Field_timef *clone(MEM_ROOT *mem_root) const final {
+  Field_time(bool is_nullable_arg, const char *field_name_arg, uint8 dec_arg)
+      : Field_temporal(nullptr, is_nullable_arg ? &dummy_null_buffer : nullptr,
+                       0, NONE, field_name_arg, MAX_TIME_WIDTH, dec_arg) {}
+  Field_time *clone(MEM_ROOT *mem_root) const final {
     assert(type() == MYSQL_TYPE_TIME);
-    return new (mem_root) Field_timef(*this);
+    return new (mem_root) Field_time(*this);
   }
   uint decimals() const final { return dec; }
   enum_field_types type() const final { return MYSQL_TYPE_TIME; }
   enum_field_types real_type() const final { return MYSQL_TYPE_TIME2; }
   enum_field_types binlog_type() const final { return MYSQL_TYPE_TIME2; }
   type_conversion_status store_packed(longlong nr) final;
+  type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec) final;
   type_conversion_status reset() final;
   double val_real() const final;
   longlong val_int() const final;
+  String *val_str(String *, String *) const final;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
+  longlong val_date_temporal() const final;
+  bool send_to_protocol(Protocol *protocol) const final;
   longlong val_time_temporal() const final;
   bool get_time(MYSQL_TIME *ltime) const final;
   my_decimal *val_decimal(my_decimal *) const final;
@@ -3353,7 +3286,7 @@ class Field_timef final : public Field_time_common {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return true; }
   const CHARSET_INFO *sort_charset() const final { return &my_charset_bin; }
-  using Field_time_common::make_sort_key;
+  using Field_temporal::make_sort_key;
   size_t make_sort_key(uchar *to, size_t length) const final {
     memcpy(to, ptr, length);
     return length;
@@ -4335,11 +4268,9 @@ class Field_typed_array final : public Field_json {
   int key_cmp(const uchar *, const uchar *) const override { return -1; }
   /**
    * @brief This function will behave similarly to MEMBER OF json operation,
-   *        unlike regular key_cmp. Since scans on multi-valued indexes always
-   *        go in the ascending direction, and always start on the first entry
-   *        that is not less than the key, a record not matching the MEMBER OF
-   *        condition is assumed to be greater than the key, so the function
-   *        always returns 1, indicating greater than, for not found.
+   *        unlike regular key_cmp. In case of multi-valued indexes a record
+   *        not matching the MEMBER OF condition indicates out of range, so the
+   *        function returns 1 for not found.
    *        This definition is used in descending ref index scans.
    *        Descending index scan uses handler::ha_index_prev() function to read
    *        from the storage engine which does not compare the index key with

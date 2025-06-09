@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_class.h"
 #include "sql/sql_digest.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_locale.h"
 #include "sql/sql_rewrite.h"
 #include "sql/tztime.h"
 
@@ -140,6 +141,11 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
       } else if (!strcmp(name, "time_zone_name")) {
         *reinterpret_cast<MYSQL_LEX_CSTRING *>(inout_pvalue) =
             t->time_zone()->get_name()->lex_cstring();
+      } else if (!strcmp(name, "locale")) {
+        auto locale = t->variables.lc_time_names;
+        const char *locale_name = locale->name;
+        *((mysql_cstring_with_length *)inout_pvalue) = {locale_name,
+                                                        strlen(locale_name)};
       } else if (!strcmp(name, "da_status")) {
         *((uint16_t *)inout_pvalue) = [&t](auto status) {
           switch (status) {

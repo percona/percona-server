@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "cluster_metadata.h"
+#include "mysqlrouter/cluster_metadata.h"
 
 #include <cstring>  // strcmp
 #include <stdexcept>
@@ -47,6 +47,7 @@
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
 #include "mysqlrouter/routing_guidelines_version.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // strtoui_checked
 #include "mysqlrouter/utils_sqlstring.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
@@ -174,9 +175,9 @@ class ConfigurationDefaults {
  private:
   bool is_stored() {
     sqlstring query(
-        "select JSON_EXTRACT(router_options, '$.Configuration.\"!\"') IS NULL "
+        "select JSON_EXTRACT(router_options, '$.Configuration.?') IS NULL "
         "from mysql_innodb_cluster_metadata.! where ! = ?",
-        {mysqlrouter::QuoteOnlyIfNeeded});
+        {mysqlrouter::QuoteOnlyIfNeeded | mysqlrouter::UseAnsiQuotes});
 
     query << MYSQL_ROUTER_VERSION << table_name_ << id_field_ << id_
           << sqlstring::end;
@@ -520,7 +521,7 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
      */
     if (e.code() == ER_NO_SUCH_TABLE || e.code() == ER_BAD_DB_ERROR) {
       // unknown database mysql_innodb_cluster_metata
-      throw std::runtime_error(
+      throw metadata_missing(
           std::string("Expected MySQL Server '") + mysql->get_address() +
           "' to contain the metadata of MySQL InnoDB Cluster, but the schema "
           "does not exist.\n" +
@@ -1420,20 +1421,19 @@ std::string to_string(
   return "drop_all";
 }
 
-// We do not support server with version highier than our version
+// We warn when the server version is higher than our version
 // Patch is .99 as we only care about major and minor
-static constexpr const unsigned long max_suported_version_ulong =
+static constexpr const unsigned long max_compatible_version_ulong =
     MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
 
-bool is_server_version_supported(MySQLSession *mysql) {
-  return max_suported_version_ulong >= mysql->server_version();
+bool is_server_version_compatible(MySQLSession *mysql) {
+  return max_compatible_version_ulong >= mysql->server_version();
 }
 
-std::string get_unsupported_server_version_msg(MySQLSession *mysql) {
-  return "Unsupported MySQL Server version '" +
-         std::to_string(mysql->server_version()) +
-         "'. Maximal supported version is '" +
-         std::to_string(max_suported_version_ulong) + "'.";
+std::string get_incompatible_server_version_msg(MySQLSession *mysql) {
+  return "MySQL Server version '" + std::to_string(mysql->server_version()) +
+         "' is higher than the Router version. You should upgrade the Router "
+         "to match the MySQL Server version.";
 }
 
 }  // namespace mysqlrouter

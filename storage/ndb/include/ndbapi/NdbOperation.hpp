@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1260,10 +1260,9 @@ class NdbOperation {
    *
    * @return 0 for success.  NDBAPI to set error otherwise.
    */
-  static int handleOperationOptions(const OperationType type,
+  static int handleOperationOptions(OperationType type,
                                     const OperationOptions *opts,
-                                    const Uint32 sizeOfOptions,
-                                    NdbOperation *op);
+                                    Uint32 sizeOfOptions, NdbOperation *op);
 
   /******************************************************************************
    * The methods below is the execution part of the NdbOperation

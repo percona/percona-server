@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -233,7 +233,6 @@ class Loader {
 
  private:
   /** Merge the sub-trees to build the cluster index.
-  @param[in]  prebuilt  prebuilt structures from innodb table handler
   @return innodb error code. */
   dberr_t merge_subtrees();
 

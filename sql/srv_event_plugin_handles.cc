@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,11 +90,11 @@ static struct s_state {
             stored_program.size() > 1 || table_access.size() > 1);
   }
   bool init() {
-    bool retval = authentication.init() || command.init() ||
-                  connection.init() || general.init() || global_var.init() ||
-                  message.init() || parse.init() || query.init() ||
-                  lifecycle.init() || stored_program.init() ||
-                  table_access.init();
+    bool const retval = authentication.init() || command.init() ||
+                        connection.init() || general.init() ||
+                        global_var.init() || message.init() || parse.init() ||
+                        query.init() || lifecycle.init() ||
+                        stored_program.init() || table_access.init();
     /* now assert that we have the component->plugin bridge for each class */
     assert(authentication.size() > 0);
     assert(command.size() > 0);
@@ -130,133 +130,109 @@ bool srv_event_call_plugin_handles(struct st_mysql_event_generic *event_data) {
 
   switch (event_data->event_class) {
     case Event_tracking_class::AUTHENTICATION: {
-      for (auto handle : state->authentication) {
+      for (const auto *handle : state->authentication) {
         retval |=
             (handle->notify(reinterpret_cast<
                             const mysql_event_tracking_authentication_data *>(
-                event_data->event)))
-                ? true
-                : false;
+                event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::COMMAND: {
-      for (auto handle : state->command) {
+      for (const auto *handle : state->command) {
         retval |=
             (handle->notify(
                 reinterpret_cast<const mysql_event_tracking_command_data *>(
-                    event_data->event)))
-                ? true
-                : false;
+                    event_data->event))) != 0;
       }
       break;
     }
 
     case Event_tracking_class::CONNECTION: {
-      for (auto handle : state->connection) {
+      for (const auto *handle : state->connection) {
         retval |=
             (handle->notify(
                  reinterpret_cast<const mysql_event_tracking_connection_data *>(
-                     event_data->event))
-                 ? true
-                 : false);
+                     event_data->event)) != 0);
       }
       break;
     }
     case Event_tracking_class::GENERAL: {
-      for (auto handle : state->general) {
+      for (const auto *handle : state->general) {
         retval |=
             (handle->notify(
                  reinterpret_cast<const mysql_event_tracking_general_data *>(
-                     event_data->event))
-                 ? true
-                 : false);
+                     event_data->event)) != 0);
       }
       break;
     }
     case Event_tracking_class::GLOBAL_VARIABLE: {
-      for (auto handle : state->global_var) {
+      for (const auto *handle : state->global_var) {
         retval |=
             (handle->notify(reinterpret_cast<
                             const mysql_event_tracking_global_variable_data *>(
-                event_data->event)))
-                ? true
-                : false;
+                event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::MESSAGE: {
-      for (auto handle : state->message) {
+      for (const auto *handle : state->message) {
         retval |=
             (handle->notify(
                 reinterpret_cast<const mysql_event_tracking_message_data *>(
-                    event_data->event)))
-                ? true
-                : false;
+                    event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::PARSE: {
-      for (auto handle : state->parse) {
+      for (const auto *handle : state->parse) {
         retval |=
             (handle->notify(reinterpret_cast<mysql_event_tracking_parse_data *>(
-                const_cast<void *>(event_data->event))))
-                ? true
-                : false;
+                const_cast<void *>(event_data->event)))) != 0;
       }
       break;
     }
     case Event_tracking_class::QUERY: {
-      for (auto handle : state->query) {
+      for (const auto *handle : state->query) {
         retval |= (handle->notify(
                       reinterpret_cast<const mysql_event_tracking_query_data *>(
-                          event_data->event)))
-                      ? true
-                      : false;
+                          event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::SHUTDOWN: {
-      for (auto handle : state->lifecycle) {
+      for (const auto *handle : state->lifecycle) {
         retval |=
             (handle->notify_shutdown(
                 reinterpret_cast<const mysql_event_tracking_shutdown_data *>(
-                    event_data->event)))
-                ? true
-                : false;
+                    event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::STARTUP: {
-      for (auto handle : state->lifecycle) {
+      for (const auto *handle : state->lifecycle) {
         retval |=
             (handle->notify_startup(
                 reinterpret_cast<const mysql_event_tracking_startup_data *>(
-                    event_data->event)))
-                ? true
-                : false;
+                    event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::STORED_PROGRAM: {
-      for (auto handle : state->stored_program) {
+      for (const auto *handle : state->stored_program) {
         retval |=
             (handle->notify(reinterpret_cast<
                             const mysql_event_tracking_stored_program_data *>(
-                event_data->event)))
-                ? true
-                : false;
+                event_data->event))) != 0;
       }
       break;
     }
     case Event_tracking_class::TABLE_ACCESS: {
-      for (auto handle : state->table_access) {
+      for (const auto *handle : state->table_access) {
         retval |=
             (handle->notify(reinterpret_cast<
                             const mysql_event_tracking_table_access_data *>(
-                event_data->event)))
-                ? true
-                : false;
+                event_data->event))) != 0;
       }
       break;
     }

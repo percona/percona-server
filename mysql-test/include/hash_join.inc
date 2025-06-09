@@ -2993,3 +2993,22 @@ SET join_buffer_size = DEFAULT;
 --eval $hash_join_file_operations
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#37273221: Hypergraph: Inefficient join order when using LIMIT
+--echo #
+
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(x INT, y VARCHAR(10000));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t2 SELECT x, REPEAT('x', x * 1000) FROM t1 WHERE t1.x < 10;
+ANALYZE TABLE t1, t2;
+
+# Expect the smaller table to be used as build table, since that
+# allows us to start returning rows earlier and hit the LIMIT earlier.
+# t1 has slightly more rows than t2, but it's much smaller in data
+# volume, so we want t1 to be the build table.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1, t2 WHERE t1.x = t2.x LIMIT 1;
+
+DROP TABLE t1, t2;

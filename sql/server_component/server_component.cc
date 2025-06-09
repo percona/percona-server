@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1005,6 +1005,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
     PROVIDES_SERVICE(performance_schema, psi_thread_v6),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v7),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),

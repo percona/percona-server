@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1901,7 +1901,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   Authentication method Switch Request Packet
 
   If both server and the client support @ref CLIENT_PLUGIN_AUTH capability,
-  server can send this packet tp ask client to use another authentication method.
+  server can send this packet to ask client to use another authentication method.
 
   <table>
   <caption>Payload</caption>

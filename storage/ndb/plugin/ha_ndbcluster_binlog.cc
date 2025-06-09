@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,6 +125,9 @@ extern ulong opt_ndb_log_cache_size;
 void ndb_index_stat_restart();
 
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
+
+/* Number of schema distribution protocol participants */
+static std::atomic_int g_subscriber_count{0};
 
 /*
   Timeout for syncing schema events between
@@ -360,8 +363,9 @@ static void ndbcluster_binlog_index_purge_wait(THD *thd) {
   assert(!ndb_thd_is_binlog_thread(thd));
 
   // Wait until purger has removed all files requested by this session
-  ndb_log_info("Waiting for purge to complete");
+  ndb_log_info("Waiting for purge");
   ndb_binlog_purger.wait_purge_completed_for_session(thd);
+  ndb_log_info("Done waiting for purge");
 }
 
 /*
@@ -1324,6 +1328,16 @@ class Ndb_schema_dist_data {
     return subscriber_bitmap;
   }
 
+  void publish_subscriber_count(int count) const {
+    g_subscriber_count.store(count);
+  }
+
+  void publish_subscriber_count() const {
+    std::unordered_set<uint32> subscribers;
+    get_subscriber_list(subscribers);
+    publish_subscriber_count(subscribers.size());
+  }
+
   // Holds the new key for a table to be renamed
   struct NDB_SHARE_KEY *m_prepared_rename_key;
 
@@ -1362,6 +1376,7 @@ class Ndb_schema_dist_data {
       delete subscriber_bitmap;
     }
     m_subscriber_bitmaps.clear();
+    publish_subscriber_count(0);
 
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
@@ -1389,6 +1404,7 @@ class Ndb_schema_dist_data {
 
       ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
                       subscribers->to_string().c_str());
+      publish_subscriber_count();
     }
   }
 
@@ -1403,6 +1419,7 @@ class Ndb_schema_dist_data {
 
       ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
                       subscribers->to_string().c_str());
+      publish_subscriber_count();
     }
   }
 
@@ -1417,6 +1434,7 @@ class Ndb_schema_dist_data {
 
       ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
                       subscribers->to_string().c_str());
+      publish_subscriber_count();
     }
   }
 
@@ -1426,6 +1444,7 @@ class Ndb_schema_dist_data {
       Node_subscribers *subscribers = it.second;
       subscribers->clear_all();
     }
+    publish_subscriber_count(0);
   }
 
   /**
@@ -7747,6 +7766,9 @@ restart_cluster_failure:
 
     release_thd_resources(thd);
 
+    // Check that "microsecond timestamps used in query" has been reset
+    assert(thd->query_start_usec_used == false);
+
     if (current_epoch > ndb_latest_handled_binlog_epoch) {
       Mutex_guard injector_mutex_g(injector_data_mutex);
       ndb_latest_handled_binlog_epoch = current_epoch;
@@ -7880,6 +7902,14 @@ err:
   log_info("Stopped");
 
   DBUG_PRINT("exit", ("ndb_binlog_thread"));
+}
+
+int ndbcluster_binlog_get_schema_participant_count(THD *, SHOW_VAR *var,
+                                                   char *buf) {
+  var->type = SHOW_INT;
+  var->value = buf;
+  *(pointer_cast<int *>(buf)) = g_subscriber_count.load();
+  return 0;
 }
 
 /*

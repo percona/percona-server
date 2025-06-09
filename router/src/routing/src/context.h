@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,10 @@ class MySQLRoutingContext {
    * get the SSL context for the client side of the route.
    */
   TlsServerContext *source_ssl_ctx() const { return client_ssl_ctx_; }
+
+  DestinationTlsContext *destination_ssl_config() const {
+    return destination_tls_context_;
+  }
 
   /**
    * get the SSL context for the server side of the route.

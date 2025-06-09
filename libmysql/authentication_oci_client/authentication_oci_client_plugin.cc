@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,9 @@
 #include <my_sys.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -116,7 +116,7 @@ static int oci_authenticate_client_plugin(MYSQL_PLUGIN_VIO *vio,
    * Step 1: Receive the nonce from the server.
    */
   unsigned char *server_nonce = nullptr;
-  int server_nonce_length = vio->read_packet(vio, &server_nonce);
+  int const server_nonce_length = vio->read_packet(vio, &server_nonce);
   if (server_nonce_length <= 0) {
     log_error("An error occurred during the client server handshake.");
     return CR_AUTH_HANDSHAKE;
@@ -129,7 +129,7 @@ static int oci_authenticate_client_plugin(MYSQL_PLUGIN_VIO *vio,
     return CR_AUTH_PLUGIN_ERROR;
   }
   auto encoded = signer.sign(server_nonce, server_nonce_length);
-  if (encoded.size() == 0) {
+  if (encoded.empty()) {
     log_error("Authentication failed, plugin internal error.");
     return CR_AUTH_PLUGIN_ERROR;
   }
@@ -202,7 +202,7 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 }
 
 static int deinitialize_plugin() {
-  if (s_oci_config_file != nullptr) delete s_oci_config_file;
+  delete s_oci_config_file;
   free_plugin_option(s_oci_config_location);
   free_plugin_option(s_authentication_oci_client_config_profile);
   return 0;
@@ -217,7 +217,7 @@ static int oci_authenticate_client_option(const char *option, const void *val) {
   if (strcmp(option, "oci-config-file") == 0) {
     free_plugin_option(s_oci_config_location);
     if (value == nullptr) return 0;
-    std::ifstream file(value);
+    std::ifstream const file(value);
     if (file.good()) {
       s_oci_config_location =
           my_strdup(PSI_NOT_INSTRUMENTED, value, MYF(MY_WME));

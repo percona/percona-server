@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -399,34 +399,200 @@ class Trx_by_id_with_min {
   @see trx_rw_is_active for details.*/
   std::atomic<trx_id_t> m_min_id{TRX_ID_MAX};
 
-  /** This value is guaranteed to be always smaller or equal than any id in
-  any of the shards of transactions which finished calling insert(id).
-  I.e. a shard can already contain an id smaller than this value, if
-  insert(id) has still not finished.
-  This is sufficient guarantee, if you only care about "active" transactions
-  in the sense that insert(id) for them has happened before the call.
-  For example, when you want to check if a record you look at could have been
-  modified by any of active transactions, then this is a valid assumption
-  as creating a record happens after insert(id).
-  This value may be way lower than actual minimum, as it is only updated
-  from time to time by get_better_lower_bound_for_already_active_id(). */
-  static std::atomic<trx_id_t> s_lower_bound;
+  /** A "lower bound" is a value which is guaranteed to be smaller or equal than
+  any id in any of the shards of transactions which finished calling insert(id)
+  and have not yet started a call to erase(id).
+  I.e. a shard can already contain an id smaller than this value, if insert(id)
+  has still not finished. This is sufficient guarantee, if you only care about
+  "active" transactions in the sense that insert(id) for them has happened
+  before the call and erase(id) hasn't started. For example, when you want to
+  check if a record you look at could have been modified by any of active
+  transactions, then this is a valid assumption as creating a record happens
+  after insert(id).
+
+  Each of the two values in this array may be used as a lower bound if its
+  highest bit (UPDATING_LOWER_BOUND) is not set. At most one of them has the
+  highest bit set at any given time. If both of them can be used as a lower
+  bound, it follows, that you can use maximum of the two, as the best lower
+  bound estimate. Note that this value may be way lower than actual minimum, as
+  it is only updated from time to time by
+  get_better_lower_bound_for_already_active_id(). The highest bit being set for
+  a given entry means it is currently undergoing the process of updating and its
+  value should not be used until its finished.
+
+  Transactions performing insert(id) should ensure that for each i=0,1:
+  (s_lower_bound[i]&~UPDATING_LOWER_BOUND) <= id
+
+  The property we wish to prove is:
+
+  Claim 1: The value returned by get_cheap_lower_bound_for_already_active_id()
+  is lower or equal to any trx_id for which return from insert(trx->id) has
+  happened-before the call to get_cheap_lower_bound_for_already_active_id()
+  has started and a call to erase(trx->id) (if any at all) will happened-after
+  the return from get_cheap_lower_bound_for_already_active_id().
+
+  Note how weak this property is: it's the burden of the person who wants to
+  use this Claim 1 for anything, to first establish the happens-before relations
+  by other means, and only then the Claim 1 can do any useful work at all. The
+  reason we need only such a weak claim, is because in practice we use
+  get_cheap_lower_bound_for_already_active_id() only when already having in our
+  hands a record which is a proof of activity of some transaction which must
+  have happened after it has already called insert(trx->id) successfully - this
+  establishes the needed happens-before relation:  insert(trx->id) happens
+  before a write of the record, which happens-before our read, which happens
+  before the call to get_cheap_lower_bound_for_already_active_id(). As for the
+  quite strong requirement for erase() to happen-after, it is justified, because
+  it is fine for get_cheap_lower_bound_for_already_active_id() to ignore a trx
+  which is "in the middle" of erase(trx->id), as it means the trx is already
+  committing, and the call to erase() happens under shard mutex and after the
+  state was already changed to TRX_STATE_COMMITTED_IN_MEMORY under trx->mutex,
+  so whoever else is interested in the question "is trx active?" and asks it
+  under shard mutex or trx->mutex will arrive at "no", so if we answer "no" as
+  well, there's no discrepancy, and if we answer "yes", then we err on the safe
+  side which is fine as well, as the caller will then double check.
+  Hence we don't care about cases where erase(trx->id) has already started.
+
+  The proof of Claim 1, depends on a simpler claim:
+
+  Claim 2: for any moment which happens-after insert(trx_id) and happens-before
+  erase(trx_id), the value of s_lower_bound[i] (for each i) either has the
+  UPDATING_LOWER_BOUND flag or is lower-or-equal to trx_id.
+
+  Claim 2 implies Claim 1, because get_cheap_lower_bound_for_already_active_id()
+  returns a value which it loaded from s_lower_bound[i] and had no
+  UPDATING_LOWER_BOUND flag.
+
+  In what follows, it is important that all atomic operations (load, store,
+  compare_exchange_weak, fetch_xor) use memory_order::seq_cst ordering, so there
+  is a single order S in which all of them happen, which is consistent with the
+  happens-before relation (established in the Claim's assumptions, and by
+  shard's mutex).
+
+  The proof of Claim 2 is constructive. For each trx shard separately, we use
+  induction over the trx_id-s in the order they are insert()ed to the shard
+  (which happen under shard.active_rw_trxs.mutex, so are ordered by
+  happens-before, too).
+
+  The thread which does insert(trx_id) experiences following events in following
+  order:
+  1. shard.m_min_id.load()
+  Case A) saw shard.m_min_id <= trx_id and did nothing
+  Case B) saw shard.m_min_id > trx_id and did:
+  2. stored shard.m_min_id = trx_id
+  3. saw that s_lower_bound[i] <= trx_id holds already, OR enforced this
+     inequality by itself by modifying s_lower_bound[i] with CAS
+
+  As all operations on shard.m_min_id and s_lower_bound[i] are ordered in S, it
+  is meaningful to look at the sorted list of all the operations from "2.", to
+  the moment get_cheap_lower_bound_for_already_active_id() load()s the value
+  from it. There are only few ways in which s_lower_bound[i] can be modified:
+
+  a) calls to limit_to(s_lower_bound[i], x) from insert(x) or
+     get_better_lower_bound_for_already_active_id(). They can only make the
+     value smaller than it was
+
+  b) s_lower_bound[index_to_update].store(min_seen |UPDATING_LOWER_BOUND)
+     in get_better_lower_bound_for_already_active_id() which can make it
+     (let's say: arbitrarily) larger, but also sets the flag
+
+  c) s_lower_bound[index_to_update].fetch_xor(UPDATING_LOWER_BOUND) which
+     clears the flag, but doesn't change the lower 63 bits
+
+  So, we have a sequence of operations of these three types. Also (b)s which
+  sets the flag and (c)s which clear it, appear in alternating fashion, so
+  that it is meaningful to talk about periods when the flag is present and
+  those where it is not present.
+
+  We will show that no mater which Case, A) or B) occured, Claim 2 will hold.
+
+  Case A) - the m_min_id was already small so we did nothing.
+
+  There are two interesting sub-cases to consider:
+
+  A.I) the "1." falls between (b) and (c), i.e. when the flag was present
+
+  Here, we need to distinguish two sub-sub-cases:
+
+  A.I.1) the "1." happens-before the second for() loop in
+  get_cheap_lower_bound_for_already_active_id() does
+  trx_sys->shards[i].active_rw_trxs.peek().min_id().
+
+  In this case, we are fine, because from moment "1." onwards it holds that
+  m_min_id <= trx_id, and thus it will be noticed, and taken into account
+  before (c) clears the flag. From then on, any later (a) can only make it
+  smaller, and future (b) will also happen after shard.m_min_id was already
+  as we need, so will take it into account.
+
+  A.I.2) the "1." happens-after the second for() loop loaded V from
+  shard.m_min_id.
+
+  If V <= trx_id, everything is fine, as the final value published by (c) will
+  be smaller or equal to trx_id.
+  If V > trx_id, and we've just seen at "1." that it was <= trx_id, it means it
+  somehow decreased between the load() done by the second for() loop, and load()
+  done in "1." in insert(trx_id) by us. The only places which decrease it, are
+  calls to insert(..), so it must be the case that another insert(trx_id') has
+  happened for trx_id'<=trx_id which decreased the m_min_id, and executed the
+  logic for limit_to(s_lower_bound[i],trx_id'), before finishing insert(trx_id')
+  which happened before moment "1.", which in turn happened before (c), which
+  means, that the lower 63 bits of s_lower_bound[i] are <= trx_id' <= trx_id
+  already at moment "1.", and thus the value revealed by (c) will be fine.
+
+  A.II) the "1." falls outside of any (b)--(c) window, i.e. when the flag was
+  missing
+
+  This is easy case, as at "1." we saw m_min_id <= trx_id, which means (thanks
+  to shard's mutex) that insert(m_min_id) has happened-before "1." and
+  erase(m_min_id) has not yet happened, so we can use inductive assumption, to
+  show the s_shard_bound[i] had to be <= m_min_id at moment "1." as the flag
+  was not present, and thus it is also <= trx_id, and will stay like that
+  through all (a) operations, and any future (b) operation will happen after
+  we've already ensured shard's m_min_id <= trx_id, so will be noticed by scan
+  over shards, before doing (c) to clear the flag.
+
+
+  Case B) the m_min_id was too large, so we did "2." and "3."
+
+  There are two interesting sub-cases to consider:
+
+  B.I) the "3." falls between (b) and (c), i.e. when the flag was present
+
+  It means the lower 63 bits are already <= trx_id at moment "3.", and will
+  stay so until (c), which will only clear the flag. Operation (a) also can't
+  make it larger. So, it is only another (b) in future which could make it
+  larger, but that future (b) will happen after "2." which ensured shard's
+  m_min_id is <= trx_id, and any thread doing (b)--(c) end-to-end has to check
+  all the shards, to take them into account.
+
+  B.II) the "3." falls outside of any (b)--(c) window, i.e. when the flag was
+  missing
+
+  Here, similarly, at moment "3." the s_lower_bound[i] is <= trx_id, and
+  subsequent (a)s can't violate it. Also, if (b) sets the flag in future, then
+  it will only be cleared by (c) after scanning all shards, which will happen
+  after moment "2.", so will take the shard's m_min_id into account.
+
+  So, Claim 2 holds in all these cases.
+  */
+  static std::atomic<trx_id_t> s_lower_bound[2];
+  static constexpr trx_id_t UPDATING_LOWER_BOUND = trx_id_t{1} << 63;
 
   /** This is used during get_better_lower_bound_for_already_active_id() to
-  announce that it is trying to establish new value for s_lower_bound, and
-  this is the current candidate. This value is 0 if no such process is under
-  way, and changed to non-zero by the only thread chosen to perform it, thus
-  it also serves the purpose of "mutex". Transactions executing insert(id)
-  should limit this atomic to id, to help the process. */
-  static std::atomic<trx_id_t> s_lower_bound_candidate;
-
-  /** Performs an equivalent of if(upper_bound<v)v=upper_bound atomically.
+  announce that it is trying to establish new value for s_lower_bound.
+  This value is false if no such process is under way, and changed to true by
+  the only thread chosen to perform it, thus serves the purpose of "mutex".
+  The reason we don't use an std::mutex, is that we don't wish to wait, nor
+  spin, we just want to give up when somebody else already works on it. */
+  static std::atomic<bool> s_updating_lower_bound;
+  /** Performs an equivalent of if(upper_bound < a) a=upper_bound atomically,
+  ignoring, but preserving the UPDATING_LOWER_BOUND flag.
   @param[in] a           The atomic we want to limit to upper_bound
   @param[in] upper_bound The upper_bound we want to impose on a */
   static void limit_to(std::atomic<trx_id_t> &a, trx_id_t upper_bound) {
     trx_id_t v = a.load();
-    while (upper_bound < v) {
-      a.compare_exchange_weak(v, upper_bound);
+    while (
+        upper_bound < (v & ~UPDATING_LOWER_BOUND) &&
+        !a.compare_exchange_weak(v, upper_bound | (v & UPDATING_LOWER_BOUND))) {
     }
   }
 
@@ -437,7 +603,24 @@ class Trx_by_id_with_min {
   Note that this value never increases unless someone calls
   @see get_better_lower_bound_for_already_active_id() */
   static trx_id_t get_cheap_lower_bound_for_already_active_id() {
-    return s_lower_bound.load();
+    trx_id_t best_bound = 0;
+    bool found = false;
+    /* The while loop handles a rare race condition where we observe
+    both entries as having UPDATING_LOWER_BOUND, because first one
+    was being updated then the later. */
+    while (!found) {
+      for (const auto &lower_bound : s_lower_bound) {
+        const auto val = lower_bound.load();
+        if (!(val & UPDATING_LOWER_BOUND)) {
+          found = true;
+          /* Any s_lower_bound which doesn't have the UPDATING_LOWER_BOUND flag
+          is correct, so we prefer to take the larger one. For an exhaustive
+          proof see s_lower_bound's doxygen. */
+          best_bound = std::max(best_bound, val);
+        }
+      }
+    }
+    return best_bound;
   }
   /** @see get_cheap_lower_bound_for_already_active_id() from which this
   function differs by executing a tighter estimation. If it is indeed
@@ -462,16 +645,19 @@ class Trx_by_id_with_min {
     ut_ad(0 == m_by_id.count(trx_id));
     m_by_id.emplace(trx_id, &trx);
     if (trx_id < m_min_id.load(std::memory_order_relaxed)) {
-      /* The order of the 3 operations matters!
+      /* It matters that our m_min_id.store() is made visible before we load any
+      of the two s_lower_bound[i]!
       If m_min_id.store() was using just memory_order_release, it could happen,
-      that s_lower_bound_candidate.load() will return 0, right after that
-      another thread starts updating s_lower_bound_candidate, and will not see
-      our stored m_min_id, and thus will set s_lower_bound, to too large value.
-      Also, updating s_lower_bound_candidate before s_lower_bound is crucial for
-      correctness CAS loop in get_better_lower_bound_for_already_active_id. */
+      that s_lower_bound[i].load() will appear small, so we will not limit it,
+      but right after that another thread starts updating s_lower_bound[i], and
+      will not see our stored m_min_id, and thus will set s_lower_bound[i], to
+      too large value. */
       m_min_id.store(trx_id);
-      limit_to(s_lower_bound_candidate, trx_id);
-      limit_to(s_lower_bound, trx_id);
+      /* Ensure that both s_lower_bound[i]&~UPDATING_LOWER_BOUND are <= trx_id,
+      preserving the UPDATING_LOWER_BOUND flag if present */
+      for (auto &lower_bound : s_lower_bound) {
+        limit_to(lower_bound, trx_id);
+      }
     }
   }
   void erase(trx_id_t trx_id) {

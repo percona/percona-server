@@ -2696,7 +2696,7 @@ CREATE TABLE `giant_table` (
   KEY `one_other_idx` (`one_id`,`other_id`),
   KEY `other_id` (`other_id`,`time_created`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101651329
-DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci ;
+DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci ;
 
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),

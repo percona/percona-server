@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ typedef enum opt_connection_control {
 */
 typedef enum stats_connection_control {
   STAT_CONNECTION_DELAY_TRIGGERED = 0,
+  STAT_OPTION_USAGE = 1,
   STAT_LAST /* Must be last */
 } stats_connection_control;
 

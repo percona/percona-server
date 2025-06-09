@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,9 @@ class DestMetadataCacheManager final
    * guidelines are updated.
    */
   void clear_internal_state();
+
+  bool is_dynamic() override { return true; }
+  std::string get_dynamic_plugin_name() override;
 
  private:
   /**

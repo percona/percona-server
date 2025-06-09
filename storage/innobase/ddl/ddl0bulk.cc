@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -472,6 +472,8 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
         case MYSQL_TYPE_GEOMETRY:
           [[fallthrough]];
         case MYSQL_TYPE_JSON:
+          [[fallthrough]];
+        case MYSQL_TYPE_VECTOR:
           [[fallthrough]];
         case MYSQL_TYPE_LONG_BLOB:
           length_size = 4;

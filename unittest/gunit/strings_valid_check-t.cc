@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,8 +73,8 @@ static void BM_utf8_Convert_Check(size_t num_iterations) {
   uint errors;
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
-    size_t len [[maybe_unused]] = my_convert(buf, sizeof(buf), to_cs, content,
-                                             content_len, from_cs, &errors);
+    size_t const len [[maybe_unused]] = my_convert(
+        buf, sizeof(buf), to_cs, content, content_len, from_cs, &errors);
   }
   StopBenchmarkTiming();
   ASSERT_EQ(0, errors);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -207,6 +207,7 @@ enum enum_sql_command {
   SQLCOM_CREATE_LIBRARY,
   SQLCOM_DROP_LIBRARY,
   SQLCOM_SHOW_CREATE_LIBRARY,
+<<<<<<< HEAD
   SQLCOM_SHOW_USER_STATS,
   SQLCOM_SHOW_TABLE_STATS,
   SQLCOM_SHOW_INDEX_STATS,
@@ -215,6 +216,11 @@ enum enum_sql_command {
   SQLCOM_LOCK_TABLES_FOR_BACKUP,
   SQLCOM_CREATE_COMPRESSION_DICTIONARY,
   SQLCOM_DROP_COMPRESSION_DICTIONARY,
+||||||| merged common ancestors
+=======
+  SQLCOM_ALTER_LIBRARY,
+  SQLCOM_SHOW_STATUS_LIBRARY,
+>>>>>>> mysql-9.3.0
   /* This should be the last !!! */
   SQLCOM_END
 };

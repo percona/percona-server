@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include <unicode/regex.h>
 
+#include <map>
 #include <memory>
 #include <shared_mutex>
 #include <string>
@@ -45,10 +46,11 @@ class HTTP_SERVER_LIB_EXPORT HttpRequestRouter
   using RequestHandler = http::base::RequestHandler;
   using BaseRequestHandlerPtr = std::shared_ptr<http::base::RequestHandler>;
 
-  void append(const std::string &url_regex_str,
+  void append(const std::string &url_host,
+              const std::string &url_regex_str,
               std::unique_ptr<RequestHandler> cb);
   void remove(const void *handler_id);
-  void remove(const std::string &url_regex_str);
+  void remove(const std::string &url_host, const std::string &url_regex_str);
 
   void set_default_route(std::unique_ptr<RequestHandler> cb);
   void clear_default_route();
@@ -82,14 +84,17 @@ class HTTP_SERVER_LIB_EXPORT HttpRequestRouter
 
   // if no routes are specified, return 404
   void handler_not_found(http::base::Request &req);
-  BaseRequestHandlerPtr find_route_handler(std::string_view path);
 
-  std::vector<RouteMatcher> request_handlers_;
+  BaseRequestHandlerPtr find_route_handler(std::string_view url_host,
+                                           std::string_view path);
+
+  std::map<std::string, std::vector<RouteMatcher>, std::less<>>
+      request_handlers_;
 
   BaseRequestHandlerPtr default_route_;
   std::string require_realm_;
 
-  mutable std::shared_mutex route_mtx_;
+  std::shared_mutex route_mtx_;
 };
 
 #endif  // ROUTER_SRC_HTTP_SRC_HTTP_REQUEST_ROUTER_H_

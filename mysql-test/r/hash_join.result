@@ -4752,3 +4752,23 @@ WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
 1
 DROP TABLE t1, t2;
+#
+# Bug#37273221: Hypergraph: Inefficient join order when using LIMIT
+#
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(x INT, y VARCHAR(10000));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t2 SELECT x, REPEAT('x', x * 1000) FROM t1 WHERE t1.x < 10;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1, t2 WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Inner hash join (t2.x = t1.x)  (rows=10)
+        -> Table scan on t2  (rows=9)
+        -> Hash
+            -> Table scan on t1  (rows=10)
+
+DROP TABLE t1, t2;

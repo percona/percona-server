@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,12 +101,12 @@ NdbOperation::~NdbOperation() {
 void NdbOperation::setErrorCode(int anErrorCode) const {
   /* Setting an error is considered to be a const
      operation, hence the nasty cast here */
-  NdbOperation *pnonConstThis = const_cast<NdbOperation *>(this);
+  auto *pnonConstThis = const_cast<NdbOperation *>(this);
 
   pnonConstThis->theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
   theNdbCon->theErrorOperation = pnonConstThis;
-  if (!(m_abortOption == AO_IgnoreError && m_noErrorPropagation))
+  if (m_abortOption != AO_IgnoreError || !m_noErrorPropagation)
     theNdbCon->setOperationErrorCode(anErrorCode);
 }
 
@@ -119,7 +119,7 @@ void NdbOperation::setErrorCode(int anErrorCode) const {
 void NdbOperation::setErrorCodeAbort(int anErrorCode) const {
   /* Setting an error is considered to be a const
      operation, hence the nasty cast here */
-  NdbOperation *pnonConstThis = const_cast<NdbOperation *>(this);
+  auto *pnonConstThis = const_cast<NdbOperation *>(this);
 
   pnonConstThis->theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
@@ -192,7 +192,7 @@ int NdbOperation::init(const NdbTableImpl *tab, NdbTransaction *myConnection) {
   theTCREQ->setSignal(m_tcReqGSN, refToBlock(theNdbCon->m_tcRef));
 
   theAI_LenInCurrAI = 20;
-  TcKeyReq *const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  auto *const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
@@ -324,9 +324,8 @@ int NdbOperation::equal(const char *anAttrName, const char *aValuePassed) {
   if (col == nullptr) {
     setErrorCode(4004);
     return -1;
-  } else {
-    return equal_impl(col, aValuePassed);
   }
+  return equal_impl(col, aValuePassed);
 }
 
 int NdbOperation::equal(Uint32 anAttrId, const char *aValuePassed) {
@@ -334,9 +333,8 @@ int NdbOperation::equal(Uint32 anAttrId, const char *aValuePassed) {
   if (col == nullptr) {
     setErrorCode(4004);
     return -1;
-  } else {
-    return equal_impl(col, aValuePassed);
   }
+  return equal_impl(col, aValuePassed);
 }
 
 int NdbOperation::setValue(const char *anAttrName, const char *aValuePassed) {
@@ -344,9 +342,8 @@ int NdbOperation::setValue(const char *anAttrName, const char *aValuePassed) {
   if (col == nullptr) {
     setErrorCode(4004);
     return -1;
-  } else {
-    return setValue(col, aValuePassed);
   }
+  return setValue(col, aValuePassed);
 }
 
 int NdbOperation::setValue(Uint32 anAttrId, const char *aValuePassed) {
@@ -354,9 +351,8 @@ int NdbOperation::setValue(Uint32 anAttrId, const char *aValuePassed) {
   if (col == nullptr) {
     setErrorCode(4004);
     return -1;
-  } else {
-    return setValue(col, aValuePassed);
   }
+  return setValue(col, aValuePassed);
 }
 
 NdbBlob *NdbOperation::getBlobHandle(const char *anAttrName) {
@@ -367,9 +363,8 @@ NdbBlob *NdbOperation::getBlobHandle(const char *anAttrName) {
   if (col == nullptr) {
     setErrorCode(4004);
     return nullptr;
-  } else {
-    return getBlobHandle(theNdbCon, col);
   }
+  return getBlobHandle(theNdbCon, col);
 }
 
 NdbBlob *NdbOperation::getBlobHandle(Uint32 anAttrId) {
@@ -380,9 +375,8 @@ NdbBlob *NdbOperation::getBlobHandle(Uint32 anAttrId) {
   if (col == nullptr) {
     setErrorCode(4004);
     return nullptr;
-  } else {
-    return getBlobHandle(theNdbCon, col);
   }
+  return getBlobHandle(theNdbCon, col);
 }
 
 NdbBlob *NdbOperation::getBlobHandle(const char *anAttrName) const {
@@ -390,9 +384,8 @@ NdbBlob *NdbOperation::getBlobHandle(const char *anAttrName) const {
   if (col == nullptr) {
     setErrorCode(4004);
     return nullptr;
-  } else {
-    return getBlobHandle(theNdbCon, col);
   }
+  return getBlobHandle(theNdbCon, col);
 }
 
 NdbBlob *NdbOperation::getBlobHandle(Uint32 anAttrId) const {
@@ -400,9 +393,8 @@ NdbBlob *NdbOperation::getBlobHandle(Uint32 anAttrId) const {
   if (col == nullptr) {
     setErrorCode(4004);
     return nullptr;
-  } else {
-    return getBlobHandle(theNdbCon, col);
   }
+  return getBlobHandle(theNdbCon, col);
 }
 
 int NdbOperation::incValue(const char *anAttrName, Uint32 aValue) {
@@ -483,10 +475,9 @@ int NdbOperation::getLockHandleImpl() {
     assert(!theLockHandle->isLockRefValid());
 
     return 0;
-  } else {
-    /* getLockHandle only supported for primary key read with a lock */
-    return 4549;
   }
+  /* getLockHandle only supported for primary key read with a lock */
+  return 4549;
 }
 
 const NdbLockHandle *NdbOperation::getLockHandle() {
@@ -494,22 +485,18 @@ const NdbLockHandle *NdbOperation::getLockHandle() {
     if (theLockHandle == nullptr) {
       int rc = getLockHandleImpl();
 
-      if (likely(rc == 0))
-        return theLockHandle;
-      else {
-        setErrorCode(rc);
-        return nullptr;
-      }
+      if (likely(rc == 0)) return theLockHandle;
+      setErrorCode(rc);
+      return nullptr;
     }
     /* Return existing LockHandle */
     return theLockHandle;
-  } else {
-    /* Not allowed to call getLockHandle() on a Blob-upgraded
-     * read
-     */
-    setErrorCode(4549);
-    return nullptr;
   }
+  /* Not allowed to call getLockHandle() on a Blob-upgraded
+   * read
+   */
+  setErrorCode(4549);
+  return nullptr;
 }
 
 const NdbLockHandle *NdbOperation::getLockHandle() const {

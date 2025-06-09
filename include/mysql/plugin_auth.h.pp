@@ -138,6 +138,7 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
+<<<<<<< HEAD
 unsigned int thd_get_num_vcpus();
 int thd_command(const void * thd);
 long long thd_start_time(const void * thd);
@@ -146,6 +147,10 @@ int thd_get_ft_query_extra_word_chars(void);
 typedef bool (*ssl_reload_callback_t)(void *);
 bool register_ssl_reload_callback(ssl_reload_callback_t);
 bool deregister_ssl_reload_callback(ssl_reload_callback_t);
+||||||| merged common ancestors
+unsigned int thd_get_num_vcpus();
+=======
+>>>>>>> mysql-9.3.0
 #include "plugin_auth_common.h"
 struct MYSQL_PLUGIN_VIO_INFO {
   enum {

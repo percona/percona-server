@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,21 +57,21 @@
 
 #endif
 
-#include <limits.h>
+#include <climits>
 
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <netdb.h>
 #endif
 
-#include <assert.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
-#include <time.h>
+#include <cassert>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include <memory>
 

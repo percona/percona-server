@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,9 @@ using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 class RouterLoggingTest : public RouterComponentBootstrapTest {
+ public:
+  RouterLoggingTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   std::string create_config_file(
       const std::string &directory, const std::string &sections,
@@ -1950,8 +1953,8 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 
   // check if normal output is written to output
   EXPECT_THAT(router.get_full_output(),
-              testing::HasSubstr("After this MySQL Router has been started "
-                                 "with the generated configuration"));
+              testing::HasSubstr("After this, MySQL Router can be started "
+                                 "with the generated configuration with:"));
 
   EXPECT_THAT(router.get_full_output(),
               testing::HasSubstr("MySQL Classic protocol"));

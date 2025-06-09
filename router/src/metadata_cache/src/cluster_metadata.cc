@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -40,6 +41,7 @@
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/cluster_metadata_instance_attributes.h"
 #include "mysqlrouter/mysql_session.h"
@@ -50,8 +52,6 @@
 using metadata_cache::LogSuppressor;
 using mysql_harness::EventStateTracker;
 using mysql_harness::logging::LogLevel;
-using mysqlrouter::ClusterType;
-using mysqlrouter::InstanceType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
 using namespace std::string_literals;
@@ -115,15 +115,45 @@ bool ClusterMetadata::do_connect(MySQLSession &connection,
   }
 }
 
-bool ClusterMetadata::connect_and_setup_session(
-    const metadata_cache::metadata_server_t &metadata_server) noexcept {
+bool ClusterMetadata::is_connected_to(
+    const metadata_cache::metadata_server_t &metadata_server) const {
   if (metadata_connection_ && metadata_connection_->is_connected() &&
       metadata_connection_->get_address() == metadata_server.str()) {
-    // there still a connection open to that server. Reuse it.
-
     if (0 == metadata_connection_->ping()) {
       return true;
     }
+  }
+
+  return false;
+}
+
+stdx::expected<std::shared_ptr<mysqlrouter::MySQLSession>, std::string>
+ClusterMetadata::make_connection_shared(
+    const metadata_cache::metadata_server_t &metadata_server) {
+  // use the existing metadata-connection if it goes to the same server.
+  if (is_connected_to(metadata_server)) {
+    return metadata_connection_;
+  }
+
+  auto connection = std::make_shared<MySQLSession>();
+
+  if (!do_connect(*connection, metadata_server)) {
+    return stdx::unexpected("Could not connect to the cluster member");
+  }
+
+  const auto result = mysqlrouter::setup_metadata_session(*connection);
+  if (!result) {
+    return stdx::unexpected("could not set up the metadata session: " +
+                            result.error());
+  }
+
+  return connection;
+}
+
+bool ClusterMetadata::connect_and_setup_session(
+    const metadata_cache::metadata_server_t &metadata_server) noexcept {
+  if (is_connected_to(metadata_server)) {
+    return true;
   }
 
   // Get a clean metadata server connection object
@@ -242,24 +272,15 @@ bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id,
     const metadata_cache::RouterAttributes &router_attributes) {
-  auto connection = std::make_unique<MySQLSession>();
-  if (!do_connect(*connection, rw_server)) {
-    log_warning(
-        "Updating the router attributes in metadata failed: Could not connect "
-        "to the writable cluster member");
+  auto connection_res = make_connection_shared(rw_server);
+  if (!connection_res) {
+    log_warning("Updating the router attributes in metadata failed: %s",
+                connection_res.error().c_str());
 
     return false;
   }
 
-  const auto result = mysqlrouter::setup_metadata_session(*connection);
-  if (!result) {
-    log_warning(
-        "Updating the router attributes in metadata failed: could not set up "
-        "the metadata session (%s)",
-        result.error().c_str());
-
-    return false;
-  }
+  auto connection = std::move(*connection_res);
 
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
@@ -298,24 +319,15 @@ bool ClusterMetadata::update_router_attributes(
 bool ClusterMetadata::update_router_last_check_in(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
-  auto connection = std::make_unique<MySQLSession>();
-  if (!do_connect(*connection, rw_server)) {
-    log_warning(
-        "Updating the router last_check_in in metadata failed: Could not "
-        "connect to the writable cluster member");
+  auto connection_res = make_connection_shared(rw_server);
+  if (!connection_res) {
+    log_warning("Updating the last_check_in in metadata failed: %s",
+                connection_res.error().c_str());
 
     return false;
   }
 
-  const auto result = mysqlrouter::setup_metadata_session(*connection);
-  if (!result) {
-    log_warning(
-        "Updating the router last_check_in in metadata failed: could not set "
-        "up the metadata session (%s)",
-        result.error().c_str());
-
-    return false;
-  }
+  auto connection = std::move(*connection_res);
 
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
@@ -343,24 +355,15 @@ void ClusterMetadata::report_guideline_name(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
   try {
-    auto connection = std::make_unique<MySQLSession>();
-    if (!do_connect(*connection, rw_server)) {
-      log_warning(
-          "Updating the routing guideline name in metadata failed: Could not "
-          "connect to the writable cluster member");
+    auto connection_res = make_connection_shared(rw_server);
+    if (!connection_res) {
+      log_warning("Updating the router guideline name in metadata failed: %s",
+                  connection_res.error().c_str());
 
       return;
     }
 
-    const auto result = mysqlrouter::setup_metadata_session(*connection);
-    if (!result) {
-      log_warning(
-          "Updating the routing guideline name in metadata failed: could not "
-          "set up the metadata session (%s)",
-          result.error().c_str());
-
-      return;
-    }
+    auto connection = std::move(*connection_res);
 
     MySQLSession::Transaction transaction(connection.get());
     // throws metadata_cache::metadata_error and
@@ -424,15 +427,15 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
     const mysqlrouter::TargetCluster &target_cluster) {
   ClusterMetadata::auth_credentials_t auth_credentials;
 
-  auto connection = std::make_unique<MySQLSession>();
-  if (!do_connect(*connection, md_server)) {
-    log_debug(
-        "Could not connect to the metadata server '%s' when trying to fetch "
-        "auth credentials",
-        md_server.str().c_str());
+  auto connection_res = make_connection_shared(md_server);
+  if (!connection_res) {
+    log_warning("Fetching the auth credentials from metadata failed: %s",
+                connection_res.error().c_str());
 
     return {};
   }
+
+  auto connection = std::move(*connection_res);
 
   const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "

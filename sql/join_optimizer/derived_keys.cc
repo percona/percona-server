@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -434,6 +434,7 @@ void FinalizeDerivedKeys(THD *thd, const Query_block &query_block,
   for (const Table_ref *table_ref{query_block.leaf_tables};
        table_ref != nullptr; table_ref = table_ref->next_leaf) {
     if (table_ref->uses_materialization() && table_ref->is_view_or_derived() &&
+        table_ref->table->s->keys > 0 &&
         std::find(processed_shares.cbegin(), processed_shares.cend(),
                   table_ref->table->s) == processed_shares.cend()) {
       if (TraceStarted(thd)) {

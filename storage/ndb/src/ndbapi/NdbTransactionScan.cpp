@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@
  *
  ****************************************************************************/
 int NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal *aSignal) {
-  const ScanTabRef *ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
+  const auto *ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
 
   if (checkState_TransId(&ref->transId1)) {
     if (theScanningOp) {
@@ -61,11 +61,10 @@ int NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal *aSignal) {
       m_scanningQuery->execCLOSE_SCAN_REP(ref->errorCode, ref->closeNeeded);
     }
     return 0;
-  } else {
-#ifdef NDB_NO_DROPPED_SIGNAL
-    abort();
-#endif
   }
+#ifdef NDB_NO_DROPPED_SIGNAL
+  abort();
+#endif
 
   return -1;
 }
@@ -85,7 +84,7 @@ int NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal *aSignal) {
  *****************************************************************************/
 int NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal *aSignal,
                                         const Uint32 *ops, Uint32 len) {
-  const ScanTabConf *conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
+  const auto *conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
 
   if (checkState_TransId(&conf->transId1)) {
     /**
@@ -126,8 +125,7 @@ int NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal *aSignal,
           const Uint32 activeMask =
               ndbd_send_active_bitmask(nodeVersion) ? *ops++ : 0;
 
-          NdbQueryOperationImpl *queryOp =
-              (NdbQueryOperationImpl *)tOp->m_owner;
+          auto *queryOp = (NdbQueryOperationImpl *)tOp->m_owner;
           assert(&queryOp->getQuery() == m_scanningQuery);
           if (queryOp->execSCAN_TABCONF(tcPtrI, rowCount, moreMask, activeMask,
                                         tOp))
@@ -147,11 +145,10 @@ int NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal *aSignal,
       }
     }  // while
     return retVal;
-  } else {
-#ifdef NDB_NO_DROPPED_SIGNAL
-    abort();
-#endif
   }
+#ifdef NDB_NO_DROPPED_SIGNAL
+  abort();
+#endif
 
   return -1;
 }

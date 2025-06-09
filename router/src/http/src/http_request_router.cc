@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,7 @@ stdx::expected<void, UErrorCode> HttpRequestRouter::RouteMatcher::matches(
 
   return {};
 }
+
 /**
  * Request router
  *
@@ -82,9 +83,11 @@ stdx::expected<void, UErrorCode> HttpRequestRouter::RouteMatcher::matches(
  *
  * if no handler is found, reply with 404 not found
  */
-void HttpRequestRouter::append(const std::string &url_regex_str,
+void HttpRequestRouter::append(const std::string &url_host,
+                               const std::string &url_regex_str,
                                std::unique_ptr<http::base::RequestHandler> cb) {
-  log_debug("adding route for regex: %s", url_regex_str.c_str());
+  log_debug("adding route for regex: %s, url_host: '%s'", url_regex_str.c_str(),
+            url_host.c_str());
 
   RouteMatcher matcher(url_regex_str, std::move(cb));
 
@@ -96,32 +99,67 @@ void HttpRequestRouter::append(const std::string &url_regex_str,
   }
 
   std::unique_lock lock(route_mtx_);
-  request_handlers_.push_back(std::move(matcher));
+  auto req_it = request_handlers_.find(url_host);
+  if (req_it == request_handlers_.end()) {
+    std::vector<RouteMatcher> router_matchers;
+    router_matchers.emplace_back(std::move(matcher));
+
+    request_handlers_.emplace(url_host, std::move(router_matchers));
+  } else {
+    req_it->second.emplace_back(std::move(matcher));
+  }
 }
 
 void HttpRequestRouter::remove(const void *handler_id) {
   std::unique_lock lock(route_mtx_);
 
-  for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-    if (it->handler().get() == handler_id) {
-      log_debug("removing route for regex: %s", it->url_pattern().c_str());
-      it = request_handlers_.erase(it);
+  for (auto map_it = request_handlers_.begin();
+       map_it != request_handlers_.end();) {
+    auto &[url_host, request_handlers] = *map_it;
+    for (auto it = request_handlers.begin(); it != request_handlers.end();) {
+      if (it->handler().get() == handler_id) {
+        log_debug("removing route for regex: %s, url_host: '%s'",
+                  it->url_pattern().c_str(), url_host.c_str());
+        it = request_handlers.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
+    if (request_handlers.empty()) {
+      // if there are no more request-handlers for a hostname, remove the entry
+      // in the hostname map.
+      map_it = request_handlers_.erase(map_it);
     } else {
-      ++it;
+      ++map_it;
     }
   }
 }
 
-void HttpRequestRouter::remove(const std::string &url_regex_str) {
-  log_debug("removing route for regex: %s", url_regex_str.c_str());
+void HttpRequestRouter::remove(const std::string &url_host,
+                               const std::string &url_regex_str) {
+  log_debug("removing route for regex: %s, url_host: '%s'",
+            url_regex_str.c_str(), url_host.c_str());
+
   std::unique_lock lock(route_mtx_);
 
-  for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-    if (it->url_pattern() == url_regex_str) {
-      it = request_handlers_.erase(it);
+  const auto req_it = request_handlers_.find(url_host);
+  if (req_it == request_handlers_.end()) return;
+
+  auto &request_handlers = req_it->second;
+
+  for (auto it = request_handlers.begin(); it != request_handlers.end();) {
+    if (it->url_pattern() == url_host && it->url_pattern() == url_regex_str) {
+      it = request_handlers.erase(it);
     } else {
       it++;
     }
+  }
+
+  if (request_handlers.empty()) {
+    // if there are no more request-handlers for a hostname, remove the entry in
+    // the hostname map.
+    request_handlers_.erase(req_it);
   }
 }
 
@@ -183,7 +221,13 @@ void HttpRequestRouter::route(http::base::Request &req) {
     return;
   }
 
-  auto handler = find_route_handler(uri.get_path());
+  std::string url_host;
+  auto hdr_host = req.get_input_headers().find(":authority");
+  if (hdr_host) {
+    url_host = *hdr_host;
+  }
+
+  auto handler = find_route_handler(url_host, uri.get_path());
 
   if (handler) {
     handler->handle_request(req);
@@ -193,8 +237,35 @@ void HttpRequestRouter::route(http::base::Request &req) {
   handler_not_found(req);
 }
 
+namespace {
+
+// If the argument sent as a parameter is in "<hostname>:<port>" format
+// (matches "^(.*):[0-9]+$" regex) returns <hostname> part, otherwise returns
+// std::nullopt
+std::optional<std::string_view> get_host_if_host_and_port(
+    const std::string_view &url_host) {
+  auto last_colon = url_host.find_last_of(':');
+
+  // no colon or colon at the end
+  if (last_colon == std::string_view::npos ||
+      last_colon == url_host.size() - 1) {
+    return std::nullopt;
+  }
+
+  // some non-digit after the colon
+  if (std::find_if(url_host.begin() + last_colon + 1, url_host.end(),
+                   [](const auto &c) { return !std::isdigit(c); }) !=
+      url_host.end()) {
+    return std::nullopt;
+  }
+
+  return url_host.substr(0, last_colon);
+}
+
+}  // namespace
+
 BaseRequestHandlerPtr HttpRequestRouter::find_route_handler(
-    std::string_view path) {
+    std::string_view url_host, std::string_view path) {
   // as .matches() is called in a loop on the same string,
   // convert it to UnicodeString upfront.
   //
@@ -203,9 +274,44 @@ BaseRequestHandlerPtr HttpRequestRouter::find_route_handler(
 
   std::shared_lock lock(route_mtx_);
 
-  for (auto &request_handler : request_handlers_) {
-    if (request_handler.matches(uni_path)) {
-      return request_handler.handler();
+  if (!url_host.empty()) {
+    // Check if we have a handler with a hostname that exactly matches the one
+    // from the request
+    auto req_it = request_handlers_.find(url_host);
+    // No exact match. Check if the url_host in the request is in the
+    // <hostname>:<port> format. If that is the case we still accept it if the
+    // <hostname> part matches the handler.
+    if (req_it == request_handlers_.end()) {
+      auto hostname = get_host_if_host_and_port(url_host);
+      if (hostname) {
+        // Currently the SDK's "CREATE SERVICE" command does not support ipv6 so
+        // it is good enough to do the exact match of the host part here. If
+        // that ever changes we need something smarter to also match the names
+        // with and without enclosing []'s
+        req_it = request_handlers_.find(*hostname);
+      }
+    }
+
+    if (req_it != request_handlers_.end()) {
+      auto &request_handlers = req_it->second;
+
+      for (auto &request_handler : request_handlers) {
+        if (request_handler.matches(uni_path)) {
+          return request_handler.handler();
+        }
+      }
+    }
+  }
+
+  // no handler with matching host found, try the one with empty host
+  auto req_it = request_handlers_.find("");
+  if (req_it != request_handlers_.end()) {
+    auto &request_handlers = req_it->second;
+
+    for (auto &request_handler : request_handlers) {
+      if (request_handler.matches(uni_path)) {
+        return request_handler.handler();
+      }
     }
   }
 

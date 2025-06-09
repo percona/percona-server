@@ -33,3 +33,5 @@ scalability_jobs_*
 .project
 .settings/
 
+# Cache directory used by e.g. clangd.
+.cache/

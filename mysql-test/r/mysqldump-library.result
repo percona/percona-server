@@ -3,7 +3,8 @@
 #
 create database mysqldump_test_db;
 create procedure mysqldump_test_db.sp1() select 'hello';
-create library  mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT AS " export function f(n) {  return n+1 } ";
+create library  mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT COMMENT "Library Comment"
+AS " export function f(n) {  return n+1 } ";
 create function mysqldump_test_db.sp1(n INTEGER) RETURNS INTEGER LANGUAGE JAVASCRIPT
 USING (mysqldump_test_db.sp1)
 as " return sp1.f(n) ";
@@ -59,6 +60,7 @@ DROP LIBRARY IF EXISTS `sp1`;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE LIBRARY `sp1`
+    COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
 AS $$ export function f(n) {  return n+1 } $$ ;;
 DELIMITER ;
@@ -147,6 +149,7 @@ AS $$ export function f(n) {  return n+1 } $$
 		<library Library="sp1" sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION">
 <![CDATA[
 CREATE LIBRARY `sp1`
+    COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
 AS $$ export function f(n) {  return n+1 } $$
 ]]>
@@ -196,6 +199,7 @@ AS $$ return sp1.f(n) $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create library mysqldump_test_db.sp1;
 Library	sql_mode	Create Library
 sp1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE LIBRARY `sp1`
+    COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
 AS $$ export function f(n) {  return n+1 } $$
 show create function mysqldump_test_db.`ansi"_"quoted"`;

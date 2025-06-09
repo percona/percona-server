@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -127,9 +127,10 @@ void MetadataCache::refresh_thread() {
     if (refresh_ok) {
       if (!ready_announced_) {
         ready_announced_ = true;
+        const auto &name =
+            metadata_cache::MetadataCacheAPI::instance()->instance_name();
         mysql_harness::on_service_ready(
-            "metadata_cache:" +
-            metadata_cache::MetadataCacheAPI::instance()->instance_name());
+            name.empty() ? "metadata_cache" : "metadata_cache:" + name);
       }
       // update router attributes in the routers table once when we start
       if (attributes_upd) {

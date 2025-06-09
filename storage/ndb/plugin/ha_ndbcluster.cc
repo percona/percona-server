@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -399,9 +399,6 @@ static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD *, stat_print_fn *,
                                    enum ha_stat_type);
 
-static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
-                                     LEX_CSTRING table_name,
-                                     LEX_CSTRING *tablespace_name);
 static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
                                        st_alter_tablespace *info,
                                        const dd::Tablespace *,
@@ -2217,6 +2214,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -2241,6 +2240,8 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
       const NdbError &err = dict->getNdbError();
       if (err.code != 4243) ERR_RETURN(err);
       // Index Not Found. Proceed with this index unavailable.
+      // Mark table as invalid to avoid caching the table definition.
+      table->invalidate_dict();
     }
   }
 
@@ -8360,7 +8361,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       col.setLength(1);
       break;
     case MYSQL_TYPE_TIME2: {
-      Field_timef *f = (Field_timef *)field;
+      Field_time *f = down_cast<Field_time *>(field);
       uint prec = f->decimals();
       col.setType(NDBCOL::Time2);
       col.setLength(1);
@@ -12316,28 +12317,26 @@ static int drop_database_impl(THD *thd,
   return 0;
 }
 
-static void ndbcluster_drop_database(handlerton *, char *path) {
+static void ndbcluster_drop_database(handlerton *, const char *db_name) {
   THD *thd = current_thd;
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("path: '%s'", path));
+  DBUG_PRINT("enter", ("db: '%s'", db_name));
 
-  char db[FN_REFLEN];
-  ndb_set_dbname(path, db);
   Ndb_schema_dist_client schema_dist_client(thd);
 
-  if (!schema_dist_client.prepare(db, "")) {
+  if (!schema_dist_client.prepare(db_name, "")) {
     /* Don't allow drop database unless schema distribution is ready */
     return;
   }
 
-  if (drop_database_impl(thd, schema_dist_client, db) != 0) {
+  if (drop_database_impl(thd, schema_dist_client, db_name) != 0) {
     return;
   }
 
-  if (!schema_dist_client.drop_db(db)) {
+  if (!schema_dist_client.drop_db(db_name)) {
     // NOTE! There is currently no way to report an error from this
     // function, just log an error and proceed
-    ndb_log_error("Failed to distribute 'DROP DATABASE %s'", db);
+    ndb_log_error("Failed to distribute 'DROP DATABASE %s'", db_name);
   }
 }
 
@@ -12737,11 +12736,10 @@ static int ndbcluster_init(void *handlerton_ptr) {
   hton->close_connection = ndbcluster_close_connection;
   hton->commit = ndbcluster_commit;
   hton->rollback = ndbcluster_rollback;
-  hton->create = ndbcluster_create_handler;         /* Create a new handler */
-  hton->drop_database = ndbcluster_drop_database;   /* Drop a database */
-  hton->panic = ndbcluster_end;                     /* Panic call */
-  hton->show_status = ndbcluster_show_status;       /* Show status */
-  hton->get_tablespace = ndbcluster_get_tablespace; /* Get ts for old ver */
+  hton->create = ndbcluster_create_handler;       /* Create a new handler */
+  hton->drop_database = ndbcluster_drop_database; /* Drop a database */
+  hton->panic = ndbcluster_end;                   /* Panic call */
+  hton->show_status = ndbcluster_show_status;     /* Show status */
   hton->alter_tablespace =
       ndbcluster_alter_tablespace; /* Tablespace and logfile group */
   hton->get_tablespace_statistics =
@@ -16750,62 +16748,6 @@ void ha_ndbcluster::notify_table_changed(Alter_inplace_info *alter_info) {
   alter_info->handler_ctx = nullptr;
 }
 
-/**
-  Get the tablespace name from the NDB dictionary for the given table in the
-  given schema.
-
-  @note For NDB tables with version before 50120, the server must ask the
-        SE for the tablespace name, because for these tables, the tablespace
-        name is not stored in the .FRM file, but only within the SE itself.
-
-  @note The function is essentially doing the same as the corresponding code
-        block in the function 'get_metadata()', except for the handling of
-        empty strings, which are in this case returned as "" rather than NULL.
-
-  @param       thd              Thread context.
-  @param       db_name          Name of the relevant schema.
-  @param       table_name       Name of the relevant table.
-  @param [out] tablespace_name  Name of the tablespace containing the table.
-
-  @return Operation status.
-    @retval == 0  Success.
-    @retval != 0  Error (handler error code returned).
- */
-
-static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
-                                     LEX_CSTRING table_name,
-                                     LEX_CSTRING *tablespace_name) {
-  DBUG_TRACE;
-  DBUG_PRINT("enter",
-             ("db_name: %s, table_name: %s", db_name.str, table_name.str));
-  assert(tablespace_name != nullptr);
-
-  Ndb *ndb = check_ndb_in_thd(thd);
-  if (ndb == nullptr) return HA_ERR_NO_CONNECTION;
-
-  Ndb_table_guard ndbtab_g(ndb, db_name.str, table_name.str);
-  const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
-  if (ndbtab == nullptr) {
-    ERR_RETURN(ndbtab_g.getNdbError());
-  }
-
-  Uint32 id;
-  if (ndbtab->getTablespace(&id)) {
-    NDBDICT *dict = ndb->getDictionary();
-    NdbDictionary::Tablespace ts = dict->getTablespace(id);
-    if (ndb_dict_check_NDB_error(dict)) {
-      const char *tablespace = ts.getName();
-      assert(tablespace);
-      const size_t tablespace_len = strlen(tablespace);
-      DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
-      lex_string_strmake(thd->mem_root, tablespace_name, tablespace,
-                         tablespace_len);
-    }
-  }
-
-  return 0;
-}
-
 static bool create_tablespace_in_NDB(st_alter_tablespace *alter_info,
                                      NdbDictionary::Dictionary *dict,
                                      const Thd_ndb *thd_ndb, int &object_id,
@@ -17692,6 +17634,9 @@ static SHOW_VAR ndb_status_vars[] = {
     {"Ndb", (char *)&show_ndb_metadata_check, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_synced, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_excluded_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ndb_schema_participant_count",
+     (char *)&ndbcluster_binlog_get_schema_participant_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

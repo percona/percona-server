@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1236,7 +1236,7 @@ int log_line_submit(log_line *ll) {
     /* auto-add a ts item if needed */
     if (!(ll->seen & LOG_ITEM_LOG_TS) && !log_line_full(ll)) {
       log_item_data *d;
-      ulonglong now = my_milli_time();
+      ulonglong now = my_micro_time() / 1000ULL;  // milliseconds
 
       DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
 

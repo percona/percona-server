@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,7 @@ class Mock_execution_context : public Secondary_engine_execution_context {
 namespace mock {
 
 ha_mock::ha_mock(handlerton *hton, TABLE_SHARE *table_share_arg)
-    : handler(hton, table_share_arg) {}
+    : handler(hton, table_share_arg), m_part_handler(this) {}
 
 int ha_mock::open(const char *, int, unsigned int, const dd::Table *) {
   MockShare *share =
@@ -398,6 +398,11 @@ static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
   return new (mem_root) mock::ha_mock(hton, table_share);
 }
 
+static uint PartitionFlags() {
+  return HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
+         HA_TRUNCATE_PARTITION_PRECLOSE;
+}
+
 static int Init(MYSQL_PLUGIN p) {
   loaded_tables = new LoadedTables();
 
@@ -414,6 +419,7 @@ static int Init(MYSQL_PLUGIN p) {
   hton->secondary_engine_flags =
       MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
   hton->secondary_engine_modify_view_ap_cost = ModifyViewAccessPathCost;
+  hton->partition_flags = PartitionFlags;
   return 0;
 }
 

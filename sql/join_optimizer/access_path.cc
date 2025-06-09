@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1560,7 +1560,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
   // Expand join filters for nested loop joins.
   if (path->type == AccessPath::NESTED_LOOP_JOIN &&
       !path->nested_loop_join().already_expanded_predicates &&
-      !(path->nested_loop_join().equijoin_predicates.empty() &&
+      !(IsEmpty(path->nested_loop_join().equijoin_predicates) &&
         path->nested_loop_join()
             .join_predicate->expr->join_conditions.empty()) &&
       path->nested_loop_join().inner->type != AccessPath::ZERO_ROWS) {
@@ -1661,10 +1661,9 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
   path->filter().materialize_subqueries = false;
 
   // Clear filter_predicates, but keep applied_sargable_join_predicates.
-  MutableOverflowBitset applied_sargable_join_predicates =
-      path->applied_sargable_join_predicates().Clone(thd->mem_root);
-  applied_sargable_join_predicates.ClearBits(0, num_where_predicates);
-  path->filter_predicates = std::move(applied_sargable_join_predicates);
+  path->applied_sargable_join_predicates() =
+      ClearFilterPredicates(path->applied_sargable_join_predicates(),
+                            num_where_predicates, thd->mem_root);
 }
 
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
@@ -1677,6 +1676,15 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                         thd, path, sub_join, predicates, num_where_predicates);
                     return false;
                   });
+}
+
+MutableOverflowBitset ClearFilterPredicates(OverflowBitset predicates,
+                                            int num_where_predicates,
+                                            MEM_ROOT *mem_root) {
+  MutableOverflowBitset applied_sargable_join_predicates =
+      predicates.Clone(mem_root);
+  applied_sargable_join_predicates.ClearBits(0, num_where_predicates);
+  return applied_sargable_join_predicates;
 }
 
 table_map GetHashJoinTables(AccessPath *path) {

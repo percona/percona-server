@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@ int compare(const void *p1, const void *p2) {
 
   if (*arg1 < *arg2) {
     return -1;
-  } else if (*arg2 < *arg1) {
-    return 1;
-  } else {
-    return 0;
   }
+  if (*arg2 < *arg1) {
+    return 1;
+  }
+  return 0;
 }
 
 }  // namespace

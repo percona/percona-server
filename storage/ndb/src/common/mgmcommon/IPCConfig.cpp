@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,8 +261,8 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.localHostName = "localhost";
     loopback_conf.s_port = 1;  // prevent asking ndb_mgmd for port...
     loopback_conf.type = tt_TCP_TRANSPORTER;
-    loopback_conf.checksum = 0;
-    loopback_conf.signalId = 0;
+    loopback_conf.checksum = false;
+    loopback_conf.signalId = false;
     loopback_conf.tcp.sendBufferSize = 1024 * 1024;
     loopback_conf.tcp.maxReceiveSize = 1024 * 1024;
     loopback_conf.tcp.tcpSndBufSize = 0;

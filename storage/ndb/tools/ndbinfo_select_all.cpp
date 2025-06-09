@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 static int loops = 1;
 static int delay = 5;
-const char *load_default_groups[] = {"mysql_cluster", 0};
+const char *load_default_groups[] = {"mysql_cluster", nullptr};
 
 static struct my_option my_long_options[] = {
     NdbStdOpt::usage,
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 #endif
   if (opts.handle_options()) return 1;
 
-  if (argv[0] == 0) {
+  if (argv[0] == nullptr) {
     return 0;
   }
 
@@ -92,10 +92,10 @@ int main(int argc, char **argv) {
   const Uint32 batchsizerows = 32;
 
   for (int ll = 0; loops == 0 || ll < loops; ll++) {
-    for (int ii = 0; argv[ii] != 0; ii++) {
+    for (int ii = 0; argv[ii] != nullptr; ii++) {
       ndbout << "== " << argv[ii] << " ==" << endl;
 
-      const NdbInfo::Table *pTab = 0;
+      const NdbInfo::Table *pTab = nullptr;
       int res = info.openTable(argv[ii], &pTab);
       if (res != 0) {
         ndbout << "Failed to open: " << argv[ii] << ", res: " << res << endl;
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
       }
       ndbout << endl;
 
-      NdbInfoScanOperation *pScan = 0;
+      NdbInfoScanOperation *pScan = nullptr;
       res = info.createScanOperation(pTab, &pScan, batchsizerows);
       if (res != 0) {
         ndbout << "Failed to createScan: " << argv[ii] << ", res: " << res
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
       Vector<const NdbInfoRecAttr *> recAttrs;
       for (unsigned i = 0; i < cols; i++) {
         const NdbInfoRecAttr *pRec = pScan->getValue(i);
-        if (pRec == 0) {
+        if (pRec == nullptr) {
           ndbout << "Failed to getValue(" << i << ")" << endl;
           return 1;
         }

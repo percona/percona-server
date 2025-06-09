@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1950,6 +1950,27 @@ Item *ConditionFromFilterPredicates(const Mem_root_array<Predicate> &predicates,
 void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates);
+
+/**
+  Clear all the bits representing filter predicates in a bitset, and keep only
+  the bits representing applied sargable join conditions.
+
+  See AccessPath::filter_predicates and
+  AccessPath::applied_sargable_join_predicates() for details about how filter
+  predicates and applied sargable join predicates are stored in different
+  partitions of the same bitset.
+
+  @param predicates A bitset representing both filter predicates and applied
+  sargable join predicates.
+  @param num_where_predicates The number of filter predicates.
+  @param mem_root The root on which to allocate memory, if needed.
+
+  @return A copy of "predicates" with only the bits for applied sargable join
+  predicates set.
+ */
+MutableOverflowBitset ClearFilterPredicates(OverflowBitset predicates,
+                                            int num_where_predicates,
+                                            MEM_ROOT *mem_root);
 
 /// Returns the tables that are part of a hash join.
 table_map GetHashJoinTables(AccessPath *path);

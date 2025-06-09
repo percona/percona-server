@@ -278,6 +278,8 @@ SECONDARY_ENGINE MOCK
 PARTITION BY HASH(id);
 INSERT INTO t_partitioned VALUES (1, 2), (2, 3), (3, 4), (4, 5);
 ALTER TABLE t_partitioned SECONDARY_LOAD;
+SELECT * FROM t_partitioned;
+id	x
 DROP TABLE t_partitioned;
 FLUSH STATUS;
 SELECT * FROM t1;
@@ -893,6 +895,33 @@ FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
+ERROR HY000: Secondary engine operation failed. Reason: "All plans were rejected by the secondary storage engine".
+SELECT a FROM t1;
+a
+-1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SELECT b FROM t1;
+b
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
+b
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
 DROP TABLE t1;
 #
 # Use NOT SECONDARY as comment.

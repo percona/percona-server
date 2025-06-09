@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ bool Connection_event_coordinator::register_event_subscriber(
       initialize it with required details.
     */
     try {
-      Connection_event_subscriber subscriber_info(subscriber, sys_vars);
+      Connection_event_subscriber const subscriber_info(subscriber, sys_vars);
 
       /* Insert new entry in m_subscribers */
       m_subscribers.push_back(subscriber_info);

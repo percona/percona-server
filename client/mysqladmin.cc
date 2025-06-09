@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,11 @@
 #include <fcntl.h>
 #include <mysql.h>
 #include <mysqld_error.h> /* to check server error codes */
-#include <signal.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
+#include <csignal>
+#include <cstdlib>
+#include <ctime>
 #include <string>
 
 #include "client/include/client_priv.h"
@@ -106,7 +106,7 @@ static uint ex_var_count, max_var_length, max_val_length;
 #include "client/include/caching_sha2_passwordopt-vars.h"
 #include "client/include/multi_factor_passwordopt-vars.h"
 
-static void usage(void);
+static void usage();
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument);
 static bool sql_connect(MYSQL *mysql, uint wait);
@@ -468,7 +468,7 @@ int main(int argc, char *argv[]) {
                   (char *)&opt_enable_cleartext_plugin);
 
   first_command = find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
-  can_handle_passwords = first_command == ADMIN_PASSWORD ? true : false;
+  can_handle_passwords = first_command == ADMIN_PASSWORD;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
@@ -1001,7 +1001,8 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           my_printf_error(0, "Too few arguments to change password",
                           error_flags);
           return 1;
-        } else if (argc == 1) {
+        }
+        if (argc == 1) {
           /* prompt for password */
           typed_password = get_tty_password("New password: ");
           verified = get_tty_password("Confirm new password: ");
@@ -1193,7 +1194,7 @@ static char **mask_password(int argc, char ***argv) {
   return (temp_argv);
 }
 
-static void usage(void) {
+static void usage() {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Administration program for the mysqld daemon.");
@@ -1377,7 +1378,6 @@ static void store_values(MYSQL_RES *result) {
     ex_val_max_len[i] = 2; /* Default print width for values */
   }
   ex_var_count = i;
-  return;
 }
 
 static void print_relative_header() {
@@ -1430,7 +1430,6 @@ static void truncate_names() {
     printf(" %-*s|\n", max_val_length + 1, llstr(last_values[i], buff));
   }
   puts(top_line);
-  return;
 }
 
 static bool get_pidfile(MYSQL *mysql, char *pidfile) {

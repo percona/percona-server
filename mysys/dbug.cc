@@ -81,14 +81,14 @@
 
 #include "my_config.h"
 
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
-#include <time.h>
+#include <cassert>
+#include <cctype>
+#include <cerrno>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
 #include <algorithm>
 
@@ -118,7 +118,7 @@
 #if defined(_WIN32)
 #include <process.h>
 #else
-#include <signal.h>
+#include <csignal>
 #endif
 
 #ifndef NDEBUG
@@ -1191,8 +1191,8 @@ void _db_enter_(const char *_func_, int func_len, const char *_file_,
  */
 
 void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_) {
-  int save_errno = errno;
-  uint _slevel_ = _stack_frame_->level & ~TRACE_ON;
+  int const save_errno = errno;
+  uint const _slevel_ = _stack_frame_->level & ~TRACE_ON;
   CODE_STATE *cs;
   get_code_state_or_return;
 
@@ -1394,7 +1394,7 @@ void _db_dump_(uint _line_, const char *keyword, const unsigned char *memory,
 
     pos = 0;
     while (length-- > 0) {
-      uint tmp = *(memory++);
+      uint const tmp = *(memory++);
       if ((pos += 3) >= 80) {
         fputc('\n', cs->stack->out_file);
         pos = 3;
@@ -1923,7 +1923,7 @@ static void DBUGOpenFile(CODE_STATE *cs, const char *name, const char *end,
 
   if (name != nullptr) {
     if (end) {
-      size_t len = end - name;
+      size_t const len = end - name;
       memcpy(cs->stack->name, name, len);
       cs->stack->name[len] = 0;
     } else

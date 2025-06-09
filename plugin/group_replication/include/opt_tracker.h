@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,5 +44,11 @@ void track_group_replication_unavailable();
                   false: tracks as disabled
 */
 void track_group_replication_enabled(bool enabled);
+
+/**
+@brief A status variable counter for usage tracking by the option_tracker
+component
+*/
+extern unsigned long long opt_option_tracker_usage_group_replication_plugin;
 
 #endif /* OPT_TRACKER_INCLUDED */

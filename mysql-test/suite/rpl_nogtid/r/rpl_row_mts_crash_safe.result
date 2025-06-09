@@ -505,7 +505,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -561,7 +561,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -636,7 +636,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -673,7 +673,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -729,7 +729,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -804,7 +804,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -860,7 +860,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -954,7 +954,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1086,7 +1086,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1142,7 +1142,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1236,7 +1236,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1368,7 +1368,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1443,7 +1443,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1575,7 +1575,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1764,7 +1764,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1839,7 +1839,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -1971,7 +1971,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2160,7 +2160,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2216,7 +2216,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2291,7 +2291,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2347,7 +2347,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2422,7 +2422,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2478,7 +2478,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2553,7 +2553,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2647,7 +2647,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2779,7 +2779,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -2873,7 +2873,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3005,7 +3005,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3099,7 +3099,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3231,7 +3231,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3363,7 +3363,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3552,7 +3552,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3684,7 +3684,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -3873,7 +3873,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4005,7 +4005,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4194,7 +4194,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4269,7 +4269,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4344,7 +4344,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4419,7 +4419,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4494,7 +4494,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4626,7 +4626,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4758,7 +4758,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -4890,7 +4890,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5022,7 +5022,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5211,7 +5211,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5400,7 +5400,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5589,7 +5589,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5778,7 +5778,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mta_crash_safe.inc:recovery ====
 include/rpl/start_receiver.inc
 ** fixing gaps **
-include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
+include/rpl/start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/rpl/wait_for_replica_status.inc [Until_Condition]
 include/rpl/wait_for_applier_to_stop.inc
@@ -5800,8 +5800,6 @@ include/rpl/sync_to_replica.inc
 ########################################################################
 ==== begin rpl_mta_crash_safe.inc:clean ====
 include/rpl/stop_replica.inc
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/rpl/start_replica.inc
 ---- begin clean database test_1 ----
 common/rpl/mixing_engines.inc [commands=clean]

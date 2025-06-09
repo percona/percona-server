@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,10 @@
 
 #include "sql/dd/impl/system_views/routine_libraries.h"
 
-namespace dd {
-namespace system_views {
+namespace dd::system_views {
 
 const Routine_libraries &Routine_libraries::instance() {
-  static Routine_libraries *s_instance = new Routine_libraries();
+  static auto *s_instance = new Routine_libraries();
   return *s_instance;
 }
 
@@ -69,5 +68,4 @@ Routine_libraries::Routine_libraries() {
       "AND JSON_VALID(GET_DD_PROPERTY_KEY_VALUE(rtn.options,'libraries')) = 1");
 }
 
-}  // namespace system_views
-}  // namespace dd
+}  // namespace dd::system_views

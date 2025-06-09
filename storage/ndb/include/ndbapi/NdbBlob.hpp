@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -627,8 +627,7 @@ class NdbBlob {
     OT_DELETE = 1 << 4
   } OpTypes;
   Uint32 getOpType();  // Not const as used methods !const
-  static bool isOpTypeSafeWithBatch(const Uint32 batchOpTypes,
-                                    const Uint32 newOpType);
+  static bool isOpTypeSafeWithBatch(Uint32 batchOpTypes, Uint32 newOpType);
 
   // Key compare
   /* Returns 0 if different, 1 if same, - otherwise */

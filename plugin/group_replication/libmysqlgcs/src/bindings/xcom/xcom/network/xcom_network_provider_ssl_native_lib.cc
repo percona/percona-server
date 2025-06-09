@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@
 #endif
 
 #ifndef XCOM_WITHOUT_OPENSSL
-#include <assert.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cstdlib>
 
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
@@ -50,7 +50,9 @@
 #include "my_compiler.h"
 #endif
 
-#include "openssl/engine.h"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include <openssl/engine.h>
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
@@ -579,7 +581,9 @@ void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
   }
 
 #if defined(WITH_SSL_STANDALONE)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ENGINE_cleanup();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
   ERR_free_strings();

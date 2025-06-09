@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -72,12 +72,14 @@ constexpr size_t FIL_SCAN_MAX_THREADS = 16;
 /** Number of threads per core. */
 constexpr size_t FIL_SCAN_THREADS_PER_CORE = 2;
 
+#ifndef UNIV_HOTBACKUP
 /** Calculate the number of threads that can be spawned to scan the given
 number of files taking into the consideration, number of cores available
 on the machine.
 @param[in]      num_files       Number of files to be scanned
 @return number of threads to be spawned for scanning the files */
 size_t fil_get_scan_threads(size_t num_files);
+#endif /* !UNIV_HOTBACKUP */
 
 /** This tablespace name is used internally during file discovery to open a
 general tablespace before the data dictionary is recovered and available. */

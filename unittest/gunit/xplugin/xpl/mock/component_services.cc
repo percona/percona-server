@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,17 @@
 
 #include "unittest/gunit/xplugin/xpl/mock/component_services.h"
 
+<<<<<<< HEAD
 #include "mysql/plugin.h"
 
 namespace xpl {
 namespace test {
+||||||| merged common ancestors
+namespace xpl {
+namespace test {
+=======
+namespace xpl::test {
+>>>>>>> mysql-9.3.0
 
 mock::Service_registry *mock::Service_registry::m_this = nullptr;
 mock::Service_admin_session *mock::Service_admin_session::m_this = nullptr;
@@ -61,6 +68,7 @@ Service_admin_session::Service_admin_session() {
 Service_admin_session::~Service_admin_session() { m_this = nullptr; }
 
 }  // namespace mock
+<<<<<<< HEAD
 }  // namespace test
 }  // namespace xpl
 
@@ -68,3 +76,9 @@ extern "C" {
 bool register_ssl_reload_callback(ssl_reload_callback_t) { return true; }
 bool deregister_ssl_reload_callback(ssl_reload_callback_t) { return true; }
 }
+||||||| merged common ancestors
+}  // namespace test
+}  // namespace xpl
+=======
+}  // namespace xpl::test
+>>>>>>> mysql-9.3.0

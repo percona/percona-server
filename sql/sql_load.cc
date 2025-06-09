@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -566,6 +566,8 @@ bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Bulk Load");
     return false;
   }
+
+  DEBUG_SYNC(thd, "bulk_load_inuse");
 
   auto load_driver = reinterpret_cast<SERVICE_TYPE(bulk_load_driver) *>(svc);
 

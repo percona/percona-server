@@ -1,0 +1,267 @@
+# Tests that services that have the passthroughDbUser option set will execute
+# SQL for DB endpoints as that user.
+
+# create the schemas
+create schema db1;
+
+create table db1.tbl (a int primary key auto_increment, user varchar(100) default (current_user()));
+create table db1.tbl2 (a int primary key auto_increment, user varchar(100) default (current_user()));
+
+create function db1.f() returns char(100) return current_user();
+create function db1.f2() returns char(100) return current_user();
+
+delimiter $$;
+create procedure db1.p() sql security invoker begin select current_user(); end$$
+create procedure db1.p2() sql security invoker begin select current_user(); end$$
+delimiter ;$$
+
+create role user1role;
+grant all on db1.* to user1role;
+
+create user user1@'%' identified by 'secretpass1';
+grant user1role to user1@'%';
+
+create user user3@'%' identified by 'secretpass3';
+grant user1role to user3@'%';
+
+create user user2@'%' identified by 'secretpass2';
+grant select, insert, update, delete on db1.tbl2 to user2@'%';
+grant execute on procedure db1.p2 to user2@'%';
+grant execute on function db1.f2 to user2@'%';
+
+--source include/have_router.inc
+
+--let $extra_mrs_router_id=1
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+--source ../include/mrs/start_object_definition.inc
+
+# expose endpoints for db1 
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_service_options='{"logging":{"exceptions":true}, "passthroughDbUser":true}'
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=db1
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p
+--let $mrs_add_db_object_path=/p
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p2
+--let $mrs_add_db_object_path=/p2
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--let $mrs_add_db_object=f
+--let $mrs_add_db_object_path=/f
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--let $mrs_add_db_object=f2
+--let $mrs_add_db_object_path=/f2
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=TABLE
+--let $mrs_add_db_object=tbl
+--let $mrs_add_db_object_path=/tbl
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=TABLE
+--let $mrs_add_db_object=tbl2
+--let $mrs_add_db_object_path=/tbl2
+--source ../include/mrs/db_object/add.inc
+
+# add user1 and user2 as MySQL Internal accounts
+--let $mrs_add_auth_app=default authentication
+--let $mrs_add_auth_registered_users_only=1
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc
+--source ../include/mrs/auth_app/add.inc
+
+--let $mrs_add_user_ext_uid='user1@%'
+--let $mrs_add_user_name='user1'
+--let $mrs_add_user_auth_string='ignore'
+--source ../include/mrs/user/add.inc
+
+--let $mrs_add_user_ext_uid='user2@%'
+--let $mrs_add_user_name='user2'
+--let $mrs_add_user_auth_string='ignore'
+--source ../include/mrs/user/add.inc
+
+--source ../include/mrs/end_object_definition.inc
+
+# authenticate user1 and user2
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user1
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user2
+  -p secretpass2
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+# should fail because not registered
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user3
+  -p secretpass3
+  --expected-status 401
+  --session-file $MYSQL_TMP_DIR/user3_session.dat;
+
+# user1 has access to everything
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  -t POST
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl2
+  -t POST
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl2
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/p
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/p2
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+ exec $MRS_CLIENT_ARGS
+  --path /svc/db/f
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/f2
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# user2 only has access to *2 objects
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  -t POST
+  --payload {}
+  --expected-status 500
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  --expected-status 500
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl2
+  -t POST
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl2
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/p
+  -t PUT
+  --payload {}
+  --expected-status 500
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/p2
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+ exec $MRS_CLIENT_ARGS
+  --path /svc/db/f
+  -t PUT
+  --payload {}
+  --expected-status 500
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/f2
+  -t PUT
+  --payload {}
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+# user3 should be rejected
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  --expected-status 401
+  --session-file $MYSQL_TMP_DIR/user3_session.dat;
+
+# change password and try again
+SET PASSWORD FOR user1@'%'='newpass';
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user1
+  -p newpass
+  --session-file $MYSQL_TMP_DIR/user1b_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  --session-file $MYSQL_TMP_DIR/user1b_session.dat;
+
+
+# switch off restriction to registered users and try again with user3
+update mysql_rest_service_metadata.auth_app set limit_to_registered_users=0;
+
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user3
+  -p secretpass3
+  --session-file $MYSQL_TMP_DIR/user3_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/db/tbl
+  --session-file $MYSQL_TMP_DIR/user3_session.dat;
+
+# Cleanup
+remove_file $MYSQL_TMP_DIR/user1_session.dat;
+remove_file $MYSQL_TMP_DIR/user1b_session.dat;
+remove_file $MYSQL_TMP_DIR/user2_session.dat;
+remove_file $MYSQL_TMP_DIR/user3_session.dat;
+drop user user1@'%';
+drop user user2@'%';
+drop user user3@'%';
+drop user user1role;
+drop schema db1;
+--source ../include/mrs/cleanup.inc

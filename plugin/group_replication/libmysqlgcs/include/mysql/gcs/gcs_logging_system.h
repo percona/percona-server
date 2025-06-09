@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,7 +289,7 @@ class Gcs_async_buffer {
     in use was the standard output.
   */
 
-  const std::string get_information() const;
+  std::string get_information() const;
 
   /**
     Consumer thread invokes this method to process log events until it is

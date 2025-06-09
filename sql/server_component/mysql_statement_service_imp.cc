@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2023, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -864,10 +864,19 @@ DEFINE_BOOL_METHOD(mysql_stmt_get_string_imp::get,
   if (row == nullptr) return MYSQL_FAILURE;
   auto *column = row->get_column(column_index);
   if (column == nullptr) return MYSQL_FAILURE;
-
-  auto *value = std::get_if<LEX_CSTRING>(column);
-  if (value != nullptr) {
-    *data = {value->str, value->length};
+  if (std::holds_alternative<LEX_CSTRING>(*column)) {
+    auto &value = std::get<LEX_CSTRING>(*column);
+    *data = {value.str, value.length};
+    *is_null = false;
+  } else if (std::holds_alternative<decimal *>(*column)) {
+    auto value = std::get<decimal *>(*column);
+    THD *thd = current_thd;
+    char *buf = static_cast<char *>(thd->alloc(DECIMAL_MAX_STR_LENGTH));
+    String *str = new (thd->mem_root)
+        String(buf, DECIMAL_MAX_STR_LENGTH, &my_charset_numeric);
+    auto rc = my_decimal2string(E_DEC_FATAL_ERROR, &value->decimal, str);
+    if (rc) return MYSQL_FAILURE;
+    *data = {str->ptr(), str->length()};
     *is_null = false;
   } else {
     *is_null = true;

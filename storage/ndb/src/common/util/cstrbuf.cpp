@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -43,7 +43,6 @@ int cstrbuf_vsnprintf_noerr(char str[], size_t size, const char fmt[],
 
 #ifdef TEST_CSTRBUF
 
-#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1513,7 +1513,7 @@ using set_prepared_in_tc_by_xid_t = xa_status_code (*)(handlerton *hton,
 typedef handler *(*create_t)(handlerton *hton, TABLE_SHARE *table,
                              bool partitioned, MEM_ROOT *mem_root);
 
-typedef void (*drop_database_t)(handlerton *hton, char *path);
+typedef void (*drop_database_t)(handlerton *hton, const char *db);
 
 typedef bool (*log_ddl_drop_schema_t)(handlerton *hton,
                                       const char *schema_name);
@@ -1562,22 +1562,6 @@ typedef uint (*partition_flags_t)();
 */
 typedef bool (*is_valid_tablespace_name_t)(ts_command_type ts_cmd,
                                            const char *tablespace_name);
-
-/**
-  Get the tablespace name from the SE for the given schema and table.
-
-  @param       thd              Thread context.
-  @param       db_name          Name of the relevant schema.
-  @param       table_name       Name of the relevant table.
-  @param [out] tablespace_name  Name of the tablespace containing the table.
-
-  @return Operation status.
-    @retval == 0  Success.
-    @retval != 0  Error (handler error code returned).
-*/
-typedef int (*get_tablespace_t)(THD *thd, LEX_CSTRING db_name,
-                                LEX_CSTRING table_name,
-                                LEX_CSTRING *tablespace_name);
 
 /**
   Create/drop or alter tablespace in the storage engine.
@@ -2180,15 +2164,17 @@ typedef bool (*get_table_statistics_t)(
 
 /**
   Retrieve column_statistics from SE.
-
+  @param thd                      Current THD
   @param db_name                  Name of schema
   @param table_name               Name of table
   @param column_name              Name of column
+  @param rows_in_table            Nrows in table
 
   @returns The statistics if available, empty value otherwise.
 */
 typedef std::optional<ha_column_statistics> (*get_column_statistics_t)(
-    const char *db_name, const char *table_name, const char *column_name);
+    THD *thd, const char *db_name, const char *table_name,
+    const char *column_name, double rows_in_table);
 
 /**
   @brief
@@ -2882,7 +2868,6 @@ struct handlerton {
   show_status_t show_status;
   partition_flags_t partition_flags;
   is_valid_tablespace_name_t is_valid_tablespace_name;
-  get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   get_tablespace_filename_ext_t get_tablespace_filename_ext;
   upgrade_tablespace_t upgrade_tablespace;
@@ -7850,7 +7835,14 @@ void ha_pre_dd_shutdown(void);
   @retval true Error
 */
 bool ha_flush_logs(bool binlog_group_flush = false);
-void ha_drop_database(char *path);
+
+/**
+  Call the "drop_database_t" handlerton API for storage engines that
+  implemented it to drop the database.
+
+  @param schema_name name of the database to be dropped.
+*/
+void ha_drop_database(const char *schema_name);
 
 /**
   Call "log_ddl_drop_schema" handletron for

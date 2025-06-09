@@ -2442,7 +2442,7 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Filter: (<cache>(t1.f1) = <ref_null_helper>(min(t2.f2)))  (rows=1)
                 -> Aggregate: min(t2.f2)  (rows=1)
-                    -> Filter: exists(select #3) is false  (rows=1)
+                    -> Filter: (not exists(select #3))  (rows=1)
                         -> Table scan on t2  (rows=1)
                         -> Select #3 (subquery in condition; dependent)
                             -> Limit: 1 row(s)  (rows=1)

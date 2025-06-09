@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,6 @@ usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/validate_password.so
-usr/lib/mysql/plugin/debug/version_token.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
 ")
@@ -191,6 +190,7 @@ usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
 usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
+usr/lib/mysql/plugin/debug/component_test_udf_aggregate.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/component_test_table_access.so
@@ -224,6 +224,7 @@ usr/lib/mysql/plugin/debug/keyring_hashicorp.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
+usr/lib/mysql/plugin/debug/component_keyring_hashicorp.so
 usr/lib/mysql/plugin/debug/component_keyring_oci.so
 usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 usr/lib/mysql/plugin/debug/component_masking.so
@@ -233,6 +234,7 @@ usr/lib/mysql/plugin/debug/component_scheduler.so
 usr/lib/mysql/plugin/debug/component_telemetry.so
 usr/lib/mysql/plugin/debug/component_option_tracker.so
 usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so
+usr/lib/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
 usr/lib/mysql/plugin/debug/component_group_replication_resource_manager.so
 usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so

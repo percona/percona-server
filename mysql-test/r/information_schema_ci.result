@@ -222,7 +222,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 Insert_priv	enum('N','Y')	utf8mb3_general_ci	NO		N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c	varchar(64)	utf8_bin	YES		NULL		select,insert,update,references	
+c	varchar(64)	utf8mb3_bin	YES		NULL		select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID

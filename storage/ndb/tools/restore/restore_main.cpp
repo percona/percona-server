@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,6 @@ static const char *opt_exclude_databases = NULL;
 static const char *opt_include_databases = NULL;
 static const char *opt_rewrite_database = NULL;
 static const char *opt_one_remap_col_arg = NULL;
-static bool opt_restore_privilege_tables = false;
 
 /**
  * ExtraTableInfo
@@ -409,10 +408,6 @@ static struct my_option my_long_options[] = {
      "Example: db1.t1,db3.t1",
      &opt_exclude_tables, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
-    {"restore-privilege-tables", NDB_OPT_NOSHORT,
-     "Restore privilege tables (after they have been moved to ndb)",
-     &opt_restore_privilege_tables, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
     {"include-stored-grants", NDB_OPT_NOSHORT,
      "Restore users and grants to ndb_sql_metadata table",
      &opt_include_stored_grants, nullptr, nullptr, GET_BOOL, OPT_ARG, false, 0,
@@ -468,7 +463,7 @@ static struct my_option my_long_options[] = {
      0, 0, 0},
     NdbStdOpt::end_of_options};
 
-static bool parse_remap_option(const BaseString option, BaseString &db_name,
+static bool parse_remap_option(const BaseString &option, BaseString &db_name,
                                BaseString &tab_name, BaseString &col_name,
                                BaseString &func_name, BaseString &func_args,
                                BaseString &error_msg) {
@@ -632,19 +627,6 @@ BaseString makeExternalTableName(const BaseString &internalName) {
   return externalName;
 }
 
-// Exclude the legacy privilege tables from Cluster 7.x
-void exclude_privilege_tables() {
-  static const char *priv_tables[] = {
-      "mysql.user",         "mysql.db",         "mysql.tables_priv",
-      "mysql.columns_priv", "mysql.procs_priv", "mysql.proxies_priv"};
-
-  for (size_t i = 0; i < array_elements(priv_tables); i++) {
-    g_exclude_tables.push_back(priv_tables[i]);
-    save_include_exclude(OPT_EXCLUDE_TABLES,
-                         const_cast<char *>(priv_tables[i]));
-  }
-}
-
 bool readArguments(Ndb_opts &opts, char ***pargv) {
   Uint32 i;
   BaseString tmp;
@@ -726,9 +708,6 @@ bool readArguments(Ndb_opts &opts, char ***pargv) {
   }
 
   if (ga_restore) {
-    // Exclude privilege tables unless explicitly included
-    if (!opt_restore_privilege_tables) exclude_privilege_tables();
-
     // Move over old style arguments to include/exclude lists
     if (g_databases.size() > 0) {
       BaseString tab_prefix, tab;
@@ -1047,7 +1026,8 @@ static void save_include_exclude(int optid, char *argument) {
     g_include_exclude.push_back(option);
   }
 }
-static bool check_include_exclude(BaseString database, BaseString table) {
+static bool check_include_exclude(const BaseString &database,
+                                  const BaseString &table) {
   const char *db = database.c_str();
   const char *tbl = table.c_str();
   bool do_include = true;
@@ -1185,8 +1165,19 @@ static inline bool checkDbAndTableName(const TableS *table) {
   return false;
 }
 
-static void exclude_missing_tables(const RestoreMetaData &metaData,
-                                   const Vector<BackupConsumer *> g_consumers) {
+static inline bool rebuildSysTableIdx(const TableS *table) {
+  const char *table_name = table->getTableName();
+  bool res = false;
+
+  res |= opt_include_stored_grants &&
+         strcmp(table_name, NDB_REP_DB "/def/" NDB_SQL_METADATA_TABLE) == 0;
+  res |= checkSysTable(table) && checkDbAndTableName(table);
+  return res;
+}
+
+static void exclude_missing_tables(
+    const RestoreMetaData &metaData,
+    const Vector<BackupConsumer *> &g_consumers) {
   Uint32 i, j;
   bool isMissing;
   Vector<BaseString> missingTables;
@@ -2415,7 +2406,7 @@ int do_restore(RestoreThreadData *thrdata) {
 
     for (i = 0; i < metaData.getNoOfTables(); i++) {
       const TableS *table = metaData[i];
-      if (!(checkSysTable(table) && checkDbAndTableName(table))) continue;
+      if (!rebuildSysTableIdx(table)) continue;
       if (isBlobTable(table) || isIndex(table)) continue;
       for (Uint32 j = 0; j < g_consumers.size(); j++) {
         if (!g_consumers[j]->rebuild_indexes(*table)) {

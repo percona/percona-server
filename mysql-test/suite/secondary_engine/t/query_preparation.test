@@ -181,9 +181,7 @@ SECONDARY_ENGINE MOCK
 PARTITION BY HASH(id);
 INSERT INTO t_partitioned VALUES (1, 2), (2, 3), (3, 4), (4, 5);
 ALTER TABLE t_partitioned SECONDARY_LOAD;
---disable_testcase Bug#36306426
 SELECT * FROM t_partitioned;
---enable_testcase
 DROP TABLE t_partitioned;
 
 # Multiple queries in a single statement.
@@ -633,7 +631,6 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 FLUSH STATUS;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
---disable_testcase Bug#36306426
 --error ER_SECONDARY_ENGINE
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
 SELECT a FROM t1;
@@ -642,7 +639,6 @@ SELECT b FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
---enable_testcase
 DROP TABLE t1;
 
 --echo #

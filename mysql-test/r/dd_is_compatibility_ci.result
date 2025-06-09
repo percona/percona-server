@@ -238,12 +238,12 @@ count(*) = IF(@@lower_case_table_names = 0, 5, 12)
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the
 # underlying column, which depends on l_c_t_n. For l_c_t_n == 0, this
-# is utf8_bin.
+# is utf8mb3_bin.
 #########################################################
 # Issue WL#6599/HLS/6i): I_S schema/table name in WHERE clause should
 #                        collate like mysql.tables.name.
 #########################################################
-# lctn=0 will have table_name as utf8_bin, so we do not match
+# lctn=0 will have table_name as utf8mb3_bin, so we do not match
 # capital information_schema name.
 SELECT COUNT(*)+IF(@@lower_case_table_names=0, 1, 0) FROM
 INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA' AND

@@ -10,9 +10,7 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 REPLICATE_IGNORE_DB=(nodb);
 include/rpl/start_replica.inc
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
-SET GLOBAL replica_parallel_workers = 0;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
+SET GLOBAL replica_parallel_workers = 1;
 [connection master]
 #
 # 1. Add empty transactions on source.

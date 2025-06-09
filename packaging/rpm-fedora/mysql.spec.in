@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,7 @@ BuildRequires:  systemd
 BuildRequires:  time
 BuildRequires:  zlib-devel
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
+%global _privatelibs libabsl_.*|libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libjitexecutor.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -568,6 +568,9 @@ mkdir debug
 %endif
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
+%if 0%{?mrs_jit_executor_lib:1}
+           -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
            -DWITH_NUMA=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
@@ -599,6 +602,9 @@ mkdir release
 %endif
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
+%if 0%{?mrs_jit_executor_lib:1}
+           -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
            -DWITH_NUMA=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
@@ -688,6 +694,7 @@ rm -r $(readlink var) var
 
 %post server
 [ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
+[ -e /var/log/mysqld.log.00.json ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log.00.json >/dev/null 2>&1 || :
 %systemd_post mysqld.service
 if [ $1 -eq 1 ]; then
     /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
@@ -869,7 +876,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
@@ -918,7 +924,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 
 %files common
@@ -1150,6 +1155,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/conflicting_variables.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
@@ -1227,6 +1233,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
@@ -1346,7 +1353,9 @@ fi
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
 %{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_bootstrap
 %{_bindir}/mysqlrouter_keyring
+%{_bindir}/mysqlrouter_mrs_client
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
@@ -1354,6 +1363,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_client.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
@@ -1377,6 +1387,9 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf.so.24.4.0
 %{_libdir}/mysqlrouter/private/libabsl_*.so
+%if 0%{?mrs_jit_executor_lib:1}
+  %{_libdir}/mysqlrouter/private/libjitexecutor*.so
+%endif
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so

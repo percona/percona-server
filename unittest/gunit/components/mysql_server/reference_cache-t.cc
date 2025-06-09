@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,8 @@ TEST_F(reference_cache, ref_cache_components_load_unload) {
 
   std::string path;
   const char *absolute_urns[2];
-  for (int i = 0; i < 2; i++)
-    absolute_urns[i] = (char *)malloc(2046 * sizeof(char));
+  for (auto &absolute_urn : absolute_urns)
+    absolute_urn = (char *)malloc(2046 * sizeof(char));
   make_absolute_urn(urns[0], &path);
   strcpy(const_cast<char *>(absolute_urns[0]), path.c_str());
   make_absolute_urn(urns[1], &path);
@@ -122,7 +122,8 @@ TEST_F(reference_cache, ref_cache_components_load_unload) {
         const_cast<ref_cache_consumer_type_t *>(ref_cache_consumer))));
   }
   ASSERT_FALSE(loader->unload(absolute_urns, 2));
-  for (int i = 0; i < 2; i++) free(const_cast<char *>(absolute_urns[i]));
+  for (auto &absolute_urn : absolute_urns)
+    free(const_cast<char *>(absolute_urn));
 }
 
 /* mandatory main function */
@@ -139,6 +140,6 @@ int main(int argc, char **argv) {
   if (res_length > 0) basedir_buf[res_length - 1] = '\0';
   my_setwd(basedir_buf, 0);
 
-  int retval = RUN_ALL_TESTS();
+  int const retval = RUN_ALL_TESTS();
   return retval;
 }

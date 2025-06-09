@@ -391,13 +391,12 @@ EXPLAIN
 -> Inner hash join (t2.x = t4.x)  (rows=3.16)
     -> Table scan on t4  (rows=10)
     -> Hash
-        -> Hash semijoin (FirstMatch) (t2.x = t1.pk)  (rows=3.16)
+        -> Nested loop semijoin (FirstMatch)  (rows=3.16)
             -> Table scan on t2  (rows=10)
-            -> Hash
-                -> Inner hash join (t1.x = t3.x)  (rows=10)
-                    -> Table scan on t1  (rows=10)
-                    -> Hash
-                        -> Table scan on t3  (rows=10)
+            -> Inner hash join (t1.x = t3.x)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (pk = t2.x)  (rows=1)
+                -> Hash
+                    -> Table scan on t3  (rows=10)
 
 WITH subq AS (
 SELECT * FROM t2
@@ -1093,9 +1092,9 @@ EXPLAIN
             -> Table scan on x3  (rows=1)
             -> Hash
                 -> Inner hash join (x2.e = x4.e), (x2.b = x4.b)  (rows=0.1)
-                    -> Table scan on x2  (rows=1)
+                    -> Table scan on x4  (rows=1)
                     -> Hash
-                        -> Table scan on x4  (rows=1)
+                        -> Table scan on x2  (rows=1)
     -> Table scan on x1  (rows=1)
 
 DROP TABLE t1;
@@ -1226,13 +1225,13 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=4.8)
+-> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=4.8)
+-> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
@@ -1267,13 +1266,13 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c<=>NULL;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=2.03)
+-> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE b=5 OR c IS NULL;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=2.03)
+-> Deduplicate rows sorted by row ID  (rows=3)
     -> Index range scan on t1 using k_b over (b = 5)  (rows=2)
     -> Index range scan on t1 using k_c over (c = NULL)  (rows=1)
 
@@ -1749,6 +1748,22 @@ SELECT ROW_NUMBER() OVER () FROM t WHERE x = RAND() GROUP BY x;
 ROW_NUMBER() OVER ()
 DROP TABLE t;
 #
+# Bug#35989799 Discontinuity in row estimate for ROLLUP in hypergraph
+#
+CREATE TABLE t1(x INT, y INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x > 0 GROUP BY x, y WITH ROLLUP;
+EXPLAIN
+-> Group (no aggregates)  (rows=2.33)
+    -> Sort: t1.x, t1.y  (rows=0.667)
+        -> Filter: (t1.x > 0)  (rows=0.667)
+            -> Table scan on t1  (rows=2)
+
+DROP TABLE t1;
+#
 # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
 #               failed with hypergraph_optimizer
 #
@@ -1839,10 +1854,10 @@ EXPLAIN
     -> Table scan on t1  (...)
     -> Hash
         -> Inner hash join (no condition)  (...)
-            -> Filter: (1 = (t2.x + 1))  (...)
-                -> Table scan on t2  (...)
+            -> Table scan on t3  (...)
             -> Hash
-                -> Table scan on t3  (...)
+                -> Filter: (1 = (t2.x + 1))  (...)
+                    -> Table scan on t2  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -1867,10 +1882,10 @@ EXPLAIN
     -> Table scan on t1  (...)
     -> Hash
         -> Inner hash join (no condition)  (...)
-            -> Filter: (1 = (t2.x + 1))  (...)
-                -> Table scan on t2  (...)
+            -> Table scan on t4  (...)
             -> Hash
-                -> Table scan on t4  (...)
+                -> Filter: (1 = (t2.x + 1))  (...)
+                    -> Table scan on t2  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1
@@ -2067,4 +2082,91 @@ INNER JOIN t2 AS table2 ON (table2.f2 = table1.f2))
 WHERE (table2.f2 = 'x' ) OR (table1.f1 > 1);
 f1	f2	f1	f2
 10	o	100	o
+DROP TABLE t1,t2;
+#
+# Bug#37378072: `m_bitsets[i].is_inline()' in in at
+#               join_optimizer/overflow_bitset.h
+#
+CREATE TABLE t1 (col1 INT, col2 INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, txt TEXT, col1 INT, col2 INT, col3 INT,
+col4 INT, col5 INT, col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
+col11 INT, col12 INT, col13 INT, col14 INT, col15 INT, col16 INT, col17 INT,
+col18 INT, col19 INT, col20 INT, col21 INT, col22 INT, col23 INT, col24 INT,
+col25 INT, col26 INT, col27 INT, col28 INT, col29 INT, col30 INT, col31 INT,
+col32 INT, col33 INT, col34 INT, col35 INT, col36 INT, col37 INT, col38 INT,
+col39 INT, col40 INT, col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
+col46 INT, col47 INT, col48 INT, col49 INT, col50 INT, col51 INT, col52 INT,
+col53 INT, col54 INT, col55 INT, col56 INT, col57 INT, col58 INT, col59 INT,
+col60 INT, col61 INT, col62 INT, col63 INT, col64 INT);
+SELECT t2.pk FROM t1 JOIN t2 NATURAL JOIN t2 AS t3 ON t1.col1 = t3.col1 AND t1.col2 <> t3.col2;
+pk
+DROP TABLE t1, t2;
+#
+# Bug#36630355: Assertion `false && "Inconsistent row counts for
+#               different AccessPath objects."' failed.
+#
+CREATE TABLE t(a INT,
+b INT,
+c INT,
+d BIGINT,
+KEY (a, d));
+SELECT 1
+FROM t AS t1 STRAIGHT_JOIN
+t AS t2,
+t AS t3,
+t AS t4
+WHERE t1.d = t3.d AND
+t3.a = t4.b AND
+t3.d = t4.c;
+1
+SELECT 1
+FROM t AS t2 STRAIGHT_JOIN
+t AS t1,
+t AS t3,
+t AS t4
+WHERE t1.d = t3.d AND
+t3.a = t4.b AND
+t3.d = t4.c;
+1
+DROP TABLE t;
+#
+# Bug#37452558 Assertion `path->num_output_rows() <=
+#         path->num_output_rows_before_filter` failed.
+#
+CREATE TABLE t1 (f1 int, f2 time, KEY f1 (f1), KEY f2 (f2));
+CREATE TABLE t2 (f1 int, f2 time, KEY f2 (f2));
+INSERT INTO t1 VALUES
+(NULL,'00:20:03'),(2,'00:20:08'),(0,'00:20:01'),(NULL,'00:20:04'),
+(0,'00:20:01'),(NULL,'00:20:01'),(2,'00:20:04'),(NULL,'00:20:01'),
+(0,'00:20:06'),(NULL,'00:20:05'),(2,'00:20:09'),(NULL,'00:20:08'),
+(2,'00:20:03'),(1,'00:20:03'),(1,'00:20:03'),(NULL,'00:20:00'),
+(1,'00:20:01'),(NULL,'00:20:02'),(NULL,'00:20:06'),(0,'00:20:07'),
+(2,'00:20:07'),(0,'00:20:07'),(2,'00:20:03');
+INSERT INTO t2 VALUES
+(0,'05:23:30'),(0,'22:10:55'),(0,'00:20:04'),(0,'00:20:08'),
+(0,'00:20:06'),(0,'00:20:07'),(0,'00:20:08'),(0,'00:20:06'),
+(0,'00:20:09');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT DISTINCT f1 FROM t1 WHERE f1 IN
+( SELECT t2.f1 FROM t2 LEFT JOIN t1 USING (f2)) AND f1 IS NULL;
+f1
+DROP TABLE t1,t2;
+#
+# Bug#37412816 `path->has_group_skip_scan' in (anonymous namespace)::
+#                SetGroupSkipScanCardinality
+#
+CREATE TABLE t1 (f1 INTEGER, PRIMARY KEY (f1))  ;
+CREATE TABLE t2 (f1 INTEGER, f2 DATETIME, KEY (f2));
+INSERT INTO t1 VALUES (1), (2), (3), (4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT f1 FROM t1 WHERE (f1,f1) IN
+(SELECT f1,f2 FROM t2 WHERE f1 >= 1) GROUP BY f1;
+f1
 DROP TABLE t1,t2;

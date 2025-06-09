@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/component_helpers/include/keyring_reader_service_definition.h>
 /* Keyring_writer_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_writer_service_definition.h>
+#include <mysql/components/services/component_status_var_service.h>
 
 #include <mysql/components/services/psi_memory.h>
 
@@ -139,6 +140,7 @@ REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
 REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
 REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
                                 mysql_service_registration_no_lock);
+REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 SERVICE_TYPE(log_builtins) * log_bi;
 SERVICE_TYPE(log_builtins_string) * log_bs;
@@ -229,24 +231,53 @@ bool init_or_reinit_keyring(std::string &err) {
   return false;
 }
 
+SHOW_VAR static component_keyring_file_status_variables[] = {
+    {"option_tracker_usage:File keyring",
+     reinterpret_cast<char *>(&opt_option_tracker_usage_file_keyring),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+
+static bool register_status_variables() {
+  return (SERVICE_PLACEHOLDER(status_variable_registration)
+              ->register_variable(reinterpret_cast<SHOW_VAR *>(
+                  &component_keyring_file_status_variables)) != 0);
+}
+
+static bool unregister_status_variables() {
+  return (SERVICE_PLACEHOLDER(status_variable_registration)
+              ->unregister_variable(reinterpret_cast<SHOW_VAR *>(
+                  &component_keyring_file_status_variables)) != 0);
+}
+
 /**
   Initialization function for component - Used when loading the component
 */
 static mysql_service_status_t keyring_file_init() {
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
-  if (keyring_file_component_option_usage_init()) return true;
+  if (keyring_file_component_option_usage_init()) {
+    return 1;
+  }
+  if (register_status_variables()) {
+    keyring_file_component_option_usage_deinit();
+    return 1;
+  }
   g_component_callbacks = new (std::nothrow)
       keyring_common::service_implementation::Component_callbacks();
 
-  return false;
+  return 0;
 }
 
 /**
   De-initialization function for component - Used when unloading the component
 */
 static mysql_service_status_t keyring_file_deinit() {
-  if (keyring_file_component_option_usage_deinit()) return true;
+  if (keyring_file_component_option_usage_deinit()) {
+    return 1;
+  }
+  if (unregister_status_variables()) {
+    return 1;
+  }
   g_keyring_file_inited = false;
   if (g_component_path) free(g_component_path);
   g_component_path = nullptr;
@@ -262,7 +293,7 @@ static mysql_service_status_t keyring_file_deinit() {
   delete g_component_callbacks;
   g_component_callbacks = nullptr;
 
-  return false;
+  return 0;
 }
 
 }  // namespace keyring_file
@@ -304,6 +335,7 @@ REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 BEGIN_COMPONENT_REQUIRES(component_keyring_file)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(registry_registration),
+    REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
                                        mysql_minimal_chassis_no_lock,
                                        mysql_service_registration_no_lock),

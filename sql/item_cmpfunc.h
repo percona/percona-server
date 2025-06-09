@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,12 +333,21 @@ class Item_bool_func : public Item_int_func {
   bool created_by_in2exists() const override { return m_created_by_in2exists; }
   void set_created_by_in2exists();
 
+  virtual Item_bool_func *negate_item() {
+    assert(false);
+    return nullptr;
+  }
+
   static const char *bool_transform_names[10];
   /**
     Array that transforms a boolean test according to another.
     First dimension is existing value, second dimension is test to apply
   */
   static const Bool_test bool_transform[10][8];
+  /**
+    Array used to simplify a boolean test when value cannot be NULL.
+  */
+  static const Bool_test bool_simplify[10];
 
  private:
   /**
@@ -528,7 +537,11 @@ class Comp_creator {
 
   /// This interface is only used by Item_allany_subselect.
   virtual const char *symbol(bool invert) const = 0;
+
+  /// @returns true for operators =, <> and <=>, otherwise false.
   virtual bool eqne_op() const = 0;
+
+  /// @returns true for operators < and <=, otherwise false.
   virtual bool l_op() const = 0;
 };
 
@@ -703,7 +716,12 @@ class Item_func_comparison : public Item_bool_func2 {
   }
 
   Item *truth_transformer(THD *, Bool_test) override;
-  virtual Item *negated_item();
+  /**
+    @returns a negated (inverted) version of the comparison predicate,
+             as if the predicate was prefixed with NOT.
+  */
+  Item_bool_func *negate_item() override = 0;
+
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
 
@@ -973,7 +991,12 @@ class Item_func_not_all : public Item_func_not {
     return 0;
   }
   bool empty_underlying_subquery();
-  Item *truth_transformer(THD *, Bool_test) override;
+
+  Item *truth_transformer(THD *, Bool_test) override {
+    // Only used after transformations, so will never need truth value change.
+    assert(false);
+    return nullptr;
+  }
 };
 
 class Item_func_nop_all final : public Item_func_not_all {
@@ -982,7 +1005,6 @@ class Item_func_nop_all final : public Item_func_not_all {
   longlong val_int() override;
   const char *func_name() const override { return "<nop>"; }
   table_map not_null_tables() const override { return not_null_tables_cache; }
-  Item *truth_transformer(THD *, Bool_test) override;
 };
 
 /**
@@ -1066,9 +1088,10 @@ class Item_func_eq final : public Item_eq_base {
   enum Functype rev_functype() const override { return EQ_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "="; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
   bool equality_substitution_analyzer(uchar **) override { return true; }
   Item *equality_substitution_transformer(uchar *arg) override;
+  bool clean_up_after_removal(uchar *arg) override;
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -1140,6 +1163,12 @@ class Item_func_equal final : public Item_eq_base {
   Item *truth_transformer(THD *, Bool_test) override { return nullptr; }
   bool is_null() override { return false; }
 
+  // Negation is not implemented for <=>
+  Item_func_comparison *negate_item() override {
+    assert(false);
+    return this;
+  }
+
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -1158,7 +1187,7 @@ class Item_func_ge final : public Item_func_comparison {
   enum Functype rev_functype() const override { return LE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return ">="; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
 };
 
 /**
@@ -1172,7 +1201,7 @@ class Item_func_gt final : public Item_func_comparison {
   enum Functype rev_functype() const override { return LT_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
   const char *func_name() const override { return ">"; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
 };
 
 /**
@@ -1186,7 +1215,7 @@ class Item_func_le final : public Item_func_comparison {
   enum Functype rev_functype() const override { return GE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "<="; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
 };
 
 /**
@@ -1232,7 +1261,7 @@ class Item_func_lt final : public Item_func_comparison {
   enum Functype rev_functype() const override { return GT_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
   const char *func_name() const override { return "<"; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
 };
 
 /**
@@ -1250,7 +1279,7 @@ class Item_func_ne final : public Item_func_comparison {
   cond_result eq_cmp_result() const override { return COND_FALSE; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   const char *func_name() const override { return "<>"; }
-  Item *negated_item() override;
+  Item_func_comparison *negate_item() override;
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -1541,6 +1570,30 @@ class Item_func_if final : public Item_func {
     not_null_tables_cache =
         (args[1]->not_null_tables() & args[2]->not_null_tables());
   }
+};
+
+/**
+  IF function with result fixed as boolean value.
+  Result values must be constant boolean values.
+  For internal use only.
+*/
+class Item_bool_if final : public Item_bool_func {
+ public:
+  Item_bool_if(Item *a, Item *b, Item *c) : Item_bool_func(a, b, c) {
+    null_on_null = false;
+  }
+  longlong val_int() override {
+    Item *val = args[0]->val_int() ? args[1] : args[2];
+    longlong result = val->val_int();
+    null_value = result ? false : val->null_value;
+    return result;
+  }
+  bool resolve_type(THD *) override {
+    assert(args[1]->const_item() && args[2]->const_item());
+    return false;
+  }
+  const char *func_name() const override { return "if"; }
+  enum Functype functype() const override { return BOOL_IF_FUNC; }
 };
 
 class Item_func_nullif final : public Item_bool_func2 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@
   the cache.
 */
 
-#include <string.h>
 #include <sys/types.h>
+#include <cstring>
 #include <string>
 
 #include "keycache.h"
@@ -172,7 +172,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   bool error = false;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("key: %.*s  data: %p", length, key, data));
-  string key_str(pointer_cast<const char *>(key), length);
+  string const key_str(pointer_cast<const char *>(key), length);
 
   mysql_rwlock_wrlock(&hash->lock);
   entry = find_or_nullptr(hash->hash, key_str);
@@ -261,11 +261,11 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data,
 /* Variable to store all key cache objects */
 static SAFE_HASH key_cache_hash;
 
-bool multi_keycache_init(void) {
+bool multi_keycache_init() {
   return safe_hash_init(&key_cache_hash, (uchar *)dflt_key_cache);
 }
 
-void multi_keycache_free(void) { safe_hash_free(&key_cache_hash); }
+void multi_keycache_free() { safe_hash_free(&key_cache_hash); }
 
 /*
   Get a key cache to be used for a specific table.

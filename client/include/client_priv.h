@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,6 +196,8 @@ enum options_client {
   OPT_INIT_COMMAND_ADD,
   OPT_OUTPUT_AS_VERSION,
   OPT_AUTHENTICATION_WEBAUTHN_CLIENT_PRESERVE_PRIVACY,
+  OPT_MYSQLDUMP_EXCLUDE_USER,
+  OPT_MYSQLDUMP_INCLUDE_USER,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

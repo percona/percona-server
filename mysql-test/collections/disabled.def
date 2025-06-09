@@ -64,7 +64,6 @@ innodb.innodb_autoextend_upgrade           : Bug#36312666 Several InnoDB testcas
 innodb.instant_ddl_recovery_old_2          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_8_0_11_case1                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_8_0_19_case1                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
-innodb.log_deprecated_params_upgrade       : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.partition_upgrade_8013              : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.partition_upgrade_8013_debug        : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.partition_upgrade_8015              : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
@@ -193,3 +192,5 @@ group_replication.gr_xa_commit_failure_before_gtid_externalization @windows : BU
 group_replication.gr_xa_commit_one_phase_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
 group_replication.gr_xa_prepare_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
 group_replication.gr_xa_rollback_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
+
+rpl_nogtid.rpl_nogtid_rollback_on_anonymous_gtid : Bug#37582501 Replication tests break MTA asserts with user viable scenarios

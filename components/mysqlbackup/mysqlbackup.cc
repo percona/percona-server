@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ static SHOW_VAR mysqlbackup_status_variables[] = {
 */
 static bool register_status_variables() {
   if (mysqlbackup_component_version) {
-    std::string msg{
+    std::string const msg{
         "Status variable mysqlbackup.component_version is not NULL. Most "
         "likely the status variable does already exist."};
     LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
@@ -132,17 +132,17 @@ static bool register_status_variables() {
           strlen(MYSQL_SERVER_VERSION) + 1);
 
   if (mysqlbackup_component_version == nullptr) {
-    std::string msg{std::string("Cannot register status variable '") +
-                    mysqlbackup_status_variables[0].name +
-                    "' due to insufficient memory."};
+    std::string const msg{std::string("Cannot register status variable '") +
+                          mysqlbackup_status_variables[0].name +
+                          "' due to insufficient memory."};
     LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
     return (true);
   }
 
   if (mysql_service_status_variable_registration->register_variable(
           (SHOW_VAR *)&mysqlbackup_status_variables)) {
-    std::string msg{std::string(mysqlbackup_status_variables[0].name) +
-                    " register failed."};
+    std::string const msg{std::string(mysqlbackup_status_variables[0].name) +
+                          " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -172,8 +172,8 @@ static bool unregister_status_variables() {
       return false;
     }
 
-    std::string msg{std::string(mysqlbackup_status_variables[0].name) +
-                    " unregister failed."};
+    std::string const msg{std::string(mysqlbackup_status_variables[0].name) +
+                          " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -240,8 +240,9 @@ static bool register_system_variables() {
           "Backup id of an ongoing backup.", mysqlbackup_backup_id_check,
           mysqlbackup_backup_id_update, (void *)&str_arg,
           (void *)&mysqlbackup_backup_id)) {
-    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
-                    Backup_comp_constants::backupid + " register failed."};
+    std::string const msg{std::string(Backup_comp_constants::mysqlbackup) +
+                          "." + Backup_comp_constants::backupid +
+                          " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
@@ -272,8 +273,9 @@ static bool unregister_system_variables() {
       return (false);
     }
 
-    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
-                    Backup_comp_constants::backupid + " unregister failed."};
+    std::string const msg{std::string(Backup_comp_constants::mysqlbackup) +
+                          "." + Backup_comp_constants::backupid +
+                          " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)

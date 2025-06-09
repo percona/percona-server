@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1646,11 +1646,11 @@ INSTANTIATE_TEST_SUITE_P(ViewIdChanges, ViewIdChangesTest,
 
 /**
  * @test Check that when 2 clusters claim they are both PRIMARY, Router follows
- * the one that has a highier view_id
+ * the one that has a higher view_id
  * [@FR9]
  * [@TS_R11_3]
  */
-TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
+TEST_F(ClusterSetTest, TwoPrimaryClustersHigherViewId) {
   const std::string router_options = R"({"target_cluster" : "primary"})";
   SCOPED_TRACE(
       "// We configure Router to follow PRIMARY cluster, first cluster starts "
@@ -1685,7 +1685,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
 
   SCOPED_TRACE(
       "// Now let's make first REPLICA to claim that it's also a primary. But "
-      "it has a highier view so the Router should believe the REPLICA");
+      "it has a higher view so the Router should believe the REPLICA");
 
   change_clusterset_primary(cs_options.topology, kFirstReplicaClusterId);
   cs_options.view_id = ++view_id;
@@ -1790,7 +1790,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
 
 /**
  * @test Check that when 2 clusters claim they are both PRIMARY, Router follows
- * the one that has a highier view_id
+ * the one that has a higher view_id
  * [@FR9]
  * [@TS_R11_4]
  */
@@ -2897,9 +2897,6 @@ TEST_F(ClusterSetTest, UseMultipleClustersGrNotifications) {
   }
 }
 
-static constexpr const unsigned long max_supported_version =
-    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
-
 struct ServerCompatTestParam {
   std::string description;
   std::string server_version;
@@ -2982,27 +2979,27 @@ INSTANTIATE_TEST_SUITE_P(
                                   std::to_string(MYSQL_ROUTER_VERSION_PATCH),
                               false, ""},
         ServerCompatTestParam{
-            "Server major version is highier than Router - "
-            "we should reject the metadata",
+            "Server major version is higher than Router - "
+            "we should log a warning",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR + 1) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH),
-            true,
-            "WARNING .* Unsupported MySQL Server version '.*'. Maximal "
-            "supported version is '" +
-                std::to_string(max_supported_version) + "'."},
+            false,
+            "WARNING .* MySQL Server version .* is higher than the Router "
+            "version. You should upgrade the Router to match the MySQL Server "
+            "version."},
         ServerCompatTestParam{
-            "Server minor version is highier than Router - "
-            "we should reject the metadata",
+            "Server minor version is higher than Router - "
+            "we should log a warning",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH),
-            true,
-            "WARNING .* Unsupported MySQL Server version '.*'. Maximal "
-            "supported version is '" +
-                std::to_string(max_supported_version) + "'."},
+            false,
+            "WARNING .* MySQL Server version .* is higher than the Router "
+            "version. You should upgrade the Router to match the MySQL Server "
+            "version."},
         ServerCompatTestParam{
-            "Server patch version is highier than Router - OK",
+            "Server patch version is higher than Router - OK",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),

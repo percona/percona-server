@@ -151,6 +151,9 @@ SET GLOBAL ndb_metadata_check = false;
 call mtr.add_suppression("Table upgrade required");
 call mtr.add_suppression("Failed to create entry in DD for table");
 call mtr.add_suppression("Failed to install table");
+call mtr.add_suppression("Incorrect information in file: .*t_datetime.frm");
+call mtr.add_suppression("Error in reading file .*t_datetime.frm");
+call mtr.add_suppression("Error in creating TABLE_SHARE from t_datetime.frm file");
 --enable_query_log
 
 #
@@ -164,13 +167,13 @@ SHOW CREATE TABLE t_num;
 # The `t_datetime` table is not expected to be usable. It contains old
 # temporal types which have been removed in 8.0. The upgrade of the
 # table metadata is not supported
---error ER_NO_SUCH_TABLE
+--error ER_NOT_FORM_FILE
 SHOW CREATE TABLE t_datetime;
 SHOW WARNINGS;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---error ER_NO_SUCH_TABLE
+--error ER_NOT_FORM_FILE
 SELECT * FROM t_datetime;
 SHOW WARNINGS;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
@@ -192,13 +195,13 @@ DROP TABLE t_num,t_string_1,t_string_2,t_gis;
 --exec $NDB_RESTORE $NDB_RESTORE_NO_ENCR -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 
 SHOW CREATE TABLE t_num;
---error ER_NO_SUCH_TABLE
+--error ER_NOT_FORM_FILE
 SHOW CREATE TABLE t_datetime;
 SHOW WARNINGS;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---error ER_NO_SUCH_TABLE
+--error ER_NOT_FORM_FILE
 SELECT * FROM t_datetime;
 SHOW WARNINGS;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;

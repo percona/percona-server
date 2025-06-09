@@ -1,6 +1,25 @@
-/*
-  Copyright (c) 2024, Oracle and/or its affiliates.
-*/
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is designed to work with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have either included with
+   the program or referenced in the documentation.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "connection_control_pfs_table.h"
 #include <cassert>
@@ -19,7 +38,7 @@ Connection_control_pfs_table_data_row::Connection_control_pfs_table_data_row(
     : m_userhost(userhost), m_failed_attempts(failed_attempts) {}
 
 void Failed_attempts_list_imp::failed_attempts_define(const char *userhost) {
-  std::unique_lock<std::mutex> LOCK_failed_attempts_list;
+  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
   auto pos = failed_attempts_map.find(userhost);
   if (pos == failed_attempts_map.end()) {
     PSI_ulong failed_attempts;
@@ -32,13 +51,13 @@ void Failed_attempts_list_imp::failed_attempts_define(const char *userhost) {
 }
 
 bool Failed_attempts_list_imp::failed_attempts_undefine(const char *userhost) {
-  std::unique_lock<std::mutex> LOCK_failed_attempts_list;
+  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
   return failed_attempts_map.erase(userhost) == 0;
 }
 
 Connection_control_pfs_table_data *
 Failed_attempts_list_imp::copy_pfs_table_data() {
-  std::unique_lock<std::mutex> LOCK_failed_attempts_list;
+  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
   try {
     auto *ret = new Connection_control_pfs_table_data;
     if (failed_attempts_map.empty()) return ret;
@@ -52,13 +71,13 @@ Failed_attempts_list_imp::copy_pfs_table_data() {
 }
 
 unsigned long long Failed_attempts_list_imp::get_failed_attempts_list_count() {
-  std::shared_lock<std::shared_mutex> LOCK_shared_failed_attempts_list;
+  std::shared_lock<std::shared_mutex> const LOCK_shared_failed_attempts_list;
   return failed_attempts_map.size();
 }
 
 unsigned long long Failed_attempts_list_imp::get_failed_attempts_count(
     const char *userhost) {
-  std::shared_lock<std::shared_mutex> LOCK_shared_failed_attempts_list;
+  std::shared_lock<std::shared_mutex> const LOCK_shared_failed_attempts_list;
   auto pos = failed_attempts_map.find(userhost);
   if (pos == failed_attempts_map.end()) {
     return 0;

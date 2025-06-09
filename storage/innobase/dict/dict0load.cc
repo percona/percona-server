@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2024, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2334,8 +2334,9 @@ void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err) {
       shared_space_name = static_cast<char *>(ut::malloc_withkey(
           UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
-      sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
-              static_cast<ulint>(table->space));
+      if (shared_space_name != nullptr)
+        sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
+                static_cast<ulint>(table->space));
     }
     tbl_name = shared_space_name;
     space_name = shared_space_name;

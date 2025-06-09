@@ -162,6 +162,9 @@ not_valgrind.inc
 not_ubsan.inc
 have_asan.inc
 not_asan.inc
+no_valgrind_without_big.inc
+not_ubsan_without_big.inc
+not_asan_without_big.inc
 
 # 7.0 Few skipped test-cases
 mysql_tzinfo_to_sql_sys.test
@@ -205,10 +208,8 @@ not_group_replication_plugin.inc
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
 have_replica_parallel_type_logical_clock.inc
 have_replica_parallel_type_database.inc
-have_replica_parallel_workers.inc
 have_replica_parallel_type_logical_clock.inc
 have_replica_parallel_type_database.inc
-not_replica_parallel_workers.inc
 have_replica_preserve_commit_order.inc
 # 14.2 rpl misc files
 have_default_replica_transaction_retries.inc
@@ -227,11 +228,6 @@ not_sparc_debug.inc
 not_mac_os_debug.inc
 # This also fails with non-debug
 statement_digest_long_query.test
-
-# 17.0 Reason for inclusion: the extra JSON cause on builds with other
-# storage engines than InnoDB is hard to
-# separate. see innodb.sdi test
-have_only_innodb.inc
 
 # 18.0 Test to be run on local machine
 # This file is used by test scenarios that depend on time and it isn't possible
@@ -297,6 +293,11 @@ not_partial_revokes.inc
 have_hypergraph.inc
 not_hypergraph.inc
 
+# Must be skipped when the server is built without the Hypergraph Optimizer.
+# This is different to not_hypergraph in that not_hypergraph skips if the
+# Hypergraph is OFF, while this skips if the Hypergraph is unavailable.
+not_built_with_hypergraph.inc
+
 # 30. Keyring_file component - can be skipped based on cmake configuration
 have_component_keyring_file.inc
 
@@ -352,3 +353,11 @@ have_log_diagnostic.inc
 
 # 40. Skip tests which expect the Group Replication resource manager component
 have_group_replication_resource_manager.inc
+
+# 41. Skip tests which expect the Group Replication primary election prefer most updated
+have_gr_replication_primary_elect_prefer_most_updated.inc
+
+# 42. Skip router/mrs tests requring specific metadata version
+is_mrs_schema_v2.inc
+is_mrs_schema_v3.inc
+is_mrs_schema_v4.inc

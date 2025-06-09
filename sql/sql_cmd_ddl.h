@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,8 +73,9 @@ class sp_name;
 
 class Sql_cmd_create_library final : public Sql_cmd_ddl {
  public:
-  Sql_cmd_create_library(THD *thd, bool if_not_exists, sp_name *lib_name,
-                         LEX_STRING language, LEX_STRING source_code);
+  Sql_cmd_create_library(THD *thd, bool if_not_exists, sp_name *name,
+                         LEX_CSTRING language, LEX_CSTRING comment,
+                         LEX_STRING source_code);
 
   enum_sql_command sql_command_code() const override {
     return SQLCOM_CREATE_LIBRARY;
@@ -85,10 +86,28 @@ class Sql_cmd_create_library final : public Sql_cmd_ddl {
  private:
   bool m_if_not_exists;
   sp_name *m_name;
-  LEX_STRING m_language;
+  LEX_CSTRING m_language;
   // In order to support prepare of routines that contain CREATE LIBRARY
-  // statements, we need to keep a copy of the source code.
-  char *m_source;
+  // statements, we need to keep a copy of the source code and the comment.
+  LEX_CSTRING m_source;
+  LEX_CSTRING m_comment;
+};
+
+class Sql_cmd_alter_library final : public Sql_cmd_ddl {
+ public:
+  Sql_cmd_alter_library(THD *thd, sp_name *name, LEX_STRING comment);
+
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_ALTER_LIBRARY;
+  }
+
+  bool execute(THD *thd) override;
+
+ private:
+  sp_name *m_name;
+  // In order to support prepare of routines that contain CREATE and ALTER
+  // LIBRARY statements, we need to keep a copy of the comment.
+  LEX_STRING m_comment;
 };
 
 class Sql_cmd_drop_library final : public Sql_cmd_ddl {

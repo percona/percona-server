@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -266,13 +266,20 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   # We have a template .cmake.in file for any plugin that needs cleanup.
 
   # NOTE: scripts should work for 'make install' and 'make package'.
-  IF(LINUX AND (UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR WITH_MLE))
+  IF(LINUX AND
+      (UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR OR
+        WITH_MLE OR WITH_KEYRING_AWS OR
+        INSTALL_RPATH_FOR_FIDO2))
     IF(${target} STREQUAL "mysqld")
       INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
     ENDIF()
-    # These plugins depend, directly or indirectly, on protobuf.
+    # These plugins depend, directly or indirectly, on protobuf or fido2.
     IF(${target} STREQUAL "group_replication" OR
         ${target} STREQUAL "telemetry_client" OR
+        ${target} STREQUAL "authentication_webauthn" OR
+        ${target} STREQUAL "authentication_webauthn_client" OR
+        ${target} STREQUAL "keyring_aws" OR
+        ${target} STREQUAL "component_keyring_aws" OR
         ${target} STREQUAL "component_mle" OR
         ${target} STREQUAL "component_telemetry"
         )
@@ -709,6 +716,7 @@ ENDFUNCTION(COPY_OPENSSL_BINARY)
 # We also update the RUNPATH of libraries to be '$ORIGIN' to ensure that
 # libraries get correct load-time dependencies. This is done using the
 # linux tool patchelf(1)
+# This cmake macro is duplicated in `router/cmake/install_macros.cmake`.
 #
 # Set ${OUTPUT_LIBRARY_NAME} to the new location.
 # Set ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
@@ -801,6 +809,8 @@ ENDFUNCTION(COPY_CUSTOM_SHARED_LIBRARY)
 # Adds a target which copies the .dll to runtime_output_directory.
 # Adds INSTALL(FILES ....) rule to install the .dll to ${INSTALL_BINDIR}.
 # Looks for matching .pdb file, and installs it if found.
+# This cmake macro is duplicated in `router/cmake/install_macros.cmake`.
+#
 # Sets ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
 FUNCTION(COPY_CUSTOM_DLL library_full_filename OUTPUT_TARGET_NAME)
   IF(NOT WIN32)

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,37 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 
+SET(MY_SYSTEM_SOURCES
+  my_system.cc
+  my_system_api/my_system_api_cgroup.cc
+  my_system_api/my_system_api_common.cc
+)
+
+IF(LINUX)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_linux.cc)
+ELSEIF(APPLE)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_apple.cc)
+ELSEIF(FREEBSD)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_freebsd.cc)
+ELSEIF(SOLARIS)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_solaris.cc)
+ELSEIF(WIN32)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_win.cc)
+ENDIF()
+
 ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
   my_hex_tools.cc
   my_base64_encode.cc
-  option_usage_data.cc
+  option_tracker_usage.cc
+  ${MY_SYSTEM_SOURCES}
 )
+ADD_DEPENDENCIES(library_mysys GenError)
 
 IF(UNIX)
   TARGET_COMPILE_OPTIONS(library_mysys PRIVATE "-fvisibility=hidden")

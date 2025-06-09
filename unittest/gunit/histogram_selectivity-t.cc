@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdint.h>  // uint64_t
-#include <stdlib.h>  // atoi
+#include <cstdint>  // uint64_t
+#include <cstdlib>  // atoi
 
 #include <string>  // std::string
 
@@ -182,7 +182,7 @@ void fill_value_map(Value_map<T> *map, int number_of_keys,
     }
     case FrequencyDistribution::ExponentiallyDecreasing: {
       size_t frequency = number_of_keys * number_of_keys;
-      size_t one = 1;
+      size_t const one = 1;
       for (int i = 1; i <= number_of_keys; ++i) {
         map->add_values(key, std::max(frequency, one));
         frequency = frequency / 2;
@@ -196,8 +196,8 @@ void fill_value_map(Value_map<T> *map, int number_of_keys,
       const uint64_t max_frequency = 10000;
       const uint64_t p = 131071;
       for (int i = 1; i <= number_of_keys; ++i) {
-        uint64_t x = static_cast<uint64_t>(i);
-        uint64_t frequency =
+        auto x = static_cast<uint64_t>(i);
+        uint64_t const frequency =
             1 + (((39618 + 107019 * x + 78986 * x * x) % p) % max_frequency);
         map->add_values(key, frequency);
         increment(&key);
@@ -218,7 +218,7 @@ void fill_value_map(Value_map<T> *map, int number_of_keys,
     case FrequencyDistribution::ExponentialTail: {
       // Add an exponentially increasing tail to the otherwise uniform data.
       for (int i = 1; i <= number_of_keys; ++i) {
-        int remaining_keys = number_of_keys - i + 1;
+        int const remaining_keys = number_of_keys - i + 1;
         int scale = 1;
         if (remaining_keys <= 5) {
           map->add_values(key, scale * number_of_keys);
@@ -326,26 +326,26 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
   const double max_abs_error =
       2.0 / static_cast<double>(number_of_buckets) + 0.00000001;
 
-  std::string error_info =
+  std::string const error_info =
       SelectivityErrorInfo(type, distribution, number_of_buckets);
 
   ha_rows cumulative_frequency = 0;
   for (const auto &[key, frequency] : key_frequencies) {
-    double less_than_selectivity =
+    double const less_than_selectivity =
         static_cast<double>(cumulative_frequency) / total_frequency;
     EXPECT_NEAR(less_than_selectivity,
                 histogram->get_less_than_selectivity(key), max_abs_error)
         << "less than " << key_to_string(key) << "\n"
         << error_info;
 
-    double equal_to_selectivity =
+    double const equal_to_selectivity =
         static_cast<double>(frequency) / total_frequency;
     EXPECT_NEAR(equal_to_selectivity, histogram->get_equal_to_selectivity(key),
                 max_abs_error)
         << "equal to " << key_to_string(key) << "\n"
         << error_info;
 
-    double greater_than_selectivity =
+    double const greater_than_selectivity =
         1.0 - (less_than_selectivity + equal_to_selectivity);
     EXPECT_NEAR(greater_than_selectivity,
                 histogram->get_greater_than_selectivity(key), max_abs_error)
@@ -357,7 +357,7 @@ void VerifySelectivityEstimates(MEM_ROOT *mem_root, CHARSET_INFO *charset,
 }
 
 TEST_F(HistogramSelectivityTest, EquiHeightSelectivity) {
-  std::vector<Value_map_type> histogram_types = {
+  std::vector<Value_map_type> const histogram_types = {
       Value_map_type::STRING, Value_map_type::INT, Value_map_type::UINT,
       Value_map_type::DOUBLE, Value_map_type::DECIMAL,
       // Value_map_type::DATE,
@@ -366,7 +366,7 @@ TEST_F(HistogramSelectivityTest, EquiHeightSelectivity) {
       // Value_map_type::ENUM,
       // Value_map_type::SET,
   };
-  std::vector<FrequencyDistribution> distributions = {
+  std::vector<FrequencyDistribution> const distributions = {
       FrequencyDistribution::Uniform,
       FrequencyDistribution::Linear,
       FrequencyDistribution::Quadratic,
@@ -378,7 +378,8 @@ TEST_F(HistogramSelectivityTest, EquiHeightSelectivity) {
       FrequencyDistribution::Pseudorandom,
       FrequencyDistribution::SingleHeavyValue,
       FrequencyDistribution::ExponentialTail};
-  std::vector<size_t> numbers_of_buckets = {2, 4, 8, 16, 32, 64, 128, 256, 512};
+  std::vector<size_t> const numbers_of_buckets = {2,  4,   8,   16, 32,
+                                                  64, 128, 256, 512};
   for (const auto &histogram_type : histogram_types) {
     for (const auto &distribution : distributions) {
       for (const auto &number_of_buckets : numbers_of_buckets) {

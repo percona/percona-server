@@ -1,14 +1,28 @@
-# Use this file as:
-#
-# let $engine_type=XXX;
-# let $vector_max_dim=YYY;
-# --source common/rpl/rpl_vector.test
-#
 # ==== Purpose ====
 #
 # Basic test for replication of the VECTOR datatype: replication should work,
 # different definitions on source and replica should result in errors, and
 # mysqlbinlog should print metadata and data properly.
+#
+# ==== Usage ====
+#
+# --let $engine_type= ENGINE
+# --let $vector_max_dim= NUMBER
+# [--let $binlog_uses_minimal_row_image=1]
+# --source common/rpl/rpl_vector.test
+#
+# Parameters:
+#
+#  $engine_type
+#    The storage engine to use.
+#
+#  $vector_max_dim
+#    The biggest number (which depends on engine type) supporting:
+#    CREATE TABLE a (pk INT, embedding VECTOR($vector_max_dim), PRIMARY KEY (pk));
+#
+#  $binlog_uses_minimal_row_image
+#    Set to 1 when there will be no before row images for UPDATE and DELETE in
+#    binlog.
 #
 # ==== Requirements ====
 #
@@ -155,6 +169,10 @@ UPDATE a SET embedding = TO_VECTOR("[0.0]");
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output
 --let $assert_select=VECTOR\($vector_max_dim\)
 --let $assert_count=11
+if ($binlog_uses_minimal_row_image) {
+  # No before row images for UPDATE and DELETE
+  --let $assert_count=7
+}
 --source include/assert_grep.inc
 
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_rpl_vector2.output

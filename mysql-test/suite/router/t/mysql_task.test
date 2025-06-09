@@ -1,0 +1,865 @@
+--source include/have_router.inc
+--source include/not_windows.inc
+--source ../include/mrs/is_mrs_schema_v4.inc
+--source include/is_local_machine.inc
+
+--disable_query_log
+--disable_result_log
+# TODO(alfredo): temporary location of mysql_tasks.sql, should be removed once it's included in the server
+--source ../include/schema/mysql_tasks.sql
+--enable_query_log
+--enable_result_log
+
+
+# create the schemas
+create schema sysdb; # the event with the SPs that the user will be executing
+create schema db1; # DB owned by the user where task events can get created
+
+
+delimiter $$;
+
+create table db1.prog (id int primary key auto_increment, user varchar(255), pct int);
+
+# a raw SP with no task support
+create procedure sysdb.p(IN param1 INT, OUT param2 INT, INOUT param3 INT) sql security invoker
+begin
+    declare i int default 0;
+
+    if param1 = 1234 then
+        SIGNAL SQLSTATE '99999' SET MESSAGE_TEXT = 'ERROR!?', MYSQL_ERRNO = 9999;
+    end if;
+
+    insert into db1.prog values (default, current_user(), 5);
+    do get_lock('testlock', 60);
+    insert into db1.prog values (default, current_user(), 50);
+
+    set param2 = param1 + 1;
+    set param3 = param3 + 1;
+
+    set @my_result = concat('result', param1);
+end$$
+
+
+create function sysdb.f(param1 INT) returns INT sql security invoker reads sql data
+begin
+    if param1 = 1234 then
+        SIGNAL SQLSTATE '99999' SET MESSAGE_TEXT = 'ERROR!?', MYSQL_ERRNO = 9999;
+    end if;
+    # these inserts dont help with the test because they dont seem to get committed until the function returns
+    #insert into db1.prog values (default, current_user(), 5);
+    do get_lock('testlock', 60);
+
+    return param1 + 1;
+end$$
+
+create function sysdb.get_progress() returns int sql security invoker reads sql data
+begin
+    return coalesce((select pct from db1.prog order by id desc limit 1), 0);
+end$$
+
+delimiter ;$$
+
+set global general_log=1;
+
+create user user1@'%' identified by 'secretpass1';
+grant all on db1.* to user1@'%';
+grant execute on sysdb.* to user1@'%';
+grant mysql_task_user to user1@'%';
+
+# same as user1 but with event privs on sysdb
+create user user2@'%' identified by 'secretpass1';
+grant all on db1.* to user2@'%';
+grant execute, event on sysdb.* to user2@'%';
+grant mysql_task_user to user2@'%';
+
+create user nocreate@'%' identified by 'secretpass1';
+grant all on db1.* to nocreate@'%';
+grant execute on sysdb.* to nocreate@'%';
+grant mysql_task_user to nocreate@'%';
+
+create user nodelete@'%' identified by 'secretpass1';
+grant all on db1.* to nodelete@'%';
+grant execute on sysdb.* to nodelete@'%';
+grant mysql_task_user to nodelete@'%';
+
+create user noget@'%' identified by 'secretpass1';
+grant all on db1.* to noget@'%';
+grant execute on sysdb.* to noget@'%';
+grant mysql_task_user to noget@'%';
+
+--let $extra_mrs_router_id=1
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+
+--eval GRANT ALL ON sysdb.* TO mysql_rest_service_data_provider;
+--eval GRANT ALL ON db1.* TO mysql_rest_service_data_provider;
+--eval GRANT mysql_rest_service_data_provider TO $mrs_user_data
+--eval GRANT mysql_rest_service_meta_provider TO $mrs_user_meta
+#TODO(alfredo) temporary fix for grant, fixed in MD 4.0.0
+GRANT UPDATE ON `mysql_rest_service_metadata`.`mrs_user`
+    TO 'mysql_rest_service_meta_provider';
+
+--source ../include/mrs/start_object_definition.inc
+
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_service_options='{"logging":{"exceptions":true}, "passthroughDbUser":true}'
+--let $mrs_add_host_name=""
+--source ../include/mrs/service/add.inc
+
+--let $mrs_add_schema=sysdb
+--let $mrs_add_schema_path=/db
+--let $mrs_add_schema_auth=TRUE
+--source ../include/mrs/db_schema/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p
+--let $mrs_add_db_object_path=/pDatabase
+--let $mrs_add_db_object_options='{"mysqlTask":{"driver": "database", "eventSchema":"db1", "monitoringSql": ["CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), (select sysdb.get_progress()), ''RUNNING'');"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p
+--let $mrs_add_db_object_path=/pNoEventSchema
+--let $mrs_add_db_object_options='{"mysqlTask":{"driver": "database", "name":"NoEventSchema", "monitoringSql": ["CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), (select sysdb.get_progress()), ''RUNNING'');"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p
+--let $mrs_add_db_object_path=/pNoAuth
+--let $mrs_add_db_object_options='{"mysqlTask":{"driver": "database", "eventSchema":"db1", "monitoringSql": ["CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), (select sysdb.get_progress()), ''RUNNING'');"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--let $mrs_add_db_object_auth=0
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=p
+--let $mrs_add_db_object_path=/pRouter
+--let $mrs_add_db_object_options='{"sqlQuery":{"timeout":60000},"mysqlTask":{"driver": "router", "eventSchema":"db1", "monitoringSql": ["CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), (select sysdb.get_progress()), ''RUNNING'');"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--source ../include/mrs/db_object/add.inc
+
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--let $mrs_add_db_object=f
+--let $mrs_add_db_object_path=/fDatabase
+--let $mrs_add_db_object_options='{"mysqlTask":{"driver": "database", "eventSchema":"db1", "monitoringSql": ["CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), (select sysdb.get_progress()), ''RUNNING'');"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--let $mrs_add_db_object=f
+--let $mrs_add_db_object_path=/fRouter
+--let $mrs_add_db_object_options='{"sqlQuery":{"timeout":60000},"mysqlTask":{"driver": "router", "eventSchema":"db1", "monitoringSql": ["select pct into @p from db1.prog order by id desc limit 1", "CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), @p, ''RUNNING'')"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+#--let $mrs_add_db_object_options='{"sqlQuery":{"timeout":60000},"mysqlTask":{"driver": "router", "eventSchema":"db1", "monitoringSql": [], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=FUNCTION
+--let $mrs_add_db_object_format=ITEM
+--let $mrs_add_db_object=f
+--let $mrs_add_db_object_path=/fNoAuth
+--let $mrs_add_db_object_options='{"sqlQuery":{"timeout":60000},"mysqlTask":{"driver": "router", "eventSchema":"db1", "monitoringSql": ["select pct into @p from db1.prog order by id desc limit 1", "CALL mysql_tasks.add_task_log(@task_id, ''PROGRESS REPORT'', JSON_OBJECT(''lastUpdate'', NOW(6)), @p, ''RUNNING'')"], "statusDataJsonSchema":{"lastUpdate":"string"}}}'
+--let $mrs_add_db_object_auth=0
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_role_caption=nocreate
+--source ../include/mrs/role/add.inc
+
+--let $mrs_grant_privilege_service_path=/svc
+--let $mrs_grant_privilege_schema_path=*
+--let $mrs_grant_privilege_object_path=*
+--let $mrs_grant_privilege_crud_operations=READ,DELETE
+--source ../include/mrs/role/grant_privilege.inc
+
+--let $mrs_add_role_caption=nodelete
+--source ../include/mrs/role/add.inc
+
+--let $mrs_grant_privilege_service_path=/svc
+--let $mrs_grant_privilege_schema_path=*
+--let $mrs_grant_privilege_object_path=*
+--let $mrs_grant_privilege_crud_operations=CREATE,READ,UPDATE
+--source ../include/mrs/role/grant_privilege.inc
+
+--let $mrs_add_role_caption=noget
+--source ../include/mrs/role/add.inc
+
+--let $mrs_grant_privilege_service_path=/svc
+--let $mrs_grant_privilege_schema_path=*
+--let $mrs_grant_privilege_object_path=*
+--let $mrs_grant_privilege_crud_operations=CREATE,UPDATE,DELETE
+--source ../include/mrs/role/grant_privilege.inc
+
+--let $mrs_add_auth_app=default authentication
+--let $mrs_add_auth_registered_users_only=1
+--let $mrs_add_auth_vendor=MySQL Internal
+--let $mrs_add_auth_service=/svc
+--source ../include/mrs/auth_app/add.inc
+
+--let $mrs_add_user_ext_uid='user1@%'
+--let $mrs_add_user_name='user1'
+--let $mrs_add_user_auth_string='ignore'
+--source ../include/mrs/user/add.inc
+
+--let $mrs_add_user_ext_uid='user2@%'
+--let $mrs_add_user_name='user2'
+--let $mrs_add_user_auth_string='ignore'
+--source ../include/mrs/user/add.inc
+
+--let $mrs_add_user_ext_uid='nocreate@%'
+--let $mrs_add_user_name='nocreate'
+--let $mrs_add_user_auth_string='ignore'
+--let $mrs_add_user_role=nocreate
+--source ../include/mrs/user/add.inc
+
+--let $mrs_add_user_ext_uid='nodelete@%'
+--let $mrs_add_user_name='nodelete'
+--let $mrs_add_user_auth_string='ignore'
+--let $mrs_add_user_role=nodelete
+--source ../include/mrs/user/add.inc
+
+--let $mrs_add_user_ext_uid='noget@%'
+--let $mrs_add_user_name='noget'
+--let $mrs_add_user_auth_string='ignore'
+--let $mrs_add_user_role=noget
+--source ../include/mrs/user/add.inc
+
+--source ../include/mrs/end_object_definition.inc
+
+# authenticate users
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user1
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u user2
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u nocreate
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/nocreate_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u nodelete
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/nodelete_session.dat;
+
+exec $MRS_CLIENT_ARGS
+  -a BASIC
+  --path /svc/authentication/login
+  -u noget
+  -p secretpass1
+  --session-file $MYSQL_TMP_DIR/noget_session.dat;
+
+--let app_user_id=`select bin_to_uuid(id, 1) from mysql_rest_service_metadata.mrs_user limit 1`
+
+# start task at server (SP)
+######################
+--echo "Test pDatabase"
+do get_lock('testlock', 1);
+
+# no priv
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pDatabase'
+--let $mrs_client_arg_payload='{"param1":5, "param3": 41}'
+--let $mrs_client_arg_expected_status=403
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/nocreate_session.dat'
+--source ../include/mrs/mrs_client.inc
+
+--let $mrs_client_arg_request_type='PUT'
+--let $mrs_client_arg_path='/svc/db/pDatabase'
+--let $mrs_client_arg_payload='{"param1":5, "param3": 41}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+## query in-progress status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# no task id
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase
+  --expected-status 404
+  --response-type RAW
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# no priv
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 403
+  --session-file $MYSQL_TMP_DIR/noget_session.dat;
+
+do release_lock('testlock');
+
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# start task that will error out
+--echo "Test pDatabase error"
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pDatabase'
+--let $mrs_client_arg_payload='{"param1":1234, "param3": 41}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_completed.inc
+
+## query error status of task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+ # start task to get killed
+ --echo "Test kill pDatabase"
+ do get_lock('testlock', 2);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pDatabase'
+--let $mrs_client_arg_payload='{"param1":222, "param3": 41}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# no priv
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 403
+  --session-file $MYSQL_TMP_DIR/nodelete_session.dat;
+
+# no taskId
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/pDatabase
+  --expected-status 404
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--source wait_task_completed.inc
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--echo try to cancel completed task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+
+## eventSchema not set
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pNoEventSchema'
+--let $mrs_client_arg_payload='{"param1":6, "param3": 41}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user2_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user2_session.dat;
+
+
+--echo No auth endpoint should all fail
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pNoAuth'
+--let $mrs_client_arg_payload='{"param1":5, "param3": 41}'
+--let $mrs_client_arg_expected_status=401
+--source ../include/mrs/mrs_client.inc
+
+# start task at server (function)
+######################
+--echo "Start fDatabase"
+
+do get_lock('testlock', 3);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fDatabase'
+--let $mrs_client_arg_payload='{"param1":5}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+## query in-progress status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+
+# start task that will error out
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fDatabase'
+--let $mrs_client_arg_payload='{"param1":1234}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_completed.inc
+
+## query error status of task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+ # start task to get killed
+ do get_lock('testlock', 4);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fDatabase'
+--let $mrs_client_arg_payload='{"param1":222}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/fDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--source wait_task_completed.inc
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fDatabase/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+
+--echo No auth endpoint should all fail
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fNoAuth'
+--let $mrs_client_arg_payload='{"param1":5, "param3": 41}'
+--let $mrs_client_arg_expected_status=401
+--source ../include/mrs/mrs_client.inc
+
+# start task at router (SP)
+######################
+truncate db1.prog;
+insert into db1.prog values (default, 'empty', 0);
+do get_lock('testlock', 5);
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pRouter'
+--let $mrs_client_arg_payload='{"param1":8, "param3": 43}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+## query in-progress status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# start task that will error out
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pRouter'
+--let $mrs_client_arg_payload='{"param1":1234, "param3": 12}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_completed.inc
+
+## query error status of task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+ # start task to get killed
+ do get_lock('testlock', 6);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/pRouter'
+--let $mrs_client_arg_payload='{"param1":222, "param3": 43}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--source wait_task_completed.inc
+
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/pRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+
+# start task at router (function)
+######################
+do get_lock('testlock', 1);
+truncate db1.prog;
+insert into db1.prog values (default, 'empty', 1);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fRouter'
+--let $mrs_client_arg_payload='{"param1":1}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+## query in-progress status of the task
+--replace_regex /"lastUpdate": ".*"/"lastUpdate": TIMESTAMP/ /"progress": 5.*/"progress": ###/
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+do release_lock('testlock');
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--echo try to cancel completed task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# start task that will error out
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fRouter'
+--let $mrs_client_arg_payload='{"param1":1234}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_completed.inc
+
+## query error status of task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# kill task
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fRouter'
+--let $mrs_client_arg_payload='{"param1":1}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t DELETE
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--source wait_task_completed.inc
+
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+# task killed externally
+do get_lock('testlock', 1);
+
+--let $mrs_client_arg_request_type='POST'
+--let $mrs_client_arg_path='/svc/db/fRouter'
+--let $mrs_client_arg_payload='{"param1":1}'
+--let $mrs_client_arg_expected_status=202
+--let $mrs_client_arg_session_file='$MYSQL_TMP_DIR/user1_session.dat'
+--let $mrs_client_arg_write_format='mtr'
+--let $mrs_client_arg_write_to_file='$MYSQL_TMP_DIR/task_info.json'
+--let $mrs_client_arg_display=none
+--source ../include/mrs/mrs_client.inc
+
+--source $MYSQL_TMP_DIR/task_info.json
+--let $task_id=`select json_unquote(json_extract('$mrs_result', '\$.taskId'))`
+--replace_result $task_id TASK_ID
+--cat_file $MYSQL_TMP_DIR/task_info.json
+
+--source wait_task_running.inc
+
+# kill task from outside
+--replace_result $task_id TASK_ID
+--eval set @conn=mysql_tasks.get_task_connection_id('$task_id');
+kill @conn;
+
+do release_lock('testlock');
+--source wait_task_completed.inc
+
+## query completed status of the task
+--replace_result $task_id TASK_ID
+exec $MRS_CLIENT_ARGS
+  -t GET
+  --path /svc/db/fRouter/$task_id
+  --expected-status 200
+  --session-file $MYSQL_TMP_DIR/user1_session.dat;
+
+--let $wait_condition=SELECT count(*)=0 FROM information_schema.processlist where USER = "user1"
+--source include/wait_condition.inc
+
+# Cleanup
+remove_file $MYSQL_TMP_DIR/user1_session.dat;
+remove_file $MYSQL_TMP_DIR/user2_session.dat;
+remove_file $MYSQL_TMP_DIR/nocreate_session.dat;
+remove_file $MYSQL_TMP_DIR/nodelete_session.dat;
+remove_file $MYSQL_TMP_DIR/noget_session.dat;
+remove_file $MYSQL_TMP_DIR/task_info.json;
+drop user user1@'%';
+drop user user2@'%';
+drop user nocreate@'%';
+drop user nodelete@'%';
+drop user noget@'%';
+drop schema db1;
+drop schema sysdb;
+drop schema mysql_tasks;
+drop role mysql_task_user;
+drop role mysql_task_admin;
+
+--source ../include/mrs/cleanup.inc

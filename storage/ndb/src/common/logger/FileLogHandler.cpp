@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 
 #include <ndb_global.h>
 
-#include <time.h>
+#include <ctime>
 
 #include <FileLogHandler.hpp>
 #include <util/File.hpp>
@@ -136,9 +136,9 @@ bool FileLogHandler::createNewFile() {
     newMtime = File_class::mtime(newName);
     if (newMtime < preMtime) {
       break;
-    } else {
-      preMtime = newMtime;
     }
+    preMtime = newMtime;
+
   } while (File_class::exists(newName));
 
   m_pLogFile->close();
@@ -173,7 +173,7 @@ bool FileLogHandler::getParams(BaseString &config) {
 
 bool FileLogHandler::setFilename(const BaseString &filename) {
   close();
-  if (m_pLogFile) delete m_pLogFile;
+  delete m_pLogFile;
   m_pLogFile = new File_class(filename.c_str(), "a+");
   return open();
 }

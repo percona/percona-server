@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 
 #include "sql/key.h"  // key_rec_cmp
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
 
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -140,7 +140,7 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
   if (key_length == 0) key_length = key_info->key_length;
   for (key_part = key_info->key_part; (int)key_length > 0; key_part++) {
     if (key_part->null_bit) {
-      bool key_is_null =
+      bool const key_is_null =
           from_record[key_part->null_offset] & key_part->null_bit;
       *to_key++ = (key_is_null ? 1 : 0);
       key_length--;
@@ -194,7 +194,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
       key_length--;
     }
     if (key_part->type == HA_KEYTYPE_BIT) {
-      Field_bit *field = (Field_bit *)(key_part->field);
+      auto *field = (Field_bit *)(key_part->field);
       if (field->bit_len) {
         const uchar bits =
             *(from_key + key_part->length - field->pack_length_in_rec() - 1);
@@ -215,7 +215,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
         have to ignore GCov compaining.
       */
       const uint blob_length = uint2korr(from_key);
-      Field_blob *field = (Field_blob *)key_part->field;
+      auto *field = (Field_blob *)key_part->field;
       from_key += HA_KEY_BLOB_LENGTH;
       key_length -= HA_KEY_BLOB_LENGTH;
       field->set_ptr_offset(to_record - field->table->record[0],
@@ -293,7 +293,8 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
           (HA_BLOB_PART | HA_VAR_LENGTH_PART | HA_BIT_PART))) {
       // We can use memcpy.
       const uint length = min((uint)(key_end - key), store_length);
-      if (memcmp(key, table->record[0] + key_part->offset, length)) return true;
+      if (memcmp(key, table->record[0] + key_part->offset, length) != 0)
+        return true;
     } else {
       // Use the regular comparison function.
       if (key_part->field->key_cmp(key, key_part->length)) return true;
@@ -433,6 +434,8 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   @param key_part		Key part handler
   @param key			Key to compare to value in table->record[0]
   @param key_length		length of 'key'
+  @param[in] is_reverse_multi_valued_index_scan  True in case of reverse
+  multi-valued index scan.
 
   @details
     The function compares given key and key in record buffer, part by part,
@@ -451,7 +454,8 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields) {
   @note: keep this function and key_cmp2() in sync
 */
 
-int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
+int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length,
+            bool is_reverse_multi_valued_index_scan) {
   uint store_length;
 
   for (const uchar *end = key + key_length; key < end;
@@ -468,14 +472,18 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
         if (!field_is_null) return res;  // Found key is > range
         /* null -- exact match, go to next key part */
         continue;
-      } else if (field_is_null)
-        return -res;  // NULL is less than any value
-      key++;          // Skip null byte
+      }
+      if (field_is_null) return -res;  // NULL is less than any value
+      key++;                           // Skip null byte
       store_length--;
     }
     if ((cmp = key_part->field->key_cmp(key, key_part->length)) < 0)
       return -res;
-    if (cmp > 0) return res;
+    if (cmp > 0) {
+      if (is_reverse_multi_valued_index_scan && key_part->field->is_array())
+        return -res;
+      return res;
+    }
   }
   return 0;  // Keys are equal
 }
@@ -527,16 +535,16 @@ int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
               key2's null flag is '1' (since *key1 != *key2) then return 1;
         */
         return (*key1) ? -res : res;
-      } else {
-        /*
-          If null indicating flag in key1 and key2 are same and
-            > if it is '1' , both are NULLs and both are same, continue with
-              next key in key_part.
-            > if it is '0', then go ahead and compare the content using
-              field->key_cmp.
-        */
-        if (*key1) continue;
       }
+      /*
+      If null indicating flag in key1 and key2 are same and
+        > if it is '1' , both are NULLs and both are same, continue with
+          next key in key_part.
+        > if it is '0', then go ahead and compare the content using
+          field->key_cmp.
+      */
+      if (*key1) continue;
+
       /*
         Increment the key1 and key2 pointers to point them to the actual
         key values

@@ -832,4 +832,20 @@ EXPLAIN
     -> Aggregate using temporary table  (rows=1)
         -> Table scan on t1  (rows=1)
 
+#
+# Bug#3767052: mysqld crash at Field::is_nullable while querying...
+#
+create table t1(id int, id2 int);
+insert into t1 values (1, 10), (2, 11), (3, 12), (4, 10), (5, 11), (6, 12);
+SELECT sql_small_result 1 col1 FROM t1 GROUP BY @a := id LIMIT 1;
+col1
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT * FROM (SELECT sql_small_result 1 col1 FROM t1 GROUP BY @a := id) s LIMIT 1;
+col1
+1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+drop table t1;
 drop table tb1;

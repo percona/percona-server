@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 #include "ndb_config.h"
 #include "util/cstrbuf.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_PORT_NO 65535
 
@@ -72,20 +72,14 @@ bool LocalConfig::init(const char *connectString, const char *fileName) {
   // 2. Check given filename
   if (fileName && strlen(fileName) > 0) {
     bool fopenError;
-    if (readFile(fileName, fopenError)) {
-      return true;
-    }
-    return false;
+    return readFile(fileName, fopenError);
   }
 
   // 3. Check environment variable
   char buf[255];
   if (NdbEnv_GetEnv("NDB_CONNECTSTRING", buf, sizeof(buf)) &&
       strlen(buf) != 0) {
-    if (readConnectString(buf, "NDB_CONNECTSTRING")) {
-      return true;
-    }
-    return false;
+    return readConnectString(buf, "NDB_CONNECTSTRING");
   }
 
   // 4. Check Ndb.cfg in NDB_HOME

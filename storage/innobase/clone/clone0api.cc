@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2491,8 +2491,7 @@ static void clone_init_compression(THD *thd) {
   ib::info(ER_IB_CLONE_SQL) << "Clone: Finished initializing compressed tables";
 }
 
-Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
-                           bool no_wait)
+Clone_notify::Clone_notify(Type type, space_id_t space, bool no_wait)
     : m_space_id(space),
       m_type(type),
       m_wait(Wait_at::NONE),

@@ -3701,7 +3701,7 @@ KEY `some_other_id` (`some_other_id`),
 KEY `one_other_idx` (`one_id`,`other_id`),
 KEY `other_id` (`other_id`,`time_created`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101651329
-DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci ;
+DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.

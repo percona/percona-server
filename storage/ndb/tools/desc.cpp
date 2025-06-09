@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ int desc_table(Ndb *myndb, char const *name);
 int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char const *name);
 
 static const char *_dbname = "TEST_DB";
-static const char *_tblname = NULL;
+static const char *_tblname = nullptr;
 static int _unqualified = 0;
 static int _partinfo = 0;
 static int _blobinfo = 0;
@@ -260,11 +260,12 @@ int desc_index(Ndb *myndb, char const *name) {
   NdbDictionary::Index const *pIndex;
 
   /* need to know base table */
-  if (_tblname == NULL) return 0;
+  if (_tblname == nullptr) return 0;
 
-  while ((pIndex = dict->getIndex(name, _tblname)) == NULL && --_retries >= 0)
+  while ((pIndex = dict->getIndex(name, _tblname)) == nullptr &&
+         --_retries >= 0)
     NdbSleep_SecSleep(1);
-  if (pIndex == NULL) return 0;
+  if (pIndex == nullptr) return 0;
 
   ndbout << "-- " << _tblname << "/" << pIndex->getName() << " --" << endl;
   dict->print(ndbout, *pIndex);
@@ -274,7 +275,7 @@ int desc_index(Ndb *myndb, char const *name) {
 int desc_table(Ndb *myndb, char const *name) {
   NdbDictionary::Dictionary *dict = myndb->getDictionary();
   NdbDictionary::Table const *pTab;
-  while ((pTab = dict->getTable(name)) == NULL && --_retries >= 0)
+  while ((pTab = dict->getTable(name)) == nullptr && --_retries >= 0)
     NdbSleep_SecSleep(1);
   if (!pTab) return 0;
 
@@ -374,17 +375,18 @@ static void print_autoinc_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
 
 static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
   InfoInfo g_part_info[] = {
-      {"Partition", 0, NdbDictionary::Column::FRAGMENT},
-      {"Row count", 0, NdbDictionary::Column::ROW_COUNT},
-      {"Commit count", 0, NdbDictionary::Column::COMMIT_COUNT},
-      {"Frag fixed memory", 0, NdbDictionary::Column::FRAGMENT_FIXED_MEMORY},
-      {"Frag varsized memory", 0,
+      {"Partition", nullptr, NdbDictionary::Column::FRAGMENT},
+      {"Row count", nullptr, NdbDictionary::Column::ROW_COUNT},
+      {"Commit count", nullptr, NdbDictionary::Column::COMMIT_COUNT},
+      {"Frag fixed memory", nullptr,
+       NdbDictionary::Column::FRAGMENT_FIXED_MEMORY},
+      {"Frag varsized memory", nullptr,
        NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY},
-      {"Extent_space", 0, NdbDictionary::Column::FRAGMENT_EXTENT_SPACE},
-      {"Free extent_space", 0,
+      {"Extent_space", nullptr, NdbDictionary::Column::FRAGMENT_EXTENT_SPACE},
+      {"Free extent_space", nullptr,
        NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE},
 
-      {0, 0, 0}};
+      {nullptr, nullptr, nullptr}};
   const Uint32 FragmentIdOffset = 0;
 
   ndbout << "-- Per partition info";
@@ -395,18 +397,18 @@ static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
 
   const Uint32 codeWords = 1;
   Uint32 codeSpace[codeWords];
-  NdbInterpretedCode code(NULL,  // Table is irrelevant
+  NdbInterpretedCode code(nullptr,  // Table is irrelevant
                           &codeSpace[0], codeWords);
   if ((code.interpret_exit_last_row() != 0) || (code.finalise() != 0)) {
     return;
   }
 
   NdbConnection *pTrans = pNdb->startTransaction();
-  if (pTrans == 0) return;
+  if (pTrans == nullptr) return;
 
   do {
     NdbScanOperation *pOp = pTrans->getNdbScanOperation(pTab->getName());
-    if (pOp == NULL) break;
+    if (pOp == nullptr) break;
 
     int rs = pOp->readTuples(NdbOperation::LM_CommittedRead, 0 /* scan_flags */,
                              1 /* parallel */, 0 /* batch */);
@@ -416,17 +418,17 @@ static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
     if (pOp->setInterpretedCode(&code) != 0) break;
 
     Uint32 i = 0;
-    for (i = 0; g_part_info[i].m_title != 0; i++) {
+    for (i = 0; g_part_info[i].m_title != nullptr; i++) {
       if ((g_part_info[i].m_rec_attr =
-               pOp->getValue(g_part_info[i].m_column)) == 0)
+               pOp->getValue(g_part_info[i].m_column)) == nullptr)
         break;
     }
 
-    if (g_part_info[i].m_title != 0) break;
+    if (g_part_info[i].m_title != nullptr) break;
 
     if (pTrans->execute(NoCommit) != 0) break;
 
-    for (i = 0; g_part_info[i].m_title != 0; i++)
+    for (i = 0; g_part_info[i].m_title != nullptr; i++)
       ndbout << g_part_info[i].m_title << "\t";
 
     if (_nodeinfo) {
@@ -436,7 +438,7 @@ static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
     ndbout << endl;
 
     while (pOp->nextResult() == 0) {
-      for (i = 0; g_part_info[i].m_title != 0; i++) {
+      for (i = 0; g_part_info[i].m_title != nullptr; i++) {
         NdbRecAttr &r = *g_part_info[i].m_rec_attr;
         unsigned long long val;
         switch (r.getType()) {
@@ -476,18 +478,19 @@ static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab) {
 
       printf("\n");
     }
-  } while (0);
+  } while (false);
   pTrans->close();
 }
 
-int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char const *name) {
+int desc_hashmap(Ndb_cluster_connection & /*con*/, Ndb *myndb,
+                 char const *name) {
   NdbDictionary::Dictionary *dict = myndb->getDictionary();
   require(dict);
 
   NdbDictionary::HashMap hm;
   if (dict->getHashMap(hm, name) == 0) {
     Uint32 len = hm.getMapLen();
-    Uint32 *tmp = new Uint32[len];
+    auto *tmp = new Uint32[len];
     hm.getMapValues(tmp, len);
     for (Uint32 i = 0; i < len; i++) {
       printf("%.2u ", tmp[i]);

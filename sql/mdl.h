@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "my_systime.h"  // Timout_type
+#include "my_systime.h"  // Timeout_type
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/mysql_rwlock_bits.h"

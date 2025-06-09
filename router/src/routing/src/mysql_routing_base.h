@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@ class ROUTING_EXPORT MySQLRoutingBase {
   virtual int get_max_connections() const noexcept = 0;
   virtual std::vector<mysql_harness::Destination> get_destination_candidates()
       const = 0;
+  virtual DestinationManager *destination_manager() = 0;
   virtual std::vector<MySQLRoutingAPI::ConnData> get_connections() = 0;
   virtual MySQLRoutingConnectionBase *get_connection(const std::string &) = 0;
   virtual bool is_accepting_connections() const = 0;

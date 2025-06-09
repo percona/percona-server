@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@ The tablespace memory cache */
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
 #include "ibuf0ibuf.h"
+#include "mysql/components/library_mysys/my_system.h"  // my_num_vcpus
 #include "os0event.h"
 #include "row0mysql.h"
 #include "sql_backup_lock.h"
@@ -130,6 +131,7 @@ struct Moved {
 using Tablespaces = std::vector<Moved>;
 }  // namespace dd_fil
 
+#ifndef UNIV_HOTBACKUP
 size_t fil_get_scan_threads(size_t num_files) {
   /* Number of additional threads required to scan all the files.
   n_threads == 0 means that the main thread itself will do all the
@@ -142,8 +144,7 @@ size_t fil_get_scan_threads(size_t num_files) {
   }
 
   /* Number of concurrent threads supported by the host machine. */
-  size_t max_threads =
-      FIL_SCAN_THREADS_PER_CORE * std::thread::hardware_concurrency();
+  size_t max_threads = FIL_SCAN_THREADS_PER_CORE * my_num_vcpus();
 
   /* If the number of concurrent threads supported by the host
   machine could not be calculated, assume the supported threads
@@ -162,6 +163,7 @@ size_t fil_get_scan_threads(size_t num_files) {
 
   return n_threads;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /* uint16_t is the index into Tablespace_dirs::m_dirs */
 using Scanned_files = std::vector<std::pair<uint16_t, std::string>>;
@@ -327,9 +329,6 @@ enum fil_operation_t {
 
 /** The null file address */
 fil_addr_t fil_addr_null = {FIL_NULL, 0};
-
-/** Maximum number of pages to read to determine the space ID. */
-static const size_t MAX_PAGES_TO_READ = 1;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of shards supported. */
@@ -501,9 +500,11 @@ class Tablespace_dirs {
   @param[in]  directories  Directories to scan for ibd and ibu files */
   void set_scan_dirs(const std::string &directories);
 
+#ifndef UNIV_HOTBACKUP
   /** Discover tablespaces by reading the header from .ibd files.
   @return DB_SUCCESS if all goes well */
   [[nodiscard]] dberr_t scan();
+#endif /* !UNIV_HOTBACKUP */
 
   /** Clear all the tablespace file data but leave the list of
   scanned directories in place. */
@@ -1631,13 +1632,18 @@ class Fil_system {
     m_dirs.set_scan_dirs(directories);
   }
 
+#ifndef UNIV_HOTBACKUP
   /** Scan the directories to build the tablespace ID to file name
   mapping table. */
   dberr_t scan() { return m_dirs.scan(); }
+#endif /* !UNIV_HOTBACKUP */
 
-  /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID is
-  0 on the first page then try finding the ID with Datafile::find_space_id().
-  @param[in]    filename        File name to check
+  /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the
+  read failed or the ID is 0 on the first page or there is a mismatch of
+  space_ids stored in FSP_SPACE_ID and FIL_PAGE_SPACE_ID, then try finding
+  the ID with Datafile::find_space_id(). This function should only be called
+  during server startup.
+  @param[in]      filename        File name to check
   @return s_invalid_space_id if not found, otherwise the space ID */
   [[nodiscard]] static space_id_t get_tablespace_id(
       const std::string &filename);
@@ -4881,7 +4887,10 @@ static void fil_op_write_space_extend(space_id_t space_id, os_offset_t offset,
 
   DBUG_EXECUTE_IF(
       "ib_redo_log_system_tablespace_expansion", if (space_id == 0) {
-        ib::info() << "System tablespace expansion is redo logged.";
+        /* info message requires increasing the log level of the test,
+        and the test happens to produce the huge logs. Therefore, produce a
+        warning that doesn't require increasing the log level */
+        ib::warn() << "System tablespace expansion is redo logged.";
       });
 }
 #endif
@@ -11086,116 +11095,65 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
   return true;
 }
 
-/** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID is 0
-on the first page then try finding the ID with Datafile::find_space_id().
-@param[in]      filename        File name to check
-@return s_invalid_space_id if not found, otherwise the space ID */
 space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
-  FILE *fp = fopen(filename.c_str(), "rb");
+  pfs_os_file_t file;
+  bool success;
 
-  if (fp == nullptr) {
+  /* Lambda function for heavy-duty method of finding the space id from
+  Datafile::find_space_id() which we fallback into, if the first page
+  cannot be read properly. */
+  const auto find_space_id_reliably = [&filename]() -> space_id_t {
+    Datafile data_file;
+
+    data_file.set_filepath(filename.c_str());
+    const dberr_t err = data_file.open_read_only(false);
+
+    ut_a(data_file.is_open());
+    ut_a(err == DB_SUCCESS);
+
+    /* Use the heavier Datafile::find_space_id() method to find the space id. */
+    return (data_file.find_space_id() == DB_SUCCESS)
+               ? data_file.space_id()
+               : dict_sys_t::s_invalid_space_id;
+  };
+
+  /* Open the file with O_DIRECT flag for faster access */
+  file = os_file_create(innodb_data_file_key, filename.c_str(), OS_FILE_OPEN,
+                        OS_DATA_FILE_FOR_SPACE_ID_READ, true, &success);
+  if (!success) {
+    os_file_get_last_error(true);
     ib::warn(ER_IB_MSG_372) << "Unable to open '" << filename << "'";
     return dict_sys_t::s_invalid_space_id;
   }
 
-  std::vector<space_id_t> space_ids;
-  auto page_size = srv_page_size;
+  space_id_t space_id = dict_sys_t::s_invalid_space_id;
 
-  space_ids.reserve(MAX_PAGES_TO_READ);
+  auto buf = ut::make_unique_aligned<byte[]>(srv_page_size, srv_page_size);
 
-  const auto n_bytes = page_size * MAX_PAGES_TO_READ;
+  IORequest request(IORequest::READ);
+  ulint bytes_read = 0;
+  /* Disable the warning if we try to read compressed tablespace which has
+  data less than the read size i.e., srv_page_size */
+  request.disable_partial_io_warnings();
 
-  std::unique_ptr<byte[]> buf(new byte[n_bytes]);
+  dberr_t err =
+      os_file_read_no_error_handling(request, filename.c_str(), file, buf.get(),
+                                     0, srv_page_size, &bytes_read);
 
-  if (!buf) {
-    return dict_sys_t::s_invalid_space_id;
+  os_file_close(file);
+
+  DBUG_EXECUTE_IF("invalid_header", bytes_read = 0;);
+
+  if (err != DB_SUCCESS || (bytes_read != srv_page_size)) {
+    /* Reading from the first page failed, falling back to heavy duty method */
+    return find_space_id_reliably();
   }
 
-  auto pages_read = fread(buf.get(), page_size, MAX_PAGES_TO_READ, fp);
+  /* Read the space_id from buf at offset FIL_PAGE_SPACE_ID */
+  space_id = fsp_header_get_space_id(buf.get());
 
-  DBUG_EXECUTE_IF("invalid_header", pages_read = 0;);
-
-  /* Find the space id from the pages read if enough pages could be read.
-  Fall back to the more heavier method of finding the space id from
-  Datafile::find_space_id() if pages cannot be read properly. */
-  if (pages_read >= MAX_PAGES_TO_READ) {
-    auto bytes_read = pages_read * page_size;
-
-#ifdef POSIX_FADV_DONTNEED
-    posix_fadvise(fileno(fp), 0, bytes_read, POSIX_FADV_DONTNEED);
-#endif /* POSIX_FADV_DONTNEED */
-
-    for (page_no_t i = 0; i < MAX_PAGES_TO_READ; ++i) {
-      const auto off = i * page_size + FIL_PAGE_SPACE_ID;
-
-      if (off == FIL_PAGE_SPACE_ID) {
-        /* Find out the page size of the tablespace from the first page.
-        In case of compressed pages, the subsequent pages can be of different
-        sizes. If MAX_PAGES_TO_READ is changed to a different value, then the
-        page size of subsequent pages is needed to find out the offset for
-        space ID. */
-
-        auto space_flags_offset = FSP_HEADER_OFFSET + FSP_SPACE_FLAGS;
-
-        ut_a(space_flags_offset + 4 < n_bytes);
-
-        const auto flags = mach_read_from_4(buf.get() + space_flags_offset);
-
-        page_size_t space_page_size(flags);
-
-        page_size = space_page_size.physical();
-      }
-
-      space_ids.push_back(mach_read_from_4(buf.get() + off));
-
-      if ((i + 1) * page_size >= bytes_read) {
-        break;
-      }
-    }
-  }
-
-  fclose(fp);
-
-  space_id_t space_id;
-
-  if (!space_ids.empty()) {
-    space_id = space_ids.front();
-
-    for (auto id : space_ids) {
-      if (id == 0 || space_id != id) {
-        space_id = UINT32_UNDEFINED;
-
-        break;
-      }
-    }
-  } else {
-    space_id = UINT32_UNDEFINED;
-  }
-
-  /* Try the more heavy duty method, as a last resort. */
-  if (space_id == UINT32_UNDEFINED) {
-    /* If the first page cannot be read properly, then for compressed
-    tablespaces we don't know where the page boundary starts because
-    we don't know the page size. */
-
-    Datafile file;
-
-    file.set_filepath(filename.c_str());
-
-    dberr_t err = file.open_read_only(false);
-
-    ut_a(file.is_open());
-    ut_a(err == DB_SUCCESS);
-
-    /* Use the heavier Datafile::find_space_id() method to
-    find the space id. */
-    err = file.find_space_id();
-
-    if (err == DB_SUCCESS) {
-      space_id = file.space_id();
-    }
-
-    file.close();
+  if (space_id == 0 || space_id == SPACE_UNKNOWN) {
+    return find_space_id_reliably();
   }
 
   return space_id;
@@ -11319,9 +11277,12 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
   }
 }
 
-static bool fil_get_partition_file(const std::string &old_path [[maybe_unused]],
-                                   ib_file_suffix extn [[maybe_unused]],
-                                   std::string &new_path [[maybe_unused]]) {
+[[maybe_unused]] static bool fil_get_partition_file(const std::string &old_path
+                                                    [[maybe_unused]],
+                                                    ib_file_suffix extn
+                                                    [[maybe_unused]],
+                                                    std::string &new_path
+                                                    [[maybe_unused]]) {
   /* Safe check. Never needed on Windows. */
 #ifdef _WIN32
   return false;
@@ -11454,6 +11415,7 @@ void Tablespace_dirs::set_scan_dirs(const std::string &in_directories) {
   add_paths(directories, separators);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Discover tablespaces by reading the header from .ibd files.
 @return DB_SUCCESS if all goes well */
 dberr_t Tablespace_dirs::scan() {
@@ -11583,6 +11545,11 @@ dberr_t Tablespace_dirs::scan() {
   return err;
 }
 
+/** Discover tablespaces by reading the header from .ibd files.
+@return DB_SUCCESS if all goes well */
+dberr_t fil_scan_for_tablespaces() { return fil_system->scan(); }
+#endif /* !UNIV_HOTBACKUP */
+
 void fil_set_scan_dir(const std::string &directory, bool is_undo_dir) {
   fil_system->set_scan_dir(directory, is_undo_dir);
 }
@@ -11590,10 +11557,6 @@ void fil_set_scan_dir(const std::string &directory, bool is_undo_dir) {
 void fil_set_scan_dirs(const std::string &directories) {
   fil_system->set_scan_dirs(directories);
 }
-
-/** Discover tablespaces by reading the header from .ibd files.
-@return DB_SUCCESS if all goes well */
-dberr_t fil_scan_for_tablespaces() { return fil_system->scan(); }
 
 /** Check if a path is known to InnoDB meaning that it is in or under
 one of the four path settings scanned at startup for file discovery.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -306,10 +306,13 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   mysql_handle.mysql = mysql;
-  if (mcs_extn->consumer_srv_data != nullptr)
-    srv_ctx_h = reinterpret_cast<SRV_CTX_H>(mcs_extn->consumer_srv_data);
-  else if (((class mysql_command_consumer_refs *)(command_consumer_srv))
-               ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
+  if (mcs_extn->consumer_srv_data != nullptr) {
+    ((class mysql_command_consumer_refs *)(command_consumer_srv))
+        ->factory_srv->end(
+            reinterpret_cast<SRV_CTX_H>(mcs_extn->consumer_srv_data));
+  }
+  if (((class mysql_command_consumer_refs *)(command_consumer_srv))
+          ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
     sprintf(*err_msg, "Could not create %s service",
             "mysql_text_consumer_factory_v1");
     goto error;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,8 @@ struct ClusterInfo;
 
 class ConfigGenerator {
  public:
+  enum class TargetType { InnoDBCluster, Standalone };
+
   ConfigGenerator(
       std::ostream &out_stream = std::cout, std::ostream &err_stream = std::cerr
 #ifndef _WIN32
@@ -73,37 +75,43 @@ class ConfigGenerator {
    * This function does a lot of initialisation before bootstrap starts making
    * changes.
    *
-   * @param server_url server to bootstrap from
-   * @param bootstrap_options bootstrap options
-   *
-   * @throws std::runtime_error On error.
+   * @throws std::runtime_error TODO
    */
-  void init(const std::string &server_url,
-            const std::map<std::string, std::string> &bootstrap_options);
+  void init(const std::map<std::string, std::string> &bootstrap_options,
+            const mysqlrouter::URI &uri, mysqlrouter::MySQLSession *session,
+            int connect_timeout, int read_timeout);
 
-  /** @brief logs warning and returns false if SSL mode is set to PREFERRED and
-   *         SSL is not being used, true otherwise
+  void check_target(const std::map<std::string, std::string> &bootstrap_options,
+                    bool allow_no_metadata = false);
+
+  /** @brief logs warning and returns false if SSL mode is set to PREFERRED
+   * and SSL is not being used, true otherwise
    *
    * @param options map of commandline options
    *
-   * @returns false if SSL mode is set to PREFERRED and SSL is not being used,
-   *          true otherwise
+   * @returns false if SSL mode is set to PREFERRED and SSL is not being
+   * used, true otherwise
    *
    * @throws std::runtime_error On error.
    */
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options);
+
+  std::string config_file_path_for_directory(const std::string &directory);
+  bool needs_bootstrap(const std::string &config_file_path);
 
   void bootstrap_system_deployment(
       const std::string &program_name, const std::string &config_file_path,
       const std::string &state_file_path,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
+      const std::map<std::string, std::string> &config_cmdline_options,
       const std::map<std::string, std::string> &default_paths);
 
   void bootstrap_directory_deployment(
       const std::string &program_name, const std::string &directory,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
+      const std::map<std::string, std::string> &config_cmdline_options,
       const std::map<std::string, std::string> &default_paths);
 
   void set_keyring_info(const KeyringInfo &keyring_info) {
@@ -111,6 +119,8 @@ class ConfigGenerator {
   }
 
   void set_plugin_folder(const std::string &val) { plugin_folder_ = val; }
+
+  bool is_standalone_target() const { return !schema_version_; }
 
   struct Options {
     struct Endpoint {
@@ -210,22 +220,6 @@ class ConfigGenerator {
                        const std::string &bootstrap_socket);
 
   /**
-   * init() calls this to connect to metadata server; sets mysql_ (connection)
-   * object.
-   *
-   * @param u parsed server URL (--bootstrap|-B argument)
-   * @param bootstrap_socket bootstrap (unix) socket (--bootstrap-socket
-   * argumenent)
-   * @param bootstrap_options bootstrap command-line options
-   *
-   * @throws std::runtime_error On error.
-   * @throws std::logic_error On error.
-   */
-  void connect_to_metadata_server(
-      const URI &u, const std::string &bootstrap_socket,
-      const std::map<std::string, std::string> &bootstrap_options);
-
-  /**
    * init() calls this to set GR-related member fields.
    *
    * @param u parsed server URL (--bootstrap|-B argument)
@@ -269,6 +263,7 @@ class ConfigGenerator {
       const mysql_harness::Path &state_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
+      const std::map<std::string, std::string> &config_cmdline_options,
       const std::map<std::string, std::string> &default_paths,
       bool directory_deployment, AutoCleaner &auto_clean);
 
@@ -286,7 +281,8 @@ class ConfigGenerator {
       const Options &options,
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &config_overwrites,
-      const std::string &state_file_name, const bool full);
+      const std::string &state_file_name, const bool full,
+      AutoCleaner &auto_clean);
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
@@ -452,9 +448,6 @@ class ConfigGenerator {
 
   void init_keyring_file(uint32_t router_id, bool create_if_needed = true);
 
-  static void set_ssl_options(
-      MySQLSession *sess, const std::map<std::string, std::string> &options);
-
   void ensure_router_id_is_ours(uint32_t &router_id,
                                 const std::string &hostname_override);
 
@@ -500,7 +493,10 @@ class ConfigGenerator {
       const mysql_harness::Directory &dir) const;
 
  private:
-  std::unique_ptr<MySQLSession> mysql_;
+  URI target_uri_;
+  std::string bootstrap_socket_;
+
+  MySQLSession *mysql_;
   std::unique_ptr<ClusterMetadata> metadata_;
   int connect_timeout_;
   int read_timeout_;
@@ -540,7 +536,8 @@ class ConfigGenerator {
   SysUserOperationsBase *sys_user_operations_;
 #endif
 
-  mysqlrouter::MetadataSchemaVersion schema_version_;
+  // metadata schema version if not standalone
+  std::optional<mysqlrouter::MetadataSchemaVersion> schema_version_;
 
   std::string plugin_folder_;
 };

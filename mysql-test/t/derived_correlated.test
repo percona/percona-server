@@ -1238,3 +1238,53 @@ HAVING (g_t3.g_f3, 3) = (SELECT g_t3.g_f1 AS c1,
                           );
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#37271834: Hypergraph: Wrong results for query with semijoin with
+--echo #               lateral dependencies
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t(x) VALUES (1), (2), (3);
+
+--sorted_result
+SELECT * FROM
+  t AS t0,
+  LATERAL (
+    SELECT * FROM t AS t1
+    WHERE TRUE IN (SELECT t3.x IS NOT NULL
+                   FROM t AS t2 LEFT JOIN t AS t3
+                   ON t0.x = 2)
+  ) AS dt;
+
+--sorted_result
+SELECT * FROM
+  t AS t0,
+  LATERAL (
+    SELECT * FROM t AS t1
+    WHERE TRUE IN (SELECT t3.x IS NOT NULL
+                   FROM t AS t2 LEFT JOIN t AS t3
+                   ON t2.x + t0.x = t3.x)
+  ) AS dt;
+
+--sorted_result
+SELECT * FROM
+  t AS t0,
+  LATERAL (
+    SELECT * FROM t AS t1
+    WHERE TRUE IN (SELECT t3.x IS NOT NULL
+                   FROM t AS t2 LEFT JOIN t AS t3
+                   ON t2.x = t3.x + t0.x)
+  ) AS dt;
+
+--sorted_result
+SELECT * FROM
+  t AS t0,
+  LATERAL (
+    SELECT * FROM t AS t1
+    WHERE TRUE IN (SELECT t3.x IS NOT NULL
+                   FROM t AS t2 LEFT JOIN t AS t3
+                   ON t2.x >= t3.x + t0.x)
+  ) AS dt;
+
+DROP TABLE t;

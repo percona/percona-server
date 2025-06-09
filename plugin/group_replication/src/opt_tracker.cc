@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 #include "plugin/group_replication/include/opt_tracker.h"
 
-#include <mysql/components/library_mysys/option_usage_data.h>
 #include <mysql/components/services/mysql_option_tracker.h>
 #include <mysql/components/util/weak_service_reference.h>
+#include "mysql/components/library_mysys/option_tracker_usage.h"
 #include "plugin/group_replication/include/plugin.h"
 
 static const std::string s_name("mysql_option_tracker_option");
@@ -36,6 +36,12 @@ static const std::string c_name_group_replication("group_replication plugin");
 typedef weak_service_reference<SERVICE_TYPE(mysql_option_tracker_option),
                                c_name_group_replication, s_name>
     srv_weak_option_option;
+unsigned long long opt_option_tracker_usage_group_replication_plugin = 0;
+static bool cb(unsigned long long new_value) {
+  opt_option_tracker_usage_group_replication_plugin = new_value;
+  return false;
+}
+static bool cb_define_failed = false;
 
 void track_group_replication_available() {
   srv_weak_option_option::init(
@@ -43,7 +49,14 @@ void track_group_replication_available() {
       server_services_references_module->registry_registration_service,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         return 0 != opt->define(f_name_group_replication.c_str(),
-                                c_name_group_replication.c_str(), 0);
+                                c_name_group_replication.c_str(), 0) ||
+               option_usage_read_counter(
+                   f_name_group_replication.c_str(),
+                   &opt_option_tracker_usage_group_replication_plugin,
+                   server_services_references_module->registry_service) ||
+               (cb_define_failed = option_usage_register_callback(
+                    f_name_group_replication.c_str(), cb,
+                    server_services_references_module->registry_service));
       },
       true);
 }
@@ -53,6 +66,12 @@ void track_group_replication_unavailable() {
       server_services_references_module->registry_service,
       server_services_references_module->registry_registration_service,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        if (!cb_define_failed &&
+            option_usage_unregister_callback(
+                f_name_group_replication.c_str(), cb,
+                server_services_references_module->registry_service)) {
+          return true;
+        }
         return 0 != opt->undefine(f_name_group_replication.c_str());
       });
 }
@@ -63,10 +82,7 @@ void track_group_replication_enabled(bool enabled) {
     svc->set_enabled(f_name_group_replication.c_str(), enabled ? 1 : 0);
 
     if (enabled) {
-      Option_usage_data option_usage(
-          f_name_group_replication.c_str(),
-          server_services_references_module->registry_service);
-      option_usage.set(true);
+      ++opt_option_tracker_usage_group_replication_plugin;
     }
   }
 }

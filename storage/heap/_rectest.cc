@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,14 @@
 int hp_rectest(HP_INFO *info, const uchar *old) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   if (hp_process_record_data_to_chunkset(*info->s, old, info->current_ptr,
                                          true)) {
+||||||| merged common ancestors
+  if (memcmp(info->current_ptr, old, (size_t)info->s->reclength)) {
+=======
+  if (memcmp(info->current_ptr, old, (size_t)info->s->reclength) != 0) {
+>>>>>>> mysql-9.3.0
     set_my_errno(HA_ERR_RECORD_CHANGED);
     return HA_ERR_RECORD_CHANGED; /* Record have changed */
   }

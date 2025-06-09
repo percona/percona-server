@@ -839,6 +839,7 @@ WHERE ta.a IN (SELECT c FROM t2 AS tb
                WHERE (SELECT MIN(e) FROM t3 as tc
                       WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
                                                      WHERE ta.b=tc.e));
+--sorted_result
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN $query;
@@ -855,7 +856,6 @@ FROM t1;
 eval $query;
 --replace_regex $elide_costs
 eval EXPLAIN $query;
-
 
 DROP TABLE t1, t2, t3;
 

@@ -138,15 +138,15 @@ SELECT * FROM cte1 x1 NATURAL JOIN cte1 x2 NATURAL JOIN cte1 x3;
 EXPLAIN
 -> Nested loop inner join  (rows=520e-6)
     -> Nested loop inner join  (rows=0.03)
-        -> Table scan on x1  (rows=1.73)
-            -> Materialize CTE cte1 if needed  (rows=1.73)
-                -> Group aggregate: max(t1.a)  (rows=1.73)
-                    -> Sort: t1.b  (rows=3)
-                        -> Table scan on t1  (rows=3)
-        -> Covering index lookup on x2 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0173)
+        -> Table scan on x2  (rows=1.73)
             -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
-    -> Covering index lookup on x3 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0173)
-        -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
+        -> Covering index lookup on x3 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
+            -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=1.73)
+    -> Covering index lookup on x1 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
+        -> Materialize CTE cte1 if needed  (rows=1.73)
+            -> Group aggregate: max(t1.a)  (rows=1.73)
+                -> Sort: t1.b  (rows=3)
+                    -> Table scan on t1  (rows=3)
 
 SELECT line FROM (WITH RECURSIVE qn(n) AS
 (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<25)
@@ -161,17 +161,17 @@ EXPLAIN FORMAT=tree SELECT * FROM v1 x1 NATURAL JOIN v1 x2 NATURAL JOIN v1 x3;
 EXPLAIN
 -> Nested loop inner join  (rows=520e-6)
     -> Nested loop inner join  (rows=0.03)
-        -> Table scan on x1  (rows=1.73)
+        -> Table scan on x2  (rows=1.73)
             -> Materialize  (rows=1.73)
                 -> Group aggregate: max(t1.a)  (rows=1.73)
                     -> Sort: t1.b  (rows=3)
                         -> Table scan on t1  (rows=3)
-        -> Covering index lookup on x2 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0173)
+        -> Covering index lookup on x3 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
             -> Materialize  (rows=1.73)
                 -> Group aggregate: max(t1.a)  (rows=1.73)
                     -> Sort: t1.b  (rows=3)
                         -> Table scan on t1  (rows=3)
-    -> Covering index lookup on x3 using <auto_key0> (m = x1.m, b = x1.b)  (rows=0.0173)
+    -> Covering index lookup on x1 using <auto_key0> (m = x2.m, b = x2.b)  (rows=0.0173)
         -> Materialize  (rows=1.73)
             -> Group aggregate: max(t1.a)  (rows=1.73)
                 -> Sort: t1.b  (rows=3)
@@ -238,3 +238,33 @@ line
 DROP VIEW v1;
 DROP TABLE t1;
 SET SESSION OPTIMIZER_TRACE='enabled=off';
+#
+# Bug#36990353 mysqld crash - Segmentation fault in PopulationCount
+# at sql/join_optimizer/overflow_bitset.h
+#
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET optimizer_switch="subquery_to_derived=on";
+CREATE TABLE t1 (f1 INTEGER);
+SELECT MAX(t1.f1), (SELECT COUNT(f1) FROM t1) FROM
+(t1 JOIN (SELECT * FROM (SELECT DISTINCT * FROM t1) AS dt) AS t2 ON 1)
+WHERE ((SELECT f1 FROM t1) IS NULL);
+MAX(t1.f1)	(SELECT COUNT(f1) FROM t1)
+NULL	0
+DROP TABLE t1;
+SET @@optimizer_switch=@optimizer_switch_saved;
+#
+# Bug#37617852: Assertion `false && "Inconsistent row counts for
+#               different AccessPath objects.
+#
+CREATE TABLE t (f1 INT PRIMARY KEY, f2 INT);
+INSERT INTO t VALUES (1, 1), (2, 3), (3, 2), (4, 4);
+SELECT /*+ NO_MERGE(t3) */ *
+FROM t AS t1,
+t AS t2,
+(SELECT * FROM t) AS t3
+WHERE t3.f1 = t1.f1 + 1 AND t3.f1 = t2.f2;
+f1	f2	f1	f2	f1	f2
+1	1	3	2	2	3
+2	3	2	3	3	2
+3	2	4	4	4	4
+DROP TABLE t;

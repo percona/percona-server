@@ -1420,6 +1420,24 @@ SELECT ROW_NUMBER() OVER () FROM t WHERE x = RAND() GROUP BY x;
 DROP TABLE t;
 
 --echo #
+--echo # Bug#35989799 Discontinuity in row estimate for ROLLUP in hypergraph
+--echo #
+
+CREATE TABLE t1(x INT, y INT);
+
+INSERT INTO t1 VALUES (1,1), (2,2);
+
+ANALYZE TABLE t1;
+
+# The row estimate before aggregation is n where n < 1. The estimated
+# number of aggregated rows is then also n, and the total estimate,
+# including the two rollup rows should then be 1 + n * 2.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x > 0 GROUP BY x, y WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
 --echo #               failed with hypergraph_optimizer
 --echo #
@@ -1677,6 +1695,91 @@ WHERE (table2.f2 = 'x' ) OR (table1.f1 > 1);
 --eval EXPLAIN FORMAT=TREE $query
 --eval $query
 
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#37378072: `m_bitsets[i].is_inline()' in in at
+--echo #               join_optimizer/overflow_bitset.h
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, txt TEXT, col1 INT, col2 INT, col3 INT,
+col4 INT, col5 INT, col6 INT, col7 INT, col8 INT, col9 INT, col10 INT,
+col11 INT, col12 INT, col13 INT, col14 INT, col15 INT, col16 INT, col17 INT,
+col18 INT, col19 INT, col20 INT, col21 INT, col22 INT, col23 INT, col24 INT,
+col25 INT, col26 INT, col27 INT, col28 INT, col29 INT, col30 INT, col31 INT,
+col32 INT, col33 INT, col34 INT, col35 INT, col36 INT, col37 INT, col38 INT,
+col39 INT, col40 INT, col41 INT, col42 INT, col43 INT, col44 INT, col45 INT,
+col46 INT, col47 INT, col48 INT, col49 INT, col50 INT, col51 INT, col52 INT,
+col53 INT, col54 INT, col55 INT, col56 INT, col57 INT, col58 INT, col59 INT,
+col60 INT, col61 INT, col62 INT, col63 INT, col64 INT);
+SELECT t2.pk FROM t1 JOIN t2 NATURAL JOIN t2 AS t3 ON t1.col1 = t3.col1 AND t1.col2 <> t3.col2;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#36630355: Assertion `false && "Inconsistent row counts for
+--echo #               different AccessPath objects."' failed.
+--echo #
+
+CREATE TABLE t(a INT,
+               b INT,
+               c INT,
+               d BIGINT,
+               KEY (a, d));
+
+SELECT 1
+FROM t AS t1 STRAIGHT_JOIN
+     t AS t2,
+     t AS t3,
+     t AS t4
+WHERE t1.d = t3.d AND
+      t3.a = t4.b AND
+      t3.d = t4.c;
+
+SELECT 1
+FROM t AS t2 STRAIGHT_JOIN
+     t AS t1,
+     t AS t3,
+     t AS t4
+WHERE t1.d = t3.d AND
+      t3.a = t4.b AND
+      t3.d = t4.c;
+
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#37452558 Assertion `path->num_output_rows() <=
+--echo #         path->num_output_rows_before_filter` failed.
+--echo #
+CREATE TABLE t1 (f1 int, f2 time, KEY f1 (f1), KEY f2 (f2));
+CREATE TABLE t2 (f1 int, f2 time, KEY f2 (f2));
+INSERT INTO t1 VALUES
+    (NULL,'00:20:03'),(2,'00:20:08'),(0,'00:20:01'),(NULL,'00:20:04'),
+    (0,'00:20:01'),(NULL,'00:20:01'),(2,'00:20:04'),(NULL,'00:20:01'),
+    (0,'00:20:06'),(NULL,'00:20:05'),(2,'00:20:09'),(NULL,'00:20:08'),
+    (2,'00:20:03'),(1,'00:20:03'),(1,'00:20:03'),(NULL,'00:20:00'),
+    (1,'00:20:01'),(NULL,'00:20:02'),(NULL,'00:20:06'),(0,'00:20:07'),
+    (2,'00:20:07'),(0,'00:20:07'),(2,'00:20:03');
+INSERT INTO t2 VALUES
+    (0,'05:23:30'),(0,'22:10:55'),(0,'00:20:04'),(0,'00:20:08'),
+    (0,'00:20:06'),(0,'00:20:07'),(0,'00:20:08'),(0,'00:20:06'),
+    (0,'00:20:09');
+ANALYZE TABLE t1,t2;
+SELECT DISTINCT f1 FROM t1 WHERE f1 IN
+    ( SELECT t2.f1 FROM t2 LEFT JOIN t1 USING (f2)) AND f1 IS NULL;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#37412816 `path->has_group_skip_scan' in (anonymous namespace)::
+--echo #                SetGroupSkipScanCardinality
+--echo #
+CREATE TABLE t1 (f1 INTEGER, PRIMARY KEY (f1))  ;
+CREATE TABLE t2 (f1 INTEGER, f2 DATETIME, KEY (f2));
+INSERT INTO t1 VALUES (1), (2), (3), (4),(5),(6),(7),(8),(9),(10),
+                      (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ANALYZE TABLE t1, t2;
+SELECT f1 FROM t1 WHERE (f1,f1) IN
+    (SELECT f1,f2 FROM t2 WHERE f1 >= 1) GROUP BY f1;
 DROP TABLE t1,t2;
 
 --source include/disable_hypergraph.inc

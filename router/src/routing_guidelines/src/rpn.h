@@ -1,16 +1,18 @@
 /*
- * Copyright (c) 2024 Oracle and/or its affiliates.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
  * as published by the Free Software Foundation.
  *
- * This program is also distributed with certain software (including
- * but not limited to OpenSSL) that is licensed under separate terms, as
- * designated in a particular file or component or in included license
+ * This program is designed to work with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
- * separately licensed software that they have included with MySQL.
+ * separately licensed software that they have either included with
+ * the program or referenced in the documentation.
+ *
  * This program is distributed in the hope that it will be useful,  but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
@@ -35,6 +37,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include "mysqlrouter/routing_guidelines_version.h"
 #include "routing_guidelines/routing_guidelines.h"
 
 namespace routing_guidelines {
@@ -245,6 +249,14 @@ class Context final {
 
   void clear_router_info() { router_ = nullptr; }
 
+  bool parse_tags_toggled();
+
+  mysqlrouter::RoutingGuidelinesVersion get_version() const { return version_; }
+
+  void set_version(mysqlrouter::RoutingGuidelinesVersion version) {
+    version_ = std::move(version);
+  }
+
  private:
   std::unique_ptr<bool, std::function<void(bool *)>> start_parse_mode() {
     parse_mode_ = true;
@@ -263,6 +275,9 @@ class Context final {
   std::vector<std::function<Token()>> context_vars_;
   bool parse_mode_{false};
   bool extended_session_info_{false};
+  bool parsing_tags_{false};
+  mysqlrouter::RoutingGuidelinesVersion version_{
+      mysqlrouter::kBaseRoutingGuidelines};
 
   friend class routing_guidelines::Rules_parser;
 };
@@ -270,10 +285,10 @@ class Context final {
 class Expression {
  public:
   Expression() = default;
-  Expression(const std::vector<Token> &rpn, const std::string &code)
-      : rpn_(rpn), code_(code) {}
-  Expression(std::vector<Token> &&rpn, const std::string &code)
-      : rpn_(std::move(rpn)), code_(code) {}
+  Expression(const std::vector<Token> &rpn, std::string code)
+      : rpn_(rpn), code_(std::move(code)) {}
+  Expression(std::vector<Token> &&rpn, std::string code)
+      : rpn_(std::move(rpn)), code_(std::move(code)) {}
 
   Token eval(Context *variables,
              const Routing_guidelines_engine::ResolveCache *cache = nullptr,

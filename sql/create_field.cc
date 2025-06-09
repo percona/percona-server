@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -432,6 +432,7 @@ bool Create_field::init(
                               ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT), fld_name);
         }
         constant_default = nullptr;
+        if (fld_type != MYSQL_TYPE_JSON) flags |= NO_DEFAULT_VALUE_FLAG;
       }
 
       flags |= BLOB_FLAG;

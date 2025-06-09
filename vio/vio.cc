@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -404,7 +404,13 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
       Close socket only when it is not equal to the new one.
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket)) {
+<<<<<<< HEAD
       if (vio->inactive == false) vio->vioshutdown(vio, SHUT_RDWR);
+||||||| merged common ancestors
+      if (vio->inactive == false) vio->vioshutdown(vio);
+=======
+      if (!vio->inactive) vio->vioshutdown(vio);
+>>>>>>> mysql-9.3.0
     }
 #ifdef HAVE_KQUEUE
     else {
@@ -437,7 +443,7 @@ Vio *internal_vio_create(uint flags) {
 Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum_vio_type type,
                           uint flags) {
   Vio *vio;
-  my_socket sd = mysql_socket_getfd(mysql_socket);
+  my_socket const sd = mysql_socket_getfd(mysql_socket);
   DBUG_TRACE;
   DBUG_PRINT("enter", ("sd: " MY_SOCKET_FMT, sd));
 
@@ -557,7 +563,13 @@ int vio_timeout(Vio *vio, uint which, int timeout_sec) {
 
 void internal_vio_delete(Vio *vio) {
   if (!vio) return; /* It must be safe to delete null pointers. */
+<<<<<<< HEAD
   if (vio->inactive == false) vio->vioshutdown(vio, SHUT_RDWR);
+||||||| merged common ancestors
+  if (vio->inactive == false) vio->vioshutdown(vio);
+=======
+  if (!vio->inactive) vio->vioshutdown(vio);
+>>>>>>> mysql-9.3.0
   vio->~Vio();
   my_free(vio);
 }

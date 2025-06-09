@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,7 @@ usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
+usr/lib/mysql/plugin/component_keyring_hashicorp.so
 usr/lib/mysql/plugin/component_keyring_oci.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/keyring_okv.so
@@ -127,6 +128,7 @@ usr/lib/mysql/plugin/component_scheduler.so
 usr/lib/mysql/plugin/component_telemetry.so
 usr/lib/mysql/plugin/component_option_tracker.so
 usr/lib/mysql/plugin/component_group_replication_flow_control_stats.so
+usr/lib/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 usr/lib/mysql/plugin/component_group_replication_resource_manager.so
 usr/lib/mysql/plugin/component_replication_applier_metrics.so
 usr/lib/mysql/private/libpolyglot.so

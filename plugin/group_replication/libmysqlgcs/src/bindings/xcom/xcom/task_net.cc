@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #endif
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
+#include <cassert>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 #ifdef _MSC_VER
 #include <stdint.h>
 #endif
@@ -95,7 +95,7 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
         D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval));
         if (errval == EAI_SYSTEM) {
           NUMEXP(errno);
-          STREXP(g_strerror(errno));
+          STREXP(strerror(errno));
         });
 #else
     XCOM_IFDBG(D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval)));

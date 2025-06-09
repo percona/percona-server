@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,7 @@ FOREACH(test_file
     test_logging_eventlog.cc
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
+    test_mrs_config.cc
     test_cluster_metadata.cc
     test_node_attributes.cc
     test_gr_state.cc

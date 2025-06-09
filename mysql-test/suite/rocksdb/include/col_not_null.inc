@@ -63,7 +63,11 @@ eval ALTER TABLE t1 ADD COLUMN err $col_type NOT NULL DEFAULT NULL;
 INSERT INTO t1 (c) VALUES (NULL);
 
 eval INSERT INTO t1 (c) VALUES ($col_default);
-eval INSERT INTO t1 () VALUES ();
+if ($col_default_err == 0)
+{
+  # As of mysql-9.3.0, this no longer works for BLOB and JSON
+  eval INSERT INTO t1 () VALUES ();
+}
 
 # HEX should be universal for all column types
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;

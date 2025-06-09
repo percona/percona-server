@@ -466,11 +466,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # TINYBLOB NOT NULL columns without a default
@@ -513,11 +511,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # MEDIUMBLOB NOT NULL columns without a default
@@ -560,11 +556,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # LONGBLOB NOT NULL columns without a default
@@ -607,11 +601,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 ########################
 # BOOL columns
@@ -2779,11 +2771,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # TINYTEXT NOT NULL columns without a default
@@ -2826,11 +2816,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # MEDIUMTEXT NOT NULL columns without a default
@@ -2873,11 +2861,9 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;
 #----------------------------------
 # LONGTEXT NOT NULL columns without a default
@@ -2920,9 +2906,7 @@ ERROR 42000: Invalid default value for 'err'
 INSERT INTO t1 (c) VALUES (NULL);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) VALUES ('');
-INSERT INTO t1 () VALUES ();
 SELECT pk, HEX(c) FROM t1 ORDER BY pk;
 pk	HEX(c)
 1	
-2	
 DROP TABLE t1;

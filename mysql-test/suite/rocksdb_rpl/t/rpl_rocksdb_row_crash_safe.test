@@ -8,7 +8,6 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
---source include/not_replica_parallel_workers.inc
 --source include/rpl/connection_source.inc
 
 call mtr.add_suppression('Attempting backtrace');

@@ -34,7 +34,6 @@ CREATE TABLE t1( a int unique);
 --source include/rpl/sync_to_replica.inc
 
 # connection was switched to slave
---source include/have_replica_parallel_workers.inc
 
 --echo # stop replica
 --source include/rpl/stop_all_replicas.inc

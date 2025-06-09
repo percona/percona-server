@@ -47,7 +47,6 @@
 --let $slave_stop_wait=5
 
 # connection was switched to replica
---source include/have_replica_parallel_workers.inc
 --source include/have_replica_parallel_type_database.inc
 
 --source include/rpl/stop_all_replicas.inc

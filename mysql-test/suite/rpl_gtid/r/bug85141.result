@@ -25,9 +25,7 @@ include/rpl/stop_replica.inc
 #
 [connection server_3]
 set @save.replica_parallel_workers = @@global.replica_parallel_workers;
-set @@global.replica_parallel_workers = 0;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
+set @@global.replica_parallel_workers = 1;
 INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_relay_log_info', 'YES', 'YES');
 INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_master_info', 'YES', 'YES');
 include/rpl/stop_replica.inc
@@ -66,7 +64,6 @@ include/rpl/diff.inc
 include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_2']
 # t1 records on server_3(C) after syncing with server_2(B) must match
 include/rpl/diff.inc
-include/assert.inc [number of IO waits for "slave_relay_log_info" must not change]
 include/assert.inc [number of IO waits for "slave_master_info" must not change]
 set @@global.replica_parallel_workers = @save.replica_parallel_workers;
 #

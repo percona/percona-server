@@ -531,23 +531,7 @@ static void vio_wait_until_woken(Vio *vio) {
 int vio_shutdown(Vio *vio, int how) {
   DBUG_TRACE;
 
-<<<<<<< HEAD
   int r = vio_cancel(vio, how);
-||||||| merged common ancestors
-  if (vio->inactive == false) {
-    assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
-           vio->type == VIO_TYPE_SSL);
-
-    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR)) r = -1;
-=======
-  if (!vio->inactive) {
-    assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET ||
-           vio->type == VIO_TYPE_SSL);
-
-    assert(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR)) r = -1;
->>>>>>> mysql-9.3.0
 
   if (!vio->inactive) {
 #ifdef USE_PPOLL_IN_VIO

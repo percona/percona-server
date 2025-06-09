@@ -399,16 +399,12 @@ bool get_allow_single_leader() {
     return ov.allow_single_leader_var;
 }
 
-<<<<<<< HEAD
-uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
-
-||||||| merged common ancestors
-=======
 bool get_component_primary_election_enabled() {
   return Primary_election_most_update::is_enabled();
 }
 
->>>>>>> mysql-9.3.0
+uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
+
 /**
  * @brief Callback implementation of
  * handle_group_replication_incoming_connection. This is the entry point for

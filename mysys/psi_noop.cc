@@ -133,19 +133,13 @@ static void set_connection_type_noop(opaque_vio_type) {}
 
 static void set_thread_start_time_noop(time_t) {}
 
-<<<<<<< HEAD
 static void set_thread_start_time_usec_noop(ulonglong) { return; }
 
 static void set_thread_rows_sent_noop(ulonglong) { return; }
 
 static void set_thread_rows_examined_noop(ulonglong) { return; }
 
-static void set_thread_info_noop(const char *, uint) { return; }
-||||||| merged common ancestors
-static void set_thread_info_noop(const char *, uint) { return; }
-=======
 static void set_thread_info_noop(const char *, uint) {}
->>>>>>> mysql-9.3.0
 
 static void set_thread_secondary_engine_noop(bool) {}
 

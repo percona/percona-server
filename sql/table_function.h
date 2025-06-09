@@ -521,6 +521,8 @@ class Table_function_sequence final : public Table_function {
   virtual List<Create_field> *get_field_list() override;
   virtual bool do_init_args() override;
   virtual void do_cleanup() override;
+  void do_fix_after_pullout(Query_block *parent_query_block,
+                            Query_block *removed_query_block) override;
 
   ulonglong calculate_upper_bound() const;
 };

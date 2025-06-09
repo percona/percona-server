@@ -147,8 +147,6 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
-<<<<<<< HEAD
-unsigned int thd_get_num_vcpus();
 int thd_command(const void * thd);
 long long thd_start_time(const void * thd);
 void thd_kill(unsigned long id);
@@ -156,10 +154,6 @@ int thd_get_ft_query_extra_word_chars(void);
 typedef bool (*ssl_reload_callback_t)(void *);
 bool register_ssl_reload_callback(ssl_reload_callback_t);
 bool deregister_ssl_reload_callback(ssl_reload_callback_t);
-||||||| merged common ancestors
-unsigned int thd_get_num_vcpus();
-=======
->>>>>>> mysql-9.3.0
 #include <mysql/components/services/bits/plugin_audit_connection_types.h>
 typedef enum {
   MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
@@ -370,7 +364,8 @@ enum enum_sql_command {
   SQLCOM_CREATE_LIBRARY,
   SQLCOM_DROP_LIBRARY,
   SQLCOM_SHOW_CREATE_LIBRARY,
-<<<<<<< HEAD
+  SQLCOM_ALTER_LIBRARY,
+  SQLCOM_SHOW_STATUS_LIBRARY,
   SQLCOM_SHOW_USER_STATS,
   SQLCOM_SHOW_TABLE_STATS,
   SQLCOM_SHOW_INDEX_STATS,
@@ -379,11 +374,6 @@ enum enum_sql_command {
   SQLCOM_LOCK_TABLES_FOR_BACKUP,
   SQLCOM_CREATE_COMPRESSION_DICTIONARY,
   SQLCOM_DROP_COMPRESSION_DICTIONARY,
-||||||| merged common ancestors
-=======
-  SQLCOM_ALTER_LIBRARY,
-  SQLCOM_SHOW_STATUS_LIBRARY,
->>>>>>> mysql-9.3.0
   SQLCOM_END
 };
 #include "plugin_audit_message_types.h"

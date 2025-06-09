@@ -25,16 +25,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys/my_aes_openssl.cc
 */
 
-<<<<<<< HEAD
 #include <cassert>
 #include <cstddef>
 #include <memory>
 #include <utility>
 
-||||||| merged common ancestors
-#include <assert.h>
-=======
->>>>>>> mysql-9.3.0
 #include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>

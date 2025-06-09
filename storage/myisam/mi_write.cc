@@ -831,20 +831,9 @@ static int keys_compare(const void *a, const void *b, const void *c) {
                     USE_WHOLE_KEY, SEARCH_SAME, not_used);
 }
 
-<<<<<<< HEAD
 static void keys_free(void *key_, TREE_FREE mode, const void *param_) {
   auto *key = static_cast<uchar *>(key_);
   const auto *param = static_cast<const bulk_insert_param *>(param_);
-||||||| merged common ancestors
-static void keys_free(void *v_key, TREE_FREE mode, const void *v_param) {
-  uchar *key = static_cast<uchar *>(v_key);
-  const bulk_insert_param *param =
-      static_cast<const bulk_insert_param *>(v_param);
-=======
-static void keys_free(void *v_key, TREE_FREE mode, const void *v_param) {
-  auto *key = static_cast<uchar *>(v_key);
-  const auto *param = static_cast<const bulk_insert_param *>(v_param);
->>>>>>> mysql-9.3.0
   /*
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.

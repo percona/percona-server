@@ -404,13 +404,7 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
       Close socket only when it is not equal to the new one.
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket)) {
-<<<<<<< HEAD
-      if (vio->inactive == false) vio->vioshutdown(vio, SHUT_RDWR);
-||||||| merged common ancestors
-      if (vio->inactive == false) vio->vioshutdown(vio);
-=======
-      if (!vio->inactive) vio->vioshutdown(vio);
->>>>>>> mysql-9.3.0
+      if (!vio->inactive) vio->vioshutdown(vio, SHUT_RDWR);
     }
 #ifdef HAVE_KQUEUE
     else {
@@ -563,13 +557,7 @@ int vio_timeout(Vio *vio, uint which, int timeout_sec) {
 
 void internal_vio_delete(Vio *vio) {
   if (!vio) return; /* It must be safe to delete null pointers. */
-<<<<<<< HEAD
-  if (vio->inactive == false) vio->vioshutdown(vio, SHUT_RDWR);
-||||||| merged common ancestors
-  if (vio->inactive == false) vio->vioshutdown(vio);
-=======
-  if (!vio->inactive) vio->vioshutdown(vio);
->>>>>>> mysql-9.3.0
+  if (!vio->inactive) vio->vioshutdown(vio, SHUT_RDWR);
   vio->~Vio();
   my_free(vio);
 }

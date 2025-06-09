@@ -328,21 +328,13 @@ uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
     } else if (seg->type == HA_KEYTYPE_VARTEXT1) /* Any VARCHAR segments */
     {
       const CHARSET_INFO *cs = seg->charset;
-<<<<<<< HEAD
-      uint pack_length = seg->bit_start;
+      uint const pack_length = seg->bit_start;
       size_t length = hp_calc_blob_length(pack_length, pos);
       if (seg->flag & HA_BLOB_PART) {
         memcpy(&pos, pos + pack_length, sizeof(char *));
       } else {
         pos += pack_length;
       }
-||||||| merged common ancestors
-      uint pack_length = seg->bit_start;
-      size_t length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
-=======
-      uint const pack_length = seg->bit_start;
-      size_t length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
->>>>>>> mysql-9.3.0
       if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
         size_t char_length;
         char_length =
@@ -571,13 +563,7 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec) {
     uint char_length = seg->length;
     const uchar *pos = rec + seg->start;
     if (seg->null_bit) {
-<<<<<<< HEAD
-      const bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
-||||||| merged common ancestors
-      bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
-=======
       bool const rec_is_null = rec[seg->null_pos] & seg->null_bit;
->>>>>>> mysql-9.3.0
       *key++ = (rec_is_null ? 1 : 0);
     }
     if (seg->flag & HA_BLOB_PART) {

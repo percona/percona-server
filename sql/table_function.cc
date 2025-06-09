@@ -885,6 +885,11 @@ void Table_function_sequence::do_cleanup() {
   m_precalculated_upper_bound = 0;
 }
 
+void Table_function_sequence::do_fix_after_pullout(
+    Query_block *parent_query_block, Query_block *removed_query_block) {
+  m_source->fix_after_pullout(parent_query_block, removed_query_block);
+}
+
 ulonglong Table_function_sequence::calculate_upper_bound() const {
   ulonglong res = 0;
   if (!m_source->is_null()) {

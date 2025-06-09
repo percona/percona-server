@@ -64,6 +64,10 @@ struct Sensitive_data {
   std::size_t size() const { return data.size(); }
   std::size_t length() const { return data.size(); }
 
+  void mask() {
+    data.replace(0, data.size(), data.size(), '*');
+  }
+
   pfs_string decode() const {
     auto ret = data;
     const auto key =

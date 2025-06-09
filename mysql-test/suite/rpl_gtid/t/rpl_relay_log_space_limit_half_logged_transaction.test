@@ -27,19 +27,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
-<<<<<<< HEAD
---source include/have_replica_parallel_workers.inc
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-<<<<<<<<< Temporary merge branch 1
---source include/have_replica_parallel_workers.inc
-||||||||| merged common ancestors
-<<<<<<<<<<< Temporary merge branch 1
-=========
---source include/have_replica_parallel_workers.inc
->>>>>>>>> Temporary merge branch 2
-=======
->>>>>>> mysql-9.3.0
 --source include/rpl/init_source_replica.inc
 
 --echo

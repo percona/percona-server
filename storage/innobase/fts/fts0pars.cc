@@ -1926,31 +1926,13 @@ fts_lexer_create(
         auto *fts_lexer = static_cast<fts_lexer_t *>(
             ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_lexer_t)));
 
-<<<<<<< HEAD
-  if (boolean_mode) {
-    fts0blex_init(&fts_lexer->yyscanner);
-    fts0b_scan_bytes(reinterpret_cast<const char *>(query),
-                     static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = fts_blexer;
-    /* FIXME: Debugging */
-    /* fts0bset_debug(1 , fts_lexer->yyscanner); */
-||||||| merged common ancestors
-  if (boolean_mode) {
-    fts0blex_init(&fts_lexer->yyscanner);
-    fts0b_scan_bytes(reinterpret_cast<const char *>(query),
-                     static_cast<int>(query_len), fts_lexer->yyscanner);
-    fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
-    /* FIXME: Debugging */
-    /* fts0bset_debug(1 , fts_lexer->yyscanner); */
-=======
         if (boolean_mode) {
       fts0blex_init(&fts_lexer->yyscanner);
       fts0b_scan_bytes(reinterpret_cast<const char *>(query),
                        static_cast<int>(query_len), fts_lexer->yyscanner);
-      fts_lexer->scanner = reinterpret_cast<fts_scan>(fts_blexer);
+      fts_lexer->scanner = fts_blexer;
       /* FIXME: Debugging */
       /* fts0bset_debug(1 , fts_lexer->yyscanner); */
->>>>>>> mysql-9.3.0
   } else {
     fts0tlex_init(&fts_lexer->yyscanner);
     fts0t_scan_bytes(reinterpret_cast<const char *>(query),

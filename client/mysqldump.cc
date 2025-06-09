@@ -29,27 +29,16 @@
 
 #include "my_config.h"
 
-<<<<<<< HEAD
 #include <assert.h>
-#include <errno.h>
-||||||| merged common ancestors
-#include <errno.h>
-=======
->>>>>>> mysql-9.3.0
 #include <fcntl.h>
 #include <sys/types.h>
-<<<<<<< HEAD
-#include <forward_list>
-#include <list>
-#include <memory>
-||||||| merged common ancestors
-=======
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <forward_list>
->>>>>>> mysql-9.3.0
+#include <list>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -1337,17 +1326,13 @@ static int get_options(int *argc, char ***argv) {
 
   ignore_table =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
-<<<<<<< HEAD
-
-  processed_compression_dictionaries =
-      new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
-
-||||||| merged common ancestors
-=======
   exclude_user = new std::forward_list<string>();
   include_user =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
->>>>>>> mysql-9.3.0
+  
+  processed_compression_dictionaries =
+      new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
+
   /* Don't copy internal log tables */
   ignore_table->insert("mysql.apply_status");
   ignore_table->insert("mysql.schema");
@@ -1915,30 +1900,18 @@ static void free_resources() {
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   free_passwords();
-<<<<<<< HEAD
-  if (ignore_table != nullptr) {
-    delete ignore_table;
-    ignore_table = nullptr;
-  }
-
-  if (processed_compression_dictionaries != nullptr) {
-    delete processed_compression_dictionaries;
-    processed_compression_dictionaries = nullptr;
-  }
-
-||||||| merged common ancestors
-  if (ignore_table != nullptr) {
-    delete ignore_table;
-    ignore_table = nullptr;
-  }
-=======
   delete ignore_table;
   ignore_table = nullptr;
   delete include_user;
   include_user = nullptr;
   delete exclude_user;
   exclude_user = nullptr;
->>>>>>> mysql-9.3.0
+
+  if (processed_compression_dictionaries != nullptr) {
+    delete processed_compression_dictionaries;
+    processed_compression_dictionaries = nullptr;
+  }
+
   if (insert_pat_inited) dynstr_free(&insert_pat);
   if (opt_ignore_error) my_free(opt_ignore_error);
   opt_init_commands.free();
@@ -6281,7 +6254,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   return 0;
 } /* dump_selected_tables */
 
-<<<<<<< HEAD
 static int do_show_binary_log_status(MYSQL *mysql_con,
                                      const bool consistent_binlog_pos) {
   char binlog_pos_file[FN_REFLEN];
@@ -6318,51 +6290,7 @@ static int do_show_binary_log_status(MYSQL *mysql_con,
         return 0;
       }
     }
-||||||| merged common ancestors
-static int do_show_binary_log_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *source;
-  const char *comment_prefix =
-      (opt_source_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(
-          mysql_con, &source,
-          get_compatible_rpl_source_query("SHOW BINARY LOG STATUS").c_str())) {
-    return 1;
-  } else {
-    row = mysql_fetch_row(source);
-    if (row && row[0] && row[1]) {
-      /* SHOW BINARY LOG STATUS reports file and position */
-      print_comment(md_result_file, false,
-                    "\n--\n-- Position to start replication or point-in-time "
-                    "recovery from\n--\n\n");
-      fprintf(
-          md_result_file, "%s%s %s='%s', %s=%s;\n", comment_prefix,
-          get_compatible_rpl_replica_command("CHANGE REPLICATION SOURCE TO")
-              .c_str(),
-          get_compatible_rpl_replica_command("SOURCE_LOG_FILE").c_str(), row[0],
-          get_compatible_rpl_replica_command("SOURCE_LOG_POS").c_str(), row[1]);
-      check_io(md_result_file);
-    } else if (!opt_force) {
-      /* SHOW BINARY LOG STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-      mysql_free_result(source);
-      maybe_exit(EX_MYSQLERR);
-      return 1;
-    }
-    mysql_free_result(source);
-=======
-static int do_show_binary_log_status(MYSQL *mysql_con) {
-  MYSQL_ROW row;
-  MYSQL_RES *source;
-  const char *comment_prefix =
-      (opt_source_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(
-          mysql_con, &source,
-          get_compatible_rpl_source_query("SHOW BINARY LOG STATUS").c_str())) {
-    return 1;
->>>>>>> mysql-9.3.0
   }
-<<<<<<< HEAD
 
   const char *comment_prefix =
       (opt_source_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
@@ -6378,31 +6306,6 @@ static int do_show_binary_log_status(MYSQL *mysql_con) {
           get_compatible_rpl_replica_command("SOURCE_LOG_POS").c_str(), offset);
   check_io(md_result_file);
 
-||||||| merged common ancestors
-=======
-  row = mysql_fetch_row(source);
-  if (row && row[0] && row[1]) {
-    /* SHOW BINARY LOG STATUS reports file and position */
-    print_comment(md_result_file, false,
-                  "\n--\n-- Position to start replication or point-in-time "
-                  "recovery from\n--\n\n");
-    fprintf(
-        md_result_file, "%s%s %s='%s', %s=%s;\n", comment_prefix,
-        get_compatible_rpl_replica_command("CHANGE REPLICATION SOURCE TO")
-            .c_str(),
-        get_compatible_rpl_replica_command("SOURCE_LOG_FILE").c_str(), row[0],
-        get_compatible_rpl_replica_command("SOURCE_LOG_POS").c_str(), row[1]);
-    check_io(md_result_file);
-  } else if (!opt_force) {
-    /* SHOW BINARY LOG STATUS reports nothing and --force is not enabled */
-    my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-    mysql_free_result(source);
-    maybe_exit(EX_MYSQLERR);
-    return 1;
-  }
-  mysql_free_result(source);
-
->>>>>>> mysql-9.3.0
   return 0;
 }
 
@@ -7773,31 +7676,15 @@ int main(int argc, char **argv) {
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required.
    */
-<<<<<<< HEAD
   server_has_gtid_enabled = get_gtid_mode(mysql);
   if (process_set_gtid_purged(mysql, server_has_gtid_enabled, ftwrl_done))
-||||||| merged common ancestors
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
-
-  if (opt_source_data && do_show_binary_log_status(mysql)) goto err;
-  if (opt_replica_data && do_show_replica_status(mysql)) goto err;
-  if (opt_single_transaction &&
-      do_unlock_tables(mysql)) /* unlock but no commit! */
-=======
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
+    goto err;
 
   if (opt_dump_users) {
     fetch_users_list_if_include_is_empty();
     retract_excluded_users();
     dump_users(md_result_file);
   }
-
-  if (opt_source_data && do_show_binary_log_status(mysql)) goto err;
-  if (opt_replica_data && do_show_replica_status(mysql)) goto err;
-  if (opt_single_transaction &&
-      do_unlock_tables(mysql)) /* unlock but no commit! */
->>>>>>> mysql-9.3.0
-    goto err;
 
   if (opt_source_data &&
       do_show_binary_log_status(mysql, has_consistent_binlog_pos))

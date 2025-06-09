@@ -633,19 +633,9 @@ TEST_F(XComCommunicationTest, SuccessfulSynodRecoveryTest) {
   ASSERT_TRUE(recovered);
 
   /* Receive the last two packets normally. */
-<<<<<<< HEAD
-  std::vector<Gcs_packet> packets_in;
-  std::array<synode_no, 4> synodes_in_order{
-      {synode_1, synode_2, synode_3, synode_4}};
-||||||| merged common ancestors
-  std::vector<Gcs_packet> packets_in;
-  std::array<synode_no, 4> synodes_in_order{synode_1, synode_2, synode_3,
-                                            synode_4};
-=======
   std::vector<Gcs_packet> const packets_in;
   std::array<synode_no, 4> synodes_in_order{synode_1, synode_2, synode_3,
                                             synode_4};
->>>>>>> mysql-9.3.0
   Gcs_packet packet_in;
   for (std::size_t i = 2; i < 4; i++) {
     /* Construct the packet from the "incoming" buffer. */

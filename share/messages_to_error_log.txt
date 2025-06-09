@@ -13035,7 +13035,36 @@ ER_GR_RM_MEMBER_LEAVING_RECOVERY_THRESHOLD_HIT
 ER_GR_RM_MEMBER_LEAVING_MEMORY_THRESHOLD_HIT
   eng "Member exiting group: memory used of %d%% exceeded tolerance threshold configured to %d%%."
 
-<<<<<<< HEAD
+ER_NO_PATCH_DOWNGRADE_FOR_INNOVATION_RELEASES
+  eng "Patch downgrade from %d to %d is not supported because MySQL server version %d is an innovation release."
+
+ER_WARN_OPTION_USAGE_COUNTER_READ_FAILED
+  eng "Failed reading the initial usedCounter value for option %s: %s"
+
+ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+  eng "Members have different configurations (option group_replication_elect_prefers_most_updated.enabled) on usage of most up-to-date method on primary failover, method will not be used."
+
+ER_GRP_PRIMARY_ELECTION_METHOD_MOST_UPDATE
+      eng "Member with uuid %s was elected primary since it was the most up-to-date member with %lu transactions more than second most up-to-date member %s. In case of a tie member weight and then uuid lexical order was used over the most updated members."
+
+ER_GRP_PRIMARY_ELECTION_METHOD_MEMBER_WEIGHT
+      eng "Member with uuid %s was elected primary since it was highest weight member with value %d. In case of a tie uuid lexical order was used."
+
+ER_GRP_PRIMARY_ELECTION_FATAL_PROCESS
+  eng "Fatal error during the primary election process of Group Replication. The server will leave the group."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_DATA_EXTRACT_FAILED
+   eng "Hashicorp Vault DATA extract failed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_KEY_MALFORMED
+   eng "Hashicorp Vault KEY malformed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_AUTH_FAIL
+   eng "Hashicorp Vault server authentication failed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_CURL_SETOPT_FAILED
+   eng "Hashicorp Vault server curl_easy_setopt failed."
+
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13403,39 +13432,6 @@ ER_SSL_FIPS_MODE_ENABLED
 #
 
 
-||||||| merged common ancestors
-=======
-ER_NO_PATCH_DOWNGRADE_FOR_INNOVATION_RELEASES
-  eng "Patch downgrade from %d to %d is not supported because MySQL server version %d is an innovation release."
-
-ER_WARN_OPTION_USAGE_COUNTER_READ_FAILED
-  eng "Failed reading the initial usedCounter value for option %s: %s"
-
-ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
-  eng "Members have different configurations (option group_replication_elect_prefers_most_updated.enabled) on usage of most up-to-date method on primary failover, method will not be used."
-
-ER_GRP_PRIMARY_ELECTION_METHOD_MOST_UPDATE
-      eng "Member with uuid %s was elected primary since it was the most up-to-date member with %lu transactions more than second most up-to-date member %s. In case of a tie member weight and then uuid lexical order was used over the most updated members."
-
-ER_GRP_PRIMARY_ELECTION_METHOD_MEMBER_WEIGHT
-      eng "Member with uuid %s was elected primary since it was highest weight member with value %d. In case of a tie uuid lexical order was used."
-
-ER_GRP_PRIMARY_ELECTION_FATAL_PROCESS
-  eng "Fatal error during the primary election process of Group Replication. The server will leave the group."
-
-ER_KEYRING_COMPONENT_KEYRING_HASHICORP_DATA_EXTRACT_FAILED
-   eng "Hashicorp Vault DATA extract failed."
-
-ER_KEYRING_COMPONENT_KEYRING_HASHICORP_KEY_MALFORMED
-   eng "Hashicorp Vault KEY malformed."
-
-ER_KEYRING_COMPONENT_KEYRING_HASHICORP_AUTH_FAIL
-   eng "Hashicorp Vault server authentication failed."
-
-ER_KEYRING_COMPONENT_KEYRING_HASHICORP_CURL_SETOPT_FAILED
-   eng "Hashicorp Vault server curl_easy_setopt failed."
-
->>>>>>> mysql-9.3.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

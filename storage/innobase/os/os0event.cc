@@ -636,18 +636,8 @@ void os_event_global_init() {
   os_event::global_initialized = true;
 }
 
-<<<<<<< HEAD
-void os_event_global_destroy(void) {
-  if (!os_event::global_initialized) return;
-||||||| merged common ancestors
-void os_event_global_destroy(void) {
-  ut_a(os_event::global_initialized);
-  ut_ad(os_event::n_objects_alive.load() == 0);
-=======
 void os_event_global_destroy() {
-  ut_a(os_event::global_initialized);
-  ut_ad(os_event::n_objects_alive.load() == 0);
->>>>>>> mysql-9.3.0
+  if (!os_event::global_initialized) return;
 #ifndef _WIN32
   os_event::cond_attr_has_monotonic_clock = false;
 #ifdef UNIV_DEBUG

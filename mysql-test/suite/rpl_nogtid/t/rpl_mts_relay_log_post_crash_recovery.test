@@ -30,13 +30,8 @@
 --source include/have_binlog_format_row.inc
 --source include/rpl/init_source_replica.inc
 
-<<<<<<< HEAD
 --source include/rpl/connection_replica.inc
 --source include/have_replica_parallel_workers.inc
-||||||| merged common ancestors
---source include/have_replica_parallel_workers.inc
-=======
->>>>>>> mysql-9.3.0
 --source include/have_replica_parallel_type_database.inc
 --source include/rpl/connection_source.inc
 

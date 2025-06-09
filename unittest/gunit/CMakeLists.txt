@@ -446,7 +446,12 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
   LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
 )
 
-<<<<<<< HEAD
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  ADD_COMPILE_FLAGS(dd_string_type-t.cc COMPILE_FLAGS
+    "-Wno-alloc-size-larger-than"
+    )
+ENDIF()
+
 ADD_LIBRARY(rpl_event_ctx_lib STATIC
   ${CMAKE_SOURCE_DIR}/sql/rpl_event_ctx.cc
 )
@@ -458,15 +463,6 @@ MYSQL_ADD_EXECUTABLE(rpl_event_ctx-t rpl_event_ctx-t.cc
   LINK_LIBRARIES rpl_event_ctx_lib gunit_small
 )
 
-||||||| merged common ancestors
-=======
-IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
-  ADD_COMPILE_FLAGS(dd_string_type-t.cc COMPILE_FLAGS
-    "-Wno-alloc-size-larger-than"
-    )
-ENDIF()
-
->>>>>>> mysql-9.3.0
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(components/mysql_server)

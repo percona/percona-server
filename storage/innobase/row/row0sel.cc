@@ -4577,13 +4577,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   bool table_lock_waited = false;
   byte *next_buf = nullptr;
   bool spatial_search = false;
-<<<<<<< HEAD
   bool use_clustered_index = false;
-  ulint end_loop = 0;
-||||||| merged common ancestors
-  ulint end_loop = 0;
-=======
->>>>>>> mysql-9.3.0
 
   rec_offs_init(offsets_);
 

@@ -1474,22 +1474,6 @@ sub run_test_server ($$$) {
             $next->write_test($sock, 'TESTCASE');
             $running{ $next->key() } = $next;
             $num_ndb_tests++ if ($next->{ndb_test});
-<<<<<<< HEAD
-          } else {
-            # No more test, get shutdown/valgrind reports from the worker, BYE
-            # should be sent to the worker for complete exit once report is
-            # received.
-            print $sock "GETREPORTS\n";
-	        # Mark socket as unused, no more tests will be allocated
-	        $closed_sock{$sock} = 1;
-||||||| merged common ancestors
-          } else {
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-	    # Mark socket as unused, no more tests will be allocated
-	    $closed_sock{$sock} = 1;
-
-=======
           } elsif($opt_start_test) {
             # The selected test has been run; now leave the child hanging
             sleep(1);
@@ -1498,12 +1482,12 @@ sub run_test_server ($$$) {
             exit(1);
           }
           else {
-            # No more test, tell child to exit
-            print $sock "BYE\n";
-	    # Mark socket as unused, no more tests will be allocated
-	    $closed_sock{$sock} = 1;
-
->>>>>>> mysql-9.3.0
+            # No more test, get shutdown/valgrind reports from the worker, BYE
+            # should be sent to the worker for complete exit once report is
+            # received.
+            print $sock "GETREPORTS\n";
+	        # Mark socket as unused, no more tests will be allocated
+	        $closed_sock{$sock} = 1;
           }
         }
       }
@@ -7021,34 +7005,6 @@ sub mysqld_start ($$$$) {
   return;
 }
 
-<<<<<<< HEAD
-sub shutdown_processes {
-  my ($timeout, @servers)= @_;
-  my $append_exit_reports= 0;
-  my %status = My::SafeProcess::shutdown($timeout, @servers);
-
-  if ($status{failed}) {
-    $shutdown_report_text.= "mysqld abnormal exit\n";
-  }
-  if ($status{killed}) {
-    $shutdown_report_text.=
-      "mysqld was killed after it failed to properly shutdown\n";
-  }
-
-  if ($status{failed} or $status{killed}) {
-    $shutdown_report = 1;
-    my $reports= shutdown_exit_reports();
-    while (my ($log_file, $report) = each (%$reports)) {
-      $shutdown_report_text.= $log_file . " after tests: @{$report->{after_tests}}:\n".
-                              "----------SERVER LOG START-----------\n".
-                              $report->{text}.
-                              "----------SERVER LOG END-------------\n";
-    }
-  }
-}
-
-||||||| merged common ancestors
-=======
 sub run_mysqlrouter_keyring_util($$$) {
   my $keyring_directory = shift;
   my $operation = shift;
@@ -7239,7 +7195,31 @@ sub router_start ($$$) {
   return;
 }
 
->>>>>>> mysql-9.3.0
+sub shutdown_processes {
+  my ($timeout, @servers)= @_;
+  my $append_exit_reports= 0;
+  my %status = My::SafeProcess::shutdown($timeout, @servers);
+
+  if ($status{failed}) {
+    $shutdown_report_text.= "mysqld abnormal exit\n";
+  }
+  if ($status{killed}) {
+    $shutdown_report_text.=
+      "mysqld was killed after it failed to properly shutdown\n";
+  }
+
+  if ($status{failed} or $status{killed}) {
+    $shutdown_report = 1;
+    my $reports= shutdown_exit_reports();
+    while (my ($log_file, $report) = each (%$reports)) {
+      $shutdown_report_text.= $log_file . " after tests: @{$report->{after_tests}}:\n".
+                              "----------SERVER LOG START-----------\n".
+                              $report->{text}.
+                              "----------SERVER LOG END-------------\n";
+    }
+  }
+}
+
 sub stop_all_servers () {
   my $shutdown_timeout = $_[0] or 0;
 
@@ -7550,16 +7530,8 @@ sub stop_servers($$) {
     shutdown_processes($opt_shutdown_timeout, started(mysqlds()));
 
     # cluster processes
-<<<<<<< HEAD
     shutdown_processes($opt_shutdown_timeout,
-                       started(ndbds(), ndb_mgmds()));
-||||||| merged common ancestors
-    My::SafeProcess::shutdown($opt_shutdown_timeout,
-                              started(ndbds(), ndb_mgmds()));
-=======
-    My::SafeProcess::shutdown($opt_shutdown_timeout,
-                              started(ndbds(), ndb_mgmds(), routers()));
->>>>>>> mysql-9.3.0
+                       started(ndbds(), ndb_mgmds(), routers()));
   } else {
     mtr_report("Restarting ", started(@servers));
 

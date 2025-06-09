@@ -54,13 +54,7 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
     return 1;
   }
 
-<<<<<<< HEAD
-  std::string kdf_name = (*kdf_options)[0];
-||||||| merged common ancestors
-  string kdf_name = (*kdf_options)[0];
-=======
-  string const kdf_name = (*kdf_options)[0];
->>>>>>> mysql-9.3.0
+  std::string const kdf_name = (*kdf_options)[0];
   std::unique_ptr<Key_derivation_function> kdf_function;
 
   if (kdf_name == "hkdf") {
@@ -173,13 +167,7 @@ int Key_pbkdf2_hmac_function::validate_options() {
     salt_ = (*kdf_options_)[1];
   }
   if (nkdf_options > 2) {
-<<<<<<< HEAD
-    std::string sIterations = (*kdf_options_)[2];
-||||||| merged common ancestors
-    string sIterations = (*kdf_options_)[2];
-=======
-    string const sIterations = (*kdf_options_)[2];
->>>>>>> mysql-9.3.0
+    std::string const sIterations = (*kdf_options_)[2];
     iterations_ = atoi(sIterations.c_str());
   }
   if (iterations_ < min_kdf_iterations_size ||

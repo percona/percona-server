@@ -53,16 +53,9 @@ using std::map;
 using std::string;
 using std::vector;
 
-<<<<<<< HEAD
 unsigned long xcom_ssl_socket_timeout;
 unsigned long xcom_ssl_accept_retries;
-extern uint32_t get_my_xcom_id();
 
-||||||| merged common ancestors
-extern uint32_t get_my_xcom_id();
-
-=======
->>>>>>> mysql-9.3.0
 Gcs_interface *Gcs_xcom_interface::interface_reference_singleton = nullptr;
 
 Gcs_xcom_config::Gcs_xcom_config()
@@ -1074,7 +1067,6 @@ bool Gcs_xcom_interface::initialize_xcom(
     const std::string *tls_ciphersuites =
         interface_params.get_parameter("tls_ciphersuites");
 
-<<<<<<< HEAD
     const std::string *xcom_ssl_socket_timeout_str =
         interface_params.get_parameter("xcom_ssl_socket_timeout");
     const std::string *xcom_ssl_accept_retries_str =
@@ -1085,12 +1077,7 @@ bool Gcs_xcom_interface::initialize_xcom(
     xcom_ssl_accept_retries =
         static_cast<unsigned long>(atoi(xcom_ssl_accept_retries_str->c_str()));
 
-    ssl_parameters ssl_configuration = {
-||||||| merged common ancestors
-    ssl_parameters ssl_configuration = {
-=======
     ssl_parameters const ssl_configuration = {
->>>>>>> mysql-9.3.0
         ssl_mode_int,
         server_key_file ? server_key_file->c_str() : nullptr,
         server_cert_file ? server_cert_file->c_str() : nullptr,

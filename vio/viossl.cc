@@ -389,16 +389,8 @@ int vio_ssl_shutdown(Vio *vio, int how) {
 void vio_ssl_delete(Vio *vio) {
   if (!vio) return; /* It must be safe to delete null pointer */
 
-<<<<<<< HEAD
-  if (vio->inactive == false)
-    vio_ssl_shutdown(vio, SHUT_RDWR); /* Still open, close connection first */
-||||||| merged common ancestors
-  if (vio->inactive == false)
-    vio_ssl_shutdown(vio); /* Still open, close connection first */
-=======
   if (!vio->inactive)
-    vio_ssl_shutdown(vio); /* Still open, close connection first */
->>>>>>> mysql-9.3.0
+    vio_ssl_shutdown(vio, SHUT_RDWR); /* Still open, close connection first */
 
   if (vio->ssl_arg) {
     SSL_free((SSL *)vio->ssl_arg);

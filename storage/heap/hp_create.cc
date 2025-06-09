@@ -55,20 +55,10 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
   HA_KEYSEG *keyseg;
   HP_KEYDEF *keydef = create_info->keydef;
   uint reclength = create_info->reclength;
-<<<<<<< HEAD
-  uint keys = create_info->keys;
-  ulong min_records = create_info->min_records;
-  ulong max_records = create_info->max_records;
-  ulong max_rows_for_stated_memory;
-||||||| merged common ancestors
-  uint keys = create_info->keys;
-  ulong min_records = create_info->min_records;
-  ulong max_records = create_info->max_records;
-=======
   uint const keys = create_info->keys;
   ulong const min_records = create_info->min_records;
-  ulong const max_records = create_info->max_records;
->>>>>>> mysql-9.3.0
+  ulong max_records = create_info->max_records;
+  ulong max_rows_for_stated_memory;
   DBUG_TRACE;
 
   if (!create_info->single_instance) {

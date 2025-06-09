@@ -24,21 +24,11 @@
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
-<<<<<<< HEAD
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <atomic>
-||||||| merged common ancestors
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-=======
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
->>>>>>> mysql-9.3.0
 
 #include "m_string.h"  // strlen
 #include "my_dbug.h"

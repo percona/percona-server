@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| merged common ancestors
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2025, Oracle and/or its affiliates.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-9.3.0
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -3386,21 +3378,16 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   } while (retry);
 
-<<<<<<< HEAD
-  /* Do fsync() on log and parallel doublewrite files
-  when setting O_DIRECT fails.
-  See log_io_complete() and buf_dblwr_flush_buffered_writes() */
-||||||| merged common ancestors
-  /* We disable OS caching (O_DIRECT) only on data files. For clone we
-  need to set O_DIRECT even for read_only mode. */
-=======
   if (!*success) {
     ut_a(file.m_file == OS_FILE_CLOSED);
     return file;
   }
->>>>>>> mysql-9.3.0
 
   bool use_odirect = false;
+
+  /* Do fsync() on log and parallel doublewrite files
+  when setting O_DIRECT fails.
+  See log_io_complete() and buf_dblwr_flush_buffered_writes() */
 
   if ((!read_only || purpose == OS_CLONE_DATA_FILE) &&
       (purpose == OS_DATA_FILE || purpose == OS_CLONE_DATA_FILE ||

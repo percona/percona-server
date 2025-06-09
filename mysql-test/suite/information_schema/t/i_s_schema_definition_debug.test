@@ -343,19 +343,13 @@ INSERT INTO I_S_published_schema
         '9b40e8c258946e16a8d4a5d00d3513ea02e7518cb0bbecde6daea99d576729f0');
 INSERT INTO I_S_published_schema
   VALUES ('90200', '90200', 1,
-<<<<<<< HEAD
         'c0e3128a44fc321626d7f08dc9e9514d8df574c51ef682780ad55c53a16ec286');
-||||||| merged common ancestors
-        'c6bac6a1f2b4d7fd42aadffd69df5b51f17629714fd83a3666f6ff79874889f2');
-=======
-        'c6bac6a1f2b4d7fd42aadffd69df5b51f17629714fd83a3666f6ff79874889f2');
 INSERT INTO I_S_published_schema
   VALUES ('90300', '90300', 0,
-        'a9269cec4c139c7cbe62d694b03a243e6e9d3a18d1d8af9bef823dffc74be336');
+        '83b9b10280e7eb64c75581493315ed22f0a1105efaceaf1ae23ff569c616a9d0');
 INSERT INTO I_S_published_schema
   VALUES ('90300', '90300', 1,
-        '94cc97ea64544ac65cb61abbe760c3b5b08254ab7dc01f825cc118d0570db199');
->>>>>>> mysql-9.3.0
+        '8defcd8ba9271825cf1e9077318c12dabb6664e69b1650d9ae5ef631e23b2332');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

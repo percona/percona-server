@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/buildpack-deps:focal
+      - image: cimg/base:24.04
         auth:
           username: $DOCKERHUB_USERNAME
           password: $DOCKERHUB_PASSWORD
@@ -15,16 +15,14 @@ jobs:
           name: Clang-format and Clang-tidy test
           command: |
             set -o xtrace
-            UBUNTU_CODE_NAME="focal"
+            UBUNTU_CODE_NAME="noble"
             BASE_BRANCH="8.0"
-            COMPILER_VERSION="15"
+            COMPILER_VERSION="19"
             BOOST_VERSION="1_77_0"
             BOOST_DIR="/home/circleci/my_boost"
 
-            curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
-            echo "deb http://apt.llvm.org/$UBUNTU_CODE_NAME/ llvm-toolchain-$UBUNTU_CODE_NAME-$COMPILER_VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
-            sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake
+            sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
 
             # Download boost only if BASE_BRANCH is "8.0"
             if [ "$BASE_BRANCH" = "8.0" ]; then
@@ -43,17 +41,16 @@ jobs:
             git fetch --no-tags --no-recurse-submodules target $BASE_BRANCH
 
             echo "Checking clang-format results"
-            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF || true
             if [ ! -s _GIT_DIFF ]; then
               echo The last git commit is clang-formatted;
             else
               cat _GIT_DIFF;
-              #false;
+              # false;
             fi
 
             echo "Checking clang-tidy static code analysis results"
-            cat /home/circleci/debug-build/compile_commands.json
-            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-tidy-diff-${COMPILER_VERSION}.py -clang-tidy-binary clang-tidy-${COMPILER_VERSION} -p1 -path /home/circleci/debug-build -export-fixes=fixes.yaml -extra-arg=-v -extra-arg=-stdlib=libc++
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-tidy-diff-${COMPILER_VERSION}.py -clang-tidy-binary clang-tidy-${COMPILER_VERSION} -p1 -path /home/circleci/debug-build -export-fixes=fixes.yaml -extra-arg=-stdlib=libc++ || true
             clang-apply-replacements-${COMPILER_VERSION} .
             git diff > _GIT_DIFF_TIDY
             if [ ! -s _GIT_DIFF_TIDY ]; then

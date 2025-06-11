@@ -88,7 +88,7 @@ jobs:
           BuildType: Debug
 
 
-      # clang-14 and newer compilers
+      # clang-16 and newer compilers
       clang-20 RelWithDebInfo [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         UBUNTU_CODE_NAME: noble
@@ -177,32 +177,6 @@ jobs:
         imageName: 'ubuntu-22.04'
         Compiler: clang
         CompilerVer: 16
-        BuildType: Debug
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-15 RelWithDebInfo [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          Compiler: clang
-          CompilerVer: 15
-          BuildType: RelWithDebInfo
-
-      ${{ if or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['Build.SourceBranchName'], 'fullci')) }}:
-        clang-15 Debug [Ubuntu 22.04 Jammy]:
-          imageName: 'ubuntu-22.04'
-          Compiler: clang
-          CompilerVer: 15
-          BuildType: Debug
-
-      clang-14 RelWithDebInfo [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        Compiler: clang
-        CompilerVer: 14
-        BuildType: RelWithDebInfo
-
-      clang-14 Debug [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        Compiler: clang
-        CompilerVer: 14
         BuildType: Debug
 
 

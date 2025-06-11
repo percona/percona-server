@@ -206,7 +206,7 @@ jobs:
         BuildType: Debug
 
 
-      # gcc-10 and newer compilers
+      # gcc-11 and newer compilers
       gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         Compiler: gcc
@@ -258,18 +258,6 @@ jobs:
           Compiler: gcc
           CompilerVer: 11
           BuildType: Debug
-
-      gcc-10 RelWithDebInfo [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        Compiler: gcc
-        CompilerVer: 10
-        BuildType: RelWithDebInfo
-
-      gcc-10 Debug [Ubuntu 22.04 Jammy]:
-        imageName: 'ubuntu-22.04'
-        Compiler: gcc
-        CompilerVer: 10
-        BuildType: Debug
 
   steps:
   - script: |

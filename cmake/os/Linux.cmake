@@ -61,8 +61,8 @@ ENDIF()
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
     # gcc9 is known to fail
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
-      MESSAGE(FATAL_ERROR "GCC 10 or newer is required")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+      MESSAGE(FATAL_ERROR "GCC 11 or newer is required")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
     # This is the lowest version tested

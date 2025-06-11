@@ -2818,6 +2818,7 @@ row_update_inplace_for_intrinsic(const upd_node_t* node)
 		index, offsets, node->update);
 
 	if (size_changes) {
+		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		return(DB_FAIL);
 	}
@@ -2829,7 +2830,7 @@ row_update_inplace_for_intrinsic(const upd_node_t* node)
 	the changes */
 
 	mtr.set_modified();
-
+	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
 	return(DB_SUCCESS);

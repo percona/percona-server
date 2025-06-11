@@ -113,6 +113,8 @@ prepend_cflags_if_supported(-Wno-missing-format-attribute)
 
 # "cmake/maintainer.cmake" sets "-Wvla" which causes warnings with PerconaFT
 remove_compile_flags(-Wvla)
+append_cflags_if_supported(-Wno-vla-cxx-extension)
+append_cflags_if_supported(-Wno-missing-designated-field-initializers)
 
 # Suppress warnings for gcc older than gcc-5 (for tokudb_status.h, ha_tokudb.cc, hatoku_hton.cc)
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)

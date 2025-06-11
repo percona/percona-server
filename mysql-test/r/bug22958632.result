@@ -1,0 +1,21 @@
+#
+# Test for bug#22958632 'ASAN: NAME_CONST WITH INVALID IDENTIFIER,
+#                        HEAP-BUFFER-OVERFLOW'
+#
+# Even though the original issue reported was about ASAN errors,
+# the bug in the code also resulted in wrong user-visible behavior
+# in some scenarios.
+#
+# The easiest way to trigger append_identifier() code where bug
+# resided is to create view with UDF which gets auxiliary NAME_CONST
+# function as parameter. Single 0xE0 is invalid UTF-8 sequence, as it
+# is the only the prefix of 3-byte UTF-8 sequence.
+CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "udf_example.so";
+CREATE VIEW v1 AS SELECT myfunc_double(NAME_CONST(0xE0, 123)) AS d;
+# Before the fix SHOW CREATE VIEW failed with unwarranted error 
+# unable to open/parse view definition.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select myfunc_double(NAME_CONST(0xe0,123) AS ``) AS `d`	latin1	latin1_swedish_ci
+DROP VIEW v1;
+DROP FUNCTION myfunc_double;

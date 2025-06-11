@@ -61,12 +61,13 @@ static const char crypt_alg_magic[] = "$5";
 #endif
 
 
+#ifndef HAVE_STRLCAT
 /**
   Size-bounded string copying and concatenation
   This is a replacement for STRLCPY(3)
 */
 
-size_t
+static size_t
 strlcat(char *dst, const char *src, size_t siz)
 {
   char *d= dst;
@@ -92,6 +93,7 @@ strlcat(char *dst, const char *src, size_t siz)
   *d= '\0';
   return(dlen + (s - src));       /* count does not include NUL */
 }
+#endif
 
 static const int crypt_alg_magic_len = sizeof (crypt_alg_magic) - 1;
 

@@ -79,7 +79,11 @@ node_set *realloc_node_set(node_set *set, u_int n)
 	bool_t * old_p = set->node_set_val;
 	u_int i;
 
-	set->node_set_val = realloc(old_p, n * sizeof(bool_t));
+	// If the realloc size value is zero, we will store the
+	// old pointer, in order for it to be free'd by
+	// free_node_set
+	set->node_set_val =
+		n == 0 ? old_p : (int *)realloc(old_p, n * sizeof(bool_t));
 	set->node_set_len = n;
 	for(i = old_n; i < n; i++){
 		set->node_set_val[i] = 0;

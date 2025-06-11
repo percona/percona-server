@@ -1083,7 +1083,7 @@ template <class T>
 class PFS_buffer_processor
 {
 public:
-  virtual ~PFS_buffer_processor<T> ()
+  virtual ~PFS_buffer_processor()
   {}
   virtual void operator()(T *element) = 0;
 };

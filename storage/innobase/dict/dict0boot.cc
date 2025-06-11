@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,9 @@ dict_hdr_get_new_id(
 	if (index_id) {
 		id = mach_read_from_8(dict_hdr + DICT_HDR_INDEX_ID);
 		id++;
+                DBUG_EXECUTE_IF("simulate_index_id_exceed_uint32",
+				const ib_id_t max_uint32 = 0xFFFFFFFF;
+				if(id < max_uint32) { id = max_uint32; });
 		mlog_write_ull(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
 		*index_id = id;
 	}

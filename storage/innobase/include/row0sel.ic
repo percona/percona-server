@@ -148,7 +148,7 @@ mysql_col_len, mbminlen, mbmaxlen
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
-inline MY_ATTRIBUTE((always_inline)) void row_sel_field_store_in_mysql_format_func(
+ALWAYS_INLINE void row_sel_field_store_in_mysql_format_func(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
     IF_DEBUG(ulint field_no, ) const byte *data, ulint len,
     mem_heap_t **compress_heap IF_DEBUG(, ulint sec_field)) {
@@ -358,7 +358,7 @@ inline MY_ATTRIBUTE((always_inline)) void row_sel_field_store_in_mysql_format_fu
 }
 
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-inline MY_ATTRIBUTE((always_inline)) void row_sel_field_store_in_mysql_format(
+ALWAYS_INLINE void row_sel_field_store_in_mysql_format(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *idx,
     ulint field, const byte *src, ulint len, mem_heap_t **compress_heap,
     ulint sec) {

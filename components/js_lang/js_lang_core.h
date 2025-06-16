@@ -69,6 +69,26 @@ class Js_v8 {
     return (ref_count >= 0) ? ref_count : 0;
   }
 
+  /**
+    Pump isolate's foreground message loop, i.e. process tasks posted to
+    isolate's foreground task queue (for example, some GC steps, which
+    were added by threads doing background GC activity).
+  */
+  static void pump_message_loop(v8::Isolate *iso) {
+    while (v8::platform::PumpMessageLoop(
+        s_platform.get(), iso, v8::platform::MessageLoopBehavior::kDoNotWait))
+      continue;
+  }
+
+  /**
+    Notify V8 platform that we are about to dispose isolate,
+    so it can properly tear down its structures associated with
+    the isolate (e.g. drain the task queue for it).
+  */
+  static void notify_isolate_shutdown(v8::Isolate *iso) {
+    v8::platform::NotifyIsolateShutdown(s_platform.get(), iso);
+  }
+
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
   static void inc_ref_count() {
@@ -102,6 +122,8 @@ class Js_isolate {
 
  public:
   ~Js_isolate() {
+    // Let V8 prepare for isolate disposal.
+    Js_v8::notify_isolate_shutdown(m_isolate);
     m_isolate->Dispose();
     // Destroy allocator we got from V8 before allowing V8 shutdown.
     m_memory_manager.m_arr_buff_allocator.reset();

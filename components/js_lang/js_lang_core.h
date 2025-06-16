@@ -69,6 +69,26 @@ class Js_v8 {
     return (ref_count >= 0) ? ref_count : 0;
   }
 
+  /**
+    Pump isolate's foreground message loop, i.e. process tasks posted to
+    isolate's foreground task queue (for example, some GC steps, which
+    were added by threads doing background GC activity).
+  */
+  static void pump_message_loop(v8::Isolate *iso) {
+    while (v8::platform::PumpMessageLoop(
+        s_platform.get(), iso, v8::platform::MessageLoopBehavior::kDoNotWait))
+      continue;
+  }
+
+  /**
+    Notify V8 platform that we are about to dispose isolate,
+    so it can properly tear down its structures associated with
+    the isolate (e.g. drain the task queue for it).
+  */
+  static void notify_isolate_shutdown(v8::Isolate *iso) {
+    v8::platform::NotifyIsolateShutdown(s_platform.get(), iso);
+  }
+
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
   static void inc_ref_count() {
@@ -102,6 +122,8 @@ class Js_isolate {
 
  public:
   ~Js_isolate() {
+    // Let V8 prepare for isolate disposal.
+    Js_v8::notify_isolate_shutdown(m_isolate);
     m_isolate->Dispose();
     // Destroy allocator we got from V8 before allowing V8 shutdown.
     m_memory_manager.m_arr_buff_allocator.reset();
@@ -525,6 +547,7 @@ class Js_thd {
         v8::Locker locker(m_js_isolate->get_v8_isolate());
         m_funcs.clear();
         m_context.Reset();
+        m_unhandled_rejected_promises.clear();
       }
       delete m_js_isolate;
     }
@@ -597,6 +620,40 @@ class Js_thd {
     */
     int clear_last_error();
 
+    /**
+      Callback to notify about promise rejection with no handler, or
+      about addition of handler to rejected promise.
+    */
+    static void promise_reject_cb(v8::PromiseRejectMessage reject_msg);
+
+    /**
+      Check if call to JS routine for user/connection left any unhandled
+      rejected promises. Report error if yes. Prepare for next calls by
+      resetting the unhandled rejected promises list.
+
+      @retval False - there are no unhandled rejected promises.
+      @retval True -  there was unhandled rejected promise, error has been
+                      reported to SQL-layer/user.
+    */
+    bool process_unhandled_rejected_promises();
+
+   private:
+    /**
+      Build string representation of extended information about JS error/
+      exception which occurred for the user/connection context.
+
+      @param error_msg_str    Error message string.
+      @oaram context          Handle for V8::Context where error has happened.
+      @param message          Handle V8 object representing error message
+                              (can be empty).
+      @param stack_trace_val  Handle for v8::Value representing stack-trace
+                              for the error (can be empty).
+    */
+    std::string build_error_info(const std::string &error_msg_str,
+                                 v8::Local<v8::Context> context,
+                                 v8::Local<v8::Message> message,
+                                 v8::Local<v8::Value> stack_trace_val);
+
    private:
     /**
       Pointer to isolate for this specific connection and user pair.
@@ -642,6 +699,43 @@ class Js_thd {
       specific connection and user pair.
     */
     std::optional<std::string> m_last_error_info;
+
+    /**
+      Helper struct which bundles persistent handle for unhandled rejected
+      promise with error message and extended info to be reported about it.
+    */
+    struct Rejected_promise {
+      v8::Global<v8::Promise> promise;
+      std::string error;
+      std::string error_info;
+
+      Rejected_promise(v8::Isolate *iso, v8::Local<v8::Promise> p,
+                       std::string &&err, std::string &&err_info)
+          : promise(iso, p), error(err), error_info(err_info) {}
+
+      // This struct is movable since v8::Global is.
+      Rejected_promise(Rejected_promise &&) = default;
+      Rejected_promise &operator=(Rejected_promise &&) = default;
+
+      // This struct is not copyable since v8::Global is not.
+      Rejected_promise(const Rejected_promise &) = delete;
+      Rejected_promise &operator=(const Rejected_promise &) = delete;
+    };
+
+    /**
+      Rejected promises without handlers.
+
+      @note We can't use associative container to speed up look up of
+            promises as v8::Global only support equality comparison.
+            OTOH, normally, there should not be many entries in the
+            below vector so it should not matter much.
+    */
+    std::vector<Rejected_promise> m_unhandled_rejected_promises;
+    /**
+      Flag indicating that calls to promise rejection callbacks should be
+      ignored since we are already in the middle of executing one.
+    */
+    bool m_ignore_promise_rejects{false};
   };
 
   /**

@@ -325,6 +325,11 @@ Js_isolate *Js_isolate::create() {
   };
   isolate->AddNearHeapLimitCallback(near_heap_limit_cb_lambda, result);
 
+  // Even though usage of promises and async/await doesn't make much sense
+  // in our case, we still try to play nice if user uses them and bark about
+  // unhandled promise rejections like others do.
+  isolate->SetPromiseRejectCallback(Js_thd::Auth_id_context::promise_reject_cb);
+
   return result;
 }
 
@@ -660,15 +665,27 @@ void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
   // Also save it the context so it can be retrieved using UDF
   m_last_error = error_msg_str;
 
-  // Also make this message part of extended info.
+  // Prepare extended info as well using v8::Message and stacktrace
+  // if they are available.
   //
   // TODO: Consider supporting returning the same info as JSON,
   //       so it easier to use it in tooling.
+  m_last_error_info = build_error_info(
+      error_msg_str, context, try_catch.Message(),
+      try_catch.StackTrace(context).FromMaybe(v8::Local<v8::Value>()));
+}
+
+std::string Js_thd::Auth_id_context::build_error_info(
+    const std::string &error_msg_str, v8::Local<v8::Context> context,
+    v8::Local<v8::Message> message, v8::Local<v8::Value> stack_trace_val) {
   std::stringstream error_info_str;
+
+  v8::Isolate *isolate = context->GetIsolate();
+
+  // Also make the error message part of extended info.
   error_info_str << "Error: " << error_msg_str;
 
   // Append additional info from v8::Message class if possible.
-  v8::Local<v8::Message> message = try_catch.Message();
   if (!message.IsEmpty()) {
     // Add info about SQL program and line/column where the error has occurred
     // (take into account that line/column numbers might be not available).
@@ -721,15 +738,14 @@ void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
 
   // Also add stack trace for the error if it is available and has string
   // type (in theory, JS code can override to be any value).
-  v8::Local<v8::Value> stack_trace_val;
-  if (try_catch.StackTrace(context).ToLocal(&stack_trace_val) &&
-      stack_trace_val->IsString() &&
+  if (!stack_trace_val.IsEmpty() && stack_trace_val->IsString() &&
       stack_trace_val.As<v8::String>()->Length() > 0) {
     // Again, we assume that converion of JS string to UTF8 can't fail.
     v8::String::Utf8Value stack_trace_str(isolate, stack_trace_val);
     error_info_str << "\nStack:\n" << *stack_trace_str;
   }
-  m_last_error_info = error_info_str.str();
+
+  return error_info_str.str();
 }
 
 int Js_thd::Auth_id_context::clear_last_error() {
@@ -737,6 +753,97 @@ int Js_thd::Auth_id_context::clear_last_error() {
   m_last_error.reset();
   m_last_error_info.reset();
   return result;
+}
+
+void Js_thd::Auth_id_context::promise_reject_cb(
+    v8::PromiseRejectMessage reject_msg) {
+  auto event = reject_msg.GetEvent();
+
+  if (event == v8::kPromiseRejectAfterResolved ||
+      event == v8::kPromiseResolveAfterResolved) {
+    // Ignore attempts to change state of already resolved promise.
+    return;
+  }
+
+  auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+  // Some of the below code can cause JS execution and trigger
+  // more promise rejects as result, we want to avoid recursion
+  // in this case.
+  if (auth_id_ctx->m_ignore_promise_rejects) return;
+  auto restore_ignore_guard = create_scope_guard(
+      [auth_id_ctx]() { auth_id_ctx->m_ignore_promise_rejects = false; });
+  auth_id_ctx->m_ignore_promise_rejects = true;
+
+  v8::Isolate *isolate = auth_id_ctx->get_js_isolate()->get_v8_isolate();
+
+  v8::HandleScope handle_scope(isolate);
+
+  if (event == v8::kPromiseRejectWithNoHandler) {
+    v8::Local<v8::Value> reject_val = reject_msg.GetValue();
+
+    // First, let us try to prepare error message to be reported
+    // if promise reject won't get handled.
+    std::string error_msg_str("Unhandled rejected promise");
+
+    v8::String::Utf8Value reject_val_str(isolate, reject_val);
+    if (*reject_val_str) {
+      error_msg_str.append(": ");
+      error_msg_str.append(*reject_val_str, reject_val_str.length());
+    } else {
+      error_msg_str.append(".");
+    }
+
+    // Then, let us try to prepare extended error info with information
+    // about the place where error occurred.
+    v8::Local<v8::Message> message;
+    v8::Local<v8::Value> stack_trace;
+
+    v8::Local<v8::Context> context = auth_id_ctx->get_context();
+
+    // Object returned as reject values can contain properties with context
+    // and stacktrace info (not only Error objects!).
+    //
+    // TODO: Find some nice way to generate stacktrace if it is absent.
+    //       Method with throwing exception used in PLv8 doesn't work well.
+    if (reject_val->IsObject()) {
+      message = v8::Exception::CreateMessage(isolate, reject_val);
+      stack_trace = v8::TryCatch::StackTrace(context, reject_val)
+                        .FromMaybe(v8::Local<v8::Value>());
+    }
+
+    std::string error_info_str = auth_id_ctx->build_error_info(
+        error_msg_str, context, message, stack_trace);
+
+    auth_id_ctx->m_unhandled_rejected_promises.emplace_back(
+        isolate, reject_msg.GetPromise(), std::move(error_msg_str),
+        std::move(error_info_str));
+  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+    // Handler has been added after promise was rejected.
+    // Remove promise from the naughty list.
+    for (auto it = auth_id_ctx->m_unhandled_rejected_promises.begin();
+         it != auth_id_ctx->m_unhandled_rejected_promises.end(); ++it) {
+      if (it->promise == reject_msg.GetPromise()) {
+        auth_id_ctx->m_unhandled_rejected_promises.erase(it);
+        return;
+      }
+    }
+  } else {
+    assert(0);
+  }
+}
+
+bool Js_thd::Auth_id_context::process_unhandled_rejected_promises() {
+  if (m_unhandled_rejected_promises.empty()) return false;
+
+  auto &rejected_promise = m_unhandled_rejected_promises.front();
+
+  my_error(ER_LANGUAGE_COMPONENT, MYF(0), rejected_promise.error.c_str());
+  m_last_error = std::move(rejected_promise.error);
+  m_last_error_info = std::move(rejected_promise.error_info);
+
+  m_unhandled_rejected_promises.clear();
+  return true;
 }
 
 Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
@@ -994,56 +1101,74 @@ bool Js_sp::parse() {
 
   v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
-  /*
-    We need to destroy isolate and report error to user if we exceed memory
-    limit. Since it needs to be done after we stop using/unlock isolate it
-    is convenient to do this using scope guard handler.
-  */
-  auto mem_limit_guard = create_scope_guard([=]() {
-    if (js_isolate->is_max_mem_size_exceeded()) {
-      js_thd->erase_auth_id_context(auth_id);
-      my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
+  bool result = false;
+
+  {
+    /*
+      We need to destroy isolate and report error to user if we exceed memory
+      limit. Since it needs to be done after we stop using/unlock isolate it
+      is convenient to do this using scope guard handler.
+
+      We declare the scope guard in a new block to ensure that we can update
+      the return value from the method to failure if limitis exceed.
+    */
+    auto mem_limit_guard = create_scope_guard([=, &result]() {
+      if (js_isolate->is_max_mem_size_exceeded()) {
+        js_thd->erase_auth_id_context(auth_id);
+        my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
+        // Ensure that the method returns failure.
+        result = true;
+      }
+    });
+
+    // Lock the isolate to follow convention.
+    v8::Locker locker(isolate);
+
+    // Make this isolate the current one.
+    v8::Isolate::Scope isolate_scope(isolate);
+
+    // For both success and failure cases, we need to pump the message loop
+    // for isolate, after running JS code. See comment in execute() for more
+    // details.
+    auto pump_guard = create_scope_guard([=]() {
+      if (!js_isolate->is_max_mem_size_exceeded()) {
+        Js_v8::pump_message_loop(isolate);
+      }
+    });
+
+    // Create a stack-allocated handle scope.
+    v8::HandleScope handle_scope(isolate);
+
+    /*
+      Compile and execute script to get wrapper function object. Later we
+      will use this function's Call() method for running our routine.
+
+      For SQL SECURITY DEFINER routines this will be the only Function
+      object we will use.
+      SQL SECURITY INVOKER routines might be called with different user
+      account active within the same connection. So we might need to build
+      more Function objects for this account's JS context.
+    */
+    v8::Local<v8::Function> func = prepare_func(auth_id_ctx);
+
+    // When memory limit is exceeded we want to fail even if we were able
+    // prepare function. Scope guard will take care of isolate and error
+    // reporting.
+    if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
+
+    auth_id_ctx->add_function(m_sql_sp, func);
+
+    // Prepare functions for getting parameter values.
+    if (prepare_get_param_funcs()) return true;
+    // And setting out parameter and return values.
+    if (m_type == Js_sp::FUNCTION) {
+      if (prepare_set_retval_func()) return true;
+    } else if (has_out_param()) {
+      if (prepare_set_out_param_funcs()) return true;
     }
-  });
-
-  // Lock the isolate to follow convention.
-  v8::Locker locker(isolate);
-
-  // Make this isolate the current one.
-  v8::Isolate::Scope isolate_scope(isolate);
-
-  // Create a stack-allocated handle scope.
-  v8::HandleScope handle_scope(isolate);
-
-  /*
-    Compile and execute script to get wrapper function object. Later we
-    will use this function's Call() method for running our routine.
-
-    For SQL SECURITY DEFINER routines this will be the only Function
-    object we will use.
-    SQL SECURITY INVOKER routines might be called with different user
-    account active within the same connection. So we might need to build
-    more Function objects for this account's JS context.
-  */
-  v8::Local<v8::Function> func = prepare_func(auth_id_ctx);
-
-  // When memory limit is exceeded we want to fail even if we were able
-  // prepare function. Scope guard will take care of isolate and error
-  // reporting.
-  if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
-
-  auth_id_ctx->add_function(m_sql_sp, func);
-
-  // Prepare functions for getting parameter values.
-  if (prepare_get_param_funcs()) return true;
-  // And setting out parameter and return values.
-  if (m_type == Js_sp::FUNCTION) {
-    if (prepare_set_retval_func()) return true;
-  } else if (has_out_param()) {
-    if (prepare_set_out_param_funcs()) return true;
   }
 
-  return false;
+  return result;
 }
 
 bool Js_sp::execute() {
@@ -1065,171 +1190,214 @@ bool Js_sp::execute() {
 
   Js_isolate *js_isolate = auth_id_ctx->get_js_isolate();
 
-  /*
-    We need to destroy isolate and report error to user if we exceed memory
-    limit. Since it needs to be done after we stop using/unlock isolate it
-    is convenient to do this using scope guard handler.
-  */
-  auto mem_limit_guard = create_scope_guard([=]() {
-    if (js_isolate->is_max_mem_size_exceeded()) {
-      js_thd->erase_auth_id_context(auth_id);
-      my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
-    }
-  });
+  bool result = false;
 
-  v8::Isolate *isolate = js_isolate->get_v8_isolate();
+  {
+    /*
+      We need to destroy isolate and report error to user if we exceed memory
+      limit. Since it needs to be done after we stop using/unlock isolate it
+      is convenient to do this using scope guard handler.
 
-  v8::Locker locker(isolate);
-
-  // Make this isolate the current one.
-  v8::Isolate::Scope isolate_scope(isolate);
-
-  // Create a stack-allocated handle scope.
-  v8::HandleScope handle_scope(isolate);
-
-  /*
-    Get Function object for the routine in this context.
-
-    Again, object for active account and its context might be missing
-    in case of SQL SECURITY INVOKER routine, so prepare a new one if
-    necessary.
-  */
-  v8::Local<v8::Function> func = auth_id_ctx->get_function(m_sql_sp);
-
-  if (func.IsEmpty()) {
-    func = prepare_func(auth_id_ctx);
-    // When memory limit is exceeded we want to fail even if we were able
-    // prepare function. Scope guard will take care of isolate and error
-    // reporting.
-    if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
-    auth_id_ctx->add_function(m_sql_sp, func);
-  }
-
-  v8::Local<v8::Context> context = auth_id_ctx->get_context();
-
-  // Enter the context for executing the function.
-  v8::Context::Scope context_scope(context);
-
-  v8::TryCatch try_catch(isolate);
-
-  // Build array with program parameters.
-  v8::Local<v8::Value> *arg_arr = nullptr;
-
-  auto arg_arr_guard = create_scope_guard([&arg_arr]() { delete[] arg_arr; });
-
-  if (m_arg_count) {
-    arg_arr = new v8::Local<v8::Value>[m_arg_count];
-    for (size_t i = 0; i < m_arg_count; ++i) {
-      arg_arr[i] = m_get_param_func[i](isolate, i);
-
-      // When memory limit is exceeded we want to fail even if we were able
-      // to get parameter value. Scope guard will take care of isolate and
-      // error reporting.
-      if (js_isolate->is_max_mem_size_exceeded()) return true;
-
-      if (arg_arr[i].IsEmpty()) {
-        // It is responsibility of get_param_func function to
-        // report error to user.
-        return true;
+      We declare the scope guard in a new block to ensure that we can update
+      the return value from the method to failure if limitis exceed.
+    */
+    auto mem_limit_guard = create_scope_guard([=, &result]() {
+      if (js_isolate->is_max_mem_size_exceeded()) {
+        js_thd->erase_auth_id_context(auth_id);
+        my_error(ER_LANGUAGE_COMPONENT, MYF(0), "Memory limit exceeded.");
+        // Ensure that the method returns failure.
+        result = true;
       }
-    }
-  }
+    });
 
-  /*
-    We about to execute JS code, which can take time. Make this execution
-    KILLable by installing a handler to be called when connection/statement
-    is killed (or MAX_EXECUTION_TIME limit is reached).
-    This handler aborts execution of JS code in the connection by calling
-    v8::Isolate::TerminateExecution() method. It gets pointer to Isolate
-    to be aborted as a parameter.
-  */
-  js_thd->install_kill_handler(isolate);
+    v8::Isolate *isolate = js_isolate->get_v8_isolate();
 
-  // But before proceeding, we need to check if we were killed before
-  // handler has been installed and we have not noticed this.
-  bool killed_earlier = js_thd->is_killed();
+    v8::Locker locker(isolate);
 
-  v8::MaybeLocal<v8::Value> maybe_result;
-  if (!killed_earlier) {
-    // Call the wrapper function passing parameters to it.
-    maybe_result = func->Call(context, context->Global(), m_arg_count, arg_arr);
-  }
+    // Make this isolate the current one.
+    v8::Isolate::Scope isolate_scope(isolate);
 
-  js_thd->reset_kill_handler();
-
-  // When memory limit is exceeded we want to fail even if we were able to
-  // execute call/get return value. Scope guard will take care of isolate
-  // and error reporting.
-  if (js_isolate->is_max_mem_size_exceeded()) return true;
-
-  if (killed_earlier || js_thd->is_killed() ||
-      isolate->IsExecutionTerminating() /* Extra-safety. */) {
-    isolate->CancelTerminateExecution();
-    // It is responsibility of SQL core to report an error in case when
-    // connection or query was killed.
-    return true;
-  }
-
-  v8::Local<v8::Value> result;
-  if (!maybe_result.ToLocal(&result)) {
-    auth_id_ctx->report_error(try_catch, "Unknown execution error");
-    return true;
-  }
-
-  if (m_type == Js_sp::FUNCTION) {
-    if (m_set_retval_func(context, 0, result) ||
-        // When memory limit is exceeded we want to fail even if we were
-        // able to store return value.
-        js_isolate->is_max_mem_size_exceeded())
-      return true;
-  } else {
-    // Values of INOUT and OUT parameters need to be unpacked from the array
-    // returned as result of function execution to corresponding parameters
-    // in runtime context.
+    // For both success and failure cases, we need to pump the message loop
+    // for isolate, after running JS code.
     //
-    // We also bark if one tries to return value other than undefined from
-    // PROCEDURE using return statement.
+    // According to V8 examples it is important not to do it when there are
+    // v8::Local handles on the stack. So pumping should happen after
+    // v8::HandleScope is destroyed.
     //
-    // TODO: Discuss with reviewer, I am not quite convinced it is worth
-    // doing it taking into account that extra wrapping + creation of array
-    // costs something.
+    // OTOH task executed can involve GC and thus we might discover that
+    // memory limit was exceeded as result. So we need to check this
+    // condition and return error after the pumping. I.e. pumping needs
+    // to be done before mem_limit_guard dtor is called.
+    //
+    // There is no point in pumping the loop if memory limit was exceeded and
+    // we are going to destroy isolate soon anyway.
+    //
+    // Since at this point only tasks processed are those posted by V8 itself
+    // and thus mostly GC-related we don't try to catch any errors
+    // here. Nor try to handle KILL statement nicely.
+    auto pump_guard = create_scope_guard([=]() {
+      if (!js_isolate->is_max_mem_size_exceeded()) {
+        Js_v8::pump_message_loop(isolate);
+      }
+    });
 
-    // Execution of wrapper function in case of PROCEDURE must return
-    // an array or throw (which is handled above).
-    assert(result->IsArray());
-    v8::Local<v8::Array> arr_result = result.As<v8::Array>();
+    // Create a stack-allocated handle scope.
+    v8::HandleScope handle_scope(isolate);
 
-    // The array returned must have the first element representing return
-    // value.
-    if (!arr_result->Get(context, 0).ToLocalChecked()->IsUndefined()) {
-      my_error(ER_LANGUAGE_COMPONENT, MYF(0),
-               "Returning value from PROCEDURE is not allowed");
-      return true;
+    /*
+      Get Function object for the routine in this context.
+
+      Again, object for active account and its context might be missing
+      in case of SQL SECURITY INVOKER routine, so prepare a new one if
+      necessary.
+    */
+    v8::Local<v8::Function> func = auth_id_ctx->get_function(m_sql_sp);
+
+    if (func.IsEmpty()) {
+      func = prepare_func(auth_id_ctx);
+      // When memory limit is exceeded we want to fail even if we were able
+      // prepare function. Scope guard will take care of isolate and error
+      // reporting.
+      if (js_isolate->is_max_mem_size_exceeded() || func.IsEmpty()) return true;
+      auth_id_ctx->add_function(m_sql_sp, func);
     }
 
-    if (has_out_param()) {
-      size_t res_arr_idx = 1;
-      for (auto param_idx : m_out_param_indexes) {
-        if (m_set_out_param_func[res_arr_idx - 1](
-                context, param_idx,
-                // The array returned must have an element for each OUT param.
-                arr_result->Get(context, res_arr_idx).ToLocalChecked())) {
-          // OUT param setter function is responsible for reporting error
-          // in case of its failure.
+    v8::Local<v8::Context> context = auth_id_ctx->get_context();
+
+    // Enter the context for executing the function.
+    v8::Context::Scope context_scope(context);
+
+    v8::TryCatch try_catch(isolate);
+
+    // Build array with program parameters.
+    v8::Local<v8::Value> *arg_arr = nullptr;
+
+    auto arg_arr_guard = create_scope_guard([&arg_arr]() { delete[] arg_arr; });
+
+    if (m_arg_count) {
+      arg_arr = new v8::Local<v8::Value>[m_arg_count];
+      for (size_t i = 0; i < m_arg_count; ++i) {
+        arg_arr[i] = m_get_param_func[i](isolate, i);
+
+        // When memory limit is exceeded we want to fail even if we were able
+        // to get parameter value. Scope guard will take care of isolate and
+        // error reporting.
+        if (js_isolate->is_max_mem_size_exceeded()) return true;
+
+        if (arg_arr[i].IsEmpty()) {
+          // It is responsibility of get_param_func function to
+          // report error to user.
           return true;
         }
-        // When memory limit is exceeded we want to fail even if we
-        // were able to store OUT parameter value.
-        if (js_isolate->is_max_mem_size_exceeded()) return true;
-        ++res_arr_idx;
       }
     }
+
+    /*
+      We about to execute JS code, which can take time. Make this execution
+      KILLable by installing a handler to be called when connection/statement
+      is killed (or MAX_EXECUTION_TIME limit is reached).
+      This handler aborts execution of JS code in the connection by calling
+      v8::Isolate::TerminateExecution() method. It gets pointer to Isolate
+      to be aborted as a parameter.
+    */
+    js_thd->install_kill_handler(isolate);
+
+    // But before proceeding, we need to check if we were killed before
+    // handler has been installed and we have not noticed this.
+    bool killed_earlier = js_thd->is_killed();
+
+    v8::MaybeLocal<v8::Value> maybe_result;
+    if (!killed_earlier) {
+      // Call the wrapper function passing parameters to it.
+      maybe_result =
+          func->Call(context, context->Global(), m_arg_count, arg_arr);
+    }
+
+    js_thd->reset_kill_handler();
+
+    // When memory limit is exceeded we want to fail even if we were able to
+    // execute call/get return value. Scope guard will take care of isolate
+    // and error reporting.
+    if (js_isolate->is_max_mem_size_exceeded()) return true;
+
+    if (killed_earlier || js_thd->is_killed() ||
+        isolate->IsExecutionTerminating() /* Extra-safety. */) {
+      isolate->CancelTerminateExecution();
+      // It is responsibility of SQL core to report an error in case when
+      // connection or query was killed.
+      return true;
+    }
+
+    v8::Local<v8::Value> result;
+    if (!maybe_result.ToLocal(&result)) {
+      auth_id_ctx->report_error(try_catch, "Unknown execution error");
+      return true;
+    }
+
+    if (m_type == Js_sp::FUNCTION) {
+      if (m_set_retval_func(context, 0, result) ||
+          // When memory limit is exceeded we want to fail even if we were
+          // able to store return value.
+          js_isolate->is_max_mem_size_exceeded())
+        return true;
+    } else {
+      // Values of INOUT and OUT parameters need to be unpacked from the array
+      // returned as result of function execution to corresponding parameters
+      // in runtime context.
+      //
+      // We also bark if one tries to return value other than undefined from
+      // PROCEDURE using return statement.
+      //
+      // TODO: Discuss with reviewer, I am not quite convinced it is worth
+      // doing it taking into account that extra wrapping + creation of array
+      // costs something.
+
+      // Execution of wrapper function in case of PROCEDURE must return
+      // an array or throw (which is handled above).
+      assert(result->IsArray());
+      v8::Local<v8::Array> arr_result = result.As<v8::Array>();
+
+      // The array returned must have the first element representing return
+      // value.
+      if (!arr_result->Get(context, 0).ToLocalChecked()->IsUndefined()) {
+        my_error(ER_LANGUAGE_COMPONENT, MYF(0),
+                 "Returning value from PROCEDURE is not allowed");
+        return true;
+      }
+
+      if (has_out_param()) {
+        size_t res_arr_idx = 1;
+        for (auto param_idx : m_out_param_indexes) {
+          if (m_set_out_param_func[res_arr_idx - 1](
+                  context, param_idx,
+                  // The array returned must have an element for each OUT param.
+                  arr_result->Get(context, res_arr_idx).ToLocalChecked())) {
+            // OUT param setter function is responsible for reporting error
+            // in case of its failure.
+            return true;
+          }
+          // When memory limit is exceeded we want to fail even if we
+          // were able to store OUT parameter value.
+          if (js_isolate->is_max_mem_size_exceeded()) return true;
+          ++res_arr_idx;
+        }
+      }
+    }
+
+    // Emit error if routine execution has left any unandled rejected promises.
+    //
+    // Note that OTOH we allow presence unsettled promises after the execution.
+    //
+    // While in general, creating promises in one call to JS routine and
+    // settling them in another is discouraged, as it makes code bug-prone and
+    // fragile, such behavior is allowed/not blocked at the moment.
+    // It is non-trivial to do so without blocking some other common legit
+    // scenarios in which promise might be left pending at the end of JS
+    // routine (for example, involving Promise.any() or Promise.all()).
+    if (auth_id_ctx->process_unhandled_rejected_promises()) return true;
   }
 
-  // Memory limit should not be exceeded here. Still we play safe.
-  mem_limit_guard.release();
-
-  return false;
+  return result;
 }
 
 bool register_create_privilege() {

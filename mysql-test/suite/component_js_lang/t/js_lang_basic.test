@@ -3567,6 +3567,212 @@ DROP FUNCTION f_invoker;
 DROP FUNCTION f_invoker_error;
 DROP USER u_other@localhost;
 
+--echo #
+--echo # Test coverage for promises and async/await support.
+--echo #
+--echo # Using asynchronous programming doesn't make much sense in the
+--echo # context of JS routines, as there are no external events which
+--echo # can happen asynchronously.
+--echo #
+--echo # But since promises/async/await support in JS ultimately boils
+--echo # down to scheduling and synchronous execution of callbacks from
+--echo # a special queue, it just works.
+
+--echo #
+--echo # Basic test for promises which are fulfilled and rejected right away.
+--echo #
+DELIMITER |;
+CREATE PROCEDURE p_basic() LANGUAGE JS AS $$
+  console.log("p_basic: begin");
+  let p1 = Promise.resolve(42);
+  p1.then((x) => { console.log("Promise p1 got fulfilled with value: " + x); });
+  console.log("p_basic: middle");
+  let p2 = Promise.reject("Oops!");
+  p2.then((x) => { console.log("Promise p2 got fulfilled with value: " + x); })
+    .catch((x) => { console.log("Promise p2 got rejected with error: " + x); });
+  console.log("p_basic: end");
+$$|
+DELIMITER ;|
+CALL p_basic();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_basic;
+
+--echo #
+--echo # More advanced case when promises are not settled right away.
+--echo #
+DELIMITER |;
+CREATE PROCEDURE p_advanced() LANGUAGE JS AS $$
+  console.log("p_advanced: begin");
+  let p1_resolve;
+  let p1 = new Promise((resolve, reject) => { p1_resolve = resolve; });
+  console.log("p_advanced: p1 created");
+  let p2_resolve;
+  let p2_reject;
+  let p2 = new Promise((resolve, reject) => { p2_resolve = resolve; p2_reject = reject; });
+  console.log("p_advanced: p2 created");
+  p1.then((x) => { console.log("Promise p1 got fulfilled with value: " + x); });
+  console.log("p_advanced: p1 handler added");
+  p2.then((x) => { console.log("Promise p2 got fulfilled with value: " + x); })
+    .catch((x) => { console.log("Promise p2 got rejected with error: " + x); });
+  console.log("p_advanced: p2 handler added");
+  p1_resolve(123);
+  console.log("p_advanced: p1 resolved");
+  p2_reject("Argh!");
+  console.log("p_advanced: p2 rejected");
+  console.log("p_advanced: end");
+$$|
+DELIMITER ;|
+CALL p_advanced();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_advanced;
+
+--echo #
+--echo # Test scenarios involving Promise.any() and Promise.all().
+--echo #
+--echo # These tests are important since they show common legit scenarios in
+--echo # which execution of routine could finish without all promises settled.
+--echo #
+--echo # They are the reason why we don't error out if our SQL routine completes
+--echo # with some promises still pending.
+DELIMITER |;
+CREATE PROCEDURE p_any() LANGUAGE JS AS $$
+  console.log("p_any: begin");
+  let p1 = Promise.resolve(42);
+  let p2 = new Promise((resolve, reject) => { });
+  console.log("p_any: p1 and p2 created");
+  let p3 = Promise.any([p1, p2]);
+  console.log("p_any: Promise.any()");
+  p3.then((x) => { console.log("Promise p3 got fulfilled with value: " + x); });
+  console.log("p_any: end");
+$$|
+CREATE PROCEDURE p_all() LANGUAGE JS AS $$
+  console.log("p_all: begin");
+  let p1 = new Promise((resolve, reject) => { });
+  let p2 = Promise.reject("Ouch!");
+  console.log("p_all: p1 and p2 created");
+  let p3 = Promise.all([p1, p2]);
+  console.log("p_all: Promise.all()");
+  p3.then((x) => { console.log("Promise p3 got fulfilled with value: " + x); })
+    .catch((x) => { console.log("Promise p3 got rejected with error: " + x); });
+  console.log("p_all: end");
+$$|
+DELIMITER ;|
+CALL p_any();
+CALL p_all();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_any;
+DROP PROCEDURE p_all;
+
+--echo #
+--echo # Test uncaught rejection of promise.
+--echo #
+--echo # We test primitive type as rejection value first.
+--echo # No stacktrace is available in this case.
+DELIMITER |;
+CREATE PROCEDURE p_reject_primitive() LANGUAGE JS AS $$
+  console.log("p_reject_primitive: begin");
+  let p = Promise.reject("Ouch!!!");
+  p.then((x) => { console.log("Promise p got fulfilled with value: " + x); });
+  console.log("p_reject_primitive: end");
+$$|
+DELIMITER ;|
+--error ER_LANGUAGE_COMPONENT
+CALL p_reject_primitive();
+SELECT js_get_console_log();
+SELECT js_get_last_error_info();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_reject_primitive;
+
+--echo #
+--echo # Now test case when rejection value is proper Error object
+--echo # with a stacktrace.
+DELIMITER |;
+CREATE PROCEDURE p_reject_error() LANGUAGE JS AS $$
+  console.log("p_reject_error: begin");
+  let p = Promise.reject(new Error("Argh!"));
+  console.log("p_reject_error: end");
+$$|
+DELIMITER ;|
+--error ER_LANGUAGE_COMPONENT
+CALL p_reject_error();
+SELECT js_get_console_log();
+SELECT js_get_last_error_info();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_reject_error;
+
+--echo #
+--echo # Basic test for async/await usage.
+--echo #
+DELIMITER |;
+CREATE PROCEDURE p_async() LANGUAGE JS AS $$
+  console.log("p_async: begin");
+  async function f_0_1() {
+    console.log("f_0_1(): begin");
+    let p = Promise.resolve(42);
+    console.log("f_0_1(): before return");
+    return p;
+  }
+  async function f_0_2(x) {
+    console.log("f_0_2(): begin with argument: " + x);
+    let p = Promise.resolve(42 + x);
+    console.log("f_0_2(): before return");
+    return p;
+  }
+  async function f_0() {
+    console.log("f_0(): begin");
+    let r = await f_0_1();
+    console.log("f_0(): before return");
+    return await f_0_2(r);
+  }
+  console.log("p_async: before f_0()");
+  f_0().then((x) => { console.log("Implicit promise in p_async got fulfilled with value: " + x); });
+  console.log("p_async: end");
+$$|
+DELIMITER ;|
+CALL p_async();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_async;
+
+--echo #
+--echo # Complex test where promise got fulfilled from another JS routine.
+--echo #
+--echo # This works at the moment but certainly is not recommended.
+--echo #
+--echo # In general, one should try to ensure that ones promises are settled
+--echo # within the single routine. Otherwise the resulting code becomes too
+--echo # fragile/bug-prone.
+--echo #
+--echo # The main reason why behavior like in the test below is not blocked
+--echo # is that it is non-trivial to do so without blocking some other legit
+--echo # scenarios in which promise might be left pending at the end of routine
+--echo # (see tests for Promise.any() and Promise.all() above).
+DELIMITER |;
+CREATE PROCEDURE p_create() LANGUAGE JS AS $$
+  console.log("procedure p_create: begin");
+  let p = new Promise((resolve, reject) => { globalThis.signalReady = resolve; });
+  console.log("procedure p_create: before then");
+  p.then((x) => { console.log("Promise p got fulfilled with value: " + x); });
+  console.log("procedure p_create: end");
+$$|
+CREATE PROCEDURE p_fulfill() LANGUAGE JS AS $$
+  console.log("procedure p_fulfill: begin");
+  globalThis.signalReady("Ready!");
+  console.log("procedure p_fulfill: end");
+$$|
+DELIMITER ;|
+CALL p_create();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+CALL p_fulfill();
+SELECT js_get_console_log();
+SELECT js_clear_console_log();
+DROP PROCEDURE p_create;
+DROP PROCEDURE p_fulfill;
+
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 
 --echo #

@@ -7,22 +7,23 @@ GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
 SELECT @@js_lang.max_mem_size;
 @@js_lang.max_mem_size
 8388608
-#
-# 1) Create routine which will hog prescribed amount of memory on the
-#    V8 heap in the process of its execution.
+# Create routine which will hog prescribed amount of memory on the
+# V8 heap in the process of its execution.
 #
 # JSON.parse(JSON.stringify()) trick is necessary to suppress V8 string
 # optimizations which will cause much smaller memory usage if applied.
+CREATE PROCEDURE p_heap_hog(size INT) LANGUAGE JS AS
+$$ let s = JSON.parse(JSON.stringify(("A").repeat(size/2 /* Two copies of string! */))) $$;
 #
-# Note that since we can only do "best effort" memory limit detection
-# with V8, spike allocation of memory still might cause V8/process
-# aborts, or go unnoticed if memory is quickly released.
+# 1) Test how we enforce memory limits for allocations on V8 heap.
+#
+# Note that since, by default, we can only do "best effort" memory limit
+# detection with V8, spike allocation of memory might go unnoticed if
+# memory is quickly released.
 #
 # So the below tests might have to be adjusted to slow down memory
 # allocation (to let detection kick in) or disabled if it starts to
 # misbehave on some machine.
-CREATE PROCEDURE p_heap_hog(size INT) LANGUAGE JS AS
-$$ let s = JSON.parse(JSON.stringify(("A").repeat(size/2 /* Two copies of string! */))) $$;
 #
 # Check that we detect exceeding the limit and report it.
 CALL p_heap_hog(10*1000*1000);
@@ -35,7 +36,13 @@ ERROR HY000: Memory limit exceeded.
 CALL p_heap_hog(5*1000*1000);
 CALL p_heap_hog(5*1000*1000);
 CALL p_heap_hog(5*1000*1000);
-DROP PROCEDURE p_heap_hog;
+#
+# Also check what happens if we try to hog way more than the limit.
+#
+# This was the problem in PS-10113 "Server crashes if JS routine tries
+# to allocate more than internal heap memory limit".
+CALL p_heap_hog(40*1000*1000);
+ERROR HY000: Memory limit exceeded.
 #
 # 2) Now create routine which will hog prescribed amount of memory on
 #    ArrayBuffer allocator.
@@ -226,7 +233,51 @@ disconnect con_add;
 connection default;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+#
+# 7) Test coverage for max_mem_size and max_mem_size_hard_limit_factor
+#    system variables.
+#
+#
+# 7.1) Increasing max_mem_size variable should allow to allocate
+#      more in new connections/isolates.
+#
+SET GLOBAL js_lang.max_mem_size = 16*1024*1024;
+connect  con_add2, localhost, root,,;
+CALL p_heap_hog(10*1000*1000);
+disconnect con_add2;
+connection default;
+SET GLOBAL js_lang.max_mem_size = DEFAULT;
+#
+# 7.2) But max_mem_size_hard_limit_factor variable should not be
+#      settable at runtime.
+#
+SET GLOBAL js_lang.max_mem_size_hard_limit_factor = 2;
+ERROR HY000: Variable 'js_lang.max_mem_size_hard_limit_factor' is a read only variable
+#
+# 7.3) OTOH it should be possible to change this variable
+#      using PERSIST_ONLY and restart.
+#
+SET PERSIST_ONLY js_lang.max_mem_size_hard_limit_factor = 2;
+# restart
+SELECT @@js_lang.max_mem_size_hard_limit_factor;
+@@js_lang.max_mem_size_hard_limit_factor
+2
+#
+# 7.4) Exceeding hard limit set by variable should lead to
+#      server abort.
+#
+CALL p_heap_hog(20*1000*1000);
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+# Let us restore factor variable value now.
+# Another server restart is needed for this.
+RESET PERSIST js_lang.max_mem_size_hard_limit_factor;
+# restart
+SELECT @@js_lang.max_mem_size_hard_limit_factor;
+@@js_lang.max_mem_size_hard_limit_factor
+0
 # Global clean-up.
+DROP PROCEDURE p_heap_hog;
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 # Disconnect of default connection to free the only remaining
 # connection context and isolate, so we can uninstall component.

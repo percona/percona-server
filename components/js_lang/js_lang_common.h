@@ -113,10 +113,11 @@ static constexpr std::string_view CREATE_PRIVILEGE_NAME = "CREATE_JS_ROUTINE";
 // Defined as a macro so we can easier concatenate it with other literals.
 #define MAX_CONSOLE_LOG_SIZE_VAR_NAME "max_console_log_size"
 
-// Name of system variable which limits the size of per isolate memory.
+// Names of system variables which limit the size of per isolate memory.
 //
-// Defined as a macro so we can easier concatenate it with other literals.
+// Defined as macros so we can easier concatenate them with other literals.
 #define MAX_MEM_SIZE_VAR_NAME "max_mem_size"
+#define MAX_MEM_SIZE_HARD_LIMIT_FACTOR_VAR_NAME "max_mem_size_hard_limit_factor"
 
 // We use RapidJSON to produce console log and information about memory
 // usage in JSON format.

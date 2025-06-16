@@ -3,6 +3,10 @@
 #
 --source include/have_js_lang_component.inc
 
+# Valgrind and CrashReporter are problematic for testing crashes.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
 --echo # Global prepare of playground.
 --enable_connect_log
 
@@ -15,22 +19,24 @@ GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
 --echo # parameters of calls below need to be ajusted.
 SELECT @@js_lang.max_mem_size;
 
---echo #
---echo # 1) Create routine which will hog prescribed amount of memory on the
---echo #    V8 heap in the process of its execution.
+--echo # Create routine which will hog prescribed amount of memory on the
+--echo # V8 heap in the process of its execution.
 --echo #
 --echo # JSON.parse(JSON.stringify()) trick is necessary to suppress V8 string
 --echo # optimizations which will cause much smaller memory usage if applied.
+CREATE PROCEDURE p_heap_hog(size INT) LANGUAGE JS AS
+    $$ let s = JSON.parse(JSON.stringify(("A").repeat(size/2 /* Two copies of string! */))) $$;
+
 --echo #
---echo # Note that since we can only do "best effort" memory limit detection
---echo # with V8, spike allocation of memory still might cause V8/process
---echo # aborts, or go unnoticed if memory is quickly released.
+--echo # 1) Test how we enforce memory limits for allocations on V8 heap.
+--echo #
+--echo # Note that since, by default, we can only do "best effort" memory limit
+--echo # detection with V8, spike allocation of memory might go unnoticed if
+--echo # memory is quickly released.
 --echo #
 --echo # So the below tests might have to be adjusted to slow down memory
 --echo # allocation (to let detection kick in) or disabled if it starts to
 --echo # misbehave on some machine.
-CREATE PROCEDURE p_heap_hog(size INT) LANGUAGE JS AS
-    $$ let s = JSON.parse(JSON.stringify(("A").repeat(size/2 /* Two copies of string! */))) $$;
 
 --echo #
 --echo # Check that we detect exceeding the limit and report it.
@@ -46,7 +52,13 @@ CALL p_heap_hog(5*1000*1000);
 CALL p_heap_hog(5*1000*1000);
 CALL p_heap_hog(5*1000*1000);
 
-DROP PROCEDURE p_heap_hog;
+--echo #
+--echo # Also check what happens if we try to hog way more than the limit.
+--echo #
+--echo # This was the problem in PS-10113 "Server crashes if JS routine tries
+--echo # to allocate more than internal heap memory limit".
+--error ER_LANGUAGE_COMPONENT
+CALL p_heap_hog(40*1000*1000);
 
 --echo #
 --echo # 2) Now create routine which will hog prescribed amount of memory on
@@ -208,7 +220,70 @@ SELECT JSON_EXTRACT(@mem_usage, "$.local.externalMemorySize") >= 1024 AS loc_ems
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 
+--echo #
+--echo # 7) Test coverage for max_mem_size and max_mem_size_hard_limit_factor
+--echo #    system variables.
+--echo #
+
+--echo #
+--echo # 7.1) Increasing max_mem_size variable should allow to allocate
+--echo #      more in new connections/isolates.
+--echo #
+
+SET GLOBAL js_lang.max_mem_size = 16*1024*1024;
+
+--connect (con_add2, localhost, root,,)
+
+CALL p_heap_hog(10*1000*1000);
+
+--disconnect con_add2
+--source include/wait_until_disconnected.inc
+--connection default
+
+SET GLOBAL js_lang.max_mem_size = DEFAULT;
+
+--echo #
+--echo # 7.2) But max_mem_size_hard_limit_factor variable should not be
+--echo #      settable at runtime.
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL js_lang.max_mem_size_hard_limit_factor = 2;
+
+--echo #
+--echo # 7.3) OTOH it should be possible to change this variable
+--echo #      using PERSIST_ONLY and restart.
+--echo #
+
+SET PERSIST_ONLY js_lang.max_mem_size_hard_limit_factor = 2;
+
+--source include/restart_mysqld.inc
+
+SELECT @@js_lang.max_mem_size_hard_limit_factor;
+
+--echo #
+--echo # 7.4) Exceeding hard limit set by variable should lead to
+--echo #      server abort.
+--echo #
+
+--source include/expect_crash.inc
+
+--error CR_SERVER_LOST
+CALL p_heap_hog(20*1000*1000);
+
+--source include/start_mysqld.inc
+
+--echo # Let us restore factor variable value now.
+--echo # Another server restart is needed for this.
+
+RESET PERSIST js_lang.max_mem_size_hard_limit_factor;
+
+--source include/restart_mysqld.inc
+
+SELECT @@js_lang.max_mem_size_hard_limit_factor;
+
 --echo # Global clean-up.
+DROP PROCEDURE p_heap_hog;
+
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 
 --echo # Disconnect of default connection to free the only remaining

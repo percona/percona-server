@@ -48,7 +48,19 @@ using keyring_common::utils::get_random_data;
 Keyring_kmip_backend::Keyring_kmip_backend(config::Config_pod const &config)
     : valid_(false), config_(config) {
   DBUG_TRACE;
-  valid_ = true;
+  // check network connection before declaring valid
+  try {
+    auto ctx = kmip_ctx();
+    valid_ = true;
+  } catch (std::exception const &e) {
+    valid_ = false;
+    std::string err_msg =
+        "Can not connect to KMIP server. Config: " + config_.server_addr + " " +
+        config_.server_port + " " + config_.client_ca + " " +
+        config_.client_key + " " + config_.server_ca + " " +
+        "Exception:" + e.what();
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+  }
 }
 
 bool Keyring_kmip_backend::load_cache(

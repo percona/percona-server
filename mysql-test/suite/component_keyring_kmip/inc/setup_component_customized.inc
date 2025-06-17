@@ -14,7 +14,7 @@
 
 # Create global keyring config
 --let KEYRING_KMIP_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_kmip')`
---let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_KMIP_PATH','\", \"server_addr\": \"127.0.0.1\", \"server_port\": \"5696\", \"client_ca\": \"/home/dutow/.local/etc/pykmip/client_certificate_jane_doe.pem\", \"client_key\":\"/home/dutow/.local/etc/pykmip/client_key_jane_doe.pem\", \"server_ca\":\"/home/dutow/.local/etc/pykmip/root_certificate.pem\" }')`
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_KMIP_PATH','\", \"server_addr\": \"127.0.0.1\", \"server_port\": \"5696\", \"client_ca\": \"/tmp/certs/mysql-client-cert.pem\", \"client_key\":\"/tmp/certs/mysql-client-key.pem\", \"server_ca\":\"/tmp/certs/vault-kmip-ca.pem\" }')`
 --source include/keyring_tests/helper/global_keyring_create_customized_config.inc
 
 # Restart server with manifest file 

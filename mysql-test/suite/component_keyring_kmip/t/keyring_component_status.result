@@ -20,10 +20,14 @@ Version	1.0
 Component_status	Active
 Server_addr	127.0.0.1
 Server_port	5696
-Client_ca	/home/dutow/.local/etc/pykmip/client_certificate_jane_doe.pem
-Client_key	/home/dutow/.local/etc/pykmip/client_key_jane_doe.pem
-Server_ca	/home/dutow/.local/etc/pykmip/root_certificate.pem
-Object_group	<NONE>
+Client_ca	/tmp/certs/mysql-client-cert.pem
+Client_key	/tmp/certs/mysql-client-key.pem
+Server_ca	/tmp/certs/vault-kmip-ca.pem
+Object_group	test-object-group
+Max_objects	65535
+Kmip_timeout_ms	5000
+Tls_peer_verification	false
+Tls_hostname_verification	false
 SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA FROM performance_schema.error_log WHERE ERROR_CODE='MY-013712';
 PRIO	ERROR_CODE	SUBSYSTEM	DATA
 # Restarting server without keyring component

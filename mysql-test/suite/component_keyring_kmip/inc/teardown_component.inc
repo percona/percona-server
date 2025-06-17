@@ -29,5 +29,3 @@ if ($KEYRING_KMIP_USE_BINARY_MANIFEST)
 # Restart server without manifest file
 --source include/keyring_tests/helper/cleanup_server_with_manifest.inc
 --echo # ----------------------------------------------------------------------
-
---exec python std_data/kmip_clear.py

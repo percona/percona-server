@@ -22,7 +22,7 @@
 
 # Create local keyring config
 --let KEYRING_KMIP_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_kmip')`
---let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_KMIP_PATH', '\", \"server_addr\": \"', '$KMIP_ADDR', '\", \"server_port\": \"', '$KMIP_PORT', '\", \"client_ca\": \"', '$KMIP_CLIENT_CA', '\", \"client_key\": \"', '$KMIP_CLIENT_KEY', '\", \"server_ca\": \"', '$KMIP_SERVER_CA', '\" }')`
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ \"path\": \"', '$KEYRING_KMIP_PATH', '\", \"server_addr\": \"', '$KMIP_ADDR', '\", \"server_port\": \"', '$KMIP_PORT', '\", \"client_ca\": \"', '$KMIP_CLIENT_CA', '\", \"client_key\": \"', '$KMIP_CLIENT_KEY', '\", \"server_ca\": \"', '$KMIP_SERVER_CA', '\", \"object_group\": \"', 'test-object-group', '\" }')`
 --source include/keyring_tests/helper/local_keyring_create_config.inc
 
 # Create local manifest file for current server instance

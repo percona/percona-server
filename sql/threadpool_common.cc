@@ -107,6 +107,10 @@ static bool thread_attach(THD *thd) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Find the instrumented thread */
+  PSI_thread* psi = PSI_THREAD_CALL(get_thread)();
+  /* Save it within THD, so it can be inspected */
+  thd->set_psi(psi);
   PSI_THREAD_CALL(set_thread)(thd->get_psi());
   mysql_thread_set_psi_THD(thd);
 #endif

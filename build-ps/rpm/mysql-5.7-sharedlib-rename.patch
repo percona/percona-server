@@ -17,8 +17,8 @@
 +  LINK_LIBRARIES mysqlclient
    )
 
- IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
-@@ -72,23 +72,23 @@
+ DOWNGRADE_STRINGOP_WARNINGS(mysqltest)
+@@ -70,23 +70,23 @@
    check/mysqlcheck.cc
    check/mysqlcheck_core.cc
    multi_factor_passwordopt-vars.cc
@@ -46,7 +46,7 @@
    )
 
  OPTION(WITH_JSON_BINLOG_LIBRARY
-@@ -256,7 +256,7 @@
+@@ -253,7 +253,7 @@
 
  SET(MYSQLBINLOG_LIBRARIES
    mysql_binlog_event
@@ -55,7 +55,7 @@
    )
 
  IF(WITH_JSON_BINLOG_LIBRARY)
-@@ -298,20 +298,20 @@
+@@ -295,20 +295,20 @@
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
    multi_factor_passwordopt-vars.cc

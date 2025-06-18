@@ -504,6 +504,14 @@ fi
   mkdir percona-compatlib
   pushd percona-compatlib
   wget --no-check-certificate %{compatsrc}
+  timeout=10
+  while [ $timeout -gt 0 ]; do
+      if [ -s "$(basename %{compatsrc})" ]; then
+          break
+      fi
+      sleep 1
+      timeout=$((timeout - 1))
+  done
 %if 0%{?rhel} > 6
   rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm | cpio --extract --make-directories --verbose
 %else
@@ -1112,7 +1120,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
@@ -1176,7 +1183,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so

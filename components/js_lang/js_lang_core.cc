@@ -328,6 +328,11 @@ Js_isolate *Js_isolate::create() {
   };
   isolate->AddNearHeapLimitCallback(near_heap_limit_cb_lambda, result);
 
+  // Even though usage of promises and async/await doesn't make much sense
+  // in our case, we still try to play nice if user uses them and bark about
+  // unhandled promise rejections like others do.
+  isolate->SetPromiseRejectCallback(Js_thd::Auth_id_context::promise_reject_cb);
+
   return result;
 }
 
@@ -631,15 +636,27 @@ void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
   // Also save it the context so it can be retrieved using UDF
   m_last_error = error_msg_str;
 
-  // Also make this message part of extended info.
+  // Prepare extended info as well using v8::Message and stacktrace
+  // if they are available.
   //
   // TODO: Consider supporting returning the same info as JSON,
   //       so it easier to use it in tooling.
+  m_last_error_info = build_error_info(
+      error_msg_str, context, try_catch.Message(),
+      try_catch.StackTrace(context).FromMaybe(v8::Local<v8::Value>()));
+}
+
+std::string Js_thd::Auth_id_context::build_error_info(
+    const std::string &error_msg_str, v8::Local<v8::Context> context,
+    v8::Local<v8::Message> message, v8::Local<v8::Value> stack_trace_val) {
   std::stringstream error_info_str;
+
+  v8::Isolate *isolate = context->GetIsolate();
+
+  // Also make the error message part of extended info.
   error_info_str << "Error: " << error_msg_str;
 
   // Append additional info from v8::Message class if possible.
-  v8::Local<v8::Message> message = try_catch.Message();
   if (!message.IsEmpty()) {
     // Add info about SQL program and line/column where the error has occurred
     // (take into account that line/column numbers might be not available).
@@ -692,15 +709,14 @@ void Js_thd::Auth_id_context::report_error(v8::TryCatch &try_catch,
 
   // Also add stack trace for the error if it is available and has string
   // type (in theory, JS code can override to be any value).
-  v8::Local<v8::Value> stack_trace_val;
-  if (try_catch.StackTrace(context).ToLocal(&stack_trace_val) &&
-      stack_trace_val->IsString() &&
+  if (!stack_trace_val.IsEmpty() && stack_trace_val->IsString() &&
       stack_trace_val.As<v8::String>()->Length() > 0) {
     // Again, we assume that converion of JS string to UTF8 can't fail.
     v8::String::Utf8Value stack_trace_str(isolate, stack_trace_val);
     error_info_str << "\nStack:\n" << *stack_trace_str;
   }
-  m_last_error_info = error_info_str.str();
+
+  return error_info_str.str();
 }
 
 int Js_thd::Auth_id_context::clear_last_error() {
@@ -708,6 +724,97 @@ int Js_thd::Auth_id_context::clear_last_error() {
   m_last_error.reset();
   m_last_error_info.reset();
   return result;
+}
+
+void Js_thd::Auth_id_context::promise_reject_cb(
+    v8::PromiseRejectMessage reject_msg) {
+  auto event = reject_msg.GetEvent();
+
+  if (event == v8::kPromiseRejectAfterResolved ||
+      event == v8::kPromiseResolveAfterResolved) {
+    // Ignore attempts to change state of already resolved promise.
+    return;
+  }
+
+  auto auth_id_ctx = Js_thd::get_current_auth_id_context();
+
+  // Some of the below code can cause JS execution and trigger
+  // more promise rejects as result, we want to avoid recursion
+  // in this case.
+  if (auth_id_ctx->m_ignore_promise_rejects) return;
+  auto restore_ignore_guard = create_scope_guard(
+      [auth_id_ctx]() { auth_id_ctx->m_ignore_promise_rejects = false; });
+  auth_id_ctx->m_ignore_promise_rejects = true;
+
+  v8::Isolate *isolate = auth_id_ctx->get_js_isolate()->get_v8_isolate();
+
+  v8::HandleScope handle_scope(isolate);
+
+  if (event == v8::kPromiseRejectWithNoHandler) {
+    v8::Local<v8::Value> reject_val = reject_msg.GetValue();
+
+    // First, let us try to prepare error message to be reported
+    // if promise reject won't get handled.
+    std::string error_msg_str("Unhandled rejected promise");
+
+    v8::String::Utf8Value reject_val_str(isolate, reject_val);
+    if (*reject_val_str) {
+      error_msg_str.append(": ");
+      error_msg_str.append(*reject_val_str, reject_val_str.length());
+    } else {
+      error_msg_str.append(".");
+    }
+
+    // Then, let us try to prepare extended error info with information
+    // about the place where error occurred.
+    v8::Local<v8::Message> message;
+    v8::Local<v8::Value> stack_trace;
+
+    v8::Local<v8::Context> context = auth_id_ctx->get_context();
+
+    // Object returned as reject values can contain properties with context
+    // and stacktrace info (not only Error objects!).
+    //
+    // TODO: Find some nice way to generate stacktrace if it is absent.
+    //       Method with throwing exception used in PLv8 doesn't work well.
+    if (reject_val->IsObject()) {
+      message = v8::Exception::CreateMessage(isolate, reject_val);
+      stack_trace = v8::TryCatch::StackTrace(context, reject_val)
+                        .FromMaybe(v8::Local<v8::Value>());
+    }
+
+    std::string error_info_str = auth_id_ctx->build_error_info(
+        error_msg_str, context, message, stack_trace);
+
+    auth_id_ctx->m_unhandled_rejected_promises.emplace_back(
+        isolate, reject_msg.GetPromise(), std::move(error_msg_str),
+        std::move(error_info_str));
+  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+    // Handler has been added after promise was rejected.
+    // Remove promise from the naughty list.
+    for (auto it = auth_id_ctx->m_unhandled_rejected_promises.begin();
+         it != auth_id_ctx->m_unhandled_rejected_promises.end(); ++it) {
+      if (it->promise == reject_msg.GetPromise()) {
+        auth_id_ctx->m_unhandled_rejected_promises.erase(it);
+        return;
+      }
+    }
+  } else {
+    assert(0);
+  }
+}
+
+bool Js_thd::Auth_id_context::process_unhandled_rejected_promises() {
+  if (m_unhandled_rejected_promises.empty()) return false;
+
+  auto &rejected_promise = m_unhandled_rejected_promises.front();
+
+  my_error(ER_LANGUAGE_COMPONENT, MYF(0), rejected_promise.error.c_str());
+  m_last_error = std::move(rejected_promise.error);
+  m_last_error_info = std::move(rejected_promise.error_info);
+
+  m_unhandled_rejected_promises.clear();
+  return true;
 }
 
 Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
@@ -1247,6 +1354,18 @@ bool Js_sp::execute() {
         }
       }
     }
+
+    // Emit error if routine execution has left any unandled rejected promises.
+    //
+    // Note that OTOH we allow presence unsettled promises after the execution.
+    //
+    // While in general, creating promises in one call to JS routine and
+    // settling them in another is discouraged, as it makes code bug-prone and
+    // fragile, such behavior is allowed/not blocked at the moment.
+    // It is non-trivial to do so without blocking some other common legit
+    // scenarios in which promise might be left pending at the end of JS
+    // routine (for example, involving Promise.any() or Promise.all()).
+    if (auth_id_ctx->process_unhandled_rejected_promises()) return true;
   }
 
   return result;

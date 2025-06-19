@@ -575,9 +575,10 @@ inline bool param_type_uses_non_param_inner(THD *thd, uint arg_count,
           return false;
         if (args[j]->type() == Item::ROW_ITEM)
           arguments[j] = down_cast<Item_row *>(args[j])->element_index(i);
-        else if (args[j]->type() == Item::SUBSELECT_ITEM)
+        else if (args[j]->type() == Item::SUBSELECT_ITEM) {
           arguments[j] = (*down_cast<Item_subselect *>(args[j])
                                ->unit->get_unit_column_types())[i];
+        }
       }
       if (param_type_uses_non_param_inner(thd, arg_count, arguments, def))
         return true;

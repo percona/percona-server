@@ -46,6 +46,9 @@ class MVCC;
 /** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
+#define MAX_TOP_ACTIVE_BYTES 8192
+#define MAX_SHORT_ACTIVE_BYTES 65536
+
 class ReadView {
   /** This is similar to a std::vector but it is not a drop
   in replacement. It is specific to ReadView. */
@@ -173,14 +176,33 @@ class ReadView {
 
     if (id >= m_low_limit_id) {
       return (false);
-
-    } else if (m_ids.empty()) {
+    } else if (empty()) {
       return (true);
     }
 
-    const ids_t::value_type *p = m_ids.data();
+    /* first search short bitmap */
+    if (m_has_short_actives && id >= m_short_min_id) {
+      if (id > m_short_max_id) {
+        return false;
+      }
+      unsigned int trim_id = id & 0x7FFFF;
+      unsigned int trim_min_id = m_short_min_id & 0x7FFFF;
+      unsigned int array_index = (trim_id >> 3);
+      unsigned int array_min_index = (trim_min_id >> 3);
+      array_index = (MAX_SHORT_ACTIVE_BYTES + array_index - array_min_index) %
+                    MAX_TOP_ACTIVE_BYTES;
+      unsigned int array_remainder = trim_id & (0x7);
+      int is_value_set = top_active[array_index] & (1 << (7 - array_remainder));
+      if (is_value_set) {
+        return false;
+      } else {
+        return true;
+      }
+    }
 
-    return (!std::binary_search(p, p + m_ids.size(), id));
+    const ids_t::value_type *p = m_long_ids.data();
+
+    return (!std::binary_search(p, p + m_long_ids.size(), id));
   }
 
   /**
@@ -235,7 +257,18 @@ class ReadView {
 
   /**
   @return true if there are no transaction ids in the snapshot */
-  bool empty() const { return (m_ids.empty()); }
+  bool empty() const {
+    bool long_empty = m_long_ids.empty();
+    if (long_empty) {
+      if (!m_has_short_actives) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
 
   /**
   Clones a read view object. The resulting read view has identical change
@@ -264,9 +297,9 @@ class ReadView {
     fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
             low_limit_no());
     print_limits(file);
-    fprintf(file, "Read view individually stored trx ids:\n");
-    for (ulint i = 0; i < m_ids.size(); i++)
-      fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_ids.data()[i]);
+    fprintf(file, "Read view individually stored long trx ids:\n");
+    for (ulint i = 0; i < m_long_ids.size(); i++)
+      fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_long_ids.data()[i]);
   }
 
   bool is_cloned() const noexcept { return (m_cloned); }
@@ -274,7 +307,9 @@ class ReadView {
  private:
   /**
   Copy the transaction ids from the source vector */
-  inline void copy_trx_ids(const trx_ids_t &trx_ids);
+  inline void copy_long_trx_ids(const trx_ids_t &trx_ids,
+                                trx_id_t min_short_id);
+  inline void copy_short_trx_ids();
 
   /**
   Opens a read view where exactly the transactions serialized before this
@@ -307,6 +342,7 @@ class ReadView {
   ReadView &operator=(const ReadView &);
 
  private:
+  unsigned char top_active[MAX_TOP_ACTIVE_BYTES];
   /** The read should not see any transaction with trx id >= this
   value. In other words, this is the "high water mark". */
   trx_id_t m_low_limit_id;
@@ -322,7 +358,7 @@ class ReadView {
 
   /** Set of RW transactions that was active when this snapshot
   was taken */
-  ids_t m_ids;
+  ids_t m_long_ids;
 
   /** The view does not need to see the undo logs for transactions
   whose transaction number is strictly smaller (<) than this value:
@@ -336,6 +372,10 @@ class ReadView {
   variable INNODB_PURGE_VIEW_TRX_ID_AGE. */
   trx_id_t m_view_low_limit_no;
 #endif /* UNIV_DEBUG */
+
+  trx_id_t m_short_min_id;
+  trx_id_t m_short_max_id;
+  bool m_has_short_actives;
 
   /** AC-NL-RO transaction view that has been "closed". */
   bool m_closed;

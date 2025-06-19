@@ -8335,6 +8335,278 @@ DROP FUNCTION f_fine;
 DROP FUNCTION f_invoker;
 DROP FUNCTION f_invoker_error;
 DROP USER u_other@localhost;
+#
+# Test coverage for promises and async/await support.
+#
+# Using asynchronous programming doesn't make much sense in the
+# context of JS routines, as there are no external events which
+# can happen asynchronously.
+#
+# But since promises/async/await support in JS ultimately boils
+# down to scheduling and synchronous execution of callbacks from
+# a special queue, it just works.
+#
+# Basic test for promises which are fulfilled and rejected right away.
+#
+CREATE PROCEDURE p_basic() LANGUAGE JS AS $$
+console.log("p_basic: begin");
+let p1 = Promise.resolve(42);
+p1.then((x) => { console.log("Promise p1 got fulfilled with value: " + x); });
+console.log("p_basic: middle");
+let p2 = Promise.reject("Oops!");
+p2.then((x) => { console.log("Promise p2 got fulfilled with value: " + x); })
+.catch((x) => { console.log("Promise p2 got rejected with error: " + x); });
+console.log("p_basic: end");
+$$|
+CALL p_basic();
+SELECT js_get_console_log();
+js_get_console_log()
+p_basic: begin
+p_basic: middle
+p_basic: end
+Promise p1 got fulfilled with value: 42
+Promise p2 got rejected with error: Oops!
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+5
+DROP PROCEDURE p_basic;
+#
+# More advanced case when promises are not settled right away.
+#
+CREATE PROCEDURE p_advanced() LANGUAGE JS AS $$
+console.log("p_advanced: begin");
+let p1_resolve;
+let p1 = new Promise((resolve, reject) => { p1_resolve = resolve; });
+console.log("p_advanced: p1 created");
+let p2_resolve;
+let p2_reject;
+let p2 = new Promise((resolve, reject) => { p2_resolve = resolve; p2_reject = reject; });
+console.log("p_advanced: p2 created");
+p1.then((x) => { console.log("Promise p1 got fulfilled with value: " + x); });
+console.log("p_advanced: p1 handler added");
+p2.then((x) => { console.log("Promise p2 got fulfilled with value: " + x); })
+.catch((x) => { console.log("Promise p2 got rejected with error: " + x); });
+console.log("p_advanced: p2 handler added");
+p1_resolve(123);
+console.log("p_advanced: p1 resolved");
+p2_reject("Argh!");
+console.log("p_advanced: p2 rejected");
+console.log("p_advanced: end");
+$$|
+CALL p_advanced();
+SELECT js_get_console_log();
+js_get_console_log()
+p_advanced: begin
+p_advanced: p1 created
+p_advanced: p2 created
+p_advanced: p1 handler added
+p_advanced: p2 handler added
+p_advanced: p1 resolved
+p_advanced: p2 rejected
+p_advanced: end
+Promise p1 got fulfilled with value: 123
+Promise p2 got rejected with error: Argh!
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+10
+DROP PROCEDURE p_advanced;
+#
+# Test scenarios involving Promise.any() and Promise.all().
+#
+# These tests are important since they show common legit scenarios in
+# which execution of routine could finish without all promises settled.
+#
+# They are the reason why we don't error out if our SQL routine completes
+# with some promises still pending.
+CREATE PROCEDURE p_any() LANGUAGE JS AS $$
+console.log("p_any: begin");
+let p1 = Promise.resolve(42);
+let p2 = new Promise((resolve, reject) => { });
+console.log("p_any: p1 and p2 created");
+let p3 = Promise.any([p1, p2]);
+console.log("p_any: Promise.any()");
+p3.then((x) => { console.log("Promise p3 got fulfilled with value: " + x); });
+console.log("p_any: end");
+$$|
+CREATE PROCEDURE p_all() LANGUAGE JS AS $$
+console.log("p_all: begin");
+let p1 = new Promise((resolve, reject) => { });
+let p2 = Promise.reject("Ouch!");
+console.log("p_all: p1 and p2 created");
+let p3 = Promise.all([p1, p2]);
+console.log("p_all: Promise.all()");
+p3.then((x) => { console.log("Promise p3 got fulfilled with value: " + x); })
+.catch((x) => { console.log("Promise p3 got rejected with error: " + x); });
+console.log("p_all: end");
+$$|
+CALL p_any();
+CALL p_all();
+SELECT js_get_console_log();
+js_get_console_log()
+p_any: begin
+p_any: p1 and p2 created
+p_any: Promise.any()
+p_any: end
+Promise p3 got fulfilled with value: 42
+p_all: begin
+p_all: p1 and p2 created
+p_all: Promise.all()
+p_all: end
+Promise p3 got rejected with error: Ouch!
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+10
+DROP PROCEDURE p_any;
+DROP PROCEDURE p_all;
+#
+# Test uncaught rejection of promise.
+#
+# We test primitive type as rejection value first.
+# No stacktrace is available in this case.
+CREATE PROCEDURE p_reject_primitive() LANGUAGE JS AS $$
+console.log("p_reject_primitive: begin");
+let p = Promise.reject("Ouch!!!");
+p.then((x) => { console.log("Promise p got fulfilled with value: " + x); });
+console.log("p_reject_primitive: end");
+$$|
+CALL p_reject_primitive();
+ERROR HY000: Unhandled rejected promise: Ouch!!!
+SELECT js_get_console_log();
+js_get_console_log()
+p_reject_primitive: begin
+p_reject_primitive: end
+
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: Unhandled rejected promise: Ouch!!!
+SELECT js_clear_console_log();
+js_clear_console_log()
+2
+DROP PROCEDURE p_reject_primitive;
+#
+# Now test case when rejection value is proper Error object
+# with a stacktrace.
+CREATE PROCEDURE p_reject_error() LANGUAGE JS AS $$
+console.log("p_reject_error: begin");
+let p = Promise.reject(new Error("Argh!"));
+console.log("p_reject_error: end");
+$$|
+CALL p_reject_error();
+ERROR HY000: Unhandled rejected promise: Error: Argh!
+SELECT js_get_console_log();
+js_get_console_log()
+p_reject_error: begin
+p_reject_error: end
+
+SELECT js_get_last_error_info();
+js_get_last_error_info()
+Error: Unhandled rejected promise: Error: Argh!
+At: SQL PROCEDURE test.p_reject_error:3:23
+Line: let p = Promise.reject(new Error("Argh!"));
+                             ^
+Stack:
+Error: Argh!
+    at SQL PROCEDURE test.p_reject_error:3:24
+    at SQL PROCEDURE test.p_reject_error:6:3
+SELECT js_clear_console_log();
+js_clear_console_log()
+2
+DROP PROCEDURE p_reject_error;
+#
+# Basic test for async/await usage.
+#
+CREATE PROCEDURE p_async() LANGUAGE JS AS $$
+console.log("p_async: begin");
+async function f_0_1() {
+console.log("f_0_1(): begin");
+let p = Promise.resolve(42);
+console.log("f_0_1(): before return");
+return p;
+}
+async function f_0_2(x) {
+console.log("f_0_2(): begin with argument: " + x);
+let p = Promise.resolve(42 + x);
+console.log("f_0_2(): before return");
+return p;
+}
+async function f_0() {
+console.log("f_0(): begin");
+let r = await f_0_1();
+console.log("f_0(): before return");
+return await f_0_2(r);
+}
+console.log("p_async: before f_0()");
+f_0().then((x) => { console.log("Implicit promise in p_async got fulfilled with value: " + x); });
+console.log("p_async: end");
+$$|
+CALL p_async();
+SELECT js_get_console_log();
+js_get_console_log()
+p_async: begin
+p_async: before f_0()
+f_0(): begin
+f_0_1(): begin
+f_0_1(): before return
+p_async: end
+f_0(): before return
+f_0_2(): begin with argument: 42
+f_0_2(): before return
+Implicit promise in p_async got fulfilled with value: 84
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+10
+DROP PROCEDURE p_async;
+#
+# Complex test where promise got fulfilled from another JS routine.
+#
+# This works at the moment but certainly is not recommended.
+#
+# In general, one should try to ensure that ones promises are settled
+# within the single routine. Otherwise the resulting code becomes too
+# fragile/bug-prone.
+#
+# The main reason why behavior like in the test below is not blocked
+# is that it is non-trivial to do so without blocking some other legit
+# scenarios in which promise might be left pending at the end of routine
+# (see tests for Promise.any() and Promise.all() above).
+CREATE PROCEDURE p_create() LANGUAGE JS AS $$
+console.log("procedure p_create: begin");
+let p = new Promise((resolve, reject) => { globalThis.signalReady = resolve; });
+console.log("procedure p_create: before then");
+p.then((x) => { console.log("Promise p got fulfilled with value: " + x); });
+console.log("procedure p_create: end");
+$$|
+CREATE PROCEDURE p_fulfill() LANGUAGE JS AS $$
+console.log("procedure p_fulfill: begin");
+globalThis.signalReady("Ready!");
+console.log("procedure p_fulfill: end");
+$$|
+CALL p_create();
+SELECT js_get_console_log();
+js_get_console_log()
+procedure p_create: begin
+procedure p_create: before then
+procedure p_create: end
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+3
+CALL p_fulfill();
+SELECT js_get_console_log();
+js_get_console_log()
+procedure p_fulfill: begin
+procedure p_fulfill: end
+Promise p got fulfilled with value: Ready!
+
+SELECT js_clear_console_log();
+js_clear_console_log()
+3
+DROP PROCEDURE p_create;
+DROP PROCEDURE p_fulfill;
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 #
 # Test of component uninstallation while having outstanding per

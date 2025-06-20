@@ -50,7 +50,7 @@ jobs:
             fi
 
             echo "Checking clang-tidy static code analysis results"
-            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-tidy-diff-${COMPILER_VERSION}.py -clang-tidy-binary clang-tidy-${COMPILER_VERSION} -p1 -path /home/circleci/debug-build -export-fixes=fixes.yaml -extra-arg=-stdlib=libc++ || true
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-tidy-diff-${COMPILER_VERSION}.py -clang-tidy-binary clang-tidy-${COMPILER_VERSION} -p1 -path /home/circleci/debug-build -export-fixes=fixes.yaml -extra-arg=-v || true
             clang-apply-replacements-${COMPILER_VERSION} .
             git diff > _GIT_DIFF_TIDY
             if [ ! -s _GIT_DIFF_TIDY ]; then

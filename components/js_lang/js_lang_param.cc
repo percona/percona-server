@@ -849,7 +849,8 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
       assert(false);
       [[fallthrough]];
     }
-    // We treat YEAR type similarly to integer types.
+    // We treat YEAR type similarly to integer types
+    // (except case of Boolean JS values).
     case MYSQL_SP_ARG_TYPE_YEAR: {
       [[fallthrough]];
     }
@@ -867,6 +868,9 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
       H::get_param_signedness(m_sql_sp, param_idx, &is_signed);
 
       if (is_signed) {
+        // YEAR is always unsigned, so we don't have to handle it
+        // especially in this branch.
+        assert(sql_type != MYSQL_SP_ARG_TYPE_YEAR);
         return [](v8::Local<v8::Context> context, size_t idx,
                   v8::Local<v8::Value> result) -> bool {
           if (result->IsUndefined() || result->IsNull()) {
@@ -884,6 +888,15 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
             }
             // If direct conversion to int64_t is lossy, resort to
             // converting through string.
+          } else if (result->IsBoolean()) {
+            // Converting JS Boolean values to SQL integers through strngs,
+            // results in error, which is not what users expect (especially,
+            // since BOOL type is mapped to TINYINT).
+            // So we convert JS Boolean to 0/1 first. This is well aligned
+            // with what SQL-layer does when value of logical experssion is
+            // stored in integer field.
+            return H::set_param_int(
+                idx, result->BooleanValue(context->GetIsolate()));
           }
           // A natural thing would be to have alternative for JS Number as well
           // (i.e. get it as double and pass as double to SQL core).
@@ -911,8 +924,9 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
           return H::set_param_string(idx, *utf8, utf8.length());
         };
       } else {
-        return [](v8::Local<v8::Context> context, size_t idx,
-                  v8::Local<v8::Value> result) -> bool {
+        const bool is_year = (sql_type == MYSQL_SP_ARG_TYPE_YEAR);
+        return [is_year](v8::Local<v8::Context> context, size_t idx,
+                         v8::Local<v8::Value> result) -> bool {
           if (result->IsUndefined() || result->IsNull()) {
             return H::set_param_null(idx);
           } else if (result->IsUint32()) {
@@ -928,6 +942,15 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
             }
             // If direct conversion to uint64_t is lossy, resort to
             // converting through string.
+          } else if (!is_year && result->IsBoolean()) {
+            // Converting JS Boolean values to SQL integers through strngs,
+            // results in error, which is not what users expect.
+            // So we convert JS Boolean to 0/1 first. This is well aligned
+            // with what SQL-layer does when value of logical experssion is
+            // stored in integer field.
+            // Doing this for YEAR type doesn't make sense though.
+            return H::set_param_uint(
+                idx, result->BooleanValue(context->GetIsolate()));
           }
           // Convert JS value to JS string and get it as UTF-8.
           v8::String::Utf8Value utf8(context->GetIsolate(), result);
@@ -1015,6 +1038,10 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
     //
     // To avoid confusion we decided not to allow storing string JS
     // values which are not convertible to Number in BIT parameters.
+    //
+    // This works nicely even when Boolean JS values are converted to
+    // BIT (i.e. such values are converted to 0/1 and stored in SQL
+    // parameter without causing errors).
     case MYSQL_SP_ARG_TYPE_BIT: {
       return [](v8::Local<v8::Context> context, size_t idx,
                 v8::Local<v8::Value> result) -> bool {
@@ -1061,6 +1088,11 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
           // Number already, so no real conversion that can fail.
           double float_result = result->NumberValue(context).ToChecked();
           return H::set_param_float(idx, float_result);
+        } else if (result->IsBoolean()) {
+          // Convert JS Boolean values to floating-point SQL values
+          // similarly to how it is done for integers.
+          int int_result = result->BooleanValue(context->GetIsolate());
+          return H::set_param_float(idx, int_result);
         } else {
           // Convert JS value to JS string and get it as UTF-8.
           v8::String::Utf8Value utf8(context->GetIsolate(), result);
@@ -1162,6 +1194,39 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
         }
       };
     }
+    // In most cases we handle DECIMAL SQL-type by converting JS value to
+    // string and then letting SQL core to extract fixed point value.
+    //
+    // Unlike for integer or floating-point values it doesn't make sense
+    // to optimize conversion from Number type, as SQL core handles double
+    // -> DECIMAL conversions through strings.
+    //
+    // For Boolean JS values we convert to 0/1 first, and then store result
+    // as integer, to avoid unwanted errors.
+    case MYSQL_SP_ARG_TYPE_NEWDECIMAL: {
+      return [](v8::Local<v8::Context> context, size_t idx,
+                v8::Local<v8::Value> result) -> bool {
+        if (result->IsUndefined() || result->IsNull()) {
+          return H::set_param_null(idx);
+        } else if (result->IsBoolean()) {
+          // Convert JS Boolean values to DECIMAL SQL values
+          // similarly to how it is done for integers.
+          return H::set_param_int(idx,
+                                  result->BooleanValue(context->GetIsolate()));
+        } else {
+          // Convert JS value to JS string and get it as UTF-8.
+          v8::String::Utf8Value utf8(context->GetIsolate(), result);
+          if (!*utf8) {
+            // Conversion of JS value to JS string can fail (e.g. throw).
+            my_error_js_value_to_string_param();
+            return true;
+          }
+          // Implementation of datetime types in SQL core accepts input
+          // in UTF-8 without requiring conversion.
+          return H::set_param_string(idx, *utf8, utf8.length());
+        }
+      };
+    }
     // Obsolete types which shold not be possible to use as return
     // value for newly created routine.
     case MYSQL_SP_ARG_TYPE_DECIMAL:
@@ -1182,24 +1247,6 @@ Js_sp::set_param_func_t Js_sp::prepare_set_param_func(size_t param_idx) {
     // New SQL-types need analysis to be handled correctly.
     default: {
       assert(false);
-      [[fallthrough]];
-    }
-    // We handle DECIMAL SQL-type by converting JS value to string and
-    // then letting SQL core to extract fixed point value.
-    //
-    // Unlike for integer or floating-point values it doesn't make sense
-    // to optimize conversion from Number type, as SQL core handles int/
-    // double -> DECIMAL conversions through strings.
-    case MYSQL_SP_ARG_TYPE_NEWDECIMAL: {
-#ifndef NDEBUG
-      // It is important to avoid unnecessary work in the generic string
-      // handling code below and not to do charset conversions.
-      // Code which does parsing of decimal values only cares about latin1
-      // digits and spaces, so no conversion from UTF8 should be required.
-      const char *cs_name;
-      H::get_param_charset(m_sql_sp, param_idx, &cs_name);
-      assert(strcmp(cs_name, UTF8_CS_NAME) == 0);
-#endif
       [[fallthrough]];
     }
     // We handle ENUMs similarly to strings.

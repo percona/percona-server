@@ -1,0 +1,41 @@
+#
+# Test coverage for various bugs in JS stored routines.
+#
+--source include/have_js_lang_component.inc
+
+--echo # Global prepare of playground.
+--enable_connect_log
+
+INSTALL COMPONENT 'file://component_js_lang';
+
+GRANT CREATE_JS_ROUTINE ON *.* TO root@localhost;
+
+--echo #
+--echo # PS-9681: "boolean value true/false returned by JS stored function
+--echo #           is interpreted as a string value."
+--echo #
+--echo # Original test case reported. See additional coverage for conversion
+--echo # of JS Boolean values to numeric SQL parameters/returns values in
+--echo # js_lang_basic test.
+CREATE FUNCTION f_ps9681_0() RETURNS BOOL LANGUAGE JS AS $$ return false $$;
+CREATE FUNCTION f_ps9681_1() RETURNS BOOL LANGUAGE JS AS $$ return true $$;
+SELECT f_ps9681_0() AS f;
+SELECT f_ps9681_1() AS t;
+DROP FUNCTION f_ps9681_0;
+DROP FUNCTION f_ps9681_1;
+
+--echo # Global clean-up.
+REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
+
+--echo # Disconnect of default connection to free the only remaining
+--echo # connection context and isolate, so we can uninstall component.
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+
+UNINSTALL COMPONENT 'file://component_js_lang';
+
+--echo # Restart server to let subsequent tests to do INSTALL COMPONENT freely.
+--source include/restart_mysqld.inc
+
+--disable_connect_log

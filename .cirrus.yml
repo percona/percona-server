@@ -118,44 +118,7 @@ script_template: &SCRIPT_TEMPLATE
     path: ${RESULTS_FILE}.html
 
 
-task:
-  << : *FILTER_TEMPLATE
-  # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
-  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.4' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
-  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
-  ec2_instance:
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202307*"
-    image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20230728
-    # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
-    type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
-    region: us-east-1
-    architecture: arm64 # defaults to amd64
-    spot: true
-  env:
-    OS_TYPE: ubuntu-22.04-arm64
-  matrix:
-    - name: (arm64) gcc Debug [Ubuntu 22.04 Jammy]
-      env:
-        SELECTED_CC: gcc
-        SELECTED_CXX: g++
-        BUILD_TYPE: Debug
-    - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Jammy]
-      skip: $CIRRUS_PR != ""  # skip PRs
-      env:
-        SELECTED_CC: gcc
-        SELECTED_CXX: g++
-        BUILD_TYPE: RelWithDebInfo
-  mount_disk_script: |
-    lsblk
-    lsblk -f
-    df -Th
-    sudo mkfs -t xfs /dev/nvme1n1
-    sudo mkdir $MOUNT_POINT
-    sudo mount /dev/nvme1n1 $MOUNT_POINT
-    df -Th
-  << : *SCRIPT_TEMPLATE
-
-
+# DISABLED: (x86_64) Ubuntu 24.04 Noble for percona/percona-server
 task:
   << : *FILTER_TEMPLATE
   # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
@@ -191,6 +154,7 @@ task:
   << : *SCRIPT_TEMPLATE
 
 
+# (x86_64) Ubuntu 24.04 Noble for percona/percona-server
 task:
   << : *FILTER_TEMPLATE
   # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
@@ -198,28 +162,32 @@ task:
   aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
-    image: ami-0f9f8d3ed33d7cb88 # Ubuntu 22.04.1 x86-64 with 40 GB gp2 and percona-server gcc-13 gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12
-    type: c6a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
+    #image: ami-0f9f8d3ed33d7cb88 # Ubuntu 22.04.1 x86-64 with 40 GB gp2 and percona-server gcc-13 gcc-12 gcc-11 gcc-10 gcc-9 clang-15 clang-14 clang-13 node-12
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-202506*"
+    image: ami-0f384563326d8c771 # Ubuntu 24.04.2 Noble, amd64 with 40 GB gp3, gcc-14
+    #
+    #type: c6a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.612 USD/H
     #type: c5a.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.616 USD/H
     #type: c5.4xlarge   # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
     #type: c6i.4xlarge  # 16 vCPUs, 32 GB, no SSD, 0.68 USD/H
+    type: c5ad.4xlarge
     region: us-east-1
-    architecture: amd64 # defautls to amd64
+    architecture: amd64 # defaults to amd64
     spot: true
   env:
-    OS_TYPE: ubuntu-22.04-x86_64
+    OS_TYPE: ubuntu-24.04-x86_64
   matrix:
-    - name: (x86_64) gcc-13 Debug INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-14 Debug INVERTED [Ubuntu 24.04 Noble]
       env:
-        SELECTED_CC: gcc-13
-        SELECTED_CXX: g++-13
+        SELECTED_CC: gcc-14
+        SELECTED_CXX: g++-14
         BUILD_TYPE: Debug
         BUILD_PARAMS_TYPE: inverted
-    - name: (x86_64) gcc-13 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-14 RelWithDebInfo INVERTED [Ubuntu 24.04 Noble]
       skip: $CIRRUS_PR != ""  # skip PRs
       env:
-        SELECTED_CC: gcc-13
-        SELECTED_CXX: g++-13
+        SELECTED_CC: gcc-14
+        SELECTED_CXX: g++-14
         BUILD_TYPE: RelWithDebInfo
         BUILD_PARAMS_TYPE: inverted
   mount_disk_script: |
@@ -228,28 +196,72 @@ task:
   << : *SCRIPT_TEMPLATE
 
 
+# (arm64) Ubuntu 24.04 Noble for percona/percona-server
 task:
   << : *FILTER_TEMPLATE
-  aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
-  # run only on "inikep/percona-server" when a branch name contains "cirrus-arm"
-  only_if: "$CIRRUS_BRANCH =~ '.*cirrus-arm.*' && $CIRRUS_REPO_FULL_NAME == 'inikep/percona-server' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
+  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.4' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202212*"
-    image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20221206
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202506*"
+    # image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20250617
     # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-2025*"
+    image: ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20250610
     type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
-    region: us-east-1
-    architecture: arm64 # defautls to amd64
+    region: us-west-1
+    architecture: arm64 # defaults to amd64
     spot: true
   env:
-    OS_TYPE: ubuntu-22.04-arm64
+    OS_TYPE: ubuntu-24.04-arm64
   matrix:
-    - name: (arm64) gcc Debug [Ubuntu 22.04 Jammy]
+    - name: (arm64) gcc Debug [Ubuntu 24.04 Noble]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
         BUILD_TYPE: Debug
-    - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Jammy]
+    - name: (arm64) gcc RelWithDebInfo [Ubuntu 24.04 Noble]
+      skip: $CIRRUS_PR != ""  # skip PRs
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: RelWithDebInfo
+  mount_disk_script: |
+    lsblk
+    lsblk -f
+    df -Th
+    sudo mkfs -t xfs /dev/nvme1n1
+    sudo mkdir $MOUNT_POINT
+    sudo mount /dev/nvme1n1 $MOUNT_POINT
+    df -Th
+  << : *SCRIPT_TEMPLATE
+
+
+# (arm64) Ubuntu 24.04 Noble for inikep/percona-server
+task:
+  << : *FILTER_TEMPLATE
+  # run only on "inikep/percona-server" when a branch name contains "cirrus-arm"
+  only_if: "$CIRRUS_BRANCH =~ '.*cirrus-arm.*' && $CIRRUS_REPO_FULL_NAME == 'inikep/percona-server' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
+  aws_credentials: ENCRYPTED[!92ac22d2430cf40dfcec42f739513a65c8b368c822cb397e95f799d41c0ba4498c3a1c337ab14a25cc47b2d4b53c46c5!]
+  ec2_instance:
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202506*"
+    # image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20250617
+    # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-2025*" | grep "ubuntu-noble-24.04-arm64-server-202506"
+    image: ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20250610
+    type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
+    region: us-west-1
+    architecture: arm64 # defaults to amd64
+    spot: true
+  env:
+    OS_TYPE: ubuntu-24.04-arm64
+  matrix:
+    - name: (arm64) gcc Debug [Ubuntu 24.04 Noble]
+      env:
+        SELECTED_CC: gcc
+        SELECTED_CXX: g++
+        BUILD_TYPE: Debug
+    - name: (arm64) gcc RelWithDebInfo [Ubuntu 24.04 Noble]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++

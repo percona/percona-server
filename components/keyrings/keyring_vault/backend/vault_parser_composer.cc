@@ -181,7 +181,7 @@ bool Keyring_vault_parser_composer::parse_errors(const pfs_string &payload,
   const rapidjson::Value &errors_node = it->value;
   if (!errors_node.IsArray()) return true;
 
-  pfs_secure_ostringstream oss;
+  pfs_ostringstream oss;
   for (std::size_t u = 0; u < errors_node.Size(); ++u) {
     if (u != 0) oss << '\n';
     const rapidjson::Value &first_error_node = errors_node[u];

@@ -1,0 +1,4 @@
+--source include/have_component_keyring_vault.inc
+
+--let $DLOPEN_CHECKER_LIBRARY_PATH = $KEYRING_VAULT_COMPONENT_DIR/$KEYRING_VAULT_COMPONENT
+--source include/keyring_tests/mats/dynamic_loading.inc

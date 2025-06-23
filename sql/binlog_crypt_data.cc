@@ -53,7 +53,7 @@ Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b)
 void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length) noexcept {
   if (key != nullptr) {
     assert(key_length == 16);
-    memset_s(key, 512, 0, key_length);
+    my_memset_s(key, 512, 0, key_length);
     my_free(key);
     key = nullptr;
     key_length = 0;

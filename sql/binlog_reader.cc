@@ -91,7 +91,7 @@ Binlog_event_data_istream::Decryption_buffer::~Decryption_buffer() {
 }
 
 bool Binlog_event_data_istream::Decryption_buffer::resize(size_t new_size) {
-  memset_s(m_buffer, m_size, 0, m_size);
+  my_memset_s(m_buffer, m_size, 0, m_size);
   delete[] m_buffer;
   m_size = 0;
   m_buffer = nullptr;

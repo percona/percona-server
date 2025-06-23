@@ -24,12 +24,12 @@
 #ifndef MYSQL_KEYRING_MEMORY_H
 #define MYSQL_KEYRING_MEMORY_H
 
-#include <string.h>
 #include <limits>
 #include <memory>
+#include <new>
 
-#include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
+#include <my_sys.h>
+#include <mysql/service_mysql_alloc.h>
 
 namespace keyring {
 
@@ -78,7 +78,7 @@ class Secure_allocator {
   }
 
   void deallocate(T *p, size_t n) noexcept {
-    memset_s(p, n, 0, n);
+    my_memset_s(p, n, 0, n);
     my_free(p);
   }
 

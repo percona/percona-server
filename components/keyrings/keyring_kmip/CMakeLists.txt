@@ -84,6 +84,9 @@ MYSQL_ADD_COMPONENT(keyring_kmip
   LINK_LIBRARIES ${KEYRING_KMIP_LIBRARIES}
   MODULE_ONLY
 )
+
+MY_TARGET_LINK_OPTIONS(component_keyring_kmip "${LINK_FLAG_NO_UNDEFINED}")
+
 IF(APPLE)
   SET_TARGET_PROPERTIES(component_keyring_kmip PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")

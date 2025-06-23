@@ -1,0 +1,4 @@
+--source include/have_component_keyring_file.inc
+
+--let $DLOPEN_CHECKER_LIBRARY_PATH = $KEYRING_KMS_COMPONENT_DIR/$KEYRING_KMS_COMPONENT
+--source include/keyring_tests/mats/dynamic_loading.inc

@@ -9,7 +9,6 @@ set(SRC_FILES)
 list(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/components/keyrings/common/data/meta.cc
   ${CMAKE_SOURCE_DIR}/components/keyrings/common/data/data.cc
-  ${CMAKE_SOURCE_DIR}/components/keyrings/common/data/pfs_string.cpp
   ${CMAKE_SOURCE_DIR}/components/keyrings/common/utils/utils.cc
   ${CMAKE_SOURCE_DIR}/components/keyrings/keyring_vault/config/config.cc
   ${CMAKE_SOURCE_DIR}/components/keyrings/keyring_vault/backend/backend.cc
@@ -22,7 +21,7 @@ list(APPEND SRC_FILES
 
 add_library(component_keyring_vault_test STATIC ${SRC_FILES})
 add_dependencies(component_keyring_vault_test GenError)
-target_link_libraries(component_keyring_vault_test extra::rapidjson)
+target_link_libraries(component_keyring_vault_test extra::rapidjson library_mysys)
 target_compile_definitions(component_keyring_vault_test PUBLIC LOG_COMPONENT_TAG="component_keyring_vault")
 target_include_directories(component_keyring_vault_test SYSTEM PUBLIC
   ${CMAKE_SOURCE_DIR}

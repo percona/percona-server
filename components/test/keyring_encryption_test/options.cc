@@ -33,7 +33,6 @@
 #include <my_inttypes.h>              /* typedefs */
 #include <my_macros.h>                /* STRINGIFY_ARG */
 #include <mysql.h>                    /* MYSQL */
-#include <mysql/service_mysql_alloc.h>/* my_strdup */
 #include <mysql_com.h>                /* get_tty_password */
 #include <print_version.h>            /* print_version */
 #include <typelib.h>                  /* find_type_or_exit */

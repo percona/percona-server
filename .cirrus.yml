@@ -154,7 +154,7 @@ task:
   << : *SCRIPT_TEMPLATE
 
 
-# (x86_64) Ubuntu 22.04 Jammy for percona/percona-server
+# (x86_64) Ubuntu 24.04 Noble for percona/percona-server
 task:
   << : *FILTER_TEMPLATE
   # run only on "percona/percona-server" but not on "trunk" as we have nightly cron builds for "trunk" branch
@@ -175,15 +175,15 @@ task:
     architecture: amd64 # defaults to amd64
     spot: true
   env:
-    OS_TYPE: ubuntu-22.04-x86_64
+    OS_TYPE: ubuntu-24.04-x86_64
   matrix:
-    - name: (x86_64) gcc-14 Debug INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-14 Debug INVERTED [Ubuntu 24.04 Noble]
       env:
         SELECTED_CC: gcc-14
         SELECTED_CXX: g++-14
         BUILD_TYPE: Debug
         BUILD_PARAMS_TYPE: inverted
-    - name: (x86_64) gcc-14 RelWithDebInfo INVERTED [Ubuntu 22.04 Jammy]
+    - name: (x86_64) gcc-14 RelWithDebInfo INVERTED [Ubuntu 24.04 Noble]
       skip: $CIRRUS_PR != ""  # skip PRs
       env:
         SELECTED_CC: gcc-14
@@ -261,7 +261,7 @@ task:
         SELECTED_CC: gcc
         SELECTED_CXX: g++
         BUILD_TYPE: Debug
-    - name: (arm64) gcc RelWithDebInfo [Ubuntu 22.04 Noble]
+    - name: (arm64) gcc RelWithDebInfo [Ubuntu 24.04 Noble]
       env:
         SELECTED_CC: gcc
         SELECTED_CXX: g++

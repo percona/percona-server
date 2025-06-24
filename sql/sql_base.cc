@@ -9674,7 +9674,7 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
         **it = item; /* Replace '*' with the first found item. */
       } else {
         /* Add 'item' to the SELECT list, after the current one. */
-        *it = fields->insert(*it + 1, item);
+        *it = fields->insert(std::next(*it), item);
       }
 
       /*

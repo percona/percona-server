@@ -43,117 +43,6 @@ external tools. */
 #include "rem0lrec.h"
 #include "rem0rec.h"
 
-/** Initialize offset for each field in a new style record.
-@param[in]      rec     physical record
-@param[in]      index   record descriptor
-@param[in, out] offsets array of offsets */
-static void rec_init_offsets_new(const rec_t *rec, const dict_index_t *index,
-                                 ulint *offsets) {
-  ulint status = rec_get_status(rec);
-  ulint n_node_ptr_field = ULINT_UNDEFINED;
-
-  switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
-    case REC_STATUS_INFIMUM:
-    case REC_STATUS_SUPREMUM:
-      /* the field is 8 bytes long */
-      rec_offs_base(offsets)[0] = REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
-      rec_offs_base(offsets)[1] = 8;
-      return;
-    case REC_STATUS_NODE_PTR:
-      n_node_ptr_field = dict_index_get_n_unique_in_tree_nonleaf(index);
-      break;
-    case REC_STATUS_ORDINARY:
-      rec_init_offsets_comp_ordinary(rec, false, index, offsets);
-      return;
-  }
-
-  /* This is non-leaf record. */
-  ut_ad(!rec_new_is_versioned(rec));
-
-  const byte *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-  const size_t nullable_cols = index->get_nullable_before_instant_add_drop();
-
-  const byte *lens = nulls - UT_BITS_IN_BYTES(nullable_cols);
-  ulint offs = 0;
-  ulint null_mask = 1;
-
-  /* read the lengths of fields 0..n */
-  ulint i = 0;
-  dict_field_t *field = nullptr;
-  do {
-    ulint len;
-    if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
-      len = offs += REC_NODE_PTR_SIZE;
-      goto resolved;
-    }
-
-    field = index->get_field(i);
-    if (!(field->col->prtype & DATA_NOT_NULL)) {
-      /* nullable field => read the null flag */
-
-      if (UNIV_UNLIKELY(!(byte)null_mask)) {
-        nulls--;
-        null_mask = 1;
-      }
-
-      if (*nulls & null_mask) {
-        null_mask <<= 1;
-        /* No length is stored for NULL fields.
-        We do not advance offs, and we set
-        the length to zero and enable the
-        SQL NULL flag in offsets[]. */
-        len = offs | REC_OFFS_SQL_NULL;
-        goto resolved;
-      }
-      null_mask <<= 1;
-    }
-
-    if (UNIV_UNLIKELY(!field->fixed_len)) {
-      const dict_col_t *col = field->col;
-      /* DATA_POINT should always be a fixed
-      length column. */
-      ut_ad(col->mtype != DATA_POINT);
-      /* Variable-length field: read the length */
-      len = *lens--;
-      /* If the maximum length of the field
-      is up to 255 bytes, the actual length
-      is always stored in one byte. If the
-      maximum length is more than 255 bytes,
-      the actual length is stored in one
-      byte for 0..127.  The length will be
-      encoded in two bytes when it is 128 or
-      more, or when the field is stored
-      externally. */
-      if (DATA_BIG_COL(col)) {
-        if (len & 0x80) {
-          /* 1exxxxxxx xxxxxxxx */
-
-          len <<= 8;
-          len |= *lens--;
-
-          /* B-tree node pointers
-          must not contain externally
-          stored columns.  Thus
-          the "e" flag must be 0. */
-          ut_a(!(len & 0x4000));
-          offs += len & 0x3fff;
-          len = offs;
-
-          goto resolved;
-        }
-      }
-
-      len = offs += len;
-    } else {
-      len = offs += field->fixed_len;
-    }
-  resolved:
-    rec_offs_base(offsets)[i + 1] = len;
-  } while (++i < rec_offs_n_fields(offsets));
-
-  *rec_offs_base(offsets) = (rec - (lens + 1)) | REC_OFFS_COMPACT;
-}
-
 /** Initialize offsets for record in REDUNDNT format when each field offsets is
 stored in 1 byte.
 @param[in]      rec     physical record
@@ -350,7 +239,107 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
   rec_offs_make_valid(rec, index, offsets);
 
   if (dict_table_is_comp(index->table)) {
-    rec_init_offsets_new(rec, index, offsets);
+    ulint status = rec_get_status(rec);
+    ulint n_node_ptr_field = ULINT_UNDEFINED;
+
+    if (status == REC_STATUS_ORDINARY) {
+      rec_init_offsets_comp_ordinary(rec, false, index, offsets);
+      return;
+    } else if (status == REC_STATUS_NODE_PTR) {
+      n_node_ptr_field = dict_index_get_n_unique_in_tree_nonleaf(index);
+    } else if (status == REC_STATUS_INFIMUM || status == REC_STATUS_SUPREMUM) {
+      /* the field is 8 bytes long */
+      rec_offs_base(offsets)[0] = REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
+      rec_offs_base(offsets)[1] = 8;
+      return;
+    }
+
+    /* This is non-leaf record. */
+    ut_ad(!rec_new_is_versioned(rec));
+
+    const byte *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+    const size_t nullable_cols = index->get_nullable_before_instant_add_drop();
+
+    const byte *lens = nulls - UT_BITS_IN_BYTES(nullable_cols);
+    ulint offs = 0;
+    ulint null_mask = 1;
+
+    /* read the lengths of fields 0..n */
+    ulint i = 0;
+    dict_field_t *field = nullptr;
+    do {
+      ulint len;
+      if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
+        len = offs += REC_NODE_PTR_SIZE;
+        goto resolved;
+      }
+
+      field = index->get_field(i);
+      if (!(field->col->prtype & DATA_NOT_NULL)) {
+        /* nullable field => read the null flag */
+
+        if (UNIV_UNLIKELY(!(byte)null_mask)) {
+          nulls--;
+          null_mask = 1;
+        }
+
+        if (*nulls & null_mask) {
+          null_mask <<= 1;
+          /* No length is stored for NULL fields.
+             We do not advance offs, and we set
+             the length to zero and enable the
+             SQL NULL flag in offsets[]. */
+          len = offs | REC_OFFS_SQL_NULL;
+          goto resolved;
+        }
+        null_mask <<= 1;
+      }
+
+      if (UNIV_UNLIKELY(!field->fixed_len)) {
+        const dict_col_t *col = field->col;
+        /* DATA_POINT should always be a fixed
+           length column. */
+        ut_ad(col->mtype != DATA_POINT);
+        /* Variable-length field: read the length */
+        len = *lens--;
+        /* If the maximum length of the field
+           is up to 255 bytes, the actual length
+           is always stored in one byte. If the
+           maximum length is more than 255 bytes,
+           the actual length is stored in one
+           byte for 0..127.  The length will be
+           encoded in two bytes when it is 128 or
+           more, or when the field is stored
+           externally. */
+        if (DATA_BIG_COL(col)) {
+          if (len & 0x80) {
+            /* 1exxxxxxx xxxxxxxx */
+
+            len <<= 8;
+            len |= *lens--;
+
+            /* B-tree node pointers
+               must not contain externally
+               stored columns.  Thus
+               the "e" flag must be 0. */
+            ut_a(!(len & 0x4000));
+            offs += len & 0x3fff;
+            len = offs;
+
+            goto resolved;
+          }
+        }
+
+        len = offs += len;
+      } else {
+        len = offs += field->fixed_len;
+      }
+resolved:
+      rec_offs_base(offsets)[i + 1] = len;
+    } while (++i < rec_offs_n_fields(offsets));
+
+    *rec_offs_base(offsets) = (rec - (lens + 1)) | REC_OFFS_COMPACT;
+
   } else {
     rec_init_offsets_old(rec, index, offsets);
   }

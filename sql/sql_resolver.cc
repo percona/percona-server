@@ -5289,6 +5289,7 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
     }
 
     size_t item_index = 0;
+    auto field_it = fields.begin();
     for (auto it = values_row->begin(); it != values_row->end(); ++it) {
       Item *item = *it;
       if ((!item->fixed && item->fix_fields(thd, &*it)) ||
@@ -5321,7 +5322,9 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
         // Make sure to also replace the reference in item_list. In the case
         // where fix_fields transforms an item, it.ref() will only update the
         // reference of values_row.
-        if (first_execution) fields[item_index] = item;
+        if (first_execution) {
+          *field_it = item;
+        }
       } else {
         Item_values_column *column = down_cast<Item_values_column *>(
             GetNthVisibleField(fields, item_index));
@@ -5330,6 +5333,7 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
         column->fixed = true;  // Does not have regular fix_fields()
       }
 
+      field_it++;
       ++item_index;
     }
 
@@ -5526,8 +5530,11 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
     // Append inner expressions of decorrelated equalities to the SELECT
     // list. Correct context info of outer expressions.
-    auto it_outer = sj_outer_exprs.begin() + initial_sj_inner_exprs_count;
-    auto it_inner = sj_inner_exprs.begin() + initial_sj_inner_exprs_count;
+    auto it_outer =
+        std::next(sj_outer_exprs.begin(), initial_sj_inner_exprs_count);
+    auto it_inner =
+        std::next(sj_inner_exprs.begin(), initial_sj_inner_exprs_count);
+
     for (int i = 0; it_outer != sj_outer_exprs.end();
          ++it_outer, ++it_inner, ++i) {
       Item *inner = *it_inner;
@@ -6747,12 +6754,13 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
                            return tl->join_cond() == join_cond;
                          });
   assert(it != copy_list.end());  // assert that we found it
-  const size_t idx = it - copy_list.begin();
-
-  // Insert back all outer tables to the inner containing the condition.
-  // Normally only one.
-  for (size_t i = 0; i < idx; i++) {
-    jlist.push_front(copy_list[i]);
+  size_t idx = 0;
+  for (auto tmp = copy_list.begin(); tmp != copy_list.end(); ++tmp) {
+    if (it == tmp) {
+      break;
+    }
+    jlist.push_front(*tmp);
+    idx++;
   }
 
   // Insert the derived table and nest it with the outer(s)
@@ -7005,9 +7013,9 @@ bool Query_block::add_inner_fields_to_select_list(
       m_added_non_hidden_fields++;
 
       // If f->hidden, f should be among the hidden fields in 'fields'.
-      assert(std::any_of(fields.cbegin(), fields.cbegin() + first_non_hidden,
-                         [&f](const Item *item) { return f == item; }) ==
-             f->hidden);
+      assert(std::any_of(
+                 fields.cbegin(), std::next(fields.cbegin(), first_non_hidden),
+                 [&f](const Item *item) { return f == item; }) == f->hidden);
 
       Item_field *inner_field;
 

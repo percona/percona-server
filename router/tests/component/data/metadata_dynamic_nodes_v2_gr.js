@@ -64,12 +64,12 @@ if (mysqld.global.transaction_count === undefined) {
 }
 
 // at start, .connects is undefined
-// at first connect, set it to 0
+// at first connect, set it to 1
 // at each following connect, increment it.
 //
 // .globals is shared between mock-server threads
 if (mysqld.global.connects === undefined) {
-  mysqld.global.connects = 0;
+  mysqld.global.connects = 1;
 } else {
   mysqld.global.connects = mysqld.global.connects + 1;
 }

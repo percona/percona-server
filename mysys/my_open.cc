@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,10 @@
 
 #include "my_config.h"
 
-#include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <sys/types.h>
+#include <cerrno>
+#include <cstddef>
 #include <iostream>
 #include <thread>
 #ifdef HAVE_SYS_UN_H

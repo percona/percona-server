@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -896,11 +896,6 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
-
-/**
-  Interface to get the number of VCPUs.
-*/
-unsigned int thd_get_num_vcpus();
 
 int thd_command(const MYSQL_THD thd);
 long long thd_start_time(const MYSQL_THD thd);

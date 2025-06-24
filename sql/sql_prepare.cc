@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1330,6 +1330,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_DROP_EVENT:
     case SQLCOM_CREATE_LIBRARY:
     case SQLCOM_DROP_LIBRARY:
+    case SQLCOM_ALTER_LIBRARY:
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_DELETE:
@@ -1377,6 +1378,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_SHOW_STATUS:
     case SQLCOM_SHOW_STATUS_PROC:
     case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_STATUS_LIBRARY:
     case SQLCOM_SHOW_STORAGE_ENGINES:
     case SQLCOM_SHOW_TABLE_STATUS:
     case SQLCOM_SHOW_TABLES:

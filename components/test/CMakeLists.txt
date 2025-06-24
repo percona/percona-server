@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,11 @@ MYSQL_ADD_COMPONENT(test_audit_api_message
   )
 MYSQL_ADD_COMPONENT(test_mysql_runtime_error
   test_mysql_runtime_error.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+MYSQL_ADD_COMPONENT(test_udf_aggregate
+  test_udf_aggregate.cc
   MODULE_ONLY
   TEST_ONLY
   )

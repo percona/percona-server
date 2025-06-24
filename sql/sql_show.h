@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -602,6 +602,13 @@ class Sql_cmd_show_status : public Sql_cmd_show {
  public:
   Sql_cmd_show_status() : Sql_cmd_show(SQLCOM_SHOW_STATUS) {}
   bool execute(THD *thd) override;
+};
+
+/// Represents SHOW STATUS LIBRARY statement.
+
+class Sql_cmd_show_status_library : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_status_library() : Sql_cmd_show(SQLCOM_SHOW_STATUS_LIBRARY) {}
 };
 
 /// Represents SHOW STATUS FUNCTION statement.

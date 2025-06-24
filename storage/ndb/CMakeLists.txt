@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,15 +32,15 @@ INCLUDE(ndb_add_executable)
 MSVC_CPPCHECK_DISABLE()
 DISABLE_MISSING_PROFILE_WARNING()
 
-IF(NOT WITHOUT_SERVER)
-  IF(WIN32)
-    SET(DEFAULT_TLS_SEARCH_PATH "$HOMEPATH/ndb-tls")
-  ELSE()
-    SET(DEFAULT_TLS_SEARCH_PATH "$HOME/ndb-tls")
-  ENDIF()
-  SET(WITH_NDB_TLS_SEARCH_PATH ${DEFAULT_TLS_SEARCH_PATH}
-      CACHE STRING "Search path for TLS keys and certificates")
+IF(WIN32)
+  SET(DEFAULT_TLS_SEARCH_PATH "$HOMEPATH/ndb-tls")
+ELSE()
+  SET(DEFAULT_TLS_SEARCH_PATH "$HOME/ndb-tls")
+ENDIF()
+SET(WITH_NDB_TLS_SEARCH_PATH ${DEFAULT_TLS_SEARCH_PATH}
+    CACHE STRING "Search path for TLS keys and certificates")
 
+IF(NOT WITHOUT_SERVER)
   #
   # Add the ndbcluster plugin
   #

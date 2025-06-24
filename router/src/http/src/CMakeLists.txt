@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,9 @@ ROUTER_ADD_SHARED_LIBRARY(http_common
   http/base/http_time.cc
 
   OUTPUT_NAME "mysqlrouter_http"
+
+  COMPILE_DEFINITIONS
+  MYSQL_ROUTER_LOG_DOMAIN="http_common"
 
   LINK_LIBRARIES
   PUBLIC
@@ -130,12 +133,16 @@ ROUTER_ADD_SHARED_LIBRARY(http_server_lib
   http/server/bind.cc
   http/server/request.cc
   http/server/server.cc
+  http/server/regex_matcher.cc
   http/http_server_context.cc
   http_auth.cc
   http_server_component.cc
   http_request_router.cc
 
   OUTPUT_NAME "mysqlrouter_http_server"
+
+  COMPILE_DEFINITIONS
+  MYSQL_ROUTER_LOG_DOMAIN="http_server"
 
   LINK_LIBRARIES
   PUBLIC
@@ -179,9 +186,7 @@ ROUTER_ADD_SHARED_LIBRARY(http_client
   http/client/error_code.cc
   http/client/request.cc
 
-  OUTPUT_NAME "http_client"
-
-  SKIP_INSTALL
+  OUTPUT_NAME "mysqlrouter_http_client"
 
   LINK_LIBRARIES
   ${LIBRT}

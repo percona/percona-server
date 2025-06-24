@@ -43,6 +43,7 @@
 #include <vector>
 
 /* MySQL includes */
+#include <mysqld_error.h>
 #include "my_sys.h"
 #include "mysql/thread_pool_priv.h"
 #include "mysys_err.h"
@@ -60,7 +61,6 @@
 #include "sql/sql_thd_internal_api.h"
 #include "sql/strfunc.h"
 #include "sql/table.h"
-#include "sql/strfunc.h"
 
 /* RocksDB includes */
 #include "monitoring/histogram.h"

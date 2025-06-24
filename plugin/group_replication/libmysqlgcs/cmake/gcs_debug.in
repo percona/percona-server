@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +311,7 @@ extern uint32_t get_my_xcom_id();
   ADD_GOUT(__func__);                                               \
   ADD_F_GOUT(" pid %d xcom_id %x %s:%d ", xpid(), get_my_xcom_id(), \
              fixpath(__FILE__), __LINE__)
-#define PTREXP(x) ADD_F_GOUT(#x ": %p ", (void const*)(x))
+#define PTREXP(x) ADD_F_GOUT(#x ": %p ", (void const *)(x))
 #define CONSTPTREXP(x) PTREXP(x)
 #define PPUT(x) ADD_F_GOUT("0x%p ", (void *)(x))
 #define STREXP(x) ADD_F_GOUT(#x ": %s ", x)
@@ -326,7 +326,6 @@ extern uint32_t get_my_xcom_id();
 #define NPUT64(x) ADD_F_GOUT("%" PRIu64 " ", x)
 #define NEXP(x, f) ADD_F_GOUT(#x ": %" #f " ", x)
 #define NUMEXP(x) NEXP(x, d)
-#define g_strerror strerror
 #define LOUT(pri, x) ADD_F_GOUT(x);
 #define SYCEXP(exp)                                                       \
   ADD_F_GOUT(#exp "={%x %" PRIu64 " %u} ", (exp).group_id, ((exp).msgno), \

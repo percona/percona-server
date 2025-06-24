@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,7 @@ MYSQL_ADD_EXECUTABLE(mysqltest
   LINK_LIBRARIES perconaserverclient
   )
 
-IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
-  TARGET_LINK_OPTIONS(mysqltest PRIVATE -Wno-error=stringop-overflow)
-ENDIF()
+DOWNGRADE_STRINGOP_WARNINGS(mysqltest)
 
 IF (WITH_COREDUMPER)
   TARGET_LINK_LIBRARIES(mysqltest coredumper)

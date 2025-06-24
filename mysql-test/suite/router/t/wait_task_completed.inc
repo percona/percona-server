@@ -1,0 +1,2 @@
+--let $wait_condition=select status in ('COMPLETED','ERROR','CANCELLED') from mysql_tasks.task_status_impl where id=uuid_to_bin('$task_id',1);
+--source include/wait_condition.inc

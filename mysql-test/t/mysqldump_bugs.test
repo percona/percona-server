@@ -187,3 +187,19 @@ DROP DATABASE B35205310;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # Bug #37353658: Contribution: Remove whitespace between INSERT/REPLACE and IGNORE
+--echo #
+
+CREATE DATABASE B37353658;
+CREATE TABLE B37353658.t1 (a INT);
+INSERT INTO B37353658.t1 VALUES (1),(2),(3),(4);
+
+--echo # Test should not have double space between INSERT and IGNORE
+--exec $MYSQL_DUMP --skip-comments --compact --no-create-info --insert-ignore B37353658 t1
+
+DROP DATABASE B37353658;
+
+--echo #End of 9.3 tests

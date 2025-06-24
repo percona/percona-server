@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -666,5 +666,24 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
 
 extern std::atomic_ulong deprecated_use_fk_on_non_standard_key_count;
 extern std::atomic_ullong deprecated_use_fk_on_non_standard_key_last_timestamp;
+
+/**
+  Resolves the secondary engine handled via its name and calls the unload
+  table function
+*/
+bool secondary_engine_unload_table_inner(THD *thd, const char *db_name,
+                                         const char *table_name,
+                                         LEX_CSTRING secondary_engine,
+                                         bool is_partitioned,
+                                         bool error_if_not_loaded);
+
+/**
+  Validation on create temporary table statements with secondary engine defined:
+  1. Check that the create table statement contains a query.
+  2. Set the lex state indicating that the query can execute only
+  on the secondary engine.
+*/
+bool validate_secondary_engine_temporary_table(THD *thd,
+                                               HA_CREATE_INFO *create_info);
 
 #endif /* SQL_TABLE_INCLUDED */

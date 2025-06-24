@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ int ndb_file::read_backward(void *buf, ndb_file::size_t count) const {
   // Seek -count, read should read all.
   // if partial read - fatal error!
   errno = 0;
-  const off_t off_count = (off_t)count;
+  const auto off_count = (off_t)count;
   if (off_count < 0 || std::uintmax_t{count} != std::uintmax_t(off_count)) {
     errno = EOVERFLOW;
     return -1;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,17 @@ TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefresh0) {
   launch_router(metadata_cache_section, routing_rw + routing_ro, classic_ports,
                 EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
-  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 2));
+
+  // each step is wrapped into a transaction.
+  //
+  // - fetch metadata
+  // - update last-connect
+  // - update routing-guidelines
+  // - update ...
+  //
+  // wait until all of them are finished to see if there are new connections
+  // established. Any number above 4-5 is fine.
+  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 6));
 
   SCOPED_TRACE("// check that router works.");
   {
@@ -210,10 +220,23 @@ TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefresh0) {
     EXPECT_EQ(*port_res, classic_ports[1]);
   }
 
-  std::string server_globals =
-      MockServerRestClient(http_ports[0]).get_globals_as_json_string();
+  SCOPED_TRACE("// check the number of connections to the PRIMARY.");
+  {
+    std::string server_globals =
+        MockServerRestClient(http_ports[0]).get_globals_as_json_string();
 
-  EXPECT_EQ(get_int_field_value(server_globals, "connects"), 1);
+    // the metadata-connection.
+    EXPECT_EQ(get_int_field_value(server_globals, "connects"), 1);
+  }
+
+  SCOPED_TRACE("// check the number of connections to the SECONDARY.");
+  {
+    std::string server_globals =
+        MockServerRestClient(http_ports[1]).get_globals_as_json_string();
+
+    // the user connection.
+    EXPECT_EQ(get_int_field_value(server_globals, "connects"), 1);
+  }
 }
 
 TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefresh1) {
@@ -259,7 +282,7 @@ TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefresh1) {
   launch_router(metadata_cache_section, routing_rw + routing_ro, classic_ports,
                 EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
-  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 6));
 
   SCOPED_TRACE("// check that router works.");
   {
@@ -273,6 +296,8 @@ TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefresh1) {
   std::string server_globals =
       MockServerRestClient(http_ports[0]).get_globals_as_json_string();
 
+  // each refresh and update should increment the connects-count.
+  //
   EXPECT_GE(get_int_field_value(server_globals, "connects"), 2);
 }
 
@@ -315,7 +340,7 @@ TEST_F(MetadataCacheTTLTest, CloseConnectionAfterRefreshDefault) {
   launch_router(metadata_cache_section, routing_rw + routing_ro, classic_ports,
                 EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
-  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 2));
+  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 6));
 
   SCOPED_TRACE("// check that router works.");
   {

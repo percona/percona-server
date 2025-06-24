@@ -778,5 +778,18 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug35290350.sql;
 --echo # Test "system": Must pass
 --exec $MYSQL test --system-command -e "system echo Hello World;" 2>&1
 
+--echo #
+--echo # Bug#37510263: Contribution: Report third decimal place for milliseconds
+--echo #
+--exec $MYSQL test -e "SELECT 12" --verbose --verbose --verbose > $MYSQLTEST_VARDIR/tmp/bug37510263.output
+
+--let $assert_text=Find 3 digits post-decimal
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/bug37510263.output
+--let $assert_select=1 row in set .[0-9]+\.[0-9]{3} sec.
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug37510263.output
+
 --echo
 --echo End of tests

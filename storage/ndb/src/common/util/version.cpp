@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,8 @@ struct NdbUpGradeCompatible {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+    {MAKE_VERSION(9, 3, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
+     UG_Range}, /* 7.0 <-> 9.3 */
     {MAKE_VERSION(9, 2, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
      UG_Range}, /* 7.0 <-> 9.2 */
     {MAKE_VERSION(9, 1, NDB_VERSION_BUILD), MAKE_VERSION(7, 0, 0),
@@ -247,12 +249,12 @@ static void ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[]) {
   printf("\n");
 }
 
-void ndbPrintFullyCompatibleTable(void) {
+void ndbPrintFullyCompatibleTable() {
   printf("ndbCompatibleTable_full\n");
   ndbPrintCompatibleTable(ndbCompatibleTable_full);
 }
 
-void ndbPrintUpgradeCompatibleTable(void) {
+void ndbPrintUpgradeCompatibleTable() {
   printf("ndbCompatibleTable_upgrade\n");
   ndbPrintCompatibleTable(ndbCompatibleTable_upgrade);
 }

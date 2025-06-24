@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ Library_impl::Library_impl(const Library_impl &src)
 // compiler thanks to diamond inheritance.
 [[nodiscard]] Library_impl *Library_impl::clone_dropped_object_placeholder()
     const {
-  Library_impl *placeholder = new Library_impl();
+  auto *placeholder = new Library_impl();
   placeholder->set_id(id());
   placeholder->set_schema_id(schema_id());
   placeholder->set_name(name());

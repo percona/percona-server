@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,7 @@
 
 #include "sql/sql_cmd_ddl.h"
 
-#include <string>
-
 #include "lex_string.h"
-#include "m_string.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/defs/mysql_string_defs.h"
 #include "mysql/components/services/language_service.h"
@@ -42,11 +39,12 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_table.h"  // write_bin_log
+#include "sql_string.h"
 
 namespace {
 bool check_supported_languages(
     my_service<SERVICE_TYPE(external_library)> *library_service,
-    LEX_STRING &language) {
+    LEX_CSTRING &language) {
   assert(library_service->is_valid());
   bool supported = false;
   if ((*library_service)
@@ -61,12 +59,16 @@ bool check_supported_languages(
 }  // namespace
 
 Sql_cmd_create_library::Sql_cmd_create_library(THD *thd, bool if_not_exists,
-                                               sp_name *lib_name,
-                                               LEX_STRING language,
+                                               sp_name *name,
+                                               LEX_CSTRING comment,
+                                               LEX_CSTRING language,
                                                LEX_STRING source_code)
-    : m_if_not_exists(if_not_exists), m_name(lib_name), m_language(language) {
-  m_source = thd->strmake(source_code.str, source_code.length);
-}
+    : m_if_not_exists{if_not_exists},
+      m_name{name},
+      m_language{language},
+      m_source{thd->strmake(source_code.str, source_code.length),
+               source_code.length},
+      m_comment{thd->strmake(comment.str, comment.length), comment.length} {}
 
 bool Sql_cmd_create_library::execute(THD *thd) {
   // check DB access
@@ -99,7 +101,8 @@ bool Sql_cmd_create_library::execute(THD *thd) {
   }
 
   st_sp_chistics sp_chistics;
-  sp_chistics.language = to_lex_cstring(m_language);
+  sp_chistics.language = m_language;
+  sp_chistics.comment = m_comment;
 
   // A new MEM_ROOT is needed and consumed by the sp_head constructor.
   MEM_ROOT own_root(key_memory_sp_head_main_root, MEM_ROOT_BLOCK_SIZE);
@@ -108,8 +111,8 @@ bool Sql_cmd_create_library::execute(THD *thd) {
   sp.m_chistics = &sp_chistics;
 
   LEX_STRING body;
-  thd->convert_string(&body, &my_charset_utf8mb4_general_ci, m_source,
-                      strlen(m_source), thd->charset());
+  thd->convert_string(&body, &my_charset_utf8mb4_general_ci, m_source.str,
+                      m_source.length, thd->charset());
   sp.m_body = to_lex_cstring(body);
   LEX_STRING body_utf8;
   thd->convert_string(&body_utf8, &my_charset_utf8mb3_general_ci, body.str,
@@ -142,6 +145,27 @@ bool Sql_cmd_create_library::execute(THD *thd) {
     add_automatic_sp_privileges(thd, enum_sp_type::LIBRARY, m_name->m_db.str,
                                 m_name->m_name.str);
   }
+
+  my_ok(thd);
+  return false;
+}
+
+Sql_cmd_alter_library::Sql_cmd_alter_library(THD *thd, sp_name *name,
+                                             LEX_STRING comment)
+    : m_name{name},
+      m_comment{thd->strmake(comment.str, comment.length), comment.length} {}
+
+bool Sql_cmd_alter_library::execute(THD *thd) {
+  if (check_routine_access(thd, ALTER_PROC_ACL, m_name->m_db.str,
+                           m_name->m_name.str, Acl_type::LIBRARY, false))
+    return true;
+
+  st_sp_chistics chistics;
+  chistics.comment = to_lex_cstring(m_comment);
+
+  /* Conditionally writes to binlog */
+  if (sp_update_routine(thd, enum_sp_type::LIBRARY, m_name, &chistics))
+    return true;
 
   my_ok(thd);
   return false;

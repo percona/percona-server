@@ -31,7 +31,6 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
---source include/have_replica_parallel_workers.inc
 --source include/have_replica_parallel_type_database.inc
 --source include/rpl/connection_source.inc
 

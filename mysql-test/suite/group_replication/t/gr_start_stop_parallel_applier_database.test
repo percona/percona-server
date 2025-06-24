@@ -6,7 +6,7 @@
 # Test:
 # 0. The test requires one server.
 #  - With member ONLINE. Check that default slave parallel type is DATABASE and
-#    slave parallel workers is 0.
+#    slave parallel workers is 1.
 # 1. Stop applier thread. Test with default REPLICA_PARALLEL_TYPE and
 #    REPLICA_PARALLEL_WORKERS > 0. Start applier thread should fail.
 # 2. Stop applier thread. Test with REPLICA_PARALLEL_TYPE=DATABASE and
@@ -16,12 +16,9 @@
 # 4. Stop applier thread. Test with REPLICA_PARALLEL_TYPE=LOGICAL_CLOCK,
 #    REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PRESERVE_COMMIT_ORDER=ON.
 #    Start applier thread should succeed.
-# 5. Stop applier thread. Test with REPLICA_PARALLEL_TYPE=LOGICAL_CLOCK and
-#    REPLICA_PARALLEL_WORKERS = 0. Start applier thread should succeed.
-# 6. Stop applier thread. Test with default REPLICA_PARALLEL_TYPE and default
+# 5. Stop applier thread. Test with default REPLICA_PARALLEL_TYPE and default
 #    REPLICA_PARALLEL_WORKERS. Start applier thread should succeed.
 ################################################################################
---source include/have_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start = 1
 --source include/group_replication.inc
@@ -91,18 +88,11 @@ SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= ON;
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
---echo
---echo ############################################################
---echo # 5. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
---echo #    parallel workers number set to 0.
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
-SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
+
 
 --echo
 --echo ############################################################
---echo # 6. Test with REPLICA_PARALLEL_TYPE default value and default
+--echo # 5. Test with REPLICA_PARALLEL_TYPE default value and default
 --echo #    parallel workers number.
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;

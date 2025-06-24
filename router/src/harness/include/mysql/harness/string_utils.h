@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,6 +110,30 @@ std::string limit_lines(const std::string &str, const size_t limit,
  */
 HARNESS_EXPORT
 stdx::expected<bool, std::error_code> bool_from_string(std::string str);
+
+/**
+ * upper-case a string.
+ */
+HARNESS_EXPORT
+void upper(std::string &s);
+
+/**
+ * upper-case a string.
+ */
+HARNESS_EXPORT
+std::string make_upper(std::string s);
+
+/**
+ * lower-case a string.
+ */
+HARNESS_EXPORT
+void lower(std::string &s);
+
+/**
+ * lower-case a string.
+ */
+HARNESS_EXPORT
+std::string make_lower(std::string s);
 
 }  // namespace mysql_harness
 

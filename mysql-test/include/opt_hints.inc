@@ -1269,3 +1269,58 @@ EXPLAIN FORMAT=TREE SELECT SQL_BUFFER_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#36536936 Optimizer hint is unresolved when using VIEW
+--echo # that include UNION
+--echo #
+
+CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `c1` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `c1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `d1` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `c1` (`c1`),
+  KEY `c2` (`c2`),
+  KEY `d1` (`d1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE VIEW v1 AS
+SELECT id,c1 FROM t1
+UNION ALL
+SELECT /*+ INDEX(t3 c2) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+
+SHOW CREATE VIEW v1;
+
+--replace_regex $elide_costs
+EXPLAIN
+SELECT /*+ INDEX(t3@qb2 c2) */ id,c1
+FROM t1
+UNION ALL
+SELECT /*+ QB_NAME(qb2) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+
+--replace_regex $elide_costs
+EXPLAIN
+SELECT /*+ INDEX(t3@qb2 c2) QB_NAME(qb1) */ id,c1
+FROM t1
+UNION ALL
+SELECT /*+ INDEX(t1@qb1 c1) */ id,c1
+FROM t3
+WHERE c1=1 and c2=9;
+
+DROP view v1;
+DROP TABLE t1,t3;
+
+--echo #

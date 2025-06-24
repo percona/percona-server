@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ ulong STDCALL net_field_length(uchar **packet) {
 /* The same as above but with max length check */
 ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length) {
   ulong len;
-  uchar *pos = (uchar *)*packet;
+  auto *pos = (uchar *)*packet;
 
   if (*pos < 251) {
     (*packet)++;
@@ -110,7 +110,7 @@ uint64_t net_field_length_ll(uchar **packet) {
 }
 
 /*
-  Store an integer with simple packing into a output package
+  Store an integer with simple packing into an output package
 
   SYNOPSIS
     net_store_length()

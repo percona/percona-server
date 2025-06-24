@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,7 @@
 #include "sql/opt_explain.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_hints.h"  // hint_key_state()
+#include "sql/opt_option_usage.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
@@ -385,7 +386,8 @@ std::string_view find_secondary_engine_fail_reason(const LEX *lex) {
   const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->find_secondary_engine_offload_fail_reason != nullptr &&
-      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+      (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED ||
+       lex->can_execute_only_in_secondary_engine())) {
     return hton->find_secondary_engine_offload_fail_reason(lex->thd);
   }
   if (hton == nullptr && get_eligible_secondary_engine_from(lex) != nullptr &&
@@ -400,8 +402,7 @@ std::string_view find_secondary_engine_fail_reason(const LEX *lex) {
   return "All plans were rejected by the secondary storage engine";
 }
 
-static bool set_secondary_engine_fail_reason(const LEX *lex,
-                                             std::string_view reason) {
+bool set_secondary_engine_fail_reason(const LEX *lex, std::string_view reason) {
   const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->set_secondary_engine_offload_fail_reason != nullptr &&
@@ -794,6 +795,19 @@ bool Sql_cmd_dml::execute(THD *thd) {
     ++thd->status_var.secondary_engine_execution_count;
     global_aggregated_stats.get_shard(thd->thread_id())
         .secondary_engine_execution_count++;
+  }
+
+  // Count usage of Traditional or Hypergraph Optimizer
+  // Using is_explainable_query() as there is almost complete overlap between
+  // explainable queries and queries for which we want to count the optimizer
+  // used.
+  if (!using_secondary_storage_engine() &&
+      is_explainable_query(sql_command_code())) {
+    if (lex->using_hypergraph_optimizer()) {
+      ++option_tracker_hypergraph_optimizer_usage_count;
+    } else {
+      ++option_tracker_traditional_optimizer_usage_count;
+    }
   }
 
   assert(!thd->is_error());

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +97,8 @@ struct TargetClusterTestParams {
 
   // vector of strings expected on the console after the bootstrap
   std::vector<std::string> expected_output_strings;
+
+  bool new_executable{false};
 };
 
 class ClusterSetBootstrapTargetClusterTest
@@ -1170,14 +1172,10 @@ TEST_F(RouterClusterSetBootstrapTest, ConfigExposedInMetadata) {
                public_configuration_defaults_in_md.c_str());
 }
 
-static constexpr const unsigned long max_supported_version =
-    MYSQL_ROUTER_VERSION_MAJOR * 10000 + MYSQL_ROUTER_VERSION_MINOR * 100 + 99;
-
 struct ServerCompatTestParam {
   std::string description;
   std::string server_version;
-  bool expect_failure;
-  std::string expected_error_msg;
+  std::string expected_warning_msg;
 };
 
 class CheckServerCompatibilityTest
@@ -1205,16 +1203,13 @@ TEST_P(CheckServerCompatibilityTest, Spec) {
           std::to_string(cs_options.topology.clusters[0].nodes[0].classic_port),
       "-d", bootstrap_directory.name()};
 
-  const auto expected_exit_code =
-      GetParam().expect_failure ? EXIT_FAILURE : EXIT_SUCCESS;
-  auto &router =
-      launch_router_for_bootstrap(bootstrap_params, expected_exit_code);
-  check_exit_code(router, expected_exit_code);
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
+  check_exit_code(router, EXIT_SUCCESS);
 
-  if (GetParam().expect_failure) {
+  if (!GetParam().expected_warning_msg.empty()) {
     const std::string router_console_output = router.get_full_output();
     EXPECT_TRUE(
-        pattern_found(router_console_output, GetParam().expected_error_msg))
+        pattern_found(router_console_output, GetParam().expected_warning_msg))
         << router_console_output;
   }
 }
@@ -1227,33 +1222,31 @@ INSTANTIATE_TEST_SUITE_P(
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH),
-            false, ""},
+            ""},
         ServerCompatTestParam{
-            "Server major version is highier than Router - bootstrap should "
-            "fail",
+            "Server major version is higher than Router - bootstrap should "
+            "issue a warning",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR + 1) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH),
-            true,
-            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
-            "version is '" +
-                std::to_string(max_supported_version) + "'."},
+            "WARNING: MySQL Server version .* is higher than the Router "
+            "version. You should upgrade the Router to match the MySQL Server "
+            "version."},
         ServerCompatTestParam{
-            "Server minor version is highier than Router - bootstrap should "
-            "fail",
+            "Server minor version is higher than Router - bootstrap should "
+            "issue a warning",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR + 1) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH),
-            true,
-            "Error: Unsupported MySQL Server version '.*'. Maximal supported "
-            "version is '" +
-                std::to_string(max_supported_version) + "'."},
+            "WARNING: MySQL Server version .* is higher than the Router "
+            "version. You should upgrade the Router to match the MySQL Server "
+            "version."},
         ServerCompatTestParam{
-            "Server patch version is highier than Router - bootstrap OK",
+            "Server patch version is higher than Router - bootstrap OK",
             std::to_string(MYSQL_ROUTER_VERSION_MAJOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
-            false, ""}));
+            ""}));
 
 struct LocalClusterTestParams {
   std::string expected_local_cluster;

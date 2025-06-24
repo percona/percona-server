@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1964,7 +1964,8 @@ TEST_P(RoutingSharingWithGuidelines,
   writer->sections()["connection_pool"]["max_idle_server_connections"] = "1";
 
   auto &default_section = writer->sections()["DEFAULT"];
-  init_keyring(default_section, get_test_temp_dir_name(), "user");
+  init_keyring(default_section, get_test_temp_dir_name(),
+               {KeyringEntry{"user", "password", "root"}});
 
   if (GetParam().has_value()) {
     auto &routing_plugin_section =
@@ -2052,7 +2053,8 @@ TEST_P(RoutingSharingWithGuidelines,
   writer->sections()["connection_pool"]["max_idle_server_connections"] = "1";
 
   auto &default_section = writer->sections()["DEFAULT"];
-  init_keyring(default_section, get_test_temp_dir_name(), "user");
+  init_keyring(default_section, get_test_temp_dir_name(),
+               {KeyringEntry{"user", "password", "root"}});
 
   if (GetParam().has_value()) {
     auto &routing_plugin_section =
@@ -2123,7 +2125,8 @@ TEST_P(RoutingSharingWithGuidelines,
   writer->sections()["connection_pool"]["max_idle_server_connections"] = "1";
 
   auto &default_section = writer->sections()["DEFAULT"];
-  init_keyring(default_section, get_test_temp_dir_name(), "user");
+  init_keyring(default_section, get_test_temp_dir_name(),
+               {KeyringEntry{"user", "password", "root"}});
 
   if (GetParam().has_value()) {
     auto &routing_plugin_section =

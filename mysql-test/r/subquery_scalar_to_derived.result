@@ -1365,21 +1365,23 @@ WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 a	b
 2	20
-3	20
 2	30
+3	20
 EXPLAIN SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE (SELECT MIN(e) FROM t3 as tc
 WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
-4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-3	SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (hash join)
+1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (hash join)
+4	DERIVED	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+3	DERIVED	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where true),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where true)) < `test`.`tc`.`e`), true))))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb` join (/* select#3 */ select min(`test`.`tc`.`e`) AS `MIN(e)` from `test`.`t3` `tc` where true) `derived_2_3` join (/* select#4 */ select max(`test`.`tc`.`e`) AS `Name_exp_1`,count(0) AS `Name_exp_2`,`test`.`tc`.`e` AS `Name_exp_3` from `test`.`t3` `tc` group by `test`.`tc`.`e` having (coalesce(count(0),0) <> 0)) `derived_2_4`) where ((`test`.`ta`.`b` = `derived_2_4`.`Name_exp_3`) and (`test`.`tb`.`c` = `test`.`ta`.`a`) and (`derived_2_3`.`MIN(e)` < `derived_2_4`.`Name_exp_1`))
 #
 # Two parallel scalar subqueries + grouping to derived table
 #
@@ -3368,11 +3370,12 @@ ON TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 1	PRIMARY	alias2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
-1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
-3	SUBQUERY	c_sq1_alias1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
-3	SUBQUERY	c_sq1_alias2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	c_sq1_alias1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+3	DERIVED	c_sq1_alias2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` left join (`test`.`t1`) on((<nop>((1 <= (/* select#3 */ select max(`test`.`c_sq1_alias1`.`pk`) from `test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2` where true)))))) on(true) where true
+Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` left join (`test`.`t1` join (/* select#3 */ select max(`test`.`c_sq1_alias1`.`pk`) AS `Name_exp_1`,count(0) AS `Name_exp_2` from `test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2` where true) `derived_2_3`) on(((1 <= `derived_2_3`.`Name_exp_1`) and (`derived_2_3`.`Name_exp_2` <> 0)))) on(true) where true
 DROP TABLE t1;
 #
 # Bug#30627570 WL#12885 SIG11 IN ITEM_SUBSELECT::PLACE() AT SQL/ITEM_SUBSELECT.H

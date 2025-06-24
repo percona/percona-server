@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ bool Sql_cmd_update::precheck(THD *thd) {
       if (tr->is_derived() || tr->uses_materialization())
         tr->grant.privilege = SELECT_ACL;
       else {
-        auto chk = [&](long want_access) {
+        auto chk = [&](Access_bitmask want_access) {
           const bool ignore_errors = (want_access == UPDATE_ACL);
           return check_access(thd, want_access, tr->db, &tr->grant.privilege,
                               &tr->grant.m_internal, false, ignore_errors) ||

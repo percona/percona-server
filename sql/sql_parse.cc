@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 1999, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -674,6 +674,8 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_BINLOG_STATUS] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_REPLICA_STATUS] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_LIBRARY] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_LIBRARY] =
+      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE | CF_HAS_RESULT_SET;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER] = CF_STATUS_COMMAND;
@@ -751,6 +753,8 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_ALTER_PROCEDURE] =
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_FUNCTION] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_LIBRARY] =
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN] =
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -924,6 +928,7 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_DROP_FUNCTION] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_FUNCTION] |= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_LIBRARY] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_TRUNCATE] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_REPAIR] |= CF_DISALLOW_IN_RO_TRANS;
@@ -1048,11 +1053,13 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_DROP_PROCEDURE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_ALTER_FUNCTION] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_LIBRARY] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_CREATE_LIBRARY] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_STATUS_FUNC] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_STATUS_LIBRARY] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_PREPARE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_EXECUTE] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_DEALLOCATE_PREPARE] |= CF_ALLOW_PROTOCOL_PLUGIN;
@@ -1152,6 +1159,8 @@ void init_sql_command_flags() {
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_LIBRARY] |=
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_LIBRARY] |=
+      CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_PROCEDURE] |=
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE] |=
@@ -1190,6 +1199,7 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_TRIGGERS] |= CF_SHOW_USES_SYSTEM_VIEW;
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC] |= CF_SHOW_USES_SYSTEM_VIEW;
   sql_command_flags[SQLCOM_SHOW_STATUS_FUNC] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_STATUS_LIBRARY] |= CF_SHOW_USES_SYSTEM_VIEW;
 
   /**
     Some statements doesn't if the ACL CACHE is disabled using the
@@ -1899,7 +1909,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         TODO: remove this when we have full 64 bit my_time_t support
       */
       LogErr(ERROR_LEVEL, ER_UNSUPPORTED_DATE);
-      const ulong master_access = thd->security_context()->master_access();
+      const Access_bitmask master_access =
+          thd->security_context()->master_access();
       thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
       error = true;
       kill_mysql();
@@ -2560,15 +2571,17 @@ done:
 
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
 
-  if (!thd->is_error() && !thd->killed)
-    mysql_event_tracking_general_notify(
-        thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_RESULT), 0, nullptr, 0);
-
   const std::string &cn = Command_names::str_global(command);
-  mysql_event_tracking_general_notify(
-      thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_STATUS),
-      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
-      cn.c_str(), cn.length());
+  if (command != COM_STMT_EXECUTE) {
+    if (!thd->is_error() && !thd->killed)
+      mysql_event_tracking_general_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_RESULT), 0, nullptr, 0);
+
+    mysql_event_tracking_general_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_STATUS),
+        thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
+        cn.c_str(), cn.length());
+  }
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at this point. */
@@ -4978,6 +4991,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_TRIGGERS:
     case SQLCOM_SHOW_STATUS_PROC:
     case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_STATUS_LIBRARY:
     case SQLCOM_SHOW_VARIABLES:
     case SQLCOM_SHOW_WARNS:
     case SQLCOM_SHOW_USER_STATS:
@@ -4994,7 +5008,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_CREATE_SRS:
     case SQLCOM_DROP_SRS:
     case SQLCOM_CREATE_LIBRARY:
-    case SQLCOM_DROP_LIBRARY: {
+    case SQLCOM_DROP_LIBRARY:
+    case SQLCOM_ALTER_LIBRARY: {
       assert(lex->m_sql_cmd != nullptr);
 
       res = lex->m_sql_cmd->execute(thd);
@@ -5215,6 +5230,18 @@ finish:
       thd->killed = THD::NOT_KILLED;
       thd->reset_query_for_display();
     }
+  }
+
+  if (thd->get_command() == COM_STMT_EXECUTE) {
+    if (!thd->is_error() && !thd->killed)
+      mysql_event_tracking_general_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_RESULT), 0, nullptr, 0);
+
+    const std::string &cn = Command_names::str_global(thd->get_command());
+    mysql_event_tracking_general_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_STATUS),
+        thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
+        cn.c_str(), cn.length());
   }
 
   lex->cleanup(true);
@@ -7056,18 +7083,12 @@ Item *all_any_subquery_creator(THD *thd, const POS &pos, Item *left_expr,
     if (negated != nullptr) return negated;
     item = new (thd->mem_root) Item_func_not(item);
   } else {
-    Item_allany_subselect *it = new (thd->mem_root)
+    item = new (thd->mem_root)
         Item_allany_subselect(pos, left_expr, cmp, query_block, all);
-    if (it == nullptr) return nullptr;
+    if (item == nullptr) return nullptr;
 
-    it->set_contextualized();
-    thd->add_item(it);
-
-    if (all) {  // ALL
-      item = it->m_upper_item = new (thd->mem_root) Item_func_not_all(it);
-    } else {  // ANY/SOME
-      item = it->m_upper_item = new (thd->mem_root) Item_func_nop_all(it);
-    }
+    down_cast<Item_subselect *>(item)->set_contextualized();
+    thd->add_item(item);
   }
   return item;
 }

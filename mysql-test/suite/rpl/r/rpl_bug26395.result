@@ -3,9 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-[connection slave]
 ==== Initialize ====
 [on master]
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
 SHOW CREATE TABLE tinnodb;
 Table	Create Table
@@ -31,6 +31,10 @@ include/assert.inc [Assert that the slave table has no rows]
 [on master]
 DROP TABLE tinnodb;
 set @@debug= @old_debug;
+RESET BINARY LOGS AND GTIDS;
 [on slave]
 DROP TABLE tinnodb;
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+include/rpl/start_replica.inc
 include/rpl/deinit.inc

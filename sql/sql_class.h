@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2857,6 +2857,7 @@ class THD : public MDL_context_owner,
   */
   void set_new_thread_id();
   my_thread_id thread_id() const { return m_thread_id; }
+
   uint tmp_table;
   uint server_status, open_options;
   enum enum_thread_type system_thread;

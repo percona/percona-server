@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1046,6 +1046,12 @@ class Item_sum_sum : public Item_sum_num {
     set_distinct(distinct);
   }
 
+  Item_sum_sum(Item *item_par)
+      : Item_sum_num(item_par),
+        hybrid_type(INVALID_RESULT),
+        m_count(0),
+        m_frame_null_count(0) {}
+
   Item_sum_sum(THD *thd, Item_sum_sum *item);
   enum Sumfunctype sum_func() const override {
     return has_with_distinct() ? SUM_DISTINCT_FUNC : SUM_FUNC;
@@ -1079,6 +1085,9 @@ class Item_sum_count : public Item_sum_int {
   Item_sum_count(const POS &pos, Item *item_par, PT_window *w)
       : Item_sum_int(pos, item_par, w), count(0) {}
   Item_sum_count(Item_int *number) : Item_sum_int(number), count(0) {}
+  Item_sum_count(Item *item, bool distinct) : Item_sum_int(item), count(0) {
+    set_distinct(distinct);
+  }
   /**
     Constructs an instance for COUNT(DISTINCT)
 
@@ -1088,7 +1097,6 @@ class Item_sum_count : public Item_sum_int {
 
     This constructor is called by the parser only for COUNT (DISTINCT).
   */
-
   Item_sum_count(const POS &pos, PT_item_list *list, PT_window *w)
       : Item_sum_int(pos, list, w), count(0) {
     set_distinct(true);

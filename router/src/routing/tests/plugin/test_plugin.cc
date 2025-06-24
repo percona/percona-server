@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -169,7 +169,7 @@ class RoutingPluginTests : public ConsoleOutputTest {
 };
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0200U);
+  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0201U);
   ASSERT_EQ(harness_plugin_routing.plugin_version,
             static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
   ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -41,7 +41,7 @@
 #if defined(_WIN32)
 #include <fcntl.h>
 #else
-#include <stddef.h>
+#include <cstddef>
 #endif
 #include "storage/myisam/queues.h"
 #include "template_utils.h"
@@ -222,7 +222,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info, bool no_messages,
 
   if (my_b_inited(&tempfile_for_exceptions)) {
     MI_INFO *idx = info->sort_info->info;
-    uint keyno = info->key;
+    uint const keyno = info->key;
     uint key_length, ref_length = idx->s->rec_reflength;
 
     if (!no_messages) printf("  - Adding exceptions\n"); /* purecov: tested */
@@ -299,7 +299,7 @@ static ha_rows find_all_keys(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
 static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
                       BUFFPEK *buffpek, IO_CACHE *tempfile) {
   uchar **end;
-  uint sort_length = info->key_length;
+  uint const sort_length = info->key_length;
   DBUG_TRACE;
 
   std::sort(sort_keys, sort_keys + count, [info](uchar *a, uchar *b) {
@@ -581,7 +581,7 @@ static int merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
         if (!(error =
                   (int)info->read_to_buffer(from_file, buffpek, sort_length))) {
           uchar *base = buffpek->base;
-          uint max_keys = buffpek->max_keys;
+          uint const max_keys = buffpek->max_keys;
 
           (void)queue_remove(&queue, 0);
 
@@ -592,7 +592,8 @@ static int merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
             if (buffpek->base + buffpek->max_keys * sort_length == base) {
               buffpek->max_keys += max_keys;
               break;
-            } else if (base + max_keys * sort_length == buffpek->base) {
+            }
+            if (base + max_keys * sort_length == buffpek->base) {
               buffpek->base = base;
               buffpek->max_keys += max_keys;
               break;

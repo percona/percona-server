@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/primary_election_most_uptodate.h"
 #include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "plugin/group_replication/include/plugin_observers/recovery_metadata_observer.h"
 #include "plugin/group_replication/include/plugin_status_variables.h"
@@ -398,6 +399,10 @@ bool get_allow_single_leader() {
     return ov.allow_single_leader_var;
 }
 
+bool get_component_primary_election_enabled() {
+  return Primary_election_most_update::is_enabled();
+}
+
 uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
 
 /**
@@ -711,6 +716,11 @@ int plugin_group_replication_start(char **error_message) {
   */
   GR_start_time_maintain::reset_start_time();
 
+  /*
+    Reset most uptodate component variables when member join group.
+   */
+  Primary_election_most_update::update_status(0, 0);
+
   // GR delayed initialization.
   if (!server_engine_initialized()) {
     lv.wait_on_engine_initialization = true;
@@ -904,6 +914,18 @@ int initialize_plugin_and_join(
   log_primary_member_details();
   track_group_replication_enabled(true);
 
+  // When member join with option ON and group have option OFF throw an warning
+  // to alert DBA possible mismatch on configuration
+  if (local_member_info != nullptr) {
+    bool group_enabled =
+        group_member_mgr
+            ->is_group_replication_elect_prefers_most_updated_enabled();
+    if (local_member_info->get_component_primary_election_enabled() &&
+        group_enabled == false) {
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER);
+    }
+  }
 err:
 
   if (error) {
@@ -1048,7 +1070,8 @@ int configure_group_member_manager() {
         ov.enforce_update_everywhere_checks_var, ov.member_weight_var,
         lv.gr_lower_case_table_names, lv.gr_default_table_encryption,
         ov.advertise_recovery_endpoints_var, ov.view_change_uuid_var,
-        get_allow_single_leader(), ov.preemptive_garbage_collection_var);
+        get_allow_single_leader(), ov.preemptive_garbage_collection_var,
+        get_component_primary_election_enabled());
   } else {
     local_member_info = new Group_member_info(
         hostname, port, uuid, write_set_extraction_algorithm,
@@ -1058,7 +1081,8 @@ int configure_group_member_manager() {
         ov.enforce_update_everywhere_checks_var, ov.member_weight_var,
         lv.gr_lower_case_table_names, lv.gr_default_table_encryption,
         ov.advertise_recovery_endpoints_var, ov.view_change_uuid_var,
-        get_allow_single_leader(), ov.preemptive_garbage_collection_var);
+        get_allow_single_leader(), ov.preemptive_garbage_collection_var,
+        get_component_primary_election_enabled());
   }
 
 #ifndef NDEBUG
@@ -1898,6 +1922,11 @@ bool attempt_rejoin() {
     eviction service sees a old start time.
   */
   GR_start_time_maintain::reset_start_time();
+
+  /*
+    Reset most uptodate component variables when member join group.
+   */
+  Primary_election_most_update::update_status(0, 0);
 
   /*
     Finally we attempt the join itself.
@@ -5655,6 +5684,10 @@ static SHOW_VAR group_replication_status_vars[] = {
     {"Gr_last_consensus_end_timestamp",
      (char *)&Plugin_status_variables::get_last_consensus_end_timestamp,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:Group Replication",
+     reinterpret_cast<char *>(
+         &opt_option_tracker_usage_group_replication_plugin),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
 

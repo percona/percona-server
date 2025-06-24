@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,7 +240,7 @@ void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
     for (uint i : BitsSetIn((*ror_scans)[index]->covered_fields))
       fields_to_be_covered.ClearBit(i);
     needed_fields = std::move(fields_to_be_covered);
-    if (needed_fields.empty()) break;
+    if (IsEmpty(needed_fields)) break;
   }
 }
 

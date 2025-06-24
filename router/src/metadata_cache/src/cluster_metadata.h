@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 
+#include "mysqlrouter/metadata_cache_datatypes.h"
 #include "mysqlrouter/metadata_cache_export.h"
 
 #include "mysqlrouter/cluster_metadata.h"
@@ -101,6 +102,23 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
    *
    */
   void disconnect() noexcept override { metadata_connection_.reset(); }
+
+  /**
+   * check if the metadata_connection_ connection is connected to
+   * metadata_server and alive.
+   */
+  [[nodiscard]] bool is_connected_to(
+      const metadata_cache::metadata_server_t &metadata_server) const;
+
+  /**
+   * make a connection to metadata_server.
+   *
+   * if the metadata_connection_ already is connected to metadata_server, return
+   * that instead.
+   */
+  stdx::expected<std::shared_ptr<mysqlrouter::MySQLSession>, std::string>
+  make_connection_shared(
+      const metadata_cache::metadata_server_t &metadata_server);
 
   /** @brief Gets the object representing the session to the metadata server
    */

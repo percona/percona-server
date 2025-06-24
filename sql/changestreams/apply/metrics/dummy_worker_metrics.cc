@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Oracle and/or its affiliates.
+// Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +33,7 @@ Dummy_worker_metrics::get_transaction_type() const {
 }
 
 void Dummy_worker_metrics::set_transaction_type(
-    Dummy_worker_metrics::Transaction_type_info) {
-  return;
-}
+    Dummy_worker_metrics::Transaction_type_info) {}
 
 void Dummy_worker_metrics::set_transaction_ongoing_full_size(int64_t) {}
 

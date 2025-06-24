@@ -68,6 +68,7 @@ perl;
     s/\b286720\b/262144/;
     s/\b442368\b/262144/;
     s/\b221184\b/262144/;
+    s/hypergraph_optimizer=on/hypergraph_optimizer=off/;
     # Replacing port number with string
     s/^port \d+/port ####/;
     # log-tc-size varies by platform

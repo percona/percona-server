@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1037,7 +1037,7 @@ void Ndb::closeTransaction(NdbTransaction *aConnection) {
     DBUG_VOID_RETURN;
   }
 
-  if (aConnection->theReleaseOnClose == false) {
+  if (!aConnection->theReleaseOnClose) {
     /**
      * Put it back in idle list for that node
      */
@@ -1702,8 +1702,8 @@ const char *Ndb::externalizeTableName(const char *internalTableName,
       ;
     }
     return ptr;
-  } else
-    return internalTableName;
+  }
+  return internalTableName;
 }
 
 const char *Ndb::externalizeIndexName(const char *internalIndexName,
@@ -1722,9 +1722,8 @@ const char *Ndb::externalizeIndexName(const char *internalIndexName,
     }
 
     return ptr + 1;
-  } else {
-    return internalIndexName;
   }
+  return internalIndexName;
 }
 
 // Format internal name from db, schema and table name
@@ -1740,7 +1739,7 @@ BaseString Ndb::internalize_table_name(const char *db_name, const char *schema,
 }
 
 // Format internal name using schema and db name from the Ndb object
-const BaseString Ndb::internalize_table_name(const char *external_name) const {
+BaseString Ndb::internalize_table_name(const char *external_name) const {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("external_name: %s", external_name));
 
@@ -1754,7 +1753,7 @@ const BaseString Ndb::internalize_table_name(const char *external_name) const {
                                 theImpl->m_schemaname.c_str(), external_name);
 }
 
-const BaseString Ndb::getDatabaseFromInternalName(const char *internalName) {
+BaseString Ndb::getDatabaseFromInternalName(const char *internalName) {
   char *databaseName = new char[strlen(internalName) + 1];
   if (databaseName == nullptr) {
     errno = ENOMEM;
@@ -1771,7 +1770,7 @@ const BaseString Ndb::getDatabaseFromInternalName(const char *internalName) {
   return ret;
 }
 
-const BaseString Ndb::getSchemaFromInternalName(const char *internalName) {
+BaseString Ndb::getSchemaFromInternalName(const char *internalName) {
   char *schemaName = new char[strlen(internalName)];
   if (schemaName == nullptr) {
     errno = ENOMEM;
@@ -1873,7 +1872,7 @@ int Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch) {
     found = theEventBuffer->pollEvents(highestQueuedEpoch);
   }
 
-  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+  if ((highestQueuedEpoch) && (!isExpectingHigherQueuedEpochs()))
     *highestQueuedEpoch = NDB_FAILURE_GCI;
 
   return found;
@@ -1925,7 +1924,7 @@ int Ndb::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch) {
     found = theEventBuffer->pollEvents(highestQueuedEpoch);
   }
 
-  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+  if ((highestQueuedEpoch) && (!isExpectingHigherQueuedEpochs()))
     *highestQueuedEpoch = NDB_FAILURE_GCI;
 
   return found;
@@ -2120,8 +2119,8 @@ const char *Ndb::getNdbErrorDetail(const NdbError &err, char *buff,
          * base table, schema and database, and put that in
          * string form into the caller's buffer
          */
-        UintPtr uip = (UintPtr)err.details;
-        Uint32 indexObjectId = (Uint32)(uip - (UintPtr(0)));
+        auto uip = (UintPtr)err.details;
+        auto indexObjectId = (Uint32)(uip - (UintPtr(0)));
         Uint32 primTableObjectId = ~(Uint32)0;
         BaseString indexName;
         char splitChars[2] = {table_name_separator, 0};
@@ -2230,8 +2229,8 @@ const char *Ndb::getNdbErrorDetail(const NdbError &err, char *buff,
          * `details` has the violated fk id.
          * We'll fetch the fully qualified fk name
          * and put that in caller's buffer */
-        const UintPtr uip = (UintPtr)err.details;
-        const Uint32 foreignKeyId = (Uint32)(uip - (UintPtr(0)));
+        const auto uip = (UintPtr)err.details;
+        const auto foreignKeyId = (Uint32)(uip - (UintPtr(0)));
 
         NdbDictionary::Dictionary::List allForeignKeys;
         int rc = theDictionary->listObjects(allForeignKeys,

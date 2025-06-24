@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -253,8 +253,11 @@ ENDIF()
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
   STRING(REGEX MATCH "\\.el([6789])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  IF(NOT CMAKE_MATCH_1)
+    STRING(REGEX MATCH "\\.el(10)\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
+  ENDIF()
 
-  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9
+  # Set LINUX_RHEL6, LINUX_RHEL7, LINUX_RHEL8 or LINUX_RHEL9 or LINUX_RHEL10
   IF(CMAKE_MATCH_1)
     SET(LINUX_RHEL 1)
     SET(LINUX_RHEL${CMAKE_MATCH_1} 1)
@@ -320,7 +323,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
     ENDIF()
-    IF(LINUX_RHEL)
+    IF(LINUX_RHEL AND NOT LINUX_RHEL10)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL7)
         # gcc11 not available yet
@@ -331,6 +334,8 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         ENDIF()
       ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-13")
+      ELSEIF(LINUX_RHEL10)
+        # Use default /usr/bin/gcc which is 14.2.1
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -2305,6 +2310,13 @@ ELSE()
   # Do not initialize the option, set it ON for $<CONFIG:Debug>
   SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
+OPTION(ENABLE_HYPERGRAPH_OPTIMIZER
+  "Enable hypergraph optimizer in OPTIMIZER_SWITCH_DEFAULT" OFF
+  )
+IF(ENABLE_HYPERGRAPH_OPTIMIZER)
+  SET(WITH_HYPERGRAPH_OPTIMIZER ON)
+  SET(WITH_HYPERGRAPH_OPTIMIZER ON CACHE BOOL "" FORCE)
+ENDIF()
 
 # Allow SHOW PARSE_TREE on debug build by default.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
@@ -2363,6 +2375,7 @@ ADD_DEPENDENCIES(clang_tidy_prerequisites GenError)
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(extra/unordered_dense)
+ADD_SUBDIRECTORY(extra/xxhash)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
@@ -2519,6 +2532,31 @@ IF(NOT WITHOUT_SERVER AND WITH_ROUTER)
 ELSE()
   # Define harness_net_ts target and public include directories.
   ADD_SUBDIRECTORY(router/src/harness/include)
+  # In case we switch from ON to OFF, we do not want mtr
+  # to pick up any obsolete executables.
+  IF(WIN32)
+    SET(MYSQLROUTER_EXE "mysqlrouter.exe")
+  ELSE()
+    SET(MYSQLROUTER_EXE "mysqlrouter")
+  ENDIF()
+  SET(EXE_DIR ${CMAKE_BINARY_DIR}/runtime_output_directory)
+  IF(BUILD_IS_SINGLE_CONFIG)
+    FILE(REMOVE ${EXE_DIR}/${MYSQLROUTER_EXE})
+  ELSE()
+    FILE(REMOVE
+      ${EXE_DIR}/Debug/${MYSQLROUTER_EXE}
+      ${EXE_DIR}/RelWithDebInfo/${MYSQLROUTER_EXE}
+      ${EXE_DIR}/Release/${MYSQLROUTER_EXE}
+      ${EXE_DIR}/MinSizeRel/${MYSQLROUTER_EXE}
+      )
+  ENDIF()
+  # We do not want ctest to pick up obsolete tests.
+  # See similar code for WITH_UNIT_TESTS above.
+  IF(EXISTS "${CMAKE_BINARY_DIR}/router/CTestTestfile.cmake")
+    FILE(GLOB_RECURSE CTEST_TESTFILES
+      "${CMAKE_BINARY_DIR}/router/CTestTestfile.cmake")
+    FILE(REMOVE ${CTEST_TESTFILES})
+  ENDIF()
 ENDIF()
 
 IF(ENABLE_GCOV)

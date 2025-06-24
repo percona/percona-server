@@ -1,9 +1,6 @@
 
 --source include/no_valgrind_without_big.inc
 
-# BUG#37382579 The SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES fails when a queried from the hypergraph.
---source include/not_hypergraph.inc
-
 # Binlog is required
 --source include/have_log_bin.inc
 
@@ -20,7 +17,8 @@ create database mysqldump_test_db;
 
 create procedure mysqldump_test_db.sp1() select 'hello';
 --disable_warnings
-create library  mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT AS " export function f(n) {  return n+1 } ";
+create library  mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT COMMENT "Library Comment"
+AS " export function f(n) {  return n+1 } ";
 create function mysqldump_test_db.sp1(n INTEGER) RETURNS INTEGER LANGUAGE JAVASCRIPT
 USING (mysqldump_test_db.sp1)
 as " return sp1.f(n) ";

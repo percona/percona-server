@@ -130,6 +130,8 @@ var defaults = {
   router_hostname: "router-host",
   router_options: "",
   router_name: "test_router",
+  mrs_router_id: 1,
+  mrs_basedir: "",
 };
 
 function ensure_type(options, field, expected_type) {
@@ -1285,7 +1287,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_gr_clusters where cluster_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_gr_clusters where cluster_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",
@@ -1299,7 +1301,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_ar_clusters where cluster_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_ar_clusters where cluster_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",
@@ -1313,7 +1315,7 @@ function get_response(stmt_key, options) {
         stmt_regex:
             "select JSON_EXTRACT\\(router_options, '\\$\\.Configuration.\"" +
             options["router_version"] +
-            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = '.*'",
+            "\"'\\) IS NULL from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = \".*\"",
         result: {
           columns: [{
             "type": "LONGLONG",
@@ -1431,6 +1433,47 @@ function get_response(stmt_key, options) {
         result: {
           columns: [{"name": "guidelines", "type": "VAR_STRING"}],
           rows: [[options.routing_guidelines]]
+        }
+      };
+    case "mrs_set_sql_mode":
+      return {"stmt": "SET @@SESSION.sql_mode=DEFAULT;", "ok": {}};
+    case "mrs_set_meta_provider_role":
+      return {"stmt": "SET ROLE mysql_rest_service_meta_provider", "ok": {}};
+    case "mrs_select_version":
+      return {
+        stmt:
+            "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, @@version)",
+        result: {
+          columns: [
+            {
+              "name": "substring_index(@@version, '.', 1)",
+              "type": "VAR_STRING"
+            },
+            {
+              "name": "concat(@@version_comment, @@version)",
+              "type": "VAR_STRING"
+            }
+          ],
+          rows: [["9", "Source distribution mrs"]],
+        }
+      };
+    case "mrs_select_basedir":
+      return {
+        stmt: "SELECT @@basedir",
+        result: {
+          columns: [{"name": "@@basedir", "type": "VAR_STRING"}],
+          rows: [[options.mrs_basedir]],
+        }
+      };
+    case "mrs_set_data_provider_role":
+      return {"stmt": "SET ROLE mysql_rest_service_data_provider", "ok": {}};
+    case "mrs_select_router_id":
+      return {
+        stmt_regex:
+            "SELECT `id` FROM mysql_rest_service_metadata.router WHERE router_name = '.*' AND address = '.*'",
+        result: {
+          columns: [{"name": "id", "type": "LONG"}],
+          rows: [[options.mrs_router_id]],
         }
       };
   };

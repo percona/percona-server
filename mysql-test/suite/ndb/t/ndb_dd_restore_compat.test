@@ -10,6 +10,9 @@ call mtr.add_suppression("Table upgrade required");
 call mtr.add_suppression("Table definition contains obsolete data types");
 call mtr.add_suppression("Failed to migrate table");
 call mtr.add_suppression("Got error '10923: Table definition contains obsolete data types");
+call mtr.add_suppression("Incorrect information in file: .*t1.frm");
+call mtr.add_suppression("Error in reading file .*t1.frm");
+call mtr.add_suppression("Error in creating TABLE_SHARE from t1.frm file");
 --connection server2
 call mtr.add_suppression("Table upgrade required");
 call mtr.add_suppression("Table definition contains obsolete data types");
@@ -27,7 +30,7 @@ call mtr.add_suppression("Got error '10923: Table definition contains obsolete d
 --let $max_wait = 60
 --source wait_immediate_metadata_sync.inc
 
---error ER_NO_SUCH_TABLE
+--error ER_NOT_FORM_FILE
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
 

@@ -79,13 +79,13 @@
   copy.
 
   The @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" application
-  starts MySQL servers, restarts them as necessary when a specific
-  test case needs different start arguments, and presents the test
-  result. For each test case, @ref PAGE_MYSQL_TEST_RUN_PL
-  "mysql-test-run.pl" invokes the @ref PAGE_MYSQLTEST "mysqltest"
-  program (also referred to as the “test engine”) to read the test
-  case file, intepret the test language constructs, and send SQL
-  statements to the server.
+  starts MySQL servers, (and the MySQL routers optionally) restarts
+  them as necessary when a specific test case needs different start
+  arguments, and presents the test result. For each test case,
+  @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" invokes the @ref
+  PAGE_MYSQLTEST "mysqltest" program (also referred to as the “test
+  engine”) to read the test case file, intepret the test language
+  constructs, and send SQL statements to the server.
 
   Input for each test case is stored in a file, and the expected
   result from running the test is stored in another file. The actual
@@ -372,6 +372,72 @@
   [ENV]
   SERVER_MYPORT_1= @mysqld.1.port
   SERVER_MYPORT_2= @mysqld.2.port
+        @endverbatim
+      </li>
+
+      <li>
+        If the test also launches the MySQL Router the file of form
+        <b><em>test_name</em>-router.cnf</b> contains additional entries
+        for the Router config file to be used for this test. (The Router
+        config file pareser assumes each section is a Router plugin to
+        be loaded so in that sense it is not compatible with the main
+        test config <em>.cfg</em>,  hence the need for a separate
+        <em>.router-cfg</em> file.)
+
+        <ul>
+          <li>
+            The file is a template for a final Router configuration file
+            that is used to run the MySQL Router, as such it is expected
+            to follow the MySQL Router configuration syntax.
+          </li>
+
+          <li>
+            If there is no <b><em>test_name</em>-router.cnf</b> file for
+            a test, the default template
+            <b><em>include/default_my-router.cnf</em></b> is used.
+          </li>
+
+          <li>
+            The <b><em>test_name</em>-router.cnf</b> template does not
+            support <b><em>!include</em></b> nor <b><em>[ENV]</em></b>
+            section.
+          </li>
+        </ul>
+
+        Here is a sample <b>-router.cnf</b> file.
+
+        @verbatim
+[DEFAULT]
+
+[logger]
+level=DEBUG
+
+[metadata_cache:my_cluster]
+user=mysqlrouter
+cluster_type=gr
+router_id=1
+auth_cache_refresh_interval=4
+ttl=0.5
+metadata_cluster=my_cluster
+auth_cache_ttl=-1
+
+[routing:rw]
+destinations=metadata-cache://my_cluster/?role=PRIMARY
+bind_address=0.0.0.0
+routing_strategy=first-available
+protocol=classic
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED
+
+[routing:ro]
+destinations=metadata-cache://my_cluster/?role=SECONDARY
+bind_address=0.0.0.0
+routing_strategy=round-robin
+protocol=classic
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED
         @endverbatim
       </li>
 
@@ -2243,6 +2309,14 @@
       </li>
 
       <li>
+        MySQL Router tests: Include <b>have_router.inc</b> file
+        if a test is supposed to launch the Router process along with
+        a server. The Router configuration file will be created from a
+        default template file (include/default_my-router.cnf) if the
+        test does not overwrite it by <b>test_name-router.cnf</b>
+      </li>
+
+      <li>
         Debugging capabilities: Include the <b>have_debug.inc</b>
         file if a test requires that the server was built for
         debugging (that is, that the MySQL distribution was configured
@@ -2875,6 +2949,49 @@
 
     </li>
 
+  </ul>
+
+  If the test launches the MySQL Router process it can be forcefully
+  restarted in a test in a similar way that MySQL Server process is.
+
+  @verbatim
+  --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqlrouter.expect
+  --let $pid_file=$MYSQLROUTER_PIDFILE
+  --source mysqlrouter_shutdown.inc
+  --source include/wait_until_disconnected.inc
+  # Do something while router is down
+  --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqlrouter.expect
+  --source include/wait_until_connected_again.inc
+  @endverbatim
+
+  <ul>
+    <li>
+      <tt>mysqlrouter_restart.inc</tt>
+
+      <b>include/mysqlrouter_restart.inc</b> can be sourced in your
+      own test case, to shutdown and start the router but the router is
+      immediately started up again.
+
+      @verbatim
+  # Restart the router
+  --source include/mysqlrouter_restart.inc
+      @endverbatim
+
+      It is also possible to provide additional command line options
+      to the restarted router, by using
+      <b>$router_restart_parameters</b> parameter. These extra options
+      will be dropped if the same router is restarted again,
+      unless they are repeated. A value for shutdown timeout can also
+      be set with  <b>$router_shutdown_timeout</b>, when this file
+      is used.
+
+      @verbatim
+  # Restart router with extra parameters
+  --let $router_restart_parameters= 10
+  --source include/mysqlrouter_restart.inc
+      @endverbatim
+
+    </li>
   </ul>
 
 */

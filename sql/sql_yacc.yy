@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1978,6 +1978,7 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <top_level_node>
         alter_instance_stmt
+        alter_library_stmt
         alter_resource_group_stmt
         alter_table_stmt
         analyze_table_stmt
@@ -2039,6 +2040,7 @@ void warn_on_deprecated_user_defined_collation(
         show_function_status_stmt
         show_grants_stmt
         show_keys_stmt
+        show_library_status_stmt
         show_open_tables_stmt
         show_parse_tree_stmt
         show_plugins_stmt
@@ -2443,6 +2445,7 @@ simple_statement:
         | alter_event_stmt              { $$= nullptr; }
         | alter_function_stmt           { $$= nullptr; }
         | alter_instance_stmt
+        | alter_library_stmt
         | alter_logfile_stmt            { $$= nullptr; }
         | alter_procedure_stmt          { $$= nullptr; }
         | alter_resource_group_stmt
@@ -2549,6 +2552,7 @@ simple_statement:
         | show_function_status_stmt
         | show_grants_stmt
         | show_keys_stmt
+        | show_library_status_stmt
         | show_open_tables_stmt
         | show_parse_tree_stmt
         | show_plugins_stmt
@@ -3829,7 +3833,7 @@ sp_name:
 
 sp_a_chistics:
           %empty {}
-        | sp_a_chistics sp_chistic {}
+        | sp_a_chistics sp_a_chistic {}
         ;
 
 sp_c_chistics:
@@ -3855,13 +3859,6 @@ sp_chistic:
           { Lex->sp_chistics.daccess= SP_MODIFIES_SQL_DATA; }
         | sp_suid
           {}
-        ;
-
-/* Create characteristics */
-sp_c_chistic:
-          sp_chistic            { }
-        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= true; }
-        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= false; }
         | USING '(' library_list ')'
           {
             if (Lex->sp_chistics.add_imported_libraries($3->get_libraries(),
@@ -3871,6 +3868,26 @@ sp_c_chistic:
                MYSQL_YYABORT;
             }
           }
+        ;
+
+/* Alter characteristics */
+sp_a_chistic:
+          sp_chistic            { }
+        | USING '(' ')'
+          {
+            if (Lex->sp_chistics.create_imported_libraries_deque(YYMEM_ROOT)) {
+               YYTHD->syntax_error_at(@$, "You have an error in your SQL syntax"
+               "; Multiple USING clauses are not supported");
+               MYSQL_YYABORT;
+            }
+          }
+        ;
+
+/* Create characteristics */
+sp_c_chistic:
+          sp_chistic            { }
+        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= true; }
+        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= false; }
         ;
 
 library_list:
@@ -8196,6 +8213,17 @@ alter_function_stmt:
             lex->sql_command= SQLCOM_ALTER_FUNCTION;
             lex->spname= $3;
             MAKE_CMD_DDL_DUMMY();
+          }
+        ;
+
+alter_library_stmt:
+          ALTER LIBRARY_SYM sp_name COMMENT_SYM TEXT_STRING_sys
+          {
+            LEX *lex=Lex;
+
+            lex->sql_command= SQLCOM_ALTER_LIBRARY;
+            lex->spname= $3;
+            $$ = NEW_PTN PT_alter_library_stmt(@$, YYTHD, $3, $5);
           }
         ;
 
@@ -14138,6 +14166,13 @@ show_create_library_stmt:
           }
         ;
 
+show_library_status_stmt:
+          SHOW LIBRARY_SYM STATUS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_status_library(@$, $4.wild, $4.where);
+          }
+        ;
+
 show_create_trigger_stmt:
           SHOW CREATE TRIGGER_SYM sp_name
           {
@@ -14390,7 +14425,7 @@ opt_explain_into:
           }
         | INTO '@' ident_or_text
           {
-            if(check_column_name($3.str)) {
+            if(check_column_name($3)) {
               MYSQL_YYABORT_ERROR(ER_ILLEGAL_USER_VAR, MYF(0), $3.str);
             }
             $$ = $3;
@@ -17904,7 +17939,7 @@ view_tail:
               for (auto column_alias : $5)
               {
                 // Report error if the column name/length is incorrect.
-                if (check_column_name(column_alias.str))
+                if (check_column_name(column_alias))
                 {
                   my_error(ER_WRONG_COLUMN_NAME, MYF(0), column_alias.str);
                   MYSQL_YYABORT;
@@ -18385,15 +18420,33 @@ sp_tail:
           }
         ;
 
+lib_chistics:
+          %empty {}
+        | lib_chistics lib_chistic {}
+        ;
+
+lib_chistic:
+          LANGUAGE_SYM ident
+          { Lex->sp_chistics.language = to_lex_cstring($2); }
+        | COMMENT_SYM TEXT_STRING_sys
+          { Lex->sp_chistics.comment = to_lex_cstring($2); }
+        ;
+
 create_library_stmt:
           CREATE LIBRARY_SYM
           opt_if_not_exists     /*$3*/
           sp_name               /*$4*/
-          LANGUAGE_SYM ident    /*$6*/
-          AS routine_string     /*$8*/
+          lib_chistics          /*$5*/
+          AS routine_string     /*$7*/
           {
             Lex->sql_command = SQLCOM_CREATE_LIBRARY;
-            $$ = NEW_PTN PT_create_library_stmt(@$, YYTHD, $3, $4, $6, $8);
+            if (Lex->sp_chistics.language.str == nullptr) {
+              YYTHD->syntax_error_at(@6, "Language is not specified for library.");
+              MYSQL_YYABORT;
+            }
+            $$ = NEW_PTN
+              PT_create_library_stmt(@$, YYTHD, $3, $4, Lex->sp_chistics.comment,
+                                     Lex->sp_chistics.language, $7);
           }
         ;
 

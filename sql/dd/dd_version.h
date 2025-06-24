@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,13 @@ static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
   9.7.2 is possible. Downgrades to or from innovation releases are never
   supported, regardless of the downgrade threshold.
 */
+
+/* Patch downgrade is rejected by default for innovation releases. */
+#if MYSQL_VERSION_MATURITY_IS_LTS == 1
 constexpr uint SERVER_DOWNGRADE_THRESHOLD = 0;
+#else
+constexpr uint SERVER_DOWNGRADE_THRESHOLD = MYSQL_VERSION_ID;
+#endif
 static_assert(SERVER_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 

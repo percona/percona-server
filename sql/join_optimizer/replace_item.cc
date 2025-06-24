@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,8 +120,10 @@ Item *FindReplacementOrReplaceMaterializedItems(
         replacement != item &&  // (1)
         replacement->type() == Item::FIELD_ITEM &&
         (down_cast<Item_field *>(replacement))->field->table->group !=
-            nullptr)  // (2)
-      return ReplaceSetVarItem(thd, item, replacement);
+            nullptr) {  // (2)
+      replacement = ReplaceSetVarItem(thd, item, replacement);
+      if (replacement != nullptr) replacement->hidden = item->hidden;
+    }
 
     return replacement;
   }

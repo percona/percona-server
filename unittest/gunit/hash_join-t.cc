@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,12 +33,12 @@
 #include <gmock/gmock.h>  // IWYU pragma: keep
 #include <gtest/gtest.h>  // IWYU pragma: keep
 
+#include "extra/xxhash/my_xxhash.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"
-#include "my_xxhash.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
 #include "sql/field.h"

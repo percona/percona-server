@@ -66,19 +66,7 @@ SET GLOBAL REPLICA_PRESERVE_COMMIT_ORDER= ON;
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 ############################################################
-# 5. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
-#    parallel workers number set to 0.
-STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
-Warnings:
-Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
-SET GLOBAL REPLICA_PARALLEL_WORKERS= 0;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
-START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
-
-############################################################
-# 6. Test with REPLICA_PARALLEL_TYPE default value and default
+# 5. Test with REPLICA_PARALLEL_TYPE default value and default
 #    parallel workers number.
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;

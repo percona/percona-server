@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,6 +291,7 @@ class Item_func : public Item_result_field {
     ACOS_FUNC,
     MOD_FUNC,
     IF_FUNC,
+    BOOL_IF_FUNC,
     NULLIF_FUNC,
     CASE_FUNC,
     YEAR_FUNC,

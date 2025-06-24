@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +147,9 @@ class Library_impl : public Routine_impl, public Library {
   const String_type &comment() const override {
     return Routine_impl::comment();
   }
+  void set_comment(const String_type &comment) override {
+    Routine_impl::set_comment(comment);
+  }
   const Parameter_collection &parameters() const override {
     return Routine_impl::parameters();
   }
@@ -208,12 +211,6 @@ class Library_impl : public Routine_impl, public Library {
     // Setting this attribute is not allowed for the Library.
     assert(false);
   }
-
-  /////////////////////////////////////////////////////////////////////////
-  // comment.
-  /////////////////////////////////////////////////////////////////////////
-
-  void set_comment(const String_type &) override { assert(false); }
 
   /////////////////////////////////////////////////////////////////////////
   // Parameter collection.

@@ -4021,10 +4021,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: min(a.aggr_col)  (rows=1.67)
-    -> Sort: a.group_by_col  (rows=2.8)
-        -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=2.8)
-            -> Table scan on a  (rows=6)
+-> Group aggregate: min(a.aggr_col)  (rows=2.45)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col > 2))  (rows=6)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4039,10 +4038,9 @@ NULL	7
 EXPLAIN FORMAT=TREE SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN
--> Group aggregate: max(a.aggr_col)  (rows=1.67)
-    -> Sort: a.group_by_col  (rows=2.8)
-        -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=2.8)
-            -> Table scan on a  (rows=6)
+-> Group aggregate: max(a.aggr_col)  (rows=2.45)
+    -> Filter: ((a.group_by_col in (70,9)) or (a.aggr_col < 9))  (rows=6)
+        -> Covering index scan on a using group_by_col_key  (rows=6)
 
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -4737,7 +4735,7 @@ val
 EXPLAIN FORMAT=TREE SELECT DISTINCT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd');
 EXPLAIN
--> Filter: exists(select #2) is false  (rows=30)
+-> Filter: (not exists(select #2))  (rows=30)
     -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (rows=1)
@@ -4779,7 +4777,7 @@ val
 EXPLAIN FORMAT=TREE SELECT val FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd' ) GROUP BY val;
 EXPLAIN
--> Filter: exists(select #2) is false  (rows=30)
+-> Filter: (not exists(select #2))  (rows=30)
     -> Covering index skip scan for deduplication on t1 using ix_val  (rows=30)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (rows=1)
@@ -4983,7 +4981,7 @@ EXPLAIN FORMAT=TREE SELECT val, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val = 'asd') GROUP BY val;
 EXPLAIN
 -> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=30.3)
-    -> Filter: exists(select #2) is false  (rows=1000)
+    -> Filter: (not exists(select #2))  (rows=1000)
         -> Covering index scan on t1 using ix_val  (rows=1000)
         -> Select #2 (subquery in condition; run only once)
             -> Limit: 1 row(s)  (rows=1)
@@ -5162,7 +5160,7 @@ val_n
 EXPLAIN FORMAT=TREE SELECT DISTINCT val_n FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val_n = 'asd');
 EXPLAIN
--> Filter: exists(select #2) is false  (rows=32)
+-> Filter: (not exists(select #2))  (rows=32)
     -> Covering index skip scan for deduplication on t1 using ix_val_n  (rows=32)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (rows=1)
@@ -5315,7 +5313,7 @@ EXPLAIN FORMAT=TREE SELECT val_n, MIN(b_id), MAX(b_id) FROM t1 WHERE NOT EXISTS
 (SELECT * FROM t2 WHERE val_n = 'asd') GROUP BY val_n;
 EXPLAIN
 -> Group aggregate: min(t1.b_id), max(t1.b_id)  (rows=32.3)
-    -> Filter: exists(select #2) is false  (rows=1000)
+    -> Filter: (not exists(select #2))  (rows=1000)
         -> Covering index scan on t1 using ix_val_n  (rows=1000)
         -> Select #2 (subquery in condition; run only once)
             -> Limit: 1 row(s)  (rows=1)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include "sql/sql_digest.h"
 
-#include <assert.h>
+#include <cassert>
 #include "lex_string.h"
 
 #include "my_inttypes.h"
@@ -291,7 +291,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
           add_space = false;
         }
 
-        int tok_length = tok_data->m_token_length;
+        int const tok_length = tok_data->m_token_length;
 
         digest_output->append(tok_data->m_token_string, tok_length);
         if (tok_data->m_append_space) {

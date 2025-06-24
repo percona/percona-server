@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,8 @@ int THRConfig::setLockExecuteThreadToCPU(const char *mask) {
         "(error: %d)",
         mask, res);
     return -1;
-  } else if (res == 0) {
+  }
+  if (res == 0) {
     m_err_msg.assfmt(
         "LockExecuteThreadToCPU: %s"
         " with empty bitmask not allowed",
@@ -1141,7 +1142,7 @@ int THRConfig::handle_spec(const char *str, unsigned realtime,
       return ret_code;
     }
 
-    T_Type type = (T_Type)loc_type;
+    auto type = (T_Type)loc_type;
     m_setInThreadConfig.set(loc_type);
 
     int cpu_values = 0;
@@ -1173,8 +1174,8 @@ int THRConfig::handle_spec(const char *str, unsigned realtime,
       m_err_msg.assfmt("Cannot set spintime on non-exec threads");
       return -1;
     }
-    if (values[IX_NOSEND].found &&
-        !(type == T_LDM || type == T_TC || type == T_MAIN || type == T_REP)) {
+    if (values[IX_NOSEND].found && type != T_LDM && type != T_TC &&
+        type != T_MAIN && type != T_REP) {
       m_err_msg.assfmt("Can only set nosend on main, ldm, tc and rep threads");
       return -1;
     }
@@ -1246,7 +1247,7 @@ int THRConfig::handle_spec(const char *str, unsigned realtime,
         m_threads[type][index + i].m_nosend = values[IX_NOSEND].unsigned_val;
       }
     }
-  } while (1);
+  } while (true);
   return 0;
 }
 

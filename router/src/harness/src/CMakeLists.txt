@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,9 @@ IF(WIN32)
     get_charset
     strmake_root
     my_init
+    my_end
     my_free
+    ?my_progname@@3PEBDEB  # char const * const my_progname
 
     set_fips_mode
   )
@@ -235,6 +237,7 @@ SET(harness_source
   config_option.cc
   config_parser.cc
   plugin_config.cc
+  plugin_state.cc
   designator.cc
   dynamic_state.cc
   event_state_tracker.cc
@@ -244,6 +247,7 @@ SET(harness_source
   string_utils.cc
   arg_handler.cc
   builtin_plugins.cc
+  config_section_printer.cc
   dim.cc
   hostname_validator.cc
   mysql_router_thread.cc
@@ -258,6 +262,7 @@ SET(harness_source
   log_reopen.cc
   random_generator.cc
   signal_handler.cc
+  scoped_callback.cc
   sd_notify.cc
   socket_operations.cc
   tls_cipher.cc
@@ -276,7 +281,14 @@ SET(harness_source
   destination_acceptor.cc
   destination_endpoint.cc
   destination_socket.cc
+  secure_string.cc
   )
+
+IF(NOT SOLARIS)
+  LIST(APPEND harness_source
+    secure_memory_pool.cc
+  )
+ENDIF()
 
 IF(WIN32)
   LIST(APPEND harness_source

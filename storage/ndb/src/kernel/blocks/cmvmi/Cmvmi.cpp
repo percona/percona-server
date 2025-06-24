@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,12 +72,6 @@
 #define JAM_FILE_ID 380
 
 #define ZREPORT_MEMORY_USAGE 1000
-
-extern int simulate_error_during_shutdown;
-
-#ifdef ERROR_INSERT
-extern int simulate_error_during_error_reporting;
-#endif
 
 // Index pages used by ACC instances
 Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
@@ -213,17 +207,20 @@ void Cmvmi::execNDB_TAMPER(Signal *signal) {
     ndbabort();
   }
 
+#ifdef ERROR_INSERT
 #ifndef _WIN32
   if (ERROR_INSERTED(9996)) {
-    simulate_error_during_shutdown = SIGSEGV;
+    globalEmulatorData.theConfiguration->setShutdownHandlingFault(
+        Configuration::SHF_UNIX_SIGNAL, SIGSEGV);
     ndbabort();
   }
 
   if (ERROR_INSERTED(9995)) {
-    simulate_error_during_shutdown = SIGSEGV;
+    globalEmulatorData.theConfiguration->setShutdownHandlingFault(
+        Configuration::SHF_UNIX_SIGNAL, SIGSEGV);
     kill(getpid(), SIGABRT);
   }
-
+#endif
 #endif
 
 }  // execNDB_TAMPER()
@@ -1935,11 +1932,16 @@ void Cmvmi::execDUMP_STATE_ORD(Signal *signal) {
 #ifdef ERROR_INSERT
   if (arg == DumpStateOrd::CmvmiSetErrorHandlingError) {
     Uint32 val = 0;
+    Uint32 extra = 0;
     if (signal->length() >= 2) {
       val = signal->theData[1];
+      if (signal->length() >= 3) {
+        extra = signal->theData[2];
+      }
     }
-    g_eventLogger->info("Cmvmi : Setting ErrorHandlingError to %u", val);
-    simulate_error_during_error_reporting = val;
+    g_eventLogger->info("Cmvmi : Setting ShutdownErrorHandling to %u %u", val,
+                        extra);
+    globalEmulatorData.theConfiguration->setShutdownHandlingFault(val, extra);
   }
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -741,6 +741,8 @@ class Query_expression {
   bool prepared;   ///< All query blocks in query expression are prepared
   bool optimized;  ///< All query blocks in query expression are optimized
   bool executed;   ///< Query expression has been executed
+  ///< Explain mode: query expression refers stored function
+  bool m_has_stored_program{false};
 
   /// Object to which the result for this query expression is sent.
   /// Not used if we materialize directly into a parent query expression's
@@ -784,6 +786,8 @@ class Query_expression {
   /// @return true for a query expression without UNION/INTERSECT/EXCEPT or
   /// multi-level ORDER, i.e. we have a "simple table".
   bool is_simple() const { return m_query_term->term_type() == QT_QUERY_BLOCK; }
+
+  bool has_stored_program() const { return m_has_stored_program; }
 
   /// Values for Query_expression::cleaned
   enum enum_clean_state {
@@ -1372,14 +1376,18 @@ class Query_block : public Query_term {
   ORDER *find_in_group_list(Item *item, int *rollup_level) const;
   int group_list_size() const;
 
-  /// @returns true if query block contains window functions
+  /// @returns true if query block contains windows
   bool has_windows() const { return m_windows.elements > 0; }
+
+  /// @returns true if query block contains window functions
+  bool has_wfs();
 
   void invalidate();
 
   uint get_in_sum_expr() const { return in_sum_expr; }
 
   bool add_item_to_list(Item *item);
+  bool add_grouping_expr(THD *thd, Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
   Table_ref *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
                                ulong table_options,
@@ -1389,7 +1397,6 @@ class Query_block : public Query_term {
                                List<String> *partition_names = nullptr,
                                LEX_STRING *option = nullptr,
                                Parse_context *pc = nullptr);
-
   /**
     Add item to the hidden part of select list
 
@@ -1770,6 +1777,8 @@ class Query_block : public Query_term {
   */
   bool accept(Select_lex_visitor *visitor);
 
+  void prune_sj_exprs(Item_func_eq *item, mem_root_deque<Table_ref *> *nest);
+
   /**
     Cleanup this subtree (this Query_block and all nested Query_blockes and
     Query_expressions).
@@ -2071,8 +2080,20 @@ class Query_block : public Query_term {
 
   /**
     Array of pointers to "base" items; one each for every selected expression
-    and referenced item in the query block. All references to fields are to
-    buffers associated with the primary input tables.
+    and referenced item in the query block. All members of "base_ref_items"
+    are also present in the "fields" container.
+    All references to columns (i.e. Item_field) are to buffers associated
+    with the primary input tables.
+
+    Note: The order of expressions in "base_ref_items" may be different from
+          the order of expressions in "fields".
+    Note: The array must be created with sufficient size during resolving and
+          must be preserved in size and location as long as statement exists.
+    Note: Currently, items representing expressions must be added as follows:
+          <original visible exprs> <hidden exprs> <generated visible exprs>.
+          <hidden exprs> are added during resolving and may be an empty set.
+          <generated visible exprs> are added during possible transformation
+          stages and may also be an empty set.
   */
   Ref_item_array base_ref_items;
 
@@ -2259,6 +2280,10 @@ class Query_block : public Query_term {
   bool exclude_from_table_unique_test{false};
 
   bool no_table_names_allowed{false};  ///< used for global order by
+
+  /// Keeps track of the current ORDER BY expression we are resolving for
+  /// ORDER BY, if any. Not used for GROUP BY or windowing ordering.
+  int m_current_order_by_number{0};
 
   /// Hidden items added during optimization
   /// @note that using this means we modify resolved data during optimization
@@ -2627,6 +2652,7 @@ struct st_sp_chistics {
 
     if (m_imported_libraries != nullptr) return true;  // Allow a single USING.
 
+    if (libs.empty()) return false;  // Nothing to do.
     if (create_imported_libraries_deque(mem_root)) return true;
 
     while (!libs.empty()) {
@@ -2648,7 +2674,8 @@ struct st_sp_chistics {
   */
   bool add_imported_library(std::string_view database, std::string_view name,
                             std::string_view alias, MEM_ROOT *mem_root) {
-    if (create_imported_libraries_deque(mem_root)) return true;
+    if (m_imported_libraries == nullptr)
+      if (create_imported_libraries_deque(mem_root)) return true;
 
     return m_imported_libraries->push_back({
         {strmake_root(mem_root, database.data(), database.length()),
@@ -2661,7 +2688,7 @@ struct st_sp_chistics {
   }
 
   bool create_imported_libraries_deque(MEM_ROOT *mem_root) {
-    if (m_imported_libraries != nullptr) return false;  // Already allocated.
+    if (m_imported_libraries != nullptr) return true;  // Already allocated.
     m_imported_libraries =
         new (mem_root) mem_root_deque<sp_name_with_alias>(mem_root);
     return m_imported_libraries == nullptr;
@@ -3909,7 +3936,9 @@ enum execute_only_in_secondary_reasons {
   SUPPORTED_IN_PRIMARY,
   CUBE,
   TABLESAMPLE,
-  OUTFILE_OBJECT_STORE
+  OUTFILE_OBJECT_STORE,
+  TEMPORARY_TABLE_CREATION,
+  TEMPORARY_TABLE_USAGE
 };
 
 /*
@@ -4166,9 +4195,11 @@ struct LEX : public Query_tables_list {
   std::map<Item_field *, Field *>::iterator end_values_map() {
     return insert_update_values_map->end();
   }
+
   bool can_execute_only_in_secondary_engine() const {
     return m_can_execute_only_in_secondary_engine;
   }
+
   void set_execute_only_in_secondary_engine(
       const bool execute_only_in_secondary_engine_param,
       execute_only_in_secondary_reasons reason) {
@@ -4179,8 +4210,8 @@ struct LEX : public Query_tables_list {
            reason == SUPPORTED_IN_PRIMARY);
   }
 
-  execute_only_in_secondary_reasons get_not_supported_in_primary_reason()
-      const {
+  [[nodiscard]] execute_only_in_secondary_reasons
+  get_not_supported_in_primary_reason() const {
     return m_execute_only_in_secondary_engine_reason;
   }
 
@@ -4193,6 +4224,10 @@ struct LEX : public Query_tables_list {
         return "TABLESAMPLE";
       case OUTFILE_OBJECT_STORE:
         return "OUTFILE to object store";
+      case TEMPORARY_TABLE_CREATION:
+        return "Secondary engine temporary table creation";
+      case TEMPORARY_TABLE_USAGE:
+        return "Secondary engine temporary table within this statement";
       default:
         return "UNDEFINED";
     }
@@ -5215,4 +5250,12 @@ class Change_current_query_block {
 };
 
 void get_select_options_str(ulonglong options, std::string *str);
+
+template <typename T>
+inline bool WalkQueryExpression(Query_expression *query_expr, enum_walk walk,
+                                T &&functor) {
+  return query_expr->walk(&Item::walk_helper_thunk<T>, walk,
+                          reinterpret_cast<uchar *>(&functor));
+}
+
 #endif /* SQL_LEX_INCLUDED */

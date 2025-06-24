@@ -1,0 +1,459 @@
+create schema sysdb;
+create schema db1;
+create table db1.prog (id int primary key auto_increment, user varchar(255), pct int);
+# a raw SP with no task support
+create procedure sysdb.p(IN param1 INT, OUT param2 INT, INOUT param3 INT) sql security invoker
+begin
+declare i int default 0;
+if param1 = 1234 then
+SIGNAL SQLSTATE '99999' SET MESSAGE_TEXT = 'ERROR!?', MYSQL_ERRNO = 9999;
+end if;
+insert into db1.prog values (default, current_user(), 5);
+do get_lock('testlock', 60);
+insert into db1.prog values (default, current_user(), 50);
+set param2 = param1 + 1;
+set param3 = param3 + 1;
+set @my_result = concat('result', param1);
+end$$
+create function sysdb.f(param1 INT) returns INT sql security invoker reads sql data
+begin
+if param1 = 1234 then
+SIGNAL SQLSTATE '99999' SET MESSAGE_TEXT = 'ERROR!?', MYSQL_ERRNO = 9999;
+end if;
+# these inserts dont help with the test because they dont seem to get committed until the function returns
+#insert into db1.prog values (default, current_user(), 5);
+do get_lock('testlock', 60);
+return param1 + 1;
+end$$
+create function sysdb.get_progress() returns int sql security invoker reads sql data
+begin
+return coalesce((select pct from db1.prog order by id desc limit 1), 0);
+end$$
+set global general_log=1;
+create user user1@'%' identified by 'secretpass1';
+grant all on db1.* to user1@'%';
+grant execute on sysdb.* to user1@'%';
+grant mysql_task_user to user1@'%';
+create user user2@'%' identified by 'secretpass1';
+grant all on db1.* to user2@'%';
+grant execute, event on sysdb.* to user2@'%';
+grant mysql_task_user to user2@'%';
+create user nocreate@'%' identified by 'secretpass1';
+grant all on db1.* to nocreate@'%';
+grant execute on sysdb.* to nocreate@'%';
+grant mysql_task_user to nocreate@'%';
+create user nodelete@'%' identified by 'secretpass1';
+grant all on db1.* to nodelete@'%';
+grant execute on sysdb.* to nodelete@'%';
+grant mysql_task_user to nodelete@'%';
+create user noget@'%' identified by 'secretpass1';
+grant all on db1.* to noget@'%';
+grant execute on sysdb.* to noget@'%';
+grant mysql_task_user to noget@'%';
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+GRANT ALL ON sysdb.* TO mysql_rest_service_data_provider;;
+GRANT ALL ON db1.* TO mysql_rest_service_data_provider;;
+GRANT mysql_rest_service_data_provider TO root@localhost;
+GRANT mysql_rest_service_meta_provider TO root@localhost;
+GRANT UPDATE ON `mysql_rest_service_metadata`.`mrs_user`
+    TO 'mysql_rest_service_meta_provider';
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/db
+# Registred DB_OBJECT at path: /svc/db/pDatabase
+# Registred DB_OBJECT at path: /svc/db/pNoEventSchema
+# Registred DB_OBJECT at path: /svc/db/pNoAuth
+# Registred DB_OBJECT at path: /svc/db/pRouter
+# Registred DB_OBJECT at path: /svc/db/fDatabase
+# Registred DB_OBJECT at path: /svc/db/fRouter
+# Registred DB_OBJECT at path: /svc/db/fNoAuth
+# Registered MRS ROLE: nocreate
+# Registered MRS Role Grant: /svc * * => READ,DELETE
+# Registered MRS ROLE: nodelete
+# Registered MRS Role Grant: /svc * * => CREATE,READ,UPDATE
+# Registered MRS ROLE: noget
+# Registered MRS Role Grant: /svc * * => CREATE,UPDATE,DELETE
+# Registred AUTH APP at path: /svc
+# Registred MRS USER: 'user1'
+# Registred MRS USER: 'user2'
+# Registred MRS USER: 'nocreate'
+# Registred MRS USER: 'nodelete'
+# Registred MRS USER: 'noget'
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+GET /svc/authentication/login
+
+OK
+"Test pDatabase"
+do get_lock('testlock', 1);
+POST /svc/db/pDatabase (payload-size:26)
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/pDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": 5
+}
+OK
+GET /svc/db/pDatabase
+{"message":"Not Found","status":404}
+OK
+GET /svc/db/pDatabase/TASK_ID
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+do release_lock('testlock');
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": {
+        "param2": 6,
+        "param3": 42,
+        "taskResult": null
+    },
+    "status": "COMPLETED",
+    "message": "Execution finished.",
+    "progress": 100
+}
+OK
+"Test pDatabase error"
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/pDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": null,
+    "status": "ERROR",
+    "message": "Error: ERROR!?",
+    "progress": 100
+}
+OK
+"Test kill pDatabase"
+do get_lock('testlock', 2);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/pDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": ###
+}
+OK
+DELETE /svc/db/pDatabase/TASK_ID
+{
+    "message": "Forbidden",
+    "status": 403
+}
+OK
+DELETE /svc/db/pDatabase
+{
+    "message": "Not Found",
+    "status": 404
+}
+OK
+DELETE /svc/db/pDatabase/TASK_ID
+{}
+OK
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": null,
+    "status": "CANCELLED",
+    "message": "Cancelled by user.",
+    "progress": 100
+}
+OK
+try to cancel completed task
+DELETE /svc/db/pDatabase/TASK_ID
+{}
+OK
+do release_lock('testlock');
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/pNoEventSchema/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pDatabase/TASK_ID
+{
+    "data": {
+        "param2": 7,
+        "param3": 42,
+        "taskResult": null
+    },
+    "status": "COMPLETED",
+    "message": "Execution finished.",
+    "progress": 100
+}
+OK
+No auth endpoint should all fail
+POST /svc/db/pNoAuth (payload-size:26)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+OK
+"Start fDatabase"
+do get_lock('testlock', 3);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/fDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/fDatabase/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": 50
+}
+OK
+do release_lock('testlock');
+GET /svc/db/fDatabase/TASK_ID
+{
+    "data": {
+        "result": 6,
+        "taskResult": null
+    },
+    "status": "COMPLETED",
+    "message": "Execution finished.",
+    "progress": 100
+}
+OK
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/fDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/fDatabase/TASK_ID
+{
+    "data": null,
+    "status": "ERROR",
+    "message": "Error: ERROR!?",
+    "progress": 100
+}
+OK
+do get_lock('testlock', 4);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task in background.",
+    "statusUrl": "/svc/db/fDatabase/TASK_ID",
+    "taskId": "TASK_ID"
+};
+DELETE /svc/db/fDatabase/TASK_ID
+{}
+OK
+GET /svc/db/fDatabase/TASK_ID
+{
+    "data": null,
+    "status": "CANCELLED",
+    "message": "Cancelled by user.",
+    "progress": 100
+}
+OK
+do release_lock('testlock');
+No auth endpoint should all fail
+POST /svc/db/fNoAuth (payload-size:26)
+{
+    "message": "Unauthorized",
+    "status": 401
+}
+OK
+truncate db1.prog;
+insert into db1.prog values (default, 'empty', 0);
+do get_lock('testlock', 5);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/pRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pRouter/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": ###
+}
+OK
+do release_lock('testlock');
+GET /svc/db/pRouter/TASK_ID
+{
+    "data": {
+        "param2": 9,
+        "param3": 44,
+        "taskResult": null
+    },
+    "status": "COMPLETED",
+    "message": "Execution finished.",
+    "progress": 100
+}
+OK
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/pRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pRouter/TASK_ID
+{
+    "data": null,
+    "status": "ERROR",
+    "message": "Error executing \"CALL `sysdb`.`p`(1234,@__param2,@__param3)\": ERROR!? (9999)",
+    "progress": 100
+}
+OK
+do get_lock('testlock', 6);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/pRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/pRouter/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": ###
+}
+OK
+DELETE /svc/db/pRouter/TASK_ID
+{}
+OK
+GET /svc/db/pRouter/TASK_ID
+{
+    "data": null,
+    "status": "CANCELLED",
+    "message": "Cancelled by user.",
+    "progress": 100
+}
+OK
+do release_lock('testlock');
+do get_lock('testlock', 1);
+truncate db1.prog;
+insert into db1.prog values (default, 'empty', 1);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/fRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/fRouter/TASK_ID
+{
+    "data": {
+        "lastUpdate": TIMESTAMP
+    },
+    "status": "RUNNING",
+    "message": "PROGRESS REPORT",
+    "progress": 1
+}
+OK
+do release_lock('testlock');
+GET /svc/db/fRouter/TASK_ID
+{
+    "data": {
+        "result": 2,
+        "taskResult": null
+    },
+    "status": "COMPLETED",
+    "message": "Execution finished.",
+    "progress": 100
+}
+OK
+try to cancel completed task
+DELETE /svc/db/fRouter/TASK_ID
+{}
+OK
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/fRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+GET /svc/db/fRouter/TASK_ID
+{
+    "data": null,
+    "status": "ERROR",
+    "message": "Error executing \"SELECT `sysdb`.`f`(1234) INTO @__result\": ERROR!? (9999)",
+    "progress": 100
+}
+OK
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/fRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+DELETE /svc/db/fRouter/TASK_ID
+{}
+OK
+GET /svc/db/fRouter/TASK_ID
+{
+    "data": null,
+    "status": "CANCELLED",
+    "message": "Cancelled by user.",
+    "progress": 100
+}
+OK
+do get_lock('testlock', 1);
+let $mrs_result={
+    "message": "Request accepted. Starting to process task.",
+    "statusUrl": "/svc/db/fRouter/TASK_ID",
+    "taskId": "TASK_ID"
+};
+set @conn=mysql_tasks.get_task_connection_id('TASK_ID');;
+kill @conn;
+do release_lock('testlock');
+GET /svc/db/fRouter/TASK_ID
+{
+    "data": null,
+    "status": "CANCELLED",
+    "message": "Cleaned up by system.",
+    "progress": 100
+}
+OK
+drop user user1@'%';
+drop user user2@'%';
+drop user nocreate@'%';
+drop user nodelete@'%';
+drop user noget@'%';
+drop schema db1;
+drop schema sysdb;
+drop schema mysql_tasks;
+drop role mysql_task_user;
+drop role mysql_task_admin;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+DROP ROLE mysql_rest_service_dev;

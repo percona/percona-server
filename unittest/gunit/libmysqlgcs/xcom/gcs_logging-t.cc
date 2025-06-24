@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ class Mock_Logger : public Logger_interface {
     ON_CALL(*this, finalize()).WillByDefault(Return(GCS_OK));
   }
 
-  ~Mock_Logger() = default;
+  ~Mock_Logger() override = default;
   MOCK_METHOD0(initialize, enum_gcs_error());
   MOCK_METHOD0(finalize, enum_gcs_error());
   MOCK_METHOD2(log_event, void(const gcs_log_level_t, const std::string &));
@@ -72,7 +72,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
   }
 
   // Initialize new mock logger
-  Mock_Logger *anotherLogger = new Mock_Logger();
+  auto *anotherLogger = new Mock_Logger();
   Gcs_log_manager::initialize(anotherLogger);
 
   // anotherLogger initialized

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -655,7 +655,8 @@ MySQLRouting::MySQLRouting(
     std::shared_ptr<routing_guidelines::Routing_guidelines_engine> guidelines,
     const std::string &route_name, TlsServerContext *client_ssl_ctx,
     DestinationTlsContext *dest_ssl_ctx)
-    : context_(routing_config, route_name, client_ssl_ctx, dest_ssl_ctx,
+    : accept_connections_(routing_config.accept_connections),
+      context_(routing_config, route_name, client_ssl_ctx, dest_ssl_ctx,
                std::move(guidelines)),
       io_ctx_{io_ctx},
       routing_strategy_(routing_config.routing_strategy),
@@ -674,7 +675,8 @@ MySQLRouting::MySQLRouting(
   // This test is only a basic assertion.  Calling code is expected to check the
   // validity of these arguments more thoroughly. At the time of writing,
   // routing_plugin.cc : init() is one such place.
-  if (context_.get_bind_address().port() == 0 &&
+  if (routing_config.accept_connections &&
+      context_.get_bind_address().port() == 0 &&
       !routing_config.named_socket.is_set()) {
     throw std::invalid_argument(
         string_format("No valid address:port (%s:%d) or socket (%s) to bind to",
@@ -687,6 +689,15 @@ MySQLRouting::MySQLRouting(
 void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
   my_thread_self_setname(get_routing_thread_name(context_.get_name(), "RtM")
                              .c_str());  // "Rt main" would be too long
+
+  if (!accept_connections_) {
+    auto res = run_with_no_acceptor(env);
+    if (!res) {
+      clear_running(env);
+      throw std::runtime_error(res.error());
+    }
+    return;
+  }
 
   if (context_.get_bind_address().port() > 0) {
     accepting_endpoints_.push_back(std::make_unique<AcceptingEndpointTcpSocket>(
@@ -864,6 +875,19 @@ stdx::expected<void, std::string> MySQLRouting::run_acceptor(
   }
 
   log_info("[%s] stopped", context_.get_name().c_str());
+  return {};
+}
+
+stdx::expected<void, std::string> MySQLRouting::run_with_no_acceptor(
+    mysql_harness::PluginFuncEnv *env) {
+  log_info("routing %s configured to NOT accept the external connections",
+           context_.get_name().c_str());
+  destination_manager_->start(env);
+  mysql_harness::on_service_ready(env);
+
+  mysql_harness::wait_for_stop(env, 0);
+
+  clear_running(env);
   return {};
 }
 

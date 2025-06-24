@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1091,10 +1091,8 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
     error =
         col_privs->file->ha_index_read_map(col_privs->record[0], (uchar *)key,
                                            (key_part_map)15, HA_READ_KEY_EXACT);
-    assert(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-           error != HA_ERR_LOCK_DEADLOCK);
-    assert(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-           error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_LOCK_DEADLOCK);
+    assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_grant_table_2", error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
       bool ret = false;
@@ -1129,10 +1127,8 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
                            unique_ptr_destroy_only<GRANT_COLUMN>(mem_check));
 
       error = col_privs->file->ha_index_next(col_privs->record[0]);
-      assert(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_DEADLOCK);
-      assert(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_LOCK_DEADLOCK);
+      assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_table_3", error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_END_OF_FILE) {
         acl_print_ha_error(error);
@@ -2881,10 +2877,8 @@ static bool grant_load_procs_priv(TABLE *p_table) {
   p_table->use_all_columns();
 
   error = p_table->file->ha_index_first(p_table->record[0]);
-  assert(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-         error != HA_ERR_LOCK_DEADLOCK);
-  assert(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-         error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(error != HA_ERR_LOCK_DEADLOCK);
+  assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_2", error = HA_ERR_LOCK_DEADLOCK;);
 
   if (error) {
@@ -2935,10 +2929,8 @@ static bool grant_load_procs_priv(TABLE *p_table) {
       }
     next_record:
       error = p_table->file->ha_index_next(p_table->record[0]);
-      assert(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_DEADLOCK);
-      assert(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_LOCK_DEADLOCK);
+      assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_load_proc_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -3000,10 +2992,8 @@ static bool grant_load(THD *thd, Table_ref *tables) {
   c_table->use_all_columns();
 
   error = t_table->file->ha_index_first(t_table->record[0]);
-  assert(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-         error != HA_ERR_LOCK_DEADLOCK);
-  assert(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-         error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(error != HA_ERR_LOCK_DEADLOCK);
+  assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_grant_load_2", error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     if (error == HA_ERR_END_OF_FILE)
@@ -3042,10 +3032,8 @@ static bool grant_load(THD *thd, Table_ref *tables) {
             unique_ptr_destroy_only<GRANT_TABLE>(mem_check));
       }
       error = t_table->file->ha_index_next(t_table->record[0]);
-      assert(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_DEADLOCK);
-      assert(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-             error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_LOCK_DEADLOCK);
+      assert(error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_load_3", error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
         if (error != HA_ERR_END_OF_FILE)

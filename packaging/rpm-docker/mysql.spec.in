@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -373,6 +373,7 @@ for p in \
          component_test_sys_var_service_str.so \
          component_test_session_var_service.so \
          component_test_table_access.so \
+         component_test_udf_aggregate.so \
          component_test_udf_registration.so \
          component_test_udf_services.so \
          component_udf_reg_3_func.so \
@@ -445,6 +446,7 @@ rm -r $(readlink var) var
 
 %post -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 [ -e /var/log/mysqld.log ] || install /dev/null -m0640 -omysql -gmysql /var/log/mysqld.log || :
+[ -e /var/log/mysqld.log.00.json ] || install /dev/null -m0640 -omysql -gmysql /var/log/mysqld.log.00.json || :
 
 %files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)
@@ -625,7 +627,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %dir %{_datadir}/mysql-*/
 %{_datadir}/mysql-*/charsets/
@@ -689,6 +690,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_aws.so
 %endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
@@ -698,6 +700,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_option_tracker.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
 %if 0%{?aws_sdk}
@@ -718,6 +721,12 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Fri Jan 10 2025 Anibal Pinto <anibal.pinto@oracle.com> - 9.3.0-1
+- Added component_group_replication_elect_prefers_most_updated
+
+* Thu Jan 09 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.3.0-1
+- Add component_keyring_hashicorp.so component
+
 * Fri Nov 29 2024 Jaideep Karande <jaideep.karande@oracle.com> - 9.2.0-1
 - Added component_group_replication_resource_manager
 

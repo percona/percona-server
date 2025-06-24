@@ -1,4 +1,4 @@
-/*  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+/*  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,13 @@
 #include "sql-common/json_dom.h"
 #include "sql-common/my_decimal.h"
 #include "sql/field.h"
+#include "sql/item_strfunc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_gipk.h"
 #include "sql/sql_time.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/tztime.h"
+#include "vector-common/vector_conversion.h"
 
 namespace Bulk_data_convert {
 
@@ -163,6 +165,7 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
       [[fallthrough]];
     case MYSQL_TYPE_JSON:
       [[fallthrough]];
+    case MYSQL_TYPE_VECTOR:
     case MYSQL_TYPE_LONG_BLOB:
       length_size = 4;
       break;
@@ -187,10 +190,55 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
     const size_t nchars = text_col.m_data_len;
     auto field_size = sql_col.m_data_len;
 
+    if (sql_col.m_type == MYSQL_TYPE_VECTOR) {
+      assert(!text_col.is_ext());
+      const size_t len = text_col.m_data_len;
+
+      uint32 input_dims = get_dimensions(len, Field_vector::precision);
+      if (input_dims > Field_vector::max_dimensions) {
+        error_details.m_column_length = len;
+        error_details.column_input_data = text_col.m_data_ptr;
+        return ER_TO_VECTOR_CONVERSION;
+      }
+
+      assert(input_dims != 0);
+
+      /* Refer to Item_func_from_vector::per_value_chars */
+      const uint32 per_value_chars = 16;
+      uint32 out_length = input_dims * per_value_chars;
+
+#ifndef NDEBUG
+      const uint32 max_output_bytes =
+          (Field_vector::max_dimensions * per_value_chars);
+      assert(out_length <= max_output_bytes);
+#endif /* NDEBUG */
+
+      /* Refer to Field_vector::store(). */
+      const char *from = text_col.m_data_ptr;
+      for (uint32 i = 0; i < input_dims; i++) {
+        float to_store = 0;
+        memcpy(&to_store, from + sizeof(float) * i, sizeof(float));
+        if (std::isnan(to_store) || std::isinf(to_store)) {
+          error_details.m_column_length = len;
+          error_details.column_input_data = text_col.m_data_ptr;
+          return ER_TO_VECTOR_CONVERSION;
+        }
+      }
+
+      auto ptr = std::make_unique<char[]>(out_length);
+      if (from_vector_to_string(text_col.m_data_ptr, input_dims, ptr.get(),
+                                &out_length)) {
+        error_details.m_column_length = len;
+        error_details.column_input_data = text_col.m_data_ptr;
+        return ER_TO_VECTOR_CONVERSION;
+      }
+    }
+
     if (field_charset == &my_charset_bin) {
       /* If the charset of the field is binary, then the column data in the CSV
       would also be binary. Don't do any charset conversions. */
       if (text_col.m_data_len > sql_col.m_data_len) {
+        error_details.m_column_length = sql_col.m_data_len;
         return ER_TOO_BIG_FIELDLENGTH;
       }
       memcpy(field_data, text_col.m_data_ptr, text_col.m_data_len);
@@ -250,6 +298,8 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
     case MYSQL_TYPE_GEOMETRY:
       [[fallthrough]];
     case MYSQL_TYPE_JSON:
+      [[fallthrough]];
+    case MYSQL_TYPE_VECTOR:
       [[fallthrough]];
     case MYSQL_TYPE_LONG_BLOB:
       int4store(field_begin, copy_size);
@@ -1320,6 +1370,7 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
         err = format_int_column<int64_t, uint64_t>(
             text_col, charset, field, with_keys, sql_col, error_details);
         break;
+      case MYSQL_TYPE_VECTOR:
       case MYSQL_TYPE_BLOB:
         [[fallthrough]];
       case MYSQL_TYPE_TINY_BLOB:
@@ -1509,6 +1560,8 @@ static int fill_column_data(char *row_begin, char *buffer, size_t buffer_length,
     case MYSQL_TYPE_GEOMETRY:
       [[fallthrough]];
     case MYSQL_TYPE_JSON:
+      [[fallthrough]];
+    case MYSQL_TYPE_VECTOR:
       [[fallthrough]];
     case MYSQL_TYPE_LONG_BLOB: {
       auto data_len = uint4korr(buffer);
@@ -1980,7 +2033,8 @@ static void set_data_type(const Field *field, Column_meta &col_meta) {
       }
       assert(type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VARCHAR ||
              type == MYSQL_TYPE_FLOAT || type == MYSQL_TYPE_DOUBLE ||
-             type == MYSQL_TYPE_JSON || type == MYSQL_TYPE_GEOMETRY);
+             type == MYSQL_TYPE_JSON || type == MYSQL_TYPE_GEOMETRY ||
+             type == MYSQL_TYPE_VECTOR);
       col_meta.m_compare = Column_meta::Compare::MYSQL;
       break;
   }
@@ -2645,6 +2699,7 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_VECTOR:
         if (!check_for_deprecated_use(field)) {
           return false;
         }

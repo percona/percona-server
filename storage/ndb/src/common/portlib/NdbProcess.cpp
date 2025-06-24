@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -27,11 +27,10 @@
 #ifdef TEST_NDBPROCESS
 
 #include "portlib/NdbProcess.hpp"
-#include <stdlib.h>
-#include <string.h>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>

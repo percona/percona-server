@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ ER_RPL_GTID_TABLE_CANNOT_OPEN
 ER_SYSTEM_SCHEMA_NOT_FOUND
   eng "System schema directory does not exist."
 
-ER_DD_INIT_UPGRADE_FAILED
+OBSOLETE_ER_DD_INIT_UPGRADE_FAILED
   eng "Error in initializing dictionary, upgrade will do a cleanup and exit"
 
 ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION
@@ -5781,8 +5781,8 @@ ER_IB_MSG_81
 ER_IB_MSG_82
   eng "%s"
 
-ER_IB_MSG_83
-  eng "%s"
+ER_IB_ERR_PAGE_DIRTY_AT_SHUTDOWN
+  eng "Page still fixed or dirty at shutdown. %s"
 
 ER_IB_MSG_84
   eng "%s"
@@ -9865,7 +9865,7 @@ OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_RSEG
 ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
   eng "%s Failed to finish truncating Undo Tablespace '%s'"
 
-ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
+OBSOLETE_ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
   eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
 
 ER_IB_MSG_WRONG_TABLESPACE_DIR
@@ -11684,10 +11684,10 @@ ER_IB_MSG_LOG_WRITER_ENTERED_EXTRA_MARGIN
 ER_IB_MSG_LOG_WRITER_EXITED_EXTRA_MARGIN
   eng "Redo log reclaimed some free space, resuming user threads."
 
-ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED
+OBSOLETE_ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED
   eng "Ignored deprecated configuration parameter innodb_log_file_size. Used innodb_redo_log_capacity instead."
 
-ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED
+OBSOLETE_ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED
   eng "Ignored deprecated configuration parameter innodb_log_files_in_group. Used innodb_redo_log_capacity instead."
 
 ER_IB_MSG_LOG_UPGRADE_FORCED_RECV
@@ -12323,6 +12323,21 @@ OBSOLETE_ER_RPL_KILL_OLD_DUMP_THREAD_ENCOUNTERED
 
 OBSOLETE_ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
   eng "The transaction '%-.192s' will commit out of order with respect to its source to follow the group global order."
+
+ER_CHECK_TABLE_FUNCTIONS
+  eng "Can not open table `%s`.`%s`; functions in constraints, partitions, or virtual columns may have failed."
+
+ER_CHECK_TABLE_FUNCTIONS_DETAIL
+  eng "%s"
+
+ER_GRP_RPL_CERT_BROADCAST_THREAD_CREATE_FAILED
+  eng "Failed to create the Group Replication certifier broadcast thread (THD_certifier_broadcast)."
+
+ER_GRP_RPL_CERT_BROADCAST_THREAD_STARTED
+  eng "The Group Replication certifier broadcast thread (THD_certifier_broadcast) started."
+
+ER_GRP_RPL_CERT_BROADCAST_THREAD_STOPPED
+  eng "The Group Replication certifier broadcast thread (THD_certifier_broadcast) stopped."
 
 #
 # End of 8.0 error messages intended to be written to the server error log.
@@ -13019,6 +13034,36 @@ ER_GR_RM_MEMBER_LEAVING_RECOVERY_THRESHOLD_HIT
 
 ER_GR_RM_MEMBER_LEAVING_MEMORY_THRESHOLD_HIT
   eng "Member exiting group: memory used of %d%% exceeded tolerance threshold configured to %d%%."
+
+ER_NO_PATCH_DOWNGRADE_FOR_INNOVATION_RELEASES
+  eng "Patch downgrade from %d to %d is not supported because MySQL server version %d is an innovation release."
+
+ER_WARN_OPTION_USAGE_COUNTER_READ_FAILED
+  eng "Failed reading the initial usedCounter value for option %s: %s"
+
+ER_GRP_PREFER_MOST_UPDATED_CONFIG_DIFFER_ON_FAILOVER
+  eng "Members have different configurations (option group_replication_elect_prefers_most_updated.enabled) on usage of most up-to-date method on primary failover, method will not be used."
+
+ER_GRP_PRIMARY_ELECTION_METHOD_MOST_UPDATE
+      eng "Member with uuid %s was elected primary since it was the most up-to-date member with %lu transactions more than second most up-to-date member %s. In case of a tie member weight and then uuid lexical order was used over the most updated members."
+
+ER_GRP_PRIMARY_ELECTION_METHOD_MEMBER_WEIGHT
+      eng "Member with uuid %s was elected primary since it was highest weight member with value %d. In case of a tie uuid lexical order was used."
+
+ER_GRP_PRIMARY_ELECTION_FATAL_PROCESS
+  eng "Fatal error during the primary election process of Group Replication. The server will leave the group."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_DATA_EXTRACT_FAILED
+   eng "Hashicorp Vault DATA extract failed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_KEY_MALFORMED
+   eng "Hashicorp Vault KEY malformed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_AUTH_FAIL
+   eng "Hashicorp Vault server authentication failed."
+
+ER_KEYRING_COMPONENT_KEYRING_HASHICORP_CURL_SETOPT_FAILED
+   eng "Hashicorp Vault server curl_easy_setopt failed."
 
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.

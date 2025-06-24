@@ -2163,7 +2163,7 @@ DROP TABLE `comment_table`;
 
 CREATE DATABASE `test-database`;
 USE `test-database`;
-CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 
 DELIMITER |;
 CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
@@ -3049,7 +3049,8 @@ create database mysqldump_test_db;
 
 create procedure mysqldump_test_db.sp1() select 'hello';
 --disable_warnings
-create library  mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT AS " export function f(n) {  return n+1 } ";
+create library mysqldump_test_db.sp1 LANGUAGE JAVASCRIPT COMMENT 'Library Comment' AS " export function f(n) {  return '$$' } ";
+create library mysqldump_test_db.sp2 LANGUAGE JAVASCRIPT COMMENT 'Library Comment' AS " export function f(n) {  return '$$' + '$JAVASCRIPT$' } ";
 create function mysqldump_test_db.sp1(n INTEGER) RETURNS INTEGER LANGUAGE JAVASCRIPT
 USING (mysqldump_test_db.sp1)
 as " return sp1.f(n) ";
@@ -3065,12 +3066,14 @@ as " return sp1.f(n) ";
 drop procedure mysqldump_test_db.sp1;
 drop function mysqldump_test_db.sp1;
 drop library mysqldump_test_db.sp1;
+drop library mysqldump_test_db.sp2;
 
 --echo # Import back the exported routines that were just deleted.
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 show create procedure mysqldump_test_db.sp1;
 show create function mysqldump_test_db.sp1;
 show create library mysqldump_test_db.sp1;
+show create library mysqldump_test_db.sp2;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 drop database mysqldump_test_db;
 

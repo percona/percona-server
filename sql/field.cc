@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5516,20 +5516,17 @@ type_conversion_status Field_timestampf::validate_stored_val(THD *thd) {
   return (Field_temporal_with_date::validate_stored_val(thd));
 }
 
-/****************************************************************************
-** TIME and TIME(N) common methods
-****************************************************************************/
-
-bool Field_time_common::convert_str_to_TIME(const char *str, size_t len,
-                                            const CHARSET_INFO *cs,
-                                            MYSQL_TIME *ltime,
-                                            MYSQL_TIME_STATUS *status) {
+bool Field_time::convert_str_to_TIME(const char *str, size_t len,
+                                     const CHARSET_INFO *cs, MYSQL_TIME *ltime,
+                                     MYSQL_TIME_STATUS *status) {
   return str_to_time(cs, str, len, ltime, date_flags(), status);
 }
 
-type_conversion_status Field_time_common::convert_number_to_TIME(
-    longlong nr, bool unsigned_val, int nanoseconds, MYSQL_TIME *ltime,
-    int *warnings) {
+type_conversion_status Field_time::convert_number_to_TIME(longlong nr,
+                                                          bool unsigned_val,
+                                                          int nanoseconds,
+                                                          MYSQL_TIME *ltime,
+                                                          int *warnings) {
   if (unsigned_val && nr < 0) {
     *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
     set_max_time(ltime, false);
@@ -5552,7 +5549,7 @@ type_conversion_status Field_time_common::convert_number_to_TIME(
   return error ? time_warning_to_type_conversion_status(*warnings) : TYPE_OK;
 }
 
-type_conversion_status Field_time_common::store_time(MYSQL_TIME *ltime, uint8) {
+type_conversion_status Field_time::store_time(MYSQL_TIME *ltime, uint8) {
   /* Check if seconds or minutes are out of range */
   if (ltime->second >= 60 || ltime->minute >= 60) {
     if (set_warnings(ErrConvString(ltime, decimals()),
@@ -5565,15 +5562,15 @@ type_conversion_status Field_time_common::store_time(MYSQL_TIME *ltime, uint8) {
   return store_internal_adjust_frac(ltime, &warnings);
 }
 
-type_conversion_status Field_time_common::store_internal_adjust_frac(
-    MYSQL_TIME *ltime, int *warnings) {
+type_conversion_status Field_time::store_internal_adjust_frac(MYSQL_TIME *ltime,
+                                                              int *warnings) {
   if (my_time_adjust_frac(ltime, dec, (date_flags() & TIME_FRAC_TRUNCATE)))
     return TYPE_WARN_OUT_OF_RANGE;
 
   return store_internal(ltime, warnings);
 }
 
-String *Field_time_common::val_str(String *val_buffer, String *) const {
+String *Field_time::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
@@ -5592,7 +5589,7 @@ String *Field_time_common::val_str(String *val_buffer, String *) const {
   the result as a DATETIME value.
 */
 
-bool Field_time_common::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
+bool Field_time::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME tm;
   if (get_time(&tm)) {
@@ -5603,7 +5600,7 @@ bool Field_time_common::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
   return false;
 }
 
-longlong Field_time_common::val_date_temporal() const {
+longlong Field_time::val_date_temporal() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME time, datetime;
   if (get_time(&time)) {
@@ -5614,7 +5611,7 @@ longlong Field_time_common::val_date_temporal() const {
   return TIME_to_longlong_datetime_packed(datetime);
 }
 
-bool Field_time_common::send_to_protocol(Protocol *protocol) const {
+bool Field_time::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
@@ -5624,7 +5621,7 @@ bool Field_time_common::send_to_protocol(Protocol *protocol) const {
   return protocol->store_time(ltime, dec);
 }
 
-my_time_flags_t Field_time_common::date_flags(const THD *thd) const {
+my_time_flags_t Field_time::date_flags(const THD *thd) const {
   my_time_flags_t date_flags = 0;
   if (thd->variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL)
     date_flags = TIME_FRAC_TRUNCATE;
@@ -5633,75 +5630,12 @@ my_time_flags_t Field_time_common::date_flags(const THD *thd) const {
 }
 
 /****************************************************************************
-** time type
-** In string context: HH:MM:SS
-** In number context: HHMMSS
-** Stored as a 3 byte unsigned int
-****************************************************************************/
-
-type_conversion_status Field_time::store_internal(const MYSQL_TIME *ltime,
-                                                  int *) {
-  long tmp = ((ltime->month ? 0 : ltime->day * 24L) + ltime->hour) * 10000L +
-             (ltime->minute * 100 + ltime->second);
-  if (ltime->neg) tmp = -tmp;
-  int3store(ptr, tmp);
-  return TYPE_OK;
-}
-
-type_conversion_status Field_time::store_packed(longlong nr) {
-  MYSQL_TIME ltime;
-  TIME_from_longlong_time_packed(&ltime, nr);
-  return Field_time::store_time(&ltime, 0);
-}
-
-longlong Field_time::val_time_temporal() const {
-  ASSERT_COLUMN_MARKED_FOR_READ;
-  MYSQL_TIME ltime;
-  return get_time(&ltime) ? 0 : TIME_to_longlong_time_packed(ltime);
-}
-
-longlong Field_time::val_int() const {
-  ASSERT_COLUMN_MARKED_FOR_READ;
-  return (longlong)sint3korr(ptr);
-}
-
-bool Field_time::get_time(MYSQL_TIME *ltime) const {
-  long tmp = (long)sint3korr(ptr);
-  if ((ltime->neg = tmp < 0)) tmp = -tmp;
-  ltime->year = ltime->month = ltime->day = 0;
-  TIME_set_hhmmss(ltime, tmp);
-  ltime->second_part = 0;
-  ltime->time_type = MYSQL_TIMESTAMP_TIME;
-  return false;
-}
-
-int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
-  int32 a, b;
-  a = sint3korr(a_ptr);
-  b = sint3korr(b_ptr);
-  return (a < b) ? -1 : (a > b) ? 1 : 0;
-}
-
-size_t Field_time::make_sort_key(uchar *to,
-                                 size_t length [[maybe_unused]]) const {
-  assert(length == 3);
-  to[0] = (uchar)(ptr[2] ^ 128);
-  to[1] = ptr[1];
-  to[2] = ptr[0];
-  return 3;
-}
-
-void Field_time::sql_type(String &res) const {
-  res.set_ascii(STRING_WITH_LEN("time"));
-}
-
-/****************************************************************************
 ** time type with fsp
 ** In string context: HH:MM:SS.FFFFFF
 ** In number context: HHMMSS.FFFFFF
 ****************************************************************************/
 
-longlong Field_timef::val_int() const {
+longlong Field_time::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
@@ -5712,7 +5646,7 @@ longlong Field_timef::val_int() const {
   return ltime.neg ? -tmp : tmp;
 }
 
-my_decimal *Field_timef::val_decimal(my_decimal *decimal_value) const {
+my_decimal *Field_time::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
@@ -5722,7 +5656,7 @@ my_decimal *Field_timef::val_decimal(my_decimal *decimal_value) const {
   return time2my_decimal(&ltime, decimal_value);
 }
 
-double Field_timef::val_real() const {
+double Field_time::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
@@ -5733,7 +5667,7 @@ double Field_timef::val_real() const {
   return ltime.neg ? -tmp : tmp;
 }
 
-void Field_timef::sql_type(String &res) const {
+void Field_time::sql_type(String &res) const {
   if (dec == 0) {
     res.set_ascii(STRING_WITH_LEN("time"));
     return;
@@ -5743,20 +5677,20 @@ void Field_timef::sql_type(String &res) const {
       cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "time(%d)", dec));
 }
 
-type_conversion_status Field_timef::reset() { return store_packed(0); }
+type_conversion_status Field_time::reset() { return store_packed(0); }
 
-type_conversion_status Field_timef::store_packed(longlong nr) {
+type_conversion_status Field_time::store_packed(longlong nr) {
   my_time_packed_to_binary(nr, ptr, dec);
   return TYPE_OK;
 }
 
-longlong Field_timef::val_time_temporal() const {
+longlong Field_time::val_time_temporal() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   return my_time_packed_from_binary(ptr, dec);
 }
 
-type_conversion_status Field_timef::store_internal(const MYSQL_TIME *ltime,
-                                                   int *warnings) {
+type_conversion_status Field_time::store_internal(const MYSQL_TIME *ltime,
+                                                  int *warnings) {
   /*
     If time zone displacement information is present in "ltime"
     - adjust the value to UTC based on the time zone
@@ -5785,7 +5719,7 @@ type_conversion_status Field_timef::store_internal(const MYSQL_TIME *ltime,
   return rc;
 }
 
-bool Field_timef::get_time(MYSQL_TIME *ltime) const {
+bool Field_time::get_time(MYSQL_TIME *ltime) const {
   const longlong tmp = val_time_temporal();
   TIME_from_longlong_time_packed(ltime, tmp);
   return false;
@@ -9855,10 +9789,9 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
           Field_date(ptr, null_pos, null_bit, auto_flags, field_name);
 
     case MYSQL_TYPE_TIME:
-      return new (mem_root)
-          Field_time(ptr, null_pos, null_bit, auto_flags, field_name);
+      return nullptr;
     case MYSQL_TYPE_TIME2:
-      return new (mem_root) Field_timef(
+      return new (mem_root) Field_time(
           ptr, null_pos, null_bit, auto_flags, field_name,
           (field_length > MAX_TIME_WIDTH) ? field_length - 1 - MAX_TIME_WIDTH
                                           : 0);

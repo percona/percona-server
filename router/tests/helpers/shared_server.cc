@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,10 @@ static void copy_tree(const mysql_harness::Directory &from_dir,
 
 SharedServer::~SharedServer() {
   // shutdown via API to get a clean exit-code on windows.
-  shutdown();
-  process_manager().wait_for_exit();
+  if (starts_) {
+    shutdown();
+    process_manager().wait_for_exit();
+  }
 }
 
 stdx::expected<void, MysqlError> SharedServer::shutdown() {
@@ -396,17 +398,6 @@ END)"));
       cli.query("CREATE FUNCTION service_release_locks"
                 "        RETURNS INT"
                 "         SONAME 'locking_service" SO_EXTENSION "'"));
-
-  // version_token
-
-  ASSERT_NO_ERROR(
-      cli.query("CREATE FUNCTION version_tokens_lock_shared"
-                "        RETURNS INT"
-                "         SONAME 'version_token" SO_EXTENSION "'"));
-  ASSERT_NO_ERROR(
-      cli.query("CREATE FUNCTION version_tokens_lock_exclusive"
-                "        RETURNS INT"
-                "         SONAME 'version_token" SO_EXTENSION "'"));
 }
 
 stdx::expected<void, MysqlError> SharedServer::local_install_plugin(

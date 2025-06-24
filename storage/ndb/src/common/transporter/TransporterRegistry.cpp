@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -731,7 +731,8 @@ void TransporterRegistry::remove_allTransporters(Transporter *t) {
   TrpId trp_id = t->getTransporterIndex();
   if (trp_id == 0) {
     return;
-  } else if (t == allTransporters[trp_id]) {
+  }
+  if (t == allTransporters[trp_id]) {
     DEBUG_FPRINTF((stderr,
                    "remove trp_id %u for node %u from allTransporters\n",
                    trp_id, t->getRemoteNodeId()));
@@ -824,9 +825,8 @@ bool TransporterRegistry::createTCPTransporter(
     t = new TCP_Transporter(*this, config);
   }
 
-  if (t == nullptr)
-    return false;
-  else if (!t->initTransporter()) {
+  if (t == nullptr) return false;
+  if (!t->initTransporter()) {
     delete t;
     return false;
   }
@@ -851,7 +851,7 @@ bool TransporterRegistry::createSHMTransporter(TransporterConfiguration *config
   /* Don't use index 0, special use case for extra  transporters */
   config->transporterIndex = nTransporters + 1;
 
-  SHM_Transporter *t = new SHM_Transporter(
+  auto *t = new SHM_Transporter(
       *this, config->transporterIndex, config->localHostName,
       config->remoteHostName, config->s_port, config->isMgmConnection,
       localNodeId, config->remoteNodeId, config->serverNodeId, config->checksum,
@@ -982,32 +982,28 @@ SendStatus TransporterRegistry::prepareSendTemplate(
         DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
         report_error(trp_id, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
         return SEND_BUFFER_FULL;
-      } else {
-        g_eventLogger->info("Send message too big: length %u", lenBytes);
-        return SEND_MESSAGE_TOO_BIG;
       }
-    } else {
-#ifdef ERROR_INSERT
-      if (m_blocked.get(trp_id)) {
-        /* Looks like it disconnected while blocked.  We'll pretend
-         * not to notice for now
-         */
-        WARNING("Signal to " << t->getRemoteNodeId()
-                             << " discarded as transporter " << trp_id
-                             << " blocked + disconnected");
-        return SEND_OK;
-      }
-#endif
-      DEBUG("Signal to " << t->getRemoteNodeId() << " lost(disconnect) ");
-      return SEND_DISCONNECTED;
+      g_eventLogger->info("Send message too big: length %u", lenBytes);
+      return SEND_MESSAGE_TOO_BIG;
     }
-  } else {
-    DEBUG("Discarding message to block: "
-          << signalHeader->theReceiversBlockNumber
-          << " node: " << t->getRemoteNodeId());
-
-    return SEND_BLOCKED;
+#ifdef ERROR_INSERT
+    if (m_blocked.get(trp_id)) {
+      /* Looks like it disconnected while blocked.  We'll pretend
+       * not to notice for now
+       */
+      WARNING("Signal to " << t->getRemoteNodeId()
+                           << " discarded as transporter " << trp_id
+                           << " blocked + disconnected");
+      return SEND_OK;
+    }
+#endif
+    DEBUG("Signal to " << t->getRemoteNodeId() << " lost(disconnect) ");
+    return SEND_DISCONNECTED;
   }
+  DEBUG("Discarding message to block: " << signalHeader->theReceiversBlockNumber
+                                        << " node: " << t->getRemoteNodeId());
+
+  return SEND_BLOCKED;
 }
 
 Transporter *TransporterRegistry::prepareSend_getTransporter(
@@ -1121,29 +1117,28 @@ SendStatus TransporterRegistry::prepareSendOverAllLinks(
       trp_ids.set(trp_id);
     }
     return status;
-  } else {
-    SendStatus return_status = SEND_OK;
-    Uint32 num_trps = multi_trp->get_num_active_transporters();
-    for (Uint32 i = 0; i < num_trps; i++) {
-      Transporter *t = multi_trp->get_active_transporter(i);
-      require(t != nullptr);
-      const TrpId trp_id = t->getTransporterIndex();
-      if (unlikely(trp_id == 0)) continue;
-      SendStatus status = prepareSendTemplate(sendHandle, signalHeader, prio,
-                                              signalData, t, section);
-      if (likely(status == SEND_OK)) {
-        require(trp_id < MAX_NTRANSPORTERS);
-        trp_ids.set(trp_id);
-      } else if (status != SEND_BLOCKED && status != SEND_DISCONNECTED) {
-        /*
-         * Treat SEND_BLOCKED and SEND_DISCONNECTED as SEND_OK.
-         * Else take the last bad status returned.
-         */
-        return_status = status;
-      }
-    }
-    return return_status;
   }
+  SendStatus return_status = SEND_OK;
+  Uint32 num_trps = multi_trp->get_num_active_transporters();
+  for (Uint32 i = 0; i < num_trps; i++) {
+    Transporter *t = multi_trp->get_active_transporter(i);
+    require(t != nullptr);
+    const TrpId trp_id = t->getTransporterIndex();
+    if (unlikely(trp_id == 0)) continue;
+    SendStatus status = prepareSendTemplate(sendHandle, signalHeader, prio,
+                                            signalData, t, section);
+    if (likely(status == SEND_OK)) {
+      require(trp_id < MAX_NTRANSPORTERS);
+      trp_ids.set(trp_id);
+    } else if (status != SEND_BLOCKED && status != SEND_DISCONNECTED) {
+      /*
+       * Treat SEND_BLOCKED and SEND_DISCONNECTED as SEND_OK.
+       * Else take the last bad status returned.
+       */
+      return_status = status;
+    }
+  }
+  return return_status;
 }
 
 bool TransporterRegistry::setup_wakeup_socket(
@@ -1306,7 +1301,7 @@ Uint32 TransporterRegistry::spin_check_transporters(
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   Uint64 micros_passed = 0;
   bool any_connected = false;
-  Uint64 spintime = Uint64(recvdata.m_spintime);
+  auto spintime = Uint64(recvdata.m_spintime);
 
   if (spintime == 0) {
     return res;
@@ -1702,7 +1697,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
     NodeId node_id = transp->getRemoteNodeId();
     bool more_pending = false;
     if (transp->getTransporterType() == tt_TCP_TRANSPORTER) {
-      TCP_Transporter *t = (TCP_Transporter *)transp;
+      auto *t = (TCP_Transporter *)transp;
       assert(recvdata.m_transporters.get(trp_id));
       assert(recv_thread_idx == transp->get_recv_thread_idx());
 
@@ -1735,7 +1730,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
     } else {
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
       require(transp->getTransporterType() == tt_SHM_TRANSPORTER);
-      SHM_Transporter *t = (SHM_Transporter *)transp;
+      auto *t = (SHM_Transporter *)transp;
       assert(recvdata.m_transporters.get(trp_id));
       if (is_connected(trp_id)) {
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
@@ -1800,7 +1795,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
       if (unlikely(recvdata.m_handled_transporters.get(trp_id)))
         continue;  // Skip now to avoid starvation
       if (t->getTransporterType() == tt_TCP_TRANSPORTER) {
-        TCP_Transporter *t_tcp = (TCP_Transporter *)t;
+        auto *t_tcp = (TCP_Transporter *)t;
         Uint32 *ptr;
         Uint32 sz = t_tcp->getReceiveData(&ptr);
         Uint32 szUsed =
@@ -1813,7 +1808,7 @@ Uint32 TransporterRegistry::performReceive(TransporterReceiveHandle &recvdata,
       } else {
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
         require(t->getTransporterType() == tt_SHM_TRANSPORTER);
-        SHM_Transporter *t_shm = (SHM_Transporter *)t;
+        auto *t_shm = (SHM_Transporter *)t;
         Uint32 *readPtr, *eodPtr, *endPtr;
         t_shm->getReceivePtr(&readPtr, &eodPtr, &endPtr);
         recvdata.transporter_recv_from(node_id);
@@ -2739,7 +2734,7 @@ Uint32 TransporterRegistry::update_connections(
       case CONNECTED:
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
         if (t->getTransporterType() == tt_SHM_TRANSPORTER) {
-          SHM_Transporter *shm_trp = (SHM_Transporter *)t;
+          auto *shm_trp = (SHM_Transporter *)t;
           spintime = MAX(spintime, shm_trp->get_spintime());
         }
 #endif
@@ -2999,11 +2994,11 @@ bool TransporterRegistry::start_service(SocketServer &socket_server) {
   for (unsigned i = 0; i < m_transporter_interface.size(); i++) {
     Transporter_interface &t = m_transporter_interface[i];
 
-    unsigned short port = (unsigned short)t.m_s_service_port;
+    auto port = (unsigned short)t.m_s_service_port;
     if (t.m_s_service_port < 0)
       port = -t.m_s_service_port;  // is a dynamic port
-    SocketAuthTls *auth = new SocketAuthTls(&m_tls_keys, t.m_require_tls);
-    TransporterService *transporter_service = new TransporterService(auth);
+    auto *auth = new SocketAuthTls(&m_tls_keys, t.m_require_tls);
+    auto *transporter_service = new TransporterService(auth);
     ndb_sockaddr addr;
     if (t.m_interface && Ndb_getAddr(&addr, t.m_interface)) {
       g_eventLogger->error(
@@ -3079,10 +3074,7 @@ int TransporterRegistry::get_transporter_count() const {
 bool TransporterRegistry::is_shm_transporter(TrpId trp_id) {
   assert(trp_id < maxTransporters);
   Transporter *trp = allTransporters[trp_id];
-  if (trp->getTransporterType() == tt_SHM_TRANSPORTER)
-    return true;
-  else
-    return false;
+  return trp->getTransporterType() == tt_SHM_TRANSPORTER;
 }
 
 TransporterType TransporterRegistry::get_transporter_type(TrpId trp_id) const {
@@ -3172,7 +3164,7 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h) {
   }
   NdbSocket secureSocket = connect_ndb_mgmd(h);
   bool res = t->connect_client(std::move(secureSocket));
-  if (res == true) {
+  if (res) {
     const TrpId trpId = t->getTransporterIndex();
     DEBUG_FPRINTF((stderr,
                    "(%u)performStates[trp:%u] = DISCONNECTING,"
@@ -3312,14 +3304,13 @@ Uint32 *TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
       //-------------------------------------------------
       if (!handle->forceSend(trp_id)) {
         return nullptr;
-      } else {
-        //-------------------------------------------------
-        // Since send was successful we will make a renewed
-        // attempt at inserting the signal into the buffer.
-        //-------------------------------------------------
-        insertPtr = handle->getWritePtr(trp_id, lenBytes, prio,
-                                        t->get_max_send_buffer(), error);
-      }  // if
+      }
+      //-------------------------------------------------
+      // Since send was successful we will make a renewed
+      // attempt at inserting the signal into the buffer.
+      //-------------------------------------------------
+      insertPtr = handle->getWritePtr(trp_id, lenBytes, prio,
+                                      t->get_max_send_buffer(), error);
     } else {
       return nullptr;
     }  // if
@@ -3503,22 +3494,25 @@ void calculate_send_buffer_level(Uint64 node_send_buffer_size,
   if (node_send_buffer_size < 128 * 1024) {
     level = SB_NO_RISK_LEVEL;
     return;
-  } else if (node_send_buffer_size < 256 * 1024) {
+  }
+  if (node_send_buffer_size < 256 * 1024) {
     level = SB_LOW_LEVEL;
     return;
-  } else if (node_send_buffer_size < 384 * 1024) {
+  }
+  if (node_send_buffer_size < 384 * 1024) {
     level = SB_MEDIUM_LEVEL;
     return;
-  } else if (node_send_buffer_size < 1024 * 1024) {
+  }
+  if (node_send_buffer_size < 1024 * 1024) {
     level = SB_HIGH_LEVEL;
     return;
-  } else if (node_send_buffer_size < 2 * 1024 * 1024) {
+  }
+  if (node_send_buffer_size < 2 * 1024 * 1024) {
     level = SB_RISK_LEVEL;
     return;
-  } else {
-    level = SB_CRITICAL_LEVEL;
-    return;
   }
+  level = SB_CRITICAL_LEVEL;
+  return;
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;

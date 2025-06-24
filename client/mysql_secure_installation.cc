@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "client/include/client_priv.h"
 #include "m_string.h"
@@ -202,7 +202,7 @@ static int get_response(const char *opt_message, int default_answer = -1) {
   int i = 0;
   if (opt_message) {
     fprintf(stdout, "%s", opt_message);
-    if (opt_use_default == true && default_answer != -1) {
+    if (opt_use_default && default_answer != -1) {
       fprintf(stdout, " %c \n", (char)default_answer);
       return default_answer;
     }
@@ -262,7 +262,7 @@ static void execute_query_with_message(const char *query,
 static bool execute_query(const char **query, size_t length) {
   if (!mysql_real_query(&mysql_handle, (const char *)*query, (ulong)length))
     return false;
-  else if (mysql_errno(&mysql_handle) == CR_SERVER_GONE_ERROR) {
+  if (mysql_errno(&mysql_handle) == CR_SERVER_GONE_ERROR) {
     fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
     free_resources();
     exit(1);
@@ -462,9 +462,7 @@ static bool mysql_set_password(MYSQL *mysql, char *password) {
 static bool mysql_expire_password(MYSQL *mysql) {
   char sql[] = "UPDATE mysql.user SET password_expired= 'Y'";
   const size_t sql_len = strlen(sql);
-  if (mysql_real_query(mysql, sql, (ulong)sql_len)) return false;
-
-  return true;
+  return mysql_real_query(mysql, sql, (ulong)sql_len) == 0;
 }
 
 /**
@@ -501,7 +499,7 @@ static void set_opt_user_password(int component_set) {
 
     password2 = get_tty_password("\nRe-enter new password: ");
 
-    if (strcmp(password1, password2)) {
+    if (strcmp(password1, password2) != 0) {
       fprintf(stdout, "Sorry, passwords do not match.\n");
       continue;
     }
@@ -539,8 +537,8 @@ static void set_opt_user_password(int component_set) {
       if (!execute_query(&query_const, (unsigned int)(end - query))) {
         my_free(query);
         break;
-      } else
-        fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
+      }
+      fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
     }
   }
 }
@@ -818,7 +816,7 @@ int main(int argc, char *argv[]) {
   if (!hadpass) {
     fprintf(stdout, "Please set the password for %s here.\n", opt_user);
     set_opt_user_password(component_set);
-  } else if (opt_use_default == false) {
+  } else if (!opt_use_default) {
     char prompt[256];
     fprintf(stdout, "Using existing password for %s.\n", opt_user);
 
@@ -852,8 +850,8 @@ int main(int argc, char *argv[]) {
     to be marked for expiration upon exit so the DBA will remember to set a new
     one.
   */
-  if (g_expire_password_on_exit == true) {
-    if (mysql_expire_password(&mysql_handle) == false) {
+  if (g_expire_password_on_exit) {
+    if (!mysql_expire_password(&mysql_handle)) {
       fprintf(stdout,
               "... Failed to expire password!\n"
               "** Please consult the MySQL server documentation. **\n"

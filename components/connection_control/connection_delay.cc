@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,14 +160,14 @@ void Connection_delay_action::conditional_wait(ulonglong wait_time) {
   /** mysql_cond_timedwait requires wait time in timespec format */
   timespec abstime;
 
-  Timeout_type nsec = wait_time * 1000000ULL;
+  Timeout_type const nsec = wait_time * 1000000ULL;
   assert(nsec != std::numeric_limits<Timeout_type>::max());
   if (nsec == TIMEOUT_INF) {
     abstime = TIMESPEC_POSINF;
     return;
   }
   const unsigned long long int now = my_getsystime() + (nsec / 100);
-  unsigned long long int tv_sec = now / 10000000ULL;
+  unsigned long long int const tv_sec = now / 10000000ULL;
 #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
   /* Ensure that the number of seconds don't overflow. */
   tv_sec = std::min(tv_sec, static_cast<unsigned long long int>(
@@ -279,7 +279,7 @@ bool Connection_delay_action::notify_event(
     conditional_wait(wait_time);
     rd_lock.lock();
 
-    connection_control_component_option_usage_set();
+    ++opt_option_tracker_usage_connection_control_component;
   }
 
   if (connection_event->status != 0) {

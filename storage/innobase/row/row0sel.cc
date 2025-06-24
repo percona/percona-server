@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2024, Oracle and/or its affiliates.
+Copyright (c) 1997, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3439,8 +3439,7 @@ static bool sel_restore_position_for_mysql(
   ut_ad(!success || pcur->m_rel_pos == BTR_PCUR_ON);
 #ifdef UNIV_DEBUG
   if (pcur->m_pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
-    ut_ad(pcur->m_rel_pos == BTR_PCUR_BEFORE ||
-          pcur->m_rel_pos == BTR_PCUR_AFTER);
+    ut_ad(pcur->m_rel_pos == BTR_PCUR_BEFORE);
   } else {
     ut_ad(pcur->m_pos_state == BTR_PCUR_IS_POSITIONED);
     ut_ad((pcur->m_rel_pos == BTR_PCUR_ON) == pcur->is_on_user_rec());
@@ -4399,9 +4398,8 @@ static row_to_range_relation_t row_compare_row_to_range(
   In particular we only handle cases where we iterate the index in its
   natural order. */
   if (index == clust_index && (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) &&
-      (direction == 0 || direction == ROW_SEL_NEXT) &&
-      prebuilt->is_reading_range()) {
-    ut_ad(moves_up);
+      (direction == 0 || direction == ROW_SEL_NEXT)) {
+    ut_a(moves_up);
     const auto stop_len = dtuple_get_n_fields_cmp(prebuilt->m_stop_tuple);
     if (0 < stop_len) {
       const auto index_len = dict_index_get_n_unique(index);
@@ -4553,7 +4551,6 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 #endif /* UNIV_DEBUG */
   const rec_t *rec = nullptr;
   byte *end_range_cache = nullptr;
-  const dtuple_t *prev_vrow = nullptr;
   const dtuple_t *vrow = nullptr;
   const rec_t *result_rec = nullptr;
   const rec_t *clust_rec;
@@ -4581,7 +4578,6 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   byte *next_buf = nullptr;
   bool spatial_search = false;
   bool use_clustered_index = false;
-  ulint end_loop = 0;
 
   rec_offs_init(offsets_);
 
@@ -4940,6 +4936,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
     if (!srv_read_only_mode) {
       trx_assign_read_view(trx);
+      DEBUG_SYNC_C("after_mvcc_assign_read_view");
     }
 
     prebuilt->sql_stat_start = false;
@@ -5083,10 +5080,7 @@ rec_loop:
   }
 
   if (page_rec_is_supremum(rec)) {
-    DBUG_EXECUTE_IF(
-        "compare_end_range", if (end_loop < 100) { end_loop = 100; });
-
-    /** Compare the last record of the page with end range
+    /* Compare the last record of the page with end range
     passed to InnoDB when there is no ICP and number of
     loops in row_search_mvcc for rows found but not
     reporting due to search views etc.
@@ -5096,35 +5090,41 @@ rec_loop:
     column type (array of values).  */
     if (prev_rec != nullptr && !prebuilt->innodb_api &&
         prebuilt->m_mysql_handler->end_range != nullptr &&
-        prebuilt->idx_cond == false && end_loop >= 100 &&
+        prebuilt->idx_cond == false &&
         !(clust_templ_for_sec && index->is_multi_value())) {
-      dict_index_t *key_index = prebuilt->index;
-
-      if (end_range_cache == nullptr) {
-        end_range_cache = static_cast<byte *>(ut::malloc_withkey(
-            UT_NEW_THIS_FILE_PSI_KEY, prebuilt->mysql_row_len));
-      }
-
-      if (clust_templ_for_sec) {
-        /** Secondary index record but the template
-        based on PK. */
-        key_index = clust_index;
-      }
-
-      /** Create offsets based on prebuilt index. */
+      /* Create offsets based on prebuilt index. */
       offsets = rec_get_offsets(prev_rec, prebuilt->index, offsets,
                                 ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
-      if (row_sel_store_mysql_rec(end_range_cache, prebuilt, prev_rec,
-                                  prev_vrow, clust_templ_for_sec, key_index,
-                                  prebuilt->index, offsets, clust_templ_for_sec,
-                                  prebuilt->get_lob_undo(),
-                                  prebuilt->blob_heap)) {
-        if (row_search_end_range_check(end_range_cache, prev_rec, prebuilt,
-                                       clust_templ_for_sec, offsets,
-                                       record_buffer)) {
-          /** In case of prebuilt->fetch,
-          set the error in prebuilt->end_range. */
+      ut_a(prebuilt->m_stop_tuple);
+
+      const auto stop_len = dtuple_get_n_fields_cmp(prebuilt->m_stop_tuple);
+
+      /* If we have prebuilt->m_mysql_handler->end_range we should also
+      have a (populated) stop tuple. */
+      ut_ad_ne(stop_len, 0);
+
+      if (stop_len > 0) {
+        const auto index_len = dict_index_get_n_unique(index);
+        ut_a_le(stop_len, index_len);
+
+        /* we can only reach supremum after having scanned another record
+          (prev_rec != nullptr) if we are "moving up". The end range check
+          optimization does not apply to reverse scans. */
+        ut_ad(moves_up);
+        const auto cmp =
+            cmp_dtuple_rec(prebuilt->m_stop_tuple, prev_rec, index, offsets);
+
+        if (cmp < 0 ||
+            (cmp == 0 && prebuilt->m_mysql_handler->end_range->flag ==
+                             HA_READ_BEFORE_KEY)) {
+          /* Set flag to remeber that the scan reached end of range, so that,
+          on subsequent calls to row_search_mvcc(), prebuilt->fetch_cache is
+          not filled and DB_RECORD_NOT_FOUND is returned when
+          prebuilt->n_fetch_cached is 0, rather than refilling it.
+          In case next_buf == nullptr, DB_RECORD_NOT_FOUND is returned
+          immediately, otherwise DB_SUCCESS is returned with data row stored
+          in next_buf. */
           if (next_buf != nullptr) {
             prebuilt->m_end_range = true;
           }
@@ -5133,7 +5133,6 @@ rec_loop:
           goto normal_return;
         }
       }
-      DEBUG_SYNC_C("allow_insert");
     }
 
     if (set_also_gap_locks && !trx->skip_gap_locks() &&
@@ -5158,7 +5157,6 @@ rec_loop:
         default:
           goto lock_wait_or_error;
       }
-      DEBUG_SYNC_C("allow_insert");
     }
 
     /* A page supremum record cannot be in the result set: skip
@@ -5933,19 +5931,6 @@ idx_cond_failed:
   goto normal_return;
 
 next_rec:
-
-  if (end_loop >= 99 && need_vrow && vrow == nullptr && prev_rec != nullptr) {
-    if (!heap) {
-      heap = mem_heap_create(100, UT_LOCATION_HERE);
-    }
-
-    prev_vrow = nullptr;
-    row_sel_fill_vrow(prev_rec, index, &prev_vrow, heap);
-  } else {
-    prev_vrow = vrow;
-  }
-
-  end_loop++;
 
   /* Reset the old and new "did semi-consistent read" flags. */
   if (UNIV_UNLIKELY(prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT)) {

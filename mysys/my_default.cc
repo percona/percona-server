@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,9 +55,9 @@
 #include "my_config.h"
 
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "m_string.h"
 #include "my_aes.h"
@@ -391,7 +391,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       uint i;
       const char **extra_groups;
       const size_t instance_len = strlen(my_defaults_group_suffix);
-      struct handle_option_ctx *ctx = (struct handle_option_ctx *)func_ctx;
+      auto *ctx = (struct handle_option_ctx *)func_ctx;
       char *ptr;
       TYPELIB *group = ctx->group;
 
@@ -424,7 +424,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     size_t len;
     const char **extra_groups;
     size_t instance_len = 0;
-    struct handle_option_ctx *ctx = (struct handle_option_ctx *)func_ctx;
+    auto *ctx = (struct handle_option_ctx *)func_ctx;
     char *ptr;
     TYPELIB *group = ctx->group;
 
@@ -532,7 +532,7 @@ err:
 static int handle_default_option(void *in_ctx, const char *group_name,
                                  const char *option, const char *cnf_file) {
   char *tmp;
-  struct handle_option_ctx *ctx = (struct handle_option_ctx *)in_ctx;
+  auto *ctx = (struct handle_option_ctx *)in_ctx;
 
   if (!option) return 0;
 
@@ -1018,8 +1018,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
             /* add the include file to the paths list with the class of the
              * including file */
-            std::map<string, enum_variable_source>::iterator it =
-                default_paths.find(name);
+            auto it = default_paths.find(name);
             /*
               The current file should always be a part of the paths.
               But that applies only for the server.
@@ -1047,8 +1046,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
         /* add the include file to the paths list with the class of the
          * including file */
-        std::map<string, enum_variable_source>::iterator it =
-            default_paths.find(name);
+        auto it = default_paths.find(name);
         /*
           The current file should always be a part of the paths.
           But that applies only for the server.
@@ -1109,7 +1107,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
 
     /* Self freeing option buffer */
-    std::unique_ptr<char[]> optionBuffer{new char[strlen(linebuff) + 3]};
+    std::unique_ptr<char[]> const optionBuffer{new char[strlen(linebuff) + 3]};
     char *option = optionBuffer.get();
 
     if (!value) {
@@ -1267,48 +1265,47 @@ static mysql_file_getline_ret mysql_file_getline(char *buff, int size,
     }
     buff[length] = 0;
     return {buff, noop_free};
-  } else {
-    mysql_file_getline_ret line{nullptr, noop_free}; /* The output line */
-    size_t lineLen = 0;                              /* Cached length of line */
+  }
+  mysql_file_getline_ret line{nullptr, noop_free}; /* The output line */
+  size_t lineLen = 0;                              /* Cached length of line */
 
-    while (true) {
-      /* Read up to size bytes */
-      if (mysql_file_fgets(buff, size, file) == nullptr) {
-        /* End of file */
-        return line;
-      }
+  while (true) {
+    /* Read up to size bytes */
+    if (mysql_file_fgets(buff, size, file) == nullptr) {
+      /* End of file */
+      return line;
+    }
 
-      /* Calculate size of line, including null termination */
-      const size_t buffLen = strlen(buff);
+    /* Calculate size of line, including null termination */
+    const size_t buffLen = strlen(buff);
 
-      /* Check if the provided buff is enough for the line */
-      if (lineLen == 0 && buff[buffLen - 1] == '\n') {
-        return {buff, noop_free};
-      }
+    /* Check if the provided buff is enough for the line */
+    if (lineLen == 0 && buff[buffLen - 1] == '\n') {
+      return {buff, noop_free};
+    }
 
-      if (buffLen == 0) return line;
+    if (buffLen == 0) return line;
 
-      lineLen += buffLen;
+    lineLen += buffLen;
 
-      /* Allocate the line buffer */
-      char *l = static_cast<char *>(malloc(lineLen + 1));
-      if (l == nullptr) {
-        /* malloc failed */
-        return {nullptr, noop_free};
-      }
+    /* Allocate the line buffer */
+    char *l = static_cast<char *>(malloc(lineLen + 1));
+    if (l == nullptr) {
+      /* malloc failed */
+      return {nullptr, noop_free};
+    }
 
-      if (line.get() != nullptr) {
-        /* Append new output of fgets to existing line */
-        sprintf(l, "%s%s", line.get(), buff);
-      } else {
-        sprintf(l, "%s", buff);
-      }
-      line = {l, std::free};
+    if (line.get() != nullptr) {
+      /* Append new output of fgets to existing line */
+      sprintf(l, "%s%s", line.get(), buff);
+    } else {
+      sprintf(l, "%s", buff);
+    }
+    line = {l, std::free};
 
-      /* Check if we reached the end of the line */
-      if (buff[buffLen - 1] == '\n') {
-        return line;
-      }
+    /* Check if we reached the end of the line */
+    if (buff[buffLen - 1] == '\n') {
+      return line;
     }
   }
 }
@@ -1399,9 +1396,9 @@ void print_defaults(const char *conf_file, const char **groups) {
 */
 void init_variable_default_paths() {
   char datadir[FN_REFLEN] = {0};
-  string extradir =
+  string const extradir =
       (my_defaults_extra_file ? my_defaults_extra_file : string());
-  string explicitdir = (my_defaults_file ? my_defaults_file : string());
+  string const explicitdir = (my_defaults_file ? my_defaults_file : string());
 
   string defsyscondir;
 #if defined(DEFAULT_SYSCONFDIR)
@@ -1499,7 +1496,7 @@ void update_variable_source(const char *opt_name, const char *value) {
   /* opt_name must be of form --XXXXX which means min length must be 3 */
   if (var_name.length() < 3) return;
 
-  std::size_t pos = var_name.find("=");
+  std::size_t pos = var_name.find('=');
   /* strip the value part if present */
   if (pos != string::npos) var_name = var_name.substr(0, pos);
 
@@ -1510,7 +1507,7 @@ void update_variable_source(const char *opt_name, const char *value) {
   var_name = var_name.substr(2);
 
   /* replace all '-' to '_' */
-  while ((pos = var_name.find("-")) != string::npos)
+  while ((pos = var_name.find('-')) != string::npos)
     var_name.replace(pos, 1, "_");
 
   /*
@@ -1525,10 +1522,8 @@ void update_variable_source(const char *opt_name, const char *value) {
         const string skip_variables[] = {
             "skip_name_resolve",     "skip_networking",  "skip_show_database",
             "skip_external_locking", "skip_slave_start", "skip_replica_start"};
-        for (uint skip_index = 0;
-             skip_index < sizeof(skip_variables) / sizeof(skip_variables[0]);
-             ++skip_index) {
-          if (var_name == skip_variables[skip_index]) {
+        for (const auto &skip_index : skip_variables) {
+          if (var_name == skip_index) {
             /*
              Do not trim the skip_ prefix for variables which
              start with skip
@@ -1537,15 +1532,13 @@ void update_variable_source(const char *opt_name, const char *value) {
             break;
           }
         }
-        if (skip_variable == false)
-          var_name = var_name.substr(prefix[4].size());
+        if (!skip_variable) var_name = var_name.substr(prefix[4].size());
       } else
         var_name = var_name.substr(prefix[id].size());
     }
   }
 
-  std::map<string, enum_variable_source>::iterator it =
-      default_paths.find(path);
+  auto it = default_paths.find(path);
   if (it != default_paths.end()) {
     my_variable_sources source;
     std::pair<std::map<string, my_variable_sources>::iterator, bool> ret;
@@ -1561,7 +1554,7 @@ void update_variable_source(const char *opt_name, const char *value) {
      option name as key and mysqld-auto.cnf file path + PERSISTED
      as value.
     */
-    if (ret.second == false) variables_hash[var_name] = source;
+    if (!ret.second) variables_hash[var_name] = source;
   }
 }
 
@@ -1579,11 +1572,10 @@ void set_variable_source(const char *opt_name, void *value) {
   std::size_t pos;
 
   /* replace all '-' to '_' */
-  while ((pos = src_name.find("-")) != string::npos)
+  while ((pos = src_name.find('-')) != string::npos)
     src_name.replace(pos, 1, "_");
 
-  std::map<string, my_variable_sources>::iterator it =
-      variables_hash.find(src_name);
+  auto it = variables_hash.find(src_name);
   if (it != variables_hash.end()) {
     if ((get_opt_arg_source *)value) {
       memcpy(((get_opt_arg_source *)value)->m_path_name,
@@ -1780,8 +1772,7 @@ int check_file_permissions(const char *file_name, bool is_login_file,
     This is mainly done to protect us to not read a file created by
     the mysqld server, but the check is still valid in most context.
   */
-  else if ((stat_info.st_mode & S_IWOTH) &&
-           (stat_info.st_mode & S_IFMT) == S_IFREG)
+  if ((stat_info.st_mode & S_IWOTH) && (stat_info.st_mode & S_IFMT) == S_IFREG)
 
   {
     my_message_local(WARNING_LEVEL, EE_IGNORE_WORLD_WRITABLE_CONFIG_FILE,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -402,6 +402,19 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
     // This had to wait until all query blocks are prepared:
     if (check_materialized_derived_query_blocks(thd))
       return true; /* purecov: inspected */
+  }
+
+  if (thd->lex->is_explain()) {
+    WalkQueryExpression(this,
+                        enum_walk::SUBQUERY_POSTFIX,  // Use SUBQUERY_POSTFIX to
+                                                      // traverse subqueries
+                        [this](Item *item) {
+                          if (item->has_stored_program()) {
+                            this->m_has_stored_program = true;
+                            return true;  // Stop walking
+                          }
+                          return false;  // Continue walking
+                        });
   }
 
   // Query blocks are prepared, update the state

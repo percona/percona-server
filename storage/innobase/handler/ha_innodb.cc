@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -151,6 +151,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "mysql/components/library_mysys/my_system.h"  // my_num_vcpus
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_data_lock.h"
@@ -1174,7 +1175,7 @@ static MYSQL_THDVAR_STR(tmpdir,
 static MYSQL_THDVAR_ULONG(
     parallel_read_threads, PLUGIN_VAR_RQCMDARG,
     "Number of threads to do parallel read.", nullptr, nullptr,
-    std::clamp(ulong{std::thread::hardware_concurrency() / 8}, 4UL,
+    std::clamp(ulong{my_num_vcpus() / 8}, 4UL,
                ulong{Parallel_reader::MAX_THREADS}), /* Default. */
     1,                                               /* Minimum. */
     Parallel_reader::MAX_THREADS,                    /* Maximum. */
@@ -2820,7 +2821,7 @@ dberr_t Compression::validate(const char *algorithm) {
   return (check(algorithm, &compression));
 }
 
-bool Compression::validate(const Compression::Type type) {
+bool Compression::validate(const Type type) {
   bool ret = true;
 
   switch (type) {
@@ -4851,28 +4852,6 @@ static
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
-/** Validate innodb_undo_tablespaces. Log a warning if it was set
-explicitly. */
-static void innodb_undo_tablespaces_deprecate() {
-  if (sysvar_source_svc == nullptr) {
-    return;
-  }
-
-  static const char *variable_name = "innodb_undo_tablespaces";
-  enum enum_variable_source source;
-
-  if (sysvar_source_svc->get(variable_name,
-                             static_cast<unsigned int>(strlen(variable_name)),
-                             &source)) {
-    return;
-  }
-
-  if (source != COMPILED) {
-    ib::warn(ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES);
-    srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
-  }
-}
-
 template <size_t N>
 static bool innodb_variable_is_set(const char (&var_name)[N]) {
   enum enum_variable_source source;
@@ -4884,14 +4863,6 @@ static bool innodb_variable_is_set(const char (&var_name)[N]) {
 
 static bool innodb_redo_log_capacity_is_set() {
   return innodb_variable_is_set("innodb_redo_log_capacity");
-}
-
-bool innodb_log_file_size_is_set() {
-  return innodb_variable_is_set("innodb_log_file_size");
-}
-
-bool innodb_log_n_files_is_set() {
-  return innodb_variable_is_set("innodb_log_files_in_group");
 }
 
 static inline bool innodb_buffer_pool_instances_is_set() {
@@ -4961,7 +4932,7 @@ static void innodb_buffer_pool_size_init() {
     ulong bp_hint = bp_hint_ull > std::numeric_limits<ulong>::max()
                         ? std::numeric_limits<ulong>::max()
                         : static_cast<ulong>(bp_hint_ull);
-    ulong cpu_hint = ulong{std::thread::hardware_concurrency() / 4};
+    ulong cpu_hint = ulong{my_num_vcpus() / 4};
 
     srv_buf_pool_instances = std::clamp(std::min(bp_hint, cpu_hint), 1UL, 64UL);
   }
@@ -5015,34 +4986,14 @@ static void innodb_redo_log_capacity_init() {
     return;
   }
 
-  const bool file_size_set = innodb_log_file_size_is_set();
-
-  const bool n_files_set = innodb_log_n_files_is_set();
-
   bool capacity_set = innodb_redo_log_capacity_is_set();
-
-  if (capacity_set) {
-    if (file_size_set) {
-      ib::warn(ER_IB_MSG_LOG_PARAMS_FILE_SIZE_UNUSED);
-    }
-    if (n_files_set) {
-      ib::warn(ER_IB_MSG_LOG_PARAMS_N_FILES_UNUSED);
-    }
-  } else {
-    if (file_size_set || n_files_set) {
-      srv_redo_log_capacity_used = srv_log_file_size * srv_log_n_files;
-      capacity_set = true;  // do not change it in dedicated_server mode
-      ib::warn(ER_IB_MSG_LOG_PARAMS_LEGACY_USAGE, srv_redo_log_capacity_used);
-    }
-  }
 
   if (srv_dedicated_server) {
     if (!capacity_set) {
       /* Growth of REDO has high correlation with num of concurrent users which
-depends on num of CPUs */
-      srv_redo_log_capacity = std::clamp(
-          std::min(std::thread::hardware_concurrency() / 2, 16U) * GB,
-          LOG_CAPACITY_MIN, LOG_CAPACITY_MAX);
+      depends on num of CPUs */
+      srv_redo_log_capacity = std::clamp(std::min(my_num_vcpus() / 2, 16U) * GB,
+                                         LOG_CAPACITY_MIN, LOG_CAPACITY_MAX);
       srv_redo_log_capacity_used = srv_redo_log_capacity;
       innodb_redo_log_capacity_update_default(srv_redo_log_capacity);
     } else {
@@ -5377,8 +5328,6 @@ static int innodb_init_params() {
   }
 
   innodb_buffer_pool_size_init();
-
-  innodb_undo_tablespaces_deprecate();
 
   innodb_redo_log_capacity_init();
 
@@ -11139,7 +11088,7 @@ int ha_innobase::index_read(
 
   ut_ad(m_prebuilt->m_mysql_handler == this);
   m_prebuilt->m_stop_tuple_found = false;
-  if (end_range != nullptr && m_prebuilt->is_reading_range()) {
+  if (end_range != nullptr) {
     row_sel_convert_mysql_key_to_innobase(
         m_prebuilt->m_stop_tuple, m_prebuilt->srch_key_val2,
         m_prebuilt->srch_key_val_len, index, end_range->key, end_range->length);
@@ -11679,14 +11628,10 @@ int ha_innobase::sample_end(void *scan_ctx) {
 int ha_innobase::read_range_first(const key_range *start_key,
                                   const key_range *end_key, bool eq_range_arg,
                                   bool sorted) {
-  auto guard = m_prebuilt->get_is_reading_range_guard();
   return handler::read_range_first(start_key, end_key, eq_range_arg, sorted);
 }
 
-int ha_innobase::read_range_next() {
-  auto guard = m_prebuilt->get_is_reading_range_guard();
-  return (handler::read_range_next());
-}
+int ha_innobase::read_range_next() { return handler::read_range_next(); }
 
 /** Initialize a table scan.
 @param[in]      scan    whether this is a second call to rnd_init()
@@ -19243,6 +19188,16 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
       ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
+      if ((check_opt->flags & T_EXTEND) && (ret == DB_SUCCESS) &&
+          !(n_rows < n_rows_in_table || n_dups < n_rows - n_rows_in_table)) {
+        /* For CHECK TABLE EXTENDED; we also want to make sure that MBR stored
+        in SPATIAL Index is matching the MBR of geometry stored in Clustered
+        record. */
+        m_prebuilt->need_to_access_clustered = true;
+        n_rows = 0;
+        n_dups = 0;
+        ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
+      }
     } else {
       ret = row_scan_index_for_mysql(m_prebuilt, index, max_threads, true,
                                      &n_rows);
@@ -22386,19 +22341,6 @@ static void innodb_reset_all_monitor_update(THD *thd, SYS_VAR *, void *var_ptr,
   innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE, true);
 }
 
-/** Validate the value of innodb_undo_tablespaces global variable. This function
-is registered as a callback with MySQL.
-@param[in]      thd       thread handle
-@param[in]      var       pointer to system variable
-@param[in]      var_ptr   where the formal string goes
-@param[in]      save      immediate result from check function */
-static void innodb_undo_tablespaces_update(THD *thd [[maybe_unused]],
-                                           SYS_VAR *var [[maybe_unused]],
-                                           void *var_ptr [[maybe_unused]],
-                                           const void *save [[maybe_unused]]) {
-  innodb_undo_tablespaces_deprecate();
-}
-
 /* Declare default check function for boolean system variable. Cannot include
 sql_plugin_var.h header in this file due to conflicting macro definitions. */
 int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value);
@@ -23294,11 +23236,9 @@ static MYSQL_SYSVAR_ULONG(
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Purge threads can be from 1 to 32. Default is 1 if number of available "
     "CPUs is 16 or less, 4 otherwise.",
-    nullptr, nullptr,
-    (std::thread::hardware_concurrency() <= 16 ? 1UL
-                                               : 4UL), /* Default setting */
-    1,                                                 /* Minimum value */
-    MAX_PURGE_THREADS, 0);                             /* Maximum value */
+    nullptr, nullptr, (my_num_vcpus() <= 16 ? 1UL : 4UL), /* Default setting */
+    1,                                                    /* Minimum value */
+    MAX_PURGE_THREADS, 0);                                /* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
                           PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -23823,11 +23763,11 @@ static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
                          "Only optimize the Fulltext index of the table",
                          nullptr, nullptr, false);
 
-static MYSQL_SYSVAR_ULONG(
-    read_io_threads, srv_n_read_io_threads,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of background read I/O threads in InnoDB.", nullptr, nullptr,
-    std::clamp(std::thread::hardware_concurrency() / 2, 4U, 64U), 1, 64, 0);
+static MYSQL_SYSVAR_ULONG(read_io_threads, srv_n_read_io_threads,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                          "Number of background read I/O threads in InnoDB.",
+                          nullptr, nullptr,
+                          std::clamp(my_num_vcpus() / 2, 4U, 64U), 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, srv_n_write_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -23862,17 +23802,6 @@ static MYSQL_SYSVAR_ULONG(
     INNODB_LOG_BUFFER_SIZE_MIN, INNODB_LOG_BUFFER_SIZE_MAX, 1024);
 
 static MYSQL_SYSVAR_ULONGLONG(
-    log_file_size, srv_log_file_size, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Size of each log file before upgrading to 8.0.30. Deprecated.", nullptr,
-    nullptr, 48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX, 1024 * 1024L);
-
-static MYSQL_SYSVAR_ULONG(
-    log_files_in_group, srv_log_n_files,
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Number of log files before upgrading to 8.0.30. Deprecated.", nullptr,
-    nullptr, 2, 2, 100, 0);
-
-static MYSQL_SYSVAR_ULONGLONG(
     redo_log_capacity, srv_redo_log_capacity,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
     "Limitation for total size of redo log files on disk (expressed in bytes).",
@@ -23901,15 +23830,14 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
                           OS_FILE_LOG_BLOCK_SIZE);
 
-/* The `thd_get_num_vcpus() >= 32` was derived from performance testing results
+/* The `my_num_vcpus() >= 32` was derived from performance testing results
   and relate to the `Bug #113485 Let innodb_dedicated_server set
   innodb_log_writer_threads based on server size` feature request. */
 static MYSQL_SYSVAR_BOOL(
     log_writer_threads, srv_log_writer_threads, PLUGIN_VAR_RQCMDARG,
     "Whether the log writer threads should be activated (ON), or write/flush "
     "of the redo log should be done by each thread individually (OFF).",
-    nullptr, innodb_log_writer_threads_update,
-    std::thread::hardware_concurrency() >= 32);
+    nullptr, innodb_log_writer_threads_update, my_num_vcpus() >= 32);
 
 static MYSQL_SYSVAR_UINT(
     log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
@@ -24152,14 +24080,6 @@ static MYSQL_SYSVAR_STR(
     "Directory where temp tablespace files live, this path can be absolute.",
     nullptr, nullptr, nullptr);
 
-static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
-                          "Number of undo tablespaces to use. (deprecated)",
-                          nullptr, innodb_undo_tablespaces_update,
-                          FSP_IMPLICIT_UNDO_TABLESPACES, /* Default setting */
-                          FSP_MIN_UNDO_TABLESPACES,      /* Minimum value */
-                          FSP_MAX_UNDO_TABLESPACES, 0);  /* Maximum value */
-
 static MYSQL_SYSVAR_ULONGLONG(
     max_undo_log_size, srv_max_undo_tablespace_size, PLUGIN_VAR_OPCMDARG,
     "Maximum size of an UNDO tablespace in MB (If an UNDO tablespace grows"
@@ -24278,7 +24198,8 @@ static MYSQL_SYSVAR_ENUM(
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(
     change_buffering_debug, ibuf_debug, PLUGIN_VAR_RQCMDARG,
-    "Debug flags for InnoDB change buffering (0=none, 2=crash at merge)",
+    "Debug flags for InnoDB change buffering (0=none, 1= evict the blocks from "
+    "the buffer pool as much possible,  2=crash at merge)",
     nullptr, nullptr, 0, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(disable_background_merge,
@@ -24600,8 +24521,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(deadlock_detect),
     MYSQL_SYSVAR(page_size),
     MYSQL_SYSVAR(log_buffer_size),
-    MYSQL_SYSVAR(log_file_size),
-    MYSQL_SYSVAR(log_files_in_group),
     MYSQL_SYSVAR(redo_log_capacity),
 #ifdef UNIV_DEBUG_DEDICATED
     MYSQL_SYSVAR(debug_sys_mem_size),
@@ -24739,7 +24658,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(rollback_segments),
     MYSQL_SYSVAR(undo_directory),
     MYSQL_SYSVAR(temp_tablespaces_dir),
-    MYSQL_SYSVAR(undo_tablespaces),
     MYSQL_SYSVAR(sync_array_size),
     MYSQL_SYSVAR(compression_failure_threshold_pct),
     MYSQL_SYSVAR(compression_pad_pct_max),

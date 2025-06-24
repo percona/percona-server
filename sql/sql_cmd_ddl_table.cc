@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,6 +153,10 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
   if (thd->is_error()) {
     /* If out of memory when creating a copy of alter_info. */
+    return true;
+  }
+
+  if (validate_secondary_engine_temporary_table(thd, &create_info)) {
     return true;
   }
 

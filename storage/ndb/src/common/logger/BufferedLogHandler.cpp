@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include "util/cstrbuf.h"
 #include "util/require.h"
 
-#include <time.h>
+#include <ctime>
 
 namespace {
 struct ThreadData {
@@ -36,7 +36,7 @@ struct ThreadData {
 }  // namespace
 
 void *async_log_function(void *args) {
-  ThreadData *data = (ThreadData *)args;
+  auto *data = (ThreadData *)args;
   BufferedLogHandler *buf_loghandler = data->buf_loghandler;
 
   while (!buf_loghandler->isStopSet()) {
@@ -67,7 +67,7 @@ BufferedLogHandler::BufferedLogHandler(LogHandler *dest_loghandler,
   m_logbuf = new LogBuffer(
       buffer_kb * 1024, new MessageStreamLostMsgHandler(buffer_msg_category));
 
-  ThreadData *thr_data = new ThreadData();
+  auto *thr_data = new ThreadData();
   thr_data->buf_loghandler = this;
 
   m_log_threadvar =
@@ -93,12 +93,7 @@ bool BufferedLogHandler::open() { return true; }
 
 bool BufferedLogHandler::close() { return true; }
 
-bool BufferedLogHandler::is_open() {
-  if (m_log_threadvar == nullptr) {
-    return false;
-  }
-  return true;
-}
+bool BufferedLogHandler::is_open() { return m_log_threadvar != nullptr; }
 
 //
 // PROTECTED

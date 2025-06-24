@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,14 +33,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-namespace rpl {
-namespace unittests {
+namespace rpl::unittests {
 
 class Rpl_commit_order_queue_test : public ::testing::Test {
  protected:
   Rpl_commit_order_queue_test() = default;
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  void SetUp() override {}
+  void TearDown() override {}
 
   std::atomic<bool> m_go{false};
   std::atomic<size_t> m_count{0};
@@ -212,7 +211,7 @@ TEST_F(Rpl_commit_order_queue_test, Pushing_while_poping_test) {
   std::map<cs::apply::Commit_order_queue::value_type,
            cs::apply::Commit_order_queue::value_type>
       dup;
-  for (auto v : f) {
+  for (auto *v : f) {
     if (v == nullptr) continue;
     bool inserted{false};
     std::tie(std::ignore, inserted) =
@@ -295,7 +294,7 @@ TEST_F(Rpl_commit_order_queue_test, Pushing_then_poping_test) {
   std::map<cs::apply::Commit_order_queue::value_type,
            cs::apply::Commit_order_queue::value_type>
       dup;
-  for (auto v : f) {
+  for (auto *v : f) {
     if (v == nullptr) continue;
     bool inserted{false};
     std::tie(std::ignore, inserted) =
@@ -404,5 +403,4 @@ TEST_F(Rpl_commit_order_queue_test, Remove) {
   EXPECT_EQ(queue.to_string(), "EOF");
 }
 
-}  // namespace unittests
-}  // namespace rpl
+}  // namespace rpl::unittests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,13 +46,13 @@ static DEFINE_BOOL_METHOD(create, (const char *service_names[],
   try {
     service_names_set<> refs;
     for (unsigned idx = 0; service_names[idx]; idx++) {
-      Service_name_entry entry{service_names[idx], 0};
+      Service_name_entry const entry{service_names[idx], 0};
       refs.insert(entry);
     }
 
     *out_channel =
         reinterpret_cast<reference_caching_channel>(channel_imp::create(refs));
-    return *out_channel ? false : true;
+    return *out_channel == nullptr;
   } catch (...) {
     return true;
   }

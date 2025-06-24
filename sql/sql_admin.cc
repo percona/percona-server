@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -367,10 +367,8 @@ bool Sql_cmd_analyze_table::send_histogram_results(
   Item *item;
   mem_root_deque<Item *> field_list(thd->mem_root);
 
-  auto guard = create_scope_guard([thd]() {
-    thd->get_stmt_da()->reset_condition_info(thd);
-    my_eof(thd);
-  });
+  auto guard = create_scope_guard(
+      [thd]() { thd->get_stmt_da()->reset_condition_info(thd); });
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
@@ -723,6 +721,66 @@ static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
              ("dd::Table %s marked as checked for upgrade", c->name().c_str()));
 
   return {false, result_code};
+}
+
+/**
+  Run analyze in secondary engine.
+
+  @param[in] thd The thread handler.
+  @param[in] table The table to be analyzed.
+  @returns true on fatal errors, false otherwise.
+ */
+static bool secondary_engine_analyze(THD *thd, Table_ref *table) {
+  const char *op_name = "analyze secondary engine";
+  std::string combined_name(table->db, table->db_length);
+  combined_name.append(".");
+  combined_name.append(table->table_name, table->table_name_length);
+
+  Protocol *protocol = thd->get_protocol();
+
+  // Reopen table in secondary engine.
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_SECONDARY_ENGINE);
+  TABLE *primary_table = table->table;
+  table->table = nullptr;
+  // open_table will fail if we are in LOCK TABLES mode.
+  if (thd->locked_tables_mode != LTM_NONE) {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+  } else if (!open_table(thd, table, &ot_ctx)) {
+    assert(table->table->s->is_secondary_engine());
+    table->table->file->ha_set_primary_handler(primary_table->file);
+    if (table->table->file->ha_external_lock(thd, F_RDLCK) == 0) {
+      int res = table->table->file->ha_analyze(thd, nullptr);
+      table->table->file->ha_external_lock(thd, F_UNLCK);
+
+      // We ignore that secondary engine has not implemented analyze.
+      if (res == HA_ADMIN_NOT_IMPLEMENTED) {
+        return false;
+      }
+      if (res == HA_ADMIN_OK) {
+        protocol->start_row();
+        protocol->store_string(combined_name.c_str(), combined_name.length(),
+                               system_charset_info);
+        protocol->store(op_name, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("OK"), system_charset_info);
+        return protocol->end_row();
+      }
+    }
+  }
+
+  // If we reach here, there were non-fatal errors.
+  thd->clear_error();  // These errors should not cause statement to fail.
+  if (send_analyze_table_errors(thd, op_name, combined_name.c_str())) {
+    return true;
+  }
+  protocol->start_row();
+  protocol->store_string(combined_name.c_str(), combined_name.length(),
+                         system_charset_info);
+  protocol->store(op_name, system_charset_info);
+  protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+  protocol->store_string(STRING_WITH_LEN("Operation failed"),
+                         system_charset_info);
+  return protocol->end_row();
 }
 
 /*
@@ -1564,10 +1622,21 @@ static bool mysql_admin_table(
         goto err;
       DBUG_PRINT("admin", ("commit"));
     }
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
 
     if (protocol->end_row()) goto err;
+
+    // Run ANALYZE in secondary engine.
+    if (operator_func == &handler::ha_analyze && table->table != nullptr &&
+        table->table->s->has_secondary_engine() &&
+        table->table->s->secondary_load &&
+        thd->variables.enable_secondary_engine_statistics) {
+      if (secondary_engine_analyze(thd, table)) {
+        goto err;
+      }
+    }
+
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
   }
 
   my_eof(thd);
@@ -1822,7 +1891,6 @@ bool Sql_cmd_analyze_table::handle_histogram_command_inner(
   // updated snapshot.
   tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN, table->db, table->table_name,
                    false);
-  close_thread_tables(thd);
   return false;
 }
 
@@ -1830,7 +1898,22 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
                                                      Table_ref *table) {
   histograms::results_map results;
   handle_histogram_command_inner(thd, table, results);
-  return thd->is_fatal_error() || send_histogram_results(thd, results, table);
+  if (thd->is_fatal_error() || send_histogram_results(thd, results, table)) {
+    return true;
+  }
+
+  // Run ANALYZE in secondary engine.
+  bool secondary_error = false;
+  if (get_histogram_command() == Histogram_command::UPDATE_HISTOGRAM &&
+      table->table != nullptr && table->table->s->has_secondary_engine() &&
+      table->table->s->secondary_load &&
+      thd->variables.enable_secondary_engine_statistics) {
+    secondary_error = secondary_engine_analyze(thd, table);
+  }
+
+  close_thread_tables(thd);
+  my_eof(thd);
+  return secondary_error;
 }
 
 bool Sql_cmd_analyze_table::execute(THD *thd) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ bool cs::apply::Commit_order_queue::is_empty() {
 std::tuple<cs::apply::Commit_order_queue::value_type,
            cs::apply::Commit_order_queue::sequence_type>
 cs::apply::Commit_order_queue::pop() {
-  lock::Shared_spin_lock::Guard pop_sentry{
+  lock::Shared_spin_lock::Guard const pop_sentry{
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   value_type value_to_return{NO_WORKER};
@@ -164,7 +164,7 @@ cs::apply::Commit_order_queue::pop() {
 }
 
 void cs::apply::Commit_order_queue::push(value_type index) {
-  lock::Shared_spin_lock::Guard push_sentry{
+  lock::Shared_spin_lock::Guard const push_sentry{
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   assert(this->m_workers[index].m_commit_sequence_nr == Node::NO_SEQUENCE_NR);
@@ -183,7 +183,7 @@ void cs::apply::Commit_order_queue::push(value_type index) {
 
 cs::apply::Commit_order_queue::value_type
 cs::apply::Commit_order_queue::front() {
-  lock::Shared_spin_lock::Guard front_sentry{
+  lock::Shared_spin_lock::Guard const front_sentry{
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
   return this->m_commit_queue.front();
@@ -226,7 +226,7 @@ cs::apply::Commit_order_queue::get_next_sequence_nr(
 std::tuple<cs::apply::Commit_order_queue::value_type,
            cs::apply::Commit_order_queue::sequence_type>
 cs::apply::Commit_order_queue::remove(value_type index) {
-  lock::Shared_spin_lock::Guard remove_sentry{
+  lock::Shared_spin_lock::Guard const remove_sentry{
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_EXCLUSIVE};
   value_type value_to_return{NO_WORKER};
@@ -284,7 +284,7 @@ cs::apply::Commit_order_queue::remove_from_commit_queue(value_type to_remove) {
 
   // If to_remove is the first, just pop it and return.
   if (it == this->m_commit_queue.begin()) {
-    value_type value_removed = this->m_commit_queue.pop();
+    value_type const value_removed = this->m_commit_queue.pop();
     return std::make_tuple(value_removed, NO_WORKER);
   }
 
@@ -302,7 +302,7 @@ cs::apply::Commit_order_queue::remove_from_commit_queue(value_type to_remove) {
 
   for (Commit_order_queue::queue_type::index_type i = 1; i < original_size;
        ++i) {
-    value_type current_previous_value = value;
+    value_type const current_previous_value = value;
     value = this->m_commit_queue.pop();
     if (value_removed == NO_WORKER && value == to_remove) {
       value_removed = value;

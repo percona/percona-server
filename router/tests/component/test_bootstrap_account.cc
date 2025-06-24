@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,8 @@ auto make_matchers(const Container &container, UnaryOperation unary_op) {
 
 class AccountReuseTestBase : public RouterComponentBootstrapTest {
  public:
+  using RouterComponentBootstrapTest::RouterComponentBootstrapTest;
+
   template <typename Container, typename Func>
   static std::string make_list(const Container &items, Func generator) {
     if (items.empty()) return "";
@@ -946,7 +948,11 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseBadCmdlineTest : public AccountReuseTestBase {};
+class AccountReuseBadCmdlineTest : public AccountReuseTestBase,
+                                   public testing::WithParamInterface<bool> {
+ public:
+  AccountReuseBadCmdlineTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -954,7 +960,7 @@ class AccountReuseBadCmdlineTest : public AccountReuseTestBase {};
  *
  * WL13177:TS_FR06_01
  */
-TEST_F(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
+TEST_P(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"--account", "account1"}, EXIT_FAILURE);
@@ -974,7 +980,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
  *
  * WL13177:TS_FR07_01
  */
-TEST_F(AccountReuseBadCmdlineTest, account_argument_missing) {
+TEST_P(AccountReuseBadCmdlineTest, account_argument_missing) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"-B=0", "--account"}, EXIT_FAILURE);
@@ -992,7 +998,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_missing) {
  *
  * WL13177:TS_FR07_02
  */
-TEST_F(AccountReuseBadCmdlineTest, account_argument_empty) {
+TEST_P(AccountReuseBadCmdlineTest, account_argument_empty) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"-B=0", "--account", ""}, EXIT_FAILURE);
@@ -1009,7 +1015,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_empty) {
  * @test
  * verify that --account given twice produces an error and exits
  */
-TEST_F(AccountReuseBadCmdlineTest, account_given_twice) {
+TEST_P(AccountReuseBadCmdlineTest, account_given_twice) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"-B=0", "--account", "user1", "--account", "user2"}, EXIT_FAILURE);
@@ -1028,7 +1034,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_given_twice) {
  *
  * WL13177:TS_FR09_01
  */
-TEST_F(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
+TEST_P(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"-B=0", "--account-create", "never"}, EXIT_FAILURE);
@@ -1049,7 +1055,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
  *
  * WL13177:TS_FR08_01
  */
-TEST_F(AccountReuseBadCmdlineTest, account_create_argument_missing) {
+TEST_P(AccountReuseBadCmdlineTest, account_create_argument_missing) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"-B=0", "--account-create"}, EXIT_FAILURE);
@@ -1069,7 +1075,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_argument_missing) {
  *
  * WL13177:TS_FR08_02
  */
-TEST_F(AccountReuseBadCmdlineTest, account_create_illegal_value) {
+TEST_P(AccountReuseBadCmdlineTest, account_create_illegal_value) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"-B=0", "--account", "user1", "--account-create", "bla"}, EXIT_FAILURE);
@@ -1087,7 +1093,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_illegal_value) {
  * @test
  * verify that --account-create given twice produces an error and exits
  */
-TEST_F(AccountReuseBadCmdlineTest, account_create_given_twice) {
+TEST_P(AccountReuseBadCmdlineTest, account_create_given_twice) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"-B=0", "--account", "user1", "--account-create", "never",
@@ -1109,7 +1115,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_given_twice) {
  *
  * WL13177:TS_FR10_01
  */
-TEST_F(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
+TEST_P(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {
@@ -1133,7 +1139,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
  *
  * WL13177:TS_FR16_01
  */
-TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
+TEST_P(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap({"--strict"}, EXIT_FAILURE);
 
@@ -1146,13 +1152,20 @@ TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, AccountReuseBadCmdlineTest,
+                         ::testing::Values(false, true));
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // SIMPLE POSITIVE TESTS                                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseTest : public AccountReuseTestBase {};
+class AccountReuseTest : public AccountReuseTestBase,
+                         public testing::WithParamInterface<bool> {
+ public:
+  AccountReuseTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -1164,7 +1177,7 @@ class AccountReuseTest : public AccountReuseTestBase {};
  *
  * WL13177:TS_FR11_01
  */
-TEST_F(AccountReuseTest, simple) {
+TEST_P(AccountReuseTest, simple) {
   // no config exists yet
   TempDirectory bootstrap_directory;
 
@@ -1218,7 +1231,7 @@ TEST_F(AccountReuseTest, simple) {
  * - works in general
  * - works for simple case, implicit --account-host
  */
-TEST_F(AccountReuseTest, no_host_patterns) {
+TEST_P(AccountReuseTest, no_host_patterns) {
   for (bool root_password_on_cmdline : {true, false}) {
     TempDirectory bootstrap_directory;
 
@@ -1276,7 +1289,7 @@ TEST_F(AccountReuseTest, no_host_patterns) {
  * - can take '%' as a parameter
  * - redundant hosts are ignored
  */
-TEST_F(AccountReuseTest, multiple_host_patterns) {
+TEST_P(AccountReuseTest, multiple_host_patterns) {
   for (bool root_password_on_cmdline : {true, false}) {
     TempDirectory bootstrap_directory;
 
@@ -1331,6 +1344,9 @@ TEST_F(AccountReuseTest, multiple_host_patterns) {
   }
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, AccountReuseTest,
+                         ::testing::Values(false, true));
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // This parametrised test runs various combinations of --account-create and   //
@@ -1349,19 +1365,38 @@ struct MockServerResponses {
   bool rollback = false;  // CREATE USER will fail and trigger ROLLBACK
 };
 struct RouterAccountCreateComboTestParams {
-  const std::string test_name;
+  std::string test_name;
   const std::string username;
   const std::vector<std::string> extra_args;
   const std::set<std::string> account_host_args;
   MockServerResponses database_ops;
   const std::string exp_output;
   int exp_exit_code;
+  bool new_executable{false};
 };
+
 class AccountReuseCreateComboTestP
     : public AccountReuseTestBase,
       public ::testing::WithParamInterface<RouterAccountCreateComboTestParams> {
  public:
+  AccountReuseCreateComboTestP()
+      : AccountReuseTestBase(GetParam().new_executable) {}
+
   static std::vector<RouterAccountCreateComboTestParams> gen_testcases() {
+    std::vector<RouterAccountCreateComboTestParams> result;
+    auto orginal = gen_testcases_orginal();
+    std::copy(orginal.begin(), orginal.end(), std::back_inserter(result));
+    for (auto item : orginal) {
+      item.new_executable = true;
+      item.test_name.append("_new");
+      result.push_back(item);
+    }
+
+    return result;
+  }
+
+  static std::vector<RouterAccountCreateComboTestParams>
+  gen_testcases_orginal() {
     const std::string A = kHostA_notInDB;
     const std::string B = kHostB_notInDB;
     const std::string C = kHostC_inDB;
@@ -1890,7 +1925,12 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseReconfigurationTest : public AccountReuseTestBase {};
+class AccountReuseReconfigurationTest
+    : public AccountReuseTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  AccountReuseReconfigurationTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -1907,7 +1947,7 @@ class AccountReuseReconfigurationTest : public AccountReuseTestBase {};
  * WL13177:TS_FR01_01 (root password given on commandline)
  * WL13177:TS_FR01_03 (root password should be asked via prompt)
  */
-TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
+TEST_P(AccountReuseReconfigurationTest, user_exists_then_account) {
   for (bool root_password_on_cmdline : {true, false}) {
     // no config exists yet
     TempDirectory bootstrap_directory;
@@ -1973,7 +2013,7 @@ TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
  *
  * WL13177:TS_FR01_02
  */
-TEST_F(AccountReuseReconfigurationTest,
+TEST_P(AccountReuseReconfigurationTest,
        user_exists_router_is_registered_then_account) {
   // this test is similar to TS_FR01_01 and TS_FR01_03, but here:
   // - we have previous bootstrap artifacts (Router registration) in database
@@ -2049,7 +2089,7 @@ TEST_F(AccountReuseReconfigurationTest,
  *
  * WL13177:TS_FR01_05
  */
-TEST_F(AccountReuseReconfigurationTest,
+TEST_P(AccountReuseReconfigurationTest,
        user_exists_then_account_with_empty_password) {
   // this test is similar to TS_FR01_01 and TS_FR01_03, but here:
   // - we supply an empty password for the new account
@@ -2119,7 +2159,7 @@ TEST_F(AccountReuseReconfigurationTest,
  * cmdline
  * - verify expected password prompts are presented
  */
-TEST_F(AccountReuseReconfigurationTest,
+TEST_P(AccountReuseReconfigurationTest,
        nothing_then_account_with_empty_password) {
   // this test is like TS_FR01_05, but here:
   // - user doesn't exist yet
@@ -2187,7 +2227,7 @@ TEST_F(AccountReuseReconfigurationTest,
  * SIMILAR TO WL13177:TS_FR01_02
  * SIMILAR TO WL13177:TS_FR01_03
  */
-TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
+TEST_P(AccountReuseReconfigurationTest, noaccount_then_account) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap without --account
     TempDirectory bootstrap_directory;
@@ -2254,7 +2294,7 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
  * - password in the keyring will be preserved
  * ...
  */
-TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
+TEST_P(AccountReuseReconfigurationTest, account_then_noaccount) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap with --account
     TempDirectory bootstrap_directory;
@@ -2323,7 +2363,7 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
  *
  * WL13177:TS_FR11_02
  */
-TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
+TEST_P(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
   for (bool root_password_on_cmdline : {true, false}) {
     // emulate past bootstrap without --account
     TempDirectory bootstrap_directory;
@@ -2390,7 +2430,7 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
  * - bootstrap will re-use the account in the config
  * - try to read password from keyring and fail with appropriate message
  */
-TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
+TEST_P(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
   // emulate past bootstrap with --account and deleted keyring
   TempDirectory bootstrap_directory;
 
@@ -2458,7 +2498,7 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
  * - bootstrap will re-use the account in the config
  * - try to read password from keyring and fail with appropriate message
  */
-TEST_F(AccountReuseReconfigurationTest,
+TEST_P(AccountReuseReconfigurationTest,
        account_then_noaccount___keyring_without_needed_password) {
   const std::string kBogusUser = "bogus_user";  // different user than needed
 
@@ -2537,7 +2577,7 @@ TEST_F(AccountReuseReconfigurationTest,
  * due to wrong hostname part, and we have no control over nor a way to figure
  * out what hosname was actually used))
  */
-TEST_F(AccountReuseReconfigurationTest,
+TEST_P(AccountReuseReconfigurationTest,
        account_then_noaccount___keyring_with_incorrect_password) {
   const std::string kIncorrectPassword = "incorrect password";
 
@@ -2619,13 +2659,20 @@ TEST_F(AccountReuseReconfigurationTest,
   check_SQL_calls(server_http_port, exp_sql, unexp_sql);
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, AccountReuseReconfigurationTest,
+                         ::testing::Values(false, true));
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // SHOW WARNINGS TESTS                                                        //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class ShowWarningsProcessorTest : public AccountReuseTestBase {};
+class ShowWarningsProcessorTest : public AccountReuseTestBase,
+                                  public testing::WithParamInterface<bool> {
+ public:
+  ShowWarningsProcessorTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -2635,7 +2682,7 @@ class ShowWarningsProcessorTest : public AccountReuseTestBase {};
  * - bootstrap succeeds
  * - all 3 accounts are given GRANTs
  */
-TEST_F(ShowWarningsProcessorTest, no_accounts_exist) {
+TEST_P(ShowWarningsProcessorTest, no_accounts_exist) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
   std::vector<std::string> extra_args = {"--account", kAccountUser};
@@ -2715,7 +2762,7 @@ TEST_F(ShowWarningsProcessorTest, no_accounts_exist) {
  * - bootstrap succeeds
  * - only non-existing accounts are given GRANTs
  */
-TEST_F(ShowWarningsProcessorTest, one_account_exists) {
+TEST_P(ShowWarningsProcessorTest, one_account_exists) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
   const std::set<std::string> existing_hosts = {"h1"};
@@ -2803,7 +2850,7 @@ TEST_F(ShowWarningsProcessorTest, one_account_exists) {
  * - bootstrap succeeds
  * - only non-existing accounts are given GRANTs
  */
-TEST_F(ShowWarningsProcessorTest, two_accounts_exist) {
+TEST_P(ShowWarningsProcessorTest, two_accounts_exist) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
   const std::set<std::string> existing_hosts = {"h1", "h3"};
@@ -2891,7 +2938,7 @@ TEST_F(ShowWarningsProcessorTest, two_accounts_exist) {
  * - bootstrap succeeds
  * - only non-existing accounts are given GRANTs (that's none, in this case)
  */
-TEST_F(ShowWarningsProcessorTest, all_accounts_exist) {
+TEST_P(ShowWarningsProcessorTest, all_accounts_exist) {
   // input: other
   const std::set<std::string> account_hosts = {
       "h1", "s0me.c0mpl3x-VAL1D_h0s7name.%", "a%b"};
@@ -2971,7 +3018,7 @@ TEST_F(ShowWarningsProcessorTest, all_accounts_exist) {
  * - bootstrap succeeds
  * - only non-existing accounts are given GRANTs
  */
-TEST_F(ShowWarningsProcessorTest,
+TEST_P(ShowWarningsProcessorTest,
        show_warnings_returns_unrecognised_warning_code) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
@@ -3072,7 +3119,7 @@ TEST_F(ShowWarningsProcessorTest,
  * appropriate message
  * - bootstrap fails
  */
-TEST_F(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
+TEST_P(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
   const std::set<std::string> existing_hosts = {"h1", "h2"};
@@ -3168,7 +3215,7 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
  * appropriate message
  * - bootstrap fails
  */
-TEST_F(ShowWarningsProcessorTest,
+TEST_P(ShowWarningsProcessorTest,
        show_warnings_returns_message_with_unrecognised_account_pattern) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
@@ -3272,7 +3319,7 @@ TEST_F(ShowWarningsProcessorTest,
  * appropriate message
  * - bootstrap fails
  */
-TEST_F(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
+TEST_P(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
   const std::vector<std::string> kColumnNames = {"Level", "Code", "Message"};
   for (size_t i = 0; i < kColumnNames.size(); i++) {
     const std::string column_name = kColumnNames[i];
@@ -3369,7 +3416,7 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
  * appropriate message
  * - bootstrap fails
  */
-TEST_F(ShowWarningsProcessorTest,
+TEST_P(ShowWarningsProcessorTest,
        show_warnings_returns_invalid_number_of_columns) {
   const std::vector<std::string> kColumnNames = {"Level", "Code", "Message"};
   size_t i = 0;
@@ -3489,7 +3536,7 @@ TEST_F(ShowWarningsProcessorTest,
  * - SHOW WARNINGS mechanism will produce fatal error with appropriate message
  * - bootstrap fails
  */
-TEST_F(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
+TEST_P(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
   const unsigned err_code = 1234;
   const std::string err_msg = "je pense, donc je suis";
 
@@ -3568,6 +3615,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
                username);
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, ShowWarningsProcessorTest,
+                         ::testing::Values(false, true));
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // UNDO CREATE USER TESTS                                                     //
@@ -3578,11 +3628,15 @@ struct UndoCreateUserTestParams {
   unsigned failing_grant;
   std::set<std::string> account_hosts;
   std::set<std::string> existing_hosts;
+  bool new_executable{false};
 };
 
 class UndoCreateUserTestP
     : public AccountReuseTestBase,
-      public ::testing::WithParamInterface<UndoCreateUserTestParams> {};
+      public ::testing::WithParamInterface<UndoCreateUserTestParams> {
+ public:
+  UndoCreateUserTestP() : AccountReuseTestBase(GetParam().new_executable) {}
+};
 
 INSTANTIATE_TEST_SUITE_P(
     foo, UndoCreateUserTestP,
@@ -3611,7 +3665,32 @@ INSTANTIATE_TEST_SUITE_P(
         UndoCreateUserTestParams{2, {"h1", "h2", "h3"}, {}},
         UndoCreateUserTestParams{3, {"h1", "h2"}, {"h1"}},
         UndoCreateUserTestParams{2, {"h1", "h2"}, {}},
-        UndoCreateUserTestParams{3, {"h1"}, {}}
+        UndoCreateUserTestParams{3, {"h1"}, {}},
+
+        // we don't test cases of account_hosts == existing_hosts, because no
+        // GRANTs are executed in such case
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h1", "h2"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h2", "h3"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h1", "h3"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h1"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h2"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {"h3"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2", "h3"}, {}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2"}, {"h1"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2"}, {"h2"}, true},
+        UndoCreateUserTestParams{1, {"h1", "h2"}, {}, true},
+        UndoCreateUserTestParams{1, {"h1"}, {}, true},
+
+        // In bootstrap code, GRANT #1, #2 and #3 are just iterations of the
+        // same loop, therefore testing all above combinations for GRANTs #2 and
+        // #3 shouldn't be necessary as the code path is the same.  Therefore
+        // to save on test time, we only test a subset of combinations:
+        UndoCreateUserTestParams{2, {"h1", "h2", "h3"}, {"h1", "h3"}, true},
+        UndoCreateUserTestParams{3, {"h1", "h2", "h3"}, {"h2"}, true},
+        UndoCreateUserTestParams{2, {"h1", "h2", "h3"}, {}, true},
+        UndoCreateUserTestParams{3, {"h1", "h2"}, {"h1"}, true},
+        UndoCreateUserTestParams{2, {"h1", "h2"}, {}, true},
+        UndoCreateUserTestParams{3, {"h1"}, {}, true}
 
         ),
     // using 'auto' as type of p triggers
@@ -3636,6 +3715,8 @@ INSTANTIATE_TEST_SUITE_P(
 
       test_name += "________existing_hosts_";
       for (const std::string &h : p.param.existing_hosts) test_name += h + "_";
+
+      if (p.param.new_executable) test_name += "_new";
 
       return test_name;
     });
@@ -3932,7 +4013,11 @@ TEST_P(UndoCreateUserTestP, grant_fails_and_drop_user_also_fails) {
 }
 
 #ifndef _WIN32
-class UndoCreateUserTest : public AccountReuseTestBase {};
+class UndoCreateUserTest : public AccountReuseTestBase,
+                           public testing::WithParamInterface<bool> {
+ public:
+  UndoCreateUserTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -3946,7 +4031,7 @@ class UndoCreateUserTest : public AccountReuseTestBase {};
  *
  * WL13177:TS_FR17_04
  */
-TEST_F(UndoCreateUserTest, failure_after_account_creation) {
+TEST_P(UndoCreateUserTest, failure_after_account_creation) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
   const std::set<std::string> existing_hosts = {"h1", "h3"};
@@ -4054,7 +4139,7 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
  *
  * WL13177:TS_FR17_02
  */
-TEST_F(UndoCreateUserTest,
+TEST_P(UndoCreateUserTest,
        failure_after_account_creation_and_drop_user_also_fails) {
   // input: other
   const std::set<std::string> account_hosts = {"h1", "h2", "h3"};
@@ -4155,6 +4240,9 @@ TEST_F(UndoCreateUserTest,
   check_questions_asked_by_bootstrap(exp_exit_code, router,
                                      is_using_account(extra_args));
 }
+
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, UndoCreateUserTest,
+                         ::testing::Values(false, true));
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4162,7 +4250,11 @@ TEST_F(UndoCreateUserTest,
 // ACCOUNT VALIDATION TESTS                                                   //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-class AccountValidationTest : public AccountReuseTestBase {};
+class AccountValidationTest : public AccountReuseTestBase,
+                              public testing::WithParamInterface<bool> {
+ public:
+  AccountValidationTest() : AccountReuseTestBase(GetParam()) {}
+};
 
 /**
  * @test
@@ -4174,7 +4266,7 @@ class AccountValidationTest : public AccountReuseTestBase {};
  * *** this is like FR13_01, but there we have an invalid password, here it is
  * valid ***
  */
-TEST_F(AccountValidationTest, sunny_day_scenario) {
+TEST_P(AccountValidationTest, sunny_day_scenario) {
   // test params
   const std::vector<std::string> args = {"--account", kAccountUser};
   const std::set<std::string> existing_hosts =
@@ -4235,7 +4327,7 @@ TEST_F(AccountValidationTest, sunny_day_scenario) {
  *
  * WL13177:TS_FR13_01
  */
-TEST_F(AccountValidationTest, account_exists_wrong_password) {
+TEST_P(AccountValidationTest, account_exists_wrong_password) {
   // test params
   const std::vector<std::string> args = {"--account", kAccountUser};
   const std::set<std::string> existing_hosts = {
@@ -4307,7 +4399,7 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
  *
  * WL13177:TS_FR15_03
  */
-TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
+TEST_P(AccountValidationTest, account_exists_wrong_password_strict) {
   // test params
   const std::vector<std::string> args = {"--strict", "--account", kAccountUser};
   const std::set<std::string> existing_hosts = {
@@ -4378,7 +4470,7 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
  *
  * WL13177:TS_FR14_02
  */
-TEST_F(AccountValidationTest, warn_on_conn_failure) {
+TEST_P(AccountValidationTest, warn_on_conn_failure) {
   // test params
   const std::vector<std::string> args = {"--account", kAccountUser,
                                          "--account-host", "not.local.host"};
@@ -4447,7 +4539,7 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
  *
  * WL13177:TS_FR15_02
  */
-TEST_F(AccountValidationTest, error_on_conn_failure) {
+TEST_P(AccountValidationTest, error_on_conn_failure) {
   // test params
   const std::vector<std::string> args = {"--strict", "--account", kAccountUser,
                                          "--account-host", "not.local.host"};
@@ -4514,7 +4606,7 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
  *
  * WL13177:TS_FR14_02
  */
-TEST_F(AccountValidationTest, warn_on_query_failure) {
+TEST_P(AccountValidationTest, warn_on_query_failure) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
       // skip sql_val3() because testing with it is more complicated due to
@@ -4587,7 +4679,7 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
  *
  * WL13177:TS_FR15_02
  */
-TEST_F(AccountValidationTest, error_on_query_failure) {
+TEST_P(AccountValidationTest, error_on_query_failure) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
       // skip sql_val3() because testing with it is more complicated due to
@@ -4665,7 +4757,7 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
  * Additinoal expectations for WL13177::NFR2:
  * - GRANTs will not be added
  */
-TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
+TEST_P(AccountValidationTest, existing_user_missing_grants___no_strict) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
       // skip sql_val3() because testing with it is more complicated due to
@@ -4743,7 +4835,7 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
  * Additinoal expectations for WL13177::NFR2:
  * - GRANTs will not be added
  */
-TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
+TEST_P(AccountValidationTest, existing_user_missing_grants___strict) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
       // skip sql_val3() because testing with it is more complicated due to
@@ -4806,7 +4898,14 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
   }
 }
 
-class RouterAccountHostTest : public RouterComponentBootstrapTest {};
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, AccountValidationTest,
+                         ::testing::Values(false, true));
+
+class RouterAccountHostTest : public RouterComponentBootstrapTest,
+                              public testing::WithParamInterface<bool> {
+ public:
+  RouterAccountHostTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
 
 /**
  * @test
@@ -4815,7 +4914,7 @@ class RouterAccountHostTest : public RouterComponentBootstrapTest {};
  *        - can be applied multiple times in one go
  *        - can take '%' as a parameter
  */
-TEST_F(RouterAccountHostTest, multiple_host_patterns) {
+TEST_P(RouterAccountHostTest, multiple_host_patterns) {
   // to avoid duplication of tracefiles, we run the same test twice, with the
   // only difference that 1st time we run --bootstrap before the --account-host,
   // and second time we run it after
@@ -4887,7 +4986,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
  *        verify that --account-host without required argument produces an
  * error and exits
  */
-TEST_F(RouterAccountHostTest, argument_missing) {
+TEST_P(RouterAccountHostTest, argument_missing) {
   const uint16_t server_port = port_pool_.get_next_available();
 
   // launch the router in bootstrap mode
@@ -4909,7 +5008,7 @@ TEST_F(RouterAccountHostTest, argument_missing) {
  *        verify that --account-host without --bootstrap switch produces an
  * error and exits
  */
-TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
+TEST_P(RouterAccountHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"--account-host", "host1"}, EXIT_FAILURE);
@@ -4927,7 +5026,7 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
  *        verify that --account-host with illegal hostname argument correctly
  * handles the error
  */
-TEST_F(RouterAccountHostTest, illegal_hostname) {
+TEST_P(RouterAccountHostTest, illegal_hostname) {
   TempDirectory bootstrap_directory;
 
   prepare_config_dir_with_default_certs(bootstrap_directory.name());
@@ -4963,13 +5062,20 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
-class RouterReportHostTest : public RouterComponentBootstrapTest {};
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, RouterAccountHostTest,
+                         ::testing::Values(false, true));
+
+class RouterReportHostTest : public RouterComponentBootstrapTest,
+                             public testing::WithParamInterface<bool> {
+ public:
+  RouterReportHostTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
 
 /**
  * @test
  *        verify that --report-host works for the typical use case
  */
-TEST_F(RouterReportHostTest, typical_usage) {
+TEST_P(RouterReportHostTest, typical_usage) {
   const auto server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
 
@@ -5026,7 +5132,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
  *        verify that multiple --report-host arguments produce an error
  *        and exit
  */
-TEST_F(RouterReportHostTest, multiple_hostnames) {
+TEST_P(RouterReportHostTest, multiple_hostnames) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"--bootstrap=1.2.3.4:5678", "--report-host", "host1", "--report-host",
@@ -5047,7 +5153,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
  error
  *        and exits
  */
-TEST_F(RouterReportHostTest, argument_missing) {
+TEST_P(RouterReportHostTest, argument_missing) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"--bootstrap=1.2.3.4:5678", "--report-host"}, EXIT_FAILURE, true,
@@ -5066,7 +5172,7 @@ TEST_F(RouterReportHostTest, argument_missing) {
  *        verify that --report-host without --bootstrap switch produces an error
  *        and exits
  */
-TEST_F(RouterReportHostTest, without_bootstrap_flag) {
+TEST_P(RouterReportHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
   auto &router =
       launch_router_for_bootstrap({"--report-host", "host1"}, EXIT_FAILURE,
@@ -5091,7 +5197,7 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
  *        only focus on how this invalid hostname will be handled - we don't
  *        concern ourselves with correctness of hostname validation itself.
  */
-TEST_F(RouterReportHostTest, invalid_hostname) {
+TEST_P(RouterReportHostTest, invalid_hostname) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"},
@@ -5104,6 +5210,9 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
                   "Error: Option --report-host has an invalid value."));
   check_exit_code(router, EXIT_FAILURE);
 }
+
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, RouterReportHostTest,
+                         ::testing::Values(false, true));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

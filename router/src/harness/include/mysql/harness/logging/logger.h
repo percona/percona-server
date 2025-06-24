@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,7 @@ class HARNESS_EXPORT DomainLogger {
  private:
   bool init_logger() const;
 
+  mutable std::mutex logger_mtx_;
   mutable std::optional<mysql_harness::logging::Logger> logger_;
 
   std::string domain_{MYSQL_ROUTER_LOG_DOMAIN};

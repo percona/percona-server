@@ -1,4 +1,4 @@
-# Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,11 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
 
     IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION GREATER 1935)
       STRING_APPEND(suppress_warnings " /wd26860") # Potentially empty optional ''...'' is unwrapped, may throw exception.: Lines: ...
+    ENDIF()
+
+    IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION GREATER_EQUAL 1943)
+      STRING_APPEND(suppress_warnings " /wd26838") # Allocation size is the result of a signed to unsigned conversion that could overflow if negative
+      STRING_APPEND(suppress_warnings " /wd26839") # Array new allocation size is the result of a signed to unsigned conversion that could overflow if
     ENDIF()
 
     IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION GREATER_EQUAL 1937)

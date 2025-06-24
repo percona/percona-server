@@ -1,16 +1,17 @@
 /*
-  Copyright (c) 2024, Oracle and/or its affiliates.
+  Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
   as published by the Free Software Foundation.
 
-  This program is also distributed with certain software (including
+  This program is designed to work with certain software (including
   but not limited to OpenSSL) that is licensed under separate terms,
   as designated in a particular file or component or in included license
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
-  separately licensed software that they have included with MySQL.
+  separately licensed software that they have either included with
+  the program or referenced in the documentation.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -58,8 +59,8 @@ class InvalidGuidelinesTest : public RouterComponentTest {
   auto &launch_router(const std::string &routing_section,
                       const std::string &metadata_cache_section) {
     auto default_section = get_DEFAULT_defaults();
-    init_keyring(default_section, get_test_temp_dir_name(), user_,
-                 "mysql_test_password");
+    init_keyring(default_section, get_test_temp_dir_name(),
+                 {KeyringEntry{user_, "password", "mysql_test_password"}});
 
     const auto state_file =
         create_state_file(get_test_temp_dir_name(),

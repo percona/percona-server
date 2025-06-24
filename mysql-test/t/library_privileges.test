@@ -9,10 +9,10 @@ let $backup_schema = `SELECT DATABASE()`;
 --echo #   2. the following operations:
 --echo #     CREATE LIBRARY       (CREATE ROUTINE)
 --echo #     DROP LIBRARY         (ALTER ROUTINE)
---echo #     ALTER LIBRARY        (ALTER ROUTINE) - not supported
+--echo #     ALTER LIBRARY        (ALTER ROUTINE)
 --echo #     SHOW CREATE LIBRARY  (SHOW_ROUTINE or CREATE ROUTINE or ALTER ROUTINE or global SELECT)
 --echo #     SHOW LIBRARY CODE    (SHOW_ROUTINE or CREATE ROUTINE or ALTER ROUTINE or global SELECT) - not supported
---echo #     SHOW LIBRARY STATUS  (SHOW_ROUTINE or CREATE ROUTINE or ALTER ROUTINE or global SELECT) - not supported
+--echo #     SHOW LIBRARY STATUS  (SHOW_ROUTINE or CREATE ROUTINE or ALTER ROUTINE or global SELECT)
 --echo #
 --echo # This test file does NOT test importing of libraries.
 --echo #
@@ -39,8 +39,18 @@ AS $$
   let r2 = session.runSql("SELECT * FROM my_data.t")
 $$;
 
+CREATE LIBRARY lib_root_replacement LANGUAGE JAVASCRIPT
+AS $$
+  export function foo() {
+    return "YOU SHALL NOT SEE THIS ROOT COMMENT !!!"
+  }
+$$;
+
+CREATE FUNCTION function_root() RETURNS VARCHAR(128) LANGUAGE JAVASCRIPT USING (lib_root) AS
+"return lib_root.foo()";
+
 --echo # We need an account less than SYSTEM_USER, because we need to avoid creating objects with SYSTEM_USER,
---echo # because then no user can drop them except SYSTEM_USER
+--echo # because then no user can alter or drop them except SYSTEM_USER
 CREATE USER 'myRoot'@localhost;
 GRANT SELECT ON *.* TO 'myRoot'@'localhost' WITH GRANT OPTION;
 GRANT CREATE ON *.* TO 'myRoot'@'localhost' WITH GRANT OPTION;
@@ -61,7 +71,7 @@ CREATE TABLE t (col_a VARCHAR(2));
 INSERT INTO t (col_a) VALUES ('a1');
 INSERT INTO t (col_a) VALUES ('a2');
 
---echo # Define all the libraries from root's account
+--echo # Define all the libraries from myRoot's account
 USE db1;
 
 CREATE LIBRARY lib_foo LANGUAGE JAVASCRIPT
@@ -71,6 +81,13 @@ AS $$
     return "FOO"
   }
   let r2 = session.runSql("SELECT * FROM my_data.t")
+$$;
+
+CREATE LIBRARY lib_foo_replacement LANGUAGE JAVASCRIPT
+AS $$
+  export function foo() {
+    return "YOU SHALL NOT SEE THIS F00 COMMENT !!!"
+  }
 $$;
 
 CREATE LIBRARY lib_bar LANGUAGE JAVASCRIPT
@@ -196,19 +213,19 @@ SELECT User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Dr
 --echo ########################################
 
 --echo # Root can see everything
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 SHOW CREATE LIBRARY db1.lib_foo;
 SHOW CREATE LIBRARY db2.lib_foo;
 --error ER_PARSE_ERROR
-SHOW LIBRARY CODE db1.lib_foo;
---error ER_PARSE_ERROR
-SHOW LIBRARY STATUS db1.lib_foo;
+SHOW LIBRARY CODE WHERE Db='db1' and Name='lib_foo';
+--replace_column 5 <modified> 6 <created>
+SHOW LIBRARY STATUS WHERE Db='db1' and Name='lib_foo';
 
 --echo # Switch to userNothing
 connect (c_userNothing, localhost, userNothing, ,);
 connection c_userNothing;
 --echo # No permissions, so expect empty table
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --echo # For reference to show that it is the same error code for both functions and libraries
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION db1.lib_uses_both;
@@ -222,7 +239,7 @@ SHOW CREATE LIBRARY db2.lib_foo;
 --echo # Switch to userCreatesDb2: can only see db2
 connect (c_userCreatesDb2, localhost, userCreatesDb2, ,);
 connection c_userCreatesDb2;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
 --error ER_SP_DOES_NOT_EXIST
@@ -232,7 +249,7 @@ SHOW CREATE LIBRARY db2.lib_foo;
 --echo # Switch to userCreatesAll: can also see all
 connect (c_userCreatesAll, localhost, userCreatesAll, ,);
 connection c_userCreatesAll;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 SHOW CREATE LIBRARY db1.lib_foo;
 SHOW CREATE LIBRARY db1.lib_uses_both;
 SHOW CREATE LIBRARY db2.lib_foo;
@@ -244,12 +261,16 @@ connection c_userAltersDb1Both;
 --echo # Ensure that it is empty, i.e. no proc nor func should be visible
 SELECT ROUTINE_SCHEMA, ROUTINE_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = "db1" ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME;
 
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userAltersDb1Both";
+SELECT LIBRARY_COMMENT FROM information_schema.libraries WHERE LIBRARY_SCHEMA='db1' AND LIBRARY_NAME='lib_uses_both';
 SHOW CREATE LIBRARY db1.lib_uses_both;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT "Comment altered by userAltersDb1Both - DISALLOWED";
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE PROCEDURE db1.lib_uses_both;
 --error ER_SP_DOES_NOT_EXIST
@@ -260,25 +281,51 @@ SHOW CREATE LIBRARY db2.lib_foo;
 --echo # Switch to userAltersDb2: can only see db2
 connect (c_userAltersDb2, localhost, userAltersDb2, ,);
 connection c_userAltersDb2;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_uses_both;
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userAltersDb2";
 SHOW CREATE LIBRARY db2.lib_foo;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userAltersDb2 - DISALLOWED";
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT "Comment altered by userAltersDb2 - DISALLOWED";
+--error ER_SP_DOES_NOT_EXIST
+SHOW CREATE PROCEDURE db1.lib_uses_both;
 
 --echo # Switch to userAltersAll
 connect (c_userAltersAll, localhost, userAltersAll, ,);
 connection c_userAltersAll;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 SHOW CREATE LIBRARY db1.lib_foo;
 SHOW CREATE LIBRARY db1.lib_uses_both;
 SHOW CREATE LIBRARY db2.lib_foo;
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userAltersAll";
+SELECT LIBRARY_COMMENT FROM information_schema.libraries WHERE LIBRARY_SCHEMA='db2' AND LIBRARY_NAME='lib_foo';
+SHOW CREATE LIBRARY db1.lib_uses_both;
+ALTER PROCEDURE db1.lib_uses_both COMMENT "Comment altered by userAltersAll";
+--echo # Even if userAltersAll has the permissions to alter the procedure and read the library, they do not have execute access to the library.
+--error ER_SP_DOES_NOT_EXIST
+ALTER PROCEDURE db1.lib_uses_both USING (db2.lib_foo);
+--echo # Even if userAltersAll has the permissions to alter the procedure, they do not have execute access to the library.
+--error ER_SP_DOES_NOT_EXIST
+ALTER PROCEDURE db1.lib_uses_both USING (db1.lib_foo);
+SHOW CREATE PROCEDURE db1.lib_uses_both;
+SELECT ROUTINE_SCHEMA, ROUTINE_NAME, LIBRARY_SCHEMA, LIBRARY_NAME FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES WHERE ROUTINE_SCHEMA='db1' AND ROUTINE_NAME='lib_uses_both';
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userAltersAll";
+SHOW CREATE LIBRARY db2.lib_foo;
+SELECT LIBRARY_COMMENT FROM information_schema.libraries WHERE LIBRARY_SCHEMA='db2' AND LIBRARY_NAME='lib_foo';
 
 --echo # Switch to userSelectsDb2
 connect (c_userSelectsDb2, localhost, userSelectsDb2, ,);
 connection c_userSelectsDb2;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT "Comment altered by userSelectsDb2 - DISALLOWED";
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
 --error ER_SP_DOES_NOT_EXIST
@@ -286,21 +333,33 @@ SHOW CREATE LIBRARY db1.lib_uses_both;
 --echo # Global select is necessary, not only the schema-level select
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db2.lib_foo;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userSelectsDb2 - DISALLOWED";
 
 --echo # Switch to userSelectsAll
 connect (c_userSelectsAll, localhost, userSelectsAll, ,);
 connection c_userSelectsAll;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 SHOW CREATE LIBRARY db1.lib_foo;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userSelectsAll - DISALLOWED";
 SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT "Comment altered by userSelectsAll - DISALLOWED";
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userSelectsAll - DISALLOWED";
 SHOW CREATE LIBRARY db2.lib_foo;
 
 --echo # Switch to userShowsAll
 connect (c_userShowsAll, localhost, userShowsAll, ,);
 connection c_userShowsAll;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 SHOW CREATE LIBRARY db1.lib_foo;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userShowsAll - DISALLOWED";
 SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userShowsAll - DISALLOWED";
 SHOW CREATE LIBRARY db2.lib_foo;
 
 --echo # Switch to userExecutesDb1Both
@@ -310,10 +369,14 @@ connection c_userExecutesDb1Both;
 --echo # Ensure that it is empty, i.e. no proc nor func should be visible
 SELECT ROUTINE_SCHEMA, ROUTINE_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = "db1" ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME;
 
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT "Comment altered by userExecutesDb1Both - DISALLOWED";
 SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT "Comment altered by userExecutesDb1Both - DISALLOWED";
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION db1.lib_uses_both;
 --error ER_SP_DOES_NOT_EXIST
@@ -326,20 +389,26 @@ SHOW CREATE LIBRARY db2.lib_foo;
 --echo # Switch to userExecutesDb2
 connect (c_userExecutesDb2, localhost, userExecutesDb2, ,);
 connection c_userExecutesDb2;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_foo;
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_uses_both COMMENT "Comment altered by userExecutesDb2 - DISALLOWED";
 SHOW CREATE LIBRARY db2.lib_uses_both;
 SHOW CREATE LIBRARY db2.lib_foo;
 
 --echo # Switch to userExecutesAll
 connect (c_userExecutesAll, localhost, userExecutesAll, ,);
 connection c_userExecutesAll;
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT "Comment altered by userExecutesAll - DISALLOWED";
 SHOW CREATE LIBRARY db1.lib_foo;
 SHOW CREATE LIBRARY db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT "Comment altered by userExecutesAll - DISALLOWED";
 SHOW CREATE LIBRARY db2.lib_foo;
 
 --echo ########################################
@@ -443,6 +512,175 @@ connection c_myRoot;
 --echo # Ensure that newly created LIBRARIES got ALTER and EXECUTE privileges for its creators
 --echo # These are db2.l_userCreatesDb2, db1.l_userCreatesAll and db2.l_userCreatesAll
 SELECT user, db, Routine_name, Routine_type, Proc_priv FROM mysql.procs_priv WHERE Routine_name LIKE 'l_userCreates%';
+
+--echo ########################################
+--echo # Test ALTER LIBRARY
+--echo ########################################
+
+--echo # Root can alter everything
+ALTER LIBRARY db1.l_root COMMENT 'Test Alter Library Comment by root';
+ALTER LIBRARY db2.l_root COMMENT 'Test Alter Library Comment by root';
+--echo # Confirm the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # myRoot can not alter the root's functions and libraries.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER LIBRARY db_root.lib_root COMMENT 'Test Alter Library Comment by myRoot - DISALLOWED';
+SHOW CREATE LIBRARY db_root.lib_root;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER FUNCTION db_root.function_root USING (db_root.lib_root_replacement as lib_root);
+SHOW CREATE FUNCTION db_root.function_root;
+
+--echo # Switch to userNothing
+connection c_userNothing;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--echo # Verify that error code is the same for functions
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userCreatesDb2
+connection c_userCreatesDb2;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--echo # NOTE: but user can alter his own libraries because automatic-sp-privileges = ON
+ALTER LIBRARY db2.l_userCreatesDb2 COMMENT 'Test Alter Library Comment by userCreatesDb2';
+
+--echo # Switch to userCreatesAll
+connection c_userCreatesAll;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--echo # NOTE: but user can alter his own libraries because automatic-sp-privileges = ON
+ALTER LIBRARY db1.l_userCreatesAll COMMENT 'Test Alter Library Comment by l_userCreatesAll';
+ALTER LIBRARY db2.l_userCreatesAll COMMENT 'Test Alter Library Comment by l_userCreatesAll';
+--echo # Confirm only the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to userSelectsDb2
+connection c_userSelectsDb2;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userSelectsAll
+connection c_userSelectsAll;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userShowsAll
+connection c_userShowsAll;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userExecutesDb1Both
+connection c_userExecutesDb1Both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT 'Test Alter Function Comment';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db1.lib_uses_both COMMENT 'Test Alter Function Comment';
+
+--echo # Switch to userExecutesDb2
+connection c_userExecutesDb2;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userExecutesAll
+connection c_userExecutesAll;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userAltersDb1Both
+connection c_userAltersDb1Both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+ALTER LIBRARY db1.lib_uses_both COMMENT 'Test Alter Library Comment lib_uses_both';
+--error ER_PROCACCESS_DENIED_ERROR
+DROP FUNCTION db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+DROP FUNCTION db1.lib_uses_both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_uses_both COMMENT 'Disallowed Library Comment!!!';
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db2.lib_foo COMMENT 'Disallowed Library Comment!!!';
+--echo # Confirm only the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to userAltersDb2
+connection c_userAltersDb2;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db1.lib_foo COMMENT 'Disallowed Library Comment!!!';
+ALTER LIBRARY db2.lib_foo COMMENT 'Test Alter Library Comment db2';
+--echo # Confirm only the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to userAltersAll
+connection c_userAltersAll;
+ALTER LIBRARY db1.lib_foo COMMENT 'Test Alter Library Comment by UserAltersAll';
+ALTER LIBRARY db2.lib_bar COMMENT 'Test Alter Library Comment by UserAltersAll';
+--echo # Confirm only the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to myRoot
+connection c_myRoot;
+--echo # Ensure that the newly created LIBRARIES should be gone. Only userCreatesAll's and userCreatesDb2's libraries should remain.
+SELECT user, db, Routine_name, Routine_type, Proc_priv FROM mysql.procs_priv WHERE Routine_name LIKE 'l_userCreates%';
+
+--echo # Special case: ensure that nobody can alter db_root nor lib_root except the original root
+
+USE db_root;
+--echo # Switch to userAltersDb1Both
+connection c_userAltersDb1Both;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db_root.lib_root COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userAltersDb2
+connection c_userAltersDb2;
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER LIBRARY db_root.lib_root COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to userAltersAll
+connection c_userAltersAll;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER LIBRARY db_root.lib_root COMMENT 'Disallowed Library Comment!!!';
+
+--echo # Switch to myRoot
+connection c_myRoot;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER LIBRARY db_root.lib_root COMMENT 'Disallowed Library Comment!!!';
+ALTER LIBRARY db_root.lib_no_root COMMENT 'Test Alter Library Comment lib_no_root';
+--echo # Confirm only the allowed changes are in place.
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM INFORMATION_SCHEMA.LIBRARIES ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 
 --echo ########################################
 --echo # Test DROP LIBRARY
@@ -617,6 +855,9 @@ SHOW GLOBAL VARIABLES LIKE 'automatic_sp_privileges';
 --echo # Switch to userCreatesDb2
 connection c_userCreatesDb2;
 CREATE LIBRARY db2.l_userCreatesDb2Again LANGUAGE JAVASCRIPT AS 'var x = 1';
+--echo # Now, that automatic_sp_privileges is OFF, user cannot import his own LIBRARIES.
+--error ER_PROCACCESS_DENIED_ERROR
+CREATE FUNCTION db2.f_userCreatesDb2Again() RETURNS INT LANGUAGE JAVASCRIPT USING (db2.l_userCreatesDb2Again) AS 'return 42';
 --echo # Now, that automatic_sp_privileges is OFF, user cannot delete his own LIBRARY
 --error ER_PROCACCESS_DENIED_ERROR
 DROP LIBRARY db2.l_userCreatesDb2Again;
@@ -625,6 +866,9 @@ DROP LIBRARY db2.l_userCreatesDb2Again;
 connection c_userCreatesAll;
 CREATE LIBRARY db1.l_userCreatesAllAgain LANGUAGE JAVASCRIPT AS 'var x = 1';
 CREATE LIBRARY db2.l_userCreatesAllAgain LANGUAGE JAVASCRIPT AS 'var x = 1';
+--echo # Now, that automatic_sp_privileges is OFF, user cannot import his own LIBRARIES.
+--error ER_PROCACCESS_DENIED_ERROR
+CREATE FUNCTION db1.f_userCreatesAllAgain() RETURNS INT LANGUAGE JAVASCRIPT USING (db1.l_userCreatesAllAgain) AS 'return 42';
 --echo # Now, that automatic_sp_privileges is OFF, user cannot delete his own LIBRARIES
 --error ER_PROCACCESS_DENIED_ERROR
 DROP LIBRARY db1.l_userCreatesAllAgain;
@@ -646,16 +890,26 @@ AS $$
   export function foo() {return 42}
 $$;
 
+CREATE LIBRARY lib_foo_replacement LANGUAGE JAVASCRIPT
+AS $$
+  export function foo() {return 41}
+$$;
+
 CREATE LIBRARY lib_bar LANGUAGE JAVASCRIPT
 AS $$
   export function bar() {return 43}
 $$;
 
+CREATE FUNCTION foo() RETURNS INT LANGUAGE JAVASCRIPT USING (lib_foo) AS 'return lib_foo.foo()';
+
 CREATE USER 'userExecutesDb3foo'@localhost;
+GRANT EXECUTE ON FUNCTION db3.foo TO 'userExecutesDb3foo'@localhost;
 GRANT EXECUTE ON LIBRARY db3.lib_foo TO 'userExecutesDb3foo'@localhost;
+GRANT EXECUTE ON LIBRARY db3.lib_foo_replacement TO 'userExecutesDb3foo'@localhost;
 GRANT EXECUTE ON LIBRARY db3.lib_bar TO 'userExecutesDb3foo'@localhost;
 
 CREATE USER 'userAltersDb3foo'@localhost;
+GRANT ALTER ROUTINE ON FUNCTION db3.foo TO 'userAltersDb3foo'@localhost;
 GRANT ALTER ROUTINE ON LIBRARY db3.lib_foo TO 'userAltersDb3foo'@localhost;
 GRANT ALTER ROUTINE ON LIBRARY db3.lib_bar TO 'userAltersDb3foo'@localhost;
 
@@ -663,7 +917,12 @@ GRANT ALTER ROUTINE ON LIBRARY db3.lib_bar TO 'userAltersDb3foo'@localhost;
 connect (c_userExecutesDb3foo, localhost, userExecutesDb3foo, ,);
 connection c_userExecutesDb3foo;
 --echo # Should see both libs in db3
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Even if the user has EXECUTE permissions, they lack the ALTER one.
+--error ER_PROCACCESS_DENIED_ERROR
+ALTER FUNCTION db3.foo USING (db3.lib_foo_replacement);
+SELECT ROUTINE_NAME, LIBRARY_NAME FROM information_schema.routine_libraries WHERE ROUTINE_SCHEMA = 'db3' ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 
 --echo # Switch to myRoot
 connection c_myRoot;
@@ -672,14 +931,36 @@ REVOKE EXECUTE ON LIBRARY db3.lib_foo FROM 'userExecutesDb3foo'@localhost;
 --echo # Switch to userExecutesDb3foo again
 connection c_userExecutesDb3foo;
 --echo # Should see only db3.lib_bar
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to myRoot
+connection c_myRoot;
+GRANT ALTER ROUTINE ON FUNCTION db3.foo TO 'userExecutesDb3foo'@localhost;
+
+--echo # Switch to userExecutesDb3foo again
+connection c_userExecutesDb3foo;
+ALTER FUNCTION db3.foo USING (db3.lib_foo_replacement);
+SELECT ROUTINE_NAME, LIBRARY_NAME FROM information_schema.routine_libraries WHERE ROUTINE_SCHEMA = 'db3' ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+--echo # The permission to import that library was revoked.
+--error ER_SP_DOES_NOT_EXIST
+ALTER FUNCTION db3.foo USING (db3.lib_foo);
+SELECT ROUTINE_NAME, LIBRARY_NAME FROM information_schema.routine_libraries WHERE ROUTINE_SCHEMA = 'db3' ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+
+--echo # Switch to myRoot
+connection c_myRoot;
+ALTER FUNCTION db3.foo USING (db3.lib_foo);
+SELECT ROUTINE_NAME, LIBRARY_NAME FROM information_schema.routine_libraries WHERE ROUTINE_SCHEMA = 'db3' ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 
 --echo # Switch to userAltersDb3foo
 connect (c_userAltersDb3foo, localhost, userAltersDb3foo, ,);
 connection c_userAltersDb3foo;
 --echo # Should see both libs in db3
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 DROP LIBRARY db3.lib_foo;
+--echo # The user lacks the permissions to import the library.
+--error ER_SP_DOES_NOT_EXIST
+ALTER FUNCTION db3.foo USING (db3.lib_foo_replacement);
+SELECT ROUTINE_NAME, LIBRARY_NAME FROM information_schema.routine_libraries WHERE ROUTINE_SCHEMA = 'db3' ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 
 --echo # Switch to myRoot
 connection c_myRoot;
@@ -688,7 +969,7 @@ REVOKE ALTER ROUTINE ON LIBRARY db3.lib_bar FROM 'userAltersDb3foo'@localhost;
 --echo # Switch to userAltersDb3foo
 connection c_userAltersDb3foo;
 --echo # Should be empty because lib_foo was dropped and privileges to lib_bar were revoked
-SELECT LIBRARY_SCHEMA, LIBRARY_NAME FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
+SELECT LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_COMMENT FROM information_schema.libraries ORDER BY LIBRARY_SCHEMA, LIBRARY_NAME;
 --error ER_PROCACCESS_DENIED_ERROR
 DROP LIBRARY db3.lib_bar;
 
@@ -698,6 +979,9 @@ DROP LIBRARY db3.lib_bar;
 
 --echo # Switch to default
 connection default;
+
+--echo # The original configuration should not be modified.
+SELECT * FROM information_schema.routine_libraries ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, LIBRARY_SCHEMA, LIBRARY_NAME;
 
 SET GLOBAL automatic_sp_privileges = 'ON';
 

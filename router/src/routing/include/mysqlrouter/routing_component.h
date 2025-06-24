@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   std::string get_destination_cluster_name() const;
   std::string get_destination_replicaset_name() const;
 
+  DestinationNodesStateNotifier *get_destinations_state_notifier() const;
   int get_max_connections() const;
   uint64_t get_max_connect_errors() const;
 
@@ -101,6 +102,19 @@ class ROUTING_EXPORT MySQLRoutingAPI {
     time_point_type last_received_from_server;
   };
 
+  struct SslOptions {
+    mysql_ssl_mode ssl_mode;
+    std::string tls_version;
+    std::string ssl_cipher;
+    std::string ca;
+    std::string capath;
+    std::string crl;
+    std::string crlpath;
+    std::string cert;
+    std::string key;
+    std::string curves;
+  };
+
   std::vector<ConnData> get_connections() const;
 
   // status
@@ -108,6 +122,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   int get_total_connections() const;
 
   std::vector<mysql_harness::Destination> get_destination_candidates() const;
+  SslOptions get_destination_ssl_options() const;
 
   void start_accepting_connections();
   void restart_accepting_connections();

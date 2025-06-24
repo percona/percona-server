@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1072,6 +1072,8 @@ void set_external_engine_fail_reason(const LEX *lex, const char *reason);
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd);
 
 std::string_view get_secondary_engine_fail_reason(const LEX *lex);
+
+bool set_secondary_engine_fail_reason(const LEX *lex, std::string_view reason);
 
 void set_fail_reason_and_raise_error(const LEX *lex, std::string_view reason);
 

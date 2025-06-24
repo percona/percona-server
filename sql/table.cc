@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3104,35 +3104,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-  // Parse partition expression and create Items
-  if (share->partition_info_str_len && outparam->file &&
-      unpack_partition_info(thd, outparam, share,
-                            share->m_part_info->default_engine_type,
-                            is_create_table)) {
-    if (is_create_table) {
-      /*
-        During CREATE/ALTER TABLE it is ok to receive errors here.
-        It is not ok if it happens during the opening of an frm
-        file as part of a normal query.
-      */
-      error_reported = true;
-    }
-    goto err;
-  }
-
-  /* Check generated columns against table's storage engine. */
-  if (share->vfields && outparam->file &&
-      !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS)) {
-    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
-             "Specified storage engine");
-    error_reported = true;
-    goto err;
-  }
-
   /*
-    Allocate bitmaps
-    This needs to be done prior to generated columns as they'll call
-    fix_fields and functions might want to access bitmaps.
+    Allocate bitmaps before any expression is resolved with Item::fix_fields().
+    Such expressions may be part of generated column expressions and partition
+    functions.
   */
 
   bitmap_size = share->column_bitmap_size;
@@ -3155,6 +3130,36 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               pointer_cast<my_bitmap_map *>(bitmaps + bitmap_size * 7),
               share->fields);
   outparam->default_column_bitmaps();
+
+  // Parse partition expression and create Items
+  if (share->partition_info_str_len && outparam->file) {
+    auto *old_map = dbug_tmp_use_all_columns(outparam, outparam->write_set);
+    bool failed = unpack_partition_info(thd, outparam, share,
+                                        share->m_part_info->default_engine_type,
+                                        is_create_table);
+    dbug_tmp_restore_column_map(outparam->write_set, old_map);
+
+    if (failed) {
+      if (is_create_table) {
+        /*
+          During CREATE/ALTER TABLE it is ok to receive errors here.
+          It is not ok if it happens during the opening of an frm
+          file as part of a normal query.
+        */
+        error_reported = true;
+      }
+      goto err;
+    }
+  }
+
+  /* Check generated columns against table's storage engine. */
+  if (share->vfields && outparam->file &&
+      !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS)) {
+    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
+             "Specified storage engine");
+    error_reported = true;
+    goto err;
+  }
 
   /* Fill record with default values */
   if (outparam->record[0] != outparam->s->default_values)
@@ -3830,16 +3835,24 @@ Ident_name_check check_table_name(const char *name, size_t length) {
   return Ident_name_check::OK;
 }
 
-bool check_column_name(const char *name) {
+bool check_column_name(const Name_string &namestring) {
+  size_t valid_length = 0;
+  bool length_error = false;
+  if (validate_string(system_charset_info, namestring.ptr(),
+                      namestring.length(), &valid_length, &length_error)) {
+    return true;
+  }
+  const char *name = namestring.ptr();
   // name length in symbols
   size_t name_length = 0;
   bool last_char_is_space = true;
+  const char *name_end = name + namestring.length();
+  const bool is_multibyte = use_mb(system_charset_info);
 
   while (*name) {
     last_char_is_space = my_isspace(system_charset_info, *name);
-    if (use_mb(system_charset_info)) {
-      const int len = my_ismbchar(system_charset_info, name,
-                                  name + system_charset_info->mbmaxlen);
+    if (is_multibyte) {
+      const int len = my_ismbchar(system_charset_info, name, name_end);
       if (len) {
         name += len;
         name_length++;
@@ -6616,12 +6629,19 @@ bool Table_ref::is_mergeable() const {
   return derived->is_mergeable();
 }
 
-bool Table_ref::materializable_is_const() const {
+bool Table_ref::has_stored_program() const {
+  assert(derived != nullptr);
+  return derived->has_stored_program();
+}
+
+bool Table_ref::materializable_is_const(THD *thd) const {
   assert(uses_materialization());
   const Query_expression *unit = derived_query_expression();
+  const bool explain_mode = thd->lex->is_explain();
   return unit->query_result()->estimated_rowcount <= 1 &&
          (unit->first_query_block()->active_options() &
-          OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
+          OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0 &&
+         !(explain_mode && has_stored_program());
 }
 
 /**
@@ -7690,7 +7710,9 @@ AccessPath *MaterializedPathCache::LookupPath(
     case AccessPath::REF: {
       const auto equal_ref{[&](const RefPath &existing) {
         return table_path->ref().ref->key == existing.ref->key &&
-               table_path->ref().ref->key_parts == existing.ref->key_parts;
+               table_path->ref().ref->key_parts == existing.ref->key_parts &&
+               table_path->parameter_tables ==
+                   existing.materialize_path->parameter_tables;
       }};
 
       const auto iter{

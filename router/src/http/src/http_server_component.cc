@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,10 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
 
   void init(std::shared_ptr<http::HttpServerContext> srv) override;
 
-  void *add_route(const std::string &url_regex,
+  void *add_route(const std::string &url_host, const std::string &url_regex,
                   std::unique_ptr<http::base::RequestHandler> cb) override;
-  void remove_route(const std::string &url_regex) override;
+  void remove_route(const std::string &url_host,
+                    const std::string &url_regex) override;
   void remove_route(const void *handler) override;
 
   bool is_ssl_configured() override;
@@ -53,6 +54,7 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
   void operator=(HttpServerComponent const &) = delete;
 
   struct RouterData {
+    std::string url_host;
     std::string url_regex_str;
     std::unique_ptr<http::base::RequestHandler> handler;
   };
@@ -67,7 +69,7 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
 // HTTP Server's public API
 //
 void *HttpServerComponentImpl::add_route(
-    const std::string &url_regex,
+    const std::string &url_host, const std::string &url_regex,
     std::unique_ptr<http::base::RequestHandler> handler) {
   std::lock_guard<std::mutex> lock(rh_mu);
 
@@ -75,24 +77,26 @@ void *HttpServerComponentImpl::add_route(
   // if srv_ already points to the http_server forward the
   // route directly, otherwise add it to the delayed backlog
   if (auto srv = srv_.lock()) {
-    srv->add_route(url_regex, std::move(handler));
+    srv->add_route(url_host, url_regex, std::move(handler));
   } else {
-    request_handlers_.emplace_back(RouterData{url_regex, std::move(handler)});
+    request_handlers_.emplace_back(
+        RouterData{url_host, url_regex, std::move(handler)});
   }
 
   return result_id;
 }
 
-void HttpServerComponentImpl::remove_route(const std::string &url_regex) {
+void HttpServerComponentImpl::remove_route(const std::string &url_regex,
+                                           const std::string &url_host) {
   std::lock_guard<std::mutex> lock(rh_mu);
 
   // if srv_ already points to the http_server forward the
   // route directly, otherwise add it to the delayed backlog
   if (auto srv = srv_.lock()) {
-    srv->remove_route(url_regex);
+    srv->remove_route(url_regex, url_host);
   } else {
     for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-      if (it->url_regex_str == url_regex) {
+      if (it->url_regex_str == url_regex && it->url_host == url_host) {
         it = request_handlers_.erase(it);
       } else {
         it++;
@@ -125,7 +129,8 @@ void HttpServerComponentImpl::init(
   srv_ = srv;
 
   for (auto &route : request_handlers_) {
-    srv->add_route(route.url_regex_str, std::move(route.handler));
+    srv->add_route(route.url_host, route.url_regex_str,
+                   std::move(route.handler));
   }
 
   request_handlers_.clear();

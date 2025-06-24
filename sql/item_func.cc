@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1740,6 +1740,8 @@ double Item_func_numhybrid::val_real() {
       my_decimal decimal_value, *val;
       double result;
       if (!(val = decimal_op(&decimal_value))) return 0.0;  // null is set
+      my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, /*truncate=*/false,
+                       val);
       my_decimal2double(E_DEC_FATAL_ERROR, val, &result);
       return result;
     }
@@ -1819,6 +1821,10 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value) {
   switch (hybrid_type) {
     case DECIMAL_RESULT:
       val = decimal_op(decimal_value);
+      if (val != nullptr && val->frac > decimals) {
+        my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, /*truncate=*/false,
+                         val);
+      }
       break;
     case INT_RESULT: {
       const longlong result = int_op();
@@ -4973,17 +4979,24 @@ void udf_handler::clear() {
   is_null = 0;
   Udf_func_clear func = u_d->func_clear;
   func(&initid, &is_null, &error);
+  assert(is_null == 0);
+  assert(error == 0);
 }
 
-void udf_handler::add(bool *null_value) {
+bool udf_handler::add(bool *null_value) {
   assert(is_initialized());
+  assert(error == 0 || error == 1);
   if (get_arguments()) {
     *null_value = true;
-    return;
+    return static_cast<bool>(error);
   }
   Udf_func_add func = u_d->func_add;
   func(&initid, &f_args, &is_null, &error);
-  *null_value = (bool)(is_null || error);
+  assert(is_null == 0 || is_null == 1);
+  assert(error == 0 || error == 1);
+  *null_value = static_cast<bool>(is_null);
+
+  return static_cast<bool>(error);
 }
 
 /**
@@ -5239,7 +5252,7 @@ longlong Item_source_pos_wait::val_int() {
       return 0;
     }
 
-    mi = channel_map.get_mi(channel_str->ptr());
+    mi = channel_map.get_mi(channel_str->c_ptr_safe());
 
   } else {
     if (channel_map.get_num_instances() > 1) {
@@ -6143,7 +6156,7 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
 // static
 user_var_entry *user_var_entry::create(THD *thd, const Name_string &name,
                                        const CHARSET_INFO *cs) {
-  if (check_column_name(name.ptr())) {
+  if (check_column_name(name)) {
     my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
     return nullptr;
   }
@@ -8379,6 +8392,8 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
 bool Item_func_sp::execute() {
   THD *thd = current_thd;
 
+  assert(!thd->lex->is_explain() || thd->lex->is_explain_analyze);
+
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, m_name_resolution_ctx->view_error_handler,
       m_name_resolution_ctx->view_error_handler_arg);
@@ -9204,7 +9219,7 @@ longlong Item_func_can_access_column::val_int() {
                    &grant_info.privilege, nullptr, false, true))
     return 0;
 
-  const uint col_access =
+  const Access_bitmask col_access =
       get_column_grant(thd, &grant_info, schema_name_ptr->ptr(),
                        table_name_ptr->ptr(), column_name_ptr->ptr()) &
       COL_ACLS;

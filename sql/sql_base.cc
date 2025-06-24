@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2117,6 +2117,11 @@ bool close_temporary_tables(THD *thd) {
       thd->variables.pseudo_thread_id = save_pseudo_thread_id;
       thd->thread_specific_used = save_thread_specific_used;
     } else {
+      if (table->s->has_secondary_engine()) {
+        error = secondary_engine_unload_table_inner(
+            thd, table->s->db.str, table->s->path.str,
+            table->s->secondary_engine, false, false);
+      }
       next = table->next;
       /*
         This is for those cases when we have acquired lock but drop temporary
@@ -6231,6 +6236,12 @@ restart:
       thd->lex->set_has_external_tables();
     }
 
+    if (tbl != nullptr && tbl->s->has_secondary_engine() &&
+        is_temporary_table(tables)) {
+      thd->lex->set_execute_only_in_secondary_engine(true,
+                                                     TEMPORARY_TABLE_USAGE);
+    }
+
     /*
       Access to ACL table in a SELECT ... LOCK IN SHARE MODE are required
       to skip acquiring row locks. So, we use TL_READ_DEFAULT lock on ACL
@@ -6980,6 +6991,10 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   for (; tr != nullptr && (lex->query_tables_own_last == nullptr ||
                            tr != lex->query_tables_own_last[0]);
        tr = tr->next_global) {
+    if (is_temporary_table(tr)) {
+      // Temporary tables are already opened in secondary engine.
+      continue;
+    }
     if (tr->is_placeholder()) {
       continue;
     }
@@ -7710,8 +7725,12 @@ bool open_temporary_table(THD *thd, Table_ref *tl) {
   table->query_id = thd->query_id;
   thd->thread_specific_used = true;
 
-  tl->set_updatable();  // It is not derived table nor non-updatable VIEW.
-  tl->set_insertable();
+  if (table->s->has_secondary_engine()) {
+    tl->set_readonly();
+  } else {
+    tl->set_updatable();  // It is not derived table nor non-updatable VIEW.
+    tl->set_insertable();
+  }
 
   table->reset();
   table->init(thd, tl);
@@ -9318,9 +9337,10 @@ bool setup_fields(THD *thd, Access_bitmask want_privilege, bool allow_sum_func,
         and carried forward up to the tmp table where the WF can be
         evaluated.
       */
-      if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
-                                        !item->m_is_window_function)) ||  //(1)
-          item->has_wf()) {                                               // (2)
+      if (!item->const_item() &&
+          ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
+                                         !item->m_is_window_function)) ||  //(1)
+           item->has_wf())) {  // (2)
         LEX::Splitting_window_expression s(thd->lex, item->has_wf());
         if (item->split_sum_func(thd, ref_item_array, fields)) {
           return true;
@@ -10082,8 +10102,10 @@ bool fill_record_n_invoke_before_triggers(
     }
 
     table->triggers->disable_fields_temporary_nullability();
+    rc = rc || check_inserting_record(thd, table->field);
+    table->triggers->reset_field_nulls();
 
-    return rc || check_inserting_record(thd, table->field);
+    return rc;
   } else {
     if (fill_record(thd, table, fields, values, nullptr, nullptr,
                     raise_autoinc_has_expl_non_null_val))

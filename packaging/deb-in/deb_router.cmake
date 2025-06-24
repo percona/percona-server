@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,12 @@ SET (DEB_RULES_INSTALL_ROUTER_SYSTEMD
   "install -m 0755 debian/extra/mysqlrouter-systemd-start debian/tmp/usr/share/mysqlrouter/"
   )
 
+
+if(DEFINED MRS_JIT_EXECUTOR_LIB)
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DMRS_JIT_EXECUTOR_LIB=${MRS_JIT_EXECUTOR_LIB}")
+  SET (DEB_INSTALL_MRS_JIT_EXECUTOR_PLUGIN "usr/lib/mysqlrouter/plugin/jit_executor.so")
+  SET (DEB_INSTALL_MRS_JIT_EXECUTOR_LIB "usr/lib/mysqlrouter/private/libjitexecutor.so")
+endif()
 
 SET(DEB_CONTROL_ROUTER
 "

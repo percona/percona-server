@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,10 @@
 
 #include "sql/dd/impl/system_views/libraries.h"
 
-namespace dd {
-namespace system_views {
+namespace dd::system_views {
 
 const Libraries &Libraries::instance() {
-  static Libraries *s_instance = new Libraries();
+  static auto *s_instance = new Libraries();
   return *s_instance;
 }
 
@@ -48,6 +47,8 @@ Libraries::Libraries() {
   m_target_def.add_field(FIELD_LAST_ALTERED, "LAST_ALTERED",
                          "rtn.last_altered");
   m_target_def.add_field(FIELD_SQL_MODE, "SQL_MODE", "rtn.sql_mode");
+  m_target_def.add_field(FIELD_LIBRARY_COMMENT, "LIBRARY_COMMENT",
+                         "rtn.comment");
   m_target_def.add_field(FIELD_CREATOR, "CREATOR", "rtn.definer");
 
   m_target_def.add_from("mysql.routines rtn");
@@ -55,11 +56,8 @@ Libraries::Libraries() {
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
 
   m_target_def.add_where(
-      "CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, "
-      "rtn.definer, FALSE)");
-
+      "CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, FALSE)");
   m_target_def.add_where("AND rtn.type = 'LIBRARY'");
 }
 
-}  // namespace system_views
-}  // namespace dd
+}  // namespace dd::system_views

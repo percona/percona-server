@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2025, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -336,12 +336,12 @@ class Ndbd : public Mgmd {
 
   NdbProcess::Args &args() { return m_args; }
 
-  void set_connect_string(BaseString connect_string) {
+  void set_connect_string(const BaseString &connect_string) {
     m_args.add("-c");
     m_args.add(connect_string.c_str());
   }
 
-  bool start(const char *working_dir, BaseString connect_string) {
+  bool start(const char *working_dir, const BaseString &connect_string) {
     set_connect_string(connect_string);
     return Mgmd::start(working_dir, m_args);
   }

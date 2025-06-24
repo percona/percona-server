@@ -19,7 +19,7 @@ if (`select @@version_compile_os IN ("Win32","Win64","Windows")`)
 --let SEP=;
 }
 
---let JAVA_MIN_REQUIRED_VERSION=1.8
+--let JAVA_MIN_REQUIRED_VERSION=11
 --source suite/ndb/include/have_java.inc
 --source suite/ndb/include/have_clusterj.inc
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,6 @@ ADD_CUSTOM_COMMAND(OUTPUT
   ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
-  --charset=${PROJECT_SOURCE_DIR}/share/charsets
   --out-dir=${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/
   --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h
   --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h

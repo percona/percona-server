@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "option_usage.h"
-#include <mysql/components/component_implementation.h>
-#include <mysql/components/library_mysys/option_usage_data.h>
-#include <mysql/components/service.h>
-#include <mysql/components/services/mysql_option_tracker.h>
-#include <mysql/components/util/weak_service_reference.h>
 #include <cassert>
 #include <memory>
 #include "connection_control.h"
+#include "mysql/components/component_implementation.h"
+#include "mysql/components/library_mysys/option_tracker_usage.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/mysql_option_tracker.h"
+#include "mysql/components/util/weak_service_reference.h"
 
 namespace connection_control {
 
@@ -40,35 +40,40 @@ const std::string c_name("component_connection_control"),
 typedef weak_service_reference<SERVICE_TYPE(mysql_option_tracker_option),
                                c_name, opt_name>
     weak_option;
-static Option_usage_data *option_usage{nullptr};
+
+unsigned long long opt_option_tracker_usage_connection_control_component = 0;
+static bool cb(unsigned long long new_value) {
+  opt_option_tracker_usage_connection_control_component = new_value;
+  return false;
+}
+static bool cb_define_failed = false;
 
 bool connection_control_component_option_usage_init() {
-  assert(option_usage == nullptr);
-  std::unique_ptr<Option_usage_data> ptr(new (std::nothrow) Option_usage_data(
-      c_option_name.c_str(), SERVICE_PLACEHOLDER(registry)));
-
-  bool ret = weak_option::init(
+  bool const ret = weak_option::init(
       SERVICE_PLACEHOLDER(registry), SERVICE_PLACEHOLDER(registry_registration),
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
-        return 0 != opt->define(c_option_name.c_str(), c_name.c_str(), 1);
+        return 0 != opt->define(c_option_name.c_str(), c_name.c_str(), 1) ||
+               option_usage_read_counter(
+                   c_option_name.c_str(),
+                   &opt_option_tracker_usage_connection_control_component,
+                   SERVICE_PLACEHOLDER(registry)) ||
+               (cb_define_failed = option_usage_register_callback(
+                    c_option_name.c_str(), cb, SERVICE_PLACEHOLDER(registry)));
       });
-  if (!ret) {
-    option_usage = ptr.release();
-  }
   return ret;
 }
 
 bool connection_control_component_option_usage_deinit() {
-  delete option_usage;
-  option_usage = nullptr;
   return weak_option::deinit(
       mysql_service_registry_no_lock, mysql_service_registration_no_lock,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
+        if (!cb_define_failed &&
+            option_usage_unregister_callback(c_option_name.c_str(), cb,
+                                             mysql_service_registry_no_lock)) {
+          return true;
+        }
         return 0 != opt->undefine(c_option_name.c_str());
       });
 }
 
-bool connection_control_component_option_usage_set(unsigned long every_nth) {
-  return option_usage->set_sampled(true, every_nth);
-}
 }  // namespace connection_control

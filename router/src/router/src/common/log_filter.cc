@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,8 @@ std::string LogFilter::filter(std::string statement) const {
 
 void LogFilter::add_pattern(const std::string &pattern,
                             const std::string &replacement) {
-  patterns_.push_back(std::make_pair(
-      std::regex(pattern, std::regex_constants::icase), replacement));
+  patterns_.emplace_back(std::regex(pattern, std::regex_constants::icase),
+                         replacement);
 }
 
 void SQLLogFilter::add_default_sql_patterns() {

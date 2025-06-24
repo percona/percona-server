@@ -24,18 +24,14 @@ SET @@global.replica_parallel_workers = 4;
 SET @@global.replica_preserve_commit_order = OFF;
 --source include/rpl/start_applier.inc
 
---let $j = 3
+--let $j = 2
 while ($j > 0) {
 
   if ($j == 1) {
-    --let $nworkers = 0
-  }
-
-  if ($j == 2) {
     --let $nworkers = 1
   }
 
-  if ($j == 3) {
+  if ($j == 2) {
     --let $nworkers = 8
   }
 

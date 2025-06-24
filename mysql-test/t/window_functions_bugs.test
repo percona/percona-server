@@ -1667,3 +1667,12 @@ FROM t1 AS s1 JOIN t1 AS s2
                    SELECT * FROM cte1
                   );
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#37466984 MAX() as a Window Function Blindly Returns NULL for the First Row under Specific Conditions
+--echo #
+CREATE TABLE t0(c0 INT);
+INSERT INTO t0 VALUES (1), (2);
+SELECT c0, MAX(c0) OVER (ORDER BY c0 DESC ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING)
+FROM t0;
+DROP TABLE t0;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2024, Oracle and/or its affiliates.
+Copyright (c) 1995, 2025, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -69,6 +69,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <map>
 #include <new>
 #include <sstream>
+#include <string_view>
+#include <unordered_map>
 
 #include "buf0checksum.h"
 #include "buf0dump.h"
@@ -341,6 +343,65 @@ static ulint buf_dbg_counter = 0;
 with small buffer pool size. */
 bool srv_buf_pool_debug;
 #endif /* UNIV_DEBUG */
+
+namespace {
+#ifndef UNIV_HOTBACKUP
+const std::unordered_map<buf_io_fix, std::string_view> buf_io_fix_str{
+    {BUF_IO_NONE, "BUF_IO_NONE"},
+    {BUF_IO_READ, "BUF_IO_READ"},
+    {BUF_IO_WRITE, "BUF_IO_WRITE"},
+    {BUF_IO_PIN, "BUF_IO_PIN"},
+};
+
+const std::unordered_map<buf_flush_t, std::string_view> buf_flush_str{
+    {BUF_FLUSH_LRU, "BUF_FLUSH_LRU"},
+    {BUF_FLUSH_LIST, "BUF_FLUSH_LIST"},
+    {BUF_FLUSH_SINGLE_PAGE, "BUF_FLUSH_SINGLE_PAGE"},
+    {BUF_FLUSH_N_TYPES, "BUF_FLUSH_N_TYPES"}};
+
+/** Helper iostream operator presenting the io_fix value as human-readable
+name of the enum. Used in error messages of Buf_io_fix_latching_rules.
+@param[in,out]  outs    the output stream to which to print
+@param[in]  io_fix  the value to be printed
+@return always equals the stream passed as the outs argument
+*/
+static std::ostream &operator<<(std::ostream &outs, const buf_io_fix io_fix) {
+  ut_a(buf_page_t::is_correct_io_fix_value(io_fix));
+  return outs << buf_io_fix_str.at(io_fix);
+}
+
+/** Helper ostream operator to print buf_page_state in human-readable name of
+the enum.
+@param[in,out]  outs   the output stream
+@param[in]  state  the page state to be printed
+@return same output stream passed as input */
+std::ostream &operator<<(std::ostream &outs, const buf_page_state &state) {
+  const std::string_view state_str = buf_page_state_str.at(state);
+  if (state_str.length() < 2) {
+    /* Compression pages states: invalid for buffer block pages */
+    if (state == BUF_BLOCK_POOL_WATCH) {
+      return outs << "POOL_WATCH";
+    } else if (state == BUF_BLOCK_ZIP_PAGE) {
+      return outs << "ZIP_PAGE";
+    } else if (state == BUF_BLOCK_ZIP_DIRTY) {
+      return outs << "ZIP_DIRTY";
+    } else {
+      ut_error;
+    }
+  }
+  return outs << state_str;
+}
+
+/** Helper ostream operator to print buf_flush_t in human-readable name of the
+enum.
+@param[in,out]  outs        the output stream
+@param[in]  flush_type  the flush_type to be printed
+@return same output stream passed as input */
+std::ostream &operator<<(std::ostream &outs, const buf_flush_t &flush_type) {
+  return outs << buf_flush_str.at(flush_type);
+}
+#endif /* !UNIV_HOTBACKUP */
+}  // namespace
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 #ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
@@ -1178,13 +1239,10 @@ static void buf_assert_all_are_replaceable(buf_chunk_t *chunk) {
       case BUF_BLOCK_FILE_PAGE:
         buf_page_mutex_enter(block);
         const auto &bpage = block->page;
-        if (!buf_flush_ready_for_replace(&bpage)) {
-          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_83)
-              << "Page " << bpage.id
-              << " still fixed or dirty, io_fix = " << bpage.get_io_fix()
-              << " buf_fix_count = " << bpage.buf_fix_count.load()
-              << " oldest_lsn = " << bpage.get_oldest_lsn()
-              << " type = " << fil_page_get_type(block->frame);
+        if (!buf_flush_ready_for_replace(&bpage) ||
+            DBUG_EVALUATE_IF("simulate_dirty_page_at_shutdown", true, false)) {
+          ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_PAGE_DIRTY_AT_SHUTDOWN)
+              << *block;
         }
         buf_page_mutex_exit(block);
         break;
@@ -5582,23 +5640,8 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
   ut_ad(!mutex_own(block_mutex));
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 }
-#ifdef UNIV_DEBUG
-/** Helper iostream operator presenting the io_fix value as human-readable
-name of the enum. Used in error messages of Buf_io_fix_latching_rules.
-@param[in]  outs    the output stream to which to print
-@param[in]  io_fix  the value to be printed
-@return always equals the stream passed as the outs argument
-*/
-static std::ostream &operator<<(std::ostream &outs, const buf_io_fix io_fix) {
-  ut_a(buf_page_t::is_correct_io_fix_value(io_fix));
-  return outs << std::map<buf_io_fix, const char *>{
-             {BUF_IO_NONE, "BUF_IO_NONE"},
-             {BUF_IO_READ, "BUF_IO_READ"},
-             {BUF_IO_WRITE, "BUF_IO_WRITE"},
-             {BUF_IO_PIN, "BUF_IO_PIN"},
-         }[io_fix];
-}
 
+#ifdef UNIV_DEBUG
 /* Possible io_buf states and transitions between them, with latches required
 for transition.
 @see buf_page_t::Latching_rules_helpers::get_owned_latches() for the meaning of
@@ -6150,6 +6193,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
     ensure there is NO write activity happening. */
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
+
   /* It is crucial that the BP must contain only pages in replaceable state,
   before we attempt to free them using buf_LRU_scan_and_free_block(), because
   this function skips over pages which aren't replaceable, and we promise to
@@ -7092,4 +7136,77 @@ bool buf_block_t::is_empty() const {
   return page_rec_is_supremum(page_rec_get_next(page_get_infimum_rec(frame)));
 }
 
-bool buf_block_t::is_compact() const { return page_is_comp(frame); }
+#ifndef UNIV_HOTBACKUP
+namespace {
+/** Print the page's access_time as duration between first access and now, or
+0.0 if never accessed
+@param[in]  access_time  the time_point when page was first accessed
+@return time elapsed since access_time */
+int64_t time_elapsed(std::chrono::steady_clock::time_point access_time) {
+  if (access_time == std::chrono::steady_clock::time_point{}) {
+    return 0;
+  }
+  return static_cast<int64_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::steady_clock::now() - access_time)
+          .count());
+}
+}  // namespace
+
+std::ostream &operator<<(std::ostream &outs, const buf_page_t &page) {
+  /* Print in json format: "key":"value" */
+
+  ut_ad(mutex_own(buf_page_get_mutex(&page)));
+  ut_ad(buf_page_in_file(&page));
+
+  return outs << "{\"page\":{\"id\":\"" << page.id << "\",\"size\":\""
+              << page.size << "\",\"page_type\":\""
+              << reinterpret_cast<const buf_block_t &>(page).get_page_type_str()
+              << "\",\"was_stale\":" << page.was_stale()
+              << ",\"buf_fix_count\":" << page.buf_fix_count.load()
+              << ",\"io_fix\":\"" << page.get_io_fix_snapshot()
+              << "\",\"newest_lsn\":" << page.get_newest_lsn()
+              << ",\"oldest_lsn\":" << page.get_oldest_lsn()
+              << ",\"is_dirty\":" << page.is_dirty() << ",\"flush_type\":\""
+              << page.flush_type
+              << "\",\"dblwr_batch_id\":" << page.get_dblwr_batch_id()
+              << ",\"old\":" << page.old
+              << ",\"first_accessed\":" << time_elapsed(page.access_time)
+#ifdef UNIV_DEBUG
+              << ",\"file_page_was_freed\":" << page.file_page_was_freed
+              << ",\"someone_has_io_responsibility\":"
+              << page.someone_has_io_responsibility()
+              << ",\"current_thread_has_io_responsibility\":"
+              << page.current_thread_has_io_responsibility()
+              << ",\"in_flush_list\":" << page.in_flush_list
+              << ",\"in_free_list\":" << page.in_free_list
+              << ",\"in_LRU_list\":" << page.in_LRU_list
+              << ",\"in_page_hash\":" << page.in_page_hash
+              << ",\"in_zip_hash\":" << page.in_zip_hash
+#endif /* UNIV_DEBUG */
+              << "}}";
+}
+
+std::ostream &operator<<(std::ostream &outs, const buf_block_t &block) {
+  /* Print in json format: "key":"value" */
+
+  /* Block state corresponding to buf_page_state_str */
+  outs << "{\"block\":{\"state\":\"" << buf_block_get_state(&block)
+       << "\",\"buf_pool_index\":" << unsigned{block.page.buf_pool_index};
+
+  if (buf_page_in_file(&block.page)) {
+    ut_ad(mutex_own(buf_page_get_mutex(&block.page)));
+    outs << ",\"page\":" << block.page;
+  }
+
+  return outs << ",\"made_dirty_without_latch\":"
+              << block.made_dirty_with_no_latch
+              << ",\"modify_clock\":" << block.modify_clock
+#ifdef UNIV_DEBUG
+              << ",\"in_unzip_LRU_list\":" << block.in_unzip_LRU_list
+              << ",\"in_withdraw_list\":" << block.in_withdraw_list
+              << ",\"rw_lock_t\":\"" << block.lock.to_string() << "\""
+#endif /* UNIV_DEBUG */
+              << "}}";
+}
+#endif /* !UNIV_HOTBACKUP */

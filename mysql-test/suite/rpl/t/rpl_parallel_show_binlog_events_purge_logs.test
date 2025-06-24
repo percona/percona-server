@@ -15,7 +15,6 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
---source include/have_replica_parallel_workers.inc
 SET DEBUG_SYNC= 'after_show_binlog_events SIGNAL on_show_binlog_events WAIT_FOR end';
 --send SHOW BINLOG EVENTS
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@
 
 #include "my_config.h"
 
-#include <errno.h>
-#include <stddef.h>
 #include <sys/types.h>
+#include <cerrno>
+#include <cstddef>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -165,8 +165,9 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags) {
       continue; /* Retry if something written */
 
     if (my_errno() == EINTR) {
-      continue;                                /* Interrupted, retry */
-    } else if (writtenbytes == 0 && !errors++) /* Retry once */
+      continue; /* Interrupted, retry */
+    }
+    if (writtenbytes == 0 && !errors++) /* Retry once */
     {
       /* We may come here if the file quota is exeeded */
       continue;

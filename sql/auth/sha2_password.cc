@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,8 @@ struct SYS_VAR;
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
 bool caching_sha2_auto_generate_rsa_keys = true;
+static bool caching_sha2_proxy_users = false;
+
 Rsa_authentication_keys *g_caching_sha2_rsa_keys = nullptr;
 int caching_sha2_digest_rounds = 0;
 static bool init_event_tracking_authentication();
@@ -973,9 +975,14 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       Send OK signal; the authentication might still be rejected based on
       host mask.
     */
-    if (info->auth_string_length == 0)
+    if (info->auth_string_length == 0) {
+      if (caching_sha2_proxy_users) {
+        *info->authenticated_as = PROXY_FLAG;
+        DBUG_PRINT("info", ("caching_sha2_password_proxy_users is enabled, "
+                            "setting authenticated_as to NULL"));
+      }
       return CR_OK;
-    else
+    } else
       return CR_AUTH_USER_CREDENTIALS;
   } else
     info->password_used = PASSWORD_USED_YES;
@@ -1011,7 +1018,11 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                    ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
                    username, hostname ? hostname : "");
     }
-
+    if (caching_sha2_proxy_users) {
+      *info->authenticated_as = PROXY_FLAG;
+      DBUG_PRINT("info", ("caching_sha2_password_proxy_users is enabled, "
+                          "setting authenticated_as to NULL"));
+    }
     return CR_OK;
   }
 
@@ -1107,6 +1118,11 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                  username, hostname ? hostname : "");
   }
 
+  if (caching_sha2_proxy_users) {
+    *info->authenticated_as = PROXY_FLAG;
+    DBUG_PRINT("info", ("caching_sha2_password_proxy_users is enabled, "
+                        "setting authenticated_as to NULL"));
+  }
   return CR_OK;
 }
 
@@ -1366,10 +1382,23 @@ static MYSQL_SYSVAR_INT(
     1                                             // Block size.
 );
 
+static MYSQL_SYSVAR_BOOL(
+    proxy_users, caching_sha2_proxy_users, PLUGIN_VAR_OPCMDARG,
+    "If set to FALSE (the default), then the caching_sha2 authentication "
+    "plugin will not signal for authenticated users to be checked for mapping "
+    "to proxy users. If set to TRUE, the plugin will flag associated "
+    "authenticated accounts to be mapped to proxy users when the server option "
+    "check_proxy_users is enabled.",
+    nullptr, nullptr, false);
+
 /** Array of system variables. Used in plugin declaration. */
 static SYS_VAR *caching_sha2_password_sysvars[] = {
-    MYSQL_SYSVAR(private_key_path), MYSQL_SYSVAR(public_key_path),
-    MYSQL_SYSVAR(auto_generate_rsa_keys), MYSQL_SYSVAR(digest_rounds), nullptr};
+    MYSQL_SYSVAR(private_key_path),
+    MYSQL_SYSVAR(public_key_path),
+    MYSQL_SYSVAR(auto_generate_rsa_keys),
+    MYSQL_SYSVAR(digest_rounds),
+    MYSQL_SYSVAR(proxy_users),
+    nullptr};
 
 /** Array of status variables. Used in plugin declaration. */
 static SHOW_VAR caching_sha2_password_status_variables[] = {

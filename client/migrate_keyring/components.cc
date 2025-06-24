@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,34 +23,71 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "components.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
-
-#include <scope_guard.h>
-
-#include "components.h"
-#include "options.h"   /* command line options */
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/component_status_var_service.h"
+#include "mysql/components/services/dynamic_loader.h"
+#include "mysql/components/services/registry.h"
+#include "options.h" /* command line options */
+#include "scope_guard.h"
 #include "utilities.h" /* Error logging */
 
 using options::Options;
 
 namespace components {
 
-registry_type_t *components_registry = nullptr;
-dynamic_loader_type_t *components_dynamic_loader = nullptr;
+SERVICE_TYPE_NO_CONST(registry) *components_registry = nullptr;
+SERVICE_TYPE_NO_CONST(dynamic_loader) *components_dynamic_loader = nullptr;
+SERVICE_TYPE_NO_CONST(registry_registration) *reg_reg = nullptr;
+
+/*
+  We need to register a dummy status variable registration service
+  since some of the keyring components are exposing status vars now.
+*/
+namespace dummy_status_variable_registration_implementation {
+DEFINE_BOOL_METHOD(register_variable, (SHOW_VAR * /*status_var*/)) {
+  return false;
+}
+
+DEFINE_BOOL_METHOD(unregister_variable, (SHOW_VAR * /*status_var*/)) {
+  return false;
+}
+
+void setup() {
+  static BEGIN_SERVICE_IMPLEMENTATION(
+      mysql_migrate_keyring, status_variable_registration) register_variable,
+      unregister_variable, END_SERVICE_IMPLEMENTATION();
+
+  reg_reg->register_service(
+      "status_variable_registration.mysql_migrate_keyring",
+      (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
+          mysql_migrate_keyring, status_variable_registration)));
+}
+
+void teardown() {
+  reg_reg->unregister("status_variable_registration.mysql_migrate_keyring");
+}
+}  // namespace dummy_status_variable_registration_implementation
 
 void init_components_subsystem() {
   minimal_chassis_init((&components_registry), nullptr);
   components_registry->acquire(
       "dynamic_loader",
       reinterpret_cast<my_h_service *>(&components_dynamic_loader));
+  components_registry->acquire("registry_registration",
+                               reinterpret_cast<my_h_service *>(&reg_reg));
+  dummy_status_variable_registration_implementation::setup();
 }
 
 void deinit_components_subsystem() {
+  dummy_status_variable_registration_implementation::teardown();
+  components_registry->release(reinterpret_cast<my_h_service>(reg_reg));
   components_registry->release(
       reinterpret_cast<my_h_service>(components_dynamic_loader));
   minimal_chassis_deinit(components_registry, nullptr);

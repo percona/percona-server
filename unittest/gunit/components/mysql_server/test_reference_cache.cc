@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "test_reference_cache.h"
-#include <assert.h>
-#include <limits.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/reference_caching.h>
-#include <stdio.h>
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <chrono>
+#include <climits>
+#include <cstdio>
 #include <thread>
 #include <vector>
 
@@ -90,10 +90,8 @@ class foo_cache {
       for (const my_h_service *svc = refs; *svc; svc++) {
         SERVICE_TYPE(mysql_test_foo) *f =
             reinterpret_cast<SERVICE_TYPE(mysql_test_foo) *>(*svc);
-        if (f->emit(arg))
-          break;
-        else
-          called++;
+        if (f->emit(arg)) break;
+        called++;
       }
     }
     return called;  // the reference wasn't valid or the service call failed
@@ -129,7 +127,7 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_release_cache, ()) {
 }
 
 static DEFINE_BOOL_METHOD(mysql_test_ref_cache_produce_event, (int arg)) {
-  int result = 0;
+  int const result = 0;
   foo_cache *c = foo_cache::get_foo_cache();
   if (c) {
     return c->call(arg);
@@ -176,7 +174,7 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_benchmark_run,
 
   std::vector<std::thread> thds;
   for (long long i = 0; i < n_threads; i++)
-    thds.push_back(std::thread([n_reps, n_sleep, n_flush]() {
+    thds.emplace_back([n_reps, n_sleep, n_flush]() {
       foo_cache *c = foo_cache::get_foo_cache();
       for (long long arg = 0; n_reps == 0 || arg < n_reps; arg++) {
         /* take again to measure the effect of fetching a populated cache */
@@ -192,7 +190,7 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_benchmark_run,
       }
 
       foo_cache::release_foo_cache();
-    }));
+    });
 
   std::for_each(thds.begin(), thds.end(), [](std::thread &t) { t.join(); });
   return 0;

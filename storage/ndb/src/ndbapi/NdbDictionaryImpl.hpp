@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,7 +240,7 @@ class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
 
   // Return string with internal name format using same prefix
   // i.e name prefixed with "db/schema/" part of the internal name
-  const BaseString get_internal_name_prefix(const char *name);
+  BaseString get_internal_name_prefix(const char *name);
 
   /**
    *
@@ -392,11 +392,11 @@ class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
   NdbDictionary::Index *m_facade;
 
   // Return string with old internal index format (used before 5.1.12)
-  static const BaseString old_internal_index_name(const NdbTableImpl *table,
-                                                  const char *index_name);
+  static BaseString old_internal_index_name(const NdbTableImpl *table,
+                                            const char *index_name);
   // Return string with internal index name format
-  static const BaseString internal_index_name(const NdbTableImpl *table,
-                                              const char *index_name);
+  static BaseString internal_index_name(const NdbTableImpl *table,
+                                        const char *index_name);
 };
 
 class NdbOptimizeTableHandleImpl : public NdbDictionary::OptimizeTableHandle {
@@ -484,8 +484,8 @@ class NdbEventImpl : public NdbDictionary::Event, public NdbDictObjectImpl {
   const NdbDictionary::Table *getTable() const;
   int setTable(const char *table);
   const char *getTableName() const;
-  void addTableEvent(const NdbDictionary::Event::TableEvent t);
-  bool getTableEvent(const NdbDictionary::Event::TableEvent t) const;
+  void addTableEvent(NdbDictionary::Event::TableEvent t);
+  bool getTableEvent(NdbDictionary::Event::TableEvent t) const;
   void setReport(Uint32 report_options);
   Uint32 getReport() const;
   int getNoOfEventColumns() const;
@@ -1193,14 +1193,13 @@ inline const NdbColumnImpl *NdbTableImpl::getColumn(const char *name) const {
 
   if (sz > ColNameHashThresh) {
     return getColumnByHash(name);
-  } else {
-    NdbColumnImpl *const *cols = m_columns.getBase();
-    for (Uint32 i = 0; i < sz; i++, cols++) {
-      NdbColumnImpl *col = *cols;
-      if (col != nullptr && strcmp(name, col->m_name.c_str()) == 0) return col;
-    }
-    return nullptr;
   }
+  NdbColumnImpl *const *cols = m_columns.getBase();
+  for (Uint32 i = 0; i < sz; i++, cols++) {
+    NdbColumnImpl *col = *cols;
+    if (col != nullptr && strcmp(name, col->m_name.c_str()) == 0) return col;
+  }
+  return nullptr;
 }
 
 inline NdbIndexImpl &NdbIndexImpl::getImpl(NdbDictionary::Index &t) {

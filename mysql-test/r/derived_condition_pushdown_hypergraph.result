@@ -59,9 +59,9 @@ f1	f2	f3
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE f1 > 3 and f2 < 50 or f3 > 200;
 EXPLAIN
--> Table scan on dt  (rows=4.89)
-    -> Materialize  (rows=4.89)
-        -> Filter: (((t1.f1 > 3) and (t1.f2 < 50)) or (t1.f3 > 200))  (rows=4.89)
+-> Table scan on dt  (rows=8)
+    -> Materialize  (rows=8)
+        -> Filter: (((t1.f1 > 3) and (t1.f2 < 50)) or (t1.f3 > 200))  (rows=8)
             -> Table scan on t1  (rows=12)
 
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt

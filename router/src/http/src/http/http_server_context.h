@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,9 +58,9 @@ class HTTP_SERVER_LIB_EXPORT HttpServerContext {
   void stop();
   void join_all();
 
-  void add_route(const std::string &url_regex,
+  void add_route(const std::string &url_host, const std::string &url_regex,
                  std::unique_ptr<http::base::RequestHandler> cb);
-  void remove_route(const std::string &url_regex);
+  void remove_route(const std::string &url_host, const std::string &url_regex);
   void remove_route(const void *handler_id);
 
   bool is_ssl_configured();

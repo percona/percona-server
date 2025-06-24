@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -714,27 +714,6 @@ struct row_prebuilt_t {
   row is visited. */
   bool m_stop_tuple_found;
 
- private:
-  /** Set to true iff we are inside read_range_first() or read_range_next() */
-  bool m_is_reading_range;
-
- public:
-  bool is_reading_range() const { return m_is_reading_range; }
-
-  class row_is_reading_range_guard_t : private ut::bool_scope_guard_t {
-   public:
-    explicit row_is_reading_range_guard_t(row_prebuilt_t &prebuilt)
-        : ut::bool_scope_guard_t(prebuilt.m_is_reading_range) {}
-  };
-
-  row_is_reading_range_guard_t get_is_reading_range_guard() {
-    /* We implement row_is_reading_range_guard_t as a simple bool_scope_guard_t
-    because we trust that scopes are never nested and thus we don't need to
-    count their "openings" and "closings", so we assert that.*/
-    ut_ad(!m_is_reading_range);
-    return row_is_reading_range_guard_t(*this);
-  }
-
   byte row_id[DATA_ROW_ID_LEN];
   /*!< if the clustered index was
   generated, the row id of the
@@ -984,9 +963,8 @@ struct row_prebuilt_t {
   /** @return true iff the operation can skip concurrency ticket. */
   bool skip_concurrency_ticket() const;
 
-  /** It is unsafe to copy this struct, and moving it would be non-trivial,
-  because we want to keep in sync with row_is_reading_range_guard_t. Therefore
-  it is much safer/easier to just forbid such operations.  */
+  /** It is unsafe to copy this struct, and we don't need to move it.
+  Therefore it is much safer/easier to just forbid such operations. */
   row_prebuilt_t(row_prebuilt_t const &) = delete;
   row_prebuilt_t &operator=(row_prebuilt_t const &) = delete;
   row_prebuilt_t &operator=(row_prebuilt_t &&) = delete;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3066,6 +3066,19 @@ Sql_cmd *PT_show_status::make_cmd(THD *thd) {
   return &m_sql_cmd;
 }
 
+Sql_cmd *PT_show_status_library::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_library_query(m_pos, thd, lex->wild,
+                                                m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
 Sql_cmd *PT_show_status_func::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
@@ -4435,6 +4448,11 @@ bool PT_select_var_list::do_contextualize(Parse_context *pc) {
 }
 
 bool PT_query_expression::do_contextualize(Parse_context *pc) {
+  if (!pc->thd->lex->opt_hints_global)
+    pc->thd->lex->opt_hints_global =
+        new (pc->thd->mem_root) Opt_hints_global(pc->thd->mem_root);
+  pc->thd->lex->opt_hints_global->deferred_hints =
+      new (pc->thd->mem_root) PT_hint_list(pc->thd->mem_root);
   pc->m_stack.push_back(
       QueryLevel(pc->mem_root, SC_QUERY_EXPRESSION, m_order != nullptr));
   if (contextualize_safe(pc, m_with_clause))
@@ -4551,6 +4569,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
     } break;
   }
 
+  contextualize_deferred_hints(pc);
   return false;
 }
 

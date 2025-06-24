@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2022, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
+#include <utility>
 #include <vector>
 
 #include "openssl/err.h"
@@ -404,13 +405,13 @@ class ClientTest {
 };
 
 void *runClientSendThread(void *p) {
-  ClientTest *t = (ClientTest *)p;
+  auto *t = (ClientTest *)p;
   t->runTestSend();
   my_thread_exit(&t->sendStatus);
 }
 
 void *runClientRecvThread(void *p) {
-  ClientTest *t = (ClientTest *)p;
+  auto *t = (ClientTest *)p;
   t->runTestRecv();
   my_thread_exit(&t->recvStatus);
 }
@@ -691,7 +692,7 @@ int SendTest::runTest() {
 }
 
 int SendTest::testRecv() {
-  while (1) {
+  while (true) {
     int r = recv(m_buff_size);
     if (verbose()) printf("                    RECV    .. %d \n", r);
     if (r < 1 && r != TLS_BUSY_TRY_AGAIN) return r;
@@ -742,7 +743,7 @@ int ReadLineTest::testRecv() {
   if (opt_data_dest && !outfp) return error_message("Destination file", -1);
   int r = 0;
   int elapsed_time;
-  while (1) {
+  while (true) {
     elapsed_time = 0;
     r = m_socket.readln(m_timeout, &elapsed_time, m_recv_buffer, m_buff_size,
                         nullptr);
@@ -828,7 +829,7 @@ class WritevTest : public SendTest {
 
 WritevTest::WritevTest(NdbSocket &s, const char *name, size_t buff,
                        std::vector<int> dist)
-    : SendTest(s, name, buff), m_buffer_dist(dist) {
+    : SendTest(s, name, buff), m_buffer_dist(std::move(dist)) {
   size_t size = m_buff_size;
   int n = 0;
   for (n = 0; n < IovList::MaxBuffers; n++) m_iov.iov(n).iov_len = 0;
@@ -851,7 +852,7 @@ WritevTest::WritevTest(NdbSocket &s, const char *name, size_t buff,
 int WritevTest::retry_writev() {
   IovList iov(m_iov);
   int nsent = 0;
-  while (1) {
+  while (true) {
     int r = iov.writev(m_socket, m_timeout);
     if (r > 0) nsent += r;
     if (verbose()) printf("WRITEV  .. %d .. %llu \n", r, m_bytes_sent + nsent);
@@ -869,7 +870,7 @@ int WritevTest::testSend() {
   FILE *infp = fopen(opt_data_source, "r");
   int sent = 0;
 
-  while (1) {
+  while (true) {
     m_bytes_sent += sent;
     if (m_bytes_sent >= m_test_bytes) break;
 
@@ -993,8 +994,8 @@ int run_client(const char *server_host) {
 /* Server */
 void run_server(bool standalone = false) {
   SocketServer server;
-  PlainService *s1 = new PlainService(opt_sink);
-  TlsService *s2 = new TlsService(opt_sink);
+  auto *s1 = new PlainService(opt_sink);
+  auto *s2 = new TlsService(opt_sink);
   unsigned short port = opt_port;
   const char *srvType = opt_sink ? "sink" : "echo";
 

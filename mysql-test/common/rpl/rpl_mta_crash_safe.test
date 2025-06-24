@@ -171,7 +171,6 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 # zeroing.
 # TODO: run the combination described on Bug#15858271 after it's fixed.
 
---let $saved_workers= 0
 --let $commands= clean
 --source common/rpl/mta_crash_safe.inc
 

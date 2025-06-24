@@ -1731,9 +1731,9 @@ EXPLAIN
                                             -> Table scan on sq1_alias2  (rows=20)
                                             -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key = sq1_alias2.col_varchar_key)  (rows=1.33)
                         -> Inner hash join (no condition)  (rows=26.7)
-                            -> Covering index scan on sq2_alias2 using col_date_key  (rows=20)
+                            -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key = alias1.col_varchar_key)  (rows=1.33)
                             -> Hash
-                                -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key = alias1.col_varchar_key)  (rows=1.33)
+                                -> Covering index scan on sq2_alias2 using col_date_key  (rows=20)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1979,11 +1979,11 @@ FROM t1
 JOIN t2 ON t1.col1 = t2.col1
 WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
 EXPLAIN
--> Limit: 10 row(s)  (rows=0.0556)
-    -> Inner hash join (t1.col1 = t2.col1)  (rows=0.0556)
+-> Limit: 10 row(s)  (rows=0.1)
+    -> Inner hash join (t1.col1 = t2.col1)  (rows=0.1)
         -> Table scan on t1  (rows=1)
         -> Hash
-            -> Sort-deduplicate by row ID  (rows=0.556)
+            -> Sort-deduplicate by row ID  (rows=1)
                 -> Index range scan on t2 using idx_a over (0 < col2)  (rows=1)
                 -> Index range scan on t2 using idx_b over (0 < col3)  (rows=1)
 
@@ -3659,7 +3659,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
--> Left hash join (no condition), extra conditions: exists(select #2) is false  (rows=400)
+-> Left hash join (no condition), extra conditions: (not exists(select #2))  (rows=400)
     -> Table scan on alias1  (rows=20)
     -> Hash
         -> Table scan on alias2  (rows=20)
@@ -3724,7 +3724,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 EXPLAIN
--> Left hash join (alias2.f1 = alias1.f1), extra conditions: exists(select #2) is false  (rows=2)
+-> Left hash join (alias2.f1 = alias1.f1), extra conditions: (not exists(select #2))  (rows=2)
     -> Table scan on alias1  (rows=2)
     -> Hash
         -> Table scan on alias2  (rows=2)
@@ -3804,7 +3804,7 @@ JOIN t1 AS inner_t3 ON inner_t1.f1 = inner_t2.f1
 SELECT * FROM t1 WHERE table2.pk >= 1 OR table1.f1 = 'G'
     );
 EXPLAIN
--> Left hash join (no condition), extra conditions: exists(select #3) is false  (rows=6.4)
+-> Left hash join (no condition), extra conditions: (not exists(select #3))  (rows=6.4)
     -> Table scan on table1  (rows=4)
     -> Hash
         -> Inner hash join (no condition)  (rows=1.6)
@@ -4743,6 +4743,26 @@ SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
 1
+DROP TABLE t1, t2;
+#
+# Bug#37273221: Hypergraph: Inefficient join order when using LIMIT
+#
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(x INT, y VARCHAR(10000));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t2 SELECT x, REPEAT('x', x * 1000) FROM t1 WHERE t1.x < 10;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1, t2 WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1)
+    -> Inner hash join (t1.x = t2.x)  (rows=9)
+        -> Table scan on t2  (rows=9)
+        -> Hash
+            -> Table scan on t1  (rows=10)
+
 DROP TABLE t1, t2;
 #
 # Bug#34940000 Hash join execution may be ineficcient if probe input is empty

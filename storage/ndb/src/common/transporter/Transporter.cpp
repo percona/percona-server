@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ Transporter::Transporter(TransporterRegistry &t_reg, TrpId transporter_index,
 
 void Transporter::use_tls_client_auth() {
   delete m_socket_client;
-  SocketAuthTls *authTls =
+  auto *authTls =
       new SocketAuthTls(&m_transporter_registry.m_tls_keys, m_require_tls);
   m_socket_client = new SocketClient(authTls);
   m_socket_client->set_connect_timeout(m_timeOutMillis);
@@ -532,9 +532,9 @@ void Transporter::checksum_state::dumpBadChecksumInfo(
    */
   {
     Uint32 pos = 0;
-    Uint32 buf_remain = Uint32(len);
+    auto buf_remain = Uint32(len);
     const char *data = (const char *)buf;
-    const Uint32 firstWordBytes = Uint32((offset + sig_remaining) & 3);
+    const auto firstWordBytes = Uint32((offset + sig_remaining) & 3);
     if (firstWordBytes && (buf_remain >= firstWordBytes)) {
       /* Partial first word */
       Uint32 word = 0;

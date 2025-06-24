@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -70,3 +70,14 @@ ADD_CONVENIENCE_LIBRARY(
     $<TARGET_PROPERTY:extra::rapidjson,INTERFACE_COMPILE_DEFINITIONS>
   LINK_LIBRARIES library_mysys extra::rapidjson
 )
+
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  ADD_COMPILE_FLAGS(
+    component_helpers/src/keyring_log_builtins_definition.cc
+    json_data/json_reader.cc
+    COMPILE_FLAGS
+    "-Wno-array-bounds"
+    "-Wno-restrict"
+    "-Wno-stringop-overflow"
+    )
+ENDIF()

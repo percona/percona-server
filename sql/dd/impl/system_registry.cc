@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ void register_table(dd::System_tables::Types type) {
   dd::System_tables::instance()->add(
       MYSQL_SCHEMA_NAME.str, X::instance().name(), type, &X::instance());
 }
-void register_table(const dd::String_type table,
+void register_table(const dd::String_type &table,
                     dd::System_tables::Types type) {
   dd::System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, table, type,
                                      nullptr);
@@ -153,7 +153,7 @@ System_tablespaces *System_tablespaces::instance() {
 */
 void System_tables::add_inert_dd_tables() {
   // Se header file for explanation of table categories.
-  dd::System_tables::Types inert = dd::System_tables::Types::INERT;
+  dd::System_tables::Types const inert = dd::System_tables::Types::INERT;
   register_table<DD_properties>(inert);
 }
 
@@ -167,9 +167,9 @@ void System_tables::add_inert_dd_tables() {
 */
 void System_tables::add_remaining_dd_tables() {
   // Se header file for explanation of table categories.
-  dd::System_tables::Types core = dd::System_tables::Types::CORE;
-  dd::System_tables::Types second = dd::System_tables::Types::SECOND;
-  dd::System_tables::Types system = dd::System_tables::Types::SYSTEM;
+  dd::System_tables::Types const core = dd::System_tables::Types::CORE;
+  dd::System_tables::Types const second = dd::System_tables::Types::SECOND;
+  dd::System_tables::Types const system = dd::System_tables::Types::SYSTEM;
 
   register_table<Catalogs>(core);
   register_table<Character_sets>(core);
@@ -264,8 +264,9 @@ void System_tables::add_remaining_dd_tables() {
 
 void System_views::init() {
   // Register system views with the server.
-  dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
-  dd::System_views::Types non_dd_based_is =
+  dd::System_views::Types const is =
+      dd::System_views::Types::INFORMATION_SCHEMA;
+  dd::System_views::Types const non_dd_based_is =
       dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA;
 
   register_view<dd::system_views::Enabled_roles>(non_dd_based_is);

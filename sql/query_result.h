@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ class THD;
 struct CHARSET_INFO;
 template <class Element_type>
 class mem_root_deque;
+class Table_ref;
 
 /*
   This is used to get result from a query
@@ -176,6 +177,9 @@ class Query_result {
     assert(false);
     return nullptr;
   }
+
+  /// @returns create_info object if available.
+  [[nodiscard]] virtual Table_ref *get_create_table() const { return nullptr; }
 };
 
 /*

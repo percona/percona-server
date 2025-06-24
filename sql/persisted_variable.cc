@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -956,7 +956,7 @@ bool Persisted_variables_cache::set_persisted_options(
   const std::vector<std::string> priv_list = {
       "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN",          "SYSTEM_VARIABLES_ADMIN",
       "AUDIT_ADMIN",          "TELEMETRY_LOG_ADMIN", "CONNECTION_ADMIN"};
-  const ulong static_priv_list = (SUPER_ACL | FILE_ACL);
+  const Access_bitmask static_priv_list = (SUPER_ACL | FILE_ACL);
   Sctx_ptr<Security_context> ctx;
   /*
     if persisted_globals_load is set to false or --no-defaults is set

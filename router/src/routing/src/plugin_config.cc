@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -466,7 +466,7 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(dest_ssl_curves, section, options::kServerSslCurves,
                      StringOption{});
   auto ssl_session_cache_size_op = IntOption<uint32_t>{1, 0x7fffffff};
-  auto ssl_session_cache_timeout_op = IntOption<uint32_t>{0, 84600};
+  auto ssl_session_cache_timeout_op = IntOption<uint32_t>{0, 86400};
   GET_OPTION_CHECKED(client_ssl_session_cache_mode, section,
                      options::kClientSslSessionCacheMode, BoolOption{});
   GET_OPTION_CHECKED(client_ssl_session_cache_size, section,
@@ -510,6 +510,9 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(
       wait_for_my_writes_timeout, section, options::kWaitForMyWritesTimeout,
       mysql_harness::DurationOption<std::chrono::seconds>(0, 3600));
+
+  GET_OPTION_CHECKED(accept_connections, section, options::kAcceptConnections,
+                     BoolOption{});
 
   if (access_mode == routing::AccessMode::kAuto) {
     if (!metadata_cache_) {
@@ -555,9 +558,32 @@ RoutingPluginConfig::RoutingPluginConfig(
   }
 
   using namespace std::string_literals;
+  if (!accept_connections) {
+    if (section->has(options::kBindAddress)) {
+      log_warning(
+          "[routing:%s] 'bind_address' configured when "
+          "'accept_external_connections=0', ignoring'",
+          section->key.c_str());
+    }
+
+    if (named_socket) {
+      log_warning(
+          "[routing:%s] 'socket' configured when "
+          "'accept_external_connections=0', ignoring'",
+          section->key.c_str());
+    }
+
+    if (bind_address.port()) {
+      log_warning(
+          "[routing:%s] 'bind_port' configured when "
+          "'accept_external_connections=0', ignoring'",
+          section->key.c_str());
+    }
+  }
 
   // either bind_address or socket needs to be set, or both
-  if (bind_address.port() == 0 && !named_socket.is_set()) {
+  if (accept_connections && bind_address.port() == 0 &&
+      !named_socket.is_set()) {
     throw std::invalid_argument(
         "either bind_address or socket option needs to be supplied, or both");
   }
@@ -766,6 +792,8 @@ std::string RoutingPluginConfig::get_default(std::string_view option) const {
       {options::kWaitForMyWritesTimeout,
        std::to_string(routing::kDefaultWaitForMyWritesTimeout.count())},
       {options::kRouterRequireEnforce, "0"},
+      {options::kAcceptConnections,
+       routing::kDefaultAcceptConnections ? "1" : "0"},
   };
 
   const auto it = defaults.find(option);
@@ -911,6 +939,10 @@ class RoutingConfigExposer : public mysql_harness::SectionConfigExposer {
     expose_option(routing::options::kWaitForMyWritesTimeout,
                   plugin_config_.wait_for_my_writes_timeout.count(),
                   routing::kDefaultWaitForMyWritesTimeout.count(), true);
+
+    expose_option(routing::options::kAcceptConnections,
+                  plugin_config_.accept_connections,
+                  routing::kDefaultAcceptConnections, true);
   }
 
  private:

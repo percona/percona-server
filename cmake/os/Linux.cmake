@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2025, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,13 +61,13 @@ ENDIF()
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
     # gcc9 is known to fail
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
-      MESSAGE(FATAL_ERROR "GCC 10 or newer is required")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+      MESSAGE(FATAL_ERROR "GCC 11 or newer is required")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
     # This is the lowest version tested
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-      MESSAGE(FATAL_ERROR "Clang 14 or newer is required!")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+      MESSAGE(FATAL_ERROR "Clang 16 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

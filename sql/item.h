@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2736,7 +2736,9 @@ class Item : public Parse_tree_node {
     if (fixed) cleanup();
     return false;
   }
-
+  bool contains_item(uchar *arg) {
+    return *(pointer_cast<Item **>(arg)) == this;
+  }
   virtual bool collect_item_field_processor(uchar *) { return false; }
   virtual bool collect_item_field_or_ref_processor(uchar *) { return false; }
   virtual bool collect_outer_field_processor(uchar *) { return false; }
@@ -2908,6 +2910,7 @@ class Item : public Parse_tree_node {
     Query_block *const m_root;
 
     friend class Item;
+    friend class Item_func_eq;
     friend class Item_sum;
     friend class Item_subselect;
     friend class Item_ref;

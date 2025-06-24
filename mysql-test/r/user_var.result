@@ -474,7 +474,7 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select @var;
 @var
-15.500000000
+15.5000
 select sql_small_result @var:=avg(id), @var1:=id2 from tb1 group by id2 limit 1;
 @var:=avg(id)	@var1:=id2
 5.5000	10

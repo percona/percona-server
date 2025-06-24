@@ -1,12 +1,3 @@
-#
-# Skip this test when MySQL has been built with other storage engines
-# than InnoDB, it is because dumping SDI from mysql.ibd
-# causes extra output when for example the ndbcluster storage engine is
-# included and additional system tables are added to the MySQL data dictionary
-# It is hard to separate this output
-# from mysql.json
---source include/have_only_innodb.inc
-
 #########################
 #  how to record this test JSON result content mismatch
 #  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
@@ -35,6 +26,10 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
+# MySQL compiled with support for NDB has an additional table in the
+# system database, that tables makes the output vary. In order to
+# get same output, the table is removed if it exists.
+DROP TABLE IF EXISTS mysql.ndb_binlog_index;
 EOF
 
 # Set the bootstrap parameters with undo log encryption enabled

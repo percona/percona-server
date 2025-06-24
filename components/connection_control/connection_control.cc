@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,14 +82,14 @@ static void register_instruments() {
   PSI_MEMORY_CALL(register_memory)
   ("connection_control", all_connection_delay_memory_info, 1);
 
-  int count_mutex = array_elements(all_connection_delay_mutex_info);
+  int const count_mutex = array_elements(all_connection_delay_mutex_info);
   mysql_mutex_register(category, all_connection_delay_mutex_info, count_mutex);
 
-  int count_rwlock = array_elements(all_connection_delay_rwlock_info);
+  int const count_rwlock = array_elements(all_connection_delay_rwlock_info);
   mysql_rwlock_register(category, all_connection_delay_rwlock_info,
                         count_rwlock);
 
-  int count_cond = array_elements(all_connection_delay_cond_info);
+  int const count_cond = array_elements(all_connection_delay_cond_info);
   mysql_cond_register(category, all_connection_delay_cond_info, count_cond);
 }
 
@@ -309,6 +309,12 @@ SHOW_VAR static component_connection_control_status_variables[STAT_LAST + 1] = {
     {.name = "Component_connection_control_delay_generated",
      .value = reinterpret_cast<char *>(&show_delay_generated),
      .type = SHOW_FUNC,
+     .scope = SHOW_SCOPE_GLOBAL},
+    {.name = "option_tracker_usage:Connection control component",
+     .value = reinterpret_cast<char *>(
+         &connection_control::
+             opt_option_tracker_usage_connection_control_component),
+     .type = SHOW_LONGLONG,
      .scope = SHOW_SCOPE_GLOBAL},
     {.name = nullptr,
      .value = nullptr,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2714,6 +2714,12 @@ static bool validate_secondary_engine_option(THD *thd,
     return true;
   }
 
+  if (table.s->tmp_table != NO_TMP_TABLE) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Cannot alter temporary table with secondary engine defined");
+    return true;
+  }
+
   return false;
 }
 
@@ -2809,9 +2815,21 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   LEX_CSTRING secondary_engine;
   if (!table_def.options().exists("secondary_engine") ||
       table_def.options().get("secondary_engine", &secondary_engine,
-                              thd->mem_root))
+                              thd->mem_root)) {
     return false;
+  }
 
+  const bool is_partitioned = table_def.partition_type() != dd::Table::PT_NONE;
+  return secondary_engine_unload_table_inner(thd, db_name, table_name,
+                                             secondary_engine, is_partitioned,
+                                             error_if_not_loaded);
+}
+
+bool secondary_engine_unload_table_inner(THD *thd, const char *db_name,
+                                         const char *table_name,
+                                         LEX_CSTRING secondary_engine,
+                                         bool is_partitioned,
+                                         bool error_if_not_loaded) {
   // Get handlerton of secondary engine. It may happen that no handlerton is
   // found either if the defined secondary engine is invalid (if so, the table
   // was never loaded either) or if the secondary engine has been uninstalled
@@ -2827,7 +2845,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
     }
     return false;
   }
-  handlerton *hton = plugin_data<handlerton *>(plugin);
+  auto *hton = plugin_data<handlerton *>(plugin);
   if (hton == nullptr) {
     if (error_if_not_loaded) {
       std::string err_msg{"Table "};
@@ -2843,13 +2861,16 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   // The defined secondary engine is a valid storage engine. However, if the
   // engine is not a valid secondary engine, no tables have been loaded and
   // there is nothing to be done.
-  if (!(hton->flags & HTON_IS_SECONDARY_ENGINE)) return false;
+  if ((hton->flags & HTON_IS_SECONDARY_ENGINE) == 0U) {
+    return false;
+  }
 
   // Get handler for table in secondary engine.
-  const bool is_partitioned = table_def.partition_type() != dd::Table::PT_NONE;
   unique_ptr_destroy_only<handler> handler(
       get_new_handler(nullptr, is_partitioned, thd->mem_root, hton));
-  if (handler == nullptr) return true;
+  if (handler == nullptr) {
+    return true;
+  }
 
   // Unload table from secondary engine.
   return handler->ha_unload_table(db_name, table_name, error_if_not_loaded) > 0;
@@ -3800,6 +3821,15 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
 
   if (drop_ctx.has_tmp_trans_tables()) {
     for (auto *table : drop_ctx.tmp_trans_tables) {
+      auto *table_obj = table->table;
+      if (table_obj->s->has_secondary_engine()) {
+        if (secondary_engine_unload_table_inner(
+                thd, table_obj->s->db.str, table_obj->s->path.str,
+                table_obj->s->secondary_engine, false, false)) {
+          return true;
+        }
+      }
+
       /*
         Don't check THD::killed flag. We can't rollback deletion of
         temporary table, so aborting on KILL will make DROP TABLES
@@ -4752,7 +4782,7 @@ bool prepare_create_field(THD *thd, const char *error_schema_name,
 
   if (!(sql_field->flags & NOT_NULL_FLAG)) create_info->null_bits++;
 
-  if (check_column_name(sql_field->field_name)) {
+  if (check_column_name(to_lex_cstring(sql_field->field_name))) {
     my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
     return true;
   }
@@ -7567,7 +7597,7 @@ static bool prepare_key(
     return true;
   }
 
-  if (!key_info->name || check_column_name(key_info->name)) {
+  if (!key_info->name || check_column_name(to_lex_cstring(key_info->name))) {
     my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
     return true;
   }
@@ -8622,6 +8652,8 @@ bool mysql_prepare_create_table(
   // to only those SEs that can participate in replication.
   if (!primary_key && !thd->is_dd_system_thread() &&
       !thd->is_initialize_system_thread() &&
+      thd->lex->get_not_supported_in_primary_reason() !=
+          TEMPORARY_TABLE_CREATION &&
       (file->ha_table_flags() &
        (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)) != 0 &&
       thd->variables.sql_require_primary_key &&
@@ -8765,6 +8797,20 @@ bool mysql_prepare_create_table(
         return true;
       }
     }
+  }
+
+  // Check that we have at least one visible column.
+  bool has_visible_column = false;
+  it.rewind();
+  while ((sql_field = it++)) {
+    if (sql_field->hidden == dd::Column::enum_hidden_type::HT_VISIBLE) {
+      has_visible_column = true;
+      break;
+    }
+  }
+  if (!has_visible_column) {
+    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
+    return true;
   }
 
   /* If fixed row records, we need one bit to check for deleted rows */
@@ -9071,6 +9117,34 @@ static Table_exists_result check_if_table_exists(
   return {false, false};
 }
 
+bool validate_secondary_engine_temporary_table(THD *thd,
+                                               HA_CREATE_INFO *create_info) {
+  /*
+    Secondary engine for temporary tables leads to materialized
+    temporary table creation.
+  */
+  if (create_info != nullptr && create_info->secondary_engine.str != nullptr &&
+      ((create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0U)) {
+    const plugin_ref secondary_engine_plugin =
+        ha_resolve_by_name(thd, &create_info->secondary_engine, false);
+    if (secondary_engine_plugin == nullptr) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Temporary table creation with unsupported secondary engine");
+      return true;
+    }
+    LEX *const lex = thd->lex;
+    if (lex->query_block->field_list_is_empty()) {
+      // Temporary table with a secondary engine requires a select query.
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Temporary tables without a SELECT query are not supported");
+      return true;
+    }
+    lex->set_execute_only_in_secondary_engine(true, TEMPORARY_TABLE_CREATION);
+  }
+
+  return false;
+}
+
 /**
   Create a table
 
@@ -9153,25 +9227,9 @@ static bool create_table_impl(
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d", db, table_name,
                        internal_tmp_table));
 
-  // Check that we have at least one visible column.
-  bool has_visible_column = false;
-  for (const Create_field &create_field : alter_info->create_list) {
-    if (create_field.hidden == dd::Column::enum_hidden_type::HT_VISIBLE) {
-      has_visible_column = true;
-      break;
-    }
-  }
-  if (!has_visible_column) {
-    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
-    return true;
-  }
-
   if (check_engine(thd, db, table_name, create_info, alter_info)) return true;
 
-  // Secondary engine cannot be defined for temporary tables.
-  if (create_info->secondary_engine.str != nullptr &&
-      create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0), "Temporary tables not supported");
+  if (validate_secondary_engine_temporary_table(thd, create_info)) {
     return true;
   }
 
@@ -11953,9 +12011,13 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     return true;
   }
 
-  // It should not have been possible to define a temporary table with a
-  // secondary engine.
-  assert(table_list->table->s->tmp_table == NO_TMP_TABLE);
+  // SECONDARY_LOAD/SECONDARY_UNLOAD cannot be performed on temporary tables.
+  if (table_list->table->s->tmp_table != NO_TMP_TABLE) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "No explicit load/unload possible for temporary tables with "
+             "secondary engine");
+    return true;
+  }
 
   handlerton *hton = table_list->table->s->db_type();
   assert(hton->flags & HTON_SUPPORTS_ATOMIC_DDL &&

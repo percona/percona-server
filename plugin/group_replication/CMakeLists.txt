@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_handlers/metrics_handler.cc
   src/plugin_handlers/offline_mode_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
+  src/plugin_handlers/primary_election_most_uptodate.cc
   src/plugin_handlers/primary_election_primary_process.cc
   src/plugin_handlers/primary_election_secondary_process.cc
   src/plugin_handlers/primary_election_utils.cc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ class Libraries : public System_view_impl<System_view_select_definition_impl> {
     FIELD_CREATED,
     FIELD_LAST_ALTERED,
     FIELD_SQL_MODE,
+    FIELD_LIBRARY_COMMENT,
     FIELD_CREATOR
   };
 

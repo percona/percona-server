@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -654,7 +654,7 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
     const long ssl_ctx_flags) {
   struct st_VioSSLFd *ssl_fd;
-  int verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
+  int const verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
                               ssl_ctx_flags, nullptr))) {

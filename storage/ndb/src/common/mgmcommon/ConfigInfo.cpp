@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 */
 
 #include <ndb_global.h>
-#include <time.h>
 #include <cstring>
+#include <ctime>
 #include <optional>
 #include "ndb_config.h"
 #include "openssl/ssl.h"
@@ -1385,6 +1385,13 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
      "0",  // "256K",
      "0", STR_VALUE(MAX_INT_RNIL)},
 
+    {CFG_DB_API_FAILURE_HANDLING_TIMEOUT, "ApiFailureHandlingTimeout", DB_TOKEN,
+     "Maximum allowed duration of Api failure handling before escalating "
+     "handling.  0 implies no time limit, minimum usable value is 10.",
+     ConfigInfo::CI_USED, false, ConfigInfo::CI_INT,
+     "600",  // 10 minutes
+     "0", STR_VALUE(MAX_INT_RNIL)},
+
     /***************************************************************************
      * API
      ***************************************************************************/
@@ -2355,10 +2362,7 @@ bool ConfigInfo::verify(const Properties *section, const char *fname,
   if (min > max) {
     warning("verify", fname);
   }
-  if (value >= min && value <= max)
-    return true;
-  else
-    return false;
+  return value >= min && value <= max;
 }
 
 bool ConfigInfo::verify_enum(const Properties *section, const char *fname,
@@ -2368,8 +2372,7 @@ bool ConfigInfo::verify_enum(const Properties *section, const char *fname,
   require(section->get(fname, &p));
   require(p->get("values", &values));
 
-  if (values->get(value, &value_int)) return true;
-  return false;
+  return values->get(value, &value_int);
 }
 
 /*
@@ -2715,7 +2718,7 @@ void ConfigInfo::print_impl(const char *section_filter,
   /* Iterate through all sections */
   for (int i = 0; i < m_noOfSectionNames; i++) {
     const char *s = m_sectionNames[i];
-    if (section_filter && strcmp(section_filter, s))
+    if (section_filter && strcmp(section_filter, s) != 0)
       continue;  // Skip this section
 
     const Properties *sec = getInfo(s);
@@ -3621,7 +3624,7 @@ static bool checkConnectionConstraints(InitConfigFileParser::Context &ctx,
    * -# Not both of them are MGMs
    */
   if ((strcmp(type1, DB_TOKEN) != 0 && strcmp(type2, DB_TOKEN) != 0) &&
-      !(strcmp(type1, MGM_TOKEN) == 0 && strcmp(type2, MGM_TOKEN) == 0)) {
+      (strcmp(type1, MGM_TOKEN) != 0 || strcmp(type2, MGM_TOKEN) != 0)) {
     ctx.reportError(
         "Invalid connection between node %d (%s) and node %d (%s)"
         " - [%s] starting at line: %d",
@@ -3686,10 +3689,9 @@ static bool transform(InitConfigFileParser::Context &ctx, Properties &dst,
   require(ctx.m_currentSection->getTypeOf(oldName, &oldType));
   ConfigInfo::Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);
 
-  if (!((oldType == PropertiesType_Uint32 ||
-         oldType == PropertiesType_Uint64) &&
-        (newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_INT64 ||
-         newType == ConfigInfo::CI_BOOL))) {
+  if ((oldType != PropertiesType_Uint32 && oldType != PropertiesType_Uint64) ||
+      (newType != ConfigInfo::CI_INT && newType != ConfigInfo::CI_INT64 &&
+       newType != ConfigInfo::CI_BOOL)) {
     ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType
            << endl;
     ctx.reportError(
@@ -3701,7 +3703,7 @@ static bool transform(InitConfigFileParser::Context &ctx, Properties &dst,
   Uint64 oldVal;
   require(ctx.m_currentSection->get(oldName, &oldVal));
 
-  Uint64 newVal = (Uint64)((Int64)oldVal * mul + add);
+  auto newVal = (Uint64)((Int64)oldVal * mul + add);
   if (!ctx.m_info->verify(ctx.m_currentInfo, newName, newVal)) {
     ctx.reportError(
         "Unable to handle deprecation, new value not within bounds"
@@ -3841,7 +3843,7 @@ static bool saveInConfigValues(InitConfigFileParser::Context &ctx,
       require(ok);
     }
     ctx.m_configValues.closeSection();
-  } while (0);
+  } while (false);
   return true;
 }
 
@@ -3920,7 +3922,7 @@ static int check_connection(struct InitConfigFileParser::Context &ctx,
           map, nodeId1, hostname);
       return -1;
     }
-    if (!(val > 0 && val < MAX_NDB_NODES)) {
+    if (val <= 0 || val >= MAX_NDB_NODES) {
       ctx.reportError(
           "Invalid node in in ConnectionMap(\"%s\" for "
           "node: %d, hostname: %s",
@@ -3955,7 +3957,7 @@ static bool add_a_connection(Vector<ConfigInfo::ConfigRuleSection> &sections,
 
   if (tmp->get("ConnectionMap", &map)) {
     if ((ret = check_connection(ctx, map, nodeId1, hostname1, nodeId2)) != 1) {
-      return ret == 0 ? true : false;
+      return ret == 0;
     }
   }
 
@@ -3977,7 +3979,7 @@ static bool add_a_connection(Vector<ConfigInfo::ConfigRuleSection> &sections,
 
   if (tmp->get("ConnectionMap", &map)) {
     if ((ret = check_connection(ctx, map, nodeId2, hostname2, nodeId1)) != 1) {
-      return ret == 0 ? true : false;
+      return ret == 0;
     }
   }
 
@@ -4088,7 +4090,7 @@ static bool add_node_connections(
   for (i = 0; p_mgm_nodes.get("", i, &nodeId1); i++) {
     for (Uint32 j = 0; p_db_nodes.get("", j, &nodeId2); j++) {
       if (!p_connections.get("", nodeId1 + (nodeId2 << 16), &dummy)) {
-        if (!add_a_connection(sections, ctx, nodeId1, nodeId2, 0)) goto err;
+        if (!add_a_connection(sections, ctx, nodeId1, nodeId2, false)) goto err;
       }
     }
   }
@@ -4098,7 +4100,7 @@ static bool add_node_connections(
     for (Uint32 j = i + 1;; j++) {
       if (!p_mgm_nodes.get("", j, &nodeId2)) break;
       if (!p_connections.get("", nodeId1 + (nodeId2 << 16), &dummy)) {
-        if (!add_a_connection(sections, ctx, nodeId1, nodeId2, 0)) goto err;
+        if (!add_a_connection(sections, ctx, nodeId1, nodeId2, false)) goto err;
       }
     }
   }
@@ -4156,7 +4158,8 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection> &,
       if (tmp->get("Nodegroup", &ng)) {
         if (ng == NDB_NO_NODEGROUP) {
           continue;
-        } else if (ng >= MAX_NDB_NODE_GROUPS) {
+        }
+        if (ng >= MAX_NDB_NODE_GROUPS) {
           ctx.reportError(
               "Invalid nodegroup %u for node %u, Max nodegroups allowed: %d",
               ng, id, MAX_NDB_NODE_GROUPS);
@@ -4268,7 +4271,7 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection> &,
           if (i_group == replicas) {
             unsigned c = 0;
             p_db_hosts.get(str.c_str(), &c);
-            if (c + 1 == (1u << (replicas - 1)))  // all nodes on same machine
+            if (c + 1 == (1U << (replicas - 1)))  // all nodes on same machine
               node_group_warning.append(
                   ".\n    Host failure will "
                   "cause complete cluster shutdown.");
@@ -4460,7 +4463,7 @@ ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo &info, Uint32 section,
   abort();
 }
 
-const ConfigInfo::ParamInfo *ConfigInfo::ParamInfoIter::next(void) {
+const ConfigInfo::ParamInfo *ConfigInfo::ParamInfoIter::next() {
   assert(m_curr_param < m_info.m_NoOfParams);
   do {
     /*  Loop through the parameter and return a pointer to the next found */
@@ -4565,10 +4568,8 @@ std::optional<BaseString> ConfigInfo::normalizeParamValue(
       bool tmp_bool;
       // convertStringToBool also handles numeric 0 and 1
       if (!InitConfigFileParser::convertStringToBool(str, tmp_bool)) return {};
-      if (tmp_bool)
-        return {"1"};
-      else
-        return {"0"};
+      if (tmp_bool) return {"1"};
+      return {"0"};
     }
     case ConfigInfo::CI_INT:
     case ConfigInfo::CI_INT64: {

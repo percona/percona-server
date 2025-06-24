@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,8 @@ class SocketCloseTest : public RouterComponentTest {
                       const int expected_exitcode,
                       std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
-    init_keyring(default_section, get_test_temp_dir_name(), router_user,
-                 router_password);
+    init_keyring(default_section, get_test_temp_dir_name(),
+                 {{router_user, "password", router_password}});
     const auto state_file =
         create_state_file(get_test_temp_dir_name(),
                           create_state_file_content("uuid", "", node_ports, 0));

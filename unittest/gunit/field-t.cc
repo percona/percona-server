@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,8 +159,8 @@ TEST_F(FieldTest, FieldTimef) {
   uchar fieldBuf[7];
   MysqlTime time(0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME);
 
-  Field_timef *field = new (thd()->mem_root)
-      Field_timef(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1", 4);
+  Field_time *field = new (thd()->mem_root)
+      Field_time(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals());  // TS-TODO
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
@@ -321,7 +321,7 @@ TEST_F(FieldTest, FieldTimefCompare) {
   for (int i = 0; i < nFields; ++i) {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
-    fields[i] = new (thd()->mem_root) Field_timef(
+    fields[i] = new (thd()->mem_root) Field_time(
         fieldBufs[i] + 1, fieldBufs[i], false, Field::NONE, fieldName, 6);
 
     longlong packed = TIME_to_longlong_packed(times[i]);
@@ -361,18 +361,6 @@ TEST_F(FieldTest, FieldTimefCompare) {
             << fields[j]->val_str(&tmp)->c_ptr();
       }
     }
-}
-
-TEST_F(FieldTest, FieldTime) {
-  uchar fieldBuf[7];
-  MysqlTime bigTime(0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME);
-
-  Field_time *field = new (thd()->mem_root)
-      Field_time(fieldBuf + 1, fieldBuf, false, Field::NONE, "f1");
-  EXPECT_EQ(0, field->store_time(&bigTime, 4));
-  MYSQL_TIME t;
-  EXPECT_FALSE(field->get_time(&t));
-  compareMysqlTime(bigTime, t);
 }
 
 const char *type_names3[] = {"one", "two", "three", nullptr};
@@ -622,14 +610,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_time");
-    Field_time ft("");
-    uchar from[] = {3, 2, 1};
-    uchar expected[] = {129, 2, 3};
-    test_make_sort_key(&ft, from, expected, 3);
-  }
-  {
-    SCOPED_TRACE("Field_timef");
-    Field_timef ftf(false, "", 0);
+    Field_time ftf(false, "", 0);
     test_make_sort_key(&ftf);
   }
   {

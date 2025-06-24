@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2355,6 +2355,9 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     if (split_sum_func(thd, ref_item_array, fields)) {
       return true;
     }
+    if (type() == SUBQUERY_ITEM) {
+      (void)subquery_split(thd, this, &outer_refs_wf);  // (3)
+    }
   } else if (!const_for_execution() &&                       // (1)
              (type() != REF_ITEM ||                          // (2)
               down_cast<Item_ref *>(this)->ref_type() ==     //
@@ -2436,7 +2439,8 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     if (m_is_window_function && split_sum_func(thd, ref_item_array, fields)) {
       return true;
     }
-  } else if (outer_refs_wf) {
+  }
+  if (outer_refs_wf) {
     // Make sure outer referenced fields are added to tmp table fields, so we
     // can replace such fields with corresponding outer fields in windowing tmp
     // table in presence of windowing frame buffers.
@@ -6568,7 +6572,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_TIME:
       field =
-          new (*THR_MALLOC) Field_timef(m_nullable, item_name.ptr(), decimals);
+          new (*THR_MALLOC) Field_time(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_TIMESTAMP:
       field = new (*THR_MALLOC)

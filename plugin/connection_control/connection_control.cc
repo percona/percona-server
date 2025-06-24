@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #include "plugin/connection_control/connection_control.h"
 
 #include <mysql/plugin_audit.h> /* mysql_event_connection */
-#include <stddef.h>
+#include <cstddef>
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_compiler.h"
@@ -104,17 +104,17 @@ static PSI_stage_info *all_connection_delay_stage_info[] = {
 static void init_performance_schema() {
   const char *category = "conn_delay";
 
-  int count_mutex = array_elements(all_connection_delay_mutex_info);
+  int const count_mutex = array_elements(all_connection_delay_mutex_info);
   mysql_mutex_register(category, all_connection_delay_mutex_info, count_mutex);
 
-  int count_rwlock = array_elements(all_connection_delay_rwlock_info);
+  int const count_rwlock = array_elements(all_connection_delay_rwlock_info);
   mysql_rwlock_register(category, all_connection_delay_rwlock_info,
                         count_rwlock);
 
-  int count_cond = array_elements(all_connection_delay_cond_info);
+  int const count_cond = array_elements(all_connection_delay_cond_info);
   mysql_cond_register(category, all_connection_delay_cond_info, count_cond);
 
-  int count_stage = array_elements(all_connection_delay_stage_info);
+  int const count_stage = array_elements(all_connection_delay_stage_info);
   mysql_stage_register(category, all_connection_delay_stage_info, count_stage);
 }
 
@@ -136,7 +136,7 @@ static int connection_control_notify(MYSQL_THD thd,
   DBUG_TRACE;
   try {
     if (event_class == MYSQL_AUDIT_CONNECTION_CLASS) {
-      const struct mysql_event_connection *connection_event =
+      const auto *connection_event =
           (const struct mysql_event_connection *)event;
       Connection_control_error_handler error_handler;
       /** Notify event coordinator */
@@ -295,7 +295,6 @@ static void update_failed_connections_threshold(MYSQL_THD thd [[maybe_unused]],
   Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(
       &error_handler, OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
-  return;
 }
 
 /** Declaration of connection_control_failed_connections_threshold */
@@ -360,7 +359,6 @@ static void update_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
   Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(
       &error_handler, OPT_MIN_CONNECTION_DELAY, &new_value);
-  return;
 }
 
 /** Declaration of connection_control_max_connection_delay */
@@ -424,7 +422,6 @@ static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
   Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(
       &error_handler, OPT_MAX_CONNECTION_DELAY, &new_value);
-  return;
 }
 
 /** Declaration of connection_control_max_connection_delay */
@@ -456,7 +453,7 @@ static int show_delay_generated(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
                                 char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
-  longlong *value = reinterpret_cast<longlong *>(buff);
+  auto *value = reinterpret_cast<longlong *>(buff);
   const int64 current_val =
       g_statistics.stats_array[STAT_CONNECTION_DELAY_TRIGGERED].load();
   *value = static_cast<longlong>(current_val);
@@ -466,6 +463,10 @@ static int show_delay_generated(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
 /** Array of status variables. Used in plugin declaration. */
 SHOW_VAR
 connection_control_status_variables[STAT_LAST + 1] = {
+    {"option_tracker_usage:Connection DoS control",
+     reinterpret_cast<char *>(
+         &opt_option_tracker_usage_connection_control_plugin),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"Connection_control_delay_generated", (char *)&show_delay_generated,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};

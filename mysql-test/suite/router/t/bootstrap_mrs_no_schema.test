@@ -1,0 +1,31 @@
+--source include/have_router_bootstrap.inc
+
+#create a b/s user with minimal required set of priviledges
+
+CREATE USER mrs_bootstrap_user IDENTIFIED BY 'pass';
+FLUSH PRIVILEGES;
+
+
+replace_regex
+   / Bootstrapping MySQL Router.* instance at \'.*/ Bootstrapping MySQL Router instance at 'DIRECTORY'/
+   /Creating configuration .*mysqlrouter.conf/Creating configuration ...\/mysqlrouter.conf/
+   /.*mysqlrouter.* -c .*mysqlrouter.conf/$ mysqlrouter -c ...\/mysqlrouter.conf/
+   /Adjusting configuration file .*mysqlrouter.conf/Adjusting configuration file ...\/mysqlrouter.conf/
+   /\(mysql_router1_[^)]+\)/(mysql_router1_RANDOM)/
+   / Using existing certificates from the '.*' directory/Using existing certificates from the 'TEMP_DIRECTORY' directory/
+   /Reconfiguring MySQL Router.* instance at \'.*\'/Reconfiguring MySQL Router instance at 'DIRECTORY'/
+   /.*Adjusting permissions of generated files.*\n//
+   ;
+
+--error 1,2,256
+
+exec $MYSQLROUTER_BOOTSTRAP
+   --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
+   -B mrs_bootstrap_user:pass@127.0.0.1:$MASTER_MYPORT
+   --directory $MYSQL_TMP_DIR/bootstrap_folder/
+   --mrs --mrs-global-secret something_important 2>&1;
+
+# Cleanup
+DROP USER 'mrs_bootstrap_user'@'%';
+--force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
+

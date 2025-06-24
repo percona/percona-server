@@ -38,12 +38,12 @@ SET DEBUG= '-d, fail_while_storing_dd_object';
 CREATE SCHEMA s1;
 # 1.2a Fail while acquiring dd object during alter.
 SET DEBUG= '+d, fail_while_acquiring_dd_object';
-ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8mb3_bin';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_acquiring_dd_object';
 # 1.2b Fail while storing  dd object during alter.
 SET DEBUG= '+d, fail_while_storing_dd_object';
-ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8mb3_bin';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_acquiring_dd_object';
 # 1.3a Fail while acquiring dd object during drop.

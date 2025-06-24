@@ -13,7 +13,7 @@ eval CREATE TABLE t1 (
   spatial_point point NOT NULL SRID 0,
   PRIMARY KEY(id),
   SPATIAL KEY (spatial_point)
-) ROW_FORMAT=$row_format ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin;
+) ROW_FORMAT=$row_format ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin;
 
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
   ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),

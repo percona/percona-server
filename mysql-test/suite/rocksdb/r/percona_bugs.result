@@ -25,3 +25,15 @@ PARTITION p1 VALUES IN (33, 44, 7, 10, 68, 78, 72, 2, 24, 73, 50, 56, 83,
 PARTITION p2 VALUES IN (90, 11, 87, 25, 97, 93, 47, 41, 92, 37, 67, 20, 43,
 42, 53, 62, 13));
 DROP TABLE t;
+#
+# PS-9666: insert with unique_checks=OFF into table with TTL crashing MyRocks
+# https://perconadev.atlassian.net/browse/PS-9666
+#
+CREATE TABLE t1 (
+`id` varbinary(32) NOT NULL,
+`ttl_ts` bigint unsigned NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='ttl_duration=31536000;ttl_col=ttl_ts;';
+SET unique_checks=OFF;
+INSERT INTO t1 (`id`, `ttl_ts`) VALUES ('helloworld', 1738737225);
+DROP TABLE t1;

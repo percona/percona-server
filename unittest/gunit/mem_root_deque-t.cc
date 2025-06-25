@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <deque>
+#include <iterator>
 #include <ranges>
 
 #include "mem_root_deque.h"
@@ -84,19 +85,29 @@ TEST(MemRootDequeTest, EraseInsert) {
   d.push_back(4);
   d.push_back(5);
 
-  auto it = d.erase(d.begin() + 1, d.begin() + 3);
+  auto it = d.erase(std::next(d.begin(), 1), std::next(d.begin(), 3));
   EXPECT_THAT(d, ElementsAre(1, 4, 5));
 
   int new_elems[] = {200, 300, 400, 500};
   it = d.insert(it, std::begin(new_elems), std::end(new_elems));
   EXPECT_THAT(d, ElementsAre(1, 200, 300, 400, 500, 4, 5));
-  EXPECT_EQ(it, d.begin() + 1);
+  EXPECT_EQ(it, std::next(d.begin(), 1));
 
-  it = d.insert(d.begin() + 3, 350);
+  it = d.insert(std::next(d.begin(), 3), 350);
   EXPECT_THAT(d, ElementsAre(1, 200, 300, 350, 400, 500, 4, 5));
-  EXPECT_EQ(it, d.begin() + 3);
+  EXPECT_EQ(it, std::next(d.begin(), 3));
   EXPECT_EQ(350, *it);
 }
+
+/**
+   In the new implementation, mem_root_deque uses `std::list` internally, which
+   provides bidirectional iterators. Bidirectional iterators do not support
+   operations like `operator-`, which `std::sort` relies on.
+
+   So, we cannot use `std::sort` directly on mem_root_deque.
+
+   Instead, we may directly call mem_root_deque.sort()
+*/
 
 TEST(MemRootDequeTest, Sort) {
   MEM_ROOT mem_root;
@@ -108,7 +119,7 @@ TEST(MemRootDequeTest, Sort) {
   d.push_back("12345");
   d.push_back("hello");
 
-  std::sort(d.begin(), d.end());
+  d.sort();
 
   EXPECT_THAT(
       d, ElementsAre("12345", "a", "hello", "x", "zzzzzzzzzzzzzzzzzzzzzz"));
@@ -152,13 +163,13 @@ TEST(MemRootDequeTest, Iteration) {
   EXPECT_EQ(1, *it++);
   EXPECT_EQ(2, *it++);
   EXPECT_EQ(4, *++it);
-  it -= 2;
+  std::advance(it, -2);
   EXPECT_EQ(2, *it);
-  it += 2;
+  std::advance(it, 2);
   EXPECT_EQ(4, *it--);
   EXPECT_EQ(3, *it--);
   EXPECT_EQ(1, *--it);
-  EXPECT_EQ(d.end(), it + 5);
+  EXPECT_EQ(d.end(), std::next(it, 5));
 }
 
 TEST(MemRootDequeTest, OperatorArrow) {
@@ -204,7 +215,7 @@ TEST(MemRootDequeTest, Copy) {
   d.push_back(1);
   d.push_back(2);
   d.push_back(3);
-  mem_root_deque<int> const e(d);
+  mem_root_deque<int> e(d);
   e[0] = 5;
   EXPECT_THAT(d, ElementsAre(1, 2, 3));
   EXPECT_THAT(e, ElementsAre(5, 2, 3));

@@ -16,21 +16,15 @@ jobs:
           command: |
             set -o xtrace
             UBUNTU_CODE_NAME="noble"
-            BASE_BRANCH="8.0"
+            BASE_BRANCH="8.4"
             COMPILER_VERSION="19"
-            BOOST_VERSION="1_77_0"
-            BOOST_DIR="/home/circleci/my_boost"
 
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
             sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
 
-            echo "Downloading and extracting Boost."
-            wget --progress=dot:giga -P ${BOOST_DIR} "https://archives.boost.io/release/${BOOST_VERSION//_/.}/source/boost_${BOOST_VERSION}.tar.gz"
-            tar -xzf "${BOOST_DIR}/boost_${BOOST_VERSION}.tar.gz" -C "${BOOST_DIR}"
-
             # Prepare compile_commands.json
             cd ~/project
-            cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_BOOST=${BOOST_DIR} -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
+            cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
 
             git remote add target "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
             git fetch --no-tags --no-recurse-submodules target $BASE_BRANCH

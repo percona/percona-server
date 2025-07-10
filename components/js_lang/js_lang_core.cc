@@ -308,6 +308,15 @@ Js_isolate *Js_isolate::create() {
         type == v8::GCType::kGCTypeMarkSweepCompact) {
       Js_isolate *js_isolate = static_cast<Js_isolate *>(data);
       js_isolate->m_memory_manager.check_mem_limit_at_GC();
+
+      // Piggy-back on GC to refresh global call counter.
+      //
+      // This allows to keep counter more up-to-date in situations when
+      // we have a long-living connection that executes a lot of JS calls.
+      //
+      // TODO: This needs to be changed if we are to change relationship
+      //       between isolates and connections.
+      Js_thd::get_current_js_thd()->aggregate_call_count();
     }
     return;
   };
@@ -489,6 +498,9 @@ SHOW_VAR *Js_isolate::get_status_vars_defs() {
       // TODO: In future we might introduce Js_lang_isolates as well.
       {"Js_lang_contexts", reinterpret_cast<char *>(&show_contexts), SHOW_FUNC,
        SHOW_SCOPE_GLOBAL},
+      {"Js_lang_stored_program_call_count",
+       reinterpret_cast<char *>(&Js_thd::show_call_count), SHOW_FUNC,
+       SHOW_SCOPE_GLOBAL},
       {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
   return status_vars;
@@ -600,6 +612,8 @@ bool Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(size_t length) {
 }
 
 mysql_thd_store_slot Js_thd::s_thd_slot = nullptr;
+
+std::atomic<size_t> Js_thd::s_call_count = 0;
 
 void Js_thd::register_slot() {
   auto free_fn_lambda = [](void *resource) {
@@ -815,6 +829,14 @@ bool Js_thd::Auth_id_context::process_unhandled_rejected_promises() {
 
   m_unhandled_rejected_promises.clear();
   return true;
+}
+
+int Js_thd::show_call_count(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<ulonglong *>(buff);
+  *value = s_call_count.load(std::memory_order_relaxed);
+  return 0;
 }
 
 Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
@@ -1144,6 +1166,8 @@ bool Js_sp::parse() {
 
 bool Js_sp::execute() {
   Js_thd *js_thd = Js_thd::get_or_create_current_js_thd();
+
+  js_thd->inc_call_count();
 
   /*
     Get Isolate and JS context for current connection and active user.

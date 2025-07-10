@@ -1,0 +1,82 @@
+# Fix extend varchar bug with column compressed
+#
+# Author       : Han Wei
+# Date created : 07/08/2025
+
+# Run this test only for debug builds and with debug_sync enabled
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+connect (con1,localhost,root,,);
+connection default;
+
+create database database20250708;
+
+--echo # basic bugfix
+--echo # --------------------------------------------------------------------
+create table database20250708.t11(c1 varchar(253) column_format compressed)CHARACTER SET ascii;
+
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzR');
+
+--echo # test from 253 to 254
+alter table database20250708.t11 modify c1 varchar(254) column_format compressed;
+
+select * from database20250708.t11;
+SHOW CREATE TABLE database20250708.t11;
+CHECK TABLE database20250708.t11;
+
+alter table database20250708.t11 modify c1 varchar(250) column_format compressed;
+--echo # test from 250 to 255
+alter table database20250708.t11 modify c1 varchar(255) column_format compressed;
+select * from database20250708.t11;
+SHOW CREATE TABLE database20250708.t11;
+CHECK TABLE database20250708.t11;
+
+--echo # test new threshold 254 in inplace algorithm
+alter table database20250708.t11 modify c1 varchar(256) column_format compressed,algorithm=inplace;
+SHOW CREATE TABLE database20250708.t11;
+CHECK TABLE database20250708.t11;
+
+
+alter table database20250708.t11 modify c1 varchar(253) column_format compressed;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table database20250708.t11 modify c1 varchar(254) column_format compressed,algorithm=inplace;
+
+
+alter table database20250708.t11 modify c1 varchar(252) column_format compressed;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table database20250708.t11 modify c1 varchar(256) column_format compressed,algorithm=inplace;
+
+--echo # --------------------------------------------------------------------
+
+
+--echo # test row log
+--echo # --------------------------------------------------------------------
+alter table database20250708.t11 modify c1 varchar(251) column_format compressed;
+
+SET DEBUG_SYNC='alter_table_inplace_after_lock_downgrade SIGNAL update_now WAIT_FOR update_done';
+--send alter table database20250708.t11 modify c1 varchar(253) column_format compressed,algorithm=inplace
+
+
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRa1');
+begin;
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRa2');
+delete from database20250708.t11;
+rollback;
+begin;
+update database20250708.t11 set c1 = 'qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRgg';
+commit;
+
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection default;
+--reap
+SELECT * FROM database20250708.t11;
+SHOW CREATE TABLE database20250708.t11;
+CHECK TABLE database20250708.t11;
+
+--echo # --------------------------------------------------------------------
+--echo # clean up
+drop database database20250708;

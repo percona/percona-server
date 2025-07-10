@@ -148,8 +148,9 @@ DROP FUNCTION f_json_hog;
 --echo # due to garbage collection.
 --replace_column 2 #
 SHOW STATUS LIKE 'js_lang%';
---echo # But at least number of contexts is stable.
+--echo # But at least current and peak numbers of contexts are stable.
 SHOW STATUS LIKE 'js_lang_contexts';
+SHOW STATUS LIKE 'js_lang_peak_contexts';
 
 --echo #
 --echo # 6) Test coverage for JS_GET_MEMORY_USAGE_JSON() UDF.
@@ -174,14 +175,17 @@ SELECT JS_GET_MEMORY_USAGE_JSON();
 --echo # is racy.
 --echo #
 --echo # Let us at least check that heap usage is non-zero.
---echo # Also number of active contexts should be stable.
+--echo # Also current and peak numbers of active contexts should be stable.
 SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
 
 SELECT JSON_EXTRACT(@mem_usage, "$.local.totalHeapSize") > 0 AS loc_ths,
        JSON_EXTRACT(@mem_usage, "$.local.usedHeapSize") > 0  AS loc_uhs,
        JSON_EXTRACT(@mem_usage, "$.global.totalHeapSize") > 0 AS glob_ths,
        JSON_EXTRACT(@mem_usage, "$.global.usedHeapSize") > 0  AS glob_uhs,
-       JSON_EXTRACT(@mem_usage, "$.global.contexts") AS glob_c;
+       JSON_EXTRACT(@mem_usage, "$.global.peakTotalHeapSize") > 0 AS peak_ths,
+       JSON_EXTRACT(@mem_usage, "$.global.peakUsedHeapSize") > 0  AS peak_uhs,
+       JSON_EXTRACT(@mem_usage, "$.global.contexts") AS glob_c,
+       JSON_EXTRACT(@mem_usage, "$.global.peakContexts") AS peak_c;
 
 --echo #
 --echo # 6.2) Test what happens when UDF is called for connection which
@@ -200,23 +204,64 @@ SELECT f1();
 --replace_regex /[0-9]+/<number>/
 SELECT JS_GET_MEMORY_USAGE_JSON();
 
---echo # Number of active contexts should increase!
-SELECT JSON_EXTRACT(JS_GET_MEMORY_USAGE_JSON(), "$.global.contexts") AS c;
+--echo # Current and peak numbers of active contexts should increase!
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.global.contexts") AS c,
+       JSON_EXTRACT(@mem_usage, "$.global.peakContexts") AS peak_c;
 
 --echo #
---echo # 6.4) Finally, let us test that "external"/off-heap allocations
+--echo # 6.4) Now, let us test that "external"/off-heap allocations
 --echo #      are also tracked.
 CREATE PROCEDURE p1() LANGUAGE JS AS $$ globalThis.a = new ArrayBuffer(1024) $$;
 CALL p1();
 
 SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
 SELECT JSON_EXTRACT(@mem_usage, "$.local.externalMemorySize") >= 1024 AS loc_ems,
-       JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") >= 1024  AS glob_ems;
+       JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") >= 1024  AS glob_ems,
+       JSON_EXTRACT(@mem_usage, "$.global.peakExternalMemorySize") >= 1024  AS peak_ems;
 
---echo # Local clean-up.
+--echo #
+--echo # 6.5) Finally, check what happens to current and peak usage counters
+--echo #      after connection close.
+--echo #
+
 --disconnect con_add
 --source include/wait_until_disconnected.inc
 --connection default
+
+--echo #
+--echo # Number of currently active contexts should return back to 1.
+--echo #
+--echo # Use wait_condition.inc for this check to ensure that it is not affected
+--echo # by the fact that release of connection of resources (and hence call
+--echo # count aggregation) happens after its close and thus asynchronously
+--echo # from test's point of view.
+--let $wait_condition= SELECT variable_value = 1 FROM performance_schema.global_status WHERE variable_name = "Js_lang_contexts"
+--source include/wait_condition.inc
+SHOW STATUS LIKE 'js_lang_contexts';
+
+--echo #
+--echo # However peak number of contexts should stay the same.
+SHOW STATUS LIKE 'js_lang_peak_contexts';
+
+--echo # Same check for JS_GET_MEMORY_USAGE_JSON() UDF.
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.global.contexts") AS c,
+       JSON_EXTRACT(@mem_usage, "$.global.peakContexts") AS peak_c;
+
+--echo #
+--echo # We can't do similar check for heap usage counters due to
+--echo # unpredicatibility of such allocations and point at which they
+--echo # will be updated.
+--echo #
+--echo # But at least we can check values of "external"/off-heap allocation
+--echo # counters. For them, peak counter value should stay the same and
+--echo # current usage should decrease.
+SET @mem_usage := JS_GET_MEMORY_USAGE_JSON();
+SELECT JSON_EXTRACT(@mem_usage, "$.global.externalMemorySize") < 1024  AS glob_ems,
+       JSON_EXTRACT(@mem_usage, "$.global.peakExternalMemorySize") >= 1024  AS peak_ems;
+
+--echo # Local clean-up.
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
 

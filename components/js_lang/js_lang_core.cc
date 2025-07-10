@@ -52,6 +52,8 @@ std::unique_ptr<v8::Platform> Js_v8::s_platform;
 
 std::atomic<int> Js_v8::s_ref_count = 0;
 
+std::atomic<size_t> Js_v8::s_peak_ref_count = 0;
+
 void Js_v8::init() {
   // We would like to enforce strict mode for code of JS routines right
   // from the start.
@@ -81,6 +83,35 @@ void Js_v8::shutdown() {
   v8::V8::Dispose();
   v8::V8::DisposePlatform();
   s_platform.reset();
+}
+
+/**
+  Helper which atomically updates peak status variable if new value of
+  global status variable exceeds current peak value.
+*/
+static void update_peak_value(std::atomic<size_t> &peak_var, size_t new_val) {
+  size_t old_peak_val = peak_var.load();
+  while (new_val > old_peak_val &&
+         !peak_var.compare_exchange_weak(old_peak_val, new_val)) {
+    // CAS failed because peak value was concurrently updated under our feet.
+    // The new peak value was stored in old_peak_val as a side-effect of
+    // failed CAS. Let us check if new_val still exceeds peak and retry
+    // update if yes.
+    //
+    // Note that at this point new_val might not match the current value
+    // of global status variable which peak value we are tracking. This
+    // is OK. If new_val is bigger than current value of status variable
+    // we can still update peak. If new_val is smaller than current value
+    // of status variable then peak values has been already updated (so
+    // the above condition will fail) or will be updated soon (in which
+    // case updating peak value won't harm either).
+  }
+}
+
+void Js_v8::inc_ref_count() {
+  assert(s_ref_count.load() >= 0);
+  size_t new_isolate_count = (++s_ref_count);
+  update_peak_value(s_peak_ref_count, new_isolate_count);
 }
 
 bool Js_isolate::Memory_manager::check_mem_limit_at_arr_buff_alloc(
@@ -305,6 +336,15 @@ Js_isolate *Js_isolate::create() {
         type == v8::GCType::kGCTypeMarkSweepCompact) {
       Js_isolate *js_isolate = static_cast<Js_isolate *>(data);
       js_isolate->m_memory_manager.check_mem_limit_at_GC();
+
+      // Piggy-back on GC to refresh global call counter.
+      //
+      // This allows to keep counter more up-to-date in situations when
+      // we have a long-living connection that executes a lot of JS calls.
+      //
+      // TODO: This needs to be changed if we are to change relationship
+      //       between isolates and connections.
+      Js_thd::get_current_js_thd()->aggregate_call_count();
     }
     return;
   };
@@ -339,14 +379,25 @@ void Js_isolate::Memory_manager::update_global_mem_stats(
   // global memory usage counters. To get actual global values, deduct values
   // which were added to global counters on previous call of this method for
   // the isolate.
-  s_total_heap_size += (stats.total_heap_size() - m_old_stats.total_heap_size);
-  s_used_heap_size += (stats.used_heap_size() - m_old_stats.used_heap_size);
+  size_t new_ths = (s_total_heap_size +=
+                    (stats.total_heap_size() - m_old_stats.total_heap_size));
+  size_t new_uhs = (s_used_heap_size +=
+                    (stats.used_heap_size() - m_old_stats.used_heap_size));
   // Using value from v8::HeapStatistics rather than directly from
   // Memory_manager sounds more future-proof. For example, in future we might
   // add size of SQL result objects to the amount of externally allocated
   // memory (by reporting it to V8 using appropriate API).
-  s_external_memory_size +=
+  size_t new_ems = s_external_memory_size +=
       (stats.external_memory() - m_old_stats.external_memory_size);
+
+  // Also update corresponding global peak usage counters if necessary.
+  //
+  // Note that since update of peak usage counters is not atomic with update
+  // global usage counters, users might sometimes see their values not in
+  // sync. This should not be big deal for statistics.
+  update_peak_value(s_peak_total_heap_size, new_ths);
+  update_peak_value(s_peak_used_heap_size, new_uhs);
+  update_peak_value(s_peak_external_memory_size, new_ems);
 
   // Save added counter values so they can be deducted on future calls or
   // isolate destruction.
@@ -410,15 +461,31 @@ std::string Js_isolate::Memory_manager::get_mem_stats_json(
   json_writer.Key(STRING_WITH_LEN("totalHeapSize"));
   json_writer.Uint64(s_total_heap_size.load(std::memory_order_relaxed));
 
+  // TODO: In future if number of counters reported grows we might consider
+  //       splitting global object into two sub-objects, one for current and
+  //       one for peak values.
+  json_writer.Key(STRING_WITH_LEN("peakTotalHeapSize"));
+  json_writer.Uint64(s_peak_total_heap_size.load(std::memory_order_relaxed));
+
   json_writer.Key(STRING_WITH_LEN("usedHeapSize"));
   json_writer.Uint64(s_used_heap_size.load(std::memory_order_relaxed));
+
+  json_writer.Key(STRING_WITH_LEN("peakUsedHeapSize"));
+  json_writer.Uint64(s_peak_used_heap_size.load(std::memory_order_relaxed));
 
   json_writer.Key(STRING_WITH_LEN("externalMemorySize"));
   json_writer.Uint64(s_external_memory_size.load(std::memory_order_relaxed));
 
+  json_writer.Key(STRING_WITH_LEN("peakExternalMemorySize"));
+  json_writer.Uint64(
+      s_peak_external_memory_size.load(std::memory_order_relaxed));
+
   // Number of contexts is the same as number isolates at this point.
   json_writer.Key(STRING_WITH_LEN("contexts"));
   json_writer.Uint(Js_v8::get_isolate_count());
+
+  json_writer.Key(STRING_WITH_LEN("peakContexts"));
+  json_writer.Uint(Js_v8::get_peak_isolate_count());
 
   json_writer.EndObject();
 
@@ -428,34 +495,20 @@ std::string Js_isolate::Memory_manager::get_mem_stats_json(
 }
 
 std::atomic<size_t> Js_isolate::Memory_manager::s_total_heap_size = 0;
+std::atomic<size_t> Js_isolate::Memory_manager::s_peak_total_heap_size = 0;
 std::atomic<size_t> Js_isolate::Memory_manager::s_used_heap_size = 0;
+std::atomic<size_t> Js_isolate::Memory_manager::s_peak_used_heap_size = 0;
 std::atomic<size_t> Js_isolate::Memory_manager::s_external_memory_size = 0;
+std::atomic<size_t> Js_isolate::Memory_manager::s_peak_external_memory_size = 0;
 
-int Js_isolate::Memory_manager::show_total_heap_size(MYSQL_THD, SHOW_VAR *var,
-                                                     char *buff) {
+// Helper template to show value of status variable represented
+// by C++ static class member with atomic<size_t> type.
+template <std::atomic<size_t> *atomic_var>
+int show_atomic_status_var(MYSQL_THD, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
   auto *value = reinterpret_cast<ulonglong *>(buff);
-  *value = s_total_heap_size.load(std::memory_order_relaxed);
-  return 0;
-}
-
-int Js_isolate::Memory_manager::show_used_heap_size(MYSQL_THD, SHOW_VAR *var,
-                                                    char *buff) {
-  var->type = SHOW_LONGLONG;
-  var->value = buff;
-  auto *value = reinterpret_cast<ulonglong *>(buff);
-  *value = s_used_heap_size.load(std::memory_order_relaxed);
-  return 0;
-}
-
-int Js_isolate::Memory_manager::show_external_memory_size(MYSQL_THD,
-                                                          SHOW_VAR *var,
-                                                          char *buff) {
-  var->type = SHOW_LONGLONG;
-  var->value = buff;
-  auto *value = reinterpret_cast<ulonglong *>(buff);
-  *value = s_external_memory_size.load(std::memory_order_relaxed);
+  *value = atomic_var->load(std::memory_order_relaxed);
   return 0;
 }
 
@@ -475,16 +528,38 @@ SHOW_VAR *Js_isolate::get_status_vars_defs() {
   //       to fight with information leakage more easily).
   static SHOW_VAR status_vars[] = {
       {"Js_lang_total_heap_size",
-       reinterpret_cast<char *>(&Memory_manager::show_total_heap_size),
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Memory_manager::s_total_heap_size>),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_peak_total_heap_size",
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Memory_manager::s_peak_total_heap_size>),
        SHOW_FUNC, SHOW_SCOPE_GLOBAL},
       {"Js_lang_used_heap_size",
-       reinterpret_cast<char *>(&Memory_manager::show_used_heap_size),
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Memory_manager::s_used_heap_size>),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_peak_used_heap_size",
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Memory_manager::s_peak_used_heap_size>),
        SHOW_FUNC, SHOW_SCOPE_GLOBAL},
       {"Js_lang_external_memory_size",
-       reinterpret_cast<char *>(&Memory_manager::show_external_memory_size),
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Memory_manager::s_external_memory_size>),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_peak_external_memory_size",
+       reinterpret_cast<char *>(&show_atomic_status_var<
+                                &Memory_manager::s_peak_external_memory_size>),
        SHOW_FUNC, SHOW_SCOPE_GLOBAL},
       // TODO: In future we might introduce Js_lang_isolates as well.
       {"Js_lang_contexts", reinterpret_cast<char *>(&show_contexts), SHOW_FUNC,
+       SHOW_SCOPE_GLOBAL},
+      {"Js_lang_peak_contexts",
+       reinterpret_cast<char *>(
+           &show_atomic_status_var<&Js_v8::s_peak_ref_count>),
+       SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {"Js_lang_stored_program_call_count",
+       reinterpret_cast<char *>(&Js_thd::show_call_count), SHOW_FUNC,
        SHOW_SCOPE_GLOBAL},
       {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
@@ -629,6 +704,8 @@ bool Js_isolate::check_if_heap_alloc_will_exceed_mem_limit(size_t length) {
 }
 
 mysql_thd_store_slot Js_thd::s_thd_slot = nullptr;
+
+std::atomic<size_t> Js_thd::s_call_count = 0;
 
 void Js_thd::register_slot() {
   auto free_fn_lambda = [](void *resource) {
@@ -844,6 +921,14 @@ bool Js_thd::Auth_id_context::process_unhandled_rejected_promises() {
 
   m_unhandled_rejected_promises.clear();
   return true;
+}
+
+int Js_thd::show_call_count(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<ulonglong *>(buff);
+  *value = s_call_count.load(std::memory_order_relaxed);
+  return 0;
 }
 
 Js_sp::Js_sp(stored_program_handle sp, uint16_t sql_sp_type) : m_sql_sp(sp) {
@@ -1173,6 +1258,8 @@ bool Js_sp::parse() {
 
 bool Js_sp::execute() {
   Js_thd *js_thd = Js_thd::get_or_create_current_js_thd();
+
+  js_thd->inc_call_count();
 
   /*
     Get Isolate and JS context for current connection and active user.

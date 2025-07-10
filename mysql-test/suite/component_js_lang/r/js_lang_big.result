@@ -53,6 +53,29 @@ disconnect con_big_packet;
 connection default;
 SET @@global.max_allowed_packet = @save_max_allowed_packet;
 SET @@global.js_lang.max_mem_size = @save_js_lang_max_mem_size;
+#
+# Test JS stored program call count global status variable.
+#
+
+# Run trivial JS function in a new connection plenty of times
+# to ensure that the status variable increment is clearly visible.
+connect  con_call_count, localhost, root,,;
+CREATE FUNCTION f_trivial() RETURNS INT LANGUAGE JS AS $$ return 2*2 $$;
+SELECT BENCHMARK(100000, f_trivial());
+BENCHMARK(100000, f_trivial())
+0
+DROP FUNCTION f_trivial;
+# Disconnect the connection to ensure that call count is aggregated
+# into global status variable value.
+disconnect con_call_count;
+connection default;
+# Check that 'Js_lang_stored_program_call_count' global status variable
+# got updated accordingly.
+#
+# Use wait_condition.inc for this check to ensure that it is not affected
+# by the fact that release of connection of resources (and hence call
+# count aggregation) happens after its close and thus asynchronously
+# from test's point of view.
 # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 # Disconnect of default connection to free the only remaining

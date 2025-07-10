@@ -429,7 +429,11 @@ class Js_isolate {
 class Js_thd {
  public:
   explicit Js_thd(MYSQL_THD thd) : m_thd(thd) {}
-  ~Js_thd() {}
+  ~Js_thd() {
+    // Add not-yet agreggated number of calls for this connection into
+    // global calls counter.
+    s_call_count += m_call_count;
+  }
 
   // Block default copy/move semantics.
   Js_thd(Js_thd const &rhs) = delete;
@@ -867,6 +871,17 @@ class Js_thd {
     m_auth_id_contexts.erase(auth_id);
   }
 
+  void inc_call_count() { ++m_call_count; }
+
+  // Connection's call counter into global one, reset the former.
+  void aggregate_call_count() {
+    s_call_count += m_call_count;
+    m_call_count = 0;
+  }
+
+  /* Helper implementing call count status variable. */
+  static int show_call_count(MYSQL_THD, SHOW_VAR *var, char *buff);
+
  private:
   // Opaque handle for corresponding THD object.
   MYSQL_THD m_thd;
@@ -876,6 +891,13 @@ class Js_thd {
 
   // Map with per user-account contexts for the connection.
   std::unordered_map<std::string, Auth_id_context> m_auth_id_contexts;
+
+  // Number of JS stored programs calls that happened in this connection
+  // which are not yet aggregated into global call counter.
+  size_t m_call_count{0};
+
+  // Global counter of JS stored programs calls.
+  static std::atomic<size_t> s_call_count;
 };
 
 /**

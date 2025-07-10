@@ -87,6 +87,34 @@ DROP FUNCTION f_longblob;
 SET @@global.max_allowed_packet = @save_max_allowed_packet;
 SET @@global.js_lang.max_mem_size = @save_js_lang_max_mem_size;
 
+--echo #
+--echo # Test JS stored program call count global status variable.
+--echo #
+
+--echo
+--echo # Run trivial JS function in a new connection plenty of times
+--echo # to ensure that the status variable increment is clearly visible.
+--connect (con_call_count, localhost, root,,)
+CREATE FUNCTION f_trivial() RETURNS INT LANGUAGE JS AS $$ return 2*2 $$;
+SELECT BENCHMARK(100000, f_trivial());
+DROP FUNCTION f_trivial;
+
+--echo # Disconnect the connection to ensure that call count is aggregated
+--echo # into global status variable value.
+--disconnect con_call_count
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Check that 'Js_lang_stored_program_call_count' global status variable
+--echo # got updated accordingly.
+--echo #
+--echo # Use wait_condition.inc for this check to ensure that it is not affected
+--echo # by the fact that release of connection of resources (and hence call
+--echo # count aggregation) happens after its close and thus asynchronously
+--echo # from test's point of view.
+--let $wait_condition= SELECT variable_value >= 100000 FROM performance_schema.global_status WHERE variable_name = "Js_lang_stored_program_call_count"
+--source include/wait_condition.inc
+
 --echo # Global clean-up.
 REVOKE CREATE_JS_ROUTINE ON *.* FROM root@localhost;
 

@@ -117,6 +117,7 @@ SHOW STATUS LIKE 'js_lang%';
 Variable_name	Value
 Js_lang_contexts	#
 Js_lang_external_memory_size	#
+Js_lang_stored_program_call_count	#
 Js_lang_total_heap_size	#
 Js_lang_used_heap_size	#
 # But at least number of contexts is stable.

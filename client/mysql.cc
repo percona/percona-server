@@ -2684,8 +2684,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       }
       buffer.length(0);
     }
-    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-                                              (inchar == '-' && pos[1] == '-' &&
+    else if (!*ml_comment && (!*in_string && ss_comment != SSC_HINT && (inchar == '#' ||
+        (inchar == '-' && pos[1] == '-' &&
                               /*
                                 The third byte is either whitespace or is the
                                 end of the line -- which would occur only

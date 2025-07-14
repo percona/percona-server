@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -602,6 +602,8 @@ struct dtype_t{
 					mbminlen=DATA_MBMINLEN(mbminmaxlen);
 					mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
 #endif /* !UNIV_HOTBACKUP */
+
+	bool is_virtual() const { return ((prtype & DATA_VIRTUAL) == DATA_VIRTUAL); }
 };
 
 #ifndef UNIV_NONINL

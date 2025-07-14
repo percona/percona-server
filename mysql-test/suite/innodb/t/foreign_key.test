@@ -255,11 +255,14 @@ DROP TABLE `email_stats`;
 DROP TABLE `emails`;
 
 --echo #
---echo # PS-7940 :ON DELETE CASCADE with generated column crashes in innobase_get_computed_value
+--echo # Bug#33691659: ON DELETE CASCADE with generated column crashes in innobase_get_computed_value
 --echo #
-
-CREATE TABLE `t1` (`t1_id` int unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY(`t1_id`)) ENGINE=InnoDB;
+CREATE TABLE `t1` (
+   `t1_id` int unsigned NOT NULL AUTO_INCREMENT,
+   PRIMARY KEY(`t1_id`)
+) ENGINE=InnoDB;
 INSERT INTO `t1` VALUES (10);
+
 CREATE TABLE `t2` (
   `t2_id` int unsigned NOT NULL AUTO_INCREMENT,
   `c1` decimal(14,2) NOT NULL DEFAULT '0.00',
@@ -273,8 +276,6 @@ CREATE TABLE `t2` (
 INSERT INTO `t2` (`t2_id`, `c1`, `t1_id`) VALUES (1,5.00,10);
 
 --source include/restart_mysqld.inc
-
 DELETE FROM `t1` WHERE `t1_id`=10;
-
 DROP TABLE `t2`;
 DROP TABLE `t1`;

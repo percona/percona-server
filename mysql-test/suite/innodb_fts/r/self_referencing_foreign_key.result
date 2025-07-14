@@ -1,0 +1,20 @@
+CREATE TABLE articles (
+FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title char(30),
+fk_col char(30),
+content VARCHAR(255) NOT NULL,
+INDEX(title),
+FULLTEXT INDEX(fk_col)
+);
+ALTER TABLE articles ADD CONSTRAINT fk FOREIGN KEY (fk_col) REFERENCES articles(title) ON DELETE SET NULL;
+INSERT INTO articles (title, content) VALUES
+('Root Article', 'This is the main topic');
+INSERT INTO articles (title, fk_col, content) VALUES
+('Sub Article 1', 'Root Article', 'This expands on the main topic'),
+('Sub Article 2', 'Root Article', 'Another perspective on the topic');
+SELECT * FROM articles WHERE MATCH(fk_col) AGAINST ('Root');
+FTS_DOC_ID	title	fk_col	content
+2	Sub Article 1	Root Article	This expands on the main topic
+3	Sub Article 2	Root Article	Another perspective on the topic
+DELETE FROM articles WHERE content LIKE '%This%';
+DROP TABLE articles;

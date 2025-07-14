@@ -34,6 +34,7 @@ Created 2007-03-27 Sunny Bains
 #ifndef INNOBASE_FTS0TYPES_H
 #define INNOBASE_FTS0TYPES_H
 
+#include <stdint.h>
 #include "univ.i"
 #include "fts0fts.h"
 #include "fut0fut.h"
@@ -306,7 +307,7 @@ extern const fts_index_selector_t fts_index_selector[];
 /******************************************************************//**
 Decode and return the integer that was encoded using our VLC scheme.*/
 UNIV_INLINE
-ulint
+uint64_t
 fts_decode_vlc(
 /*===========*/
 			/*!< out: value decoded */
@@ -330,22 +331,22 @@ fts_string_dup(
 /******************************************************************//**
 Return length of val if it were encoded using our VLC scheme. */
 UNIV_INLINE
-ulint
+unsigned int
 fts_get_encoded_len(
 /*================*/
 						/*!< out: length of value
 						 encoded, in bytes */
-	ulint		val);			/*!< in: value to encode */
+	uint64_t	val);			/*!< in: value to encode */
 
 /******************************************************************//**
 Encode an integer using our VLC scheme and return the length in bytes. */
 UNIV_INLINE
-ulint
+unsigned int
 fts_encode_int(
 /*===========*/
 						/*!< out: length of value
 						encoded, in bytes */
-	ulint		val,			/*!< in: value to encode */
+	uint64_t	val,			/*!< in: value to encode */
 	byte*		buf);			/*!< in: buffer, must have
 						enough space */
 

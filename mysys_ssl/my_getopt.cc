@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2024, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1777,11 +1777,24 @@ void my_print_help(const struct my_option *options)
 
       while ((uint) (end - comment) > comment_space)
       {
-	for (line_end= comment + comment_space; *line_end != ' '; line_end--)
+        bool had_space;
+        // find the last space before the limit to break the comment on
+	for (line_end= comment + comment_space;
+             line_end > comment && *line_end != ' ';
+             line_end--)
         {}
+        // if no space is found break at the limit - 1 (for the new line)
+        if (line_end == comment && *comment != ' ')
+        {
+          line_end = comment + comment_space - 1;
+          had_space = false;
+        }
+        else
+          had_space = true;
 	for (; comment != line_end; comment++)
 	  putchar(*comment);
-	comment++; /* skip the space, as a newline will take it's place now */
+        if (had_space)
+          comment++; /* skip the space, as a newline will take it's place now */
 	putchar('\n');
 	for (col= 0; col < name_space; col++)
 	  putchar(' ');

@@ -3031,6 +3031,7 @@ exit:
 
 static int sort_keys(KEY *a, KEY *b)
 {
+  if (&a == &b) return 0;
   ulong a_flags= a->flags, b_flags= b->flags;
   
   if (a_flags & HA_NOSAME)

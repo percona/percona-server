@@ -298,9 +298,12 @@ date_sent
 DROP TABLE `email_stats`;
 DROP TABLE `emails`;
 #
-# PS-7940 :ON DELETE CASCADE with generated column crashes in innobase_get_computed_value
+# Bug#33691659: ON DELETE CASCADE with generated column crashes in innobase_get_computed_value
 #
-CREATE TABLE `t1` (`t1_id` int unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY(`t1_id`)) ENGINE=InnoDB;
+CREATE TABLE `t1` (
+`t1_id` int unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY(`t1_id`)
+) ENGINE=InnoDB;
 INSERT INTO `t1` VALUES (10);
 CREATE TABLE `t2` (
 `t2_id` int unsigned NOT NULL AUTO_INCREMENT,

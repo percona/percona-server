@@ -2658,6 +2658,7 @@ row_upd_clust_rec(
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
 	const dtuple_t*	rebuilt_old_pk	= NULL;
+	bool is_old_or_new_rec_extern = false;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2672,6 +2673,7 @@ row_upd_clust_rec(
 	ut_ad(rec_offs_validate(btr_cur_get_rec(btr_cur), index, offsets));
 
 	if (dict_index_is_online_ddl(index)) {
+		is_old_or_new_rec_extern = rec_offs_any_extern(offsets);
 		rebuilt_old_pk = row_log_table_get_pk(
 			btr_cur_get_rec(btr_cur), index, offsets, NULL, &heap);
 	}
@@ -2758,9 +2760,19 @@ success:
 			dtuple_t*	new_v_row = NULL;
 			dtuple_t*	old_v_row = NULL;
 
+			/* In case UPDATE modifies extern BLOB and makes it fit within record
+			after above update, we still need old virtual col */
+			is_old_or_new_rec_extern |= rec_offs_any_extern(offsets);
+
 			if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 				new_v_row = node->upd_row;
 				old_v_row = node->update->old_vrow;
+			} else if (is_old_or_new_rec_extern) {
+				/* Row log treats UPDATE on extern BLOB as DELETE + INSERT.
+				This requires virtual col info. Since no change in virtual
+				col, new value is same as old */
+				old_v_row = node->update->old_vrow;
+				new_v_row = old_v_row;
 			}
 
 			row_log_table_update(

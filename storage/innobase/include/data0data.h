@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+Copyright (c) 1994, 2024, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -597,6 +597,10 @@ struct dfield_t{
 				created.
 	@return	the cloned object. */
 	dfield_t* clone(mem_heap_t* heap);
+
+	/** Checks if the field is virtual
+	@return	true if virtual else returns false. */
+	bool is_virtual() const { return (type.is_virtual()); }
 };
 
 /** Structure for an SQL data tuple of fields (logical record) */

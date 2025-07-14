@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -1130,6 +1130,32 @@ dict_foreign_set_validate(
 {
 	return(dict_foreign_set_validate(table.foreign_set)
 	       && dict_foreign_set_validate(table.referenced_set));
+}
+
+bool dict_foreign_t::is_fts_col_affected() const
+{
+	/* The check is skipped:
+	- if the table has no full text index defined.
+	- if it is a self referential foreign constaint. This is because
+	  in the context of cascading DML operation, only the referenced
+	  table is relevant for the validation even if the current table
+          has FTS index. */
+	if (!foreign_table->fts || foreign_table == referenced_table) {
+		 return false;
+	}
+
+	for (ulint i = 0; i < n_fields; i++)
+	{
+		const dict_col_t* col = dict_index_get_nth_col(
+						foreign_index, i);
+
+		if (dict_table_is_fts_column(foreign_table->fts->indexes,
+			dict_col_get_no(col),
+			dict_col_is_virtual(col)) != ULINT_UNDEFINED) {
+                       return true;
+		}
+	}
+	return false;
 }
 
 std::ostream&

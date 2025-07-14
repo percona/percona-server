@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 1996, 2024, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -1107,6 +1107,14 @@ struct dict_foreign_t{
 
 	dict_vcol_set*	v_cols;		/*!< set of virtual columns affected
 					by foreign key constraint. */
+	/** Check whether foreign key constraint contains a column with a full
+	index on it. The function is used in the context of cascading DML
+	operations.
+	@retval true  if the column has FTS index on it.
+	@retval false if the FK table has no FTS index or has self referential
+		      relationship
+	*/
+        bool is_fts_col_affected() const;
 };
 
 std::ostream&

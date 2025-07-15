@@ -110,9 +110,15 @@ class mem_root_deque {
 
   size_t size() const { return list_.size(); }
 
-  void push_back(const T &value) { list_.push_back(value); }
+  bool push_back(const T &value) {
+    list_.push_back(value);
+    return false;
+  }
 
-  void push_front(const T &value) { list_.push_front(value); }
+  bool push_front(const T &value) {
+    list_.push_front(value);
+    return false;
+  }
 
   void pop_back() {
     if (!list_.empty()) {

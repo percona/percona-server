@@ -2126,8 +2126,7 @@ static bool AddRowIdAsTempTableField(THD *thd, TABLE *table,
   Item_field *ifield = new (thd->mem_root) Item_field(field);
   if (ifield == nullptr) return true;
   ifield->set_nullable(false);
-  fields->push_back(ifield);
-  return false;
+  return fields->push_back(ifield);
 }
 
 /// Stores the current row ID of "table" in the specified field of "tmp_table".

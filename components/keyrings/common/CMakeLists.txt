@@ -30,7 +30,6 @@ SET(KEYRING_COMMON_SOURCES
   # Data representation
   data/data.cc
   data/meta.cc
-  data/pfs_string.cpp
   # File reader/writer
   data_file/reader.cc
   data_file/writer.cc
@@ -50,10 +49,6 @@ SET (KEYRING_COMMON_DEPENDENCIES
 IF(COMPONENT_COMPILE_VISIBILITY)
   SET(COMPILE_OPTIONS_ARG COMPILE_OPTIONS "${COMPONENT_COMPILE_VISIBILITY}")
 ENDIF()
-
-INCLUDE_DIRECTORIES(SYSTEM
-        ${BOOST_PATCHES_DIR}
-        ${BOOST_INCLUDE_DIR})
 
 ADD_CONVENIENCE_LIBRARY(
   keyring_common

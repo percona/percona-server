@@ -563,8 +563,10 @@ char *my_strndup(PSI_memory_key key, const char *from, size_t length,
   return ptr;
 }
 
-#if !defined(HAVE_MEMSET_S)
-void memset_s(void *dest, size_t dest_max, int c, size_t n) {
+void my_memset_s(void *dest, size_t dest_max, int c, size_t n) {
+#if defined(HAVE_MEMSET_S)
+  memset_s(dest, dest_max, c, n);
+#else
 #if defined(WIN32)
   SecureZeroMemory(dest, n);
 #else
@@ -573,5 +575,5 @@ void memset_s(void *dest, size_t dest_max, int c, size_t n) {
     *p++ = c;
   }
 #endif
-}
 #endif
+}

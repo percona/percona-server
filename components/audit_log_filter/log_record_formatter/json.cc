@@ -29,6 +29,8 @@
 #include <mysql/components/services/defs/event_tracking_stored_program_defs.h>
 #include <mysql/components/services/defs/event_tracking_table_access_defs.h>
 
+#include <boost/date_time/c_time.hpp>
+
 #include <cassert>
 #include <chrono>
 #include <iomanip>
@@ -824,10 +826,16 @@ std::string LogRecordFormatterJson::make_timestamp(
         SysVars::get_debug_time_point_for_rotation());
   });
 
-  std::stringstream timestamp;
-  timestamp << std::put_time(std::localtime(&tp), "%F %T");
+  std::tm tm;
+  static constexpr std::size_t max_buffer_size{32};
+  std::string result(max_buffer_size, '\0');
 
-  return timestamp.str();
+  boost::date_time::c_time::localtime(&tp, &tm);
+  const std::size_t len =
+      std::strftime(result.data(), result.size(), "%F %T", &tm);
+  result.resize(len);
+
+  return result;
 }
 
 void LogRecordFormatterJson::apply_debug_info(

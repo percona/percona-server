@@ -80,6 +80,7 @@ class DataProvider {
   bool collect_product_version_info(rapidjson::Document *document);
   bool collect_plugins_info(rapidjson::Document *document);
   bool collect_components_info(rapidjson::Document *document);
+  bool collect_js_lang_component_info(rapidjson::Document *document);
   bool collect_uptime_info(rapidjson::Document *document);
   bool collect_dbs_number_info(rapidjson::Document *document);
   bool collect_dbs_size_info(rapidjson::Document *document);
@@ -104,6 +105,7 @@ class DataProvider {
 
   std::string database_instance_id_cache_;
   std::string version_cache_;
+  bool js_lang_component_present_;
 };
 
 #endif /* PERCONA_TELEMETRY_DATA_PROVIDER_H */

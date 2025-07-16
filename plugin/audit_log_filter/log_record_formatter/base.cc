@@ -17,6 +17,8 @@
 
 #include "plugin/audit_log_filter/sys_vars.h"
 
+#include <boost/date_time/c_time.hpp>
+
 #include <iomanip>
 #include <iostream>
 #include <unordered_map>
@@ -671,10 +673,16 @@ const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules()
 std::string LogRecordFormatterBaseXml::make_timestamp(
     const std::chrono::system_clock::time_point time_point) const noexcept {
   std::time_t t = std::chrono::system_clock::to_time_t(time_point);
-  std::stringstream timestamp;
-  timestamp << std::put_time(std::localtime(&t), "%FT%T");
+  std::tm tm;
+  static constexpr std::size_t max_buffer_size{32};
+  std::string result(max_buffer_size, '\0');
 
-  return timestamp.str();
+  boost::date_time::c_time::localtime(&t, &tm);
+  const std::size_t len =
+      std::strftime(result.data(), result.size(), "%FT%T", &tm);
+  result.resize(len);
+
+  return result;
 }
 
 }  // namespace audit_log_filter::log_record_formatter

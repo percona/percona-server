@@ -25,8 +25,6 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file")
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 MYSQL_ADD_PLUGIN(keyring_file
   buffer.cc
   buffered_file_io.cc
@@ -43,7 +41,7 @@ MYSQL_ADD_PLUGIN(keyring_file
   file_io.cc
   hash_to_buffer_serializer.cc
   keyring.cc
-  LINK_LIBRARIES ${SSL_LIBRARIES}
+  LINK_LIBRARIES OpenSSL::Crypto OpenSSL::SSL
   MODULE_ONLY
   MODULE_OUTPUT_NAME "keyring_file"
   )

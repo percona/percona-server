@@ -218,8 +218,6 @@ PROVIDES_SERVICE(component_keyring_kmip, keyring_aes),
     PROVIDES_SERVICE(component_keyring_kmip, log_builtins_string),
     END_COMPONENT_PROVIDES();
 
-PSI_memory_key KEY_mem_keyring_kmip;
-
 /** List of dependencies */
 BEGIN_COMPONENT_REQUIRES(component_keyring_kmip)
 REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),

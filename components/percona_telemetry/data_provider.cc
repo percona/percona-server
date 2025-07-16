@@ -45,6 +45,7 @@ inline bool is_value_safe_for_export(const std::string &value) {
 */
 constexpr const char default_command_user_name[] = "percona.telemetry";
 constexpr const char default_command_host_name[] = "localhost";
+constexpr const char js_lang_component_urn[] = "file://component_js_lang";
 
 namespace JSONKey {
 const char *pillar_version = "pillar_version";
@@ -65,6 +66,10 @@ const char *is_source = "is_source";
 const char *is_semisync_replica = "is_semisync_replica";
 const char *is_replica = "is_replica";
 const char *replication_info = "replication_info";
+const char *stored_program_call_count = "stored_program_call_count";
+const char *contexts_count = "contexts_count";
+const char *routines_cnt = "routines_cnt";
+const char *js_lang_component_info = "js_lang_component_info";
 const char *se_info = "se_info";
 const char *name = "name";
 const char *size = "size";
@@ -133,7 +138,8 @@ DataProvider::DataProvider(
       command_error_info_service_(command_error_info_service),
       command_thread_service_(command_thread_service),
       logger_(logger),
-      db_replication_id_solver_(std::make_shared<DbReplicationIdSolver>()) {}
+      db_replication_id_solver_(std::make_shared<DbReplicationIdSolver>()),
+      js_lang_component_present_(false) {}
 
 void DataProvider::thread_access_begin() { command_thread_service_.init(); }
 
@@ -234,7 +240,7 @@ err:
 const std::string &DataProvider::get_database_instance_id() {
   if (!database_instance_id_cache_.length()) {
     QueryResult result;
-    if (do_query("SELECT @@server_uuid", &result)) {
+    if (do_query("SELECT @@server_uuid", &result) || result.empty()) {
       static std::string empty;
       return empty;
     }
@@ -267,7 +273,8 @@ bool DataProvider::collect_product_version_info(rapidjson::Document *document) {
   // Version doesn't change during the lifetime, so query and cache it
   if (version_cache_.empty()) {
     QueryResult result;
-    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result)) {
+    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result) ||
+        result.empty()) {
       return true;
     }
 
@@ -321,19 +328,70 @@ bool DataProvider::collect_components_info(rapidjson::Document *document) {
 
   rapidjson::Value components(rapidjson::Type::kArrayType);
 
+  js_lang_component_present_ = false;
+
   for (auto &component_iter : result) {
     rapidjson::Value component_name;
     component_name.SetString(component_iter[0].c_str(), allocator);
     components.PushBack(component_name, allocator);
+
+    if (component_iter[0].compare(js_lang_component_urn) == 0) {
+      js_lang_component_present_ = true;
+    }
   }
   document->AddMember(rapidjson::StringRef(JSONKey::active_components),
                       components, allocator);
   return false;
 }
 
+bool DataProvider::collect_js_lang_component_info(
+    rapidjson::Document *document) {
+  if (!js_lang_component_present_) return false;
+
+  QueryResult result;
+  rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+  rapidjson::Document js_component_json(rapidjson::Type::kObjectType);
+
+  // Js_lang_stored_program_call_count
+  if (!do_query("SHOW GLOBAL STATUS LIKE 'Js_lang_stored_program_call_count'",
+                &result) &&
+      !result.empty()) {
+    rapidjson::Value call_cnt;
+    call_cnt.SetString(result[0][1].c_str(), allocator);
+    js_component_json.AddMember(
+        rapidjson::StringRef(JSONKey::stored_program_call_count), call_cnt,
+        allocator);
+  }
+
+  // Js_lang_contexts
+  if (!do_query("SHOW GLOBAL STATUS LIKE 'Js_lang_contexts'", &result) &&
+      !result.empty()) {
+    rapidjson::Value contexts_cnt;
+    contexts_cnt.SetString(result[0][1].c_str(), allocator);
+    js_component_json.AddMember(rapidjson::StringRef(JSONKey::contexts_count),
+                                contexts_cnt, allocator);
+  }
+
+  // number of JS routines
+  if (!do_query("SELECT COUNT(*) FROM information_schema.routines WHERE "
+                "external_language = 'JS'",
+                &result) &&
+      !result.empty()) {
+    rapidjson::Value routines_cnt;
+    routines_cnt.SetString(result[0][0].c_str(), allocator);
+    js_component_json.AddMember(rapidjson::StringRef(JSONKey::routines_cnt),
+                                routines_cnt, allocator);
+  }
+
+  document->AddMember(rapidjson::StringRef(JSONKey::js_lang_component_info),
+                      js_component_json, allocator);
+
+  return false;
+}
+
 bool DataProvider::collect_uptime_info(rapidjson::Document *document) {
   QueryResult result;
-  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result)) {
+  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result) || result.empty()) {
     return true;
   }
 
@@ -349,7 +407,8 @@ bool DataProvider::collect_dbs_number_info(rapidjson::Document *document) {
   if (do_query(
           "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME "
           "NOT IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-          &result)) {
+          &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -375,7 +434,8 @@ bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
   if (do_query("SELECT IFNULL(ROUND(SUM(data_length + index_length), 1), '0') "
                "bytes FROM information_schema.tables WHERE table_schema NOT "
                "IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-               &result)) {
+               &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -473,7 +533,7 @@ bool DataProvider::collect_group_replication_info(
     return false;
   }
 
-  if (result.size() > 0) {
+  if (!result.empty()) {
     // We've got some rows. Try to collect more details.
     rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
     rapidjson::Document gr_json(rapidjson::Type::kObjectType);
@@ -493,7 +553,8 @@ bool DataProvider::collect_group_replication_info(
     /* replication group size */
     if (!do_query(
             "SELECT COUNT(*) FROM performance_schema.replication_group_members",
-            &result)) {
+            &result) &&
+        !result.empty()) {
       rapidjson::Value group_size;
       group_size.SetString(result[0][0].c_str(), allocator);
       gr_json.AddMember(rapidjson::StringRef(JSONKey::group_size), group_size,
@@ -518,28 +579,30 @@ bool DataProvider::collect_async_replication_info(
   if (do_query("SHOW REPLICAS", &result)) {
     return true;
   }
-  is_source = result.size() > 0;
+  is_source = !result.empty();
 
   // If we are replica
   if (do_query("SHOW REPLICA STATUS", &result)) {
     return true;
   }
-  is_replica = result.size() > 0;
+  is_replica = !result.empty();
 
   // Name of the variable depends on what plugin was installed
   // If we are semisync source
-  if (!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
-                nullptr, true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_source = !result[0][0].compare("1");
     is_semisync_source &= is_source;
   }
   // If we are semisync replica
-  if (!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result, nullptr,
-                true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_replica = !result[0][0].compare("1");
     is_semisync_replica &= is_replica;
   }
@@ -744,6 +807,7 @@ bool DataProvider::collect_metrics(rapidjson::Document *document) {
   res |= collect_product_version_info(document);
   res |= collect_plugins_info(document);
   res |= collect_components_info(document);
+  res |= collect_js_lang_component_info(document);
   res |= collect_uptime_info(document);
   res |= collect_dbs_number_info(document);
   res |= collect_dbs_size_info(document);

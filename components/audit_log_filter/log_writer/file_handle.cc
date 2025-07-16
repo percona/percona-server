@@ -87,8 +87,11 @@ void FileHandle::write_file(const char *record, const size_t size) noexcept {
 
 uint64_t FileHandle::get_file_size() const noexcept {
   assert(m_file.is_open());
-  return std::filesystem::exists(m_path) ? std::filesystem::file_size(m_path)
-                                         : 0;
+  try {
+    return std::filesystem::file_size(m_path);
+  } catch (const std::filesystem::filesystem_error &) {
+    return 0;
+  }
 }
 
 std::filesystem::path FileHandle::get_file_path() const noexcept {

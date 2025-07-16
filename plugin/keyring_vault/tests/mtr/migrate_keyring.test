@@ -1,0 +1,232 @@
+--source include/have_keyring_vault_plugin.inc
+--source include/have_keyring_file_plugin.inc
+
+--disable_query_log
+call mtr.add_suppression("for being a mount point unsuccessful - skipped.");
+call mtr.add_suppression("for being a mount point successful - identified kv-v2 secret engine.");
+--enable_query_log
+
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+--source parse_combination.inc
+
+--echo *** Creating a Hashicorp Vault mount point
+--let $vault_conf_mount_point_suffix =
+--let $mount_point_service_op = CREATE
+--source mount_point_service.inc
+
+--echo *** Creating keyring_vault plugin config
+--let $vault_conf_file = $MYSQLTEST_VARDIR/keyring_vault.conf
+--let $vault_conf_mount_point_suffix =
+--source generate_conf_file.inc
+
+--echo *** Determining keyring plugin names
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--let $KEYRING_VAULT_PLUGIN_LIBRARY = `SELECT SUBSTRING_INDEX('$KEYRING_VAULT_PLUGIN_LOAD', '=', -1)`
+--let $KEYRING_VAULT_PLUGIN_NAME = `SELECT SUBSTRING_INDEX('$KEYRING_VAULT_PLUGIN_LIBRARY', '.', 1)`
+
+--let $KEYRING_FILE_PLUGIN_LIBRARY = `SELECT SUBSTRING_INDEX('$KEYRING_PLUGIN_LOAD', '=', -1)`
+--let $KEYRING_FILE_PLUGIN_NAME = `SELECT SUBSTRING_INDEX('$KEYRING_FILE_PLUGIN_LIBRARY', '.', 1)`
+
+--echo *** Restarting the server with keyring_vault plugin enabled
+--let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring-vault-config=$vault_conf_file
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+--echo *** Asserting that keyring_vault plugin is installed and active
+--assert (`SELECT PLUGIN_STATUS = 'ACTIVE' FROM information_schema.plugins WHERE PLUGIN_NAME = '$KEYRING_VAULT_PLUGIN_NAME'`)
+
+--echo *** Creating an encrypted table and filling it with some data
+CREATE TABLE t1(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY(id)
+) ENCRYPTION="Y" ENGINE=InnoDB;
+INSERT INTO t1 VALUES(DEFAULT);
+--let $t1_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+
+--echo *** Extracting InnoDB master key name
+SELECT KEY_ID INTO @t1_key_id FROM performance_schema.keyring_keys;
+--let $stored_t1_key_id = `SELECT @t1_key_id`
+
+--echo *** Rotating InnoDB master key
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--echo *** Creating another enrypted table and filling it with some data
+CREATE TABLE t2(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY(id)
+) ENCRYPTION="Y" ENGINE=InnoDB;
+INSERT INTO t2 VALUES(42);
+--let $t2_checksum = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+
+--echo *** Extracting InnoDB master key name after rotation
+SELECT KEY_ID INTO @t2_key_id FROM performance_schema.keyring_keys WHERE KEY_ID != @t1_key_id;
+--let $stored_t2_key_id = `SELECT @t2_key_id`
+
+--echo *** Installing keyring UDF plugin
+--disable_query_log
+eval INSTALL PLUGIN keyring_udf SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_generate RETURNS INTEGER SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_type_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_length_fetch RETURNS INTEGER SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+--enable_query_log
+
+--echo *** Manually generating a AES key in the keyring plugin via keyring_key_generate() UDF
+--let $stored_custom_key_id = CustomKey
+--let $stored_custom_key_type = AES
+--let $stored_custom_key_length = 32
+eval SELECT keyring_key_generate ('$stored_custom_key_id', '$stored_custom_key_type', $stored_custom_key_length);
+
+--echo *** Extracting custom key name
+SELECT KEY_ID INTO @custom_key_id FROM performance_schema.keyring_keys WHERE KEY_ID != @t1_key_id AND KEY_ID != @t2_key_id;
+--assert (`SELECT @custom_key_id = '$stored_custom_key_id'`)
+--assert (`SELECT keyring_key_type_fetch(@custom_key_id) = '$stored_custom_key_type'`)
+--assert (`SELECT keyring_key_length_fetch(@custom_key_id) = '$stored_custom_key_length'`)
+--let $stored_custom_key_data_hex = `SELECT HEX(keyring_key_fetch(@custom_key_id))`
+
+--echo *** Uninstalling keyring UDF plugin
+--disable_query_log
+DROP FUNCTION keyring_key_fetch;
+DROP FUNCTION keyring_key_length_fetch;
+DROP FUNCTION keyring_key_type_fetch;
+DROP FUNCTION keyring_key_generate;
+UNINSTALL PLUGIN keyring_udf;
+--enable_query_log
+
+--echo
+--echo **********************************************************************
+--echo *** Checking keyring_vault plugin -> keyring_file plugin migration ***
+--echo **********************************************************************
+--echo
+
+--echo *** Stopping the server (original, with keyring_vault plugin)
+--source include/stop_mysqld.inc
+
+--echo *** Executing keyring data migration via mysqld (keyring_vault plugin -> keyring_file plugin)
+--let $KEYRING_FILE_PLUGIN_DATA_FILE_PATH = $MYSQLTEST_VARDIR/keyring_file_plugin
+--exec $MYSQLD --no-defaults $KEYRING_VAULT_PLUGIN_OPT --keyring-migration-source=$KEYRING_VAULT_PLUGIN_LIBRARY --loose-keyring-vault-config=$vault_conf_file --keyring-migration-destination=$KEYRING_FILE_PLUGIN_LIBRARY --loose-keyring-file-data=$KEYRING_FILE_PLUGIN_DATA_FILE_PATH >/dev/null 2>&1
+
+--echo *** Deleting the Hashicorp Vault mount point created previously
+--let $mount_point_service_op = DELETE
+--source mount_point_service.inc
+
+--echo *** Starting the server (with keyring_file plugin)
+--let $restart_parameters = restart: $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD --loose-keyring-file-data=$KEYRING_FILE_PLUGIN_DATA_FILE_PATH
+--let $do_not_echo_parameters = 1
+--source include/start_mysqld.inc
+
+--echo *** Asserting that keyring_file plugin is installed and active
+--assert (`SELECT PLUGIN_STATUS = 'ACTIVE' FROM information_schema.plugins WHERE PLUGIN_NAME = '$KEYRING_FILE_PLUGIN_NAME'`)
+
+--echo *** Installing keyring UDF plugin once again after keyring plugin switch
+--disable_query_log
+eval INSTALL PLUGIN keyring_udf SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_type_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_length_fetch RETURNS INTEGER SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+--enable_query_log
+
+--echo *** Asserting that keys stored in keyring_vault plugin successfully migrated to keyring_file plugin
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_t1_key_id'`)
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_t2_key_id'`)
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_custom_key_id'`)
+
+--assert (`SELECT keyring_key_type_fetch('$stored_custom_key_id') = '$stored_custom_key_type'`)
+--assert (`SELECT keyring_key_length_fetch('$stored_custom_key_id') = '$stored_custom_key_length'`)
+--assert (`SELECT HEX(keyring_key_fetch('$stored_custom_key_id')) = '$stored_custom_key_data_hex'`)
+
+--echo *** Uninstalling keyring UDF plugin once again after keyring plugin switch
+--disable_query_log
+DROP FUNCTION keyring_key_fetch;
+DROP FUNCTION keyring_key_length_fetch;
+DROP FUNCTION keyring_key_type_fetch;
+UNINSTALL PLUGIN keyring_udf;
+--enable_query_log
+
+--echo *** Asserting that data can be read from the sample tables
+--let $t1_checksum_after_switch = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--assert (`SELECT $t1_checksum_after_switch = $t1_checksum`)
+--let $t2_checksum_after_switch = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+--assert (`SELECT $t2_checksum_after_switch = $t2_checksum`)
+
+--echo *** Generating an UUID for another Hashicorp Vault mount point (for importing)
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+
+
+--echo
+--echo **********************************************************************
+--echo *** Checking keyring_file plugin -> keyring_vault plugin migration ***
+--echo **********************************************************************
+--echo
+
+--echo *** Stopping the server (with keyring_file plugin)
+--source include/stop_mysqld.inc
+
+--echo *** Creating a Hashicorp Vault mount point with another UUID
+--let $vault_conf_mount_point_suffix =
+--let $mount_point_service_op = CREATE
+--source mount_point_service.inc
+
+--echo *** Re-generating keyring_vault plugin configuration file content after mount point UUID update
+--source generate_conf_file.inc
+
+--echo *** Executing keyring data migration via mysqld (keyring_file plugin -> keyring_vault plugin)
+--exec $MYSQLD --no-defaults $KEYRING_PLUGIN_OPT --keyring-migration-source=$KEYRING_FILE_PLUGIN_LIBRARY --loose-keyring-file-data=$KEYRING_FILE_PLUGIN_DATA_FILE_PATH --keyring-migration-destination=$KEYRING_VAULT_PLUGIN_LIBRARY --loose-keyring-vault-config=$vault_conf_file >/dev/null 2>&1
+
+--echo *** Removing keyring_file plugin data file
+--remove_file $KEYRING_FILE_PLUGIN_DATA_FILE_PATH
+
+--echo *** Starting the server (with keyring_vault plugin)
+--let $restart_parameters = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --loose-keyring-vault-config=$vault_conf_file
+--let $do_not_echo_parameters = 1
+--source include/start_mysqld.inc
+
+--echo *** Asserting that keyring_vault plugin is installed and active again
+--assert (`SELECT PLUGIN_STATUS = 'ACTIVE' FROM information_schema.plugins WHERE PLUGIN_NAME = '$KEYRING_VAULT_PLUGIN_NAME'`)
+
+--echo *** Installing keyring UDF plugin once again after keyring plugin switch back
+--disable_query_log
+eval INSTALL PLUGIN keyring_udf SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_type_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_length_fetch RETURNS INTEGER SONAME '$KEYRING_UDF';
+eval CREATE FUNCTION keyring_key_fetch RETURNS STRING SONAME '$KEYRING_UDF';
+--enable_query_log
+
+--echo *** Asserting that keys stored in keyring_file plugin successfully migrated to keyring_vault_plugin
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_t1_key_id'`)
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_t2_key_id'`)
+--assert (`SELECT COUNT(*) = 1 FROM performance_schema.keyring_keys WHERE KEY_ID = '$stored_custom_key_id'`)
+
+--assert (`SELECT keyring_key_type_fetch('$stored_custom_key_id') = '$stored_custom_key_type'`)
+--assert (`SELECT keyring_key_length_fetch('$stored_custom_key_id') = '$stored_custom_key_length'`)
+--assert (`SELECT HEX(keyring_key_fetch('$stored_custom_key_id')) = '$stored_custom_key_data_hex'`)
+
+--echo *** Uninstalling keyring UDF plugin once again after keyring plugin switch back
+--disable_query_log
+DROP FUNCTION keyring_key_fetch;
+DROP FUNCTION keyring_key_length_fetch;
+DROP FUNCTION keyring_key_type_fetch;
+UNINSTALL PLUGIN keyring_udf;
+--enable_query_log
+
+--echo *** Asserting that data can be read from the sample tables
+--let $t1_checksum_after_switch = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--assert (`SELECT $t1_checksum_after_switch = $t1_checksum`)
+--let $t2_checksum_after_switch = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+--assert (`SELECT $t2_checksum_after_switch = $t2_checksum`)
+
+--echo *** Dropping the sample tables
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo *** Restarting the server with no keyring enableds
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+--echo *** Deleting the Hashicorp Vault mount point re-created previously
+--let $mount_point_service_op = DELETE
+--source mount_point_service.inc
+
+--echo *** Deleting keyring_vault plugin config
+--remove_file $MYSQLTEST_VARDIR/keyring_vault.conf

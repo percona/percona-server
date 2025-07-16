@@ -25,7 +25,6 @@
 #include <memory>
 
 #include "backend.h"
-#include "my_dbug.h"
 
 #include <mysql/components/minimal_chassis.h>
 
@@ -47,7 +46,6 @@ using keyring_common::utils::get_random_data;
 
 Keyring_kmip_backend::Keyring_kmip_backend(config::Config_pod const &config)
     : valid_(false), config_(config) {
-  DBUG_TRACE;
   valid_ = true;
 }
 
@@ -55,7 +53,6 @@ bool Keyring_kmip_backend::load_cache(
     keyring_common::operations::Keyring_operations<
         Keyring_kmip_backend, keyring_common::data::Data_extension<IdExt>>
         &operations) {
-  DBUG_TRACE;
   // We have to load keys and secrets with state==ACTIVE only
   //TODO: implement better logic with the new KMIP library
   try {
@@ -126,9 +123,16 @@ bool Keyring_kmip_backend::load_cache(
         return true;
       }
     }
-
+  } catch (const std::exception &e) {
+    std::string err_msg = std::string("std exception in function '") +
+                          __func__ + "': " + e.what();
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    return true;
   } catch (...) {
-    mysql_components_handle_std_exception(__func__);
+    std::string err_msg =
+        std::string("Unknown exception in function '") + __func__ + '\'';
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    return true;
   }
 
   return false;
@@ -137,13 +141,11 @@ bool Keyring_kmip_backend::load_cache(
 bool Keyring_kmip_backend::get(const Metadata &, Data &) const {
   /* Shouldn't have reached here if we cache things. */
   assert(0);
-  DBUG_TRACE;
   return false;
 }
 
 bool Keyring_kmip_backend::store(const Metadata &metadata,
                                  Data_extension<IdExt> &data) {
-  DBUG_TRACE;
   if (!metadata.valid() || !data.valid()) return true;
   kmippp::context::id_t id;
   try {
@@ -184,8 +186,15 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
       return true;
     }
     data.set_extension({id});
+  } catch (const std::exception &e) {
+    std::string err_msg = std::string("std exception in function '") +
+                          __func__ + "': " + e.what();
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    return true;
   } catch (...) {
-    mysql_components_handle_std_exception(__func__);
+    std::string err_msg =
+        std::string("Unknown exception in function '") + __func__ + '\'';
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
     return true;
   }
   return false;
@@ -204,15 +213,21 @@ size_t Keyring_kmip_backend::size() const {
     return keys.size() + secrets.size();
     //we may have deactivated keys counted, so we need to count active keys only
     //TODO: implement better logic with the new KMIP library
+  } catch (const std::exception &e) {
+    std::string err_msg = std::string("std exception in function '") +
+                          __func__ + "': " + e.what();
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
+    return 0;
   } catch (...) {
-    mysql_components_handle_std_exception(__func__);
+    std::string err_msg =
+        std::string("Unknown exception in function '") + __func__ + '\'';
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
     return 0;
   }
 }
 
 bool Keyring_kmip_backend::erase(const Metadata &metadata,
                                  Data_extension<IdExt> &data) {
-  DBUG_TRACE;
   if (!metadata.valid()) return true;
 
   auto ctx = kmip_ctx();
@@ -238,7 +253,6 @@ bool Keyring_kmip_backend::erase(const Metadata &metadata,
 bool Keyring_kmip_backend::generate(const Metadata &metadata,
                                     Data_extension<IdExt> &data,
                                     size_t length) {
-  DBUG_TRACE;
   if (!metadata.valid()) return true;
 
   std::unique_ptr<unsigned char[]> key(new unsigned char[length]);

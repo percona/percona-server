@@ -264,6 +264,14 @@ class LogRecordFormatterBase {
    * @brief Apply escaping rules to provided string.
    *
    * @param in String to be escaped
+   * @return Escaped string (an empty string if 'in' is nullptr)
+   */
+  [[nodiscard]] std::string make_escaped_string(const char *in) const noexcept;
+
+  /**
+   * @brief Apply escaping rules to provided string.
+   *
+   * @param in String to be escaped
    * @return Escaped string
    */
   [[nodiscard]] std::string make_escaped_string(

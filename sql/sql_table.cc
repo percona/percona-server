@@ -14759,6 +14759,9 @@ static bool mysql_inplace_alter_table(
     close_all_tables_for_name(thd, table->s, false, nullptr);
     table_list->table = table = nullptr;
     reopen_tables = true;
+
+    DEBUG_SYNC(thd, "alter_before_close_temp_tables");
+
     close_temporary_table(thd, altered_table, true, false);
     rollback_needs_dict_cache_reset = true;
 

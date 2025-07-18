@@ -1,0 +1,37 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $create_table_query=create table b(id int primary key) PARTITION BY HASH(id) PARTITIONS 8
+--let $alter_table_query=alter table b rebuild partition p0,p1,p2,p3
+--let $drop_table_query=drop table b
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=create table t1(id int primary key)
+--let $alter_table_query=optimize table t1
+--let $drop_table_query=drop table t1
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=create table t1(id int primary key,b INT)
+--let $alter_table_query=alter table t1 add index k1(b)
+--let $drop_table_query=drop table t1
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=create table t1(id int primary key,b INT)
+--let $alter_table_query=alter table t1 add column c INT
+--let $drop_table_query=drop table t1
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=create table t1(partition_id tinyint NOT NULL , cal_date date NOT NULL, value CHAR(100), PRIMARY KEY(partition_id, cal_date)) ENGINE=InnoDB PARTITION BY LIST COLUMNS(partition_id, cal_date) (PARTITION p0 VALUES IN ((0,'2024-06-01'), (0, '2024-07-01')) ENGINE=InnoDB, PARTITION p1 VALUES IN ((1, '2024-08-01'),(1, '2024-09-01')) ENGINE=InnoDB)
+--let $alter_table_query= ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES IN ((3, '2024-10-01')))
+--let $drop_table_query=DROP TABLE t1
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=create table t1(partition_id tinyint NOT NULL , cal_date date NOT NULL, value CHAR(100), PRIMARY KEY(partition_id, cal_date)) ENGINE=InnoDB PARTITION BY LIST COLUMNS(partition_id, cal_date) (PARTITION p0 VALUES IN ((0,'2024-06-01'), (0, '2024-07-01')) ENGINE=InnoDB, PARTITION p1 VALUES IN ((1, '2024-08-01'),(1, '2024-09-01')) ENGINE=InnoDB)
+--let $alter_table_query= ALTER TABLE t1 DROP PARTITION p0
+--let $drop_table_query=DROP TABLE t1
+--source ../include/global_temp_table_alter.inc
+
+--let $create_table_query=CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255), body TEXT) ENGINE=InnoDB
+--let $alter_table_query=ALTER TABLE t1 ADD FULLTEXT(title, body)
+--let $drop_table_query=DROP TABLE t1
+--source ../include/global_temp_table_alter.inc

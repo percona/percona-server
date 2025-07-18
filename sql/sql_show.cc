@@ -5001,12 +5001,13 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
 
   /* We have only one handler object for a temp table globally and it might
   be in use by other thread.  Do not trash it by invoking handler methods on
-  it but rather clone it. */
-  if (file) {
+  it but rather clone it. if db_stat is 0, the table is not opened in SE,
+  do not clone it */
+  if (file && tmp_table->db_stat != 0) {
     file = file->clone(tmp_table->s->normalized_path.str, mem_root);
   }
 
-  if (file) {
+  if (file && tmp_table->db_stat != 0) {
     MYSQL_TIME time;
 
     /**

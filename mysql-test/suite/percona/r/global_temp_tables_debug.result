@@ -1,0 +1,68 @@
+create table b(id int primary key) PARTITION BY HASH(id) PARTITIONS 8;
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+alter table b rebuild partition p0,p1,p2,p3;
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+drop table b;
+create table t1(id int primary key);
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+optimize table t1;
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+drop table t1;
+create table t1(id int primary key,b INT);
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+alter table t1 add index k1(b);
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+drop table t1;
+create table t1(id int primary key,b INT);
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+alter table t1 add column c INT;
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+drop table t1;
+create table t1(partition_id tinyint NOT NULL , cal_date date NOT NULL, value CHAR(100), PRIMARY KEY(partition_id, cal_date)) ENGINE=InnoDB PARTITION BY LIST COLUMNS(partition_id, cal_date) (PARTITION p0 VALUES IN ((0,'2024-06-01'), (0, '2024-07-01')) ENGINE=InnoDB, PARTITION p1 VALUES IN ((1, '2024-08-01'),(1, '2024-09-01')) ENGINE=InnoDB);
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES IN ((3, '2024-10-01')));
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+DROP TABLE t1;
+create table t1(partition_id tinyint NOT NULL , cal_date date NOT NULL, value CHAR(100), PRIMARY KEY(partition_id, cal_date)) ENGINE=InnoDB PARTITION BY LIST COLUMNS(partition_id, cal_date) (PARTITION p0 VALUES IN ((0,'2024-06-01'), (0, '2024-07-01')) ENGINE=InnoDB, PARTITION p1 VALUES IN ((1, '2024-08-01'),(1, '2024-09-01')) ENGINE=InnoDB);
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+ALTER TABLE t1 DROP PARTITION p0;
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+DROP TABLE t1;
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255), body TEXT) ENGINE=InnoDB;
+SET DEBUG_SYNC="alter_before_close_temp_tables SIGNAL enter_alter_table_before_close_temp_tables WAIT_FOR continue_commit_alter_ddl";
+ALTER TABLE t1 ADD FULLTEXT(title, body);
+SET DEBUG_SYNC="now WAIT_FOR enter_alter_table_before_close_temp_tables";
+SELECT * FROM information_schema.global_temporary_tables;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+SESSION_ID	test	TABLE_NAME	InnoDB	NAME	0	0	0	0	NULL	NULL
+SET DEBUG_SYNC="now SIGNAL continue_commit_alter_ddl";
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+DROP TABLE t1;

@@ -240,5 +240,17 @@ enum_server_command get_server_command(const char *server_command) {
 const char *get_sql_command_string(enum_sql_command sql_command) {
   static_assert(((size_t)(SQLCOM_END - SQLCOM_SELECT)) ==
                 (sizeof(Command_maps::sql_commands) / sizeof(char *)));
-  return Command_maps::sql_commands[sql_command];
+  /* As this function is called with the 'sql_command' extracted from the
+     THD's 'lex' subobject ('thd->lex->sql_command'), in some cases (for
+     instance, when one of the group replication threads changes the value
+     of the 'read_only' / 'super_read_only' system variables) the THD object
+     associated with the current thread is not a real one fully initialized
+     by the connection handler and may have 'lex' subobject initialized with
+     default values where 'lex->sql_command' will be 'SQLCOM_END'. In other
+     words, 'SQLCOM_END' is a valid value for this function and we should
+     handle this case properly.
+  */
+  assert(sql_command <= SQLCOM_END);
+  return sql_command < SQLCOM_END ? Command_maps::sql_commands[sql_command]
+                                  : "<unknown>";
 }

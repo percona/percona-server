@@ -1,0 +1,38 @@
+--source include/have_group_replication_plugin.inc
+--source include/have_component_audit_log.inc
+
+--let $rpl_skip_group_replication_start = 1
+--let $rpl_server_count = 2
+--let $rpl_group_replication_single_primary_mode = 1
+--source include/group_replication.inc
+
+SET sql_log_bin = 0;
+--source suite/component_audit_log_filter/inc/audit_tables_init.inc
+--source suite/component_audit_log_filter/inc/audit_comp_install.inc
+SET sql_log_bin = 1;
+
+--echo
+--echo # Starting GR on server1
+--echo
+# Boostrap start GR on server1 (Primary)
+--let $rpl_connection_name = server1
+--source include/connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # Starting GR on server2
+--echo
+# Start GR on server2 (Secondary)
+--let $rpl_connection_name = server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+--source include/group_replication_end.inc
+
+# restart is needed to be able to uninstall the audit_log_filter component
+--source include/restart_mysqld.inc
+
+SET sql_log_bin = 0;
+--source suite/component_audit_log_filter/inc/audit_comp_uninstall.inc
+--source suite/component_audit_log_filter/inc/audit_tables_cleanup.inc
+SET sql_log_bin = 1;

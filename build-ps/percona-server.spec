@@ -107,7 +107,7 @@
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
 %endif
 
 %if 0%{?rhel} == 6
@@ -115,7 +115,7 @@
 %global compatver             5.1.73
 %global percona_compatver     14.12
 %global compatlib             16
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch
@@ -147,7 +147,7 @@ Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
 License:        Copyright (c) 2000, %{build_timestamp}, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
-Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
+Source0:        http://downloads.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}

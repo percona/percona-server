@@ -432,11 +432,6 @@ install_deps() {
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        if [ "x${RHEL}" = "x7" ]; then
-            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-Base.repo
-            sed -i 's|^#baseurl=|baseurl=|g' /etc/yum.repos.d/CentOS-Base.repo
-            sed -i 's|mirror.centos.org|vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
-        fi
         if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi

@@ -106,7 +106,7 @@
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
+%global compatsrc             https://download.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
 %endif
 
 %if 0%{?rhel} == 6

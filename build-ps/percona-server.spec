@@ -107,7 +107,7 @@
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
-%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
+%global compatsrc             https://download.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
 %endif
 
 %if 0%{?rhel} == 6
@@ -115,7 +115,7 @@
 %global compatver             5.1.73
 %global percona_compatver     14.12
 %global compatlib             16
-%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
+%global compatsrc             https://download.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch

@@ -435,6 +435,11 @@ install_deps() {
         if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
+        if [ "x${RHEL}" = "x7" ]; then
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-Base.repo
+            sed -i 's|^#baseurl=|baseurl=|g' /etc/yum.repos.d/CentOS-Base.repo
+            sed -i 's|mirror.centos.org|vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
+        fi
         if [ x"$ARCH" = "xx86_64" ]; then
             if [ "${RHEL}" -lt 8 ]; then
                 # add_percona_yum_repo
@@ -1120,25 +1125,25 @@ OS=
 TOKUBACKUP_REPO=
 PERCONAFT_REPO=
 INSTALL=0
-RPM_RELEASE=1
-DEB_RELEASE=1
+RPM_RELEASE=2
+DEB_RELEASE=2
 DEBUG=0
 REVISION=0
-BRANCH="release-8.0.30-22"
-RPM_RELEASE=1
-DEB_RELEASE=1
+BRANCH="CUSTOM-220"
+RPM_RELEASE=2
+DEB_RELEASE=2
 MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
 REPO="https://github.com/percona/percona-server.git"
 PRODUCT=Percona-Server-8.0
 MYSQL_VERSION_MAJOR=8
 MYSQL_VERSION_MINOR=0
-MYSQL_VERSION_PATCH=30
-MYSQL_VERSION_EXTRA=-22
-PRODUCT_FULL=Percona-Server-8.0.30
+MYSQL_VERSION_PATCH=42
+MYSQL_VERSION_EXTRA=-33
+PRODUCT_FULL=Percona-Server-8.0.42
 BOOST_PACKAGE_NAME=boost_1_77_0
 BUILD_TOKUDB_TOKUBACKUP=0
-PERCONAFT_BRANCH=Percona-Server-8.0.30-22
-TOKUBACKUP_BRANCH=Percona-Server-8.0.30-22
+PERCONAFT_BRANCH=Percona-Server-8.0.42-33
+TOKUBACKUP_BRANCH=Percona-Server-8.0.42-33
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 check_workdir

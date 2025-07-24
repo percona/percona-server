@@ -34,10 +34,17 @@
 #include <cstdint>      // std::uint32_t
 #include <limits>       // std::numeric_limits
 #include <type_traits>  // std::is_convertible
+#include <cstring>      // memcpy
 
-#include <zlib.h>  // crc32_z
+#include <zlib.h>  // crc32 or crc32_z
 
-#include "my_compiler.h"  // My_ATTRIBUTE
+#if ZLIB_VERNUM >= 0x1290
+  #define MY_CRC32(crc, buf, len) crc32_z(crc, buf, len)
+#else
+  #define MY_CRC32(crc, buf, len) crc32(crc, buf, len)
+#endif
+
+#include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_config.h"
 
 #ifdef HAVE_ARMV8_CRC32_INTRINSIC
@@ -77,7 +84,7 @@ inline std::uint32_t IntegerCrc32(std::uint32_t crc, I i) {
   unsigned char buf[sizeof(I)];
   memcpy(buf, &i, sizeof(I));
   crc = ~crc;
-  crc = crc32_z(crc, buf, sizeof(I));
+  crc = MY_CRC32(crc, buf, sizeof(I));
   return ~crc;
 }
 
@@ -122,7 +129,7 @@ inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
 #endif  // HAVE_ARMV8_CRC32_INTRINSIC
   static_assert(std::is_convertible<uLong, ha_checksum>::value,
                 "uLong cannot be converted to ha_checksum");
-  assert(crc32_z(crc, pos, length) <= std::numeric_limits<ha_checksum>::max());
-  return crc32_z(crc, pos, length);
+  assert(MY_CRC32(crc, pos, length) <= std::numeric_limits<ha_checksum>::max());
+  return MY_CRC32(crc, pos, length);
 }
-#endif /* not defined(MY_CEHCKSUM_INCLUDED) */
+#endif /* MY_CHECKSUM_INCLUDED */

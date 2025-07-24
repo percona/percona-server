@@ -20,6 +20,18 @@
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/rsa.h>  // Needed for EVP_PKEY_get0_RSA
+
+#ifndef EVP_PKEY_get0_RSA
+extern "C" {
+static inline const RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
+    if (!pkey || EVP_PKEY_base_id(pkey) != EVP_PKEY_RSA)
+        return nullptr;
+    return pkey->pkey.rsa;
+}
+}
+#endif
+
 
 #include <opensslpp/evp_pkey.hpp>
 
@@ -81,16 +93,12 @@ void evp_pkey::evp_pkey_deleter::operator()(void *evp_pkey) const noexcept {
 evp_pkey::evp_pkey(const evp_pkey &obj) : impl_{} {
   if (!obj.is_empty()) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    // due to a bug in openssl interface, EVP_PKEY_dup() expects
-    // non-const parameter while it does not do any modifications with the
-    // object - it just performs duplication via ASN1_item_i2d/ASN1_item_d2i
-    // conversions
-    impl_.reset(EVP_PKEY_dup(evp_pkey_accessor::get_impl_const_casted(obj)));
-    if (!impl_) {
-      throw core_error{"cannot duplicate EVP_PKEY key"};
-    }
+  impl_.reset(EVP_PKEY_dup(evp_pkey_accessor::get_impl_const_casted(obj)));
+  if (!impl_) {
+    throw core_error{"cannot duplicate EVP_PKEY key"};
+  }
 #else
-    duplicate_evp_pkey(*this, obj, !obj.is_private());
+  duplicate_evp_pkey(*this, obj, !obj.is_private());
 #endif
   }
 }
@@ -105,14 +113,14 @@ void evp_pkey::swap(evp_pkey &obj) noexcept { impl_.swap(obj.impl_); }
 
 evp_pkey_algorithm evp_pkey::get_algorithm() const noexcept {
   assert(!is_empty());
-  auto native_algorithm{EVP_PKEY_base_id(evp_pkey_accessor::get_impl(*this))};
+  auto native_algorithm{EVP_PKEY_base_id(
+      const_cast<EVP_PKEY *>(evp_pkey_accessor::get_impl(*this)))};
   return native_algorithm_to_evp_pkey_algorithm(native_algorithm);
 }
 
 bool evp_pkey::is_private() const noexcept {
   assert(!is_empty());
 
-  // TODO: implement checks for other algorithms
   const auto *native_rsa{
       EVP_PKEY_get0_RSA(evp_pkey_accessor::get_impl_const_casted(*this))};
   assert(native_rsa != nullptr);
@@ -125,12 +133,12 @@ bool evp_pkey::is_private() const noexcept {
 
 std::size_t evp_pkey::get_size_in_bits() const noexcept {
   assert(!is_empty());
-  return EVP_PKEY_bits(evp_pkey_accessor::get_impl(*this));
+  return EVP_PKEY_bits(const_cast<EVP_PKEY *>(evp_pkey_accessor::get_impl(*this)));
 }
 
 std::size_t evp_pkey::get_size_in_bytes() const noexcept {
   assert(!is_empty());
-  return EVP_PKEY_size(evp_pkey_accessor::get_impl(*this));
+  return EVP_PKEY_size(const_cast<EVP_PKEY *>(evp_pkey_accessor::get_impl(*this)));
 }
 
 evp_pkey evp_pkey::derive_public_key() const {
@@ -160,7 +168,6 @@ class evp_pkey_keygen_ctx {
   }
 
   evp_pkey generate(std::size_t bits) {
-    // TODO: implement setting bit length for other algorithms
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(impl_.get(), bits) <= 0) {
       throw core_error{"cannot set EVP_PKEY context key generation parameters"};
     }

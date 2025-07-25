@@ -551,7 +551,7 @@ void ReplSemiSyncSource::remove_replica() {
         if (commit_file_name_inited_ && reply_file_name_inited_) {
           int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
                                          commit_file_name_, commit_file_pos_);
-          if (cmp < 0) LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
+          if (cmp < 0) LogErr(ERROR_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         }
       }
       switch_off();
@@ -773,7 +773,7 @@ int ReplSemiSyncSource::commitTrx(const char *trx_wait_binlog_name,
           (rpl_semi_sync_source_clients ==
            rpl_semi_sync_source_wait_for_replica_count - 1) &&
           is_on()) {
-        LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
+        LogErr(ERROR_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         switch_off();
         break;
       }

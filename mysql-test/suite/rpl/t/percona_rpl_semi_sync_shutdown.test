@@ -1,0 +1,102 @@
+--echo #
+--echo # PS-9916 : If a source waiting for ACKs is stopped, it should log an ERROR message
+--echo #
+source include/have_semisync_plugin.inc;
+# Test is independent of Binlog format. One of the three formats is enough
+# for testing. Choosing 'Row' format.
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+
+--let $rpl_topology= 1->2,1->3
+--disable_warnings
+--source include/rpl/init.inc
+--enable_warnings
+
+connect (master_conn2, 127.0.0.1,root,,test,$SERVER_MYPORT_1,);
+connect (master_conn3, 127.0.0.1,root,,test,$SERVER_MYPORT_1,);
+
+--connection server_1
+--source include/rpl/install_semisync_source.inc
+SET GLOBAL rpl_semi_sync_source_timeout=1000000000;
+
+--connection server_2
+--source include/rpl/install_semisync_replica.inc
+
+--connection server_3
+--source include/rpl/install_semisync_replica.inc
+
+--connection server_1
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
+CALL mtr.add_suppression("\\[ERROR\\] \\[MY-011145\\] \\[Repl\\] SEMISYNC: Forced shutdown. Some updates might not be replicated.");
+create table t1(a INT);
+
+--connection server_2
+STOP REPLICA IO_THREAD;
+
+--connection server_3
+STOP REPLICA IO_THREAD;
+
+--echo connection to server after slaves stopped
+--connection master_conn2
+--let $con2_id=`SELECT connection_id()`
+--send insert into t1 values(1)
+
+--echo connection3 to server after slaves stopped
+--connection master_conn3
+--let $wait_timeout= 90
+--let $wait_condition= select STATE="Waiting for semi-sync ACK from replica" FROM information_schema.processlist where id=$con2_id;
+--source include/wait_condition.inc
+--let $con3_id=`SELECT connection_id()`
+--send insert into t1 values(2)
+
+--connection default
+--let $wait_condition= select STATE="waiting for handler commit" FROM information_schema.processlist where id=$con3_id;
+--source include/wait_condition.inc
+
+--echo shutdown master
+--let $rpl_server_number= 1
+--source include/rpl/stop_server.inc
+
+--echo grep for the ERROR message
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=\[ERROR\] \[MY-011145\] \[Repl\] SEMISYNC: Forced shutdown. Some updates might not be replicated
+--source include/search_pattern.inc
+
+--echo start the master server
+--source include/rpl/start_server.inc
+
+--connection server_2
+START REPLICA IO_THREAD;
+
+--connection server_3
+START REPLICA IO_THREAD;
+
+#
+# Clean up
+#
+#
+--connection server_1
+DROP TABLE t1;
+--let $i = 3
+while ($i >= 1)
+{
+  --let $rpl_connection_name= server_$i
+
+  if ( $i == 1)
+  {
+   --source include/connection.inc
+   --source include/rpl/uninstall_semisync_source.inc
+  }
+  if ($i != 1)
+  {
+    --source include/connection.inc
+    --source include/rpl/uninstall_semisync_replica.inc
+  }
+
+  --dec $i
+}
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--source include/rpl/deinit.inc
+

@@ -31,5 +31,5 @@ begin;
 update t1 set col2=123456 where pk=0;
 commit;
 update t1 set col2=col2+1 where col1 < 10 limit 5;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set col2=col2+1 where col1 < 10 limit 5
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction (snapshot conflict)
 drop table t1, ten, one_k;

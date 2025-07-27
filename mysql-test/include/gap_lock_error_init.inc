@@ -1,3 +1,18 @@
+# ==== Usage ====
+#
+# [--let $warning_or_error= WARNING | ERROR ]
+# --source include/assert_no_warnings.inc
+#
+# Parameters:
+#
+#   $warning_or_error
+#     Whether we are expected to raise warning or error.
+#
+
+--disable_warnings
+drop table if exists gap1,gap2,gap3;
+--enable_warnings
+
 eval CREATE TABLE gap1 (id1 INT, id2 INT, id3 INT, c1 INT, value INT,
                       PRIMARY KEY (id1, id2, id3),
                       INDEX i (c1)) ENGINE=$engine;
@@ -23,6 +38,19 @@ while ($i <= $max) {
 --enable_query_log
 
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
+
 if (!$gap_lock_error_skip_partitioning) {
   insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
 }
+
+eval CREATE TABLE gap5 (
+  pk int primary key,
+  a int,
+  b int,
+  key(a)
+) ENGINE=$engine;
+insert into gap5 values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+create table gap6 like gap5;
+insert into gap6 values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+
+eval set session gap_lock_raise_error= $warning_or_error;

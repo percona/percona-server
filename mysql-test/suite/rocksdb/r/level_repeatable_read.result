@@ -19,7 +19,6 @@ connection con1;
 SELECT a FROM t1;
 a
 INSERT INTO t1 (a) SELECT a+100 FROM t1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: INSERT INTO t1 (a) SELECT a+100 FROM t1
 SELECT a FROM t1;
 a
 connection con2;
@@ -36,7 +35,6 @@ connection con1;
 SELECT a FROM t1;
 a
 INSERT INTO t1 (a) SELECT a+200 FROM t1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: INSERT INTO t1 (a) SELECT a+200 FROM t1
 SELECT a FROM t1;
 a
 COMMIT;
@@ -91,7 +89,7 @@ INSERT INTO t3 (pk) VALUES(1) ON DUPLICATE KEY UPDATE count=count+1;
 COMMIT;
 connection con1;
 INSERT INTO t3 (pk) VALUES(1) ON DUPLICATE KEY UPDATE count=count+1;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction (snapshot conflict)
 COMMIT;
 SELECT count FROM t3;
 count

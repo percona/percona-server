@@ -105,11 +105,6 @@ commit;
 
 --source suite/rocksdb/include/hermitage_init.inc
 connection con1;
-# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-}
 update test set value = value + 10;
 connection con2;
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
@@ -127,7 +122,7 @@ if ($trx_isolation == "READ COMMITTED")
 # MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
 if ($trx_isolation == "REPEATABLE READ")
 {
-  --error ER_UNKNOWN_ERROR
+  --error ER_LOCK_DEADLOCK
   reap;
   select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
 }
@@ -184,11 +179,6 @@ connection con1;
 select * from test where value % 5 = 0;
 connection con2;
 
-# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-}
 update test set value = 12 where value = 10;
 commit;
 connection con1;
@@ -215,7 +205,7 @@ if ($trx_isolation == "READ COMMITTED")
 # MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
 if ($trx_isolation == "REPEATABLE READ")
 {
-  --error ER_UNKNOWN_ERROR
+  --error ER_LOCK_DEADLOCK
   delete from test where value = 20;
 }
 commit;

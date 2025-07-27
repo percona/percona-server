@@ -4474,6 +4474,47 @@ class THD : public MDL_context_owner,
   */
   void raise_note_printf(uint code, ...);
 
+  /*
+    Possible values used for gap_lock_raise_error session variable
+    - OFF: silent
+    - WARNING: raise a warning
+    - ERROR: raise an error
+  */
+  enum enum_gap_lock_raise_values {
+    GAP_LOCK_RAISE_OFF = 0,
+    GAP_LOCK_RAISE_WARNING = 1,
+    GAP_LOCK_RAISE_ERROR = 2,
+    /* Add new control before the following line */
+    GAP_LOCK_RAISE_INVALID
+  };
+
+  /**
+    Check whether we can raise warning/error when gap locks are used in a query
+    @return true if we can raise one, false otherwise.
+  */
+  bool gap_lock_raise_allowed() const {
+    return (variables.gap_lock_raise_error != GAP_LOCK_RAISE_OFF ? true
+                                                                 : false);
+  }
+
+  /**
+    Check whether we can raise a warning when gap locks are used in a query
+    @return true if we can raise a warning, false otherwise.
+  */
+  bool gap_lock_raise_warning() const {
+    return (variables.gap_lock_raise_error == GAP_LOCK_RAISE_WARNING ? true
+                                                                     : false);
+  }
+
+  /**
+    Check whether we can raise an error when gap locks are used in a query
+    @return true if we can raise an error, false otherwise.
+  */
+  bool gap_lock_raise_error() const {
+    return (variables.gap_lock_raise_error == GAP_LOCK_RAISE_ERROR ? true
+                                                                   : false);
+  }
+
  private:
   /*
     Only the implementation of the SIGNAL and RESIGNAL statements

@@ -1,12 +1,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
-
 connect (con1,localhost,root,,);
-eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 connect (con2,localhost,root,,);
-eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 
 connection con1;
 
@@ -104,16 +100,8 @@ SELECT COUNT(*) FROM t1;
 INSERT INTO t1 VALUES (30, 31, 30, 30, 30, 30, 30, 30);
 
 --echo # Primary key should prevent duplicate on update
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id1=30, id2=31 WHERE id2=10;
-}
-if ($trx_isolation == "READ COMMITTED")
-{
-  --error ER_LOCK_WAIT_TIMEOUT
-  UPDATE t1 SET id1=30, id2=31 WHERE id2=10;
-}
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET id1=30, id2=31 WHERE id2=10;
 
 --echo # Unique secondary key should prevent duplicate on insert
 --error ER_LOCK_WAIT_TIMEOUT
@@ -122,20 +110,10 @@ INSERT INTO t1 VALUES (31, 31, 32, 33, 30, 30, 30, 30);
 INSERT INTO t1 VALUES (32, 32, 32, 32, 34, 32, 32, 32);
 
 --echo # Unique secondary key should prevent duplicate on update
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id2=31, id3=32, id4=33 WHERE id2=8;
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id5=34 WHERE id2=8;
-}
-if ($trx_isolation == "READ COMMITTED")
-{
-  --error ER_LOCK_WAIT_TIMEOUT
-  UPDATE t1 SET id2=31, id3=32, id4=33 WHERE id2=8;
-  --error ER_LOCK_WAIT_TIMEOUT
-  UPDATE t1 SET id5=34 WHERE id2=8;
-}
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET id2=31, id3=32, id4=33 WHERE id2=8;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET id5=34 WHERE id2=8;
 
 --echo # Adding multiple rows where one of the rows fail the duplicate
 --echo # check should fail the whole statement
@@ -157,33 +135,16 @@ INSERT INTO t1 VALUES (37, 31, 32, NULL, 37, 37, 37, 37),
 
 SELECT COUNT(*) FROM t1;
 
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --echo # Fail on duplicate key update for row added in our transaction
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id5=37 WHERE id1=38;
+--echo # Fail on duplicate key update for row added in our transaction
+--error ER_DUP_ENTRY
+UPDATE t1 SET id5=37 WHERE id1=38;
 
-  --echo # Fail on lock timeout for row modified in another transaction
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id5=34 WHERE id1=38;
+--echo # Fail on lock timeout for row modified in another transaction
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET id5=34 WHERE id1=38;
 
-  --echo # NULL values are unique
-  --error ER_UNKNOWN_ERROR
-  UPDATE t1 SET id5=NULL WHERE value1 > 37;
-}
-if ($trx_isolation == "READ COMMITTED")
-{
-  --echo # Fail on duplicate key update for row added in our transaction
-  --error ER_DUP_ENTRY
-  UPDATE t1 SET id5=37 WHERE id1=38;
-
-  --echo # Fail on lock timeout for row modified in another transaction
-  --error ER_LOCK_WAIT_TIMEOUT
-  UPDATE t1 SET id5=34 WHERE id1=38;
-
-  --echo # NULL values are unique
-  UPDATE t1 SET id5=NULL WHERE value1 > 37;
-}
+--echo # NULL values are unique
+UPDATE t1 SET id5=NULL WHERE value1 > 37;
 
 connection con1;
 COMMIT;

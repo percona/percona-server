@@ -321,75 +321,6 @@ value
 10
 1
 rollback;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set value2=100 where value=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set value2=100 where value=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value2=100 where value=1;
 select * from t1 where id=1;
@@ -453,76 +384,6 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set value=100 where value=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set value=100 where value=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value=100 where value=1;
 select * from t1 where id=1;
@@ -584,76 +445,6 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set id=100 where value=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set id=100 where value=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set id=100 where value=1;
 select * from t1 where id=1;
@@ -717,76 +508,6 @@ value
 10
 1
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set value2=100 where value2=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set value2=100 where value2=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value2=100 where value2=1;
 select * from t1 where id=1;
@@ -850,76 +571,6 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set value=100 where value2=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set value=100 where value2=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value=100 where value2=1;
 select * from t1 where id=1;
@@ -981,76 +632,6 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-update t1 set id=100 where value2=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set id=100 where value2=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set id=100 where value2=1;
 select * from t1 where id=1;
@@ -1114,7 +695,6 @@ value
 10
 1
 rollback;
-set session transaction_isolation=@orig_tx_iso;
 begin;
 delete from t1 where id=1;
 select * from t1 where id=1;
@@ -1170,75 +750,6 @@ value
 9
 10
 rollback;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-delete from t1 where value=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: delete from t1 where value=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 delete from t1 where value=1;
 select * from t1 where id=1;
@@ -1294,76 +805,6 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
-begin;
-delete from t1 where value2=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: delete from t1 where value2=1
-select * from t1 where id=1;
-id	value	value2
-1	1	1
-select * from t1 where value=1;
-id	value	value2
-1	1	1
-select value from t1 where value=1;
-value
-1
-select * from t1 where value2=1;
-id	value	value2
-1	1	1
-select * from t1 where id=5;
-id	value	value2
-5	5	5
-select * from t1 where value=5;
-id	value	value2
-5	5	5
-select value from t1 where value=5;
-value
-5
-select * from t1 where value2=5;
-id	value	value2
-5	5	5
-select * from t1 where id < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 where value < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select value from t1 where value < 3 order by id;
-value
-1
-2
-select * from t1 where value2 < 3 order by id;
-id	value	value2
-1	1	1
-2	2	2
-select * from t1 order by id;
-id	value	value2
-1	1	1
-2	2	2
-3	3	3
-4	4	4
-5	5	5
-6	6	6
-8	8	8
-9	9	9
-10	10	10
-select value from t1 order by id;
-value
-1
-2
-3
-4
-5
-6
-8
-9
-10
-rollback;
-set session transaction_isolation='READ-COMMITTED';
 begin;
 delete from t1 where value2=1;
 select * from t1 where id=1;
@@ -1419,20 +860,14 @@ value
 9
 10
 rollback;
-set session transaction_isolation=@orig_tx_iso;
-set @orig_tx_iso=@@session.transaction_isolation;
-set session transaction_isolation='REPEATABLE-READ';
 begin;
 insert into t1 values (11,11,11);
 insert into t1 values (12,12,12);
 insert into t1 values (13,13,13);
 delete from t1 where id=9;
 delete from t1 where value=8;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: delete from t1 where value=8
 update t1 set id=100 where value2=5;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set id=100 where value2=5
 update t1 set value=103 where value=4;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set value=103 where value=4
 update t1 set id=115 where id=3;
 select * from t1 where id=1;
 id	value	value2
@@ -1448,16 +883,15 @@ id	value	value2
 1	1	1
 select * from t1 where id=5;
 id	value	value2
-5	5	5
 select * from t1 where value=5;
 id	value	value2
-5	5	5
+100	5	5
 select value from t1 where value=5;
 value
 5
 select * from t1 where value2=5;
 id	value	value2
-5	5	5
+100	5	5
 select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
@@ -1478,27 +912,25 @@ select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
-4	4	4
-5	5	5
+4	103	4
 6	6	6
-8	8	8
 10	10	10
 11	11	11
 12	12	12
 13	13	13
+100	5	5
 115	3	3
 select value from t1 order by id;
 value
 1
 2
-4
-5
+103
 6
-8
 10
 11
 12
 13
+5
 3
 rollback;
 set session transaction_isolation='READ-COMMITTED';
@@ -1575,7 +1007,6 @@ value
 5
 3
 rollback;
-set session transaction_isolation=@orig_tx_iso;
 drop table t1;
 #
 #  #802: MyRocks: Statement rollback doesnt work correctly for nested statements

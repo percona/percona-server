@@ -1,5 +1,27 @@
 --source include/have_rocksdb.inc
 
 let $engine=rocksdb;
-let $expect_gap_lock_errors=1;
+
 --source include/gap_lock_error_all.inc
+
+--let $warning_or_error=WARNING
+--source include/gap_lock_error_init.inc
+
+set session autocommit=0;
+--disable_warnings
+select * from gap1 limit 1 for update;
+select * from gap1 where value != 100 limit 1 for update;
+--enable_warnings
+
+--source include/gap_lock_error_cleanup.inc
+
+--let $warning_or_error=ERROR
+--source include/gap_lock_error_init.inc
+
+set session autocommit=0;
+--error 1105
+select * from gap1 limit 1 for update;
+--error 1105
+select * from gap1 where value != 100 limit 1 for update;
+
+--source include/gap_lock_error_cleanup.inc

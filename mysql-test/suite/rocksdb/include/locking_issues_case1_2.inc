@@ -26,10 +26,6 @@ connect (con2,localhost,root,,);
 connection con1;
 eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
 BEGIN;
-if ($isolation_level == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-}
 SELECT * FROM t0 WHERE id1=1 FOR UPDATE;
 
 connection con2;

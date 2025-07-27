@@ -1,5 +1,5 @@
 eval set session autocommit=$autocommit;
-let $is_gaplock_target = `SELECT @@autocommit = 0 && '$select_lock' != '' && '$expect_gap_lock_errors' = 1`;
+let $is_gaplock_target = `SELECT @@autocommit = 0 && '$select_lock' != ''`;
 
 if ($is_gaplock_target)
 {
@@ -49,12 +49,6 @@ eval select * from gap1 where id1=1 and id2=1 and id3 in (1, 2, 3) $select_lock;
 eval select * from gap1 where id1=1 and id2=1 and id3=1 and value=1
   order by c1 $select_lock;
 eval select * from gap3 where id=1 $select_lock;
-eval select * from gap4 where id=1 $select_lock;
-eval select * from gap4 where id in (1, 2, 3) $select_lock;
---error ER_UNKNOWN_ERROR
-eval select * from gap4 $select_lock;
---error ER_UNKNOWN_ERROR
-eval select * from gap4 where id between 3 and 7 $select_lock;
 }
 
 if (!$is_gaplock_target)
@@ -82,8 +76,4 @@ eval select * from gap1 where id1=1 and id2=1 and id3 in (1, 2, 3) $select_lock;
 eval select * from gap1 where id1=1 and id2=1 and id3=1 and value=1
   order by c1 $select_lock;
 eval select * from gap3 where id=1 $select_lock;
-eval select * from gap4 where id=1 $select_lock;
-eval select * from gap4 where id in (1, 2, 3) $select_lock;
-eval select * from gap4 $select_lock;
-eval select * from gap4 where id between 3 and 7 $select_lock;
 }

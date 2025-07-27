@@ -65,10 +65,6 @@ if ($lock_scanned_rows == 0)
   UPDATE t1 JOIN t2 ON t1.id = t2.id SET t1.value=t1.value+100 WHERE t2.id=3;
 
   connection con2;
-  if ($isolation_level == "REPEATABLE READ")
-  {
-    --error ER_UNKNOWN_ERROR
-  }
   UPDATE t2 SET value=value+100;
   SELECT * FROM t2;
 }

@@ -3236,6 +3236,7 @@ class Rdb_transaction {
  public:
   rocksdb::ReadOptions m_read_opts;
   int64_t m_snapshot_timestamp = 0;
+  String m_detailed_error;
 
   /*
     Tracks the number of tables in use through external_lock.
@@ -3293,6 +3294,7 @@ class Rdb_transaction {
 
     if (s.IsDeadlock()) {
       thd->mark_transaction_to_rollback(true /* whole transaction */);
+      m_detailed_error = String();
       rocksdb_row_lock_deadlocks++;
       return HA_ERR_LOCK_DEADLOCK;
     } else if (s.IsBusy()) {
@@ -3305,6 +3307,7 @@ class Rdb_transaction {
                         user_host_buff, static_cast<int>(thd->query().length),
                         thd->query().str);
       }
+      m_detailed_error = String(" (snapshot conflict)", system_charset_info);
       return HA_ERR_ROCKSDB_STATUS_BUSY;
     }
 
@@ -8174,6 +8177,13 @@ bool ha_rocksdb::get_error_message(const int error, String *const buf) {
                 "HA_ERR_ROCKSDB_LAST > HA_ERR_LAST");
 
   assert(buf != nullptr);
+  if (error == HA_ERR_LOCK_WAIT_TIMEOUT || error == HA_ERR_LOCK_DEADLOCK ||
+      error == HA_ERR_ROCKSDB_STATUS_BUSY) {
+    Rdb_transaction *const tx = get_tx_from_thd(ha_thd());
+    assert(tx != nullptr);
+    buf->append(tx->m_detailed_error);
+    DBUG_RETURN(true);
+  }
 
   buf->append(rdb_get_error_messages(error));
 

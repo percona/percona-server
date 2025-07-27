@@ -1,6 +1,3 @@
-SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 CREATE TABLE t1 (id1 INT NOT NULL, id2 INT NOT NULL, id3 VARCHAR(32),
 id4 INT, id5 VARCHAR(32),
 value1 INT, value2 INT, value3 VARCHAR(32),
@@ -162,9 +159,6 @@ id1	id2	id3	id4	id5	value1	value2	value3
 39	31	32	NULL	39	37	37	37
 40	40	40	40	40	40	40	40
 DROP TABLE t1;
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 CREATE TABLE t1 (id1 INT NOT NULL, id2 INT NOT NULL, id3 VARCHAR(32),
 id4 INT, id5 VARCHAR(32),
 value1 INT, value2 INT, value3 VARCHAR(32),
@@ -244,7 +238,7 @@ INSERT INTO t1 VALUES (30, 31, 30, 30, 30, 30, 30, 30);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Primary key should prevent duplicate on update
 UPDATE t1 SET id1=30, id2=31 WHERE id2=10;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id1=30, id2=31 WHERE id2=10
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Unique secondary key should prevent duplicate on insert
 INSERT INTO t1 VALUES (31, 31, 32, 33, 30, 30, 30, 30);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -252,9 +246,9 @@ INSERT INTO t1 VALUES (32, 32, 32, 32, 34, 32, 32, 32);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Unique secondary key should prevent duplicate on update
 UPDATE t1 SET id2=31, id3=32, id4=33 WHERE id2=8;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id2=31, id3=32, id4=33 WHERE id2=8
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 UPDATE t1 SET id5=34 WHERE id2=8;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id5=34 WHERE id2=8
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Adding multiple rows where one of the rows fail the duplicate
 # check should fail the whole statement
 INSERT INTO t1 VALUES (35, 35, 35, 35, 35, 35, 35, 35),
@@ -276,13 +270,12 @@ COUNT(*)
 16
 # Fail on duplicate key update for row added in our transaction
 UPDATE t1 SET id5=37 WHERE id1=38;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id5=37 WHERE id1=38
+ERROR 23000: Duplicate entry '37' for key 't1.id5'
 # Fail on lock timeout for row modified in another transaction
 UPDATE t1 SET id5=34 WHERE id1=38;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id5=34 WHERE id1=38
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # NULL values are unique
 UPDATE t1 SET id5=NULL WHERE value1 > 37;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t1 SET id5=NULL WHERE value1 > 37
 COMMIT;
 COMMIT;
 BEGIN;

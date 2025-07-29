@@ -69,6 +69,11 @@ class Js_v8 {
     return (ref_count >= 0) ? ref_count : 0;
   }
 
+  /** Get peak number of v8::Isolate objects which was reached. */
+  static size_t get_peak_isolate_count() {
+    return s_peak_ref_count.load(std::memory_order_relaxed);
+  }
+
   /**
     Pump isolate's foreground message loop, i.e. process tasks posted to
     isolate's foreground task queue (for example, some GC steps, which
@@ -91,10 +96,7 @@ class Js_v8 {
 
  private:
   // Increment/decrement V8 usage/isolate global reference counter.
-  static void inc_ref_count() {
-    assert(s_ref_count.load() >= 0);
-    ++s_ref_count;
-  }
+  static void inc_ref_count();
   static void dec_ref_count() { --s_ref_count; }
 
   // Js_isolate methods need access to inc/dec_ref_count;
@@ -110,6 +112,8 @@ class Js_v8 {
   // (used for debug purposes) or completed (we rely on this to block
   // UNINSTALL -> INSTALL scenario).
   static std::atomic<int> s_ref_count;
+  // Peak number of V8 Isolates which was reached.
+  static std::atomic<size_t> s_peak_ref_count;
 };
 
 /**
@@ -335,11 +339,6 @@ class Js_isolate {
     */
     static std::string get_mem_stats_json(Memory_manager *mem_mgr);
 
-    /* Helpers implementing memory usage status variables. */
-    static int show_total_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
-    static int show_used_heap_size(MYSQL_THD, SHOW_VAR *var, char *buff);
-    static int show_external_memory_size(MYSQL_THD, SHOW_VAR *var, char *buff);
-
     /** Pointer to isolate to which this memory manager belongs. */
     Js_isolate *m_js_isolate;
 
@@ -410,14 +409,18 @@ class Js_isolate {
     } m_old_stats{0, 0, 0};
 
     /**
-      Global counters of memory usage to be shown as status variables.
+      Global counters of current and peak memory usage to be shown as status
+      variables.
 
       TODO: Consider partitioning these counters if updating them ever
             becomes performance bottleneck (though it is unlikely).
     */
     static std::atomic<size_t> s_total_heap_size;
+    static std::atomic<size_t> s_peak_total_heap_size;
     static std::atomic<size_t> s_used_heap_size;
+    static std::atomic<size_t> s_peak_used_heap_size;
     static std::atomic<size_t> s_external_memory_size;
+    static std::atomic<size_t> s_peak_external_memory_size;
   } m_memory_manager;
 };
 

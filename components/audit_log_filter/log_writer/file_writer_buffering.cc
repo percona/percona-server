@@ -104,6 +104,9 @@ bool FileWriterBuffering::open() noexcept {
 
 void FileWriterBuffering::close() noexcept {
   mysql_mutex_lock(&m_mutex);
+  if (m_flush_pos != m_write_pos) {
+    mysql_cond_signal(&m_written_cond);
+  }
   while (m_flush_pos != m_write_pos) {
     mysql_cond_wait(&m_flushed_cond, &m_mutex);
   }

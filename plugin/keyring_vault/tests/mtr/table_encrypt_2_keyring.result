@@ -1,5 +1,5 @@
 SET @@global.keyring_vault_config = 'MYSQLTEST_VARDIR/keyring_vault1.conf';
-# restart:<hidden args>
+# restart
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -39,7 +39,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
-# restart:<hidden args>
+# restart
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -65,7 +65,7 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# restart:<hidden args>
+# restart
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -79,7 +79,7 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
-# restart:<hidden args>
+# restart
 SET block_encryption_mode = 'aes-256-cbc';
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
@@ -157,5 +157,5 @@ DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
-# restart:<hidden args>
+# restart
 SET GLOBAL innodb_file_per_table=1;

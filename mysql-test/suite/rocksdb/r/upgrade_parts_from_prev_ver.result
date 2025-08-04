@@ -7,7 +7,7 @@ CALL mtr.add_suppression("Schema mismatch - Table test\.t1 is registered in Rock
 # Stop DB server which was created by MTR default
 # Unzip the zip file.
 # Remove copied files
-# restart:<hidden args>
+# restart
 #########
 # Performing test specific validation
 ###

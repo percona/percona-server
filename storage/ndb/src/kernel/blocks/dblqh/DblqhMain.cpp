@@ -9988,13 +9988,11 @@ void Dblqh::writePrepareLog(Signal *signal,
         ERROR_INSERTED(5032)) {
       jam();
       if (ERROR_INSERTED_CLEAR(5032)) {
-        const Uint32 saved_noOfFreeLogPages = regLogPartPtr->noOfFreeLogPages;
         // simulate abort on temporary out-of-redo error
-        regLogPartPtr->noOfFreeLogPages = ZMIN_LOG_PAGES_OPERATION - 1;
-        writePrepareLog_problems(signal, tcConnectptr, regLogPartPtr);
-        regLogPartPtr->noOfFreeLogPages = saved_noOfFreeLogPages;
+        writePrepareLog_problems(signal, tcConnectptr, regLogPartPtr, true);
       } else {
-        writePrepareLog_problems(signal, tcConnectptr, regLogPartPtr);
+        writePrepareLog_problems(signal, tcConnectptr, regLogPartPtr,
+                                 out_of_log_buffer);
       }
     } else {
       jam();
@@ -10155,11 +10153,12 @@ void Dblqh::doWritePrepareLog(Signal *signal,
 
 void Dblqh::writePrepareLog_problems(Signal *signal,
                                      const TcConnectionrecPtr tcConnectptr,
-                                     LogPartRecord *logPartPtrP) {
+                                     LogPartRecord *logPartPtrP,
+                                     bool out_of_log_buffer) {
   jam();
   Uint32 problems = logPartPtrP->m_log_problems;
 
-  if (logPartPtrP->noOfFreeLogPages < ZMIN_LOG_PAGES_OPERATION) {
+  if (out_of_log_buffer) {
     jam();
     terrorCode = ZTEMPORARY_REDO_LOG_FAILURE;
   } else if ((problems & LogPartRecord::P_TAIL_PROBLEM) != 0) {
@@ -10174,6 +10173,9 @@ void Dblqh::writePrepareLog_problems(Signal *signal,
   } else {
     if (ERROR_INSERTED(5083)) {
       terrorCode = 266;
+    } else {
+      /* Hit a problem, must set an error */
+      ndbabort();
     }
   }
   abortErrorLab(signal, tcConnectptr);

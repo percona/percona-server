@@ -43,9 +43,9 @@ class BackupConsumer {
   virtual bool endOfTablesFK() { return true; }
   virtual bool tuple(const TupleS &, Uint32 fragId) { return true; }
   virtual void tuple_free() {}
-  virtual void endOfTuples() {}
+  virtual bool endOfTuples() { return true; }
   virtual bool logEntry(const LogEntry &) { return true; }
-  virtual void endOfLogEntrys() {}
+  virtual bool endOfLogEntrys() { return true; }
   virtual bool prepare_staging(const TableS &) { return true; }
   virtual bool finalize_staging(const TableS &) { return true; }
   virtual bool finalize_table(const TableS &) { return true; }

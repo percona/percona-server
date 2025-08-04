@@ -28,6 +28,8 @@
 #include <memory>
 #include <string>
 
+#include "my_char_traits.h"
+
 /**
   @file stream_cipher.h
 
@@ -35,7 +37,8 @@
          binary log files.
 */
 
-typedef std::basic_string<unsigned char> Key_string;
+using Key_string =
+    std::basic_string<unsigned char, my_char_traits<unsigned char>>;
 
 /**
   @class Stream_cipher

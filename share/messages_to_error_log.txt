@@ -12325,6 +12325,15 @@ ER_GRP_RPL_CERT_BROADCAST_THREAD_STARTED
 ER_GRP_RPL_CERT_BROADCAST_THREAD_STOPPED
   eng "The Group Replication certifier broadcast thread (THD_certifier_broadcast) stopped."
 
+ER_GRP_RPL_APPLIER_THD_KILLED_BY_SQL_KILL
+   eng "The group replication applier thread has received KILL request."
+
+ER_IB_MSG_WAITING_ON_LAGGING_REDO_LOG_CONSUMER
+  eng "Threads are unable to reserve space in redo log which can't be reclaimed due to the '%s' consumer still lagging behind at LSN = %llu. Consider increasing innodb_redo_log_capacity."
+
+ER_IB_MSG_ABORTING_LOG_ARCHIVER
+  eng "The redo log archiver is aborted as it was lagging behind at LSN = %llu and unable to advance for more than 2 seconds. Consider increasing the innodb_redo_log_capacity."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -75,6 +75,7 @@ class DumpStateOrd {
     BackupMaxWriteSpeed64 = 100005,
     BackupMaxWriteSpeedOtherNodeRestart64 = 100006,
     BackupEncryptionRequired = 100007,
+    BackupDumpLcpExtraDebug = 100008,
     _BackupMax = 100999,
 
     _TCMin = 101000,

@@ -49,6 +49,10 @@
 
 #define JAM_FILE_ID 474
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+#define LCP_EXTRA_DEBUG 1
+#endif
+
 class Dblqh;
 
 /**
@@ -1461,8 +1465,41 @@ class Backup : public SimulatedBlock {
  public:
   bool is_change_part_state(Uint32 page_id);
   Uint32 get_max_words_per_scan_batch(Uint32, Uint32 &, Uint32, Uint32);
-};
 
+#ifdef LCP_EXTRA_DEBUG
+  class LcpExtraDebug {
+    static constexpr size_t buffsize = 4 * 1024 * 1024;
+    char buffer[buffsize];
+
+   public:
+    CircularStringBuffer csb;
+    LcpExtraDebug() : csb(buffer, buffsize) {}
+
+    ~LcpExtraDebug() {}
+
+    void dump(Uint32 instance) const;
+
+   private:
+    /*
+     * This mutex is exclusively used by the dump() function.
+     * Its purpose is to ensure that log messages from different threads
+     * (different BACKUP blocks) are not interleaved. It does not protect access
+     * to the message buffer, as each thread has its own dedicated, non-shared
+     * buffer.
+     */
+    static inline NdbMutex *_lcp_extra_debug_mutex;
+    struct mtx {
+      mtx() { _lcp_extra_debug_mutex = NdbMutex_Create(); }
+      ~mtx() { NdbMutex_Destroy(_lcp_extra_debug_mutex); }
+    } static inline _mtx;
+
+  } LcpExtraDebug;
+
+#define LCPEXTRADEBUG(backupPtr, fmt, ...)                            \
+  (backupPtr)->LcpExtraDebug.csb.print(("(%lu) " fmt), time(nullptr), \
+                                       __VA_ARGS__)
+#endif
+};
 inline Uint32 Backup::getRestorableGci() { return m_newestRestorableGci; }
 
 inline void Backup::OperationRecord::set_scanned_pages(

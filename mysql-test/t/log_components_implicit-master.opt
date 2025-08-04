@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 --loose-percona-telemetry-disable=ON
+||||||| 6ba1fef58b0
+=======
+$LOGGING_COMPONENTS_OPT
+>>>>>>> mysql-8.0.43

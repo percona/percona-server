@@ -2,7 +2,7 @@
 *** Creating keyring_vault plugin config
 *** Determining keyring plugin names
 *** Restarting the server with keyring_vault plugin enabled
-# restart:<hidden args>
+# restart
 *** Asserting that keyring_vault plugin is installed and active
 *** Creating an encrypted table and filling it with some data
 CREATE TABLE t1(
@@ -40,7 +40,7 @@ include/stop_mysqld.inc [server 1]
 *** Executing keyring data migration via mysqld (keyring_vault plugin -> keyring_file plugin)
 *** Deleting the Hashicorp Vault mount point created previously
 *** Starting the server (with keyring_file plugin)
-# restart:<hidden args>
+# restart
 *** Asserting that keyring_file plugin is installed and active
 *** Installing keyring UDF plugin once again after keyring plugin switch
 *** Asserting that keys stored in keyring_vault plugin successfully migrated to keyring_file plugin
@@ -59,7 +59,7 @@ include/stop_mysqld.inc [server 1]
 *** Executing keyring data migration via mysqld (keyring_file plugin -> keyring_vault plugin)
 *** Removing keyring_file plugin data file
 *** Starting the server (with keyring_vault plugin)
-# restart:<hidden args>
+# restart
 *** Asserting that keyring_vault plugin is installed and active again
 *** Installing keyring UDF plugin once again after keyring plugin switch back
 *** Asserting that keys stored in keyring_file plugin successfully migrated to keyring_vault_plugin

@@ -26,8 +26,7 @@ if (!$do_not_echo_parameters)
 }
 if ($do_not_echo_parameters)
 {
-  --exec echo "# Kill and restart:<hidden args>"
-  let $do_not_echo_parameters=;
+  --exec echo "# Kill and restart"
 }
 --exec echo "$restart_parameters" > $_expect_file_name
 --shutdown_server 0

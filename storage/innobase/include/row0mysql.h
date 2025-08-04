@@ -1014,22 +1014,10 @@ struct SysIndexCallback {
                                 values
 @return the field filled with computed value, or nullptr on failure */
 dfield_t *innobase_get_computed_value(
-<<<<<<< HEAD
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap);
-||||||| 6ba1fef58b0
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign);
-=======
     const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
     mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
-    const dict_field_t *ifield = nullptr,
+    mem_heap_t **compress_heap, const dict_field_t *ifield = nullptr,
     const dict_table_t *old_table = nullptr, upd_t *row_update = nullptr);
->>>>>>> mysql-8.0.43
 
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure

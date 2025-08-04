@@ -237,27 +237,9 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
           row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
                     nullptr, nullptr, nullptr, &ext, heap);
 
-<<<<<<< HEAD
-      row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
-                      nullptr, nullptr, nullptr, &ext, heap);
-
-      vfield = innobase_get_computed_value(
-          row, v_col, clust_index, &heap, heap, nullptr,
-          thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table, nullptr,
-          nullptr, nullptr, &thr->prebuilt->blob_heap);
-||||||| 6ba1fef58b0
-      row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
-                      nullptr, nullptr, nullptr, &ext, heap);
-
-      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
-                                           nullptr, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table,
-                                           nullptr, nullptr, nullptr);
-=======
       const dfield_t *const vfield = innobase_get_computed_value(
           row, v_col, table, &heap, heap, thr_get_trx(thr)->mysql_thd,
-          thr->prebuilt->m_mysql_table);
->>>>>>> mysql-8.0.43
+          thr->prebuilt->m_mysql_table, &thr->prebuilt->blob_heap);
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in

@@ -49,27 +49,15 @@ class Log_consumer {
   virtual lsn_t get_consumed_lsn() const = 0;
 
   /** Request the log consumer to consume faster.
-<<<<<<< HEAD
-  @remarks This is called whenever the redo log consumer
-  is the most lagging one and it is critical to consume
-  the oldest redo log file. */
-  virtual void consumption_requested() = 0;
+  @remarks This is called whenever the redo log consumer is the most lagging one
+  and it is critical to consume up to the request_lsn. The caller has to hold
+  log.files_mutex and log.limits_mutex. */
+  virtual void consumption_requested(lsn_t request_lsn) = 0;
 
   enum class consumer_type { SERVER, USER };
 
   /** @return Type of this consumer. */
   virtual consumer_type get_consumer_type() const = 0;
-||||||| 6ba1fef58b0
-  @remarks This is called whenever the redo log consumer
-  is the most lagging one and it is critical to consume
-  the oldest redo log file. */
-  virtual void consumption_requested() = 0;
-=======
-  @remarks This is called whenever the redo log consumer is the most lagging one
-  and it is critical to consume up to the request_lsn. The caller has to hold
-  log.files_mutex and log.limits_mutex. */
-  virtual void consumption_requested(lsn_t request_lsn) = 0;
->>>>>>> mysql-8.0.43
 };
 
 class Log_user_consumer : public Log_consumer {

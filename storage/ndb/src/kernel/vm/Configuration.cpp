@@ -650,14 +650,8 @@ void Configuration::setMixologyLevel(Uint32 l) { _mixologyLevel = l; }
 
 Uint32 Configuration::getShutdownHandlingFault() const {
   return _shutdownHandlingFault;
-<<<<<<< HEAD
-}
-||||||| 6ba1fef58b0
-};
-=======
 }
 
->>>>>>> mysql-8.0.43
 Uint32 Configuration::getShutdownHandlingFaultExtra() const {
   return _shutdownHandlingFaultExtra;
 }

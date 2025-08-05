@@ -96,6 +96,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
     AT_NOT_NULL_COLUMN_ATTR,
     AT_NULL_COLUMN_ATTR,
     AT_UNIQUE_KEY_COLUMN_ATTR,
+    AT_CLUSTERING_KEY_COLUMN_ATTR,
     AT_PRIMARY_KEY_COLUMN_ATTR,
     AT_CHECK_CONSTRAINT_COLUMN_ATTR,
     AT_CONSTRAINT_ENFORCEMENT_ATTR,
@@ -210,14 +211,10 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 
   @ingroup ptn_column_attrs
 */
-class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
+class PT_unique_key_column_attr : public PT_column_attr_base {
  public:
-  PT_unique_combo_clustering_key_column_attr(enum keytype key_type) noexcept
-      : m_key_type(key_type) {}
-
-  void apply_type_flags(ulong *type_flags) const noexcept override {
-    if (m_key_type & KEYTYPE_UNIQUE) *type_flags |= UNIQUE_FLAG;
-    if (m_key_type & KEYTYPE_CLUSTERING) *type_flags |= CLUSTERING_FLAG;
+  void apply_type_flags(ulong *type_flags) const override {
+    *type_flags |= UNIQUE_FLAG;
   }
 
   void apply_alter_info_flags(ulonglong *flags) const override {
@@ -227,9 +224,26 @@ class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
   enum Attr_type attr_type() const override {
     return AT_UNIQUE_KEY_COLUMN_ATTR;
   }
+};
 
- private:
-  const enum keytype m_key_type;
+/**
+  Node for the @SQL{CLUSTERING [KEY]} column attribute
+
+  @ingroup ptn_column_attrs
+*/
+class PT_clustering_key_column_attr : public PT_column_attr_base {
+ public:
+  void apply_type_flags(ulong *type_flags) const override {
+    *type_flags |= CLUSTERING_FLAG;
+  }
+
+  void apply_alter_info_flags(ulonglong *flags) const override {
+    *flags |= Alter_info::ALTER_ADD_INDEX;
+  }
+
+  enum Attr_type attr_type() const override {
+    return AT_CLUSTERING_KEY_COLUMN_ATTR;
+  }
 };
 
 /**

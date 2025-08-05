@@ -3781,3 +3781,34 @@ WHERE NOT EXISTS (SELECT *
 eval explain format=tree $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#37808260: Performance degradation in MySQL>=8.4 vs MySQL 8.0
+--echo #               due to redundant condition not optimized away
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER NOT NULL, f2 INTEGER NOT NULL,
+f3 INTEGER NOT NULL, KEY(f1,f2,f3));
+INSERT INTO t1 VALUES (1,1,1), (1,2,1), (2,3,4), (2,4,5), (3,3,6), (3,4,7);
+ANALYZE TABLE t1;
+let query= SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL));
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+let query = SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)) AND f1 = 1;
+--replace_regex $elide_costs
+--skip_if_hypergraph #Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+let query = SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1));
+--replace_regex $elide_costs
+--skip_if_hypergraph #Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+let query = SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1)) AND f1 = 1;
+--replace_regex $elide_costs
+--skip_if_hypergraph # Final filters are different
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1;

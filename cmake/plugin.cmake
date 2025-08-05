@@ -254,8 +254,9 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
 
-    # For APPLE: adjust path dependecy for SSL shared libraries.
+    # For APPLE: adjust path dependecy for SSL/KERBEROS shared libraries.
     SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
+    SET_PATH_TO_CUSTOM_KERBEROS_FOR_APPLE(${target})
 
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)

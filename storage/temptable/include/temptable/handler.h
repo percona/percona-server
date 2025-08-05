@@ -581,8 +581,7 @@ inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {
   }
 }
 
-void kv_store_shards_debug_dump();
-void shared_block_pool_release(THD *thd);
+void close_connection(THD *thd);
 
 } /* namespace temptable */
 

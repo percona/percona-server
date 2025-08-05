@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dyn0buf.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 #include "m_string.h"
 #include "pars0pars.h"
 #include "row0sel.h"
@@ -2197,6 +2198,8 @@ create a transaction and use that.
 @return DB_SUCCESS or error code */
 static dberr_t dict_stats_save(dict_table_t *table_orig,
                                const index_id_t *only_for_index, trx_t *trx) {
+  ut_ad(!dict_sys_mutex_own());
+  log_free_check();
   pars_info_t *pinfo;
   dberr_t ret{};
   dict_table_t *table;

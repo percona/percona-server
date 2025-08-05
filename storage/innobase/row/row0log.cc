@@ -1978,7 +1978,7 @@ flag_ok:
   ulint *offsets;
   ulint num_v = new_table->n_v_cols;
 
-  ut_ad(rec_offs_n_fields(moffsets) == dict_index_get_n_unique(index) + 2);
+  ut_ad(rec_offs_n_fields(moffsets) == dict_index_get_n_unique(index) + 2U);
   ut_ad(!rec_offs_any_extern(moffsets));
 
   /* Convert the row to a search tuple. */
@@ -2190,7 +2190,7 @@ flag_ok:
 
   ut_ad(dtuple_get_n_fields_cmp(old_pk) == dict_index_get_n_unique(index));
   ut_ad(dtuple_get_n_fields(old_pk) ==
-        dict_index_get_n_unique(index) + (log->same_pk ? 0 : 2));
+        dict_index_get_n_unique(index) + (log->same_pk ? 0U : 2U));
 
   row = row_log_table_apply_convert_mrec(mrec, dup->m_index, offsets, log, heap,
                                          &error);
@@ -2732,7 +2732,7 @@ flag_ok:
           dict_table_copy_v_types(old_pk, new_index->table);
         }
 
-        for (ulint i = 0; i < dict_index_get_n_unique(new_index) + 2; i++) {
+        for (ulint i = 0; i < dict_index_get_n_unique(new_index) + 2U; i++) {
           const void *field;
           ulint len;
           dfield_t *dfield;

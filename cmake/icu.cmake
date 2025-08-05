@@ -121,17 +121,17 @@ FUNCTION(FIND_ICU install_root)
   ENDIF()
 ENDFUNCTION(FIND_ICU)
 
-SET(ICU_VERSION_DIR "icu-release-73-1")
+SET(ICU_VERSION_DIR "icu-release-77-1")
 SET(BUNDLED_ICU_PATH ${CMAKE_SOURCE_DIR}/extra/icu/${ICU_VERSION_DIR})
 
 # ICU data files come in two flavours, big and little endian.
 # (Actually, there's an 'e' for EBCDIC version as well.)
 IF(SOLARIS_SPARC)
-  SET(ICUDT_DIR "icudt73b")
+  SET(ICUDT_DIR "icudt77b")
 ELSEIF(LINUX AND CMAKE_SYSTEM_PROCESSOR STREQUAL "s390x")
-  SET(ICUDT_DIR "icudt73b")
+  SET(ICUDT_DIR "icudt77b")
 ELSE()
-  SET(ICUDT_DIR "icudt73l")
+  SET(ICUDT_DIR "icudt77l")
 ENDIF()
 
 

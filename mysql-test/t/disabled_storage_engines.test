@@ -8,6 +8,7 @@
 # 'storage engine name' is disabled (Table creation is disallowed.)" for the
 # storage engines specified by disabled-storage-engine option.
 
+--source include/not_asan_mac.inc
 --source include/have_example_plugin.inc
 
 CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");

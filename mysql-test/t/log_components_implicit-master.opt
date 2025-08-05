@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 --loose-percona-telemetry-disable=ON
+||||||| merged common ancestors
+=======
+$LOGGING_COMPONENTS_OPT
+>>>>>>> mysql-8.4.6

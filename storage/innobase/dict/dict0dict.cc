@@ -2411,9 +2411,9 @@ static void dict_index_try_cache_rec_offsets(dict_index_t *index) {
   This is not an assert crucial for correctness. It's just to show that there's
   no obvious regression w.r.t intrinsic tables. */
   if (index->table->is_intrinsic() && index->n_uniq != n_unique_in_tree) {
-    ut_a(index->n_uniq == n_unique_in_tree - 1);
+    ut_a(index->n_uniq == n_unique_in_tree - 1U);
     ut_a(!index->is_clustered());
-    ut_a(index->get_field(n_unique_in_tree - 1)->fixed_len);
+    ut_a(index->get_field(n_unique_in_tree - 1U)->fixed_len);
   }
 #endif
   for (size_t i = 0; i < n_unique_in_tree; i++) {

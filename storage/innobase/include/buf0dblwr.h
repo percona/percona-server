@@ -228,7 +228,8 @@ namespace v1 {
 
 namespace dblwr {
 
-/** Number of pages per doublewrite thread/segment */
+/** Number of pages per doublewrite thread/segment of the dblwr file.  Refer
+to the system variable --innodb-doublewrite-pages for more details. */
 extern ulong n_pages;
 
 const uint32_t REDUCED_BATCH_PAGE_SIZE = 8192;
@@ -410,8 +411,8 @@ bool Mode::is_disabled_to_enabled(ulong new_value) {
 @param[in]     mode    dblwr ENUM */
 const char *to_string(ulong mode);
 
-/** Number of files to use for the double write buffer. It must be <= than
-the number of buffer pool instances. */
+/** Number of files to use for the double write buffer. Refer to the system
+variable --innodb-doublewrite-files for more details. */
 extern ulong n_files;
 
 /** Maximum number of pages to write in one batch. */

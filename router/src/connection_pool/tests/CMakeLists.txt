@@ -23,3 +23,11 @@
 
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
+
+SET(TEST_MODULE "connection_pool")
+
+ADD_TEST_FILE(test_connection_pool_concurrency.cc
+  MODULE ${TEST_MODULE}
+  LIB_DEPENDS
+    connection_pool
+)

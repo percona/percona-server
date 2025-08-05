@@ -2166,6 +2166,9 @@ class Item_func_in final : public Item_func_opt_neg {
     not_null_tables_cache |= args[0]->not_null_tables();
   }
 
+  // Disable constant propagation.
+  void set_no_constant_propagation();
+
  private:
   /**
      Usable if @<in value list@> is made only of constants. Returns true if one

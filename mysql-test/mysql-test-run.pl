@@ -1512,7 +1512,28 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
 
+<<<<<<< HEAD
       if ( $opt_gprof ) {
+||||||| merged common ancestors
+      my $valgrind_reports = 0;
+      if ($opt_valgrind_mysqld or $opt_sanitize) {
+        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
+        print $server "VALGREP\n" if $valgrind_reports;
+      }
+
+      if ($opt_gprof) {
+=======
+      my $valgrind_reports = 0;
+      if ($opt_valgrind_mysqld or $opt_sanitize) {
+        # Look for leaks here, even if we aldready have $shutdown_report.
+        # shutdown_exit_reports() will report some unknown failure.
+        # valgrind_exit_reports() will look specifically for ASAN/LSAN stuff.
+        $valgrind_reports = valgrind_exit_reports();
+        print $server "VALGREP\n" if $valgrind_reports;
+      }
+
+      if ($opt_gprof) {
+>>>>>>> mysql-8.4.6
         gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
       }
 
@@ -7922,8 +7943,8 @@ sub valgrind_exit_reports() {
       # This line marks the start of a valgrind report
       $found_report = 1 if $line =~ /^==\d+== .* SUMMARY:/;
 
-      # This line marks the start of UBSAN memory leaks
-      $found_report = 1 if $line =~ /^==\d+==ERROR:.*/;
+      # This line marks LSAN memory leaks
+      $found_report = 1 if $line =~ /.*LeakSanitizer: detected memory leaks.*/;
 
       # Various UBSAN runtime errors
       $found_report = 1 if $line =~ /.*runtime error: .*/;

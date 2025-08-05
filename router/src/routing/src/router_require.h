@@ -29,7 +29,7 @@
 #include <optional>
 #include <string>
 
-#include "classic_query_sender.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/channel.h"
 #include "mysqlrouter/classic_protocol_message.h"

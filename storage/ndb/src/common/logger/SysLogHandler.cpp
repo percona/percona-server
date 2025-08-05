@@ -66,7 +66,8 @@ bool SysLogHandler::close() {
 bool SysLogHandler::is_open() { return m_open; }
 
 void SysLogHandler::writeHeader(const char *pCategory,
-                                Logger::LoggerLevel level, time_t /*now*/) {
+                                Logger::LoggerLevel level,
+                                const std::timespec * /*now*/) {
   // Save category to be used by writeMessage...
   m_pCategory = pCategory;
   // Map LogLevel to syslog severity

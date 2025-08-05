@@ -49,7 +49,8 @@ void LogFilter::add_pattern(const std::string &pattern,
 
 void SQLLogFilter::add_default_sql_patterns() {
   // Add pattern for replacing passwords in 'CREATE USER [IF NOT EXISTS] ...'.
-  // Works for both mysql_native_password and plaintext authentication methods.
+  // Works for mysql_native_password, plaintext authentication and other
+  // auth_plugin methods.
   //
   // Below example showcases mysql_native_password method; lines are wrapped
   // for easier viewing (in real life they're a single line).
@@ -66,7 +67,7 @@ void SQLLogFilter::add_default_sql_patterns() {
   //     'some_user'@'h2' IDENTIFIED WITH mysql_native_password AS ***,
   //     'some_user'@'h3' IDENTIFIED WITH mysql_native_password AS ***
   // clang-format on
-  add_pattern("(IDENTIFIED\\s+(WITH\\s+[a-z_]+\\s+)?(BY|AS))\\s+'[^']*'",
+  add_pattern("(IDENTIFIED\\s+(WITH\\s+[a-z0-9_`]+\\s+)?(BY|AS))\\s+'[^']*'",
               "$1 ***");
 }
 

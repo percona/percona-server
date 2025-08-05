@@ -53,7 +53,7 @@ void Log_user_consumer::set_consumed_lsn(lsn_t consumed_lsn) {
 
 lsn_t Log_user_consumer::get_consumed_lsn() const { return m_consumed_lsn; }
 
-void Log_user_consumer::consumption_requested() {}
+void Log_user_consumer::consumption_requested(lsn_t /*request_lsn*/) {}
 
 Log_consumer::consumer_type Log_user_consumer::get_consumer_type() const {
   return Log_consumer::consumer_type::USER;
@@ -70,8 +70,12 @@ lsn_t Log_checkpoint_consumer::get_consumed_lsn() const {
   return log_get_checkpoint_lsn(m_log);
 }
 
-void Log_checkpoint_consumer::consumption_requested() {
-  log_request_checkpoint_in_next_file(m_log);
+void Log_checkpoint_consumer::consumption_requested(lsn_t request_lsn) {
+  log_t &log = *log_sys;
+  ut_a(log_is_data_lsn(request_lsn));
+  const lsn_t current_lsn = log_get_lsn(log);
+  ut_a_le(request_lsn, current_lsn);
+  log_request_checkpoint_low(log, request_lsn);
 }
 
 Log_consumer::consumer_type Log_checkpoint_consumer::get_consumer_type() const {

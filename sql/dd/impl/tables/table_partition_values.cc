@@ -78,7 +78,8 @@ Table_partition_values::Table_partition_values() {
 
 class Table_partition_values_pk : public Object_key {
  public:
-  Table_partition_values_pk(int partition_id, int list_num, int column_num)
+  Table_partition_values_pk(Object_id partition_id, int list_num,
+                            int column_num)
       : m_partition_id(partition_id),
         m_list_num(list_num),
         m_column_num(column_num) {}
@@ -89,7 +90,7 @@ class Table_partition_values_pk : public Object_key {
   String_type str() const override;
 
  private:
-  int m_partition_id;
+  Object_id m_partition_id;
   int m_list_num;
   int m_column_num;
 };

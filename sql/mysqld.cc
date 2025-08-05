@@ -5017,6 +5017,7 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
     return nullptr;
 }
 
+#ifdef HAVE_PSI_METRICS_INTERFACE
 static void get_metric_connections(void * /* measurement_context */,
                                    measurement_delivery_callback_t delivery,
                                    void *delivery_context) {
@@ -6671,13 +6672,18 @@ static PSI_meter_info_v1 core_meters[] = {
      std::size(ssl_metrics)},
     {"mysql.myisam", "MySql MyISAM storage engine stats", 10, 0, 0,
      myisam_metrics, std::size(myisam_metrics)}};
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 
 void register_server_metric_sources() {
+#ifdef HAVE_PSI_METRICS_INTERFACE
   mysql_meter_register(core_meters, std::size(core_meters));
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 }
 
 void unregister_server_metric_sources() {
+#ifdef HAVE_PSI_METRICS_INTERFACE
   mysql_meter_unregister(core_meters, std::size(core_meters));
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 }
 
 int init_common_variables() {

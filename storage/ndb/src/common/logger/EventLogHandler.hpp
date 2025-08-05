@@ -29,7 +29,7 @@
 #include "LogHandler.hpp"
 #include "portlib/ndb_compiler.h"
 
-#include <time.h>
+#include <ctime>
 
 /**
  * Log messages to the Windows event log
@@ -60,7 +60,7 @@ class EventLogHandler : public LogHandler {
 
  private:
   virtual void writeHeader(const char *pCategory, Logger::LoggerLevel level,
-                           time_t now);
+                           const std::timespec *now);
   virtual void writeMessage(const char *pMsg);
   virtual void writeFooter();
 

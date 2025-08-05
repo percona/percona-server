@@ -1470,6 +1470,9 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
   bool was_connected;
 #endif
+  bool attempt_connect;
+  double attempt_connect_wait_total_time_not_in_current_view;
+  bool server_in_current_view;
   network_provider_dynamic_log_level dial_call_log_level;
   ENV_INIT
   END_ENV_INIT
@@ -1486,6 +1489,9 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
   ep->was_connected = false;
 #endif
+  ep->attempt_connect = true;
+  ep->attempt_connect_wait_total_time_not_in_current_view = 0.0;
+  ep->server_in_current_view = true;
   ep->s = (server *)get_void_arg(arg);
   ep->link = nullptr;
   ep->tag = TAG_START;
@@ -1495,27 +1501,74 @@ int sender_task(task_arg arg) {
     /* Loop until connected */
     G_MESSAGE("Connecting to %s:%d", ep->s->srv, ep->s->port);
     for (;;) {
+      if (ep->attempt_connect) {
 #if defined(_WIN32)
-      if (!ep->was_connected) {
+        if (!ep->was_connected) {
 #endif
-        TASK_CALL(dial(ep->s, ep->dial_call_log_level));
+          TASK_CALL(dial(ep->s, ep->dial_call_log_level));
 #if defined(_WIN32)
-      } else {
-        ep->s->reconnect = true;
+        } else {
+          ep->s->reconnect = true;
+        }
+#endif
       }
-#endif
       if (is_connected(ep->s->con)) break;
 
       // Check, for each reconnect loop, if we belong to this configuration
-      ep->dial_call_log_level =
-          is_server_in_current_view(ep->s)
-              ? network_provider_dynamic_log_level::PROVIDED
-              : network_provider_dynamic_log_level::DEBUG;
+      ep->server_in_current_view = is_server_in_current_view(ep->s);
 
-      if (ep->dtime < MAX_CONNECT_WAIT) {
-        if (ep->dial_call_log_level !=
-            network_provider_dynamic_log_level::DEBUG) {
-          G_MESSAGE("Connection to %s:%d failed", ep->s->srv, ep->s->port);
+      if (ep->attempt_connect) {
+        ep->dial_call_log_level =
+            ep->server_in_current_view
+                ? network_provider_dynamic_log_level::PROVIDED
+                : network_provider_dynamic_log_level::DEBUG;
+
+        if (ep->dtime < MAX_CONNECT_WAIT) {
+          if (ep->dial_call_log_level !=
+              network_provider_dynamic_log_level::DEBUG) {
+            G_MESSAGE("Connection to %s:%d failed", ep->s->srv, ep->s->port);
+          }
+        }
+
+        if (!ep->server_in_current_view) {
+          ep->attempt_connect_wait_total_time_not_in_current_view += ep->dtime;
+
+          /*
+            Stop connection attempts if we reached MAX_CONNECT_WAIT_TOTAL_TIME
+            and the server we want to connect to is not in the current view.
+            We do not fail this task to avoid consider this a critical
+            error that would cause the local server to leave the group.
+          */
+          if (ep->attempt_connect_wait_total_time_not_in_current_view >=
+              MAX_CONNECT_WAIT_TOTAL_TIME) {
+            ep->attempt_connect = false;
+#if defined(_WIN32)
+            ep->s->reconnect = false;
+#endif
+
+            G_MESSAGE(
+                "Connection attempts to %s:%d stopped because this server "
+                "belongs to a previous connfiguration",
+                ep->s->srv, ep->s->port);
+          }
+        }
+      } else {
+        if (ep->server_in_current_view) {
+          /*
+            Server rejoined, resume connection attempts on next loop
+            iteration.
+          */
+          ep->dtime = INITIAL_CONNECT_WAIT;
+          ep->attempt_connect = true;
+          ep->attempt_connect_wait_total_time_not_in_current_view = 0.0;
+#if defined(_WIN32)
+          ep->s->reconnect = true;
+#endif
+
+          G_MESSAGE(
+              "Connection attempts to %s:%d resumed because this server "
+              "belongs to the current connfiguration",
+              ep->s->srv, ep->s->port);
         }
       }
 
@@ -1539,6 +1592,8 @@ int sender_task(task_arg arg) {
     ep->was_connected = true;
     ep->s->reconnect = false;
 #endif
+    ep->attempt_connect = true;
+    ep->attempt_connect_wait_total_time_not_in_current_view = 0.0;
     reset_srv_buf(&ep->s->out_buf);
 
     /* We are ready to start sending messages.

@@ -159,7 +159,7 @@ class Translate_array_validator
     if (0 == values.size() && !ignore_empty_array()) return false;
 
     for (const auto &value : values) {
-      Translate_to_type enum_value;
+      Translate_to_type enum_value{};
       if (!valid_convert_value(value, &enum_value)) {
         DBUG_LOG("debug", "invalid value: \"" << value << "\"");
         if (!ignore_unkown_text_values()) return false;

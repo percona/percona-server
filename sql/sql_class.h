@@ -5202,6 +5202,31 @@ class THD : public MDL_context_owner,
   /// Flag indicating whether this session incremented the number of sessions
   /// with GTID_NEXT set to AUTOMATIC:tag
   bool has_incremented_gtid_automatic_count;
+
+  /// Increment the owned temptable counter. This is used to find leaked
+  /// temptable handles during close_connection calls
+  void increment_temptable_count() { ++m_opened_temptable_count; }
+  /// Decrement the owned temptable counter.
+  void decrement_temptable_count() { --m_opened_temptable_count; }
+  /// Return currently owned temptable count.
+  size_t get_temptable_count() const { return m_opened_temptable_count; }
+
+ private:
+  /** Each THD can open multiple temptables, we create these temptable objects
+    in the temptable engine. These objects have their lifetime controlled with
+    create and delete_table calls in the temptable handler. The sql layer is
+    responsible for calling the create and delete_table functions. We increment
+    this counter in create, and decrement it in delete_table. This allows us to
+    detect any situation where we call close_connection which releases the
+    underlying memory in the temptable engine, before all temptable objects
+    have been deleted. This way we can react and clean up any temptable objects
+    before we free the underlying memory. So we can think of the THD as owning
+    multiple temptable objects in the temptable engine, and we tie the lifetime
+    of these objects to the lifetime of the THD. In normal operation they
+    should be deleted before the close_connection call but this enforces
+    defined behaviour when they aren't.
+  */
+  size_t m_opened_temptable_count{};
 };
 
 /**

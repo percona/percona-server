@@ -199,10 +199,10 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
     if (!Module_cache::m_is_sha256_password_cache_enabled) {
       m_server->delayed_start_tasks();
     }
-
+#ifdef HAVE_PSI_METRICS_INTERFACE
     mysql_meter_register(xpl::Plugin_status_variables::m_xpl_meter,
                          xpl::Plugin_status_variables::get_meter_count());
-
+#endif /* HAVE_PSI_METRICS_INTERFACE */
     guard_of_server_start.release();
   } catch (const std::exception &e) {
     log_error(ER_XPLUGIN_STARTUP_FAILED, e.what());
@@ -240,9 +240,10 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   unrequire_services();
   unprovide_services();
   unregister_udfs();
+#ifdef HAVE_PSI_METRICS_INTERFACE
   mysql_meter_unregister(xpl::Plugin_status_variables::m_xpl_meter,
                          xpl::Plugin_status_variables::get_meter_count());
-
+#endif /* HAVE_PSI_METRICS_INTERFACE */
   xpl::plugin_handle = nullptr;
 
   return 0;

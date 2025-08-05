@@ -694,7 +694,7 @@ added column.
 /** Gets the number of fields in the internal representation of an index,
  including fields added by the dictionary system.
  @return number of fields */
-[[nodiscard]] static inline ulint dict_index_get_n_fields(
+[[nodiscard]] inline uint16_t dict_index_get_n_fields(
     const dict_index_t *index); /*!< in: an internal
                                representation of index (in
                                the dictionary cache) */
@@ -703,14 +703,14 @@ added column.
  we do not take multiversioning into account: in the B-tree use the value
  returned by dict_index_get_n_unique_in_tree.
  @return number of fields */
-[[nodiscard]] static inline ulint dict_index_get_n_unique(
+[[nodiscard]] inline uint16_t dict_index_get_n_unique(
     const dict_index_t *index); /*!< in: an internal representation
                                of index (in the dictionary cache) */
 /** Gets the number of fields in the internal representation of an index
  which uniquely determine the position of an index entry in the index, if
  we also take multiversioning into account.
  @return number of fields */
-[[nodiscard]] static inline ulint dict_index_get_n_unique_in_tree(
+[[nodiscard]] inline uint16_t dict_index_get_n_unique_in_tree(
     const dict_index_t *index); /*!< in: an internal representation
                                of index (in the dictionary cache) */
 
@@ -724,14 +724,14 @@ index, if we also take multiversioning into account. Note, it doesn't
 include page no field.
 @param[in]      index   index
 @return number of fields */
-[[nodiscard]] static inline uint16_t dict_index_get_n_unique_in_tree_nonleaf(
+[[nodiscard]] inline uint16_t dict_index_get_n_unique_in_tree_nonleaf(
     const dict_index_t *index);
 /** Gets the number of user-defined ordering fields in the index. In the
  internal representation we add the row id to the ordering fields to make all
  indexes unique, but this function returns the number of fields the user defined
  in the index as ordering fields.
  @return number of fields */
-[[nodiscard]] static inline ulint dict_index_get_n_ordering_defined_by_user(
+[[nodiscard]] inline ulint dict_index_get_n_ordering_defined_by_user(
     const dict_index_t *index); /*!< in: an internal representation
                                of index (in the dictionary cache) */
 /** Returns true if the index contains a column or a prefix of that column.

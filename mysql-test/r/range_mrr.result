@@ -4908,4 +4908,43 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t;
+#
+# Bug#37808260: Performance degradation in MySQL>=8.4 vs MySQL 8.0
+#               due to redundant condition not optimized away
+#
+CREATE TABLE t1 (f1 INTEGER NOT NULL, f2 INTEGER NOT NULL,
+f3 INTEGER NOT NULL, KEY(f1,f2,f3));
+INSERT INTO t1 VALUES (1,1,1), (1,2,1), (2,3,4), (2,4,5), (3,3,6), (3,4,7);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL));
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL));
+f1
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)) AND f1 = 1;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL)) AND f1 = 1;
+f1
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1));
+EXPLAIN
+-> Filter: ((t1.f1,t1.f2,t1.f3) in ((1,1,NULL),(2,2,NULL),(1,1,1)))  (rows=1)
+    -> Covering index range scan on t1 using f1 over (f1 = 1 AND f2 = 1 AND f3 = 1)  (rows=1)
+
+SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1));
+f1
+1
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1)) AND f1 = 1;
+EXPLAIN
+-> Filter: ((t1.f1 = 1) and ((t1.f1,t1.f2,t1.f3) in ((1,1,NULL),(2,2,NULL),(1,1,1))))  (rows=1)
+    -> Covering index range scan on t1 using f1 over (f1 = 1 AND f2 = 1 AND f3 = 1)  (rows=1)
+
+SELECT f1 FROM t1 WHERE (f1,f2,f3) IN ((1,1,NULL),(2,2,NULL), (1,1,1)) AND f1 = 1;
+f1
+1
+DROP TABLE t1;
 set optimizer_switch=default;

@@ -84,6 +84,7 @@ MYSQL_ADD_COMPONENT(keyring_file
   LINK_LIBRARIES ${KEYRING_FILE_LIBRARIES}
   MODULE_ONLY
 )
+<<<<<<< HEAD
 
 MY_TARGET_LINK_OPTIONS(component_keyring_file "${LINK_FLAG_NO_UNDEFINED}")
 
@@ -94,3 +95,8 @@ IF(APPLE)
     LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
 
+||||||| merged common ancestors
+
+DOWNGRADE_STRINGOP_WARNINGS(component_keyring_file)
+=======
+>>>>>>> mysql-8.4.6

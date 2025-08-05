@@ -27,9 +27,9 @@
 #define Logger_H
 
 #include <ndb_global.h>
-#include <time.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
+#include <ctime>
 #include "portlib/ndb_compiler.h"
 
 #define MAX_LOG_MESSAGE_SIZE 1024
@@ -121,7 +121,8 @@ class Logger {
       @len max length of result buffer
 
   */
-  static void format_timestamp(const time_t epoch, char *str, size_t len);
+  static void format_timestamp(const std::timespec *epoch, char *str,
+                               size_t len);
 
   // Timestamp - handy class for getting a timestamp string
   class Timestamp {

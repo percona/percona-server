@@ -46,12 +46,19 @@ void ndb_usage(usage_fn, const char *load_default_groups[],
 
 static void default_ndb_opt_usage(void) {
   struct my_option my_long_options[] = {
-      NdbStdOpt::usage,           NdbStdOpt::help,
-      NdbStdOpt::version,         NdbStdOpt::ndb_connectstring,
-      NdbStdOpt::mgmd_host,       NdbStdOpt::connectstring,
-      NdbStdOpt::ndb_nodeid,      NdbStdOpt::optimized_node_selection,
-      NdbStdOpt::charsets_dir,    NdbStdOpt::connect_retry_delay,
-      NdbStdOpt::connect_retries, NDB_STD_OPT_DEBUG NdbStdOpt::end_of_options,
+      NdbStdOpt::usage,
+      NdbStdOpt::help,
+      NdbStdOpt::version,
+      NdbStdOpt::ndb_connectstring,
+      NdbStdOpt::mgmd_host,
+      NdbStdOpt::connectstring,
+      NdbStdOpt::ndb_nodeid,
+      NdbStdOpt::optimized_node_selection,
+      NdbStdOpt::charsets_dir,
+      NdbStdOpt::connect_retry_delay,
+      NdbStdOpt::connect_retries,
+      NdbStdOpt::log_timestamps,
+      NDB_STD_OPT_DEBUG NdbStdOpt::end_of_options,
   };
 
   ndb_usage(default_ndb_opt_short, load_default_groups, my_long_options);

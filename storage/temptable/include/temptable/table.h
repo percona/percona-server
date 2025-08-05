@@ -115,6 +115,10 @@ class Table {
 
   Result enable_indexes();
 
+  /** Returns the ID of the owner THD.
+   * @retval ID of the THD of the session using this temptable */
+  my_thread_id owner_id() const;
+
  private:
   /** Index entry for storing index pointer as well
    * as allocated memory size. */
@@ -170,6 +174,8 @@ class Table {
   Columns m_columns;
 
   TABLE_SHARE *m_mysql_table_share;
+
+  my_thread_id m_owner_id{};
 };
 
 /* Implementation of inlined methods. */

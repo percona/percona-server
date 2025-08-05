@@ -272,6 +272,10 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   /* Called when a thread finishes traversing a page and when it completes. */
   reader.set_finish_callback([&](Thread_ctx *thread_ctx) {
+    if (reader.is_error_set()) {
+      return reader.get_error_state();
+    }
+
     dberr_t err{DB_SUCCESS};
     const auto thread_id = thread_ctx->m_thread_id;
 

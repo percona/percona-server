@@ -24872,60 +24872,11 @@ static const dfield_t *innobase_get_field_from_update_vector(
   return upd_field ? &upd_field->new_val : nullptr;
 }
 
-<<<<<<< HEAD
-/** Get the computed value by supplying the base column values.
-@param[in,out]  row             the data row
-@param[in]      col             virtual column
-@param[in]      index           index on the virtual column
-@param[in,out]  local_heap      heap memory for processing large data etc.
-@param[in,out]  heap            memory heap that copies the actual index row
-@param[in]      ifield          index field
-@param[in]      thd             MySQL thread handle
-@param[in,out]  mysql_table     mysql table object
-@param[in]      old_table       during ALTER TABLE, this is the old table
-                                or NULL.
-@param[in]      parent_update   update vector for the parent row
-@param[in]      foreign         foreign key information
-@param[in]      compress_heap   memory heap used to compress/decompress
-                                blob column
-
-@return the field filled with computed value, or NULL if just want
-to store the value in passed in "my_rec" */
-||||||| merged common ancestors
-/** Get the computed value by supplying the base column values.
-@param[in,out]  row             the data row
-@param[in]      col             virtual column
-@param[in]      index           index on the virtual column
-@param[in,out]  local_heap      heap memory for processing large data etc.
-@param[in,out]  heap            memory heap that copies the actual index row
-@param[in]      ifield          index field
-@param[in]      thd             MySQL thread handle
-@param[in,out]  mysql_table     mysql table object
-@param[in]      old_table       during ALTER TABLE, this is the old table
-                                or NULL.
-@param[in]      parent_update   update vector for the parent row
-@param[in]      foreign         foreign key information
-@return the field filled with computed value, or NULL if just want
-to store the value in passed in "my_rec" */
-=======
->>>>>>> mysql-8.4.6
-dfield_t *innobase_get_computed_value(
-<<<<<<< HEAD
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap) {
-||||||| merged common ancestors
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign) {
-=======
+dfield_t *innobase_get_computed_value(mem_heap_t **compress_heap,
     const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
     mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
     const dict_field_t *ifield, const dict_table_t *old_table,
     upd_t *row_update) {
->>>>>>> mysql-8.4.6
   byte rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
   byte rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
   byte *mysql_rec;
@@ -24998,17 +24949,9 @@ dfield_t *innobase_get_computed_value(
              templ->mysql_col_len);
     } else {
       row_sel_field_store_in_mysql_format(
-<<<<<<< HEAD
-          mysql_rec + templ->mysql_col_offset, templ, index,
+          mysql_rec + templ->mysql_col_offset, templ, table->first_index(),
           templ->clust_rec_field_no, (const byte *)data, len, compress_heap,
           ULINT_UNDEFINED);
-||||||| merged common ancestors
-          mysql_rec + templ->mysql_col_offset, templ, index,
-          templ->clust_rec_field_no, (const byte *)data, len, ULINT_UNDEFINED);
-=======
-          mysql_rec + templ->mysql_col_offset, templ, table->first_index(),
-          templ->clust_rec_field_no, (const byte *)data, len, ULINT_UNDEFINED);
->>>>>>> mysql-8.4.6
 
       if (templ->mysql_null_bit_mask) {
         /* It is a nullable column with a
@@ -25101,14 +25044,8 @@ dfield_t *innobase_get_computed_value(
   } else {
     row_mysql_store_col_in_innobase_format(
         field, buf, true, mysql_rec + vctempl->mysql_col_offset,
-<<<<<<< HEAD
-        vctempl->mysql_col_len, dict_table_is_comp(index->table), false,
-        nullptr, 0, nullptr);
-||||||| merged common ancestors
-        vctempl->mysql_col_len, dict_table_is_comp(index->table));
-=======
-        vctempl->mysql_col_len, dict_table_is_comp(table));
->>>>>>> mysql-8.4.6
+        vctempl->mysql_col_len, dict_table_is_comp(table), false, nullptr, 0,
+        nullptr);
   }
   field->type.prtype |= DATA_VIRTUAL;
 

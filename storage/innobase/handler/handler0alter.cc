@@ -6098,8 +6098,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   return prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
-      table_share->table_name.str, info.flags(), info.flags2() | encrypt_flag,
-      fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt);
+      table_share->table_name.str, info.flags(), info.flags2() | encrypt_flag, fts_doc_col_no,
+      add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt);
 }
 
 /** Check that the column is part of a virtual index(index contains

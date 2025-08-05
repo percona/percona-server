@@ -5,26 +5,12 @@ if (!$restart_parameters)
 
 # We use --exec echo instead of simple "--echo" because
 # replace_result works on --exec
-<<<<<<< HEAD
-if (!$do_not_echo_parameters)
-{
-  --exec echo "# $restart_parameters"
-}
-if ($do_not_echo_parameters)
-{
-  --echo # restart:<hidden args>
-  let $do_not_echo_parameters=;
-}
-||||||| merged common ancestors
---exec echo "# $restart_parameters"
-=======
 if (!$do_not_echo_parameters) {
   --exec echo "# $restart_parameters"
 }
 if ($do_not_echo_parameters) {
   --exec echo "# restart"
 }
->>>>>>> mysql-8.4.6
 
 # A common bug in our tests was that people tried to call start_mysqld.inc
 # while the expect file already existed and contained something other than "wait",

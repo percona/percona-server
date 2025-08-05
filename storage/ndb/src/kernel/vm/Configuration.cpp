@@ -653,14 +653,8 @@ void Configuration::setMixologyLevel(Uint32 l) { _mixologyLevel = l; }
 
 Uint32 Configuration::getShutdownHandlingFault() const {
   return _shutdownHandlingFault;
-<<<<<<< HEAD
-}
-||||||| merged common ancestors
-};
-=======
 }
 
->>>>>>> mysql-8.4.6
 Uint32 Configuration::getShutdownHandlingFaultExtra() const {
   return _shutdownHandlingFaultExtra;
 }

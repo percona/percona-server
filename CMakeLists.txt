@@ -893,13 +893,6 @@ OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
-<<<<<<< HEAD
-# Currently only supported on Linux
-IF(LINUX)
-||||||| merged common ancestors
-# Currently only supported on Linux
-IF(WITH_INTERNAL AND LINUX)
-=======
 # Add option WITH_KERBEROS_MAC which will be ignored on older branches.
 UNSET(CUSTOM_KERBEROS_SPECIFIED)
 IF(APPLE)
@@ -919,7 +912,6 @@ IF(WITH_INTERNAL AND
   # in MYSQL_CHECK_KERBEROS
   # Enabling WITH_AUTHENTICATION_KERBEROS, will also enable
   # WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT, see below.
->>>>>>> mysql-8.4.6
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT OFF)

@@ -241,10 +241,10 @@ byte *row_mysql_store_col_in_innobase_format(
     bool need_compression,
     /*!< in: if the data need to be
     compressed */
-    const byte *dict_data,     /*!< in: optional compression
-                               dictionary data */
-    ulint dict_data_len,       /*!< in: optional compression
-                               dictionary data length */
+    const byte *dict_data,       /*!< in: optional compression
+                                 dictionary data */
+    ulint dict_data_len,         /*!< in: optional compression
+                                 dictionary data length */
     mem_heap_t **compress_heap); /*!< in: compress_heap */
 /** Handles user errors and lock waits detected by the database engine.
  @return true if it was a lock wait and we should continue running the
@@ -803,8 +803,8 @@ struct row_prebuilt_t {
                              in fetch_cache */
   mem_heap_t *blob_heap;     /*!< in SELECTS BLOB fields are copied
                              to this heap */
-  mem_heap_t *compress_heap;          /*!< memory heap used to compress
-                                        /decompress blob column*/
+  mem_heap_t *compress_heap; /*!< memory heap used to compress
+                               /decompress blob column*/
   mem_heap_t *old_vers_heap; /*!< memory heap where a previous
                              version is built in consistent read */
   enum {
@@ -1019,22 +1019,10 @@ struct SysIndexCallback {
                                 values
 @return the field filled with computed value, or nullptr on failure */
 dfield_t *innobase_get_computed_value(
-<<<<<<< HEAD
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap);
-||||||| merged common ancestors
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign);
-=======
-    const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
-    mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
-    const dict_field_t *ifield = nullptr,
+    mem_heap_t **compress_heap, const dtuple_t *row, const dict_v_col_t *col,
+    const dict_table_t *table, mem_heap_t **local_heap, mem_heap_t *heap,
+    THD *thd, TABLE *mysql_table, const dict_field_t *ifield = nullptr,
     const dict_table_t *old_table = nullptr, upd_t *row_update = nullptr);
->>>>>>> mysql-8.4.6
 
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure

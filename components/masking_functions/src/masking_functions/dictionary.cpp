@@ -34,7 +34,8 @@ const charset_string &dictionary::get_random() const noexcept {
     return shared_empty;
   }
 
-  const auto random_index{random_number(0, terms_.size() - 1U)};
+  const auto random_index{
+      random_number(static_cast<std::size_t>(0U), terms_.size() - 1U)};
   return *std::next(std::begin(terms_),
                     static_cast<std::ptrdiff_t>(random_index));
 }

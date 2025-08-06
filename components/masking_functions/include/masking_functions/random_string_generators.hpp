@@ -60,8 +60,9 @@ inline std::string random_numeric_string(std::size_t length) {
 }
 
 // Returns a random number from the closed interval ['min', 'max'].
-// The behavior is undefined if 'min' > 'max'.
-std::size_t random_number(std::size_t min, std::size_t max);
+// If 'max' < 'min', then this function always return 'min'
+template <typename T>
+T random_number(T min, T max);
 
 // Returns a random American Express / Visa / Mastercard / Discover
 // credit card number that passes basic checksum validation.

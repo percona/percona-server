@@ -12,7 +12,7 @@ ALTER TABLESPACE mysql ENCRYPTION='N';
 END WHILE;
 END//
 CALL my_infinite_alter_ts();
-# Kill and restart:<hidden args>
+# Kill and restart
 DROP PROCEDURE my_infinite_alter_ts;
 # ----------------------------------------------------------------------
 # Teardown

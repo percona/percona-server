@@ -174,17 +174,17 @@ ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
 # restart:--utility-user-dynamic-privileges=sYstem_USEr
 ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass2';
 DROP USER u1;
-# restart:<hidden args>
+# restart
 FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_1,PRIVILEGE2,PRIVILEGE4'./ in my_restart.err
-# restart:<hidden args>
+# restart
 FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_2'./ in my_restart.err
-# restart:<hidden args>
+# restart
 FOUND /Utility user 'frank'@'%' in use with dynamic privileges 'SYSTEM_USER,PRIVILEGE_3'./ in my_restart.err
-# restart:<hidden args>
+# restart
 FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER,PRIVILEGE_1,/ in my_restart.err
-# restart:<hidden args>
+# restart
 FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTEM_USER,PRIVILEGE_1/ in my_restart.err
-# restart:<hidden args>
+# restart
 FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1/ in my_restart.err
 # restart
 DROP ROLE r1;

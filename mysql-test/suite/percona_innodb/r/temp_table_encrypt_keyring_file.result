@@ -5,7 +5,7 @@
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring is loaded.");
-# restart:<hidden args>
+# restart
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
@@ -42,14 +42,14 @@ CREATE INDEX t10_b ON t10 (b);
 DROP INDEX t10_b ON t10;
 CREATE INDEX t10_b ON t10 (b) ALGORITHM=COPY;
 DROP INDEX t10_b ON t10 ALGORITHM=COPY;
-# restart:<hidden args>
+# restart
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
-# restart:<hidden args>
+# restart
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 DROP TABLE t10;
-# restart:<hidden args>
+# restart
 CREATE TABLE t1(a INT key) ENGINE = MEMORY;
 INSERT INTO t1 VALUES (11061);
 INSERT INTO t1 VALUES (3);

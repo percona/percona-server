@@ -3,7 +3,7 @@ SET GLOBAL masking_functions.masking_database=dict_db;
 ERROR HY000: Variable 'masking_functions.masking_database' is a read only variable
 SET SESSION masking_functions.masking_database=dict_db;
 ERROR HY000: Variable 'masking_functions.masking_database' is a read only variable
-# restart:<hidden args>
+# restart
 include/assert_grep.inc [Bad masking_functions.masking_database value]
 CREATE DATABASE dict_db;
 CREATE TABLE dict_db.masking_dictionaries(
@@ -12,7 +12,7 @@ Term VARCHAR(256) NOT NULL,
 UNIQUE INDEX dictionary_term_idx (Dictionary, Term)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
 GRANT SELECT, INSERT, UPDATE, DELETE ON dict_db.masking_dictionaries TO 'mysql.session'@'localhost';
-# restart:<hidden args>
+# restart
 CREATE USER udftest_priv@localhost;
 GRANT MASKING_DICTIONARIES_ADMIN ON *.* TO udftest_priv@localhost;
 SELECT masking_dictionary_term_add('single_dict', 'entry');

@@ -141,12 +141,29 @@ std::string random_character_class_string(character_class char_class,
   return str;
 }
 
-std::size_t random_number(std::size_t min, std::size_t max) {
+template <typename T>
+T random_number(T min, T max) {
+  if (max < min) {
+    return min;
+  }
   auto &prng = get_thread_local_prng();
-  std::uniform_int_distribution<std::size_t> dist(min, max);
+  std::uniform_int_distribution<T> dist(min, max);
 
   return dist(prng);
 }
+
+// Explicit template instantiations for all built-in types that make
+// sense for std::uniform_int_distribution.
+template short random_number(short, short);
+template int random_number(int, int);
+template long random_number(long, long);
+template long long random_number(long long, long long);
+
+template unsigned short random_number(unsigned short, unsigned short);
+template unsigned int random_number(unsigned int, unsigned int);
+template unsigned long random_number(unsigned long, unsigned long);
+template unsigned long long random_number(unsigned long long,
+                                          unsigned long long);
 
 std::string random_canada_sin() {
   // Three groups of three digits, e.g., 123-456-789
@@ -183,7 +200,7 @@ std::string random_credit_card() {
     case american_express:
       // American Express: 1st N 3, 2nd N [4,7], len 15
       str = "3";
-      str += random_number(0U, 1U) == 0 ? '4' : '7';
+      str += random_number(0U, 1U) == 0U ? '4' : '7';
       str += random_numeric_string(american_express_number_of_digits -
                                    str.size() - 1U);
       break;

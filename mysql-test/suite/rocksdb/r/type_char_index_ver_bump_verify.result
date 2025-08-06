@@ -8,7 +8,7 @@ call mtr.add_suppression("Will handle this collation internally as if it had a N
 # Stop DB server which was created by MTR default
 # Unzip the zip file.
 # Remove copied files
-# restart:<hidden args>
+# restart
 #########
 # Performing test specific validation
 ###

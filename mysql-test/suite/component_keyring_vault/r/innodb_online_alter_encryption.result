@@ -4,7 +4,7 @@
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
-# restart:<hidden args>
+# restart
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';
 CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
 CREATE TABLE t3 (id INT, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';
@@ -112,7 +112,7 @@ t7	CREATE TABLE `t7` (
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='y'
 # Restarting server
-# restart:<hidden args>
+# restart
 # Done restarting server
 SELECT COUNT(1) FROM t1;
 COUNT(1)

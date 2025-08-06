@@ -1,2 +1,2 @@
 Pattern "\[ERROR\] .* requires the 'TokuDB' storage engine" found
-# restart:<hidden args>
+# restart

@@ -31,7 +31,7 @@ INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occu
 # Kill the server
 # Writes to Parallel dblwr are not encrypted, so it should be "Pattern found"
 Pattern found.
-# restart:<hidden args>
+# restart
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1(a TEXT) ENCRYPTION='Y';
 CREATE TABLE t2(a TEXT) ENCRYPTION='Y';
@@ -60,7 +60,7 @@ INSERT INTO t3 (a) VALUES ('Abracadabra is of unknown origin, and its first occu
 # Kill the server
 # Writes to Parallel dblwr are encrypted, so it should be "Pattern not found"
 Pattern not found.
-# restart:<hidden args>
+# restart
 DROP TABLE t1, t2, t3;
 # ----------------------------------------------------------------------
 # Teardown

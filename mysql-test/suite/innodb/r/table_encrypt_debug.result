@@ -208,7 +208,7 @@ COUNT(*)
 DROP TABLE tde_db.test_tbl;
 DROP DATABASE tde_db;
 SET GLOBAL innodb_file_per_table=1;
-# restart:<hidden args>
+# restart
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

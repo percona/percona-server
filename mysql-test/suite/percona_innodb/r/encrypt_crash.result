@@ -19,7 +19,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 INSERT INTO t1  ( c0 ,c1 ,c2 ,c3 ,c4 ,c5 ,c6 ) VALUES( 27906, 'YyjVvM736Yv6DypI', 52002, 51934, 41805, 94851, 1200 );
-# Kill and restart:<hidden args>
+# Kill and restart
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 3

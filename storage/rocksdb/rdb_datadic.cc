@@ -3573,6 +3573,7 @@ int Rdb_key_def::unpack_unknown_varlength(Rdb_field_packing *const fpi,
 
   uchar *data_start = get_data_start_ptr(fpi, dst, ctx);
   uchar *data = data_start;
+  size_t data_len = fpi->m_max_field_bytes;
   const uint len_bytes = fpi->m_varlength_bytes;
   // We don't use anything from the key, so skip over it.
   if ((fpi->m_skip_func)(fpi, reader)) {
@@ -3590,6 +3591,8 @@ int Rdb_key_def::unpack_unknown_varlength(Rdb_field_packing *const fpi,
       len = Field_blob::get_length(ptr, fpi->m_varlength_bytes);
     }
     if ((ptr = (const uchar *)unp_reader->read(len))) {
+      if (len > data_len) return UNPACK_FAILURE;
+
       memcpy(data, ptr, len);
       store_field(data_start, len, dst, fpi, ctx);
       return UNPACK_SUCCESS;

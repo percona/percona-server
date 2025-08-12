@@ -276,7 +276,7 @@ ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_INSTALL_SOURCE_XZ "")
   SET (DEB_RULES_INSTALL_SYSTEMD "")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "")
@@ -294,7 +294,7 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_RULES_INSTALL_SYSTEMD
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
@@ -313,7 +313,7 @@ ELSEIF(DEB_CODENAME STREQUAL "zesty")
   SET (DEB_RULES_INSTALL_SYSTEMD
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
@@ -332,7 +332,7 @@ ELSEIF(DEB_CODENAME STREQUAL "artful")
   SET (DEB_RULES_INSTALL_SYSTEMD
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
@@ -351,7 +351,7 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_RULES_INSTALL_SYSTEMD
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
@@ -370,7 +370,7 @@ ELSEIF(DEB_CODENAME STREQUAL "cosmic")
   SET (DEB_RULES_INSTALL_SYSTEMD
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
@@ -390,7 +390,7 @@ ELSEIF(DEB_CODENAME STREQUAL "disco")
     "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
   "
-	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	install -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
   ")
   SET (DEB_RULES_APPARMOR_LOAD
   "

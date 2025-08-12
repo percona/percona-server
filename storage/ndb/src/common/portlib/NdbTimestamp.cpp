@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
 
 #include "ndb_config.h"
 #include "portlib/NdbTimestamp.h"
@@ -503,6 +504,9 @@ static void test_UTC() {
   }
 }
 
+using char_buffer_ptr = std::unique_ptr<char, decltype(&std::free)>;
+static char_buffer_ptr guarded_tzenv(nullptr, &std::free);
+
 static void test_TZ(int itz) {
 #ifndef _WIN32
   const char *tzenv = timezones[itz][0];
@@ -513,7 +517,8 @@ static void test_TZ(int itz) {
     return;
   }
 #endif
-  putenv(strdup(tzenv));
+  guarded_tzenv.reset(strdup(tzenv));
+  putenv(guarded_tzenv.get());
   printf("%s\n", tzenv);
   NdbTimestamp_Reset();
 

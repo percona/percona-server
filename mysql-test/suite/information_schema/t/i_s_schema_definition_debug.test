@@ -355,7 +355,7 @@ INSERT INTO I_S_published_schema
         'e52da18c23a6d0b580978000c63ee9219b97289164876c0baba11d694f816993');
 INSERT INTO I_S_published_schema
   VALUES ('90400', '90400', 1,
-        '027170b29c123596a675415c0e95542856cdd7bb837da87a74ce3c9bff8103fd');
+        '1bb9338a1c83d40d6dc4dc320f395f27d13f36e56df5ae4797c0cd246f1150b6');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 0,
         '951c2fa76ae5d55325aa10bf4cf98ee269b965b6506b43bc16259db3bed566b5');

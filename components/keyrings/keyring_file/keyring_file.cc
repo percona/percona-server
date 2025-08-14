@@ -325,26 +325,9 @@ REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 BEGIN_COMPONENT_REQUIRES(component_keyring_file)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(registry_registration),
-<<<<<<< HEAD
     REQUIRES_SERVICE(status_variable_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
     REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
-||||||| merged common ancestors
-    REQUIRES_SERVICE(status_variable_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
-    END_COMPONENT_REQUIRES();
-=======
-    REQUIRES_SERVICE(status_variable_registration), END_COMPONENT_REQUIRES();
->>>>>>> mysql-9.4.0
 
 /** Component description */
 BEGIN_COMPONENT_METADATA(component_keyring_file)

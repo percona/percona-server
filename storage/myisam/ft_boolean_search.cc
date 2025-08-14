@@ -531,13 +531,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   assert(keynr == NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan = 0;
   ftb->lastpos = HA_OFFSET_ERROR;
-<<<<<<< HEAD
-  ::new ((void *)&ftb->no_dupes) TREE{};
-||||||| merged common ancestors
-  memset(&ftb->no_dupes, 0, sizeof(TREE));
-=======
   memset((void *)&ftb->no_dupes, 0, sizeof(TREE));
->>>>>>> mysql-9.4.0
   ftb->last_word = nullptr;
 
   ::new ((void *)&ftb->mem_root) MEM_ROOT(PSI_INSTRUMENT_ME, 1024);

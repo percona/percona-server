@@ -144,13 +144,7 @@ connection master;
 --disable_query_log ONCE
 select "--- Test 1 Load from Dump binlog file --" as "";
 
-<<<<<<< HEAD
---exec $MYSQL -c -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
-||||||| merged common ancestors
---exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
-=======
 --exec $MYSQL --commands -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
->>>>>>> mysql-9.4.0
 
 --disable_query_log ONCE
 select "--- Test 1 Check Load Results --" as "";
@@ -313,7 +307,7 @@ create table t5 (f text character set cp932);
 --character_set utf8mb3
 --execw $MYSQL --default-character-set=utf8mb3 test -e "insert into t4 values(_utf8mb3'ã‚½')"
 --character_set cp932
---execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+--execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ï¿½\');"
 --character_set latin1
 let $MYSQLD_DATADIR= `select @@datadir;`;
 flush logs;

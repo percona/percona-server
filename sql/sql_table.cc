@@ -12154,12 +12154,8 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
             must force the ENGINE and CHARSET to be present into CREATE TABLE.
           */
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
-<<<<<<< HEAD
           create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
-||||||| merged common ancestors
-=======
           create_info->used_fields |= HA_CREATE_USED_EXPLICIT_ENGINE;
->>>>>>> mysql-9.4.0
 
           const bool result [[maybe_unused]] = store_create_info(
               thd, table, &query, create_info, true /* show_database */,

@@ -408,7 +408,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-<<<<<<< HEAD
 TABLE_NAME	GLOBAL_TEMPORARY_TABLES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -455,8 +454,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-||||||| merged common ancestors
-=======
 TABLE_NAME	JSON_DUALITY_VIEWS
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -549,7 +546,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
->>>>>>> mysql-9.4.0
 TABLE_NAME	KEYWORDS
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1834,7 +1830,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-<<<<<<< HEAD
 TABLE_NAME	GLOBAL_TEMPORARY_TABLES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1881,8 +1876,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-||||||| merged common ancestors
-=======
 TABLE_NAME	JSON_DUALITY_VIEWS
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1975,7 +1968,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
->>>>>>> mysql-9.4.0
 TABLE_NAME	KEYWORDS
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL

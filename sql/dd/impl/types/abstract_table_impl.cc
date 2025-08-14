@@ -91,16 +91,10 @@ static const std::set<String_type> default_valid_option_keys = {
     "tablespace",
     "timestamp",
     "view_valid",
-<<<<<<< HEAD
     "gipk",
+    "view_type",
     "encryption_key_id",     // Added by Percona InnoDB KEYRING encryption
     "explicit_encryption"};  // Added by Percona InnoDB KEYRING encryption
-||||||| merged common ancestors
-    "gipk"};
-=======
-    "gipk",
-    "view_type"};
->>>>>>> mysql-9.4.0
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.

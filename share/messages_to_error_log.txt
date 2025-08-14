@@ -13077,7 +13077,93 @@ ER_KEYRING_COMPONENT_KEYRING_HASHICORP_AUTH_FAIL
 ER_KEYRING_COMPONENT_KEYRING_HASHICORP_CURL_SETOPT_FAILED
    eng "Hashicorp Vault server curl_easy_setopt failed."
 
-<<<<<<< HEAD
+ER_COMPONENT_FIREWALL_OTHER_ERROR
+  eng "Firewall component error: '%s'."
+
+ER_COMPONENT_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
+   eng "Invalid firewall reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
+
+ER_COMPONENT_FIREWALL_VAR_REGISTRATION_FAILURE
+  eng "Cannot register variable '%s'.'%s'."
+
+ER_COMPONENT_FIREWALL_NOTIFICATION_REGISTRATION_FAILURE
+  eng "Firewall component failed to register notification service. Periodical reloads will not work."
+
+ER_COMPONENT_FIREWALL_RECORDING_TRUNCATED
+  eng "Statement from %s was truncated and won't be recorded, consider enlarging value of max_digest_length variable."
+
+ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT_TRUNCATED
+  eng "SUSPICIOUS STATEMENT from %s. Statement truncated."
+
+ER_COMPONENT_FIREWALL_ACCESS_DENIED_TRUNCATED
+  eng "ACCESS DENIED for %s. Statement truncated."
+
+ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT
+  eng "SUSPICIOUS STATEMENT from %s. Statement \"%s\" doesn't match any statement from any allowlist."
+
+ER_COMPONENT_FIREWALL_ACCESS_DENIED
+  eng "ACCESS DENIED for %s. Statement: Statement \"%s\" doesn't match any statement from any allowlist."
+
+ER_COMPONENT_FIREWALL_CANNOT_ACCESS_TABLE
+  eng "Cannot access %s.%s table."
+
+ER_COMPONENT_FIREWALL_INVALID_TABLE_DEFINITION
+  eng "Invalid definition of %s.%s table."
+
+ER_COMPONENT_FIREWALL_CANNOT_READ_TABLE
+  eng "Cannot read data from %s.%s table."
+
+ER_COMPONENT_FIREWALL_DATABASE
+  eng "Error accessing database: %s."
+
+ER_COMPONENT_FIREWALL_INIT
+  eng "Error while initializing the component: %s."
+
+ER_COMPONENT_FIREWALL_PROCESSING_ERROR
+  eng "Error on processing statement."
+
+ER_COMPONENT_FIREWALL_TRACING_ERROR
+  eng "Error on tracing suspicious statement."
+
+ER_COMPONENT_FIREWALL_PROCESSING_EXCEPTION
+  eng "Exception on processing statement: '%s'."
+
+ER_NOTE_COMPONENT_FIREWALL_RELOAD
+  eng "Cache reload with interval %d seconds is on."
+
+ER_COMPONENT_FIREWALL_RELOAD_TOO_SHORT_PERIOD
+  eng "Attempt to reload cache before the previous reload not finished. Consider increasing value of component_firewall.reload_interval_seconds."
+
+ER_VAR_REGISTRATION
+  eng "Cannot register variable '%s.%s'. Please check if it is not already registered."
+
+ER_VAR_DEREGISTRATION
+  eng "Cannot unregister variable '%s.%s'. Please check if it was registered properly in the first place."
+
+ER_SERVER_STARTING_WITH_RESOURCE
+   eng "MySQL Server has access to %llu %s."
+
+ER_INFO_AUTHENTICATION_OCI
+   eng "authentication_oci plugin reported: %s."
+
+ER_SERVER_MEMORY_OPTION_INVALID
+   eng "MySQL Server configured to use %llu bytes but can only access %llu bytes."
+
+ER_WARN_KEYRING_PLUGIN_DEPRECTED
+  eng "Plugin %s is of the deprecated keyring plugin type. Please use the corresponding keyring component instead."
+
+ER_AUDIT_LOG_OFFLOAD_INFO
+  eng "%s"
+
+ER_AUDIT_LOG_OFFLOAD_WARNING
+  eng "%s"
+
+ER_AUDIT_LOG_OFFLOAD_ERROR
+  eng "%s"
+
+ER_WARN_SERVER_MEMORY_INIT_FAIL
+  eng "Failed to read or validate server_memory, and falling back to total physical memory."
+
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13445,96 +13531,6 @@ ER_SSL_FIPS_MODE_ENABLED
 #
 
 
-||||||| merged common ancestors
-=======
-ER_COMPONENT_FIREWALL_OTHER_ERROR
-  eng "Firewall component error: '%s'."
-
-ER_COMPONENT_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
-   eng "Invalid firewall reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
-
-ER_COMPONENT_FIREWALL_VAR_REGISTRATION_FAILURE
-  eng "Cannot register variable '%s'.'%s'."
-
-ER_COMPONENT_FIREWALL_NOTIFICATION_REGISTRATION_FAILURE
-  eng "Firewall component failed to register notification service. Periodical reloads will not work."
-
-ER_COMPONENT_FIREWALL_RECORDING_TRUNCATED
-  eng "Statement from %s was truncated and won't be recorded, consider enlarging value of max_digest_length variable."
-
-ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT_TRUNCATED
-  eng "SUSPICIOUS STATEMENT from %s. Statement truncated."
-
-ER_COMPONENT_FIREWALL_ACCESS_DENIED_TRUNCATED
-  eng "ACCESS DENIED for %s. Statement truncated."
-
-ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT
-  eng "SUSPICIOUS STATEMENT from %s. Statement \"%s\" doesn't match any statement from any allowlist."
-
-ER_COMPONENT_FIREWALL_ACCESS_DENIED
-  eng "ACCESS DENIED for %s. Statement: Statement \"%s\" doesn't match any statement from any allowlist."
-
-ER_COMPONENT_FIREWALL_CANNOT_ACCESS_TABLE
-  eng "Cannot access %s.%s table."
-
-ER_COMPONENT_FIREWALL_INVALID_TABLE_DEFINITION
-  eng "Invalid definition of %s.%s table."
-
-ER_COMPONENT_FIREWALL_CANNOT_READ_TABLE
-  eng "Cannot read data from %s.%s table."
-
-ER_COMPONENT_FIREWALL_DATABASE
-  eng "Error accessing database: %s."
-
-ER_COMPONENT_FIREWALL_INIT
-  eng "Error while initializing the component: %s."
-
-ER_COMPONENT_FIREWALL_PROCESSING_ERROR
-  eng "Error on processing statement."
-
-ER_COMPONENT_FIREWALL_TRACING_ERROR
-  eng "Error on tracing suspicious statement."
-
-ER_COMPONENT_FIREWALL_PROCESSING_EXCEPTION
-  eng "Exception on processing statement: '%s'."
-
-ER_NOTE_COMPONENT_FIREWALL_RELOAD
-  eng "Cache reload with interval %d seconds is on."
-
-ER_COMPONENT_FIREWALL_RELOAD_TOO_SHORT_PERIOD
-  eng "Attempt to reload cache before the previous reload not finished. Consider increasing value of component_firewall.reload_interval_seconds."
-
-ER_VAR_REGISTRATION
-  eng "Cannot register variable '%s.%s'. Please check if it is not already registered."
-
-ER_VAR_DEREGISTRATION
-  eng "Cannot unregister variable '%s.%s'. Please check if it was registered properly in the first place."
-
-ER_SERVER_STARTING_WITH_RESOURCE
-   eng "MySQL Server has access to %llu %s."
-
-ER_INFO_AUTHENTICATION_OCI
-   eng "authentication_oci plugin reported: %s."
-
-ER_SERVER_MEMORY_OPTION_INVALID
-   eng "MySQL Server configured to use %llu bytes but can only access %llu bytes."
-
-ER_WARN_KEYRING_PLUGIN_DEPRECTED
-  eng "Plugin %s is of the deprecated keyring plugin type. Please use the corresponding keyring component instead."
-
-ER_AUDIT_LOG_OFFLOAD_INFO
-  eng "%s"
-
-ER_AUDIT_LOG_OFFLOAD_WARNING
-  eng "%s"
-
-ER_AUDIT_LOG_OFFLOAD_ERROR
-  eng "%s"
-
-ER_WARN_SERVER_MEMORY_INIT_FAIL
-  eng "Failed to read or validate server_memory, and falling back to total physical memory."
-
->>>>>>> mysql-9.4.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

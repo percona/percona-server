@@ -3012,7 +3012,6 @@ class Sys_var_binlog_encryption : public Sys_var_bool {
   bool global_update(THD *thd, set_var *var) override;
 };
 
-<<<<<<< HEAD
 class Sys_var_errors_set : public sys_var {
  public:
   Sys_var_errors_set(
@@ -3090,10 +3089,7 @@ class Sys_var_errors_set : public sys_var {
   }
 };
 
-||||||| merged common ancestors
-=======
 void update_temptable_max_ram_default();
->>>>>>> mysql-9.4.0
 void update_parser_max_mem_size();
 void update_optimizer_switch();
 

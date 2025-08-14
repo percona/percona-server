@@ -5551,15 +5551,6 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
     MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine), true,
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
 
-<<<<<<< HEAD
-static Sys_var_charptr Sys_enforce_storage_engine(
-    "enforce_storage_engine",
-    "Force the use of a storage engine for new tables",
-    READ_ONLY GLOBAL_VAR(enforce_storage_engine), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT(nullptr));
-
-||||||| merged common ancestors
-=======
 static bool check_external_table_storage_engine(sys_var *self [[maybe_unused]],
                                                 THD *thd [[maybe_unused]],
                                                 set_var *var) {
@@ -5611,7 +5602,12 @@ static Sys_var_charptr Sys_external_table_secondary_storage_engine(
     CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
     DEFAULT(DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE));
 
->>>>>>> mysql-9.4.0
+static Sys_var_charptr Sys_enforce_storage_engine(
+    "enforce_storage_engine",
+    "Force the use of a storage engine for new tables",
+    READ_ONLY GLOBAL_VAR(enforce_storage_engine), CMD_LINE(REQUIRED_ARG),
+    IN_SYSTEM_CHARSET, DEFAULT(nullptr));
+
 #if defined(ENABLED_DEBUG_SYNC)
 /*
   Variable can be set for the session only.
@@ -8352,7 +8348,24 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
 }  // namespace
-<<<<<<< HEAD
+
+#ifndef NDEBUG
+namespace {
+ulonglong debug_a_global_flagset;
+constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F1{1ULL << 0};
+constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F2{1ULL << 1};
+// constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_LAST{1ULL << 2};
+constexpr uint64_t DEBUG_A_GLOBAL_FLAGSET_DEFAULT{DEBUG_A_GLOBAL_FLAGSET_F1 |
+                                                  DEBUG_A_GLOBAL_FLAGSET_F2};
+const char *debug_a_global_flagset_names[] = {"f1", "f2", "default", NullS};
+Sys_var_flagset Sys_debug_a_global_flagset(
+    "debug_a_global_flagset",
+    "Debug variable to test a global persistable flagset variable.",
+    GLOBAL_VAR(debug_a_global_flagset), CMD_LINE(REQUIRED_ARG),
+    debug_a_global_flagset_names, DEFAULT(DEBUG_A_GLOBAL_FLAGSET_DEFAULT),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+}  // namespace
+#endif /* NDEBUG */
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};
@@ -8384,24 +8397,3 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_set_default_table_encryption));
-||||||| merged common ancestors
-=======
-
-#ifndef NDEBUG
-namespace {
-ulonglong debug_a_global_flagset;
-constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F1{1ULL << 0};
-constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F2{1ULL << 1};
-// constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_LAST{1ULL << 2};
-constexpr uint64_t DEBUG_A_GLOBAL_FLAGSET_DEFAULT{DEBUG_A_GLOBAL_FLAGSET_F1 |
-                                                  DEBUG_A_GLOBAL_FLAGSET_F2};
-const char *debug_a_global_flagset_names[] = {"f1", "f2", "default", NullS};
-Sys_var_flagset Sys_debug_a_global_flagset(
-    "debug_a_global_flagset",
-    "Debug variable to test a global persistable flagset variable.",
-    GLOBAL_VAR(debug_a_global_flagset), CMD_LINE(REQUIRED_ARG),
-    debug_a_global_flagset_names, DEFAULT(DEBUG_A_GLOBAL_FLAGSET_DEFAULT),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
-}  // namespace
-#endif /* NDEBUG */
->>>>>>> mysql-9.4.0

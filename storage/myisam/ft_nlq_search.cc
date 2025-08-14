@@ -219,7 +219,7 @@ static int FT_DOC_cmp(void *, uchar *a_arg, uchar *b_arg) {
 
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
                             uint query_len, uint flags, uchar *record) {
-  TREE wtree{};
+  TREE wtree;
   ALL_IN_ONE aio;
   FT_DOC *dptr;
   st_ft_info_nlq *dlist = nullptr;
@@ -240,14 +240,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   parser = info->s->keyinfo[keynr].parser;
   if (!(ftparser_param = ftparser_call_initializer(info, keynr, 0))) goto err;
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  memset(&wtree, 0, sizeof(wtree));
-
-=======
   memset((void *)&wtree, 0, sizeof(wtree));
 
->>>>>>> mysql-9.4.0
   init_tree(&aio.dtree, 0, sizeof(FT_SUPERDOC), &FT_SUPERDOC_cmp, false,
             nullptr, nullptr);
 

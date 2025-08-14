@@ -229,17 +229,13 @@ class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
   void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
-<<<<<<< HEAD
-
- private:
-  const enum keytype m_key_type;
-||||||| merged common ancestors
-=======
 
   enum Attr_type attr_type() const override {
     return AT_UNIQUE_KEY_COLUMN_ATTR;
   }
->>>>>>> mysql-9.4.0
+
+ private:
+  const enum keytype m_key_type;
 };
 
 /**
@@ -514,19 +510,15 @@ class PT_column_format_column_attr : public PT_column_attr_base {
   bool do_contextualize(Column_parse_context *pc) override {
     return super::do_contextualize(pc);
   }
-<<<<<<< HEAD
+  enum Attr_type attr_type() const override {
+    return AT_COLUMN_FORMAT_COLUMN_ATTR;
+  }
   void apply_zip_dict(LEX_CSTRING *to) const noexcept override {
     *to = m_zip_dict_name;
   }
 
  private:
   const LEX_CSTRING m_zip_dict_name;
-||||||| merged common ancestors
-=======
-  enum Attr_type attr_type() const override {
-    return AT_COLUMN_FORMAT_COLUMN_ATTR;
-  }
->>>>>>> mysql-9.4.0
 };
 
 /**

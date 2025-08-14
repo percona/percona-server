@@ -7093,16 +7093,12 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
                                     OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
   }
 
-<<<<<<< HEAD
-  thd->check_rpl_stmt_event_format_used();
-
-||||||| merged common ancestors
-=======
   thd->lex->set_using_secondary_engine(
       thd->secondary_engine_optimization() ==
       Secondary_engine_optimization::SECONDARY);
 
->>>>>>> mysql-9.4.0
+  thd->check_rpl_stmt_event_format_used();
+
   return false;
 end:
   /*

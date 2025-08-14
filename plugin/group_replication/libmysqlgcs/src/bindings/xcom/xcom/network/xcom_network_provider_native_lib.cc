@@ -182,7 +182,7 @@ result Xcom_network_provider_library::create_server_socket() {
     if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_RECVTIMEOUT, &timeout,
                    sizeof(timeout)) < 0) {
       fd.funerr = to_errno(GET_OS_ERR);
-      G_MESSAGE(
+      G_INFO(
           "Unable to set socket options "
           "(socket=%d, errno=%d)!",
           fd.val, to_errno(GET_OS_ERR));
@@ -234,7 +234,7 @@ result Xcom_network_provider_library::create_server_socket_v4() {
     if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_RECVTIMEOUT, &timeout,
                    sizeof(timeout)) < 0) {
       fd.funerr = to_errno(GET_OS_ERR);
-      G_MESSAGE(
+      G_INFO(
           "Unable to set socket options "
           "(socket=%d, errno=%d)!",
           fd.val, to_errno(GET_OS_ERR));

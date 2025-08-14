@@ -929,15 +929,9 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
   const ulint n_v_fld = table->n_v_def;
   ulint n_diff;
   upd_field_t *upd_field;
-<<<<<<< HEAD
-  dict_vcol_set *v_cols = foreign->v_cols;
+  const dict_vcol_set *const v_cols = foreign->v_cols;
   row_prebuilt_t *prebuilt =
       static_cast<que_thr_t *>(node->common.parent)->prebuilt;
-||||||| merged common ancestors
-  dict_vcol_set *v_cols = foreign->v_cols;
-=======
-  const dict_vcol_set *const v_cols = foreign->v_cols;
->>>>>>> mysql-9.4.0
 
   update->old_vrow = row_build(ROW_COPY_POINTERS, index, rec, offsets, table,
                                nullptr, nullptr, &ext, update->heap);
@@ -960,18 +954,9 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
       continue;
     }
 
-<<<<<<< HEAD
-    dfield_t *vfield = innobase_get_computed_value(
-        update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
-||||||| merged common ancestors
-    dfield_t *vfield = innobase_get_computed_value(
-        update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr);
-=======
-    const dfield_t *const vfield = innobase_get_computed_value(
-        update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr);
->>>>>>> mysql-9.4.0
+    const dfield_t *const vfield =
+        innobase_get_computed_value(&prebuilt->blob_heap, update->old_vrow, col,
+                                    table, &v_heap, update->heap, thd, nullptr);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -987,80 +972,14 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
 
     upd_field_set_v_field_no(upd_field, i, index);
 
-<<<<<<< HEAD
-    if (node->is_delete ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-                        : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-      uint32_t col_match_count = dict_vcol_base_is_foreign_key(col, foreign);
-      if (col_match_count == col->num_base) {
-        /* If all base columns of virtual col are in FK */
-        dfield_set_null(&upd_field->new_val);
-      } else if (col_match_count == 0) {
-        /* If no base column of virtual col is in FK */
-        dfield_copy(&(upd_field->new_val), vfield);
-      } else {
-        /* If at least one base column of virtual col is in FK */
-        for (uint32_t j = 0; j < col->num_base; j++) {
-          dict_col_t *base_col = col->base_col[j];
-          uint32_t col_no = base_col->ind;
-          dfield_t *row_field = innobase_get_field_from_update_vector(
-              foreign, node->update, col_no);
-          if (row_field != nullptr) {
-            dfield_set_null(row_field);
-          }
-        }
-        dfield_t *new_vfield = innobase_get_computed_value(
-            update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign, &prebuilt->blob_heap);
-        dfield_copy(&(upd_field->new_val), new_vfield);
-      }
-    }
-
-    if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
-      dfield_t *new_vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign, &prebuilt->blob_heap);
-||||||| merged common ancestors
-    if (node->is_delete ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-                        : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-      uint32_t col_match_count = dict_vcol_base_is_foreign_key(col, foreign);
-      if (col_match_count == col->num_base) {
-        /* If all base columns of virtual col are in FK */
-        dfield_set_null(&upd_field->new_val);
-      } else if (col_match_count == 0) {
-        /* If no base column of virtual col is in FK */
-        dfield_copy(&(upd_field->new_val), vfield);
-      } else {
-        /* If at least one base column of virtual col is in FK */
-        for (uint32_t j = 0; j < col->num_base; j++) {
-          dict_col_t *base_col = col->base_col[j];
-          uint32_t col_no = base_col->ind;
-          dfield_t *row_field = innobase_get_field_from_update_vector(
-              foreign, node->update, col_no);
-          if (row_field != nullptr) {
-            dfield_set_null(row_field);
-          }
-        }
-        dfield_t *new_vfield = innobase_get_computed_value(
-            update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign);
-        dfield_copy(&(upd_field->new_val), new_vfield);
-      }
-    }
-
-    if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
-      dfield_t *new_vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign);
-=======
     if (!dict_vcol_base_is_foreign_key(col, foreign)) {
       /* If no base column of virtual col is in FK, the virtual field
       is not affected by update */
       dfield_copy(&(upd_field->new_val), vfield);
     } else {
       const dfield_t *const new_vfield = innobase_get_computed_value(
-          update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr,
-          nullptr, nullptr, update);
->>>>>>> mysql-9.4.0
+          &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
+          update->heap, thd, nullptr, nullptr, nullptr, update);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;

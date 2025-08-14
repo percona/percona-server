@@ -3218,7 +3218,11 @@ inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
 inline constexpr const decltype(handlerton::flags)
     HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
 
-<<<<<<< HEAD
+/** Whether the secondary engine supports creation of temporary tables. */
+inline constexpr const decltype(handlerton::flags)
+    HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE(1 << 25);
+
+
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3241,11 +3245,6 @@ inline constexpr const decltype(handlerton::flags)
 
 /** End of Percona specific HTON_* defines */
 
-||||||| merged common ancestors
-=======
-/** Whether the secondary engine supports creation of temporary tables. */
-inline constexpr const decltype(handlerton::flags)
-    HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE(1 << 25);
 
 /* Whether the handlerton is a secondary engine. */
 inline bool hton_is_secondary_engine(const handlerton *hton) {
@@ -3253,7 +3252,6 @@ inline bool hton_is_secondary_engine(const handlerton *hton) {
 }
 
 /* Whether the secondary engine handlerton supports DDLs */
->>>>>>> mysql-9.4.0
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
   return (hton->flags & HTON_SECONDARY_ENGINE_SUPPORTS_DDL) != 0;
@@ -3477,10 +3475,6 @@ struct HA_CREATE_INFO {
 
   void init_create_options_from_share(const TABLE_SHARE *share,
                                       uint64_t used_fields);
-<<<<<<< HEAD
-  Item *zip_dict_name{nullptr};
-||||||| merged common ancestors
-=======
 
   /**
     Populate the db_type member depending on internal state and thd variables.
@@ -3488,7 +3482,7 @@ struct HA_CREATE_INFO {
     @param[in] thd user session
    */
   bool set_db_type(THD *thd);
->>>>>>> mysql-9.4.0
+  Item *zip_dict_name{nullptr};
 };
 
 /**

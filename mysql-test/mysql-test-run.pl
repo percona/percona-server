@@ -308,7 +308,7 @@ our @DEFAULT_SUITES = qw(
   x
   component_keyring_file
   component_connection_control
-<<<<<<< HEAD
+  jdv
 
   component_audit_log_filter
   percona
@@ -330,10 +330,6 @@ our @DEFAULT_SUITES = qw(
   group_replication
   jp
   stress
-||||||| merged common ancestors
-=======
-  jdv
->>>>>>> mysql-9.4.0
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
@@ -1556,34 +1552,16 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
 
-<<<<<<< HEAD
       if ( $opt_gprof ) {
-||||||| merged common ancestors
-      my $valgrind_reports = 0;
-      if ($opt_valgrind_mysqld or $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
-        print $server "VALGREP\n" if $valgrind_reports;
-      }
-
-      if ($opt_gprof) {
-=======
-      my $valgrind_reports = 0;
-      if ($opt_valgrind_mysqld or $opt_sanitize) {
-        # Look for leaks here, even if we aldready have $shutdown_report.
-        # shutdown_exit_reports() will report some unknown failure.
-        # valgrind_exit_reports() will look specifically for ASAN/LSAN stuff.
-        $valgrind_reports = valgrind_exit_reports();
-        print $server "VALGREP\n" if $valgrind_reports;
-      }
-
-      if ($opt_gprof) {
->>>>>>> mysql-9.4.0
         gprof_collect(find_mysqld($basedir), keys %gprof_dirs);
       }
 
       my $valgrind_report_text = '';
       if ($opt_valgrind || $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
+        # Look for leaks here, even if we aldready have $shutdown_report.
+        # shutdown_exit_reports() will report some unknown failure.
+        # valgrind_exit_reports() will look specifically for ASAN/LSAN stuff.
+        $valgrind_reports = valgrind_exit_reports();
       }
 
       if ($shutdown_report || $valgrind_report_text) {

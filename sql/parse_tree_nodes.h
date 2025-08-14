@@ -3245,14 +3245,8 @@ class PT_column_def : public PT_table_element {
   @ingroup ptn_create_table
 */
 class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
-<<<<<<< HEAD
   PT_hint_list *m_opt_hints;
-  bool is_temporary;
-||||||| merged common ancestors
-  bool is_temporary;
-=======
   unsigned int table_type;
->>>>>>> mysql-9.4.0
   bool only_if_not_exists;
   Table_ident *table_name;
   const Mem_root_array<PT_table_element *> *opt_table_element_list;
@@ -3270,15 +3264,9 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
     @param pos                        Position of this clause in the SQL
                                       statement.
     @param mem_root                   MEM_ROOT to use for allocation
-<<<<<<< HEAD
     @param opt_hints                  SET_VAR hints
-    @param is_temporary               True if @SQL{CREATE @B{TEMPORARY} %TABLE}
-||||||| merged common ancestors
-    @param is_temporary               True if @SQL{CREATE @B{TEMPORARY} %TABLE}
-=======
     @param table_type                 TABLE_TYPE_NORMAL, TABLE_TYPE_TEMPORARY or
     TABLE_TYPE_EXTERNAL
->>>>>>> mysql-9.4.0
     @param only_if_not_exists  True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}
     @param table_name                 @SQL{CREATE %TABLE ... @B{@<table name@>}}
     @param opt_table_element_list     NULL or a list of table column and
@@ -3296,28 +3284,16 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
                                       Used for CREATE EXTERNAL TABLE rewriting.
   */
   PT_create_table_stmt(
-<<<<<<< HEAD
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, bool is_temporary,
-||||||| merged common ancestors
-      const POS &pos, MEM_ROOT *mem_root, bool is_temporary,
-=======
-      const POS &pos, MEM_ROOT *mem_root, uint table_type,
->>>>>>> mysql-9.4.0
-      bool only_if_not_exists, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      uint table_type, bool only_if_not_exists, Table_ident *table_name,
       const Mem_root_array<PT_table_element *> *opt_table_element_list,
       const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
       PT_partition *opt_partitioning, On_duplicate on_duplicate,
       PT_query_expression_body *opt_query_expression,
       const POS &columns_end_pos = POS())
       : PT_table_ddl_stmt_base(pos, mem_root),
-<<<<<<< HEAD
         m_opt_hints(opt_hints),
-        is_temporary(is_temporary),
-||||||| merged common ancestors
-        is_temporary(is_temporary),
-=======
         table_type(table_type),
->>>>>>> mysql-9.4.0
         only_if_not_exists(only_if_not_exists),
         table_name(table_name),
         opt_table_element_list(opt_table_element_list),
@@ -3330,41 +3306,20 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
   /**
     @param pos                Position of this clause in the SQL statement.
     @param mem_root           MEM_ROOT to use for allocation
-<<<<<<< HEAD
     @param opt_hints          SET_VAR hints
-    @param is_temporary       True if @SQL{CREATE @B{TEMPORARY} %TABLE}.
-||||||| merged common ancestors
-    @param is_temporary       True if @SQL{CREATE @B{TEMPORARY} %TABLE}.
-=======
     @param table_type         TABLE_TYPE_NORMAL, TABLE_TYPE_TEMPORARY or
     TABLE_TYPE_EXTERNAL.
->>>>>>> mysql-9.4.0
     @param only_if_not_exists True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}.
     @param table_name         @SQL{CREATE %TABLE ... @B{@<table name@>}}.
     @param opt_like_clause    NULL or the @SQL{@B{LIKE @<table name@>}} clause.
   */
-<<<<<<< HEAD
-  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                       bool is_temporary, bool only_if_not_exists,
-                       Table_ident *table_name, Table_ident *opt_like_clause)
-||||||| merged common ancestors
-  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root, bool is_temporary,
+  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                       PT_hint_list *opt_hints, uint table_type,
                        bool only_if_not_exists, Table_ident *table_name,
                        Table_ident *opt_like_clause)
-=======
-  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root, uint table_type,
-                       bool only_if_not_exists, Table_ident *table_name,
-                       Table_ident *opt_like_clause)
->>>>>>> mysql-9.4.0
       : PT_table_ddl_stmt_base(pos, mem_root),
-<<<<<<< HEAD
         m_opt_hints(opt_hints),
-        is_temporary(is_temporary),
-||||||| merged common ancestors
-        is_temporary(is_temporary),
-=======
         table_type(table_type),
->>>>>>> mysql-9.4.0
         only_if_not_exists(only_if_not_exists),
         table_name(table_name),
         opt_table_element_list(nullptr),
@@ -5233,7 +5188,8 @@ class PT_alter_table_import_tablespace final
 class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name,
       Mem_root_array<PT_ddl_table_option *> *opt_actions,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
@@ -5262,8 +5218,8 @@ class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
 class PT_alter_table_standalone_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_standalone_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
-      PT_alter_table_standalone_action *action,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name, PT_alter_table_standalone_action *action,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
       Alter_info::enum_with_validation validation)
@@ -5312,8 +5268,8 @@ class PT_repair_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                        bool no_write_to_binlog,
+  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                        PT_hint_list *opt_hints, bool no_write_to_binlog,
                         Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
                         int num_buckets, List<String> *columns, LEX_STRING data,
@@ -5343,7 +5299,8 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                      PT_hint_list *opt_hints,
                       Mem_root_array<Table_ident *> *table_list,
                       decltype(HA_CHECK_OPT::flags) flags,
                       decltype(HA_CHECK_OPT::sql_flags) sql_flags)
@@ -5364,8 +5321,8 @@ class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_optimize_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                         bool no_write_to_binlog,
+  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                         PT_hint_list *opt_hints, bool no_write_to_binlog,
                          Mem_root_array<Table_ident *> *table_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
@@ -5525,7 +5482,8 @@ class PT_load_index_partitions_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_load_index_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root,
+                     PT_hint_list *opt_hints,
                      Mem_root_array<PT_preload_keys *> *preload_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),

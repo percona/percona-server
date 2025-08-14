@@ -1200,12 +1200,8 @@ char *my_bind_addr_str;
 char *my_admin_bind_addr_str;
 uint mysqld_admin_port;
 bool listen_admin_interface_in_separate_thread;
-<<<<<<< HEAD
-char *my_proxy_protocol_networks;
-||||||| merged common ancestors
-=======
 ulonglong server_memory;
->>>>>>> mysql-9.4.0
+char *my_proxy_protocol_networks;
 static const char *default_collation_name;
 const char *default_storage_engine;
 const char *default_tmp_storage_engine;
@@ -14082,43 +14078,6 @@ static const char *get_relative_path(const char *path) {
   return path;
 }
 
-static bool is_secure_path(const std::string &path, const char *opt_base) {
-  char buff1[FN_REFLEN], buff2[FN_REFLEN];
-  size_t opt_base_len = 0;
-  /*
-    All paths are secure if opt_base is 0
-  */
-  if (!opt_base[0]) return true;
-
-  opt_base_len = strlen(opt_base);
-
-  if (path.length() >= FN_REFLEN) return false;
-
-  if (!my_strcasecmp(system_charset_info, opt_base, "NULL")) return false;
-
-  if (my_realpath(buff1, path.c_str(), 0)) {
-    /*
-      The supplied file path might have been a file and not a directory.
-    */
-    const int length = (int)dirname_length(path.c_str());
-    if (length >= FN_REFLEN) return false;
-    memcpy(buff2, path.c_str(), length);
-    buff2[length] = '\0';
-    if (length == 0 || my_realpath(buff1, buff2, 0)) return false;
-  }
-  convert_dirname(buff2, buff1, NullS);
-  if (!lower_case_file_system) {
-    if (strncmp(opt_base, buff2, opt_base_len)) return false;
-  } else {
-    assert(opt_base_len < FN_REFLEN);
-    buff2[opt_base_len] = '\0';
-    if (files_charset_info->coll->strcasecmp(files_charset_info, buff2,
-                                             opt_base))
-      return false;
-  }
-  return true;
-}
-
 /**
   Test a file path to determine if the path is compatible with the secure file
   path restriction.
@@ -14128,9 +14087,10 @@ static bool is_secure_path(const std::string &path, const char *opt_base) {
   @retval true The path is secure
   @retval false The path isn't secure
 */
+
 bool is_secure_file_path(const char *path) {
-<<<<<<< HEAD
-  return is_secure_path(path, opt_secure_file_priv);
+  return is_secure_file_path(path, opt_secure_file_priv, system_charset_info,
+                             files_charset_info, lower_case_file_system);
 }
 
 /**
@@ -14148,7 +14108,9 @@ bool is_secure_log_path(const std::string &path) {
     return true;
   }
 
-  return !path.empty() && is_secure_path(path, opt_secure_log_path);
+  return !path.empty() &&
+         is_secure_file_path(path, opt_secure_log_path, system_charset_info,
+                             files_charset_info, lower_case_file_system);
 }
 
 /**
@@ -14280,47 +14242,6 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
            variable_name);
 #endif
   return true;
-||||||| merged common ancestors
-  char buff1[FN_REFLEN], buff2[FN_REFLEN];
-  size_t opt_secure_file_priv_len;
-  /*
-    All paths are secure if opt_secure_file_priv is 0
-  */
-  if (!opt_secure_file_priv[0]) return true;
-
-  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
-
-  if (strlen(path) >= FN_REFLEN) return false;
-
-  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
-    return false;
-
-  if (my_realpath(buff1, path, 0)) {
-    /*
-      The supplied file path might have been a file and not a directory.
-    */
-    const int length = (int)dirname_length(path);
-    if (length >= FN_REFLEN) return false;
-    memcpy(buff2, path, length);
-    buff2[length] = '\0';
-    if (length == 0 || my_realpath(buff1, buff2, 0)) return false;
-  }
-  convert_dirname(buff2, buff1, NullS);
-  if (!lower_case_file_system) {
-    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
-      return false;
-  } else {
-    assert(opt_secure_file_priv_len < FN_REFLEN);
-    buff2[opt_secure_file_priv_len] = '\0';
-    if (files_charset_info->coll->strcasecmp(files_charset_info, buff2,
-                                             opt_secure_file_priv))
-      return false;
-  }
-  return true;
-=======
-  return is_secure_file_path(path, opt_secure_file_priv, system_charset_info,
-                             files_charset_info, lower_case_file_system);
->>>>>>> mysql-9.4.0
 }
 
 /**

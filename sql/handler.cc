@@ -362,7 +362,6 @@ handlerton *ha_default_handlerton(THD *thd) {
   return hton;
 }
 
-<<<<<<< HEAD
 /** @brief
   Return the enforced storage engine handlerton for thread
 
@@ -390,17 +389,10 @@ handlerton *ha_enforce_handlerton(THD *thd) {
   return nullptr;
 }
 
-static plugin_ref ha_default_temp_plugin(THD *thd) {
-  if (thd->variables.temp_table_plugin) return thd->variables.temp_table_plugin;
-||||||| merged common ancestors
-static plugin_ref ha_default_temp_plugin(THD *thd) {
-  if (thd->variables.temp_table_plugin) return thd->variables.temp_table_plugin;
-=======
 plugin_ref ha_default_temp_plugin(THD *thd) {
   if (thd->variables.temp_table_plugin != nullptr) {
     return thd->variables.temp_table_plugin;
   }
->>>>>>> mysql-9.4.0
   return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);
 }
 

@@ -930,18 +930,9 @@ upd_t *row_upd_build_difference_binary(
 
       dfield = dtuple_get_nth_v_field(entry, i);
 
-<<<<<<< HEAD
-      dfield_t *vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
-||||||| merged common ancestors
-      dfield_t *vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, heap, nullptr, thd,
-          mysql_table, nullptr, nullptr, nullptr);
-=======
       const dfield_t *const vfield = innobase_get_computed_value(
-          update->old_vrow, col, table, &v_heap, heap, thd, mysql_table);
->>>>>>> mysql-9.4.0
+          &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap, heap,
+          thd, mysql_table);
 
       if (vfield == nullptr) {
         *error = DB_COMPUTE_VALUE_FAILED;
@@ -1845,21 +1836,11 @@ static void row_upd_dup_v_new_vals(upd_t *update) {
 @param[in,out]  node            row update node
 @param[in,out]  update          an update vector if it is update
 @param[in]      thd             mysql thread handle
-<<<<<<< HEAD
 @param[in,out]  prebuilt        nullptr, or a prebuilt object: used to extract
                                 mysql table object when user thread invokes
                                 dml and for compress heap */
-static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
-                                row_prebuilt_t *prebuilt) {
-||||||| merged common ancestors
-@param[in,out]  mysql_table     mysql table object */
-static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
-                                TABLE *mysql_table) {
-=======
-@param[in,out]  mysql_table     mysql table object */
 static void row_upd_store_v_row(upd_node_t *node, upd_t *update, THD *thd,
-                                TABLE *mysql_table) {
->>>>>>> mysql-9.4.0
+                                row_prebuilt_t *prebuilt) {
   mem_heap_t *heap = nullptr;
   const dict_table_t *const table = node->table;
   bool new_val_v_cols_dup = false;
@@ -1915,35 +1896,17 @@ static void row_upd_store_v_row(upd_node_t *node, upd_t *update, THD *thd,
                 row_upd_dup_v_new_vals(update);
                 new_val_v_cols_dup = true;
               }
-<<<<<<< HEAD
-              innobase_get_computed_value(
-                  node->row, col, index, &heap, node->heap, nullptr, thd,
-                  mysql_table, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
-||||||| merged common ancestors
-              innobase_get_computed_value(node->row, col, index, &heap,
-                                          node->heap, nullptr, thd, mysql_table,
-                                          nullptr, nullptr, nullptr);
-=======
-              innobase_get_computed_value(node->row, col, table, &heap,
-                                          node->heap, thd, mysql_table);
->>>>>>> mysql-9.4.0
+              innobase_get_computed_value(&prebuilt->blob_heap, node->row, col,
+                                          table, &heap, node->heap, thd,
+                                          mysql_table);
             }
           }
         } else {
           /* Need to compute, this happens when
           deleting row */
-<<<<<<< HEAD
-          innobase_get_computed_value(node->row, col, index, &heap, node->heap,
-                                      nullptr, thd, mysql_table, nullptr,
-                                      nullptr, nullptr, &prebuilt->blob_heap);
-||||||| merged common ancestors
-          innobase_get_computed_value(node->row, col, index, &heap, node->heap,
-                                      nullptr, thd, mysql_table, nullptr,
-                                      nullptr, nullptr);
-=======
-          innobase_get_computed_value(node->row, col, table, &heap, node->heap,
-                                      thd, mysql_table);
->>>>>>> mysql-9.4.0
+          innobase_get_computed_value(&prebuilt->blob_heap, node->row, col,
+                                      table, &heap, node->heap, thd,
+                                      mysql_table);
         }
       }
     }

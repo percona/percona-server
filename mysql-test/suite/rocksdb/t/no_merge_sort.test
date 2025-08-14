@@ -12,12 +12,12 @@ while ($i < 30) {
   CREATE TABLE `ti_nk` (
     `a` int(11) DEFAULT NULL,
     `b` int(11) DEFAULT NULL,
-    `c` varchar(36) COLLATE latin1_bin NOT NULL,
+    `c` varchar(64) COLLATE latin1_bin NOT NULL,
     PRIMARY KEY (`c`)
   ) ENGINE=ROCKSDB;
   let $j = 0;
   while ($j < 200) {
-    eval insert into ti_nk values ($j, $j, md5($j));
+    eval insert into ti_nk values ($j, $j, SHA2($j, 256));
     inc $j;
   }
 

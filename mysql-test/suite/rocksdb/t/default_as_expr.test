@@ -25,7 +25,7 @@ DROP TABLE t1;
 --echo #
 --echo # CREATE TABLE - column with INDEX and func as DEFAULT
 --echo #
-CREATE TABLE t1 (i int, b char(255) DEFAULT (md5(i)), INDEX (b(10)));
+CREATE TABLE t1 (i int, b char(255) DEFAULT (SHA2(i, 256)), INDEX (b(10)));
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
 INSERT INTO t1(i, b) VALUES (3, "some string");
@@ -431,7 +431,7 @@ DROP TABLE t1;
 --echo #
 --echo # Check default expressions together with Generated Columns
 --echo #
-CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)));
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (SHA2(i, 256)));
 SHOW COLUMNS FROM t1;
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
@@ -440,7 +440,7 @@ INSERT INTO t1(i, b) VALUES (NULL, DEFAULT);
 SELECT * FROM t1;
 DROP TABLE t1;
 
-CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)), j INT GENERATED ALWAYS AS (i*2));
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (SHA2(i, 256)), j INT GENERATED ALWAYS AS (i*2));
 SHOW COLUMNS FROM t1;
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);

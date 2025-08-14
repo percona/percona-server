@@ -20,9 +20,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.0.2%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'      , 'MD5(@message)'),
-    ('sha1'     , 'SHA(@message)'),
-
     ('sha224'   , 'SHA2(@message, 224)'),
     ('sha256'   , 'SHA2(@message, 256)'),
     ('sha384'   , 'SHA2(@message, 384)'),
@@ -44,9 +41,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.1.0%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'       , 'MD5(@message)'),
-    ('sha1'      , 'SHA(@message)'),
-
     ('sha224'    , 'SHA2(@message, 224)'),
     ('sha256'    , 'SHA2(@message, 256)'),
     ('sha384'    , 'SHA2(@message, 384)'),
@@ -70,9 +64,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.1.1%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'       , 'MD5(@message)'),
-    ('sha1'      , 'SHA(@message)'),
-
     ('sha224'    , 'SHA2(@message, 224)'),
     ('sha256'    , 'SHA2(@message, 256)'),
     ('sha384'    , 'SHA2(@message, 384)'),
@@ -114,10 +105,8 @@ if (`select "$ssl_ver" like "OpenSSL 3.%"`)
   --disable_result_log
 
   # skipping MD4 and RMD 160 as they are from the deprecated engine
-
+  # skipping MD5 as it is removed in 9.6.0
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'       , 'MD5(@message)'),
-
     ('sha224'    , 'SHA2(@message, 224)'),
     ('sha256'    , 'SHA2(@message, 256)'),
     ('sha384'    , 'SHA2(@message, 384)'),
@@ -135,13 +124,10 @@ if (`select "$ssl_ver" like "OpenSSL 3.%"`)
   # create_digest() and not in asymmetric_sign() as these digests do not have
   # corresponding asn1 object identifiers
 
-  # for some reason on Oracle Linux 9 (with default OpenSSL 3.0.7) 'sha1' and
-  # 'md5-sha1' cannot be used in RSA EVP_PKEY signing operations
+  # skipping sha1 and md5-sha1 as they are removed in 9.6.0
   if ($include_digests_with_no_ans1_ids)
   {
     INSERT INTO digest_type(digest_name, builtin_template) VALUES
-      ('sha1'      , 'SHA(@message)'),
-      ('md5-sha1'  , NULL),
       ('sm3'       , NULL),
       ('blake2b512', NULL),
       ('blake2s256', NULL),

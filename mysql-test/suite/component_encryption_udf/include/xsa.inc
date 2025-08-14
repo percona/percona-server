@@ -70,8 +70,8 @@ if ($use_openssl_binary)
 #  <max message size> = <key length in bytes>
 --let $max_message_size = `SELECT $key_length DIV 8`
 
-# size of MD5 hash in bytes is 32
-eval SET @random_pattern = REPEAT(MD5(42), $max_message_size DIV 32 + 1);
+# size of SHA2-256 hash in bytes is 64
+eval SET @random_pattern = REPEAT(SHA2(42, 256), $max_message_size DIV 64 + 1);
 
 if ($algorithm == 'RSA')
 {

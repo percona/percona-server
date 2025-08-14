@@ -44,9 +44,9 @@ eval CREATE TABLE $original_table_name(
 --eval INSERT INTO $original_table_name VALUES(1, 0, REPEAT('foo', 128), 0)
 --eval INSERT INTO $original_table_name VALUES(2, 0, 'bar', 0)
 
-eval SELECT MD5($original_column_name) INTO @original_long_value_checksum FROM $original_table_name
+eval SELECT SHA2($original_column_name, 256) INTO @original_long_value_checksum FROM $original_table_name
   WHERE id = 1;
-eval SELECT MD5($original_column_name) INTO @original_short_value_checksum FROM $original_table_name
+eval SELECT SHA2($original_column_name, 256) INTO @original_short_value_checksum FROM $original_table_name
   WHERE id = 2;
 
 eval SELECT table_id INTO @original_table_id FROM information_schema.innodb_tables

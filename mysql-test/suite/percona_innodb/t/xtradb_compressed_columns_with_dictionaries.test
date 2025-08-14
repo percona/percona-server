@@ -73,13 +73,13 @@ SET @longer_dictionary_data = CONCAT(@long_dictionary_data, 'a');
 --error ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 CREATE COMPRESSION_DICTIONARY d14(@longer_dictionary_data);
 
-SELECT DICT_VERSION, DICT_NAME, MD5(DICT_DATA), LENGTH(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY LENGTH(DICT_NAME) ASC, DICT_NAME ASC;
+SELECT DICT_VERSION, DICT_NAME, SHA2(DICT_DATA, 256), LENGTH(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY LENGTH(DICT_NAME) ASC, DICT_NAME ASC;
 
 # check if dictionary data stored in SYS_ZIP_DICT can be extracted
 # without corruption
 SELECT dict_data = 'abcd' AS short_zip_dict_data_must_match
   FROM information_schema.compression_dictionary
-  WHERE MD5(dict_name) = MD5(@long_dictionary_name);
+  WHERE SHA2(dict_name, 256) = SHA2(@long_dictionary_name, 256);
 SELECT dict_data = @long_dictionary_data AS long_zip_dict_data_must_match
   FROM information_schema.compression_dictionary
   WHERE dict_name = 'd13';

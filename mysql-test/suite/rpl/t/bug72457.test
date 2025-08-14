@@ -30,7 +30,7 @@ let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`;
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 
 CREATE TABLE t1(f1 TEXT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES(MD5(1));
+INSERT INTO t1 VALUES(SHA2(1, 256));
 
 --let $i = 10
 while($i)

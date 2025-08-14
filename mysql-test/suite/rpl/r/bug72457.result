@@ -19,7 +19,7 @@ include/rpl/restart_server.inc [server_number=1]
 include/rpl/reset.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 CREATE TABLE t1(f1 TEXT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES(MD5(1));
+INSERT INTO t1 VALUES(SHA2(1, 256));
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;

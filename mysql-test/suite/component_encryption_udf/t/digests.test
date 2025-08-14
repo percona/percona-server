@@ -6,7 +6,7 @@ INSTALL COMPONENT 'file://component_encryption_udf';
 
 --let $number_of_length_iterations = 16
 --let $length_increment = 7
-eval SET @random_pattern = REPEAT(MD5(42), $number_of_length_iterations * $length_increment DIV 32 + 1);
+eval SET @random_pattern = REPEAT(SHA2(42, 256), $number_of_length_iterations * $length_increment DIV 64 + 1);
 
 --let $include_digests_with_no_ans1_ids = 1
 --source ../include/digest_table.inc

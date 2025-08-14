@@ -1564,7 +1564,7 @@ The following options may be given as the first argument:
  Multiple flags allowed in a comma-separated string.
  [none, log_slow_filter, log_slow_rate_limit,
  log_slow_verbosity, long_query_time,
- min_examined_row_limit, all]
+ min_examined_row_limit, log_query_errors, all]
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of

@@ -1,48 +1,86 @@
-#ifndef BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP_INCLUDED
-#define BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP_INCLUDED
-
+//
 // Copyright (c) 2017 James E. King III
-// Copyright (c) 2024 Peter Dimov
+//
 // Distributed under the Boost Software License, Version 1.0.
-// https://www.boost.org/LICENSE_1_0.txt
+// (See accompanying file LICENSE_1_0.txt or copy at
+//   https://www.boost.org/LICENSE_1_0.txt)
+//
+// Platform-specific random entropy provider
+//
 
-#include <boost/uuid/detail/random_device.hpp>
-#include <random>
-#include <cstdint>
+#ifndef BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP
+#define BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP
+
+#include <boost/config.hpp>
+#include <boost/cstdint.hpp>
+#include <boost/limits.hpp>
+#include <boost/static_assert.hpp>
+#include <boost/move/core.hpp>
+#include <boost/move/utility_core.hpp>
+#include <boost/type_traits/is_integral.hpp>
+#include <boost/type_traits/is_unsigned.hpp>
+#include <boost/uuid/entropy_error.hpp>
+#include <climits>
+#include <iterator>
+
+// Detection of the platform is separated from inclusion of the correct
+// header to facilitate mock testing of the provider implementations.
+
+#include <boost/uuid/detail/random_provider_detect_platform.hpp>
+#include <boost/uuid/detail/random_provider_include_platform.hpp>
+
 
 namespace boost {
 namespace uuids {
 namespace detail {
 
-class random_provider
+//! \brief Contains code common to all random_provider implementations.
+//! \note  random_provider_base is required to provide this method:
+//!        void get_random_bytes(void *buf, size_t siz);
+//! \note  noncopyable because of some base implementations so
+//!        this makes it uniform across platforms to avoid any  
+//!        porting surprises
+class random_provider :
+    public detail::random_provider_base
 {
-private:
-
-    detail::random_device dev_;
+    BOOST_MOVABLE_BUT_NOT_COPYABLE(random_provider)
 
 public:
+    BOOST_DEFAULTED_FUNCTION(random_provider(), {})
 
-    using result_type = std::uint32_t;
+    random_provider(BOOST_RV_REF(random_provider) that) BOOST_NOEXCEPT :
+        detail::random_provider_base(boost::move(static_cast< detail::random_provider_base& >(that)))
+    {
+    }
 
-    random_provider() = default;
+    random_provider& operator= (BOOST_RV_REF(random_provider) that) BOOST_NOEXCEPT
+    {
+        static_cast< detail::random_provider_base& >(*this) = boost::move(static_cast< detail::random_provider_base& >(that));
+        return *this;
+    }
 
-    // Leverage the provider as a SeedSeq for
-    // PseudoRandomNumberGeneration seeding.
-
+    //! Leverage the provider as a SeedSeq for
+    //! PseudoRandomNumberGeneration seeing.
+    //! \note: See Boost.Random documentation for more details
     template<class Iter>
     void generate(Iter first, Iter last)
     {
-        std::uniform_int_distribution<std::uint32_t> dist;
+        typedef typename std::iterator_traits<Iter>::value_type value_type;
+        BOOST_STATIC_ASSERT(is_integral<value_type>::value);
+        BOOST_STATIC_ASSERT(is_unsigned<value_type>::value);
+        BOOST_STATIC_ASSERT(sizeof(value_type) * CHAR_BIT >= 32);
 
-        for( ; first != last; ++first )
+        for (; first != last; ++first)
         {
-            *first = dist( dev_ );
+            get_random_bytes(&*first, sizeof(*first));
+            *first &= (std::numeric_limits<boost::uint32_t>::max)();
         }
     }
 
+    //! Return the name of the selected provider
     const char * name() const
     {
-        return "std::random_device";
+        return BOOST_UUID_RANDOM_PROVIDER_STRINGIFY(BOOST_UUID_RANDOM_PROVIDER_NAME);
     }
 };
 
@@ -50,4 +88,4 @@ public:
 } // uuids
 } // boost
 
-#endif // BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP_INCLUDED
+#endif // BOOST_UUID_DETAIL_RANDOM_PROVIDER_HPP

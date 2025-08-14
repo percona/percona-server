@@ -446,13 +446,17 @@ install_deps() {
                 yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi
         else
-            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" -o "x${RHEL}" = "x10" ]; then
                 yum -y install yum-utils
                 yum-config-manager --enable ol"${RHEL}"_codeready_builder
             fi
         fi
         yum -y update
-        yum -y install epel-release
+        if [ "x${RHEL}" = "x10" ]; then
+            dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+        else
+            yum -y install epel-release
+        fi
         if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
@@ -531,6 +535,9 @@ install_deps() {
             fi
         else
             yum -y install MySQL-python
+            yum -y install libtirpc-devel
+            yum -y install gflags-devel
+            yum -y install libatomic
         fi
     else
         until apt-get update; do
@@ -840,13 +847,21 @@ build_rpm(){
         if [[ ${WITH_ZENFS} == "1" ]]; then
             rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ ${RHEL} = 8 ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         fi
     else
         if [[ ${WITH_ZENFS} == "1" ]]; then
             rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            if [[ ${RHEL} = 8 ]]; then
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
+            else
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            fi
         fi
     fi
 

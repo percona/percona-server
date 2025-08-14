@@ -27,7 +27,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/binlog/event/compression/compressor.h"
-#include "mysql/utils/nodiscard.h"
 #include "sql_string.h"
 
 /**
@@ -201,7 +200,7 @@ class Compressed_ostream : public Basic_ostream {
   /// @param length The size of the input buffer
   /// @retval false Success
   /// @retval true Error
-  [[NODISCARD]] bool write(const unsigned char *buffer,
+  [[nodiscard]] bool write(const unsigned char *buffer,
                            my_off_t length) override;
   Status_t get_status() const;
 };

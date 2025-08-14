@@ -26,8 +26,8 @@
 package testsuite.clusterj;
 
 /*
-  The purpose of the ClearSmokeTest is to ensure that the SessionFactory
-  will be closed at the conclusion of the test suite, so that the NDB API
+  The purpose of the ClearSmokeTest is to ensure that all SessionFactories
+  are closed at the conclusion of the test suite, so that the NDB API
   can shut down cleanly.
 */
 
@@ -36,16 +36,13 @@ public class ClearSmokeTest extends AbstractClusterJTest {
   public void test() {
   }
 
-  public void localSetUp() {
-    createSessionFactory();
-    session = sessionFactory.getSession();
-  }
-
   @Override
   public void localTearDown() {
-    session.close();
-    session = null;
-    sessionFactory.close();
+    if(session != null) {
+        session.close();
+        session = null;
+    }
+    closeAllExistingSessionFactories();
   }
 }
 

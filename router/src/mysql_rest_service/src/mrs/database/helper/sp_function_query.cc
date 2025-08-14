@@ -250,8 +250,13 @@ mysqlrouter::sqlstring to_sqlstring(const std::string &value, DataType type) {
     case DataType::BINARY:
       return mysqlrouter::sqlstring("FROM_BASE64(?)") << value;
 
-    case DataType::GEOMETRY:
-      return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)") << value;
+    case DataType::GEOMETRY: {
+      auto position = value.find_first_not_of(" \t");
+      if (std::string::npos != position && '{' == value[position]) {
+        return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)") << value;
+      }
+      return mysqlrouter::sqlstring("ST_GeomFromText(?)") << value;
+    }
 
     case DataType::VECTOR:
       return mysqlrouter::sqlstring("STRING_TO_VECTOR(?)") << value;
@@ -348,7 +353,7 @@ void fill_procedure_argument_list_with_binds(
     } else if (el.mode == mrs::database::entry::Field::Mode::modeIn) {
       auto it = doc.FindMember(el.name.c_str());
       if (it != doc.MemberEnd()) {
-        mysqlrouter::sqlstring sql = get_sql_format(el.data_type);
+        mysqlrouter::sqlstring sql = get_sql_format(el.data_type, it->value);
         sql << it->value;
         *out_params += sql.str();
       } else {

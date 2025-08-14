@@ -1394,7 +1394,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #               SHOW CREATE TABLE
 #
 CREATE TABLE t1 (i CHAR(3),
-n CHAR(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)));
+n CHAR(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (sha2(i,256)));
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Use SHOW CREATE TABLE output below unmodified to re-create table
@@ -1402,12 +1402,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
-  `n` char(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
+  `n` char(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci GENERATED ALWAYS AS (sha2(`i`,256)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE `t1` (
 `i` char(3) DEFAULT NULL,
-`n` char(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+`n` char(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (sha2(i,256)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead

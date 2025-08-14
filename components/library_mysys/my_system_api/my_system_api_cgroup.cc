@@ -21,12 +21,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <cassert>
+#include <climits>
 #include <cstdint>
 #include <fstream>
 #include <optional>
 #include <string_view>
 
+#include "my_config.h"  // HAVE_UNISTD_H
 #include "my_system_api.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /**
   @file components/library_mysys/my_system_api/my_system_api_cgroup.cc
@@ -75,7 +82,7 @@ bool read_line_from_file(const std::string_view &path, Args &...args) {
 /**
   Read CPU limits as if it were set by cgroup v1
   @return CPU limits set by cgroup v1 or std::nullopt on failure
-  @note Return value of 0.0 implies no limits are set
+  @note Return value of 0 implies no limits are set
 */
 std::optional<uint32_t> cgroup_v1_cpu() {
   int32_t quota;
@@ -95,7 +102,7 @@ std::optional<uint32_t> cgroup_v1_cpu() {
 /**
   Read memory limits as if it were set by cgroup v1
   @return Memory limits set by cgroup v1 or std::nullopt on failure
-  @note Return value of 0.0 implies no limits are set
+  @note Return value of 0 implies no limits are set
 */
 std::optional<uint64_t> cgroup_v1_memory() {
   uint64_t memory;
@@ -103,13 +110,24 @@ std::optional<uint64_t> cgroup_v1_memory() {
   if (!read_line_from_file(mem_path_v1, memory)) {
     return std::nullopt;
   }
+
+#ifdef HAVE_UNISTD_H
+  const long page_size = sysconf(_SC_PAGESIZE);
+  assert(page_size > 0);
+
+  /* Default value of memory limit in cgroup v1 */
+  const uint64_t default_limit = LONG_MAX - (LONG_MAX % page_size);
+
+  /* Treat default value as no limits and return 0 */
+  return (memory == default_limit) ? 0 : memory;
+#endif
   return memory;
 }
 
 /**
   Read CPU limits as if it were set by cgroup v2
   @return CPU limits set by cgroup v2 or std::nullopt on failure
-  @note Return value of 0.0 implies no limits are set
+  @note Return value of 0 implies no limits are set
 */
 std::optional<uint32_t> cgroup_v2_cpu() {
   uint32_t quota, period;
@@ -127,7 +145,7 @@ std::optional<uint32_t> cgroup_v2_cpu() {
 /**
   Read Memory limits as if it were set by cgroup v2
   @return Memory limits set by cgroup v2 or std::nullopt on failure
-  @note Return value of 0.0 implies no limits are set
+  @note Return value of 0 implies no limits are set
 */
 std::optional<uint64_t> cgroup_v2_memory() {
   uint64_t memory;

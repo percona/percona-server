@@ -33,6 +33,7 @@
 #include "violite.h"            // NOLINT(build/include_subdir)
 
 #include "plugin/x/tests/driver/driver_command_line_options.h"
+#include "plugin/x/tests/driver/processor/sql_stmt_processor.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 
 static void ignore_traces_from_libraries(enum loglevel /*ll*/,
@@ -132,7 +133,16 @@ int client_connect_and_process(const Driver_command_line_options &options,
     int result_code =
         process_client_input(input, &eaters, &context.m_script_stack, console);
 
-    if (!options.m_run_without_auth) cm.close_active(true);
+    if (!options.m_run_without_auth) {
+      if (result_code != 0) {
+        std::vector<Block_processor_ptr> eaters_at_error =
+            create_block_processors(&context);
+        std::istringstream inbuf(context.m_debug);
+        process_client_input(inbuf, &eaters_at_error, &context.m_script_stack,
+                             console);
+      }
+      cm.close_active(true);
+    }
 
     return result_code;
   } catch (const xcl::XError &e) {

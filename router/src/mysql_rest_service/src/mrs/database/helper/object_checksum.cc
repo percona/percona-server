@@ -922,11 +922,12 @@ std::string compute_checksum(std::shared_ptr<entry::Object> object,
  * - unnest references
  * - exclude fields that are disabled
  * - calculate checksum and embed the etag field
+ *
  */
-std::string post_process_json(
-    std::shared_ptr<entry::Object> view, const dv::ObjectFieldFilter &filter,
-    const std::map<std::string, std::string> &metadata, std::string_view doc,
-    bool compute_checksum) {
+std::string post_process_json(std::shared_ptr<entry::Object> view,
+                              const dv::ObjectFieldFilter &filter,
+                              const std::string &gtid, std::string_view doc,
+                              bool compute_checksum) {
   std::string checksum;
   rapidjson::Document new_doc;
   auto allocator = new_doc.GetAllocator();
@@ -947,16 +948,16 @@ std::string post_process_json(
 
   if (!view->needs_etag()) compute_checksum = false;
 
-  if (compute_checksum || !metadata.empty()) {
+  if (compute_checksum || !gtid.empty()) {
     rapidjson::Value metadata_object(rapidjson::kObjectType);
 
     if (compute_checksum) {
       metadata_object.AddMember("etag", rapidjson::Value(checksum, allocator),
                                 allocator);
     }
-    for (const auto &[name, field] : metadata) {
-      metadata_object.AddMember(rapidjson::Value(name, allocator),
-                                rapidjson::Value(field, allocator), allocator);
+    if (!gtid.empty()) {
+      metadata_object.AddMember("gtid", rapidjson::Value(gtid, allocator),
+                                allocator);
     }
     new_doc.AddMember("_metadata", metadata_object, allocator);
   }

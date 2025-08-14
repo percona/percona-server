@@ -31,6 +31,7 @@
 
 #include "mysql/harness/destination.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/utils.h"  // to_string
@@ -262,8 +263,7 @@ stdx::expected<void, std::error_code> ConnectorBase::next_destination() {
     // next destination
     return resolve();
   } else if (last_ec_ != make_error_condition(std::errc::timed_out) &&
-             last_ec_ !=
-                 make_error_condition(std::errc::no_such_file_or_directory) &&
+             last_ec_.category() != net::ip::resolver_category() &&
              destination_manager_->refresh_destinations(session_info_)) {
     // On member failure (connection refused, ...) wait for failover and use
     // the new primary.

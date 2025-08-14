@@ -3293,10 +3293,26 @@ void Suma::execSUB_START_REQ(Signal *signal) {
     return;
   }
 
+  Uint8 filterInfo = 0;
+  constexpr Uint8 NOLOG = SubStartReq::FILTER_ANYVALUE_MYSQL_NO_LOGGING;
+  constexpr Uint8 NORPL = SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES;
+  if ((requestInfo & NOLOG) != 0 || (requestInfo & NORPL) != 0) {
+    filterInfo |= Subscriber::FilterInfo::FILTER_ANYVALUE;
+  }
+  constexpr Uint32 S_MASK = SubStartReq::FILTER_ROW_SLICE_COUNT_BITS;
+  constexpr Uint32 S_SHIFT = SubStartReq::FILTER_ROW_SLICE_COUNT_SHIFT;
+  // If requestInfo contains SLICE_COUNT bits then filter row slices
+  Uint8 rowSliceCount = (requestInfo & S_MASK) >> S_SHIFT;
+  if (rowSliceCount > 0) {
+    filterInfo |= Subscriber::FilterInfo::FILTER_ROW_SLICE;
+  }
+
   // setup subscriber record
   subbPtr.p->m_senderRef = subscriberRef;
   subbPtr.p->m_senderData = subscriberData;
   subbPtr.p->m_requestInfo = requestInfo;
+  subbPtr.p->m_filterInfo = filterInfo;
+  subbPtr.p->setFilterRowSlice(requestInfo);
 
   subOpPtr.p->m_opType = SubOpRecord::R_SUB_START_REQ;
   subOpPtr.p->m_subPtrI = subPtr.i;
@@ -4595,6 +4611,7 @@ Uint32 Suma::reformat(Signal *signal, LinearSectionPtr ptr[3],
  */
 void Suma::execFIRE_TRIG_ORD_L(Signal *signal) {
   jamEntry();
+  DBUG_ENTER("Suma::execFIRE_TRIG_ORD_L");
 
   ndbassert(signal->getNoOfSections() == 0);
   Uint32 pageId = signal->theData[0];
@@ -4675,37 +4692,70 @@ bool Suma::applyAnyValueFilters(Uint32 requestInfo, Uint32 anyValue) const {
 
   // No-logging filter
   const bool no_logging =
-      requestInfo & SubStartReq::FILTER_ANYVALUE_MYSQL_NO_LOGGING;
-  if (no_logging && (anyValue == ANYVALUE_NOLOGGING_VALUE)) return true;
+      (requestInfo & SubStartReq::FILTER_ANYVALUE_MYSQL_NO_LOGGING) != 0;
+  if (no_logging && (anyValue == ANYVALUE_NOLOGGING_VALUE)) {
+    jam();
+    return true;
+  }
 
   // No-replica-updates filter
   const bool no_replica_updates =
-      requestInfo & SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES;
+      (requestInfo & SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES) !=
+      0;
   if (no_replica_updates && ((anyValue & ANYVALUE_RESERVED_BIT) == 0) &&
-      ((anyValue & ~ANYVALUE_RESERVED_BIT) != 0))
+      ((anyValue & ~ANYVALUE_RESERVED_BIT) != 0)) {
+    jam();
     return true;
+  }
 
   return false;
 }
 
+bool Suma::applyRowSliceFilters(Uint16 count, Uint8 id, Uint32 hash) const {
+  DBUG_PRINT("trace", ("hash=%u part=%u count=%u group=%u(%s)", hash, id, count,
+                       hash % count, hash % count != id ? "out" : "in"));
+  return (hash % count != id);
+}
+
+bool Suma::isFilterEnabled(SubscriberPtr subbPtr, Uint8 filter_bit) const {
+  return (subbPtr.p->m_filterInfo & filter_bit) != 0;
+}
+
 void Suma::sendBatchedSUB_TABLE_DATA(Signal *signal,
                                      const Subscriber_list::Head subscribers,
-                                     LinearSectionPtr lsptr[], Uint32 nptr) {
+                                     LinearSectionPtr lsptr[], Uint32 nptr,
+                                     Uint32 hash) {
   jam();
+  DBUG_ENTER("Suma::sendBatchedSUB_TABLE_DATA");
   SubTableData *data = (SubTableData *)signal->getDataPtrSend();
   ConstLocal_Subscriber_list list(c_subscriberPool, subscribers);
   SubscriberPtr subbPtr;
+  // dividing hash to rebalance distribution of data among active
+  // bucket subscribers with row slice enabled
+  hash /= c_no_of_buckets;
 
   for (list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr)) {
     jam();
-    data->senderData = subbPtr.p->m_senderData;
 
     // filter anyValue through subscriber options
-    if (applyAnyValueFilters(subbPtr.p->m_requestInfo, data->anyValue))
+    if (isFilterEnabled(subbPtr, Subscriber::FilterInfo::FILTER_ANYVALUE) &&
+        applyAnyValueFilters(subbPtr.p->m_requestInfo, data->anyValue)) {
+      jam();
       continue;
+    }
 
+    // filter row-hash through subscriber options
+    if (isFilterEnabled(subbPtr, Subscriber::FilterInfo::FILTER_ROW_SLICE) &&
+        applyRowSliceFilters(subbPtr.p->m_filterRowSliceCount,
+                             subbPtr.p->m_filterRowSliceId, hash)) {
+      jam();
+      continue;
+    }
+
+    data->senderData = subbPtr.p->m_senderData;
     const Uint32 version =
         getNodeInfo(refToNode(subbPtr.p->m_senderRef)).m_version;
+
     if (ndbd_frag_sub_table_data(version)) {
       jam();
       sendBatchedFragmentedSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA,
@@ -4717,6 +4767,8 @@ void Suma::sendBatchedSUB_TABLE_DATA(Signal *signal,
                  SubTableData::SignalLengthWithTransId, JBB, lsptr, nptr);
     }
   }
+
+  DBUG_VOID_RETURN;
 }
 
 void Suma::execFIRE_TRIG_ORD(Signal *signal) {
@@ -4813,9 +4865,8 @@ void Suma::doFIRE_TRIG_ORD(Signal *signal, LinearSectionPtr lsptr[3]) {
   ndbrequire(gci > m_last_complete_gci);
 
   Uint32 tableId = subPtr.p->m_tableId;
-  Uint32 schemaVersion =
-      c_tablePool.getPtr(subPtr.p->m_table_ptrI)->m_schemaVersion;
-
+  Table *tab = c_tablePool.getPtr(subPtr.p->m_table_ptrI);
+  Uint32 schemaVersion = tab->m_schemaVersion;
   Uint32 bucket = hashValue % c_no_of_buckets;
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
   /**
@@ -4850,10 +4901,11 @@ void Suma::doFIRE_TRIG_ORD(Signal *signal, LinearSectionPtr lsptr[3]) {
     data->transId1 = transId1;
     data->transId2 = transId2;
 
-    sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
+    sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr,
+                              hashValue);
   } else {
     jam();
-    constexpr uint buffer_header_sz = 6;
+    constexpr uint buffer_header_sz = Buffer_page::HEADER_SZ;
     Uint32 *dst1 = nullptr;
     Uint32 *dst2 = nullptr;
     Uint32 sz1 = f_trigBufferSize + buffer_header_sz;
@@ -4888,6 +4940,7 @@ void Suma::doFIRE_TRIG_ORD(Signal *signal, LinearSectionPtr lsptr[3]) {
     dst1[3] = any_value;
     dst1[4] = transId1;
     dst1[5] = transId2;
+    dst1[6] = hashValue;
     dst1 += buffer_header_sz;
     memcpy(dst1, lsptr[0].p, lsptr[0].sz << 2);
     dst1 += lsptr[0].sz;
@@ -5702,7 +5755,8 @@ void Suma::execSUB_GCP_COMPLETE_ACK(Signal *signal) {
         "Simulating exceeding the MaxBufferedEpochs, ignoring ack");
     return;
   }
-  if (ERROR_INSERTED(13052) || ERROR_INSERTED(13060) || ERROR_INSERTED(13061)) {
+  if (ERROR_INSERTED(13052) || ERROR_INSERTED(13060) || ERROR_INSERTED(13061) ||
+      ERROR_INSERTED(13063)) {
     jam();
     /**
      * g_eventLogger->info("Simulating many unacked epochs by ignoring ack "
@@ -6472,8 +6526,8 @@ Uint32 *Suma::get_buffer_ptr(Signal *signal, Uint32 buck, Uint64 gci, Uint32 sz,
   Bucket *bucket = c_buckets + buck;
   Page_pos pos = bucket->m_buffer_head;
 
-  Buffer_page *page = 0;
-  Uint32 *ptr = 0;
+  Buffer_page *page = nullptr;
+  Uint32 *ptr = nullptr;
 
   if (likely(pos.m_page_id != RNIL)) {
     jam();
@@ -6514,7 +6568,8 @@ Uint32 *Suma::get_buffer_ptr(Signal *signal, Uint32 buck, Uint64 gci, Uint32 sz,
      * 1) save header on last page
      * 2) seize new page
      */
-    static_assert(1 + 6 + SUMA_BUF_SZ + Buffer_page::GCI_SZ32 <=
+    static_assert(1 + Buffer_page::HEADER_SZ + SUMA_BUF_SZ +
+                      Buffer_page::GCI_SZ32 <=
                   Buffer_page::DATA_WORDS);
     Uint32 next;
     if (unlikely((next = seize_page()) == RNIL)) {
@@ -6914,6 +6969,8 @@ static Uint32 resend_bucket_round = 0;
 #endif
 void Suma::resend_bucket(Signal *signal, Uint32 buck, Uint64 min_gci,
                          Uint32 pos, Uint64 last_gci) {
+  DBUG_ENTER("Suma::resend_bucket");
+
   ndbrequire(buck < NO_OF_BUCKETS);
   Bucket *bucket = c_buckets + buck;
   g_eventLogger->info("resend_bucket");
@@ -7109,7 +7166,7 @@ void Suma::resend_bucket(Signal *signal, Uint32 buck, Uint64 min_gci,
       jam();
       ndbrequire(part == 1);
 
-      const uint buffer_header_sz = 6;
+      const uint buffer_header_sz = Buffer_page::HEADER_SZ;
       g_cnt++;
       Uint32 subPtrI = src[0];
       Uint32 schemaVersion = src[1];
@@ -7118,6 +7175,7 @@ void Suma::resend_bucket(Signal *signal, Uint32 buck, Uint64 min_gci,
       Uint32 any_value = src[3];
       Uint32 transId1 = src[4];
       Uint32 transId2 = src[5];
+      Uint32 hashValue = src[6];
       src += buffer_header_sz;
 
       ndbassert(sz - buffer_header_sz >= sz_1);
@@ -7207,7 +7265,8 @@ void Suma::resend_bucket(Signal *signal, Uint32 buck, Uint64 min_gci,
         data->transId1 = transId1;
         data->transId2 = transId2;
 
-        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
+        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr,
+                                  hashValue);
       }
     }
   }

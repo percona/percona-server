@@ -26,6 +26,7 @@
 #include "mrs/endpoint/handler/handler_db_object_table.h"
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -46,6 +47,7 @@
 #include "helper/media_detector.h"
 #include "helper/mysql_numeric_value.h"
 #include "mrs/database/filter_object_generator.h"
+#include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query_gtid_executed.h"
 #include "mrs/database/helper/query_retry_on_ro.h"
@@ -227,7 +229,7 @@ mrs::database::entry::RowUserOwnership get_user_ownership(
   return result;
 }
 
-std::vector<std::string> regex_path_for_db_object(
+auto get_path_for_db_object(
     std::weak_ptr<mrs::endpoint::DbObjectEndpoint> endpoint) {
   auto ep = mrs::endpoint::handler::lock(endpoint);
   auto parent_ep = ep->get_parent_ptr();
@@ -236,7 +238,7 @@ std::vector<std::string> regex_path_for_db_object(
   const std::string &service_schema_path = parent_ep->get_url_path();
   const bool is_index = ep->is_index();
 
-  return mrs::endpoint::handler::regex_path_db_object_with_index(
+  return mrs::endpoint::handler::path_db_object_with_index(
       object_path, service_schema_path, is_index);
 }
 
@@ -276,8 +278,8 @@ HandlerDbObjectTable::HandlerDbObjectTable(
     mrs::ResponseCache *response_cache,
     mrs::database::SlowQueryMonitor *slow_monitor)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              /*regex-path: ^/service/schema/object(/...)?$*/
-              regex_path_for_db_object(endpoint),
+              /* path: /service/schema/object[/...] */
+              get_path_for_db_object(endpoint),
               get_endpoint_options(lock(endpoint)), auth_manager),
       gtid_manager_{gtid_manager},
       cache_{cache},
@@ -296,17 +298,6 @@ HandlerDbObjectTable::HandlerDbObjectTable(
   if (get_options().result.cache_ttl_ms > 0 && response_cache) {
     response_cache_ = std::make_shared<ItemEndpointResponseCache>(
         response_cache, get_options().result.cache_ttl_ms);
-  }
-
-  if (auto parent_db_service = lock_parent(ep_parent)) {
-    if (auto parent_host = std::dynamic_pointer_cast<UrlHostEndpoint>(
-            parent_db_service->get_parent_ptr())) {
-      auto host_entry = parent_host->get();
-      auto db_service_entry = parent_db_service->get();
-      if (host_entry && db_service_entry) {
-        passthrough_db_user_ = db_service_entry->passthrough_db_user;
-      }
-    }
   }
 }
 
@@ -327,8 +318,9 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
   database::dv::ObjectFieldFilter field_filter;
   std::optional<std::string> target_field;
   auto endpoint = lock_or_throw_unavail(endpoint_);
-  auto pk = get_rest_pk_parameter(object, endpoint->get_url(),
-                                  ctxt->request->get_uri());
+  auto endpoint_url = endpoint->get_url();
+  auto pk =
+      get_rest_pk_parameter(object, endpoint_url, ctxt->request->get_uri());
   const auto accepted_content_type =
       validate_content_type_encoding(&ctxt->accepts);
   const bool opt_sp_include_links = get_options().result.include_links;
@@ -401,7 +393,7 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
         execute_and_handle_timeout([&]() {
           rest.query_entries(
               query_retry.get_session(), object, field_filter, offset, limit,
-              endpoint->get_url().join(), is_default_limit, row_ownership,
+              endpoint_url.join(), is_default_limit, row_ownership,
               query_retry.get_fog(), !field_filter.is_filter_configured());
         });
       } while (query_retry.should_retry(rest.items));
@@ -454,7 +446,7 @@ HttpResult HandlerDbObjectTable::handle_get(rest::RequestContext *ctxt) {
         query_retry.before_query();
         execute_and_handle_timeout([&]() {
           rest.query_entry(session.get(), object, pk, field_filter,
-                           endpoint->get_url().join(), row_ownership,
+                           endpoint_url.join(), row_ownership,
                            query_retry.get_fog(), true);
         });
       } while (query_retry.should_retry(rest.items));
@@ -497,9 +489,10 @@ HttpResult HandlerDbObjectTable::handle_post(
   auto endpoint = lock_or_throw_unavail(endpoint_);
   auto object = entry_->object_description;
   auto session = get_session(ctxt, MySQLConnection::kMySQLConnectionUserdataRW);
+  auto endpoint_url = endpoint->get_url();
 
   auto last_path =
-      get_path_after_object_name(endpoint->get_url(), ctxt->request->get_uri());
+      get_path_after_object_name(endpoint_url, ctxt->request->get_uri());
 
   if (!last_path.empty())
     throw http::Error(HttpStatusCode::BadRequest,
@@ -521,6 +514,7 @@ HttpResult HandlerDbObjectTable::handle_post(
   database::dv::JsonMappingUpdater updater(object,
                                            row_ownership_info(ctxt, object));
 
+  mysqlrouter::MySQLSession::Transaction transaction{session.get(), false};
   mrs::database::PrimaryKeyColumnValues pk;
 
   slow_monitor_->execute(
@@ -531,35 +525,44 @@ HttpResult HandlerDbObjectTable::handle_post(
 
   Counter<kEntityCounterRestAffectedItems>::increment();
 
-  auto gtid = mrs::monitored::get_session_tracked_gtids_for_metadata_response(
-      session.get(), gtid_manager_);
-
   if (!pk.empty()) {
     database::QueryRestTableSingleRow fetch_one(
         nullptr, false, true, mrs::database::RowLockType::NONE,
         get_options().query.timeout > 0 ? get_options().query.timeout
                                         : slow_monitor_->default_timeout());
-    std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
     execute_and_handle_timeout([&]() {
       fetch_one.query_entry(
           session.get(), object, pk,
           database::dv::ObjectFieldFilter::from_object(*object),
           endpoint->get_url().join(), row_ownership_info(ctxt, object), {},
-          true, response_gtid);
+          true, [&]() {
+            // commit needs to happen after reading back the posted row
+            transaction.commit();
+
+            if (get_options().metadata.gtid)
+              return mrs::monitored::
+                  get_session_tracked_gtids_for_metadata_response(
+                      session.get(), gtid_manager_);
+            else
+              return std::string{};
+          });
     });
+
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
+  } else {
+    transaction.commit();
+    return {};
   }
-  return {};
 }
 
 HttpResult HandlerDbObjectTable::handle_delete(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto endpoint = lock_or_throw_unavail(endpoint_);
-  auto last_path =
-      get_path_after_object_name(endpoint->get_url(), requests_uri);
+  auto endpoint_url = endpoint->get_url();
+  auto last_path = get_path_after_object_name(endpoint_url, requests_uri);
   auto object = entry_->object_description;
   auto session = get_session(ctxt, MySQLConnection::kMySQLConnectionUserdataRW);
   auto addr = session->get_connection_parameters().conn_opts.destination;
@@ -572,7 +575,7 @@ HttpResult HandlerDbObjectTable::handle_delete(rest::RequestContext *ctxt) {
                                         row_ownership_info(ctxt, object));
 
   if (!last_path.empty()) {
-    auto pk = get_rest_pk_parameter(object, endpoint->get_url(), requests_uri);
+    auto pk = get_rest_pk_parameter(object, endpoint_url, requests_uri);
 
     slow_monitor_->execute([&rest, &count, &session,
                             pk]() { count = rest.delete_(session.get(), pk); },
@@ -658,9 +661,10 @@ HttpResult HandlerDbObjectTable::handle_put(rest::RequestContext *ctxt) {
   auto size = input_buffer.length();
   auto document = input_buffer.pop_front(size);
   auto object = entry_->object_description;
+  auto endpoint_url = endpoint->get_url();
 
-  auto pk = get_rest_pk_parameter(object, endpoint->get_url(),
-                                  ctxt->request->get_uri());
+  auto pk =
+      get_rest_pk_parameter(object, endpoint_url, ctxt->request->get_uri());
 
   rapidjson::Document json_doc;
 
@@ -688,27 +692,37 @@ HttpResult HandlerDbObjectTable::handle_put(rest::RequestContext *ctxt) {
   auto json_obj = json_doc.GetObject();
   auto session = get_session(ctxt, MySQLConnection::kMySQLConnectionUserdataRW);
 
+  mysqlrouter::MySQLSession::Transaction transaction{session.get(), false};
+
   slow_monitor_->execute(
       [&]() { pk = updater.update(session.get(), pk, json_doc, true); },
       session.get(), get_options().query.timeout);
 
   Counter<kEntityCounterRestAffectedItems>::increment(updater.affected());
 
-  auto gtid = mrs::monitored::get_session_tracked_gtids_for_metadata_response(
-      session.get(), gtid_manager_);
-
   database::QueryRestTableSingleRow fetch_one(nullptr, false, true,
                                               mrs::database::RowLockType::NONE,
                                               slow_query_timeout());
-  std::string response_gtid{get_options().metadata.gtid ? gtid : ""};
 
   execute_and_handle_timeout([&]() {
-    fetch_one.query_entry(session.get(), object, pk,
-                          database::dv::ObjectFieldFilter::from_object(*object),
-                          endpoint->get_url().join(),
-                          row_ownership_info(ctxt, object), {}, true,
-                          response_gtid);
+    fetch_one.query_entry(
+        session.get(), object, pk,
+        database::dv::ObjectFieldFilter::from_object(*object),
+        endpoint_url.join(), row_ownership_info(ctxt, object), {}, true, [&]() {
+          // commit needs to happen after reading back the posted row
+          transaction.commit();
+
+          if (get_options().metadata.gtid)
+            return mrs::monitored::
+                get_session_tracked_gtids_for_metadata_response(session.get(),
+                                                                gtid_manager_);
+          else
+            return std::string{};
+        });
   });
+
+  transaction.commit();
+
   Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
   return std::move(fetch_one.response);
 }
@@ -771,17 +785,16 @@ mrs::database::ObjectRowOwnership HandlerDbObjectTable::row_ownership_info(
 }
 
 HandlerDbObjectTable::CachedSession HandlerDbObjectTable::get_session(
-    rest::RequestContext *ctxt, collector::MySQLConnection type) {
-  HandlerDbObjectTable::CachedSession tmp;
-
-  tmp = cache_->get_instance(type, false);
-
-  if (passthrough_db_user_) {
-    if (!ctxt->user.is_mysql_auth) {
+    rest::RequestContext *ctxt, collector::MySQLConnection type,
+    PoolManagerRef *out_pool) {
+  if (get_options().query.passthrough_db_user &&
+      (type == collector::kMySQLConnectionUserdataRW ||
+       type == collector::kMySQLConnectionUserdataRO)) {
+    if (!ctxt->session || !ctxt->session->db_session_pool) {
       log_debug(
-          "Request to service with passthroughDbUser from non-mysql auth user "
-          "'%s'",
-          ctxt->user.name.c_str());
+          "Request to service with passthroughDbUser from a user authenticated "
+          " through auth app '%s', which does not support it",
+          ctxt->user.app_id.to_string().c_str());
       throw http::Error(HttpStatusCode::BadRequest,
                         "Service requires authentication with "
                         "MySQL Internal, but user is authenticated with "
@@ -789,19 +802,19 @@ HandlerDbObjectTable::CachedSession HandlerDbObjectTable::get_session(
     }
 
     try {
-      // Following SQL, ensure proper behavior in test:
-      // "SET ROLE NONE" - should be removed in future.
-      tmp->execute("SET ROLE NONE");
-      tmp->change_user(ctxt->user.name, ctxt->user.mysql_password, "");
-      tmp->execute("SET ROLE ALL");
+      if (out_pool) *out_pool = ctxt->session->db_session_pool;
+
+      return ctxt->session->db_session_pool->get_instance();
+    } catch (const collector::db_pool_exhausted &) {
+      throw http::Error(HttpStatusCode::TooManyRequests);
     } catch (const std::exception &e) {
-      log_error("Could not switch to user '%s' for service: %s",
+      log_error("Could not get DB session for user '%s' for service: %s",
                 ctxt->user.name.c_str(), e.what());
       throw;
     }
   }
 
-  return tmp;
+  return cache_->get_instance(type, false);
 }
 
 }  // namespace handler

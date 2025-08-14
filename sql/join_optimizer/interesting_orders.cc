@@ -198,7 +198,7 @@ LogicalOrderings::LogicalOrderings(THD *thd)
       m_dfsm_states(thd->mem_root),
       m_dfsm_edges(thd->mem_root),
       m_elements_pool(thd->mem_root) {
-  GetHandle(nullptr);  // Always has the zero handle.
+  GetHandle(static_cast<Item *>(nullptr));  // Always has the zero handle.
 
   // Add the empty ordering/grouping.
   m_orderings.push_back(OrderingWithInfo{Ordering(),
@@ -1032,6 +1032,12 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
   }
   seen_tables &= ~PSEUDO_TABLE_BITS;
 
+  if (std::popcount(seen_tables) <= 1) {
+    // Since homogenization is about reducing the number of tables in the
+    // orderings, there's nothing to do if we haven't seen more than one table.
+    return;
+  }
+
   // Build a reverse table of canonical items to items,
   // and sort it, so that we can fairly efficiently make lookups into it.
   auto reverse_canonical =
@@ -1194,6 +1200,19 @@ ItemHandle LogicalOrderings::GetHandle(Item *item) {
     }
   }
   m_items.push_back(ItemInfo{item, /*canonical_item=*/0});
+  return m_items.size() - 1;
+}
+
+ItemHandle LogicalOrderings::GetHandle(Field *field) {
+  for (size_t i = 1; i < m_items.size(); ++i) {
+    if (Item *item = m_items[i].item->real_item();
+        item->type() == Item::FIELD_ITEM &&
+        down_cast<Item_field *>(item)->field == field) {
+      return i;
+    }
+  }
+  m_items.push_back(
+      ItemInfo{.item = new Item_field(field), .canonical_item = 0});
   return m_items.size() - 1;
 }
 

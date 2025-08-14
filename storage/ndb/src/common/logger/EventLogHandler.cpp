@@ -27,7 +27,7 @@
 
 #include "EventLogHandler.hpp"
 
-#include <time.h>
+#include <ctime>
 
 #include "message.h"
 
@@ -164,7 +164,7 @@ bool EventLogHandler::close() {
 bool EventLogHandler::is_open() { return (m_event_source != nullptr); }
 
 void EventLogHandler::writeHeader(const char *, Logger::LoggerLevel level,
-                                  time_t) {
+                                  const std::timespec *) {
   m_level = level;
 }
 

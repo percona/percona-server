@@ -30,12 +30,25 @@
 namespace helper {
 namespace json {
 
+/**
+ * @brief Merge fields from j2 into j1, which must be JSON objects.
+ *
+ * Returns a new JSON object with all fields of j1 plus fields of j2 which are
+ * not in j1 (ie j2 has default values).
+ *
+ * If skip_attributes is given, then these fields will not be merged from j2
+ * even if they're missing in j1.
+ * If overwrite_attributes is given, then these fields will always be merged
+ * from j2 even if they have values in j1 and even if they're missing in j1
+ */
 std::string merge_objects(const std::string &j1, const std::string &j2,
-                          const std::set<std::string> &skip_attributes);
+                          const std::set<std::string> &skip_attributes,
+                          const std::set<std::string> &overwrite_attributes);
 
 std::optional<std::string> merge_objects(
     std::optional<std::string> j1, std::optional<std::string> j2,
-    const std::set<std::string> &skip_attributes);
+    const std::set<std::string> &skip_attributes,
+    const std::set<std::string> &overwrite_attributes);
 
 }  // namespace json
 }  // namespace helper

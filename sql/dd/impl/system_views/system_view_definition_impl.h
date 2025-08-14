@@ -60,6 +60,22 @@ class System_view_definition_impl : public System_view_definition {
     return "";
   }
 
+  /**
+    Get collation clause to append to view definition for some
+    utf8mb4 view columns that depend on lower_case_table_names.
+
+    Copying the behavior of fs_name_collation(), but wondering
+    why we don't use the the ci collation only for LCTN=2, that
+    would be more in line with the behavior oF the DD tables,
+    see Object_table_definition_impl::fs_name_collation().
+
+    @return utf8mb4_bin if lctn=0, otherwise utf8mb4_0900_as_ci.
+  */
+  static const String_type fs_name_collation_utf8mb4() {
+    if (lower_case_table_names != 0) return " COLLATE utf8mb4_0900_as_ci";
+    return " COLLATE utf8mb4_bin";
+  }
+
   String_type build_ddl_create_view() const override = 0;
 
  private:

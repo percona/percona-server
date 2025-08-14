@@ -54,12 +54,12 @@ class ServiceHandlers : public IServiceHandlers {
 
   bool init() override;
   void teardown() override;
+  std::string error() override;
 
   std::chrono::seconds idle_time() const override;
-  uint64_t pool_size() const override;
+  uint64_t memory_units() const override;
 
   void set_max_heap_size(uint64_t) override;
-  void set_default_pool_size(uint64_t) override;
 
  private:
   void init_common_context();
@@ -69,6 +69,7 @@ class ServiceHandlers : public IServiceHandlers {
   std::shared_ptr<IContextHandle> m_debug_context;
   std::shared_ptr<ContextPool> m_context_pool;
   std::chrono::time_point<std::chrono::system_clock> m_last_used_time;
+  std::string m_error;
 
   std::unique_ptr<std::thread> m_teardown_thread;
 };

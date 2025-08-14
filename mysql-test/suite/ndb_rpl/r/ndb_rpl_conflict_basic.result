@@ -158,6 +158,9 @@ select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
 a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
 1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
 2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Originate update which will be rejected
 update t1_max set c=repeat("Z", 10006), d=repeat("I", 10005), X=2 where a=1;
 Check slave has rejected due to lower version
@@ -165,6 +168,9 @@ select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
 a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
 1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
 2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Originate delete which will be rejected (due to NDB-OLD) algorith
 delete from t1_max where a=1;
 Check slave has rejected due to before image mismatch
@@ -172,6 +178,9 @@ select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
 a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
 1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
 2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Originate insert which will be rejected (as row exists)
 insert into t1_max values (1, 1, repeat("R", 10004), repeat("A", 10007), 1);
 Check slave has rejected due to row existing already
@@ -179,6 +188,9 @@ select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
 a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
 1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
 2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Expect t1_max to have 3 entries
 select server_id, master_server_id, count, a from t1_old$EX order by count;
 server_id	master_server_id	count	a

@@ -343,6 +343,7 @@ class Item_func : public Item_result_field {
     JSON_DEPTH_FUNC,
     JSON_EXTRACT_FUNC,
     JSON_OBJECT_FUNC,
+    JSON_DUALITY_OBJECT_FUNC,
     JSON_ARRAY_FUNC,
     JSON_VALID_FUNC,
     JSON_TYPE_FUNC,
@@ -354,7 +355,8 @@ class Item_func : public Item_result_field {
     JSON_VALUE_FUNC,
     JSON_SEARCH_FUNC,
     JSON_SCHEMA_VALIDATION_REPORT_FUNC,
-    JSON_SCHEMA_VALID_FUNC
+    JSON_SCHEMA_VALID_FUNC,
+    ETAG_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -570,19 +572,14 @@ class Item_func : public Item_result_field {
 
   my_decimal *val_decimal(my_decimal *) override;
 
-  bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems, uint flags,
-                        int item_sep) {
-    return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
-  }
   /*
     Aggregate arguments for string result, e.g: CONCAT(a,b)
     - convert to @@character_set_connection if all arguments are numbers
     - allow DERIVATION_NONE
   */
   bool agg_arg_charsets_for_string_result(DTCollation &c, Item **items,
-                                          uint nitems, int item_sep = 1) {
-    return agg_item_charsets_for_string_result(c, func_name(), items, nitems,
-                                               item_sep);
+                                          uint nitems) {
+    return agg_item_charsets_for_string_result(c, func_name(), items, nitems);
   }
   /*
     Aggregate arguments for comparison, e.g: a=b, a LIKE b, a RLIKE b
@@ -590,9 +587,8 @@ class Item_func : public Item_result_field {
     - don't allow DERIVATION_NONE
   */
   bool agg_arg_charsets_for_comparison(DTCollation &c, Item **items,
-                                       uint nitems, int item_sep = 1) {
-    return agg_item_charsets_for_comparison(c, func_name(), items, nitems,
-                                            item_sep);
+                                       uint nitems) {
+    return agg_item_charsets_for_comparison(c, func_name(), items, nitems);
   }
 
   Item *replace_func_call(uchar *) override;

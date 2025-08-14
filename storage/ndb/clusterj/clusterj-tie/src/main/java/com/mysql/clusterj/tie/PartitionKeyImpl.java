@@ -205,7 +205,6 @@ class PartitionKeyImpl implements PartitionKey {
                 keyParts.add(keyPart);
             }
             public void release() {
-//                System.out.println("PartitionKeyImpl.addBytesKey.release() " + length);
             }
         });
     }

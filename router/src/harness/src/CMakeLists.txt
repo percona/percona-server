@@ -153,6 +153,19 @@ ELSE()
   )
 ENDIF()
 
+# for SecureMemoryPool
+IF(MSVC)
+  LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
+    my_aligned_malloc
+    my_aligned_free
+  )
+ELSE()
+  LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
+    _Z17my_aligned_mallocmm
+    _Z15my_aligned_freePv
+  )
+ENDIF()
+
 # charset stuff for SqlLexer.cc
 IF(WIN32)
   LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
@@ -282,6 +295,7 @@ SET(harness_source
   destination_endpoint.cc
   destination_socket.cc
   secure_string.cc
+  regex_matcher.cc
   )
 
 IF(NOT SOLARIS)
@@ -351,6 +365,7 @@ ROUTER_ADD_SHARED_LIBRARY(harness-library
   ${common_libraries}
   router_mysqlclient
   extra::rapidjson
+  ext::icu
   )
 
 TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC

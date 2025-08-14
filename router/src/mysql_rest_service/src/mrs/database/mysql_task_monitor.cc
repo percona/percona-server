@@ -61,6 +61,8 @@ void MysqlTaskMonitor::reset() {
 void MysqlTaskMonitor::run() {
   using namespace std::chrono_literals;
 
+  mysql_thread_init();
+
   state_.exchange(k_initializing, k_running);
 
   my_thread_self_setname("Task monitor");
@@ -90,20 +92,20 @@ void MysqlTaskMonitor::run() {
   }
 
   log_system("Stopping task monitor");
+
+  mysql_thread_end();
 }
 
 void MysqlTaskMonitor::call_async(
-    CachedSession session, std::list<std::string> preamble, std::string script,
+    CachedSession session, PoolManagerRef session_pool,
+    std::list<std::string> preamble, std::string script,
     std::list<std::string> postamble,
     std::function<std::list<std::string>(const std::exception &)> on_error,
     const std::string &task_id) {
-  Task task{std::move(session),
-            std::move(preamble),
-            std::move(script),
-            std::move(postamble),
-            {},
-            std::move(on_error),
-            task_id};
+  Task task{std::move(session_pool), std::move(session),
+            std::move(preamble),     std::move(script),
+            std::move(postamble),    {},
+            std::move(on_error),     task_id};
   std::lock_guard<std::mutex> lock(tasks_mutex_);
   tasks_.emplace_back(std::move(task));
 }
@@ -124,6 +126,13 @@ bool MysqlTaskMonitor::update_task(Task &task) {
         return false;
       }
       task.script.clear();
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      task.script.clear();
+      task.failed = true;
+      // client errors are fatal (disconnection etc), so we can't cleanup
+      if (e.code() >= CR_ERROR_FIRST && e.code() <= CR_ERROR_LAST) return true;
+      task.error = task.on_error(e);
+      return false;
     } catch (const std::exception &e) {
       task.script.clear();
       task.error = task.on_error(e);

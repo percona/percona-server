@@ -30,6 +30,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include "components/keyrings/common/component_helpers/include/keyring_log_builtins_definition.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/component_status_var_service.h"
 #include "mysql/components/services/dynamic_loader.h"
@@ -75,6 +76,34 @@ void teardown() {
 }
 }  // namespace dummy_status_variable_registration_implementation
 
+/*
+  We need to register log_builins implementation because keyring components
+  depends on it (in terms of REQUIRES_SERVICE_PLACEHOLDER)
+  and minchassis does not provide it
+*/
+namespace log_builtins_component_helper {
+KEYRING_LOG_BUILTINS_IMPLEMENTOR(mysql_migrate_keyring);
+KEYRING_LOG_BUILTINS_STRING_IMPLEMENTOR(mysql_migrate_keyring);
+
+void setup() {
+  reg_reg->register_service(
+      "log_builtins.mysql_migrate_keyring",
+      (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
+          mysql_migrate_keyring, log_builtins)));
+
+  reg_reg->register_service(
+      "log_builtins_string.mysql_migrate_keyring",
+      (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
+          mysql_migrate_keyring, log_builtins_string)));
+}
+
+void teardown() {
+  reg_reg->unregister("log_builtins.mysql_migrate_keyring");
+  reg_reg->unregister("log_builtins_string.mysql_migrate_keyring");
+}
+
+}  // namespace log_builtins_component_helper
+
 void init_components_subsystem() {
   minimal_chassis_init((&components_registry), nullptr);
   components_registry->acquire(
@@ -83,9 +112,11 @@ void init_components_subsystem() {
   components_registry->acquire("registry_registration",
                                reinterpret_cast<my_h_service *>(&reg_reg));
   dummy_status_variable_registration_implementation::setup();
+  log_builtins_component_helper::setup();
 }
 
 void deinit_components_subsystem() {
+  log_builtins_component_helper::teardown();
   dummy_status_variable_registration_implementation::teardown();
   components_registry->release(reinterpret_cast<my_h_service>(reg_reg));
   components_registry->release(

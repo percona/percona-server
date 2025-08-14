@@ -326,14 +326,11 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(LINUX_RHEL AND NOT LINUX_RHEL10)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL7)
-        # gcc11 not available yet
-        IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
-          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
-        ELSE()
-          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
-        ENDIF()
-      ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
+        SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
+      ELSEIF(LINUX_RHEL8)
         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-13")
+      ELSEIF(LINUX_RHEL9)
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-14")
       ELSEIF(LINUX_RHEL10)
         # Use default /usr/bin/gcc which is 14.2.1
       ENDIF()
@@ -388,18 +385,18 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
         IF(LINUX_RHEL7)
-          IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
-            SET(DEV_PACKAGES
-              "devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-binutils")
-          ELSE()
-            SET(DEV_PACKAGES
-              "devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils")
-          ENDIF()
-        ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
+          SET(DEV_PACKAGES
+            "devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils")
+        ELSEIF(LINUX_RHEL8)
           SET(DEV_PACKAGES
             "gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils")
           STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-annocheck")
           STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-plugin-gcc")
+        ELSEIF(LINUX_RHEL9)
+          SET(DEV_PACKAGES
+            "gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-14-annobin-annocheck")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-14-annobin-plugin-gcc")
         ENDIF()
         MESSAGE(WARNING
           "Could not find devtoolset compiler/linker in ${ALTERNATIVE_PATHS}")
@@ -697,6 +694,12 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+# To add c/c++ code specific for MySQL AI release using #ifdef..#endif
+OPTION(WITH_MYSQL_AI "To Add MySQL AI Release C/C++ Code" OFF)
+IF (WITH_MYSQL_AI)
+  ADD_COMPILE_DEFINITIONS(MYSQL_AI)
+ENDIF()
+
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
@@ -808,11 +811,13 @@ INCLUDE(curl)
 INCLUDE(coredumper)
 INCLUDE(prepend_append_cflags_if_supported)
 INCLUDE(rapidjson)
-INCLUDE(fprofile)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
 INCLUDE(libs_mysql_create_library)
 INCLUDE(libcno)
+# Do this last, so that most feature checks are done, and not affected by
+# -fprofile-use or -fprofile-generate
+INCLUDE(fprofile) # Do this last !!
 
 # To simplify building of JET, skip all dependencies for other targets.
 IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
@@ -893,8 +898,33 @@ OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
+<<<<<<< HEAD
 # Currently only supported on Linux
 IF(LINUX)
+||||||| merged common ancestors
+# Currently only supported on Linux
+IF(WITH_INTERNAL AND LINUX)
+=======
+# Add option WITH_KERBEROS_MAC which will be ignored on older branches.
+UNSET(CUSTOM_KERBEROS_SPECIFIED)
+IF(APPLE)
+  IF(DEFINED WITH_KERBEROS_MAC AND IS_DIRECTORY ${WITH_KERBEROS_MAC})
+    SET(CUSTOM_KERBEROS_SPECIFIED 1)
+  ELSEIF(DEFINED WITH_KERBEROS AND IS_DIRECTORY ${WITH_KERBEROS})
+    SET(CUSTOM_KERBEROS_SPECIFIED 1)
+  ENDIF()
+ENDIF()
+
+# Enable it by default for Linux(system) and MacOS(custom path)
+IF(WITH_INTERNAL AND
+    (LINUX OR
+      (APPLE AND
+        CUSTOM_KERBEROS_SPECIFIED)))
+  # The validity of the WITH_KERBEROS path will be verified later,
+  # in MYSQL_CHECK_KERBEROS
+  # Enabling WITH_AUTHENTICATION_KERBEROS, will also enable
+  # WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT, see below.
+>>>>>>> mysql-9.4.0
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT OFF)
@@ -912,6 +942,7 @@ ENDIF()
 
 IF(WITH_INTERNAL)
   SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/internal/cmake)
+  INCLUDE(mysql_internal_options)
 ENDIF()
 
 OPTION(WITH_AUTHENTICATION_WEBAUTHN
@@ -1564,6 +1595,10 @@ ENDIF()
 
 SET(DEFAULT_BASEDIR "${DEFAULT_MYSQL_HOME}")
 
+# Set default engine values for external tables
+SET(DEFAULT_EXTERNAL_TABLE_ENGINE "" CACHE STRING "Default engine for external tables")
+SET(DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE "" CACHE STRING "Default secondary engine for external tables")
+
 IF(IS_ABSOLUTE ${INSTALL_MYSQLDATADIR})
   SET(MYSQL_DATADIR ${INSTALL_MYSQLDATADIR} CACHE PATH
     "default MySQL data directory")
@@ -1734,6 +1769,13 @@ IF(APPLE)
   OPTION(WITH_DEVELOPER_ENTITLEMENTS "Add developer entitlements" OFF)
 ENDIF()
 
+# Utility target to copy all "custom" libraries into the build directory.
+ADD_CUSTOM_TARGET(copy_custom_libraries)
+IF(APPLE)
+  # Utility target, to inspect all the symlinks created.
+  ADD_CUSTOM_TARGET(symlink_custom_libraries)
+ENDIF()
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 
@@ -1897,7 +1939,6 @@ MYSQL_CHECK_ZSTD()
 IF(LINUX)
   # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.
   FIND_PROGRAM(PATCHELF_EXECUTABLE patchelf)
-  ADD_CUSTOM_TARGET(copy_linux_custom_dlls)
   SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
 ENDIF()
 
@@ -2923,3 +2964,4 @@ IF(HAVE_WITH_NDBCLUSTER)
   SET(WITH_NDBCLUSTER ${WITH_NDB} CACHE BOOL
     "Deprecated legacy option for MySQL Cluster")
 ENDIF()
+

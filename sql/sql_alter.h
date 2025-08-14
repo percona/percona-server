@@ -345,7 +345,10 @@ class Alter_info {
     ANY_ENGINE_ATTRIBUTE = 1ULL << 39,
 
     /// Set for column visibility attribute alter.
-    ALTER_COLUMN_VISIBILITY = 1ULL << 40
+    ALTER_COLUMN_VISIBILITY = 1ULL << 40,
+
+    /// Must be last, not a real type.
+    ALTER_TYPE_END = 1ULL << 41
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };

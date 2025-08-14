@@ -1582,13 +1582,6 @@ for concurrency control.
 @param[in,out]  space   Tablespace to release  */
 void fil_space_release(fil_space_t *space);
 
-/** Fetch the file name opened for a space_id from the file map.
-@param[in]   space_id  tablespace ID
-@param[out]  name      the scanned filename
-@return true if the space_id is found. The name is set to an
-empty string if the space_id is not found. */
-bool fil_system_get_file_by_space_id(space_id_t space_id, std::string &name);
-
 /** Fetch the file name opened for an undo space number from the file map.
 @param[in]   space_num  Undo tablespace Number
 @param[out]  space_id   Undo tablespace ID

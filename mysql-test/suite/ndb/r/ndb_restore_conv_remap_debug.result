@@ -17,6 +17,8 @@ a	b	length(c)	sha1(c)
 4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Cause backup stall
 Starting backup
 Backup started
@@ -96,6 +98,8 @@ a	b	length(c)	sha1(c)
 515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
 1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
 1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -128,6 +132,8 @@ a	b	length(c)	sha1(c)
 4515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
 5000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
 5010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Check restored auto-inc metadata :
 Expect that auto-increment next is 5011, e.g. > highest remapped row that
 existed at end of backup time
@@ -159,6 +165,8 @@ a	b	length(c)	sha1(c)
 4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Cause backup stall
 Starting SNAPSHOTSTART backup
 Backup started
@@ -238,6 +246,8 @@ a	b	length(c)	sha1(c)
 515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
 1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
 1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -261,6 +271,8 @@ a	b	length(c)	sha1(c)
 4004	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
 4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Check restored auto-inc metadata :
 Expect that auto-increment next is 5011, e.g. > highest remapped row that
 existed at end of backup time

@@ -898,7 +898,7 @@ class Btree_load : private ut::Non_copyable {
   class Merger;
 
   dberr_t insert_blob(lob::ref_t &ref, const dfield_t *dfield) {
-    return m_blob_inserter.insert_blob(ref, dfield);
+    return m_full_blob_inserter.insert_blob(ref, dfield);
   }
 
   /** Create a blob.
@@ -1209,6 +1209,8 @@ class Btree_load : private ut::Non_copyable {
   disable doing it again. */
   void disable_check_order() { m_check_order = false; }
 
+  Bulk_extent_allocator &get_extent_allocator() { return m_allocator; }
+
  private:
   /** Page allocation type. We allocate in extents by default. */
   Bulk_extent_allocator::Type m_alloc_type =
@@ -1228,7 +1230,6 @@ class Btree_load : private ut::Non_copyable {
   /** Root page level */
   size_t m_root_level{};
 
- private:
   /** Context information for each level of the B-tree.  The leaf level is at
   m_level_ctxs[0]. */
   Level_ctxs m_level_ctxs{};
@@ -1264,9 +1265,14 @@ class Btree_load : private ut::Non_copyable {
   /* End wait callback function. */
   Wait_callbacks::Function m_fn_wait_end;
 
-  /** Blob inserter that will be used to handle all the externally stored
-  fields of InnoDB. */
+  /** Blob inserter to handle the externally stored fields of InnoDB.  This
+  is used when blobs are inserted using multiple calls like open_blob(),
+  write_blob() and close_blob(). */
   bulk::Blob_inserter m_blob_inserter;
+
+  /** Need another blob inserter to store blobs with a single call using
+  insert_blob() */
+  bulk::Blob_inserter m_full_blob_inserter;
 
   /* Dedicated thread to flush pages. */
   Bulk_flusher m_bulk_flusher;
@@ -1278,8 +1284,10 @@ class Btree_load::Merger {
  public:
   using Btree_loads = std::vector<Btree_load *, ut::allocator<Btree_load *>>;
 
-  Merger(Btree_loads &loads, dict_index_t *index, const trx_t *trx)
-      : m_btree_loads(loads),
+  Merger(const size_t n_threads, Btree_loads &loads, dict_index_t *index,
+         const trx_t *trx)
+      : m_n_threads(n_threads),
+        m_btree_loads(loads),
         m_index(index),
         m_trx(trx),
         m_tuple_heap(2048, UT_LOCATION_HERE) {}
@@ -1330,6 +1338,9 @@ class Btree_load::Merger {
   void link_right_sibling(const page_no_t l_page_no, const page_no_t r_page_no);
 
  private:
+  /** Number of loader threads. */
+  const size_t m_n_threads;
+
   /** Refernce to the subtrees to be merged. */
   Btree_loads &m_btree_loads;
 

@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <cmath>
 #include <cstddef>
+#include <span>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -121,8 +122,7 @@ struct JoinPredicate {
   // Same as ordering_idx_needed_for_semijoin_rewrite, but given to the
   // RemoveDuplicatesIterator for doing the actual grouping. Allocated
   // on the MEM_ROOT. Can be empty, in which case a LIMIT 1 would do.
-  Item **semijoin_group = nullptr;
-  int semijoin_group_size = 0;
+  std::span<Item *> semijoin_group{};
 };
 
 /**
@@ -1291,9 +1291,25 @@ struct AccessPath {
       table_map tables_to_get_rowid_for;
     } weedout;
     struct {
+      using ItemSpan = std::span<Item *>;
       AccessPath *child;
-      Item **group_items;
-      int group_items_size;
+
+      /// @cond IGNORE
+      // These functions somehow triggers a doxygen warning. (Presumably
+      // a doxygen bug.)
+      ItemSpan &group_items() {
+        return reinterpret_cast<ItemSpan &>(m_group_items);
+      }
+
+      const ItemSpan &group_items() const {
+        return reinterpret_cast<const ItemSpan &>(m_group_items);
+      }
+      /// @endcond
+
+     private:
+      // gcc 11 does not support a span as a union member. Replace this
+      // with "std::span<Item *> group_items" when we move to newer gcc version.
+      alignas(alignof(ItemSpan)) std::byte m_group_items[sizeof(ItemSpan)];
     } remove_duplicates;
     struct {
       AccessPath *child;
@@ -1798,14 +1814,12 @@ inline AccessPath *NewWeedoutAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-inline AccessPath *NewRemoveDuplicatesAccessPath(THD *thd, AccessPath *child,
-                                                 Item **group_items,
-                                                 int group_items_size) {
+inline AccessPath *NewRemoveDuplicatesAccessPath(
+    THD *thd, AccessPath *child, std::span<Item *> group_items) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REMOVE_DUPLICATES;
   path->remove_duplicates().child = child;
-  path->remove_duplicates().group_items = group_items;
-  path->remove_duplicates().group_items_size = group_items_size;
+  path->remove_duplicates().group_items() = group_items;
   path->has_group_skip_scan = child->has_group_skip_scan;
   return path;
 }

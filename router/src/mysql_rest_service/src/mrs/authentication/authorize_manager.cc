@@ -50,7 +50,6 @@
 #include "helper/json/rapid_json_to_map.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
-#include "helper/make_shared_ptr.h"
 #include "helper/string/hex.h"  // unhex
 #include "helper/string/random.h"
 #include "helper/string/replace.h"
@@ -88,6 +87,11 @@ const UniversalId k_vendor_oidc{{0x35, 0}};
 const uint64_t k_default_jwt_expire_timeout{15};
 const uint64_t k_maximum_jwt_expire_timeout{60};
 
+const uint64_t k_default_passthrough_pool_size{4};
+
+const uint64_t k_maximum_passthrough_max_sessions_per_user{1000};
+const uint64_t k_maximum_passthrough_pool_size{1000};
+
 namespace {
 
 class AuthenticationOptions {
@@ -98,6 +102,7 @@ class AuthenticationOptions {
   std::optional<milliseconds> account_minimum_time_between_requests;
   seconds block_for{60};
   minutes jwt_expire_timeout{k_default_jwt_expire_timeout};
+  uint32_t passthrough_pool_size{k_default_passthrough_pool_size};
 
   SessionConfiguration session{};
 };
@@ -108,6 +113,19 @@ class ParseAuthenticationOptions
  public:
   uint64_t to_uint(const std::string &value) {
     return std::stoull(value.c_str());
+  }
+
+  uint64_t to_uint_limit(const std::string &key, const std::string &value,
+                         const uint64_t maximum) {
+    auto new_value = to_uint(value);
+    if (new_value > maximum) {
+      log_warning(
+          "Option '%s' value is too large. It was truncated to the maximum "
+          "allowed value: %s",
+          key.c_str(), std::to_string(maximum).c_str());
+      new_value = maximum;
+    }
+    return new_value;
   }
 
   template <typename Value>
@@ -154,6 +172,12 @@ class ParseAuthenticationOptions
       } else if (key == "session.inactivity") {
         minutes_uint64_limit(key, result_.session.inactivity_timeout, vt,
                              k_maximum_inactivity_timeout);
+      } else if (key == "passthroughDbUser.poolSize") {
+        result_.passthrough_pool_size =
+            to_uint_limit(key, vt, k_maximum_passthrough_pool_size);
+      } else if (key == "passthroughDbUser.maxSessionsPerUser") {
+        result_.session.max_passthrough_sessions_per_user =
+            to_uint_limit(key, vt, k_maximum_passthrough_max_sessions_per_user);
       } else if (key == "jwt.expiration") {
         minutes_uint64_limit(key, result_.jwt_expire_timeout, vt,
                              k_maximum_jwt_expire_timeout);
@@ -222,7 +246,9 @@ AuthorizeManager::AuthorizeManager(
       factory_{factory},
       random_data_{
           helper::generate_string<64, helper::Generator8bitsValues>()} {
-  log_info("JWT bearer authorization disabled, the signing secret is empty.");
+  if (jwt_secret.empty()) {
+    log_info("JWT bearer authorization disabled, the signing secret is empty.");
+  }
 }
 
 void AuthorizeManager::configure(const std::string &options) {
@@ -240,6 +266,8 @@ void AuthorizeManager::configure(const std::string &options) {
   session_manager_.configure(cnf.session);
 
   jwt_expire_timeout = cnf.jwt_expire_timeout;
+
+  passthrough_db_user_session_pool_size_ = cnf.passthrough_pool_size;
 }
 
 void AuthorizeManager::update(const Entries &entries) {
@@ -424,8 +452,8 @@ static std::string generate_uuid() {
   return helper::to_uuid_string(uuid);
 }
 
-std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
-                                            const SessionPtr &s) {
+std::string AuthorizeManager::get_jwt_token(
+    [[maybe_unused]] UniversalId service_id, const SessionPtr &s) {
   using namespace rapidjson;
   Document payload;
   auto exp = expire_timestamp(jwt_expire_timeout);
@@ -449,13 +477,10 @@ std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
 
   auto token = jwt.sign(jwt_secret_);
 
-  std::string session_id =
-      service_id.to_string() + "." + s->user.user_id.to_string() + "." + exp;
-  if (session_manager_.get_session(session_id)) return token;
+  std::string session_id = s->user.user_id.to_string() + "." + exp;
+  if (!session_manager_.change_session_id(s, session_id)) return token;
 
-  auto session = session_manager_.new_session(session_id);
-  session->user = s->user;
-  session->state = http::SessionManager::Session::kUserVerified;
+  s->state = http::SessionManager::Session::kUserVerified;
 
   return token;
 }
@@ -707,6 +732,7 @@ SessionPtr AuthorizeManager::get_session_id_from_cookie(
 
 bool AuthorizeManager::authorize(const std::string &proto,
                                  const std::string &host, ServiceId service_id,
+                                 bool passthrough_db_user,
                                  rest::RequestContext &ctxt,
                                  AuthUser *out_user) {
   if (auto session = get_session_id_from_cookie(service_id, ctxt.cookies);
@@ -800,6 +826,11 @@ bool AuthorizeManager::authorize(const std::string &proto,
   assert(nullptr != ctxt.session);
   ctxt.session->handler_name = selected_handler->get_entry().app_name;
 
+  if (passthrough_db_user &&
+      selected_handler->get_entry().vendor_id == k_vendor_mysql)
+    ctxt.session->enable_db_session_pool(
+        passthrough_db_user_session_pool_size_);
+
   if (selected_handler->authorize(ctxt, ctxt.session, out_user)) {
     return true;
   }
@@ -860,6 +891,14 @@ void AuthorizeManager::update_users_cache(
   get_user_manager()->update_users_cache(changed_users_ids);
   for (auto &auth_handler : container_) {
     auth_handler->get_user_manager().update_users_cache(changed_users_ids);
+  }
+}
+
+void AuthorizeManager::collect_garbage() {
+  auto now = steady_clock::now();
+  if (now - last_garbage_collection_ > minutes(1)) {
+    last_garbage_collection_ = now;
+    session_manager_.remove_timeouted();
   }
 }
 

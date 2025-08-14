@@ -490,6 +490,8 @@ struct System_variables {
 
   plugin_ref table_plugin;
   plugin_ref temp_table_plugin;
+  char *external_table_storage_engine;
+  char *external_table_secondary_storage_engine;
 
   /* Only charset part of these variables is sensible */
   const CHARSET_INFO *character_set_filesystem;

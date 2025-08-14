@@ -62,6 +62,11 @@
 # 9. Verify if input FLOAT value is the same at output of stored procedure
 # 10. Verify if input DOUBLE value is the same at output of stored procedure
 # 11. Verify if input VECTOR value is the same at output of stored procedure
+# 12. Verify if input GEOMETRY (GeoJSON) value is the same at output of stored procedure
+# 12.1. Verify if input GEOMETRY (WKT) value is the same at output of stored procedure
+# 13. Verify if input BLOB value is the same at output of stored procedure
+# 14. Verify if input TIMESTAMP value is the same at output of stored procedure
+# 15. Verify if input JSON value is the same at output of stored procedure
 #
 #
 ## V. Verify handling of different MYSQL types and NULL value as input and
@@ -94,6 +99,10 @@
 # 9. Verify if NULL is used for not present FLOAT parameter and it is the same at output of stored procedure
 # 10. Verify if NULL is used for not present DOUBLE parameter and it is the same at output of stored procedure
 # 11. Verify if NULL is used for not present VECTOR parameter and it is the same at output of stored procedure
+# 12. Verify if NULL is used for not present GEOMETRY parameter and it is the same at output of stored procedure
+# 13. Verify if NULL is used for not present BLOB parameter and it is the same at output of stored procedure
+# 14. Verify if NULL is used for not present TIMESTAMP parameter and it is the same at output of stored procedure
+# 15. Verify if NULL is used for not present JSON parameter and it is the same at output of stored procedure
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/proc
 # Registred DB_OBJECT at path: /svc/proc/sum
@@ -111,6 +120,10 @@
 # Registred DB_OBJECT at path: /svc/proc/move_float
 # Registred DB_OBJECT at path: /svc/proc/move_double
 # Registred DB_OBJECT at path: /svc/proc/move_vector
+# Registred DB_OBJECT at path: /svc/proc/move_geometry
+# Registred DB_OBJECT at path: /svc/proc/move_blob
+# Registred DB_OBJECT at path: /svc/proc/move_timestamp
+# Registred DB_OBJECT at path: /svc/proc/move_json
 # Registred DB_OBJECT at path: /svc/proc/resultset_vector
 # Registred DB_OBJECT at path: /svc/proc/nothing
 GET /svc/proc/nothing
@@ -382,15 +395,36 @@ OK
 
 #
 # III.2
-DISABLED
+GET /svc/proc/move_date?a=1920-12-11
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "1920-12-11"
+    }
+}
+OK
 
 #
 # III.3
-DISABLED
+GET /svc/proc/move_year?a=1920
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "1920"
+    }
+}
+OK
 
 #
 # III.4
-DISABLED
+GET /svc/proc/move_time?a=12:34:12
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "12:34:12"
+    }
+}
+OK
 
 #
 # III.5
@@ -604,6 +638,63 @@ PUT /svc/proc/move_vector (payload-size:14)
 OK
 
 #
+# IV.12
+PUT /svc/proc/move_geometry (payload-size:45)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "5hAAAAEBAAAAAAAAAAAAWUAAAAAAAAAAAA=="
+    }
+}
+OK
+
+#
+# IV.12.1
+PUT /svc/proc/move_geometry (payload-size:20)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "AAAAAAEBAAAAAAAAAAAANEAAAAAAAAA+QA=="
+    }
+}
+OK
+
+#
+# IV.13
+PUT /svc/proc/move_blob (payload-size:24)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "SGVsbG8gV29ybGQ="
+    }
+}
+OK
+
+#
+# IV.14
+PUT /svc/proc/move_timestamp (payload-size:27)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": "2025-04-11 14:09:00"
+    }
+}
+OK
+
+#
+# IV.15
+PUT /svc/proc/move_json (payload-size:19)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": {
+            "foo": "bar"
+        }
+    }
+}
+OK
+
+#
 # V.1
 GET /svc/proc/move_char
 {
@@ -616,15 +707,36 @@ OK
 
 #
 # V.2
-DISABLED
+GET /svc/proc/move_date
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # V.3
-DISABLED
+GET /svc/proc/move_year
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # V.4
-DISABLED
+GET /svc/proc/move_time
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # V.5
@@ -716,15 +828,36 @@ OK
 
 #
 # VI.2
-DISABLED
+PUT /svc/proc/move_date (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # VI.3
-DISABLED
+PUT /svc/proc/move_year (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # VI.4
-DISABLED
+PUT /svc/proc/move_time (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
 
 #
 # VI.5
@@ -795,6 +928,50 @@ OK
 #
 # VI.11
 PUT /svc/proc/move_vector (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
+
+#
+# VI.12
+PUT /svc/proc/move_geometry (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
+
+#
+# VI.13
+PUT /svc/proc/move_blob (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
+
+#
+# VI.14
+PUT /svc/proc/move_timestamp (payload-size:2)
+{
+    "resultSets": [],
+    "outParameters": {
+        "result": null
+    }
+}
+OK
+
+#
+# VI.15
+PUT /svc/proc/move_json (payload-size:2)
 {
     "resultSets": [],
     "outParameters": {

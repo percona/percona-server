@@ -40,12 +40,11 @@ namespace handler {
 
 using namespace std::string_literals;
 
-const std::vector<std::string> g_matcher{
-    "^/debug(/([0-9]|[a-z]|[A-Z]|[-._~!$&'()*+,;=:@%]| )*/?)?$"};
+const ::http::base::UriPathMatcher g_matcher{"/debug", false, false};
 
 HandlerDebug::HandlerDebug(HandlerCallback *cb)
-    : Handler(::mrs::endpoint::handler::Protocol::k_protocolHttp, "", g_matcher,
-              "", nullptr),
+    : Handler(::mrs::endpoint::handler::Protocol::k_protocolHttp, "",
+              {g_matcher}, "", nullptr),
       cb_{cb} {}
 
 const std::string &HandlerDebug::get_service_path() const {

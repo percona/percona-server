@@ -148,10 +148,9 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
   }
 #endif /* XCOM_STANDALONE */
 
-#define g_critical(...) G_LOG_LEVEL(XCOM_LOG_FATAL, __VA_ARGS__)
+#define G_FATAL(...) G_LOG_LEVEL(XCOM_LOG_FATAL, __VA_ARGS__)
 #define G_ERROR(...) G_LOG_LEVEL(XCOM_LOG_ERROR, __VA_ARGS__)
 #define G_WARNING(...) G_LOG_LEVEL(XCOM_LOG_WARN, __VA_ARGS__)
-#define G_MESSAGE(...) G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
 #define G_INFO(...) G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
 #define G_DEBUG(...) \
   G_DEBUG_LEVEL(XCOM_DEBUG_BASIC | XCOM_DEBUG_TRACE, __VA_ARGS__)

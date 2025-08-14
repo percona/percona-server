@@ -55,8 +55,10 @@
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
 #include "dig_vec.h"
+#include "extra/xxhash/my_xxhash.h"
 #include "field_types.h"  // MYSQL_TYPE_BIT
-#include "lex_string.h"   // LEX_CSTRING
+#include "item_json_func.h"
+#include "lex_string.h"  // LEX_CSTRING
 #include "m_string.h"
 #include "my_aes.h"    // MY_AES_IV_SIZE
 #include "my_alloc.h"  // MEM_ROOT
@@ -88,6 +90,7 @@
 #include "nulls.h"
 #include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
+#include "sql-common/json_hash.h"
 #include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_policy
@@ -107,11 +110,13 @@
 #include "sql/events.h"          // Events::reconstruct_interval_expression
 #include "sql/filesort.h"
 #include "sql/handler.h"
+#include "sql/json_duality_view/i_s.h"  // get_json_duality_view_property
 #include "sql/mysqld.h"
 #include "sql/parse_tree_node_base.h"               // Parse_context
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sort_param.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"          // THD
 #include "sql/sql_digest.h"         // get_max_digest_length
 #include "sql/sql_digest_stream.h"  // sql_digest_state
@@ -233,12 +238,26 @@ static CHARSET_INFO *get_checksum_charset(const char *csname) {
   return cs;
 }
 
+Item_func_md5::Item_func_md5(const POS &pos, Item *a)
+    : Item_str_ascii_func(pos, a) {
+  THD *thd = current_thd;
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "MD5", "SHA2");
+}
+
 bool Item_func_md5::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   set_data_type_string(32, default_charset());
   return false;
+}
+
+Item_func_sha::Item_func_sha(const POS &pos, Item *a)
+    : Item_str_ascii_func(pos, a) {
+  THD *thd = current_thd;
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "SHA1", "SHA2");
 }
 
 String *Item_func_sha::val_str_ascii(String *str) {
@@ -1229,6 +1248,82 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
   }
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
+  return false;
+}
+
+String *Item_func_etag::val_str(String *str) {
+  assert(fixed);
+
+  THD *thd = current_thd;
+  m_tmp_value.length(0);
+  XXH128_hash_t final_hash{0, 0};
+
+  for (uint i = 0; i < arg_count; i++) {
+    Json_wrapper_xxh_hasher hash_key;
+    switch (args[i]->data_type()) {
+      case MYSQL_TYPE_JSON: {
+        Json_wrapper wr;
+        if (get_json_wrapper(args, i, str, func_name(), &wr)) {
+          return error_str();
+        }
+        if (args[i]->null_value) {
+          /* Adding the null_value to the hash calculation to distiguish between
+           * NULL and 'NULL as JSON'. */
+          hash_key.add_character(args[i]->null_value);
+          hash_key.add_character(0);
+        } else {
+          if (calculate_etag_for_json(
+                  wr, hash_key,
+                  JsonSerializationDefaultErrorHandler(current_thd))) {
+            return error_str();
+          }
+        }
+      } break;
+      case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_VECTOR: {
+        my_error(ER_ETAG_NOT_SUPPORTED, MYF(0), func_name());
+        return error_str();
+      } break;
+      default: {
+        String *sptr = args[i]->val_str(str);
+        if (sptr == nullptr && !args[i]->null_value) {
+          assert(thd->is_error());
+          return error_str();
+        }
+        if (args[i]->null_value) {
+          /* Adding the null_value to the hash calculation to distiguish between
+           * NULL and '\0'*/
+          hash_key.add_character(args[i]->null_value);
+          hash_key.add_character(0);
+        } else {
+          hash_key.add_string(sptr->ptr(), sptr->length());
+        }
+
+        if (thd->is_error()) {
+          return error_str();
+        }
+      } break;
+    }
+    final_hash = add_xxh128_hash(final_hash, hash_key.get_digest());
+  }
+  str->length(0);
+
+  String res;
+  XXH128_hash_hex(final_hash, &res);
+  if (m_tmp_value.append(res)) {
+    return error_str();
+  }
+  m_tmp_value.set_charset(collation.collation);
+  return &m_tmp_value;
+}
+
+bool Item_func_etag::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) {
+    return true;
+  }
+
+  set_data_type_string(32U, default_charset());
+  set_nullable(false);
   return false;
 }
 
@@ -3117,7 +3212,8 @@ bool Item_func_set_collation::do_itemize(Parse_context *pc, Item **res) {
 String *Item_func_set_collation::val_str(String *str) {
   assert(fixed);
   str = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return nullptr;
+  null_value = args[0]->null_value;
+  if (null_value || current_thd->is_error()) return error_str();
   str->set_charset(collation.collation);
   return str;
 }
@@ -3152,11 +3248,17 @@ bool Item_func_set_collation::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_set_collation::eq_specific(const Item *item) const {
+bool Item_func_set_collation::eq(const Item *item) const {
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
+  const Item_func *item_func = down_cast<const Item_func *>(item);
+  if (functype() != item_func->functype()) return false;
+
   const Item_func_set_collation *item_func_sc =
       down_cast<const Item_func_set_collation *>(item);
-  if (collation.collation != item_func_sc->collation.collation) return false;
-  return true;
+  // Second argument is collation, which is checked as the resolved member
+  return collation.collation == item_func_sc->collation.collation &&
+         args[0]->eq(item_func_sc->args[0]);
 }
 
 void Item_func_set_collation::print(const THD *thd, String *str,
@@ -3541,9 +3643,10 @@ String *Item_charset_conversion::val_str(String *str) {
       snprintf(char_type, sizeof(char_type), "%s(%lu)",
                m_cast_cs == &my_charset_bin ? "BINARY" : "CHAR", (ulong)length);
 
-      if (!res->alloced_length()) {  // Don't change const str
+      if (res->alloced_length() == 0) {  // Don't change const str
         assert(res != &m_tmp_value);
-        m_tmp_value = *res;  // Not malloced string
+        // Not malloced string
+        m_tmp_value.set(res->ptr(), res->length(), res->charset());
         res = &m_tmp_value;
       }
       const ErrConvString err(res);
@@ -4186,11 +4289,12 @@ bool Item_func_from_vector::resolve_type(THD *thd) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   set_data_type_string(Item_func_from_vector::max_output_bytes);
   return false;
 }
 
-String *Item_func_from_vector::val_str(String *str) {
+String *Item_func_from_vector::val_str_ascii(String *str) {
   assert(fixed);
   null_value = false;
   String *res = args[0]->val_str(str);
@@ -4293,14 +4397,6 @@ static char clock_seq_and_node_str[] = "-0000-000000000000";
 
 #define UUID_VERSION 0x1000
 #define UUID_VARIANT 0x8000
-
-static void tohex(char *to, uint from, uint len) {
-  to += len;
-  while (len--) {
-    *--to = dig_vec_lower[from & 15];
-    from >>= 4;
-  }
-}
 
 static void set_clock_seq_str() {
   const uint16 clock_seq = ((uint)(my_rnd(&uuid_rand) * 16383)) | UUID_VARIANT;
@@ -5304,6 +5400,91 @@ String *Item_func_get_dd_property_key_value::val_str(String *str) {
   }
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  return str;
+}
+
+/**
+  @brief
+    This function prepares a string representing the value
+    associated with the logical key that is supplied. The
+    logical key is the name of the I_S view.
+
+    Syntax:
+      string get_jdv_property_key_value(jdv_name, key)
+ */
+String *Item_func_get_jdv_property_key_value::val_str(String *str) {
+  THD *thd = current_thd;
+  if (thd == nullptr) {
+    assert(false);
+    return nullptr;
+  }
+
+  String sch;  // JSON duality view schema.
+  String tab;  // JSON duality view name.
+  String val;  // Validity of the view.
+  String key;  // Key for what info to retrieve - name of the I_S view.
+
+  /*
+    Store arguments, check that they are not null. Also check that the
+    view is valid. No need to emit warning if the view is invalid since
+    this has already been done when checking access to the view.
+  */
+  String *sch_ptr = args[0]->val_str(&sch);
+  String *tab_ptr = args[1]->val_str(&tab);
+  String *val_ptr = args[2]->val_str(&val);
+  String *key_ptr = args[3]->val_str(&key);
+
+  null_value = true;
+  if (sch_ptr == nullptr || tab_ptr == nullptr || val_ptr == nullptr ||
+      key_ptr == nullptr || strcmp(val_ptr->c_ptr_safe(), "1") != 0)
+    return nullptr;
+
+  /*
+    Wih lower-case-table-names == 2 we store the original versions of table
+    and db names in the data dictionary. Hence they need to be lowercased
+    to produce the correct MDL key and for other usages.
+  */
+  char buff_db[NAME_LEN + 1];
+  char buff_tb[NAME_LEN + 1];
+
+  my_stpncpy(buff_db, sch_ptr->c_ptr_safe(), NAME_LEN);
+  my_stpncpy(buff_tb, tab_ptr->c_ptr_safe(), NAME_LEN);
+  if (lower_case_table_names == 2) {
+    my_casedn_str(system_charset_info, buff_db);
+    my_casedn_str(system_charset_info, buff_tb);
+  }
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request, MDL_key::TABLE, buff_db, buff_tb, MDL_SHARED,
+                   MDL_TRANSACTION);
+
+  Table_ref *trp = new (thd->mem_root) Table_ref(buff_db, buff_tb, TL_READ);
+  if (trp == nullptr) {
+    assert(false);
+    return nullptr;
+  }
+
+  // Backup open tables and mdl savepoint.
+  Open_tables_backup backup;
+  thd->reset_n_backup_open_tables_state(&backup, 0);
+
+  // Acquire MDL and open table.
+  uint nt = 0;
+  if (!thd->mdl_context.acquire_lock(&table_request,
+                                     thd->variables.lock_wait_timeout) &&
+      !open_tables(thd, &trp, &nt, MYSQL_OPEN_FORCE_SHARED_MDL)) {
+    assert(trp->jdv_content_tree != nullptr);
+    null_value = false;
+    jdv::get_i_s_properties(trp->jdv_content_tree, key_ptr->c_ptr_safe(), str);
+    jdv::destroy_content_tree(trp->jdv_content_tree);
+    trp->jdv_content_tree = nullptr;
+  } else {
+    str = nullptr;
+  }
+
+  // Close opened tables, restore open table backup and mdl savepoint.
+  close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(&backup);
 
   return str;
 }

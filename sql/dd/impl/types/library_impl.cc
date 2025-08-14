@@ -39,7 +39,6 @@ Library_impl::Library_impl() {
   Routine_impl::set_deterministic(false);
   Routine_impl::set_sql_data_access(SDA_CONTAINS_SQL);
   Routine_impl::set_security_type(View::ST_INVOKER);
-  Routine_impl::set_client_collation_id(my_charset_utf8mb4_0900_ai_ci.number);
   Routine_impl::set_connection_collation_id(
       my_charset_utf8mb4_0900_ai_ci.number);
   Routine_impl::set_schema_collation_id(my_charset_utf8mb4_0900_ai_ci.number);

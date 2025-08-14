@@ -55,7 +55,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 #include "my_dbug.h"
 #include "my_io.h"       // FN_REFLEN
 #include "my_sys.h"      // my_xyz(), create_temp_file(), ...
-#include "sql/mysqld.h"  // temptable_use_mmap
+#include "sql/mysqld.h"  // mysql_tmpdir
 #include "storage/temptable/include/temptable/result.h"
 
 namespace temptable {

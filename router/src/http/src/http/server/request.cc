@@ -31,7 +31,6 @@
 #include "http/base/http_time.h"
 #include "http/base/status_code.h"
 #include "http/base/uri.h"
-#include "http/server/matcher_interface.h"
 #include "m_string.h"  // NOLINT(build/include_subdir)
 
 std::string_view k_err_html_response_format{
@@ -45,8 +44,6 @@ namespace http::server {
 
 using Headers = ServerRequest::Headers;
 using IOBuffer = ServerRequest::IOBuffer;
-
-MatcherInterface::~MatcherInterface() = default;
 
 ServerRequest::ServerRequest(ConnectionInterface *connection,
                              const uint32_t session_id,

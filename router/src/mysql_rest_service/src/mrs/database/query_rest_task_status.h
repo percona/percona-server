@@ -64,10 +64,6 @@ class QueryRestTaskStatus : private Query {
   std::string url_;
 
   void on_row(const ResultRow &r) override;
-
-  void execute_monitoring_sql(collector::CountedMySQLSession *session,
-                              const MysqlTaskOptions &task_options,
-                              const std::string &task_id);
 };
 
 }  // namespace database

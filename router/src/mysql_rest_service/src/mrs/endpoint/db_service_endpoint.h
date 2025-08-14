@@ -27,6 +27,7 @@
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_ENDPOINT_DB_SERVICE_ENDPOINT_H_
 
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -39,6 +40,7 @@
 #include "mrs/interface/handler_factory.h"
 
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
+#include "mysqlrouter/jit_executor_component.h"
 #include "mysqlrouter/jit_executor_context_handle.h"
 #endif
 
@@ -63,6 +65,8 @@ class DbServiceEndpoint : public OptionEndpoint {
   DbServiceEndpoint(const DbService &entry,
                     EndpointConfigurationPtr configuration,
                     HandlerFactoryPtr factory);
+
+  ~DbServiceEndpoint() override;
 
   UniversalId get_id() const override;
   UniversalId get_parent_id() const override;
@@ -92,8 +96,7 @@ class DbServiceEndpoint : public OptionEndpoint {
   bool does_this_node_require_authentication() const override;
 
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
-  std::shared_ptr<file_system::DbServiceFileSystem> get_file_system();
-  bool get_content_set_data();
+  void update_content_set_data();
 #endif
 
   DbServicePtr entry_;
@@ -101,9 +104,10 @@ class DbServiceEndpoint : public OptionEndpoint {
   bool debug_enabled_ = false;
 
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
-  std::shared_ptr<file_system::DbServiceFileSystem> file_system_;
-  std::optional<std::vector<std::string>> content_set_scripts_;
+  jit_executor::ServiceHandlerConfig jit_executor_config_;
+  bool updated_jit_executor_config_ = false;
   std::unordered_map<std::string, std::string> content_set_paths_;
+  std::shared_mutex content_set_path_mutex_;
   std::mutex m_scripting_context_mutex;
 #endif
 };

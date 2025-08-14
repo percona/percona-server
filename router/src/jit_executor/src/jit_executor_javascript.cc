@@ -284,6 +284,10 @@ void JavaScript::run() {
 
     poly_value result = nullptr;
 
+    // Creates a scope to ensure all the handles created on the execution are
+    // wiped out right after finished
+    shcore::polyglot::Polyglot_scope this_code_scope(thread());
+
     try {
       if (const auto rc =
               Java_script_interface::eval("(internal)", code.source, &result);

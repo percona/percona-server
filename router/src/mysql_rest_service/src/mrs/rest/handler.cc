@@ -38,6 +38,7 @@
 #include "mysqlrouter/component/http_server_component.h"
 
 #include "mrs/authentication/www_authentication_handler.h"
+#include "mrs/database/converters/column_datatype_converter.h"
 #include "mrs/database/json_mapper/errors.h"
 #include "mrs/http/error.h"
 #include "mrs/interface/rest_error.h"
@@ -530,13 +531,13 @@ class RestRequestHandler : public ::http::base::RequestHandler {
       // request_ctxt.user is valid after success of this call
       if (Handler::Authorization::kRequires == required_auth) {
         try {
-          if (!auth_manager_->authorize(handler->get_protocol(),
-                                        handler->get_url_host(), service_id,
-                                        ctxt, &ctxt.user)) {
+          if (!auth_manager_->authorize(
+                  handler->get_protocol(), handler->get_url_host(), service_id,
+                  handler->get_options().query.passthrough_db_user, ctxt,
+                  &ctxt.user)) {
             logger_.debug("Authentication handler fails");
             throw http::Error(HttpStatusCode::Unauthorized);
           }
-
         } catch (const Handler::HttpResult &force_result) {
           if (handler->get_options().debug.log_exceptions)
             trace_error(force_result);
@@ -939,6 +940,8 @@ class ParseOptions
       result_.debug.http.response.detailed_errors_ = to_bool(vt);
     } else if (key == "metadata.gtid") {
       result_.metadata.gtid = to_bool(vt);
+    } else if (key == "passthroughDbUser") {
+      result_.query.passthrough_db_user = to_bool(vt);
     } else if (key == "sqlQuery.wait") {
       result_.query.wait = to_uint(vt);
     } else if (key == "sqlQuery.embedWait") {
@@ -1025,7 +1028,7 @@ mrs::interface::Options parse_json_options(
 }
 
 Handler::Handler(const Protocol protocol, const std::string &url_host,
-                 const std::vector<std::string> &rest_path_matcher,
+                 const std::vector<UriPathMatcher> &rest_path_matcher,
                  const std::optional<std::string> &options,
                  mrs::interface::AuthorizeManager *auth_manager)
     : options_{parse_json_options(options)},
@@ -1063,12 +1066,11 @@ Handler::~Handler() {
       if (log_level_is_info_) {
         log_info(
             "Removing Url-Handler that processes requests on host: '%s' and "
-            "path "
-            "that matches regex: '%s'",
-            url_host_.c_str(), path.c_str());
+            "path that matches path: '%s'",
+            url_host_.c_str(), path.path.c_str());
       }
       if (log_level_is_debug_) {
-        log_debug("route-remove: '%s' on host '%s'", path.c_str(),
+        log_debug("route-remove: '%s' on host '%s'", path.path.c_str(),
                   url_host_.c_str());
       }
     }
@@ -1089,19 +1091,20 @@ void Handler::initialize(const Configuration &configuration) {
         weak_from_this(), authorization_manager_, may_log_requests);
 
     if (log_level_is_debug_) {
-      log_debug("router-add: '%s' on host '%s'", path.c_str(),
+      log_debug("route-add: '%s' on host '%s'", path.path.c_str(),
                 url_host_.c_str());
     }
 
     if (log_level_is_info_) {
       log_info(
           "Adding Url-Handler that processes requests on host '%s' and path "
-          "that matches regex: '%s'",
-          url_host_.c_str(), path.c_str());
+          "that matches: '%s'",
+          url_host_.c_str(), path.path.c_str());
     }
 
-    handler_id_.emplace_back(HttpServerComponent::get_instance().add_route(
-        url_host_, path, std::move(handler)));
+    handler_id_.emplace_back(
+        HttpServerComponent::get_instance().add_direct_match_route(
+            url_host_, path, std::move(handler)));
   }
 }
 

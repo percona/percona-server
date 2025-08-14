@@ -508,3 +508,16 @@ FROM t1
 WHERE col >= (SELECT MAX(CONCAT('å' COLLATE utf8mb4_la_0900_as_cs)) FROM t1);
 col
 DROP TABLE t1;
+
+# Bug#37884336: Assertion failure in Query_block::apply_local_transforms
+
+CREATE TABLE t (col1 DECIMAL(10,2), col2 VARCHAR(7));
+INSERT INTO t VALUES (-15496714.53, '123');
+SELECT MIN(table1.col1), (SELECT 'a' FROM t)
+FROM t AS table1 LEFT JOIN (SELECT * FROM t) AS table2 ON TRUE
+WHERE table2.col2 < ALL (SELECT REGEXP_LIKE(NULL, s1.col1)
+FROM t AS s1 JOIN t ON TRUE
+);
+MIN(table1.col1)	(SELECT 'a' FROM t)
+NULL	a
+DROP TABLE t;

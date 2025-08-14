@@ -29,12 +29,12 @@
 #include <string>
 
 #include "helper/json/text_to.h"
-#include "helper/make_shared_ptr.h"
 #include "mrs/json/json_template_unnest.h"
 #include "mrs/json/parse_file_sharing_options.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 template <typename T>
-using MakeSharedPtr = helper::MakeSharedPtr<T>;
+using MakeSharedPtr = mysql_harness::MakeSharedPtr<T>;
 using ParseFileSharingOptions = mrs::json::ParseFileSharingOptions;
 using testing::Test;
 

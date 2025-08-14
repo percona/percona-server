@@ -244,7 +244,6 @@ extern const char *default_storage_engine;
 extern const char *default_tmp_storage_engine;
 extern ulonglong temptable_max_ram;
 extern ulonglong temptable_max_mmap;
-extern bool temptable_use_mmap;
 extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -295,6 +294,7 @@ extern char *my_bind_addr_str;
 extern char *my_admin_bind_addr_str;
 extern uint mysqld_admin_port;
 extern bool listen_admin_interface_in_separate_thread;
+extern ulonglong server_memory;
 extern char glob_hostname[HOSTNAME_LENGTH + 1];
 extern char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
 extern char *opt_init_file;
@@ -901,8 +901,6 @@ extern SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 extern SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 extern SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
 extern SERVICE_TYPE_NO_CONST(registry_registration) * srv_registry_registration;
-extern SERVICE_TYPE_NO_CONST(registry_registration) *
-    srv_registry_registration_no_lock;
 extern SERVICE_TYPE_NO_CONST(registry_query) * srv_registry_query;
 
 class Deployed_components;

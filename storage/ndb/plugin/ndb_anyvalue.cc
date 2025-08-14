@@ -64,7 +64,7 @@
    Implications :
      Reserved codes can use values between
      0x80000000 and 0x8000007f inclusive
-     (256 values).
+     (128 values).
      0x8000007f was always the 'nologging'
      code, so the others have started
      'counting' down from there

@@ -34,7 +34,7 @@ class PartialMockRestHandler : public mrs::rest::Handler {
                          mrs::interface::AuthorizeManager *auth_manager)
       : Handler{mrs::endpoint::handler::k_protocolHttp,
                 "",
-                {rest_path_matcher},
+                {{rest_path_matcher, false, false}},
                 std::string{},
                 auth_manager} {}
 

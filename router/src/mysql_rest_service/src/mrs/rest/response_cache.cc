@@ -92,7 +92,6 @@ auto parse_json_options(const std::string &config_key,
 }  // namespace
 
 void ResponseCache::configure(const std::string &options) {
-  log_debug("%s %s", __FUNCTION__, config_key_.c_str());
   auto cache_options = parse_json_options(config_key_, options);
 
   max_size_ =
@@ -105,10 +104,6 @@ void ResponseCache::configure(const std::string &options) {
 }
 
 void ResponseCache::shrink_object_cache(size_t extra_size) {
-  log_debug("%s %s (size=%zu + %zu, max=%zu)", __FUNCTION__,
-            config_key_.c_str(), cache_size_.load(), extra_size,
-            max_size_.load());
-
   auto now = CacheEntry::TimeType::clock::now();
 
   while (oldest_entry_ && cache_size_ + extra_size > max_size_.load()) {
@@ -119,7 +114,6 @@ void ResponseCache::shrink_object_cache(size_t extra_size) {
 }
 
 void ResponseCache::push(std::shared_ptr<CacheEntry> entry) {
-  log_debug("%s %s", __FUNCTION__, config_key_.c_str());
   size_t size = entry->data.size();
 
   std::lock_guard<std::mutex> lock(entries_mutex_);
@@ -136,10 +130,13 @@ void ResponseCache::push(std::shared_ptr<CacheEntry> entry) {
 }
 
 void ResponseCache::remove(std::shared_ptr<CacheEntry> entry) {
-  log_debug("%s %s", __FUNCTION__, config_key_.c_str());
-  std::lock_guard<std::mutex> lock(entries_mutex_);
+  entry->owner->remove_entry(entry, false);
 
-  remove_nolock(entry);
+  {
+    std::lock_guard<std::mutex> lock(entries_mutex_);
+
+    remove_nolock(entry);
+  }
 }
 
 void ResponseCache::remove_nolock(std::shared_ptr<CacheEntry> entry) {
@@ -158,7 +155,6 @@ void ResponseCache::remove_nolock(std::shared_ptr<CacheEntry> entry) {
 
 int ResponseCache::remove_all(EndpointResponseCache *cache) {
   int count = 0;
-  log_debug("%s", __FUNCTION__);
   std::lock_guard<std::mutex> lock(entries_mutex_);
 
   if (!newest_entry_) return count;
@@ -207,11 +203,7 @@ std::shared_ptr<CacheEntry> EndpointResponseCache::create_entry(
     const std::string &key, const std::string &data, int64_t items,
     std::optional<helper::MediaType> media_type,
     std::optional<std::string> media_type_str) {
-  log_debug("%s key=%s ttl=%" PRId64, __FUNCTION__, key.c_str(), ttl_.count());
-
   if (owner_->max_cache_size() < data.size()) {
-    log_debug("%s key=%s data=%zu max_cache=%zu", __FUNCTION__, key.c_str(),
-              data.size(), owner_->max_cache_size());
     return nullptr;
   }
 
@@ -241,7 +233,6 @@ std::shared_ptr<CacheEntry> EndpointResponseCache::create_entry(
 
 void EndpointResponseCache::remove_entry(std::shared_ptr<CacheEntry> entry,
                                          bool ejected) {
-  log_debug("%s key=%s", __FUNCTION__, entry->key.c_str());
   {
     std::unique_lock lock(cache_mutex_);
     remove_entry_nolock(entry, ejected);
@@ -254,24 +245,14 @@ void EndpointResponseCache::remove_entry_nolock(
 }
 
 std::shared_ptr<CacheEntry> EndpointResponseCache::lookup(
-    const std::string &key) {
+    const std::string &key) const {
   std::shared_lock lock(cache_mutex_);
 
   auto it = cache_.find(key);
   if (it != cache_.end()) {
-    if (it->second->expiration_time < CacheEntry::TimeType::clock::now()) {
-      owner_->remove(it->second);
-      remove_entry_nolock(it->second, false);
-
-      log_debug("%s key=%s -> expired", __FUNCTION__, key.c_str());
-      return {};
-    }
-
-    log_debug("%s key=%s -> hit", __FUNCTION__, key.c_str());
     return it->second;
   }
 
-  log_debug("%s key=%s miss", __FUNCTION__, key.c_str());
   return {};
 }
 
@@ -280,8 +261,6 @@ ItemEndpointResponseCache::ItemEndpointResponseCache(ResponseCache *owner,
     : EndpointResponseCache(owner, ttl_ms) {}
 
 ItemEndpointResponseCache::~ItemEndpointResponseCache() {
-  log_debug("%s", __FUNCTION__);
-
   int count;
   {
     std::unique_lock lock(cache_mutex_);
@@ -328,20 +307,30 @@ std::shared_ptr<CacheEntry> ItemEndpointResponseCache::create_routine_entry(
 std::shared_ptr<CacheEntry> ItemEndpointResponseCache::lookup_table(
     const Uri &uri, const std::string &user_id) {
   auto r = lookup(make_table_key(uri, user_id));
-  if (r)
+  if (r) {
+    if (r->is_expired()) {
+      owner_->remove(r);
+      r.reset();
+    }
     Counter<kEntityCounterRestCacheItemHits>::increment();
-  else
+  } else {
     Counter<kEntityCounterRestCacheItemMisses>::increment();
+  }
   return r;
 }
 
 std::shared_ptr<CacheEntry> ItemEndpointResponseCache::lookup_routine(
     const Uri &uri, std::string_view req_body) {
   auto r = lookup(make_routine_key(uri, req_body));
-  if (r)
+  if (r) {
+    if (r->is_expired()) {
+      owner_->remove(r);
+      r.reset();
+    }
     Counter<kEntityCounterRestCacheItemHits>::increment();
-  else
+  } else {
     Counter<kEntityCounterRestCacheItemMisses>::increment();
+  }
   return r;
 }
 
@@ -359,16 +348,20 @@ FileEndpointResponseCache::FileEndpointResponseCache(ResponseCache *owner)
 std::shared_ptr<CacheEntry> FileEndpointResponseCache::lookup_file(
     const UniversalId &id) {
   auto r = lookup(make_file_key(id));
-  if (r)
+  if (r) {
+    if (r->is_expired()) {
+      owner_->remove(r);
+      r.reset();
+    }
     Counter<kEntityCounterRestCacheFileHits>::increment();
-  else
+  } else {
     Counter<kEntityCounterRestCacheFileMisses>::increment();
+  }
+
   return r;
 }
 
 FileEndpointResponseCache::~FileEndpointResponseCache() {
-  log_debug("%s", __FUNCTION__);
-
   int count;
   {
     std::unique_lock lock(cache_mutex_);

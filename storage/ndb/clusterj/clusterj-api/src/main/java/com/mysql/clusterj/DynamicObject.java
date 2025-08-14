@@ -57,14 +57,4 @@ public abstract class DynamicObject {
         return delegate.found();
     }
 
-    @SuppressWarnings("deprecation")
-    protected void finalize() throws Throwable {
-        try {
-            if (delegate != null) {
-                delegate.release();
-            }
-        } finally {
-            super.finalize();
-        }
-    }
 }

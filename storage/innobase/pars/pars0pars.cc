@@ -44,7 +44,6 @@ on 1/27/1998 */
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "eval0eval.h"
-#include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "pars0grm.h"
 #include "pars0opt.h"

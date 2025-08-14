@@ -156,14 +156,33 @@ class Suma : public SimulatedBlock {
 
   struct Subscriber {
     Subscriber() {}
+    void setFilterRowSlice(Uint32 reqInfo) {
+      m_filterRowSliceCount =
+          1 + ((reqInfo & SubStartReq::FILTER_ROW_SLICE_COUNT_BITS) >>
+               SubStartReq::FILTER_ROW_SLICE_COUNT_SHIFT);
+      m_filterRowSliceId = (reqInfo & SubStartReq::FILTER_ROW_SLICE_ID_BITS) >>
+                           SubStartReq::FILTER_ROW_SLICE_ID_SHIFT;
+    }
+
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_requestInfo;
+
+    // Filter parameters
+    Uint8 m_filterInfo;
+    Uint8 m_filterRowSliceId;
+    Uint16 m_filterRowSliceCount;
+
     Uint32 nextList;
 
     union {
       Uint32 nextPool;
       Uint32 prevList;
+    };
+
+    enum FilterInfo {
+      FILTER_ANYVALUE = 1 << 0,
+      FILTER_ROW_SLICE = 1 << 1,
     };
   };
   typedef Ptr<Subscriber> SubscriberPtr;
@@ -423,6 +442,10 @@ class Suma : public SimulatedBlock {
 
   bool applyAnyValueFilters(Uint32 requestInfo, Uint32 anyValue) const;
 
+  bool applyRowSliceFilters(Uint16 count, Uint8 id, Uint32 hash) const;
+
+  bool isFilterEnabled(SubscriberPtr subbPtr, Uint8 filter_bit) const;
+
   void sendSubIdRef(Signal *signal, Uint32 senderRef, Uint32 senderData,
                     Uint32 errorCode);
 
@@ -447,7 +470,8 @@ class Suma : public SimulatedBlock {
   Uint32 getFirstGCI(Signal *signal);
   void sendBatchedSUB_TABLE_DATA(Signal *signal,
                                  Subscriber_list::Head subscriber,
-                                 LinearSectionPtr ptr[], Uint32 nptr);
+                                 LinearSectionPtr ptr[], Uint32 nptr,
+                                 Uint32 hash);
   void send_fragmented_SUB_TABLE_DATA_callback(Signal *signal,
                                                Uint32 inflight_index,
                                                Uint32 returnCode);
@@ -674,6 +698,7 @@ class Suma : public SimulatedBlock {
   };
 
   struct Buffer_page {
+    static constexpr Uint16 HEADER_SZ = 7;
     static constexpr Uint32 DATA_WORDS = 8192 - 10;
     static constexpr Uint32 GCI_SZ32 = 2;
     static constexpr Uint32 SAME_GCI_FLAG = 0x80000000;

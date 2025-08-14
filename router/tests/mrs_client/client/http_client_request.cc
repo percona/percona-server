@@ -34,12 +34,13 @@ namespace mrs_client {
 
 HttpClientRequest::HttpClientRequest(net::io_context *context,
                                      HttpClientSession *session,
-                                     const http::base::Uri &uri)
+                                     const http::base::Uri &uri,
+                                     const bool use_http2)
     : uri_{uri}, context_{context}, session_{session} {
   TlsClientContext context_tls{TlsVerify::NONE};
   key_dump_ = std::make_unique<tls::TlsKeylogDumper>(context_tls.get());
-  client_ =
-      std::make_unique<http::client::Client>(*context_, std::move(context_tls));
+  client_ = std::make_unique<http::client::Client>(
+      *context_, std::move(context_tls), use_http2);
 }
 
 void HttpClientRequest::add_header(const char *name, const char *value) {

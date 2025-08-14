@@ -214,7 +214,7 @@ static uint32_t mhash(unsigned char const *buf, size_t length) {
 static blob uuid_blob(char const *arg) {
   blob uuid_tmp;
   unsigned int hash = mhash((unsigned char const *)arg, strlen(arg));
-  G_MESSAGE("hash %x", hash);
+  G_INFO("hash %x", hash);
   uuid_tmp.data.data_len = sizeof(hash);
   uuid_tmp.data.data_val = (char *)calloc(1, uuid_tmp.data.data_len);
   memcpy(uuid_tmp.data.data_val, &hash, uuid_tmp.data.data_len);

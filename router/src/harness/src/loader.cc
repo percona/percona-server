@@ -357,6 +357,7 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 Loader::Loader(const std::string &program, LoaderConfig &config)
     : config_(config), program_(program) {
   auto plugin_state = PluginState::get_instance();
+  plugin_state->reset();
 
   default_observers_.push_back(
       std::make_shared<observers::DispatchSystemDaemonObserver>(this));

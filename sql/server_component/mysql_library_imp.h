@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/mysql_library.h>
+#include <mysql/components/services/mysql_library_ext.h>
 
 /**
   Implementation of the mysql_library_imp services.
@@ -56,6 +57,16 @@ class mysql_library_imp {
                              mysql_cstring_with_length *language));
 
   static DEFINE_BOOL_METHOD(deinit, (my_h_library library_handle));
+};
+
+/**
+  Implementation of the mysql_library_ext_imp services.
+*/
+class mysql_library_ext_imp {
+ public:
+  static DEFINE_BOOL_METHOD(get_body,
+                            (my_h_library library_handle,
+                             mysql_cstring_with_length *body, bool *is_binary));
 };
 
 #endif /* MYSQL_LIBRARY_IMP_H */

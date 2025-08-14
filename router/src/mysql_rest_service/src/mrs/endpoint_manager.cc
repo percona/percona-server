@@ -162,7 +162,6 @@ void log_debug_db_entry_impl(const DbService &service) {
   log_debug("DbService host_id=%s", service.url_host_id.to_string().c_str());
   log_debug("DbService in_developement=%s",
             helper::to_string(service.in_development).c_str());
-  log_debug("DbService passthroughDbUser=%i", service.passthrough_db_user);
 }
 
 void log_debug_db_entry_impl(const DbSchema &schema) {

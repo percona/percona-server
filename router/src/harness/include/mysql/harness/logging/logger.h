@@ -29,6 +29,7 @@
 #include "harness_export.h"
 #include "mysql/harness/logging/logging.h"
 
+#include <atomic>
 #include <set>
 #include <string>
 
@@ -136,6 +137,7 @@ class HARNESS_EXPORT DomainLogger {
 
   mutable std::mutex logger_mtx_;
   mutable std::optional<mysql_harness::logging::Logger> logger_;
+  mutable std::atomic<bool> logger_ready_{false};
 
   std::string domain_{MYSQL_ROUTER_LOG_DOMAIN};
 };

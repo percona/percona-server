@@ -89,6 +89,13 @@ struct Column_text {
   /** Column data length. */
   size_t m_data_len{};
 
+  /** Check if it is DB_ROW_ID column based on the value it contains.
+  @return true if it is DB_ROW_ID column, false otherwise */
+  bool is_row_id() const { return m_row_id != UINT64_MAX; }
+
+  /** The generated DB_ROW_ID value */
+  uint64_t m_row_id{UINT64_MAX};
+
   /** Mark the column to be null, by setting length to a special value. This is
   only used for columns whose state is maintained across chunks
   (aka fragmented columns). */
@@ -135,6 +142,7 @@ struct Column_text {
     m_data_ptr = nullptr;
     m_data_len = 0;
     m_is_ext = false;
+    m_row_id = UINT64_MAX;
   }
 
   /** Print this object into the given output stream.
@@ -673,6 +681,12 @@ struct Table_meta {
 
   /** Key number of the primary key. */
   size_t m_keynr_pk;
+
+  /** True if generated DB_ROW_ID is the pk. */
+  bool dbrowid_is_pk{false};
+
+  /** Table being bulk loaded. */
+  std::string m_table_name;
 };
 
 /** Row metadata */
@@ -752,6 +766,9 @@ struct Row_meta {
 
   /** true if primary key, false if secondary key. */
   bool is_pk;
+
+  /** true if DB_ROW_ID is the pk, false otherwise. */
+  bool dbrowid_is_pk{false};
 };
 
 inline std::ostream &operator<<(std::ostream &os,

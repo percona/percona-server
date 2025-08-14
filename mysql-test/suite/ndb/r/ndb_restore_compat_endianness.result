@@ -19,11 +19,10 @@ t_num	CREATE TABLE `t_num` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_datetime;
-ERROR HY000: Incorrect information in file: './test/t_datetime.frm'
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Error	1033	Incorrect information in file: './test/t_datetime.frm'
-Warning	10758	Error in creating TABLE_SHARE from t_datetime.frm file
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
 SHOW CREATE TABLE t_string_1;
@@ -67,11 +66,10 @@ t_gis	CREATE TABLE `t_gis` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t_datetime;
-ERROR HY000: Incorrect information in file: './test/t_datetime.frm'
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Error	1033	Incorrect information in file: './test/t_datetime.frm'
-Warning	10758	Error in creating TABLE_SHARE from t_datetime.frm file
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
@@ -113,11 +111,10 @@ t_num	CREATE TABLE `t_num` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_datetime;
-ERROR HY000: Incorrect information in file: './test/t_datetime.frm'
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Error	1033	Incorrect information in file: './test/t_datetime.frm'
-Warning	10758	Error in creating TABLE_SHARE from t_datetime.frm file
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
 SHOW CREATE TABLE t_string_1;
@@ -161,11 +158,10 @@ t_gis	CREATE TABLE `t_gis` (
   PRIMARY KEY (`t_pk`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t_datetime;
-ERROR HY000: Incorrect information in file: './test/t_datetime.frm'
+ERROR 42S02: Table 'test.t_datetime' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Error	1033	Incorrect information in file: './test/t_datetime.frm'
-Warning	10758	Error in creating TABLE_SHARE from t_datetime.frm file
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't_datetime' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t_datetime' doesn't exist
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;

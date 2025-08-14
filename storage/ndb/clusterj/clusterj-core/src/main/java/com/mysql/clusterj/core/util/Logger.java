@@ -25,12 +25,18 @@
 
 package com.mysql.clusterj.core.util;
 
+import java.util.function.Supplier;
+
 public interface Logger {
 
     void detail(String message);
+    void detail(Supplier<String> generator);
     void debug(String message);
+    void debug(Supplier<String> generator);
     void trace(String message);
+    void trace(Supplier<String> generator);
     void info(String message);
+    void info(Supplier<String> generator);
     void warn(String message);
     void error(String message);
     void fatal(String message);

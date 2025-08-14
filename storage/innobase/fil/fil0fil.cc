@@ -80,13 +80,11 @@ The tablespace memory cache */
 #include "trx0purge.h"
 #else /* !UNIV_HOTBACKUP */
 #include <cstring>
-#include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include "os0thread-create.h"
 
 #include "current_thd.h"
-#include "ha_prototypes.h"
 
 #include <array>
 #include <fstream>
@@ -888,6 +886,10 @@ class Fil_shard {
     mutex_acquire();
 
     for (auto deleted : m_deleted_spaces) {
+      if (!fsp_is_undo_tablespace(deleted.first)) {
+        continue;
+      }
+
       if (undo::id2num(deleted.first) == undo_num) {
         count++;
       }
@@ -1318,26 +1320,6 @@ class Fil_system {
   [[nodiscard]] Tablespace_dirs::Result get_scanned_filename_by_space_num(
       space_id_t space_num, space_id_t &space_id) {
     return (m_dirs.find_by_num(space_num, space_id));
-  }
-
-  /** Fetch the file name opened for a space_id from the file map.
-  @param[in]   space_id  tablespace ID
-  @param[out]  name      the scanned filename
-  @return true if the space_id is found. The name is set to an
-  empty string if the space_id is not found. */
-  [[nodiscard]] bool get_file_by_space_id(space_id_t space_id,
-                                          std::string &name) {
-    auto result = get_scanned_filename_by_space_id(space_id);
-
-    if (result.second != nullptr) {
-      /* Duplicates should have been sorted out by now. */
-      ut_a(result.second->size() == 1);
-      name = result.first + result.second->front();
-      return true;
-    }
-
-    name = "";
-    return false;
   }
 
   /** Fetch the file name opened for an undo space number.
@@ -4459,12 +4441,6 @@ static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
     default:
       ut_d(ut_error);
   }
-}
-
-bool fil_system_get_file_by_space_id(space_id_t space_id, std::string &name) {
-  ut_a(dict_sys_t::is_reserved(space_id) || srv_is_upgrade_mode);
-
-  return fil_system->get_file_by_space_id(space_id, name);
 }
 
 bool fil_system_get_file_by_space_num(space_id_t space_num,
@@ -10425,19 +10401,8 @@ const byte *fil_tablespace_redo_create(const byte *ptr, const byte *end,
   std::string space_name;
   fil_update_partition_name(page_id.space(), 0, false, space_name, name);
 
-  auto abs_name = Fil_path::get_real_path(name);
-
   /* Duplicates should have been sorted out before we get here. */
   ut_a(result.second->size() == 1);
-
-  /* It's possible that the tablespace file was renamed later. */
-  if (result.second->front().compare(abs_name) == 0) {
-    dberr_t success = fil_tablespace_open_for_recovery(page_id.space());
-
-    if (success != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_356) << "Create '" << abs_name << "' failed!";
-    }
-  }
 #endif /* UNIV_HOTBACKUP */
 
   return ptr;

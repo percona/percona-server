@@ -75,7 +75,7 @@ class HttpClientRequest {
    * the URL are ignored.
    */
   HttpClientRequest(net::io_context *conext, HttpClientSession *session,
-                    const http::base::Uri &uri);
+                    const http::base::Uri &uri, const bool use_http2);
 
   void add_header(const char *name, const char *value);
   const Headers &get_input_headers() const;

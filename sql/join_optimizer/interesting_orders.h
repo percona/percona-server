@@ -150,6 +150,7 @@
 #include <sstream>
 #include <string>
 
+class Field;
 class LogicalOrderings;
 class Window;
 
@@ -321,6 +322,11 @@ class LogicalOrderings {
   // Maps the Item to an opaque integer handle. Deduplicates items as we go,
   // inserting new ones if needed.
   ItemHandle GetHandle(Item *item);
+
+  // Maps the Field to an opaque integer handle. Equivalent to calling
+  // GetHandle(new Item_field(field)), except the Item_field is only allocated
+  // if no existing handle can be reused.
+  ItemHandle GetHandle(Field *field);
 
   Item *item(ItemHandle item) const { return m_items[item].item; }
   int num_items() const { return m_items.size(); }

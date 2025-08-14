@@ -142,10 +142,16 @@ class CacheManager {
   void return_instance(CachedObject &object) {
     object.parent_ = nullptr;
     {
-      std::unique_lock<std::mutex> lock(object_container_mutex_);
-      if (objects_.size() < objects_limit_) {
-        if (callbacks_->object_before_cache(object.object_,
-                                            object.is_dirty())) {
+      bool maybe_returnable = false;
+      {
+        std::unique_lock lock(object_container_mutex_);
+        if (objects_.size() < objects_limit_) maybe_returnable = true;
+      }
+
+      if (maybe_returnable &&
+          callbacks_->object_before_cache(object.object_, object.is_dirty())) {
+        std::unique_lock lock(object_container_mutex_);
+        if (objects_.size() < objects_limit_) {
           objects_.push_back(std::move(object.object_));
           return;
         }
@@ -164,19 +170,28 @@ class CacheManager {
   Callbacks *get_callbacks() const { return callbacks_; }
 
  private:
-  Object pop(bool wait) {
-    {
-      std::unique_lock<std::mutex> lock(object_container_mutex_);
-      while (objects_.size()) {
-        auto result = std::move(objects_.front());
-        objects_.pop_front();
+  inline Object pop_one() {
+    std::unique_lock<std::mutex> lock(object_container_mutex_);
+    if (!objects_.empty()) {
+      auto result = std::move(objects_.front());
+      objects_.pop_front();
 
-        if (callbacks_->object_retrived_from_cache(result)) {
-          return result;
-        }
-        callbacks_->object_remove(result);
-      }
+      return result;
     }
+    return Object();
+  }
+
+  Object pop(bool wait) {
+    for (;;) {
+      Object result = pop_one();
+      if (!result) break;
+
+      if (callbacks_->object_retrived_from_cache(result)) {
+        return result;
+      }
+      callbacks_->object_remove(result);
+    }
+
     return callbacks_->object_allocate(wait);
   }
 

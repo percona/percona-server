@@ -163,6 +163,21 @@ TEST_F(FilterObjectsTest, match_field_simple_operator_between) {
   ASSERT_EQ("(`f1` BETWEEN 1 AND 100)", sut_.get_result().str());
 }
 
+TEST_F(FilterObjectsTest, match_field_simple_operator_between_null1) {
+  sut_.parse(R"({"f1":{"$between":[null,100]}})");
+  ASSERT_EQ("(`f1` BETWEEN NULL AND 100)", sut_.get_result().str());
+}
+
+TEST_F(FilterObjectsTest, match_field_simple_operator_between_null2) {
+  sut_.parse(R"({"f1":{"$between":["abc", null]}})");
+  ASSERT_EQ("(`f1` BETWEEN 'abc' AND NULL)", sut_.get_result().str());
+}
+
+TEST_F(FilterObjectsTest, match_field_simple_operator_between_null3) {
+  sut_.parse(R"({"f1":{"$between":[null, null]}})");
+  ASSERT_EQ("(`f1` BETWEEN NULL AND NULL)", sut_.get_result().str());
+}
+
 TEST_F(FilterObjectsTest, match_field_complex_less_and_greater) {
   sut_.parse(R"({"f1":[{"$gt":1}, {"$lt":100}]})");
   ASSERT_EQ("((`f1` > 1) AND (`f1` < 100))", sut_.get_result().str());

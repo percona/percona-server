@@ -23,7 +23,7 @@
 
 # Enable various apparmor systems for Ubuntu
 IF(DEB_ID STREQUAL "ubuntu")
-  SET (DEB_RULES_INSTALL_APPARMOR_ROUTER "install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter")
+  SET (DEB_RULES_INSTALL_APPARMOR_ROUTER "install -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter")
   SET (DEB_RULES_APPARMOR_LOAD_ROUTER "dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter")
   SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
 ENDIF()

@@ -110,6 +110,7 @@
 #include "storage/ndb/src/common/util/parse_mask.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
+#include "storage/ndb/src/ndbapi/ndb_internal.hpp"
 #include "string_with_len.h"
 #include "strxnmov.h"
 #include "template_utils.h"
@@ -8338,11 +8339,11 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     } break;
     // Date types
     case MYSQL_TYPE_DATETIME:
-      col.setType(NDBCOL::Datetime);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      return HA_ERR_UNSUPPORTED;
     case MYSQL_TYPE_DATETIME2: {
-      Field_datetimef *f = (Field_datetimef *)field;
+      Field_datetime *f = (Field_datetime *)field;
       uint prec = f->decimals();
       col.setType(NDBCOL::Datetime2);
       col.setLength(1);
@@ -8357,9 +8358,9 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       col.setLength(1);
       break;
     case MYSQL_TYPE_TIME:
-      col.setType(NDBCOL::Time);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      return HA_ERR_UNSUPPORTED;
     case MYSQL_TYPE_TIME2: {
       Field_time *f = down_cast<Field_time *>(field);
       uint prec = f->decimals();
@@ -8372,11 +8373,11 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       col.setLength(1);
       break;
     case MYSQL_TYPE_TIMESTAMP:
-      col.setType(NDBCOL::Timestamp);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      return HA_ERR_UNSUPPORTED;
     case MYSQL_TYPE_TIMESTAMP2: {
-      Field_timestampf *f = (Field_timestampf *)field;
+      Field_timestamp *f = (Field_timestamp *)field;
       uint prec = f->decimals();
       col.setType(NDBCOL::Timestamp2);
       col.setLength(1);
@@ -8708,9 +8709,9 @@ static void create_ndb_fk_fake_column(NDBCOL &col,
     } break;
     // Date types
     case dd::enum_column_types::DATETIME:
-      col.setType(NDBCOL::Datetime);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      [[fallthrough]];
     case dd::enum_column_types::DATETIME2: {
       uint prec = (fk_col_type.char_length > MAX_DATETIME_WIDTH)
                       ? fk_col_type.char_length - 1 - MAX_DATETIME_WIDTH
@@ -8724,9 +8725,9 @@ static void create_ndb_fk_fake_column(NDBCOL &col,
       col.setLength(1);
       break;
     case dd::enum_column_types::TIME:
-      col.setType(NDBCOL::Time);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      [[fallthrough]];
     case dd::enum_column_types::TIME2: {
       uint prec = (fk_col_type.char_length > MAX_TIME_WIDTH)
                       ? fk_col_type.char_length - 1 - MAX_TIME_WIDTH
@@ -8740,9 +8741,9 @@ static void create_ndb_fk_fake_column(NDBCOL &col,
       col.setLength(1);
       break;
     case dd::enum_column_types::TIMESTAMP:
-      col.setType(NDBCOL::Timestamp);
-      col.setLength(1);
-      break;
+      // Unreachable, unused type
+      assert(false);
+      [[fallthrough]];
     case dd::enum_column_types::TIMESTAMP2: {
       uint prec = (fk_col_type.char_length > MAX_DATETIME_WIDTH)
                       ? fk_col_type.char_length - 1 - MAX_DATETIME_WIDTH
@@ -9550,7 +9551,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     if (ndbtab != nullptr) {
       thd_ndb->push_warning(
           "The temporary named table %s.%s already exists, it will be removed",
-          tabname, dbname);
+          dbname, tabname);
       if (ndb->getDictionary()->dropTableGlobal(*ndbtab, flag) != 0) {
         thd_ndb->push_warning(
             "Attempt to drop temporary named table %s.%s failed", dbname,
@@ -9669,20 +9670,16 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   }
 
   // Read mysql.ndb_replication settings for this table, if any
-  uint32 binlog_flags;
-  const st_conflict_fn_def *conflict_fn = nullptr;
-  st_conflict_fn_arg args[MAX_CONFLICT_ARGS];
-  uint num_args = MAX_CONFLICT_ARGS;
-
   Ndb_binlog_client binlog_client(thd, dbname, tabname);
-  if (binlog_client.read_replication_info(ndb, dbname, tabname, ::server_id,
-                                          &binlog_flags, &conflict_fn, args,
-                                          &num_args)) {
+  if (binlog_client.read_replication_info(ndb, dbname, tabname, ::server_id)) {
     return HA_WRONG_CREATE_OPTION;
   }
 
   // Use mysql.ndb_replication settings when creating table
+  const st_conflict_fn_def *conflict_fn = binlog_client.get_conflict_fn();
   if (conflict_fn != nullptr) {
+    const st_conflict_fn_arg *args = binlog_client.get_conflict_fn_args();
+    uint num_args = binlog_client.get_conflict_fn_num_args();
     switch (conflict_fn->type) {
       case CFT_NDB_EPOCH:
       case CFT_NDB_EPOCH_TRANS:
@@ -10204,8 +10201,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   assert(Ndb_metadata::compare(thd, ndb, dbname, ndbtab, table_def));
 
   // Apply the mysql.ndb_replication settings
-  if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
-                                           args, num_args, binlog_flags) != 0) {
+  if (binlog_client.apply_replication_info(ndb, share, ndbtab) != 0) {
     // Failed to apply replication settings
     return create.failed_warning_already_pushed();
   }
@@ -12147,8 +12143,8 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     // Run metadata check except if this is discovery during a DROP TABLE
     if (thd_ndb->sql_command() != SQLCOM_DROP_TABLE) {
       const dd::Table *dd_table;
-      assert(dd_client.get_table(db, name, &dd_table) &&
-             Ndb_metadata::compare(thd_ndb->get_thd(), thd_ndb->ndb, db, ndbtab,
+      assert(dd_client.get_table(db, name, &dd_table));
+      assert(Ndb_metadata::compare(thd_ndb->get_thd(), thd_ndb->ndb, db, ndbtab,
                                    dd_table));
     }
 #endif
@@ -12776,6 +12772,10 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   // Initialize NdbApi
   ndb_init_internal(1);
+  Ndb_internal::set_log_timestamp_format(
+      opt_log_timestamps
+          ? Ndb_internal::log_timestamp_format::iso8601_system_time
+          : Ndb_internal::log_timestamp_format::iso8601_utc);
 
   if (!ndb_server_hooks.register_server_hooks(ndb_wait_setup_server_startup,
                                               ndb_dd_upgrade_hook)) {
@@ -18357,6 +18357,41 @@ static MYSQL_SYSVAR_BOOL(log_transaction_dependency,   /* name */
                          0        /* default */
 );
 
+uint opt_ndb_log_row_slice_count;
+constexpr uint MAX_ROW_SLICE_COUNT = 256;
+static MYSQL_SYSVAR_UINT(
+    log_row_slice_count,         /* name */
+    opt_ndb_log_row_slice_count, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Sets the slicing factor used by this Server when subscribing to NDB table "
+    "change event streams used for writing Binlogs.  If count > 1 then the "
+    "stream of change events for a table is logically sliced into 1/count "
+    "slices.  Each Binlogging MySQLD can subscribe to one slice, receiving "
+    "100/count percent of the changes for each affected table. Max count value "
+    "is 256.",
+    nullptr,             /* check func */
+    nullptr,             /* update func */
+    1,                   /* default */
+    1,                   /* min */
+    MAX_ROW_SLICE_COUNT, /* max */
+    0);
+
+uint opt_ndb_log_row_slice_id;
+constexpr uint MAX_ROW_SLICE_ID = 255;
+static MYSQL_SYSVAR_UINT(
+    log_row_slice_id,                          /* name */
+    opt_ndb_log_row_slice_id,                  /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY, /* opts */
+    "Specifies the identity of the virtual slice of the NDB table change event "
+    "streams this Server subscribes to. Valid identities are 0 to "
+    "ndb_log_row_slice_count - 1.",
+    nullptr,          /* check */
+    nullptr,          /* update */
+    0,                /* default */
+    0,                /* min */
+    MAX_ROW_SLICE_ID, /* max */
+    0);
+
 static MYSQL_SYSVAR_STR(mgmd_host,             /* name */
                         opt_ndb_connectstring, /* var */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -18672,6 +18707,8 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_cache_size),
     MYSQL_SYSVAR(log_fail_terminate),
     MYSQL_SYSVAR(log_transaction_dependency),
+    MYSQL_SYSVAR(log_row_slice_count),
+    MYSQL_SYSVAR(log_row_slice_id),
     MYSQL_SYSVAR(clear_apply_status),
     MYSQL_SYSVAR(schema_dist_upgrade_allowed),
     MYSQL_SYSVAR(schema_dist_timeout),

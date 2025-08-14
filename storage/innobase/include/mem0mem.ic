@@ -108,6 +108,7 @@ static inline ulint mem_block_get_start(mem_block_t *block) {
 /** Checks that an object is a memory heap (or a block of it)
 @param[in]      block   Memory heap to check */
 static inline void mem_block_validate(const mem_block_t *block) {
+  ut_ad(block != nullptr);
   if (block->magic_n != MEM_BLOCK_MAGIC_N) {
     ib::fatal error(UT_LOCATION_HERE);
     error << "Memory block is invalid (correctness field value"

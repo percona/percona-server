@@ -88,7 +88,7 @@ class SysLogHandler : public LogHandler {
 
  protected:
   void writeHeader(const char *pCategory, Logger::LoggerLevel level,
-                   time_t now) override;
+                   const std::timespec *now) override;
   void writeMessage(const char *pMsg) override;
   void writeFooter() override;
 

@@ -16,9 +16,8 @@ EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Check that we can disable SEMIJOIN transformation
@@ -256,9 +255,8 @@ EXPLAIN
 SELECT * FROM t2 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Let's turn off LooseScan, FirstMatch is then SELECTed
@@ -314,9 +312,8 @@ FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Test same query with SEMIJOIN hint
@@ -326,9 +323,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Force FirstMatch
@@ -369,9 +365,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 EXPLAIN
@@ -379,9 +374,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 EXPLAIN
@@ -390,9 +384,8 @@ DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Drop LooseScan from list of strategies, FirstMatch will be used
@@ -423,9 +416,8 @@ SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -438,9 +430,8 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -452,9 +443,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -469,9 +459,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -483,9 +472,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -523,14 +511,12 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Nested loop inner join (LooseScan)  (rows=1.73)
-            -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-                -> Sort: t3.a  (rows=3)
-                    -> Table scan on t3  (rows=3)
+            -> Sort with duplicate removal: t3.a  (rows=1.73)
+                -> Table scan on t3  (rows=3)
             -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Swap strategies compared to default
@@ -540,9 +526,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
             -> Table scan on t1  (rows=4)
@@ -559,9 +544,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -587,9 +571,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
             -> Table scan on t1  (rows=4)
@@ -604,9 +587,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
             -> Table scan on t1  (rows=4)
@@ -953,9 +935,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -974,9 +955,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -996,9 +976,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -1018,9 +997,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -1038,9 +1016,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -1052,16 +1029,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Do not use FirstMatch for outer
@@ -1071,16 +1047,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Do not use FirstMatch nor Materialization for outer
@@ -1091,16 +1066,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 LooseScan can not be used since index scan would not be "covering"
@@ -1112,16 +1086,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Allow all stragies except default
@@ -1132,16 +1105,15 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=1.73)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
-                -> Table scan on t3  (rows=3)
-                -> Select #3 (subquery in condition; run only once)
-                    -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
-                        -> Limit: 1 row(s)  (rows=1)
-                            -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
-                                -> Materialize with deduplication  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Filter: <in_optimizer>(t3.b,t3.b in (select #3))  (rows=3)
+            -> Table scan on t3  (rows=3)
+            -> Select #3 (subquery in condition; run only once)
+                -> Filter: ((t3.b = `<materialized_subquery>`.a))  (rows=1)
+                    -> Limit: 1 row(s)  (rows=1)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t3.b)
+                            -> Materialize with deduplication  (rows=4)
+                                -> Table scan on t2  (rows=4)
     -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
 
 Force a particular strategy
@@ -1224,9 +1196,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -1240,9 +1211,8 @@ EXPLAIN
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (a = t1.a)
                     -> Materialize with deduplication  (rows=1.5)
                         -> Inner hash join (LooseScan) (t3.b = t2.a)  (rows=1.5)
-                            -> Remove duplicates from input grouped on t2.a  (rows=2)
-                                -> Sort: t2.a  (rows=4)
-                                    -> Table scan on t2  (rows=4)
+                            -> Sort with duplicate removal: t2.a  (rows=2)
+                                -> Table scan on t2  (rows=4)
                             -> Hash
                                 -> Table scan on t3  (rows=3)
 
@@ -1283,9 +1253,8 @@ SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) */ a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Setting strategy should still force semijoin
@@ -1484,9 +1453,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Forcing another strategy
@@ -1506,9 +1474,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 EXPLAIN
@@ -1516,9 +1483,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 EXPLAIN
@@ -1527,9 +1493,8 @@ DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2.31)
-    -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-        -> Sort: t3.a  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Covering index lookup on t2 using a (a = t3.a)  (rows=1.33)
 
 Disable another strategy
@@ -1588,9 +1553,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1620,9 +1584,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -1659,9 +1622,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
             -> Table scan on t1  (rows=4)
@@ -1677,9 +1639,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -1761,9 +1722,8 @@ SELECT * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1776,9 +1736,8 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1790,9 +1749,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1840,9 +1798,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, MATERIALIZATION) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1855,9 +1812,8 @@ SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, FIRSTMATCH) */ * FROM t1
 WHERE t1.b IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3 WHERE t3.b = t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.577)
-    -> Remove duplicates from input grouped on t3.a, t3.b  (rows=1.73)
-        -> Sort: t3.a, t3.b  (rows=3)
-            -> Table scan on t3  (rows=3)
+    -> Sort with duplicate removal: t3.a, t3.b  (rows=1.73)
+        -> Table scan on t3  (rows=3)
     -> Filter: (t1.b = t3.a)  (rows=0.333)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.b)  (rows=1)
 
@@ -1927,9 +1883,8 @@ SELECT * FROM t2
 WHERE t2.a IN (SELECT /*+ SEMIJOIN() NO_SEMIJOIN() */ a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Warnings:
@@ -1940,9 +1895,8 @@ SELECT /*+ NO_SEMIJOIN(@subq) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Warnings:
@@ -1969,9 +1923,8 @@ SELECT /*+ SEMIJOIN(@subq) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Warnings:
@@ -1998,9 +1951,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN() */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=2)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=4)
             -> Table scan on t1  (rows=4)
@@ -2020,9 +1972,8 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) NO_SEMIJOIN(LOOSESCAN) */ a FROM t3)
 AND t1.b IN (SELECT /*+ QB_NAME(subq2) SEMIJOIN(LOOSESCAN) */ a FROM t2);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.b = t2.a)  (rows=0.866)
-    -> Remove duplicates from input grouped on t2.a  (rows=2)
-        -> Sort: t2.a  (rows=4)
-            -> Table scan on t2  (rows=4)
+    -> Sort with duplicate removal: t2.a  (rows=2)
+        -> Table scan on t2  (rows=4)
     -> Hash
         -> Hash semijoin (FirstMatch) (t1.a = t3.a)  (rows=1.73)
             -> Table scan on t1  (rows=4)
@@ -2040,9 +1991,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -2056,9 +2006,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -2088,9 +2037,8 @@ AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=0.866)
     -> Nested loop inner join (LooseScan)  (rows=1.73)
-        -> Remove duplicates from input grouped on t3.a  (rows=1.73)
-            -> Sort: t3.a  (rows=3)
-                -> Table scan on t3  (rows=3)
+        -> Sort with duplicate removal: t3.a  (rows=1.73)
+            -> Table scan on t3  (rows=3)
         -> Single-row index lookup on t1 using PRIMARY (a = t3.a)  (rows=1)
     -> Covering index lookup on t2 using a (a = t1.b)  (rows=1)
 
@@ -2483,9 +2431,8 @@ SELECT /*+ SUBQUERY(@subq MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq) SEMIJOIN() */ a FROM t1);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=2)
-    -> Remove duplicates from input grouped on t1.a  (rows=2)
-        -> Sort: t1.a  (rows=4)
-            -> Table scan on t1  (rows=4)
+    -> Sort with duplicate removal: t1.a  (rows=2)
+        -> Table scan on t1  (rows=4)
     -> Covering index lookup on t2 using a (a = t1.a)  (rows=1)
 
 Warnings:

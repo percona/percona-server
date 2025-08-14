@@ -1003,7 +1003,7 @@ class binlog_cache_data {
   /// @retval false Success: the transaction was either compressed
   /// successfully, or compression was not attempted, or compression
   /// failed and left the uncompressed transaction intact.
-  [[NODISCARD]] bool compress(THD *thd);
+  [[nodiscard]] bool compress(THD *thd);
 
  private:
   /*
@@ -2088,7 +2088,7 @@ class Binlog_cache_compressor {
   /// @retval true The transaction cache has been corrupted,
   /// e.g. because an IO error occurred while replacing it, so the
   /// transaction has to abort.
-  [[NODISCARD]] bool compress() {
+  [[nodiscard]] bool compress() {
     if (!shall_compress()) return false;
     if (setup_compressor()) return false;
     if (setup_buffer_sequence()) return false;
@@ -2111,7 +2111,7 @@ class Binlog_cache_compressor {
   ///
   /// @retval true compression should be attempted
   /// @retval false compression should not be attempted
-  [[NODISCARD]] bool shall_compress() {
+  [[nodiscard]] bool shall_compress() {
     DBUG_TRACE;
     // no compression enabled (ctype == NONE at this point)
     if (!m_thd.variables.binlog_trx_compression) {
@@ -2151,7 +2151,7 @@ class Binlog_cache_compressor {
   /// Get and configure the compressor; update m_compressor.
   /// Set the compression_level for m_compressor
   /// @return true on error, false on success.
-  [[NODISCARD]] bool setup_compressor() {
+  [[nodiscard]] bool setup_compressor() {
     m_compressor = m_context.get_compressor(&m_thd);
     if (m_compressor == nullptr) {
       DBUG_PRINT("info", ("fallback to uncompressed: compressor==nullptr"));
@@ -2174,7 +2174,7 @@ class Binlog_cache_compressor {
   /// m_managed_buffer_sequence.
   ///
   /// @return true on error, false on success.
-  [[NODISCARD]] bool setup_buffer_sequence() {
+  [[nodiscard]] bool setup_buffer_sequence() {
     mysql::containers::buffers::Grow_calculator grow_calculator;
     grow_calculator.set_max_size(
         mysql::binlog::event::Transaction_payload_event::max_payload_length);
@@ -2192,7 +2192,7 @@ class Binlog_cache_compressor {
   /// store the output in the Managed_buffer_sequence.
   ///
   /// @return true on error, false on success.
-  [[NODISCARD]] bool compress_to_buffer_sequence() {
+  [[nodiscard]] bool compress_to_buffer_sequence() {
     Compressed_ostream stream{m_compressor, m_managed_buffer_sequence};
 
     THD_STAGE_GUARD(&m_thd, stage_binlog_transaction_compress);
@@ -2221,7 +2221,7 @@ class Binlog_cache_compressor {
   /// data.
   ///
   /// @return true on error, false on success.
-  [[NODISCARD]] bool get_payload_event_from_buffer_sequence(
+  [[nodiscard]] bool get_payload_event_from_buffer_sequence(
       Transaction_payload_log_event &tple) {
     tple.set_payload(&m_managed_buffer_sequence.read_part());
     tple.set_compression_type(m_compression_type);
@@ -2238,7 +2238,7 @@ class Binlog_cache_compressor {
   /// Log_event::write)
   ///
   /// @return true on error, false on success.
-  [[NODISCARD]] bool overwrite_cache_with_payload_event(
+  [[nodiscard]] bool overwrite_cache_with_payload_event(
       Transaction_payload_log_event &tple) {
     // Truncate cache file
     if (m_cache_storage.truncate(0)) {
@@ -9314,6 +9314,17 @@ void THD ::check_and_emit_warning_for_non_composable_engines(
       continue;
     // Skip secondary engines like RAPID
     if (!table->table->s->is_primary_engine()) continue;
+    if (is_temporary_table(table) &&
+        hton_is_secondary_engine(table->table->s->db_type())) {
+      /// If a temporary table exists on a secondary engine, it is guarantee
+      /// that the engine must support temporary tables.
+      assert(secondary_engine_supports_temporary_tables(
+          table->table->s->db_type()));
+      /// Note that temporary tables can only have a single engine. Both the
+      /// TABLE_SHARE::db_type() and TABLE_SHARE::secondary_engine will point to
+      /// that same engine.
+      continue;
+    }
     handlerton *engine = table->table->file->ht;
     std::string engine_name(ha_resolve_storage_engine_name(engine));
     std::string database_name(table->db);

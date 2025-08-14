@@ -30,7 +30,6 @@
 #include "mysql/gtid/global.h"
 #include "mysql/gtid/tsid.h"
 #include "mysql/serialization/archive_binary.h"
-#include "mysql/utils/nodiscard.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{
@@ -129,7 +128,7 @@ class Gtid {
    * @return Number of bytes read from the buffer or 0 in case decoding is not
    * possible
    */
-  [[NODISCARD]] virtual std::size_t decode_gtid_tagged(const unsigned char *buf,
+  [[nodiscard]] virtual std::size_t decode_gtid_tagged(const unsigned char *buf,
                                                        std::size_t buf_len);
 
   /**

@@ -996,7 +996,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
 static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
                                          byte *undo_ptr, const byte *field,
                                          ulint flen, const upd_t *update,
-                                         upd_field_t *fld, mtr_t *mtr) {
+                                         const upd_field_t *fld, mtr_t *mtr) {
   DBUG_TRACE;
 
   /* Access the LOB reference object. */
@@ -1318,7 +1318,7 @@ static ulint trx_undo_page_report_modify(
     in new table */
     if (dict_index_is_online_ddl(index) && index->table->n_v_cols > 0) {
       for (i = 0; i < upd_get_n_fields(update); i++) {
-        upd_field_t *fld = upd_get_nth_field(update, i);
+        const upd_field_t *fld = upd_get_nth_field(update, i);
         ulint pos = fld->field_no;
 
         /* These columns must not have an index
@@ -1333,7 +1333,7 @@ static ulint trx_undo_page_report_modify(
     ptr += mach_write_compressed(ptr, n_updated);
 
     for (i = 0; i < upd_get_n_fields(update); i++) {
-      upd_field_t *fld = upd_get_nth_field(update, i);
+      const upd_field_t *fld = upd_get_nth_field(update, i);
 
       bool is_virtual = upd_fld_is_virtual_col(fld);
       bool is_multi_val = upd_fld_is_multi_value_col(fld);
@@ -2375,7 +2375,7 @@ err_exit:
     bool is_temp)        /*!< in: true if temp undo rec. */
 {
   trx_undo_rec_t *undo_rec;
-  ulint rseg_id;
+  ulint undo_num;
   space_id_t space_id;
   page_no_t page_no;
   ulint offset;
@@ -2383,8 +2383,8 @@ err_exit:
   bool is_insert;
   mtr_t mtr;
 
-  trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &rseg_id, &page_no, &offset);
-  space_id = trx_rseg_id_to_space_id(rseg_id, is_temp);
+  trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &undo_num, &page_no, &offset);
+  space_id = trx_undo_num_to_space_id(undo_num, is_temp);
 
   bool found;
   const page_size_t &page_size = fil_space_get_page_size(space_id, &found);

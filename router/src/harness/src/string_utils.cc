@@ -167,4 +167,32 @@ stdx::expected<bool, std::error_code> bool_from_string(std::string str) {
   return stdx::unexpected(make_error_code(std::errc::invalid_argument));
 }
 
+std::string replace(std::string_view s, std::string_view from,
+                    std::string_view to) {
+  std::string str;
+
+  if (from.empty()) {
+    str.reserve(to.length() * (s.size() + 1));
+
+    str.append(to);
+    for (char c : s) {
+      str.push_back(c);
+      str.append(to);
+    }
+  } else {
+    str.reserve(s.length());
+
+    int offs = from.length();
+    std::string::size_type start = 0, p = s.find(from);
+    while (p != std::string::npos) {
+      if (p > start) str.append(s, start, p - start);
+      str.append(to);
+      start = p + offs;
+      p = s.find(from, start);
+    }
+    if (start < s.length()) str.append(s, start, s.length() - start);
+  }
+  return str;
+}
+
 }  // namespace mysql_harness

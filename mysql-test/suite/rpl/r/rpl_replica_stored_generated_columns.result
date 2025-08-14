@@ -61,6 +61,8 @@ ADD
 KEY `k_s_hash`(s_hash),
 ADD
 KEY `k_v_hash`(v_hash);
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 [connection master]
 INSERT INTO `log_data` (`series`, `tm_ts`, `data`)
 SELECT *

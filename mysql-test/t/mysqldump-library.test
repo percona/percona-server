@@ -24,6 +24,9 @@ USING (mysqldump_test_db.sp1)
 as " return sp1.f(n) ";
 set sql_mode=ansi_quotes;
 create library  mysqldump_test_db.`ansi"_"quoted"` LANGUAGE JAVASCRIPT AS $$ export function f(n) {  return n+1 } $$;
+create library  mysqldump_test_db.binary_library_hex LANGUAGE WASM
+COMMENT 'A binary library stored in binary encoding'
+AS X'7072696E7466282754686973206973205741534D27293B';
 create function mysqldump_test_db.`ansi"_"quoted"`(n INTEGER) RETURNS INTEGER LANGUAGE JAVASCRIPT
 USING (mysqldump_test_db.`ansi"_"quoted"` as lib, mysqldump_test_db.sp1)
 as $$ return lib.f(n) $$;
@@ -45,6 +48,7 @@ drop function mysqldump_test_db.sp1;
 drop function mysqldump_test_db.`ansi"_"quoted"`;
 drop library mysqldump_test_db.`ansi"_"quoted"`;
 drop library mysqldump_test_db.sp1;
+drop library mysqldump_test_db.binary_library_hex;
 SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES
 WHERE ROUTINE_SCHEMA = 'mysqldump_test_db'
 ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_VERSION;
@@ -55,6 +59,7 @@ show create function mysqldump_test_db.sp1;
 show create library mysqldump_test_db.sp1;
 show create function mysqldump_test_db.`ansi"_"quoted"`;
 show create library mysqldump_test_db.`ansi"_"quoted"`;
+show create library mysqldump_test_db.binary_library_hex;
 SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES
 WHERE ROUTINE_SCHEMA = 'mysqldump_test_db'
 ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_VERSION;

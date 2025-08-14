@@ -484,8 +484,11 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
                                  ColumnMappingConverter{});
   row.unserialize(&reference->unnest);
 
-  row.unserialize_with_converter(&object->user_ownership_field,
-                                 from_user_ownership_field_id);
+  // This values must be stored in ownership_field in each reference,
+  // and used while building the SQL (needs separate fix).
+  row.skip(1);
+  // row.unserialize_with_converter(&object->user_ownership_field,
+  //                                from_user_ownership_field_id);
   bool with_insert = false, with_update = false, with_delete = false,
        with_no_check = false;
   row.unserialize(&with_insert);

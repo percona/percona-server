@@ -35,6 +35,7 @@
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
+#include "mrs/database/metadata_logger.h"
 #include "mrs/database/monitor/schema_monitor_factory.h"
 #include "mrs/database/query_factory_proxy.h"
 #include "mrs/database/slow_query_monitor.h"
@@ -58,7 +59,8 @@ class SchemaMonitor {
                 mrs::database::QueryFactoryProxy *query_factory,
                 mrs::ResponseCache *response_cache,
                 mrs::ResponseCache *file_cache,
-                SlowQueryMonitor *slow_query_monitor);
+                SlowQueryMonitor *slow_query_monitor,
+                MetadataLogger *metadata_logger);
   ~SchemaMonitor();
 
   void start();
@@ -89,6 +91,7 @@ class SchemaMonitor {
 
   void run();
   bool wait_until_next_refresh();
+  std::pair<std::string, std::string> get_router_name_and_address();
 
   class Waitable : public WaitableMonitor<void *> {
    public:
@@ -99,6 +102,7 @@ class SchemaMonitor {
   enum State { k_initializing, k_running, k_stopped };
 
   const mrs::Configuration configuration_;
+  std::optional<std::string> router_name_;
   collector::MysqlCacheManager *cache_;
   mrs::EndpointManager *dbobject_manager_;
   mrs::authentication::AuthorizeManager *auth_manager_;
@@ -110,6 +114,7 @@ class SchemaMonitor {
   mrs::ResponseCache *response_cache_;
   mrs::ResponseCache *file_cache_;
   SlowQueryMonitor *slow_query_monitor_;
+  MetadataLogger *metadata_logger_;
   MetadataSourceDestination md_source_destination_;
 };
 

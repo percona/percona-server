@@ -25,6 +25,18 @@
 
 #include <cstdint>
 
+using ulonglong = unsigned long long;
+
+/**
+  Initialize the my_physical_memory function using server_memory option
+  @param[in]  memory  Value of the server_memory startup option
+
+  @note The input value of 0 indicates no limits, and underlying container/host
+  configuration must be used
+  @return true on success, false if input memory value is invalid
+*/
+bool init_my_physical_memory(ulonglong memory);
+
 /**
   Determine the total physical memory available in bytes.
 

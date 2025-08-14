@@ -118,6 +118,7 @@ void register_test_logger();
  */
 void init_test_logger(const std::list<std::string> &additional_log_domains = {},
                       const std::string &log_folder = "",
-                      const std::string &log_filename = "");
+                      const std::string &log_filename = "",
+                      const std::string &log_level = "debug");
 
 #endif /* MYSQL_HARNESS_HELPERS_INCLUDED */

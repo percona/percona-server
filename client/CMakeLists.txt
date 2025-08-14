@@ -132,7 +132,7 @@ ADD_SHARED_LIBRARY(json_binlog
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX EXPORT_JSON_FUNCTIONS
   DEPENDENCIES GenError
   ${INSTALL_JSON_BINLOG_LIBRARY}
-  LINK_LIBRARIES mysys extra::rapidjson ext::zlib decimal
+  LINK_LIBRARIES mysys extra::rapidjson ext::zlib ext::xxhash decimal
   LINUX_VERSION_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/json_binlog.ver"
   VERSION "${json_binlog_VERSION}"
   NO_UNDEFINED
@@ -141,12 +141,13 @@ ADD_SHARED_LIBRARY(json_binlog
 ADD_CONVENIENCE_LIBRARY(json_client_library
   ${CMAKE_SOURCE_DIR}/sql-common/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/json_hash.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_path.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_schema.cc
   ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
-  LINK_LIBRARIES ext::zlib decimal
+  LINK_LIBRARIES ext::zlib ext::xxhash decimal
   COMPILE_DEFINITIONS
     DISABLE_PSI_MUTEX
     $<TARGET_PROPERTY:extra::rapidjson,INTERFACE_COMPILE_DEFINITIONS>
@@ -181,6 +182,7 @@ MYSQL_ADD_EXECUTABLE(json_client_library_main
   LINK_LIBRARIES json_client_library  strings mysys decimal
   SKIP_INSTALL
   )
+DOWNGRADE_STRINGOP_WARNINGS(json_client_library_main)
 
 # A test executable which does nothing, except verify that symbols are visible.
 # To test standalone build:
@@ -192,7 +194,7 @@ MYSQL_ADD_EXECUTABLE(json_client_library_main
 MYSQL_ADD_EXECUTABLE(json_binlog_main
   json_binlog_main.cc
   INCLUDE_DIRECTORIES ../sql ../sql-common
-  LINK_LIBRARIES json_binlog
+  LINK_LIBRARIES ext::xxhash json_binlog
   SKIP_INSTALL
   )
 
@@ -204,7 +206,7 @@ MYSQL_ADD_EXECUTABLE(json_binlog_main
 MYSQL_ADD_EXECUTABLE(json_binlog_main_static
   json_binlog_main.cc
   INCLUDE_DIRECTORIES ../sql ../sql-common
-  LINK_LIBRARIES json_binlog_static
+  LINK_LIBRARIES ext::xxhash json_binlog_static
   SKIP_INSTALL
   )
 
@@ -265,7 +267,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${MYSQLBINLOG_SOURCES}
   DEPENDENCIES GenError
-  LINK_LIBRARIES ${MYSQLBINLOG_LIBRARIES}
+  LINK_LIBRARIES ext::xxhash ${MYSQLBINLOG_LIBRARIES}
   )
 
 # __builtin_strncpy specified bound depends on the length of the source argument

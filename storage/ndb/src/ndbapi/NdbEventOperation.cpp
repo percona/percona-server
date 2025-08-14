@@ -186,8 +186,23 @@ void NdbEventOperation::setFilterAnyvalueMySQLNoLogging() {
 }
 
 void NdbEventOperation::setFilterAnyvalueMySQLNoReplicaUpdates() {
+  m_impl.m_requestInfo |= SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES;
+}
+
+int NdbEventOperation::setFilterRowSlice(Uint16 count, Uint16 id) {
+  constexpr Uint16 MAX_COUNT = 256;
+  constexpr Uint16 MAX_ID = 255;
+  if (id > MAX_ID || id >= count || count > MAX_COUNT || count < 1) {
+    return -1;
+  }
+
+  m_impl.m_requestInfo &= ~SubStartReq::FILTER_ROW_SLICE_COUNT_BITS;
+  m_impl.m_requestInfo &= ~SubStartReq::FILTER_ROW_SLICE_ID_BITS;
+  // reducing value to pack into 8 bits
   m_impl.m_requestInfo |=
-      SubStartReq::SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES;
+      ((count - 1) << SubStartReq::FILTER_ROW_SLICE_COUNT_SHIFT);
+  m_impl.m_requestInfo |= (id << SubStartReq::FILTER_ROW_SLICE_ID_SHIFT);
+  return 0;
 }
 
 void NdbEventOperation::setAnyValueFilter(AnyValueFilterFn fn) {

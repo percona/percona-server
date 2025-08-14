@@ -337,7 +337,7 @@ HttpResult HandlerDbObjectScript::handle_script(
            [&]() {
              if (!session.empty()) {
                std::string q =
-                   "KILL " + std::to_string(session->connection_id());
+                   "KILL QUERY " + std::to_string(session->connection_id());
 
                auto params = session->get_connection_parameters();
                try {

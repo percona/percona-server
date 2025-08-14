@@ -75,6 +75,8 @@
 #include <iostream>  // cerr
 #include <stdexcept>
 
+#include "unicode/uclean.h"  // u_cleanup()
+
 #include <mysql.h>
 
 #include "dim.h"
@@ -184,6 +186,7 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   }
 
   mysql_library_end();
+  u_cleanup();
 
   return result;
 }

@@ -1458,7 +1458,29 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> VECTOR_SYM      1215     /* MYSQL */
 %token<lexer.keyword> PARAMETERS_SYM  1216     /* MYSQL */
 %token<lexer.keyword> HEADER_SYM      1217     /* MYSQL */
+
 %token                LIBRARY_SYM     1218     /* MYSQL */
+%token<lexer.keyword> URI_SYM         1219     /* MYSQL */
+
+%token<lexer.keyword> DUALITY_SYM                 1220   /* MYSQL */
+%token<lexer.keyword> RELATIONAL_SYM              1221   /* MYSQL */
+%token<lexer.keyword> JSON_DUALITY_OBJECT_SYM     1222   /* MYSQL */
+
+%token<lexer.keyword> ABSENT_SYM                  1223   /* SQL-2015-R */
+
+%token<lexer.keyword> FILE_FORMAT_SYM 1224     /* MYSQL */
+%token<lexer.keyword> FILES_SYM       1225     /* MYSQL */
+%token<lexer.keyword> FILE_NAME_SYM   1226     /* MYSQL */
+%token<lexer.keyword> FILE_PATTERN_SYM     1227     /* MYSQL */
+%token<lexer.keyword> FILE_PREFIX_SYM      1228     /* MYSQL */
+%token<lexer.keyword> ALLOW_MISSING_FILES_SYM    1229     /* MYSQL */
+%token<lexer.keyword> AUTO_REFRESH_SYM           1230     /* MYSQL */
+%token<lexer.keyword> AUTO_REFRESH_SOURCE_SYM    1231     /* MYSQL */
+%token<lexer.keyword> VERIFY_KEY_CONSTRAINTS_SYM      1232     /* MYSQL */
+%token<lexer.keyword> STRICT_LOAD_SYM 1233     /* MYSQL */
+%token<lexer.keyword> EXTERNAL_FORMAT_SYM  1234     /* MySQL */
+
+%token<lexer.keyword> EXTERNAL_SYM    1235     /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -1557,6 +1579,7 @@ void warn_on_deprecated_user_defined_collation(
         opt_binlog_in
         persisted_variable_ident
         routine_string
+        library_string
         opt_explain_into
         opt_library_alias
 
@@ -1599,6 +1622,7 @@ void warn_on_deprecated_user_defined_collation(
         signed_num
         opt_ignore_unknown_user
         opt_histogram_num_buckets
+        opt_jdv_table_tags jdv_table_tags jdv_table_tag
 
 
 %type <order_direction>
@@ -1815,6 +1839,7 @@ void warn_on_deprecated_user_defined_collation(
 %type <xa_option_type> opt_suspend;
 %type <xa_option_type> opt_one_phase;
 
+%type <table_type> opt_temporary_or_external;
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
@@ -1890,6 +1915,8 @@ void warn_on_deprecated_user_defined_collation(
   windowing_clause   ///< Definition of unnamed window near the window function.
   opt_windowing_clause ///< For functions which can be either set or window
                        ///< functions (e.g. SUM), non-empty clause makes the difference.
+
+%type <json_constructor_null_clause> opt_json_constructor_null_clause
 
 %type <window_frame> opt_window_frame_clause
 
@@ -2315,6 +2342,13 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <library_list> library_list
 %type <library_with_alias> library_name
+
+%type <jdv_name_value>  jdv_name_value
+%type <jdv_name_value_list> jdv_name_value_list
+
+%type <external_file_list> external_files
+%type <file_attributes> file_attributes
+%type <file_attributes> file_attribute
 %%
 
 /*
@@ -3261,7 +3295,7 @@ opt_channel:
         ;
 
 create_table_stmt:
-          CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
+          CREATE opt_temporary_or_external TABLE_SYM opt_if_not_exists table_ident
           '(' table_element_list ')' opt_create_table_options_etc
           {
             $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5,
@@ -3269,9 +3303,10 @@ create_table_stmt:
                                              $9.opt_create_table_options,
                                              $9.opt_partitioning,
                                              $9.on_duplicate,
-                                             $9.opt_query_expression);
+                                             $9.opt_query_expression,
+                                             @8);
           }
-        | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
+        | CREATE opt_temporary_or_external TABLE_SYM opt_if_not_exists table_ident
           opt_create_table_options_etc
           {
             $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5,
@@ -3281,12 +3316,12 @@ create_table_stmt:
                                              $6.on_duplicate,
                                              $6.opt_query_expression);
           }
-        | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
+        | CREATE opt_temporary_or_external TABLE_SYM opt_if_not_exists table_ident
           LIKE table_ident
           {
             $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5, $7);
           }
-        | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
+        | CREATE opt_temporary_or_external TABLE_SYM opt_if_not_exists table_ident
           '(' LIKE table_ident ')'
           {
             $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $1, $2, $4, $5, $8);
@@ -6822,6 +6857,107 @@ create_table_option:
           {
             $$ = NEW_PTN PT_create_ts_autoextend_size_option(@$, $1);
           }
+        | FILE_FORMAT_SYM opt_equal '(' opt_outfile_file_info opt_field_term opt_line_term opt_ignore_lines ')'
+          {
+            $$ = NEW_PTN PT_create_external_file_format(@$, $4, $5, $6, $7);
+          }
+        | FILES_SYM opt_equal '(' external_files ')'
+          {
+            $$ = NEW_PTN PT_create_external_files(@$, $4);
+          }
+        | ALLOW_MISSING_FILES_SYM opt_equal ternary_option
+          {
+            $$= NEW_PTN PT_create_allow_missing_files_option(@$, $3);
+          }
+        | VERIFY_KEY_CONSTRAINTS_SYM opt_equal ternary_option
+          {
+            $$= NEW_PTN PT_create_verify_key_constraints_option(@$, $3);
+          }
+        | STRICT_LOAD_SYM opt_equal ternary_option
+          {
+            $$= NEW_PTN PT_create_strict_load_option(@$, $3);
+          }
+        | AUTO_REFRESH_SYM opt_equal ternary_option
+          {
+            $$= NEW_PTN PT_create_auto_refresh_option(@$, $3);
+          }
+        | AUTO_REFRESH_SOURCE_SYM opt_equal NONE_SYM
+          {
+            $$= NEW_PTN PT_create_auto_refresh_event_source(@$);
+          }
+        | AUTO_REFRESH_SOURCE_SYM opt_equal TEXT_STRING_sys
+          {
+            $$= NEW_PTN PT_create_auto_refresh_event_source(@$,
+                                                            to_lex_cstring($3));
+          }
+        ;
+
+external_files:
+          external_files ',' file_attributes
+          {
+            if ($1 == nullptr || $1->push_back($3))
+              MYSQL_YYABORT;
+            $$ = $1;
+          }
+        | file_attributes
+          {
+            $$ = NEW_PTN PT_external_file_list(YYTHD);
+            if ($$ == nullptr || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        ;
+
+file_attributes:
+          file_attributes file_attribute
+          {
+            if ($1 == nullptr || $1->merge_attributes($2))
+              MYSQL_YYABORT;
+            $$ = $1;
+          }
+        | file_attribute
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            if ($$ == nullptr || $$->merge_attributes($1))
+              MYSQL_YYABORT;
+          }
+        ;
+
+file_attribute:
+          URL_SYM opt_equal text_string
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->uri = $3;
+          }
+        | URI_SYM opt_equal text_string
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->uri = $3;
+          }
+        | FILE_NAME_SYM opt_equal text_string
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->name = $3;
+          }
+        | FILE_PATTERN_SYM opt_equal text_string
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->pattern = $3;
+          }
+        | FILE_PREFIX_SYM opt_equal text_string
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->prefix = $3;
+          }
+        | ALLOW_MISSING_FILES_SYM opt_equal ternary_option
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->allow_missing_files = $3;
+          }
+        | STRICT_LOAD_SYM opt_equal ternary_option
+          {
+            $$ = NEW_PTN PT_file_attributes();
+            $$->strict_load = $3;
+          }
         ;
 
 ternary_option:
@@ -7533,6 +7669,10 @@ column_attribute:
         | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
             $$ = make_column_secondary_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | EXTERNAL_FORMAT_SYM TEXT_STRING_sys
+          {
+            $$ = make_column_external_format(YYMEM_ROOT, to_lex_cstring($2));
           }
         | visibility
           {
@@ -10732,6 +10872,27 @@ function_call_keyword:
           {
             $$= NEW_PTN Item_func_interval(@$, YYMEM_ROOT, $3, $5, $7);
           }
+        | JSON_DUALITY_OBJECT_SYM '(' opt_jdv_table_tags jdv_name_value_list ')'
+          {
+            /**
+              JSON_DUALITY_OBJECT() is a specialized version of JSON_OBJECT() and
+              used by only JSON duality view. Unlike JSON_OBJECT()'s  standard
+              definition, global attributes are listed at the beginning for
+              JSON_DUALITY_OBJECT(). This distinction is necessary to accommodate
+              attributes such as table annotations for a duality view.
+            */
+            THD *thd = YYTHD;
+            if (!((thd->lex->create_view_type ==
+                   enum_view_type::JSON_DUALITY_VIEW) || 
+                   thd->parsing_json_duality_view)) {
+              my_error(ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE, MYF(0));
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN Item_func_json_duality_object(thd, @$, $3, $4);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
+          }
         | JSON_VALUE_SYM '(' simple_expr ',' text_literal
           opt_returning_type opt_on_empty_or_error ')'
           {
@@ -10816,6 +10977,54 @@ function_call_keyword:
             $$= NEW_PTN Item_func_year(@$, $3);
           }
         ;
+
+opt_jdv_table_tags:
+          %empty { $$ = 0; }
+        | WITH jdv_table_tag { $$ = $2; }
+        | WITH '(' jdv_table_tags ')' { $$ = $3; }
+        ;
+
+jdv_table_tag:
+          INSERT_SYM           { $$ = jdv::DVT_INSERT; }
+        | UPDATE_SYM           { $$ = jdv::DVT_UPDATE; }
+        | DELETE_SYM           { $$ = jdv::DVT_DELETE; }
+        ;
+
+jdv_table_tags:
+        jdv_table_tag { $$= $1; }
+      | jdv_table_tags ',' jdv_table_tag
+        {
+          if ($$ & $3) {
+            my_error(ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS, MYF(0));
+            MYSQL_YYABORT;
+          }
+          $$ |= $3;
+        }
+      ;
+
+jdv_name_value_list:
+        jdv_name_value
+        {
+          $$= NEW_PTN PT_jdv_name_value_list(@$, YYTHD);
+          if ($$ == nullptr || $$->push_back($1))
+            MYSQL_YYABORT;
+        }
+      | jdv_name_value_list ',' jdv_name_value
+        {
+          if ($1 == nullptr || $1->push_back($3))
+            MYSQL_YYABORT;
+          $$= $1;
+        }
+      ;
+
+jdv_name_value:
+        TEXT_STRING_sys ':' expr  // [ jdv_column_tags ]
+        {
+          $$= NEW_PTN PT_jdv_name_value(@$, $1, $3, 0);
+          if ($$ == nullptr)
+            MYSQL_YYABORT;
+        }
+      ;
 
 /*
   Function calls using non reserved keywords, with special syntaxic forms.
@@ -11183,14 +11392,14 @@ sum_expr:
           {
             $$= NEW_PTN Item_sum_or(@$, $3, $5);
           }
-        | JSON_ARRAYAGG '(' in_sum_expr ')' opt_windowing_clause
+        | JSON_ARRAYAGG '(' in_sum_expr opt_json_constructor_null_clause ')' opt_windowing_clause
           {
             auto wrapper = make_unique_destroy_only<Json_wrapper>(YYMEM_ROOT);
             if (wrapper == nullptr) YYABORT;
             unique_ptr_destroy_only<Json_array> array{::new (YYMEM_ROOT)
                                                           Json_array};
             if (array == nullptr) YYABORT;
-            $$ = NEW_PTN Item_sum_json_array(@$, $3, $5, std::move(wrapper),
+            $$ = NEW_PTN Item_sum_json_array(@$, $3, $4, $6, std::move(wrapper),
                                              std::move(array));
           }
         | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')' opt_windowing_clause
@@ -11436,6 +11645,21 @@ opt_from_first_last:
         | FROM LAST_SYM
           {
             $$= NFL_FROM_LAST;
+          }
+        ;
+
+opt_json_constructor_null_clause:
+          %empty
+          {
+            $$= Json_constructor_null_clause::NULL_ON_NULL;
+          }
+        | NULL_SYM ON_SYM NULL_SYM
+          {
+            $$= Json_constructor_null_clause::NULL_ON_NULL;
+          }
+        | ABSENT_SYM ON_SYM NULL_SYM
+          {
+            $$= Json_constructor_null_clause::ABSENT_ON_NULL;
           }
         ;
 
@@ -12926,6 +13150,11 @@ outfile_uri:
             $$= NEW_PTN URI_information();
             $$->uri= $2;
           }
+        | URI_SYM text_string
+          {
+            $$= NEW_PTN URI_information();
+            $$->uri= $2;
+          }
           ;
 
 opt_outfile_file_info:
@@ -13323,6 +13552,12 @@ opt_ignore_unknown_user:
 opt_temporary:
           %empty { $$= false; }
         | TEMPORARY   { $$= true; }
+        ;
+
+opt_temporary_or_external:
+          %empty { $$= 0; }
+        | TEMPORARY { $$= TABLE_TYPE_TEMPORARY; }
+        | EXTERNAL_SYM { $$= TABLE_TYPE_EXTERNAL; }
         ;
 
 opt_drop_ts_options:
@@ -14828,6 +15063,7 @@ load_data_lock:
 load_source_type:
           INFILE_SYM { $$ = LOAD_SOURCE_FILE; }
         | URL_SYM    { $$ = LOAD_SOURCE_URL; }
+        | URI_SYM    { $$ = LOAD_SOURCE_URL; }
         | S3_SYM     { $$ = LOAD_SOURCE_S3; }
         ;
 
@@ -14914,6 +15150,11 @@ field_term:
           {
             $$= NEW_PTN Field_separators();
             $$->time_format= $3;
+          }
+        | DATETIME_SYM FORMAT_SYM text_string
+          {
+            $$= NEW_PTN Field_separators();
+            $$->datetime_format= $3;
           }
         | NULL_SYM AS text_string
           {
@@ -15706,7 +15947,8 @@ ident_keywords_ambiguous_3_roles:
   identifiers everywhere without introducing grammar conflicts:
 */
 ident_keywords_unambiguous:
-          ACTION
+          ABSENT_SYM
+        | ACTION
         | ACCOUNT_SYM
         | ACTIVE_SYM
         | ADDDATE_SYM
@@ -15715,6 +15957,7 @@ ident_keywords_unambiguous:
         | AGAINST
         | AGGREGATE_SYM
         | ALGORITHM_SYM
+        | ALLOW_MISSING_FILES_SYM
         | ALWAYS_SYM
         | ANY_SYM
         | ARRAY_SYM
@@ -15724,6 +15967,8 @@ ident_keywords_unambiguous:
         | AUTOEXTEND_SIZE_SYM
         | AUTO_SYM
         | AUTO_INC
+        | AUTO_REFRESH_SYM
+        | AUTO_REFRESH_SOURCE_SYM
         | AVG_ROW_LENGTH
         | AVG_SYM
         | BACKUP_SYM
@@ -15783,6 +16028,7 @@ ident_keywords_unambiguous:
         | DISABLE_SYM
         | DISCARD_SYM
         | DISK_SYM
+        | DUALITY_SYM
         | DUMPFILE
         | DUPLICATE_SYM
         | DYNAMIC_SYM
@@ -15807,11 +16053,17 @@ ident_keywords_unambiguous:
         | EXPORT_SYM
         | EXTENDED_SYM
         | EXTENT_SIZE_SYM
+        | EXTERNAL_FORMAT_SYM
         | FACTOR_SYM
         | FAILED_LOGIN_ATTEMPTS_SYM
         | FAST_SYM
         | FAULTS_SYM
+        | FILES_SYM
         | FILE_BLOCK_SIZE_SYM
+        | FILE_FORMAT_SYM
+        | FILE_NAME_SYM
+        | FILE_PATTERN_SYM
+        | FILE_PREFIX_SYM
         | FILTER_SYM
         | FINISH_SYM
         | FIRST_SYM
@@ -15971,6 +16223,7 @@ ident_keywords_unambiguous:
         | RELAY_THREAD
         | REMOVE_SYM
         | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM
+        | RELATIONAL_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
         | REPLICAS_SYM
@@ -16066,6 +16319,7 @@ ident_keywords_unambiguous:
         | STATUS_SYM
         | STORAGE_SYM
         | STREAM_SYM
+        | STRICT_LOAD_SYM
         | STRING_SYM
         | ST_COLLECT_SYM
         | SUBCLASS_ORIGIN_SYM
@@ -16106,6 +16360,7 @@ ident_keywords_unambiguous:
         | UNREGISTER_SYM
         | UNTIL_SYM
         | UPGRADE_SYM
+        | URI_SYM
         | URL_SYM
         | USER
         | USER_STATS_SYM
@@ -16114,6 +16369,7 @@ ident_keywords_unambiguous:
         | VALUE_SYM
         | VARIABLES
         | VCPU_SYM
+        | VERIFY_KEY_CONSTRAINTS_SYM
         | VIEW_SYM
         | VISIBLE_SYM
         | WAIT_SYM
@@ -17907,36 +18163,64 @@ view_suid:
           { Lex->create_view_suid= VIEW_SUID_INVOKER; }
         ;
 
+opt_relational:
+          %empty {}
+        | RELATIONAL_SYM {}
+        ;
+
+opt_json_duality:
+          %empty {}
+        | JSON_SYM opt_relational DUALITY_SYM
+          {
+            THD *thd= YYTHD;
+            thd->lex->create_view_type = enum_view_type::JSON_DUALITY_VIEW;
+          }
+        ;
+
 view_tail:
-          view_suid VIEW_SYM opt_if_not_exists table_ident
+          view_suid opt_json_duality VIEW_SYM opt_if_not_exists table_ident
           opt_derived_column_list
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
-            if ($3)
+            if ($4)
             {
               if ((lex->create_view_mode ==
                    enum_view_create_mode::VIEW_ALTER) ||
                   (lex->create_view_mode ==
                    enum_view_create_mode::VIEW_CREATE_OR_REPLACE))
               {
-                YYTHD->syntax_error_at(@3);
+                YYTHD->syntax_error_at(@4);
                 MYSQL_YYABORT;
               }
               lex->create_info->options= HA_LEX_CREATE_IF_NOT_EXISTS;
             }
             /* first table in list is target VIEW name */
-            if (!lex->query_block->add_table_to_list(thd, $4, nullptr,
+            if (!lex->query_block->add_table_to_list(thd, $5, nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_IGNORE,
                                                     MDL_EXCLUSIVE))
               MYSQL_YYABORT;
             lex->query_tables->open_strategy= Table_ref::OPEN_STUB;
             thd->parsing_system_view= lex->query_tables->is_system_view;
-            if ($5.size())
+
+            if (lex->create_view_type == enum_view_type::UNDEFINED)
+              lex->create_view_type = enum_view_type::SQL_VIEW;
+
+            if (thd->lex->create_view_type == enum_view_type::JSON_DUALITY_VIEW) {
+              if ($6.size() > 0) {
+                my_error(ER_JDV_INVALID_DEFINITION_COLUMN_LIST_NOT_SUPPORTED, MYF(0));
+                MYSQL_YYABORT;
+              } else {
+                if ($6.push_back(to_lex_cstring("data")))
+                  MYSQL_YYABORT; /* purecov: inspected */
+              }
+            }
+
+            if ($6.size())
             {
-              for (auto column_alias : $5)
+              for (auto column_alias : $6)
               {
                 // Report error if the column name/length is incorrect.
                 if (check_column_name(column_alias))
@@ -17946,11 +18230,11 @@ view_tail:
                 }
               }
               /*
-                The $5 object is short-lived (its 'm_array' is not);
+                The $6 object is short-lived (its 'm_array' is not);
                 so we have to duplicate it, and then we can store a
                 pointer.
               */
-              void *rawmem= thd->memdup(&($5), sizeof($5));
+              void *rawmem= thd->memdup(&($6), sizeof($6));
               if (!rawmem)
                 MYSQL_YYABORT; /* purecov: inspected */
               lex->query_tables->
@@ -17992,6 +18276,13 @@ view_query_block:
               is created correctly in this case
             */
             save_query_block->m_table_list.push_front(&save_list);
+
+            if (thd->lex->create_view_type == enum_view_type::JSON_DUALITY_VIEW) {
+                if ( $2 ) {
+                  my_error(ER_JDV_WITH_CHECK_OPTION_NOT_SUPPORTED, MYF(0));
+                  MYSQL_YYABORT;
+                }
+            }
 
             Lex->create_view_check= $2;
 
@@ -18432,12 +18723,36 @@ lib_chistic:
           { Lex->sp_chistics.comment = to_lex_cstring($2); }
         ;
 
+library_string:
+          routine_string
+        | HEX_NUM
+          {
+            Lex->sp_chistics.is_binary = true;
+            $$= to_lex_string(Item_hex_string::make_hex_str($1.str, $1.length));
+          }
+        | BIN_NUM
+          {
+            Lex->sp_chistics.is_binary = true;
+            $$= to_lex_string(Item_bin_string::make_bin_str($1.str, $1.length));
+          }
+        | UNDERSCORE_CHARSET HEX_NUM
+          {
+            Lex->sp_chistics.is_binary = true;
+            $$= to_lex_string(Item_hex_string::make_hex_str($2.str, $2.length));
+          }
+        | UNDERSCORE_CHARSET BIN_NUM
+          {
+            Lex->sp_chistics.is_binary = true;
+            $$= to_lex_string(Item_bin_string::make_bin_str($2.str, $2.length));
+          }
+        ;
+
 create_library_stmt:
           CREATE LIBRARY_SYM
           opt_if_not_exists     /*$3*/
           sp_name               /*$4*/
           lib_chistics          /*$5*/
-          AS routine_string     /*$7*/
+          AS library_string     /*$7*/
           {
             Lex->sql_command = SQLCOM_CREATE_LIBRARY;
             if (Lex->sp_chistics.language.str == nullptr) {
@@ -18446,7 +18761,8 @@ create_library_stmt:
             }
             $$ = NEW_PTN
               PT_create_library_stmt(@$, YYTHD, $3, $4, Lex->sp_chistics.comment,
-                                     Lex->sp_chistics.language, $7);
+                                     Lex->sp_chistics.language, $7,
+                                     Lex->sp_chistics.is_binary);
           }
         ;
 

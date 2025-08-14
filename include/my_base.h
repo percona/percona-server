@@ -721,6 +721,82 @@ is the global server default. */
   HA_CREATE_INFO::table_options. Not persisted in data-dictionary.
 */
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
+/**
+  Table was created with CREATE EXTERNAL TABLE syntax.
+  Used in TABLE_SHARE::db_create_options to preserve EXTERNAL keyword
+  for SHOW CREATE TABLE output.
+*/
+#define HA_OPTION_CREATE_EXTERNAL_TABLE (1L << 19)
+
+/**
+  ALLOW_MISSING_FILES=1 has been specified in the SQL command
+  (either CREATE or ALTER TABLE). When loading external tables, the
+  loading will NOT fail if some of the specified files can not be found.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option.
+*/
+#define HA_OPTION_ALLOW_MISSING_FILES (1L << 19)
+/**
+  ALLOW_MISSING_FILES=0 has been specified in the SQL command
+  (either CREATE or ALTER TABLE). When loading external tables, the
+  loading will fail if some of the specified files can not be found.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option. If neither HA_OPTION_ALLOW_MISSING_FILES nor
+  HA_OPTION_NO_ALLOW_MISSING_FILES is set, ENGINE_ATTRIBUTE will not be
+  affected, and the default behavior for the storage engine will be used.
+*/
+#define HA_OPTION_NO_ALLOW_MISSING_FILES (1L << 20)
+/**
+  VERIFY_KEY_CONSTRAINTS=1 has been specified in the SQL command (either
+  CREATE or ALTER TABLE). When loading external tables, primary key
+  and unique key constraints will be validated.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option.
+*/
+#define HA_OPTION_VERIFY_KEY_CONSTRAINTS (1L << 21)
+/**
+  VERIFY_KEY_CONSTRAINTS=0 has been specified in the SQL command (either
+  CREATE or ALTER TABLE). When loading external tables, primary key
+  and unique key constraints will NOT be validated.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option.
+*/
+#define HA_OPTION_NO_VERIFY_KEY_CONSTRAINTS (1L << 22)
+/**
+  STRICT_LOAD=1 has been specified in the SQL command (either CREATE
+  or ALTER TABLE). When loading external tables, the loading will
+  fail if there are rows that does not match the specified file format etc.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option. If neither HA_OPTION_VERIFY_KEY_CONSTRAINTS_FILES nor
+  HA_OPTION_NO_VERIFY_KEY_CONSTRAINTS_FILES is set, ENGINE_ATTRIBUTE will not be
+  affected, and the default behavior for the storage engine will be used.
+*/
+#define HA_OPTION_STRICT_LOAD (1L << 23)
+/**
+  STRICT_LOAD=0 has been specified in the SQL command (either CREATE
+  or ALTER TABLE). When loading external tables, the loading will
+  just generate a warning and continue loading if a row does not
+  match the specified file format etc.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option.
+*/
+#define HA_OPTION_NO_STRICT_LOAD (1L << 24)
+/**
+  AUTO_REFRESH=1 has been specified in the SQL command (either CREATE
+  or ALTER TABLE). This will turn off automatic refresh.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option. If neither HA_OPTION_STRICT_LOAD_FILES nor
+  HA_OPTION_NO_STRICT_LOAD_FILES is set, ENGINE_ATTRIBUTE will not be
+  affected, and the default behavior for the storage engine will be used.
+*/
+#define HA_OPTION_AUTO_REFRESH (1L << 25)
+/**
+  AUTO_REFRESH=0 has been specified in the SQL command (either CREATE
+  or ALTER TABLE). This will turn off automatic refresh.
+  This option will not be persisted in data-dictionary, but encoded in the
+  ENGINE_ATTRIBUTE option.
+*/
+#define HA_OPTION_NO_AUTO_REFRESH (1L << 26)
 
 /* Bits in flag to create() */
 

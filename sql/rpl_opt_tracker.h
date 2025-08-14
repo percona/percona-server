@@ -36,10 +36,7 @@
 */
 class Rpl_opt_tracker {
  public:
-  Rpl_opt_tracker(SERVICE_TYPE_NO_CONST(registry_registration) *
-                      srv_registry_registration,
-                  SERVICE_TYPE_NO_CONST(registry_registration) *
-                      srv_registry_registration_no_lock);
+  Rpl_opt_tracker();
   virtual ~Rpl_opt_tracker();
   /* Prevent user from invoking default assignment function. */
   Rpl_opt_tracker &operator=(const Rpl_opt_tracker &info);
@@ -126,9 +123,6 @@ class Rpl_opt_tracker {
   */
   void track_replication_replica(const Tracker_service_guard &service_guard,
                                  bool enabled) const;
-
-  SERVICE_TYPE_NO_CONST(registry_registration) *
-      m_srv_registry_registration_no_lock{nullptr};
 
   my_thread_handle m_thread_id;
   bool m_stop_worker{false};

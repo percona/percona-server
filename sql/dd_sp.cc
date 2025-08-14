@@ -153,6 +153,12 @@ void prepare_sp_chistics_from_dd_routine(THD *thd, const dd::Routine *routine,
                                             library.alias, thd->mem_root))
         break;
   }
+
+  // If the library is binary, then my_charset_bin is stored as
+  // client_collation_id in the data-dictionary. This is why it's
+  // used to set the is_binary characteristics for a routine.
+  if (routine->client_collation_id() == my_charset_bin.number)
+    sp_chistics->is_binary = true;
 }
 
 static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,

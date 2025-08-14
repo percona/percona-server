@@ -291,7 +291,7 @@ class Gtid_table_persistor {
     @retval 0    OK.
     @retval -1   Error.
   */
-  [[NODISCARD]] int fill_fields(Field **fields, const char *sid,
+  [[nodiscard]] int fill_fields(Field **fields, const char *sid,
                                 const char *tag, rpl_gno gno_start,
                                 rpl_gno gno_end);
   /**
@@ -306,7 +306,7 @@ class Gtid_table_persistor {
     @retval 0    OK.
     @retval -1   Error.
   */
-  [[NODISCARD]] int write_row(TABLE *table, const char *sid, const char *tag,
+  [[nodiscard]] int write_row(TABLE *table, const char *sid, const char *tag,
                               rpl_gno gno_start, rpl_gno gno_end);
   /**
     Update a gtid interval in the gtid_executed table.
@@ -322,7 +322,7 @@ class Gtid_table_persistor {
     @retval 0    OK.
     @retval -1   Error.
   */
-  [[NODISCARD]] int update_row(TABLE *table, const char *sid, const char *tag,
+  [[nodiscard]] int update_row(TABLE *table, const char *sid, const char *tag,
                                rpl_gno gno_start, rpl_gno new_gno_end);
   /**
     Delete all rows in the gtid_executed table.

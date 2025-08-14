@@ -786,3 +786,42 @@ SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
 SHOW variables LIKE 'character_set_client';
 
 SET NAMES DEFAULT;
+
+--echo #
+--echo # WL#16955: Deprecate SQL functions MD5() and SHA1()
+--echo #
+
+CREATE TABLE wl16995_t1 (a INT);
+INSERT INTO wl16995_t1 VALUES (1),(2),(3),(4);
+
+--echo # FR2: SHA must return a deprecation warning
+--replace_column 1 #
+SELECT SHA(12);
+
+--echo # FR2: SHA1 must return a deprecation warning;
+--replace_column 1 #
+SELECT SHA1(12);
+
+--echo # FR2.1: SHA must return 1 warning per statement
+--replace_column 1 #
+SELECT SHA(a) FROM wl16995_t1;
+
+--echo # FR2.1: SHA1 must return 1 warning per statement
+--replace_column 1 #
+SELECT SHA1(a) FROM wl16995_t1;
+
+
+--echo # FR1.1 and FR2.1: must produce warning for prepared statements
+PREPARE wl16995_stmt1 FROM 'SELECT SHA(a) FROM wl16995_t1';
+--replace_column 1 #
+EXECUTE wl16995_stmt1;
+DEALLOCATE PREPARE wl16995_stmt1;
+
+PREPARE wl16995_stmt1 FROM 'SELECT SHA1(a) FROM wl16995_t1';
+--replace_column 1 #
+EXECUTE wl16995_stmt1;
+DEALLOCATE PREPARE wl16995_stmt1;
+
+
+--echo # cleanup
+DROP TABLE wl16995_t1;

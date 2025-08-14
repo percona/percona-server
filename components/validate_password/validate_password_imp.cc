@@ -1114,9 +1114,6 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
 REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                mysql_service_registration_no_lock);
 
 /* A list of dependencies.
    The dynamic_loader fetches the references for the below services at the
@@ -1134,14 +1131,8 @@ REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(mysql_thd_security_context),
     REQUIRES_SERVICE(mysql_security_context_options),
-    REQUIRES_SERVICE(registry_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
-    REQUIRES_PSI_MEMORY_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
-    END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(registry_registration), REQUIRES_PSI_MEMORY_SERVICE,
+    REQUIRES_MYSQL_RWLOCK_SERVICE, END_COMPONENT_REQUIRES();
 
 /* component description */
 BEGIN_COMPONENT_METADATA(validate_password)

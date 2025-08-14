@@ -37,14 +37,14 @@ class SetHttpComponent {
   class HttpWrapperHttpServerComponent : public HttpServerComponent {
    public:
     HttpWrapperHttpServerComponent(HttpServerComponent *other);
-    void *add_route(
+    void *add_regex_route(
         const std::string &url_host, const std::string &url_regex,
-        std::unique_ptr<http::base::RequestHandler,
-                        std::default_delete<http::base::RequestHandler>>
-            cb) override;
+        std::unique_ptr<http::base::RequestHandler> cb) override;
+    void *add_direct_match_route(
+        const std::string &url_host,
+        const ::http::base::UriPathMatcher &url_path,
+        std::unique_ptr<http::base::RequestHandler> cb) override;
     void remove_route(const void *handler) override;
-    void remove_route(const std::string &url_host,
-                      const std::string &url_regex) override;
     void init(HttpServerCtxtPtr srv) override;
     bool is_ssl_configured() override;
 

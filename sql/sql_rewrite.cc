@@ -301,11 +301,17 @@ bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
       }
       break;
     }
-    case SQLCOM_CREATE_TABLE:
-      if (type == Consumer_type::TEXTLOG) {
+    case SQLCOM_CREATE_TABLE: {
+      const bool is_external =
+          (thd->lex->create_info) &&
+          (thd->lex->create_info->options & HA_LEX_CREATE_EXTERNAL_TABLE) != 0;
+      if (is_external && type == Consumer_type::BINLOG) {
+        rw.reset(new Rewriter_create_external_table(thd, type));
+      } else if (type == Consumer_type::TEXTLOG) {
         rw.reset(new Rewriter_create_table(thd, type));
       }
       break;
+    }
     case SQLCOM_ALTER_TABLE:
       if (type == Consumer_type::TEXTLOG) {
         rw.reset(new Rewriter_alter_table(thd, type));
@@ -385,7 +391,8 @@ void mysql_rewrite_query(THD *thd, Consumer_type type,
   assert(thd->rewritten_query().length() == 0);
 
   if (thd->lex->contains_plaintext_password ||
-      thd->lex->is_rewrite_required()) {
+      thd->lex->is_rewrite_required() ||
+      thd->lex->export_result_to_object_storage()) {
     rewrite_query(thd, type, params, rlb);
     if (rlb.length() > 0) thd->swap_rewritten_query(rlb);
     // The previous rewritten query is in rlb now, which now goes out of scope.
@@ -434,6 +441,21 @@ void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
       We clear it here both to save memory and to prevent possible confusion.
     */
     rlb.mem_free();
+  }
+}
+
+/**
+  Rewrite query for binary log
+
+  @param thd        The THD to rewrite for.
+*/
+void mysql_rewrite_query_for_binlog(THD *thd) {
+  String rlb;
+  if (rewrite_query(thd, Consumer_type::BINLOG, nullptr, rlb) &&
+      (rlb.length() > 0)) {
+    thd->swap_rewritten_query(rlb);
+    thd->set_query_for_display(thd->rewritten_query().ptr(),
+                               thd->rewritten_query().length());
   }
 }
 
@@ -1930,6 +1952,120 @@ bool Rewriter_create_table::rewrite(String &rlb) const {
   String original_query_str(m_thd->query().str, m_thd->query().length,
                             system_charset_info);
   redact_par_url(original_query_str, rlb);
+  return true;
+}
+
+Rewriter_create_external_table::Rewriter_create_external_table(
+    THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite CREATE EXTERNAL TABLE to CREATE TABLE with explicit ENGINE and
+  SECONDARY_ENGINE for binary logging to ensure proper replication.
+  The EXTERNAL keyword implicitly assigns storage_engine and secondary_engine
+  based on session variables during parsing. For proper replication, we need to
+  replace the EXTERNAL keyword and ensure the explicitly resolved ENGINE values
+  from create_info are included after the closing parenthesis of column
+  definitions.
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval        true    the query was rewritten
+  @retval        false   if rewriting failed
+*/
+bool Rewriter_create_external_table::rewrite(String &rlb) const {
+  DBUG_TRACE;
+  THD *thd = m_thd;
+  LEX *lex = thd->lex;
+
+  // Ensure we have a valid create_info
+  if (!lex->create_info) {
+    return false;
+  }
+
+  size_t insert_pos = lex->create_info->create_table_columns_end_pos;
+
+  String source_query;
+  if (thd->rewritten_query().length() > 0) {
+    // Validate that rewritten buffer matches original query up to insertion
+    // point
+    const char *original = thd->query().str;
+    const char *rewritten = thd->rewritten_query().ptr();
+    size_t check_len = std::min(
+        insert_pos,
+        std::min(thd->query().length, thd->rewritten_query().length()));
+    if (memcmp(rewritten, original, check_len) != 0) {
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Rewritten query structure differs from original");
+      return false;
+    }
+
+    source_query.copy(thd->rewritten_query());
+  } else {
+    source_query.set(thd->query().str, thd->query().length, thd->charset());
+  }
+  const char *query = source_query.c_ptr();
+  size_t query_len = source_query.length();
+
+  if (insert_pos == 0) {
+    // Position not recorded, something went wrong
+    return false;
+  }
+
+  // Get engine names only if they were set by EXTERNAL (not explicitly)
+  const char *engine_name = nullptr;
+  const char *secondary_engine_name = nullptr;
+
+  // Check if ENGINE was set but NOT explicitly
+  if ((lex->create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      !(lex->create_info->used_fields & HA_CREATE_USED_EXPLICIT_ENGINE) &&
+      lex->create_info->db_type) {
+    engine_name = ha_resolve_storage_engine_name(lex->create_info->db_type);
+  }
+
+  // Check if SECONDARY_ENGINE was set but NOT explicitly
+  if ((lex->create_info->used_fields & HA_CREATE_USED_SECONDARY_ENGINE) &&
+      !(lex->create_info->used_fields &
+        HA_CREATE_USED_EXPLICIT_SECONDARY_ENGINE) &&
+      lex->create_info->secondary_engine.str &&
+      lex->create_info->secondary_engine.length > 0) {
+    secondary_engine_name = lex->create_info->secondary_engine.str;
+  }
+
+  // Find "EXTERNAL" position
+  const CHARSET_INFO *cs = thd->charset();
+  my_match_t match;
+  if (!cs->coll->strstr(cs, query, strlen(query), "EXTERNAL", 8, &match)) {
+    return false;
+  }
+  const char *external_pos = query + match.end;
+  // Build rewritten query
+  rlb.length(0);
+
+  // 1. Copy everything before "EXTERNAL"
+  rlb.append(query, external_pos - query);
+
+  // 2. Skip "EXTERNAL" and copy up to insert position
+  const char *after_external = external_pos + 8;  // Length of "EXTERNAL"
+  rlb.append(after_external, query + insert_pos - after_external);
+
+  // 3. Insert ENGINE only if it was set by EXTERNAL
+  if (engine_name) {
+    rlb.append(STRING_WITH_LEN(" ENGINE="));
+    rlb.append(engine_name);
+  }
+
+  // 4. Insert SECONDARY_ENGINE only if it was set by EXTERNAL
+  if (secondary_engine_name) {
+    rlb.append(STRING_WITH_LEN(" SECONDARY_ENGINE="));
+    rlb.append(secondary_engine_name);
+  }
+
+  // 5. Copy everything after insert position
+  rlb.append(query + insert_pos, query_len - insert_pos);
+
+  DBUG_PRINT("info", ("Rewritten CREATE EXTERNAL TABLE: %s", rlb.c_ptr_safe()));
+
   return true;
 }
 

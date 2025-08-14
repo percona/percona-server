@@ -1532,8 +1532,8 @@ Item *Item::convert_charset(THD *thd, const CHARSET_INFO *tocs,
     StringBuffer<STRING_BUFFER_USUAL_SIZE> cstr;
     cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
     if (!ignore_errors && conv_errors != 0) {
-      report_conversion_error(ostr->charset(), ostr->ptr(), ostr->length(),
-                              tocs);
+      report_conversion_error(tocs, ostr->ptr(), ostr->length(),
+                              ostr->charset());
       return nullptr;
     }
     char *ptr = thd->strmake(cstr.ptr(), cstr.length());
@@ -2499,75 +2499,117 @@ static bool left_is_superset(DTCollation *left, DTCollation *right) {
 }
 
 /**
-  Aggregate two collations together taking
-  into account their coercibility (aka derivation):.
+  Aggregate two collations together taking into account their coercibility
+  (aka derivation).
 
-  DERIVATION_EXPLICIT  - an explicitly written COLLATE clause @n
-  DERIVATION_NONE      - a mix of two different collations @n
-  DERIVATION_IMPLICIT  - a column @n
-  DERIVATION_SYSCONST  - a system function @n
-  DERIVATION_COERCIBLE - a string constant @n
-  DERIVATION_NUMERIC   - a numeric constant coerced to a character string @n
-  DERIVATION_IGNORABLE - a NULL value.
+  @param dt      The collation to be aggregated with the current one.
+  @param flags   Modifier flags for the collation aggregation.
+                   MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+                   MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of
+                                                  a coercible value
+
+  @returns false if the collations can be aggregated, otherwise true.
+
+  With successful return, the collation is set according to the rules
+  of collation aggregation.
+
+  Collation derivation values are defined as follows:
+
+    DERIVATION_EXPLICIT  - an explicitly written COLLATE clause @n
+    DERIVATION_IMPLICIT  - a column @n
+    DERIVATION_SYSCONST  - a system function @n
+    DERIVATION_COERCIBLE - a string constant @n
+    DERIVATION_NUMERIC   - a numeric constant coerced to a character string @n
+    DERIVATION_NULL      - a NULL value @n
+    DERIVATION_NONE      - a mix of two different collations @n
 
   These are ordered by strength from highest (DERIVATION_EXPLICIT) to
-  lowest (DERIVATION_IGNORABLE), and a low enum value means higher strength.
+  lowest (DERIVATION_NONE), and a low enum value means higher strength.
 
   Note that MySQL supports more coercibility types than the SQL standard,
   which only has explicit, implicit and none collation derivations.
-  Explicit collation derivation are applied by specifying a COLLATE clause
+
+  Explicit collation derivation is applied by specifying a COLLATE clause
   to a character string expression.
 
-  The most important rules are:
+  Implicit collation derivation is typically used for a column reference.
+
+  NONE collation derivation is assigned in some cases where the rules make
+  it impossible to assign a specific collation.
+
+  Note that the SYSCONST, COERCIBLE, NUMERIC and NULL collation derivations
+  may be considered as subtypes of IMPLICIT, but with lesser strength.
+
+  The function is used in two contexts:
+  1. With collation aggregation, the function is only called with collation
+     descriptions with equal and highest derivation strength. The aggregation
+     is performed only with these collation descriptions.
+  2. For use in resolving of comparison functions, aggregation is performed
+     on two collation descriptions, possibly with different derivation strength.
+     If derivation strength is equal, the rules observed are the same as those
+     above, otherwise strength is copied from collation description with highest
+     strength.
+
+  The rules are as follows:
+
+  -# With different derivation strengths:
+     choose the collation with highest associated strength.
+
   -# If collations are the same:
-  choose this collation, and the strongest derivation.
-  -# If collations are different:
-  - Character sets may differ, but only if conversion without
-  data loss is possible. The caller provides flags whether
-  character set conversion attempts should be done. If no
-  flags are substituted, then the character sets must be the same.
-  Currently processed flags are:
-  MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
-  MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
-  - two EXPLICIT collations produce an error, e.g. this is wrong:
-  CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
-  - the side with smaller derivation value wins,
-  i.e. a column is stronger than a string constant,
-  an explicit COLLATE clause is stronger than a column.
-  - if derivations are the same, we have DERIVATION_NONE,
-  we'll wait for an explicit COLLATE clause which possibly can
-  come from another argument later: for example, this is valid,
-  but we don't know yet when collecting the first two arguments:
-     @code
-       CONCAT(latin1_swedish_ci_column,
-              latin1_german1_ci_column,
-              expr COLLATE latin1_german2_ci)
-  @endcode
+     choose this collation, and the strongest derivation.
 
-  @retval true If the two collations are incompatible and cannot be aggregated.
+  -# If there are more than one entry with EXPLICIT derivation strength, and
+     not all collations are equal, report an error.
 
-  @retval false If the two collations can be aggregated, possibly with
-  DERIVATION_NONE to indicate that they need a third explicit collation as a
-  tiebreaker.
+  -# If character sets differ and one entry specifies the binary character set:
+     choose this binary character set (with its binary collation).
+
+  -# If character sets differ and one is a superset of another,
+     choose the collation of the superset character set.
+     A character set is a superset of another if:
+      * It is utf8mb4 and the other is any UNICODE character set.
+      * It is compatible with ASCII and the other character set is ASCII.
+
+  -# If character sets differ and none of the above rules apply:
+     report an error.
+
+  -# If character sets are the same and one collation is binary:
+     choose the binary collation.
+     Exception: if multiple different binary collations are specified,
+     report an error.
+
+  -# If character sets are the same but collations are different:
+     choose the binary collation and return NONE derivation strength
+     if allowed, otherwise report an error.
+
+  Note that different character sets are allowed when strengths are different,
+  even with different character repertoires. However, undefined character set
+  conversions are flagged with errors during execution, thus it is always
+  guaranteed that a character string generated during execution contains only
+  characters in its assigned repertoire.
 */
 
 bool DTCollation::aggregate(DTCollation &dt, uint flags) {
+  // If collations are equal, no aggregation is needed
+  if (collation == dt.collation) {
+    // Return with strongest derivation:
+    if (dt.derivation < derivation) {
+      set(dt.collation);
+    }
+    return false;
+  }
   // With two EXPLICIT derivations, collations must be equal:
-  if (collation != dt.collation && derivation == DERIVATION_EXPLICIT &&
+  if (derivation == DERIVATION_EXPLICIT &&
       dt.derivation == DERIVATION_EXPLICIT) {
     return true;
   }
   if (!my_charset_same(collation, dt.collation)) {
     /*
-       We do allow to use binary strings (like BLOBS)
-       together with character strings.
-       Binaries have more precedence than a character
-       string of the same derivation.
+      Binary strings, also BLOBS, can be used together with character strings.
+      With same strength, binary strings take precedence over non-binary strings
     */
     if (collation == &my_charset_bin) {
-      if (derivation <= dt.derivation)
-        ;  // Do nothing
-      else {
+      if (dt.derivation < derivation) {
         set(dt);
       }
     } else if (dt.collation == &my_charset_bin) {
@@ -2590,44 +2632,45 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
       set(dt);
     } else {
       // Cannot apply conversion
-      set(&my_charset_bin, DERIVATION_NONE, (dt.repertoire | repertoire));
       return true;
     }
   } else if (derivation < dt.derivation) {
-    // Do nothing
+    // Same character sets, use collation with highest derivation strength
   } else if (dt.derivation < derivation) {
+    // Same character sets, use collation with highest derivation strength
     set(dt);
   } else {
-    if (collation == dt.collation) {
-      // Do nothing
-    } else {
-      if (derivation == DERIVATION_EXPLICIT) {
-        set(nullptr, DERIVATION_NONE, 0);
-        return true;
-      }
-
-      // If we have two different binary collations for the same character set,
-      // and none of them is explicit, we don't know which to choose. For
-      // example: utf8mb4_bin is a binary padding collation, utf8mb4_0900_bin is
-      // a binary non-padding collation. Cannot determine if the resulting
-      // collation should be padding or non-padding, unless they are also
-      // aggregated with a third explicit collation.
-      if ((collation->state & MY_CS_BINSORT) &&
-          (dt.collation->state & MY_CS_BINSORT)) {
-        set(DERIVATION_NONE);
-        return false;
-      }
-
-      // When aggregating a binary and a non-binary collation for the same
-      // character set, the binary collation is preferred.
-      if (collation->state & MY_CS_BINSORT) return false;
-      if (dt.collation->state & MY_CS_BINSORT) {
-        set(dt);
-        return false;
-      }
+    /*
+      Both operands have same character set and collation derivation strength.
+      Collations are different.
+    */
+    if ((collation->state & MY_CS_BINSORT) &&
+        (dt.collation->state & MY_CS_BINSORT)) {
+      /*
+        If we have two different binary collations for the same character set,
+        and none of them is EXPLICIT, we don't know which to choose.
+        For example: utf8mb4_bin is a binary padding collation,
+                     utf8mb4_0900_bin is a binary non-padding collation.
+        One cannot determine if the resulting collation should be padding
+        or non-padding.
+      */
+      return true;
+    } else if (collation->state & MY_CS_BINSORT) {
+      // With binary and non-binary collation, prefer the binary:
+    } else if (dt.collation->state & MY_CS_BINSORT) {
+      // With binary and non-binary collation, prefer the binary:
+      set(dt);
+    } else if (flags & MY_COLL_ALLOW_NONE) {
+      /*
+        Two non-binary but different collations:
+        Assign a binary collation and return derivation = NONE:
+      */
       const CHARSET_INFO *bin =
           get_charset_by_csname(collation->csname, MY_CS_BINSORT, MYF(0));
       set(bin, DERIVATION_NONE);
+    } else {
+      // Same as above, but derivation = NONE is not allowed:
+      return true;
     }
   }
   repertoire |= dt.repertoire;
@@ -2661,32 +2704,47 @@ static void my_coll_agg_error(Item **args, uint count, const char *fname,
     my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), fname);
 }
 
-static bool agg_item_collations(DTCollation &c, const char *fname, Item **av,
-                                uint count, uint flags, int item_sep) {
-  uint i;
-  Item **arg;
-  bool unknown_cs = false;
+/**
+  Aggregate collations for the supplied set of items.
 
-  c.set(av[0]->collation);
-  for (i = 1, arg = &av[item_sep]; i < count; i++, arg++) {
-    if (c.aggregate((*arg)->collation, flags)) {
-      if (c.derivation == DERIVATION_NONE && c.collation == &my_charset_bin) {
-        unknown_cs = true;
-        continue;
-      }
-      my_coll_agg_error(av, count, fname, item_sep);
-      return true;
+  @param[out] c Returns the aggregated collation
+  @param fname  Name of function being resolved, used for error reporting
+  @param av     Array of items to be aggregated
+  @param count  Number of items
+  @param flags  Flags that manage the aggregation
+
+  @returns false if successful, true if error
+*/
+static bool agg_item_collations(DTCollation &c, const char *fname, Item **av,
+                                uint count, uint flags) {
+  // Calculate the derivation with highest strength (lowest number)
+  Derivation derivation = DERIVATION_NONE;
+  for (uint i = 0; i < count; i++) {
+    if (av[i]->collation.derivation < derivation) {
+      derivation = av[i]->collation.derivation;
     }
   }
-
-  if (unknown_cs && c.derivation != DERIVATION_EXPLICIT) {
-    my_coll_agg_error(av, count, fname, item_sep);
-    return true;
-  }
-
-  if ((flags & MY_COLL_DISALLOW_NONE) && c.derivation == DERIVATION_NONE) {
-    my_coll_agg_error(av, count, fname, item_sep);
-    return true;
+  /*
+    Aggregate from operands with same derivation strength.
+    This means that operands having lesser derivation strength may have
+    incompatible character sets, however runtime code ensures such strings
+    are converted into the desired character set, and invalid conversions are
+    flagged as errors.
+  */
+  bool initialized = false;
+  for (uint i = 0; i < count; i++) {
+    if (av[i]->collation.derivation != derivation) {
+      continue;
+    }
+    if (!initialized) {
+      c.set(av[i]->collation);
+      initialized = true;
+    } else {
+      if (c.aggregate(av[i]->collation, flags)) {
+        my_coll_agg_error(av, count, fname, 1);
+        return true;
+      }
+    }
   }
 
   /* If all arguments were numbers, reset to @@collation_connection */
@@ -2696,31 +2754,49 @@ static bool agg_item_collations(DTCollation &c, const char *fname, Item **av,
   return false;
 }
 
+/**
+  Aggregate collations for items used in a comparison operations.
+
+  For argument descriptions, see agg_item_collations().
+*/
+
 bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
-                                        Item **av, uint count, uint flags) {
-  return (agg_item_collations(c, fname, av, count,
-                              flags | MY_COLL_DISALLOW_NONE, 1));
+                                        Item **av, uint count) {
+  return agg_item_collations(c, fname, av, count, 0);
 }
 
-bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
-                           int item_sep) {
+/**
+  Convert constant strings according to a specific character set/collation.
+
+  For a set of items representing string values, convert those that are
+  constant into the desired character set and collation unless they are already
+  on correct form.
+  Function may report error if string cannot be converted, e.g. due to
+  non-overlapping character repertoires.
+
+  @param coll         The desired collation
+  @param[in,out] args The set of items that may be converted
+  @param nargs        Number of items
+
+  @returns false if successful, true if error
+*/
+bool convert_const_strings(DTCollation &coll, Item **args, uint nargs) {
   THD *thd = current_thd;
 
-  uint i;
-  Item **arg;
-  for (i = 0, arg = args; i < nargs; i++, arg += item_sep) {
+  for (uint i = 0; i < nargs; i++) {
+    Item *arg = args[i];
     size_t dummy_offset;
-    if (!String::needs_conversion(1, (*arg)->collation.collation,
-                                  coll.collation, &dummy_offset)) {
+    if (!String::needs_conversion(1, arg->collation.collation, coll.collation,
+                                  &dummy_offset)) {
       /*
         Update the collation for the underlying item, but notice that this is
         only required, and safe, for a literal string value.
       */
-      if ((*arg)->type() == Item::STRING_ITEM &&
-          coll.collation != (*arg)->collation.collation &&
-          (my_charset_same(coll.collation, (*arg)->collation.collation) ||
+      if (arg->type() == Item::STRING_ITEM &&
+          coll.collation != arg->collation.collation &&
+          (my_charset_same(coll.collation, arg->collation.collation) ||
            coll.collation == &my_charset_bin)) {
-        Item_string *string = down_cast<Item_string *>(*arg);
+        Item_string *string = down_cast<Item_string *>(arg);
         string->collation.set(coll.collation);
         string->set_value_collation();
       }
@@ -2738,17 +2814,17 @@ bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
       repertoire ASCII and 7bit-ASCII-compatible,
       not only numeric/datetime origin.
     */
-    if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
-        (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        my_charset_is_ascii_based((*arg)->collation.collation) &&
+    if (arg->collation.derivation == DERIVATION_NUMERIC &&
+        arg->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        my_charset_is_ascii_based(arg->collation.collation) &&
         my_charset_is_ascii_based(coll.collation))
       continue;
 
     // Non-const values are converted at runtime
-    if (!(*arg)->may_evaluate_const(thd)) {
+    if (!arg->may_evaluate_const(thd)) {
       continue;
     }
-    Item *conv = (*arg)->convert_charset(thd, coll.collation);
+    Item *conv = arg->convert_charset(thd, coll.collation);
     if (conv == nullptr) return true;
 
     assert(conv->fixed);
@@ -2756,10 +2832,11 @@ bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
     conv->disable_constant_propagation(nullptr);
 
     // Update the Item pointer in-place
-    if (thd->lex->is_exec_started())
-      thd->change_item_tree(arg, conv);
-    else
-      *arg = conv;
+    if (thd->lex->is_exec_started()) {
+      thd->change_item_tree(args + i, conv);
+    } else {
+      args[i] = conv;
+    }
   }
 
   return false;
@@ -2787,18 +2864,12 @@ bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
 
   When a character set conversion is needed, the respective Item pointer
   is updated in-place as a permanent transformation.
-
-  If the items are not consecutive (eg. args[2] and args[5]), use the
-  item_sep argument, ie.
-
-    agg_item_charsets(coll, fname, &args[2], 2, flags, 3)
 */
 
 bool agg_item_charsets(DTCollation &coll, const char *fname, Item **args,
-                       uint nargs, uint flags, int item_sep) {
-  if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
-    return true;
-  return convert_const_strings(coll, args, nargs, item_sep);
+                       uint nargs, uint flags) {
+  if (agg_item_collations(coll, fname, args, nargs, flags)) return true;
+  return convert_const_strings(coll, args, nargs);
 }
 
 void Item_ident_for_show::make_field(Send_field *tmp_field) {
@@ -3945,11 +4016,11 @@ void Item_param::sync_clones() {
     // Class-type members:
     c->decimal_value = decimal_value;
     /*
-      Note that String's assignment op properly sets m_is_alloced to 'false',
-      which is correct here: c->str_value doesn't own anything.
+      Note that we use String::set() here, c->str_value does not own anything.
     */
-    c->str_value = str_value;
-    c->str_value_ptr = str_value_ptr;
+    c->str_value.set(str_value.ptr(), str_value.length(), str_value.charset());
+    c->str_value_ptr.set(str_value_ptr.ptr(), str_value_ptr.length(),
+                         str_value_ptr.charset());
     c->collation = collation;
   }
 }
@@ -6576,11 +6647,11 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_TIMESTAMP:
       field = new (*THR_MALLOC)
-          Field_timestampf(m_nullable, item_name.ptr(), decimals);
+          Field_timestamp(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_DATETIME:
       field = new (*THR_MALLOC)
-          Field_datetimef(m_nullable, item_name.ptr(), decimals);
+          Field_datetime(m_nullable, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_YEAR:
       assert(max_length == 4);  // Field_year is only for length 4.
@@ -7874,7 +7945,7 @@ bool Item::aggregate_string_properties(enum_field_types type, const char *name,
                                        Item **items, uint nitems) {
   // Calculate aggregated collation, but do not update item yet:
   DTCollation coll;
-  if (agg_item_charsets_for_string_result(coll, name, items, nitems, 1)) {
+  if (agg_item_charsets_for_string_result(coll, name, items, nitems)) {
     return true;
   }
   // Calculate maximum width in number of characters
@@ -10463,22 +10534,58 @@ static enum_field_types real_data_type(Item *item) {
 }
 
 /**
+  Unify type from given set of items with the type into the current item.
+
+  @param op_string string describing operation, for error logging
+  @param items     given items to join parameters from
+  @param count     number of items
+
+  @returns false if success, true if error (types are incompatible)
+*/
+
+bool Item_aggregate_type::unify_types(const char *op_string, Item **items,
+                                      size_t count) {
+  if (aggregate_type(op_string, items, count)) return true;
+  /*
+    For items of type Item_aggregate_type with data type geometry,
+    it is needed to unify subtypes of geometry.
+    If the subtypes are different, use GEOMETRY.
+    For items of type ENUM and SET, set typelib member.
+  */
+  if (data_type() != MYSQL_TYPE_ENUM && data_type() != MYSQL_TYPE_SET &&
+      data_type() != MYSQL_TYPE_GEOMETRY) {
+    return false;
+  }
+  for (size_t idx = 1; idx < count; ++idx) {
+    if (data_type() == MYSQL_TYPE_GEOMETRY) {
+      if (items[idx]->data_type() != MYSQL_TYPE_GEOMETRY ||
+          geometry_type != items[idx]->get_geometry_type()) {
+        geometry_type = Field::GEOM_GEOMETRY;
+      }
+    } else if (data_type() == MYSQL_TYPE_ENUM ||
+               data_type() == MYSQL_TYPE_SET) {
+      set_typelib(items[idx]);
+    }
+  }
+
+  return false;
+}
+
+/**
   Unify type from given item with the type in the current item.
 
-  @param thd     the thread/connection descriptor
   @param item    given item to join its parameters with this item ones
 
   @returns false if success, true if error (types are incompatible)
 */
 
-bool Item_aggregate_type::unify_types(THD *thd [[maybe_unused]], Item *item) {
+bool Item_aggregate_type::unify_types(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
               decimals, (item_name.is_set() ? item_name.ptr() : "<NULL>")));
   DBUG_PRINT("info:", ("in type %d len %d, dec %d", real_data_type(item),
                        item->max_length, item->decimals));
-  assert(!thd->lex->is_exec_started());
 
   Item *args[2] = {this, item};
   if (aggregate_type("UNION", args, 2)) return true;

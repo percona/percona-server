@@ -163,24 +163,21 @@ inline Item_result numeric_context_result_type(enum_field_types data_type,
   MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
   MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
                                  (i.e. constant).
-  MY_COLL_ALLOW_CONV           - allow any kind of conversion
-                                 (combination of the above two)
   MY_COLL_ALLOW_NUMERIC_CONV   - if all items were numbers, convert to
                                  @@character_set_connection
-  MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
-                                 (e.g. when aggregating for comparison)
-  MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
-                                 and MY_COLL_DISALLOW_NONE
+  MY_COLL_ALLOW_NONE           - allow return DERIVATION_NONE
+                                 (e.g. when aggregating for string result)
+  MY_COLL_CMP_CONV             - for comparison: Allow SUPERSET and COERCIBLE
+                                 conversion, disallow NONE.
 */
 
 #define MY_COLL_ALLOW_SUPERSET_CONV 1
 #define MY_COLL_ALLOW_COERCIBLE_CONV 2
-#define MY_COLL_DISALLOW_NONE 4
+#define MY_COLL_ALLOW_NONE 4
 #define MY_COLL_ALLOW_NUMERIC_CONV 8
 
-#define MY_COLL_ALLOW_CONV \
+#define MY_COLL_CMP_CONV \
   (MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV)
-#define MY_COLL_CMP_CONV (MY_COLL_ALLOW_CONV | MY_COLL_DISALLOW_NONE)
 
 class DTCollation {
  public:
@@ -238,8 +235,8 @@ class DTCollation {
     switch (derivation) {
       case DERIVATION_NUMERIC:
         return "NUMERIC";
-      case DERIVATION_IGNORABLE:
-        return "IGNORABLE";
+      case DERIVATION_NULL:
+        return "NULL";
       case DERIVATION_COERCIBLE:
         return "COERCIBLE";
       case DERIVATION_IMPLICIT:
@@ -1516,7 +1513,7 @@ class Item : public Parse_tree_node {
 
   inline void set_data_type_null() {
     set_data_type(MYSQL_TYPE_NULL);
-    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
+    collation.set(&my_charset_bin, DERIVATION_NULL);
     max_length = 0;
     set_nullable(true);
   }
@@ -3572,7 +3569,7 @@ class Item : public Parse_tree_node {
 
     @see Query_arena::free_list
   */
-  Item *next_free;
+  Item *next_free{nullptr};
 
  protected:
   /// str_values's main purpose is to cache the value in save_in_field
@@ -3871,7 +3868,13 @@ class Item_basic_constant : public Item {
     Item::cleanup();
   }
   bool basic_const_item() const override { return true; }
-  void set_str_value(String *str) { str_value = *str; }
+  /**
+    Note that str_value.ptr() will now point to a string owned by some
+    other object.
+   */
+  void set_str_value(String *str) {
+    str_value.set(str->ptr(), str->length(), str->charset());
+  }
 };
 
 /*****************************************************************************
@@ -4090,25 +4093,22 @@ class Item_name_const final : public Item {
   }
 };
 
-bool convert_const_strings(DTCollation &coll, Item **args, uint nargs,
-                           int item_sep);
+bool convert_const_strings(DTCollation &coll, Item **args, uint nargs);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
-                                        Item **items, uint nitems, uint flags);
+                                        Item **items, uint nitems);
 bool agg_item_charsets(DTCollation &c, const char *name, Item **items,
-                       uint nitems, uint flags, int item_sep);
+                       uint nitems, uint flags);
 inline bool agg_item_charsets_for_string_result(DTCollation &c,
                                                 const char *name, Item **items,
-                                                uint nitems, int item_sep = 1) {
-  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
+                                                uint nitems) {
+  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_NONE |
                      MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_ALLOW_NUMERIC_CONV;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+  return agg_item_charsets(c, name, items, nitems, flags);
 }
 inline bool agg_item_charsets_for_comparison(DTCollation &c, const char *name,
-                                             Item **items, uint nitems,
-                                             int item_sep = 1) {
-  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
-                     MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_DISALLOW_NONE;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+                                             Item **items, uint nitems) {
+  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV;
+  return agg_item_charsets(c, name, items, nitems, flags);
 }
 
 class Item_num : public Item_basic_constant {
@@ -7213,7 +7213,8 @@ class Item_aggregate_type : public Item {
   bool get_time(MYSQL_TIME *) override = 0;
 
   Item_result result_type() const override;
-  bool unify_types(THD *, Item *);
+  bool unify_types(Item *item);
+  bool unify_types(const char *op_string, Item **items, size_t count);
   Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
   Field::geometry_type get_geometry_type() const override {

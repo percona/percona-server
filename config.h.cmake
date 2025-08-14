@@ -354,6 +354,18 @@
 /* For default value of --partial_revokes */
 #define DEFAULT_PARTIAL_REVOKES @DEFAULT_PARTIAL_REVOKES@
 
+/* Default storage engine for external tables */
+#cmakedefine DEFAULT_EXTERNAL_TABLE_ENGINE "@DEFAULT_EXTERNAL_TABLE_ENGINE@"
+#ifndef DEFAULT_EXTERNAL_TABLE_ENGINE
+#define DEFAULT_EXTERNAL_TABLE_ENGINE nullptr
+#endif
+
+/* Default secondary storage engine for external tables */
+#cmakedefine DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE "@DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE@"
+#ifndef DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE
+#define DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE nullptr
+#endif
+
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 /* coredumper library */
 #cmakedefine01 HAVE_LIBCOREDUMPER

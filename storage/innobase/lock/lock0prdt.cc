@@ -53,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static inline rtr_mbr_t *prdt_get_mbr_from_prdt(
     const lock_prdt_t *prdt) /*!< in: the lock predicate */
 {
+  ut_ad(prdt != nullptr);
+
   rtr_mbr_t *mbr_loc = reinterpret_cast<rtr_mbr_t *>(prdt->data);
 
   return (mbr_loc);

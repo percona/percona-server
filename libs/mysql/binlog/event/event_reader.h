@@ -441,6 +441,14 @@ class Event_reader {
   void strncpyz(char *destination, size_t max_length, size_t dest_length);
 
   /**
+    Reserves the vector memory for at least a specified length.
+
+    @param[out] destination the vector.
+    @param[in] length the amount of elements to reserve.
+  */
+  void reserve(std::vector<uint8_t> *destination, size_t length);
+
+  /**
     Fills a vector with a sequence of bytes from the cursor.
 
     @param[out] destination the vector be filled.

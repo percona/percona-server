@@ -394,6 +394,10 @@ The following options may be given as the first argument:
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
  Disable with --skip-external-locking.
+ --external-table-secondary-storage-engine=name 
+ Default secondary storage engine for external tables
+ --external-table-storage-engine=name 
+ Default storage engine for external tables
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
@@ -1331,6 +1335,9 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --server-memory=#   Memory (in bytes) used by the MySQL Server when
+ auto-tuning the default values of the configuration
+ parameters which depend on memory
  --session-track-gtids=name 
  Controls the amount of global transaction ids to be
  included in the response packet sent by the
@@ -1539,9 +1546,6 @@ The following options may be given as the first argument:
  Maximum amount of memory (in bytes) the TempTable storage
  engine is allowed to allocate from the main memory (RAM)
  before starting to store data on disk.
- --temptable-use-mmap 
- Use mmap files for temptables. This variable is
- deprecated and will be removed in a future release.
  --terminology-use-previous=name 
  Make monitoring tables and statements use the identifiers
  that were in use before they were changed in a given
@@ -1650,7 +1654,7 @@ auto-increment-increment 1
 auto-increment-offset 1
 autocommit TRUE
 automatic-sp-privileges TRUE
-back-log 151
+back-log 10000
 big-tables FALSE
 bind-address *
 binlog-cache-size 32768
@@ -1975,6 +1979,7 @@ select-into-disk-sync FALSE
 select-into-disk-sync-delay 0
 server-id 1
 server-id-bits 32
+server-memory 0
 session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
@@ -2034,7 +2039,6 @@ table-open-cache-triggers 524288
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
 temptable-max-mmap 0
-temptable-use-mmap FALSE
 terminology-use-previous NONE
 thread-cache-size 9
 thread-handling one-thread-per-connection

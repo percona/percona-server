@@ -28,14 +28,14 @@
 #include <memory>
 #include <string>
 
-#include "helper/make_shared_ptr.h"
 #include "mrs/json/json_template_nest.h"
 #include "mrs/json/json_template_nest_without_outparams.h"
 #include "mrs/json/json_template_unnest.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 template <typename T>
-using MakeSharedPtr = helper::MakeSharedPtr<T>;
+using MakeSharedPtr = mysql_harness::MakeSharedPtr<T>;
 using testing::Test;
 using namespace mrs::json;
 

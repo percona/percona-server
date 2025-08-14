@@ -199,12 +199,25 @@ bool Event_reference_caching_channels::service_notification(const char *service,
   if (!map(service_name, index)) {
     if (load) {
       ++service_counters_[index];
+      /*
+        A special case is needed for event_tracking_lifecycle because it
+        combines two plugin services.
+      */
+      if (service_name == "event_tracking_lifecycle" && index > 0)
+        ++service_counters_[index - 1];
     } else {
       /*
         Following is thread safe because persistent dynamic loader takes
         a mutex as a part of each UNINSTALL COMPONENT statement.
       */
       if (service_counters_[index].load() > 0) --service_counters_[index];
+      /*
+        A special case is needed for event_tracking_lifecycle because it
+        combines two plugin services.
+      */
+      if (service_name == "event_tracking_lifecycle" && index > 0)
+        if (service_counters_[index - 1].load() > 0)
+          --service_counters_[index - 1];
     }
     return false;
   }

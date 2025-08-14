@@ -33,6 +33,9 @@ SET(MIGRATE_KEYRING_SOURCE
   # Components subsystem
   components.cc
 
+  # log_builtin component implementation helpers
+  ${CMAKE_SOURCE_DIR}/components/keyrings/common/component_helpers/src/keyring_log_builtins_definition.cc
+
   # Main
   migrate_keyring.cc
 )

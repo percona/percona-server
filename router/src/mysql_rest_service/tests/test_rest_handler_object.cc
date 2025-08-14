@@ -27,21 +27,22 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "helper/make_shared_ptr.h"
 #include "helper/set_http_component.h"
+#include "http/base/uri_path_matcher.h"
 #include "mrs/endpoint/db_object_endpoint.h"
 #include "mrs/endpoint/db_schema_endpoint.h"
 #include "mrs/endpoint/db_service_endpoint.h"
 #include "mrs/endpoint/handler/handler_db_object_table.h"
 #include "mrs/endpoint/url_host_endpoint.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_endpoint_configuration.h"
 #include "mock/mock_http_server_component.h"
 #include "mock/mock_mysqlcachemanager.h"
 
-using helper::MakeSharedPtr;
 using helper::SetHttpComponent;
+using mysql_harness::MakeSharedPtr;
 using HandlerDbObjectTable = mrs::endpoint::handler::HandlerDbObjectTable;
 using DbObjectEndpoint = mrs::endpoint::DbObjectEndpoint;
 using DbSchemaEndpoint = mrs::endpoint::DbSchemaEndpoint;
@@ -52,6 +53,7 @@ using DbSchema = mrs::database::entry::DbSchema;
 using DbObject = mrs::database::entry::DbObject;
 using DbHost = mrs::rest::entry::AppUrlHost;
 using HandlerConfiguration = mrs::interface::RestHandler::Configuration;
+using ::http::base::UriPathMatcher;
 using testing::_;
 using testing::Invoke;
 using testing::Mock;
@@ -61,8 +63,7 @@ using testing::StrictMock;
 using testing::Test;
 
 const std::string k_url{"https://mysql.com/mrs/schema/table"};
-const std::string k_path{
-    "^/mrs/schema/table(/([0-9]|[a-z]|[A-Z]|[-._~!$&'()*+,;=:@%]| )*/?)?$"};
+const UriPathMatcher k_path{"/mrs/schema/table", true, false};
 const int k_access_rights = 5;
 
 struct Endpoints {
@@ -72,7 +73,7 @@ struct Endpoints {
   std::string schema{"/schema"};
   std::string object{"/table"};
   std::string url{k_url};
-  std::string path{k_path};
+  UriPathMatcher path{k_path};
   mrs::UniversalId host_id{{10, 0}};
   mrs::UniversalId service_id{{10, 100}};
   mrs::UniversalId schema_id{{10, 101}};
@@ -91,10 +92,10 @@ class RestHandlerObjectTests : public Test {
   void make_sut(const Endpoints &config) {
     EXPECT_CALL(*mock_endpoint_configuration_, does_server_support_https())
         .WillRepeatedly(Return(config.is_https));
-    EXPECT_CALL(mock_http_component_, add_route(_, config.path, _))
+    EXPECT_CALL(mock_http_component_, add_direct_match_route(_, config.path, _))
         .WillOnce(Invoke(
             [this](
-                const ::std::string &, const ::std::string &,
+                const ::std::string &, const UriPathMatcher &,
                 std::unique_ptr<http::base::RequestHandler> handler) -> void * {
               request_handler_ = std::move(handler);
               return request_handler_.get();
@@ -172,20 +173,19 @@ TEST_F(RestHandlerObjectTests, forwards_data_from_endpoints_set1) {
 }
 
 TEST_F(RestHandlerObjectTests, forwards_data_from_endpoints_set2) {
-  const Endpoints k_other_data{
-      false,
-      "oracle.com",
-      "/svc",
-      "/sakila",
-      "/actor",
-      "http://oracle.com/svc/sakila/actor",
-      "^/svc/sakila/actor(/([0-9]|[a-z]|[A-Z]|[-._~!$&'()*+,;=:@%]| )*/?)?$",
-      mrs::UniversalId{{100, 100}},
-      mrs::UniversalId{{200, 100}},
-      mrs::UniversalId{{222, 100}},
-      mrs::UniversalId{{233, 100}},
-      1,
-      false};
+  const Endpoints k_other_data{false,
+                               "oracle.com",
+                               "/svc",
+                               "/sakila",
+                               "/actor",
+                               "http://oracle.com/svc/sakila/actor",
+                               UriPathMatcher{"/svc/sakila/actor", true, false},
+                               mrs::UniversalId{{100, 100}},
+                               mrs::UniversalId{{200, 100}},
+                               mrs::UniversalId{{222, 100}},
+                               mrs::UniversalId{{233, 100}},
+                               1,
+                               false};
   make_sut(k_other_data);
   ASSERT_EQ(k_other_data.service_id, sut_->get_service_id());
   ASSERT_EQ(k_other_data.service, sut_->get_service_path());

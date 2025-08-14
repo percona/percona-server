@@ -53,6 +53,8 @@ class HARNESS_EXPORT PluginState {
 
   static PluginState *get_instance();
 
+  void reset();
+
   virtual ObserverId push_back_observer(ObserverPtr psl);
   virtual std::vector<ObserverId> push_back_observers(
       const std::vector<ObserverPtr> &array);

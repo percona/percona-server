@@ -250,7 +250,8 @@ ALTER TABLE t ADD KEY(a,b);
 ALTER TABLE t ADD KEY(b);
 ANALYZE TABLE t;
 # FirstMatch strategy - Nested Loop Semijoin
-let $query = SELECT b FROM t WHERE a IN ( SELECT t1.b FROM t AS t1);
+let $query = SELECT b FROM t WHERE a IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1);
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval EXPLAIN FORMAT=JSON INTO @var $query;

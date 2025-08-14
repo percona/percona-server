@@ -32,7 +32,6 @@ namespace temptable_storage_unittest {
 
 TEST(StorageTest, Iterate) {
   /* Set appropriate temptable_max_mmap */
-  temptable_use_mmap = 1;
   temptable_max_mmap = 1073741824;
 
   std::thread t([]() {
@@ -73,7 +72,6 @@ TEST(StorageTest, AllocatorRebind) {
   // Turns out it is the rebind which confuses the compiler.
 
   /* Set appropriate temptable_max_mmap */
-  temptable_use_mmap = 1;
   temptable_max_mmap = 1073741824;
 
   auto thread_function = []() {

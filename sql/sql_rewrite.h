@@ -110,6 +110,10 @@ void mysql_rewrite_query(THD *thd, Consumer_type type = Consumer_type::TEXTLOG,
 void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
                              const Rewrite_params *params = nullptr,
                              bool do_ps_instrument = true);
+/**
+  Rewrite query for binary log
+*/
+void mysql_rewrite_query_for_binlog(THD *thd);
 
 /**
   An abstract base class to enable the implementation of various query
@@ -376,8 +380,20 @@ class Rewriter_create_table final : public I_rewriter {
   bool rewrite(String &rlb) const override;
 };
 
-/** Rewrites the ALTER TABLE statement for external tales. */
-class Rewriter_alter_table final : public I_rewriter {
+/**
+  Rewriter for CREATE EXTERNAL TABLE statements in the binary log.
+  When CREATE EXTERNAL TABLE is used, MySQL implicitly assigns ENGINE and
+  SECONDARY_ENGINE values from global variables. For replication to work
+  correctly, we need to rewrite this to an explicit CREATE TABLE with the ENGINE
+  and SECONDARY_ENGINE values included.
+*/
+class Rewriter_create_external_table : public I_rewriter {
+ public:
+  Rewriter_create_external_table(THD *thd, Consumer_type type);
+  bool rewrite(String &rlb) const override;
+};
+
+class Rewriter_alter_table : public I_rewriter {
  public:
   Rewriter_alter_table(THD *thd, Consumer_type type);
   bool rewrite(String &rlb) const override;

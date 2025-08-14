@@ -31,6 +31,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include "components/keyrings/common/component_helpers/include/keyring_log_builtins_definition.h"
 #include "mysql/components/services/component_status_var_service.h"
 #include "mysql/components/services/registry.h"
 #include "options.h" /* command line options */
@@ -58,19 +59,47 @@ DEFINE_BOOL_METHOD(unregister_variable, (SHOW_VAR * /*status_var*/)) {
 
 void setup() {
   static BEGIN_SERVICE_IMPLEMENTATION(
-      mysql_migrate_keyring, status_variable_registration) register_variable,
+      keyring_encryption_test, status_variable_registration) register_variable,
       unregister_variable, END_SERVICE_IMPLEMENTATION();
 
   reg_reg->register_service(
       "status_variable_registration.keyring_encryption_test",
       (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
-          mysql_migrate_keyring, status_variable_registration)));
+          keyring_encryption_test, status_variable_registration)));
 }
 
 void teardown() {
   reg_reg->unregister("status_variable_registration.keyring_encryption_test");
 }
 }  // namespace dummy_status_variable_registration_implementation
+
+/*
+  We need to register log_builins implementation because keyring components
+  depend on it (in terms of REQUIRES_SERVICE_PLACEHOLDER)
+  and minchassis does not provide it
+*/
+namespace log_builtins_component_helper {
+KEYRING_LOG_BUILTINS_IMPLEMENTOR(keyring_encryption_test);
+KEYRING_LOG_BUILTINS_STRING_IMPLEMENTOR(keyring_encryption_test);
+
+void setup() {
+  reg_reg->register_service(
+      "log_builtins.keyring_encryption_test",
+      (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
+          keyring_encryption_test, log_builtins)));
+
+  reg_reg->register_service(
+      "log_builtins_string.keyring_encryption_test",
+      (my_h_service) const_cast<void *>((const void *)&SERVICE_IMPLEMENTATION(
+          keyring_encryption_test, log_builtins_string)));
+}
+
+void teardown() {
+  reg_reg->unregister("log_builtins.keyring_encryption_test");
+  reg_reg->unregister("log_builtins_string.keyring_encryption_test");
+}
+
+}  // namespace log_builtins_component_helper
 
 void init_components_subsystem() {
   minimal_chassis_init((&components_registry), nullptr);
@@ -80,9 +109,11 @@ void init_components_subsystem() {
   components_registry->acquire("registry_registration",
                                reinterpret_cast<my_h_service *>(&reg_reg));
   dummy_status_variable_registration_implementation::setup();
+  log_builtins_component_helper::setup();
 }
 
 void deinit_components_subsystem() {
+  log_builtins_component_helper::teardown();
   dummy_status_variable_registration_implementation::teardown();
   components_registry->release(reinterpret_cast<my_h_service>(reg_reg));
   components_registry->release(

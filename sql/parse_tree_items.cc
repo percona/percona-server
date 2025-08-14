@@ -157,10 +157,13 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   }
 
   if (is_negation)
-    result = new (pc->mem_root) Item_func_ne(left, expr);
+    result = new (pc->mem_root) Item_func_ne(expr->m_pos, left, expr);
   else
-    result = new (pc->mem_root) Item_func_eq(left, expr);
-
+    result = new (pc->mem_root) Item_func_eq(expr->m_pos, left, expr);
+#ifndef NDEBUG
+  result->set_contextualized();
+#endif
+  pc->thd->add_item(result);
   return result;
 }
 
@@ -169,8 +172,17 @@ bool PTI_comp_op::do_itemize(Parse_context *pc, Item **res) {
       right->itemize(pc, &right))
     return true;
 
-  *res = (*boolfunc2creator)(false)->create(left, right);
-  return *res == nullptr;
+  *res = (*boolfunc2creator)(false)->create(m_pos, left, right);
+  if (*res == nullptr) {
+    return true;
+  }
+
+#ifndef NDEBUG
+  (*res)->set_contextualized();
+#endif
+  pc->thd->add_item(*res);
+
+  return false;
 }
 
 bool PTI_comp_op_all::do_itemize(Parse_context *pc, Item **res) {
@@ -257,18 +269,19 @@ bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
   */
   Create_func *builder = find_native_function_builder(ident);
   if (builder)
-    *res = builder->create_func(thd, ident, opt_udf_expr_list);
+    *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
   else {
     if (udf) {
       if (udf->type == UDFTYPE_AGGREGATE) {
         pc->select->in_sum_expr--;
       }
 
-      *res = Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
+      *res = Create_udf_func::s_singleton.create(thd, m_pos, udf,
+                                                 opt_udf_expr_list);
     } else {
       builder = find_qualified_function_builder(thd);
       assert(builder);
-      *res = builder->create_func(thd, ident, opt_udf_expr_list);
+      *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
     }
   }
   return *res == nullptr || (*res)->itemize(pc, res);
@@ -310,7 +323,7 @@ bool PTI_function_call_generic_2d::do_itemize(Parse_context *pc, Item **res) {
 
   Create_qfunc *builder = find_qualified_function_builder(pc->thd);
   assert(builder);
-  *res = builder->create(pc->thd, db, func, true, opt_expr_list);
+  *res = builder->create(pc->thd, m_pos, db, func, true, opt_expr_list);
   return *res == nullptr || (*res)->itemize(pc, res);
 }
 
@@ -329,7 +342,9 @@ bool PTI_singlerow_subselect::do_itemize(Parse_context *pc, Item **res) {
   *res = new (pc->mem_root) Item_singlerow_subselect(m_pos, subselect->value());
   if (*res == nullptr) return true;
 
+#ifndef NDEBUG
   down_cast<Item_subselect *>(*res)->set_contextualized();
+#endif
   pc->thd->add_item(*res);
   pc->select->n_scalar_subqueries++;
 
@@ -341,9 +356,9 @@ bool PTI_exists_subselect::do_itemize(Parse_context *pc, Item **res) {
   *res = new (pc->mem_root) Item_exists_subselect(m_pos, subselect->value());
   if (*res == nullptr) return true;
 
-  Item_exists_subselect *exists = down_cast<Item_exists_subselect *>(*res);
-  exists->set_contextualized();
-
+#ifndef NDEBUG
+  down_cast<Item_exists_subselect *>(*res)->set_contextualized();
+#endif
   pc->thd->add_item(*res);
 
   return false;

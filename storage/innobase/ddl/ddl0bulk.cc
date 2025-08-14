@@ -109,19 +109,20 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
 
   m_ctxs.resize(m_num_threads);
 
-  size_t queue_size = 2;
+  m_queue_size = 2;
   bool in_pages = false;
-  get_queue_size(memory, queue_size, in_pages);
+  get_queue_size(memory, m_queue_size, in_pages);
 
   /* Initialize thread specific data and create sub-tree loaders. */
   for (size_t index = 0; index < m_num_threads; ++index) {
     m_ctxs[index].init(prebuilt);
+    m_ctxs[index].m_queue_size = m_queue_size;
 
     auto sub_tree_load = ut::new_withkey<Btree_multi::Btree_load>(
         ut::make_psi_memory_key(mem_key_ddl), m_index, prebuilt->trx, index,
-        queue_size, m_extent_allocator);
+        m_queue_size, m_extent_allocator);
     sub_tree_load->init();
-    m_sub_tree_loads.push_back(sub_tree_load);
+    m_ctxs[index].add_subtree(sub_tree_load);
   }
 
   auto extend_size = m_extent_allocator.init(
@@ -141,44 +142,36 @@ dberr_t Loader::begin(const row_prebuilt_t *prebuilt, size_t data_size,
 dberr_t Loader::load(const row_prebuilt_t *prebuilt, size_t thread_index,
                      const Rows_mysql &rows,
                      Bulk_load::Stat_callbacks &wait_cbk) {
-  ut_a(thread_index < m_sub_tree_loads.size());
-  auto sub_tree = m_sub_tree_loads[thread_index];
-
   ut_a(thread_index < m_ctxs.size());
   auto &ctx = m_ctxs[thread_index];
+  auto sub_tree = ctx.get_subtree();
 
   return ctx.load(prebuilt, sub_tree, rows, wait_cbk);
 }
 
 dberr_t Loader::open_blob(size_t thread_index, Blob_context &blob_ctx,
                           lob::ref_t &ref) {
-  ut_ad(thread_index < m_sub_tree_loads.size());
-  auto sub_tree = m_sub_tree_loads[thread_index];
-
   ut_ad(thread_index < m_ctxs.size());
   auto &ctx = m_ctxs[thread_index];
+  auto sub_tree = ctx.get_subtree();
 
   return ctx.open_blob(sub_tree, blob_ctx, ref);
 }
 
 dberr_t Loader::write_blob(size_t thread_index, Blob_context blob_ctx,
                            lob::ref_t &ref, const byte *data, size_t len) {
-  ut_ad(thread_index < m_sub_tree_loads.size());
-  auto sub_tree = m_sub_tree_loads[thread_index];
-
   ut_ad(thread_index < m_ctxs.size());
   auto &ctx = m_ctxs[thread_index];
+  auto sub_tree = ctx.get_subtree();
 
   return ctx.write_blob(sub_tree, blob_ctx, ref, data, len);
 }
 
 dberr_t Loader::close_blob(size_t thread_index, Blob_context blob_ctx,
                            lob::ref_t &ref) {
-  ut_ad(thread_index < m_sub_tree_loads.size());
-  auto sub_tree = m_sub_tree_loads[thread_index];
-
   ut_ad(thread_index < m_ctxs.size());
   auto &ctx = m_ctxs[thread_index];
+  auto sub_tree = ctx.get_subtree();
 
   return ctx.close_blob(sub_tree, blob_ctx, ref);
 }
@@ -194,6 +187,13 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
     m_err = fill_tuple(prebuilt, rows, row_index);
     if (m_err != DB_SUCCESS) {
       break;
+    }
+
+    if (prebuilt->index->is_clustered() &&
+        prebuilt->clust_index_was_generated) {
+      /* For this thread, a new subtree could have been created while
+      processing the row id. Use the latest subtree for loading data. */
+      sub_tree = get_subtree();
     }
 
     Btree_multi::Btree_load::Wait_callbacks cbk_set(
@@ -312,6 +312,17 @@ dberr_t Loader::end(bool is_error) {
   bool is_subtree = (m_num_threads > 1);
   dberr_t db_err = DB_SUCCESS;
 
+  uint64_t max_rowid{0};
+  for (size_t index = 0; index < m_num_threads; ++index) {
+    auto &thd_ctx = m_ctxs[index];
+    if (thd_ctx.m_last_rowid > max_rowid) {
+      max_rowid = thd_ctx.m_last_rowid;
+    }
+    for (auto subtree : thd_ctx.m_list_subtrees) {
+      m_sub_tree_loads.push_back(subtree);
+    }
+  }
+
   for (auto sub_tree_load : m_sub_tree_loads) {
     auto finish_err = sub_tree_load->finish(is_error, is_subtree);
     /* Save the first error. */
@@ -320,6 +331,7 @@ dberr_t Loader::end(bool is_error) {
       db_err = finish_err;
     }
   }
+
   m_extent_allocator.stop();
 
   /* Merge all the sub-trees. The rollback action is in case of an error would
@@ -341,6 +353,10 @@ dberr_t Loader::end(bool is_error) {
 
   m_sub_tree_loads.clear();
 
+  if (!m_table->has_pk()) {
+    set_sys_max_rowid(max_rowid);
+  }
+
   fil_space_t *space = fil_space_acquire(m_table->space);
   space->end_bulk_operation();
   fil_space_release(space);
@@ -348,12 +364,27 @@ dberr_t Loader::end(bool is_error) {
   return db_err;
 }
 
+void Loader::set_sys_max_rowid(uint64_t max_rowid) {
+  dict_sys_mutex_enter();
+
+  if (max_rowid >= dict_sys->row_id) {
+    dict_sys->row_id = max_rowid + 1;
+    dict_hdr_flush_row_id();
+  }
+
+  dict_sys_mutex_exit();
+}
+
 void Loader::Thread_data::fill_system_columns(const row_prebuilt_t *prebuilt) {
   dict_index_t *primary_key = prebuilt->table->first_index();
 
-  /* TODO: Handle the case with no primary key. System column : DATA_ROW_ID */
   ut_ad(primary_key != nullptr);
-  ut_ad(dict_index_is_unique(primary_key));
+
+  if (!dict_index_is_unique(primary_key)) {
+    auto rowid_pos = primary_key->get_sys_col_pos(DATA_ROW_ID);
+    auto dfield = dtuple_get_nth_field(m_entry, rowid_pos);
+    dfield_set_data(dfield, m_rowid_data, DATA_ROW_ID_LEN);
+  }
 
   /* Set transaction ID system column. */
   auto trx_id_pos = primary_key->get_sys_col_pos(DATA_TRX_ID);
@@ -417,22 +448,49 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
   auto share = mysql_table->s;
 
   /* This function is a miniature of row_mysql_convert_row_to_innobase(). */
+
+  /* The column_number is used to access column in given rows. */
   size_t column_number = 0;
+
   auto row_offset = rows.get_row_offset(row_index);
   auto row_size = rows.get_num_cols();
-  const auto n_cols = rows.get_num_cols();
+  auto n_cols = row_size;
 
-  for (size_t index = 0; index < n_cols; index++) {
-    auto field = share->field[column_number];
-    auto dfield = dtuple_get_nth_field(m_row, column_number);
+  if (prebuilt->clust_index_was_generated) {
+    if (prebuilt->index->is_clustered()) {
+      auto &sql_col = rows.read_column(row_offset, column_number);
+      if (m_last_rowid > 0 && sql_col.m_int_data - m_last_rowid > 1) {
+        auto *tmp = get_subtree();
+        auto sub_tree_load = ut::new_withkey<Btree_multi::Btree_load>(
+            ut::make_psi_memory_key(mem_key_ddl), prebuilt->index,
+            prebuilt->trx, 0, m_queue_size, tmp->get_extent_allocator());
+        sub_tree_load->init();
+        m_list_subtrees.push_back(sub_tree_load);
+      }
+      mach_write_to_6(m_rowid_data, sql_col.m_int_data);
+      m_last_rowid = sql_col.m_int_data;
+      auto col = prebuilt->table->get_sys_col(DATA_ROW_ID);
+      auto dfield = dtuple_get_nth_field(m_row, col->ind);
+      dfield_set_data(dfield, m_rowid_data, DATA_ROW_ID_LEN);
+      column_number++;
+      n_cols--;
+    } else {
+      // secondary index.
+    }
+  }
+
+  for (size_t index = 0; index < n_cols; index++, ++column_number) {
+    // Note: For the generated rowid there is no associated field.
+    auto *field = share->field[index];
+    auto dfield = dtuple_get_nth_field(m_row, index);
     ut_ad(column_number < row_size);
 
     if (column_number >= row_size) {
       ib::info(ER_BULK_LOADER_INFO, "Innodb row has more columns than CSV");
       return DB_ERROR;
     }
+
     auto &sql_col = rows.read_column(row_offset, column_number);
-    ++column_number;
 
     if (sql_col.m_is_null) {
       dfield_set_null(dfield);
@@ -514,6 +572,9 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
       } else {
         /* Not an externally stored field. */
       }
+    } else if (dtype->mtype == DATA_SYS) {
+      mach_write_to_6(m_rowid_data, sql_col.m_int_data);
+      dfield_set_data(dfield, m_rowid_data, DATA_ROW_ID_LEN);
     } else {
       assert(data_len <= dtype->len);
       dfield_set_data(dfield, data_ptr, data_len);
@@ -589,8 +650,9 @@ bool Loader::Thread_data::store_int_col(const Column_mysql &col, byte *data_ptr,
 dberr_t Loader::merge_subtrees() {
   ut_ad(m_index != nullptr);
 
-  Btree_multi::Btree_load::Merger merger(m_sub_tree_loads, m_index, m_trx);
-  return merger.merge(false);
+  Btree_multi::Btree_load::Merger merger(m_num_threads, m_sub_tree_loads,
+                                         m_index, m_trx);
+  return merger.merge(true);
 }
 
 }  // namespace ddl_bulk

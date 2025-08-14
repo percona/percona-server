@@ -106,7 +106,7 @@ class SortingIterator final : public RowIterator {
   const Filesort *filesort() const { return m_filesort; }
 
  private:
-  int DoSort();
+  bool DoSort();
   void ReleaseBuffers();
 
   Filesort *m_filesort;
@@ -152,6 +152,7 @@ class SortingIterator final : public RowIterator {
     SortFileIterator<true> sort_file_packed_addons;
     SortFileIterator<false> sort_file;
     SortFileIndirectIterator sort_file_indirect;
+    ZeroRowsIterator zero_rows;
   } m_result_iterator_holder;
 };
 

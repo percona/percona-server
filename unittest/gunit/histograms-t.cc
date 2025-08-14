@@ -424,7 +424,8 @@ void VerifySingletonBucketConstraintsString(Histogram *histogram,
       EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
-    previous_value = current_value;
+    previous_value.set(current_value.ptr(), current_value.length(),
+                       current_value.charset());
     previous_cumulative_frequency = current_cumulative_frequency;
   }
 }
@@ -687,7 +688,9 @@ void VerifyEquiHeightBucketConstraintsString(Histogram *histogram,
     EXPECT_FALSE(
         Histogram_comparator()(current_upper_value, current_lower_value));
 
-    previous_upper_value = current_upper_value;
+    previous_upper_value.set(current_upper_value.ptr(),
+                             current_upper_value.length(),
+                             current_upper_value.charset());
     previous_cumulative_frequency = current_cumulative_frequency;
   }
 }

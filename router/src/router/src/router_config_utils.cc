@@ -28,22 +28,43 @@
 #include "mysql/harness/config_parser.h"
 #include "socket_operations.h"
 
-std::string get_configured_router_name(const mysql_harness::Config &config,
-                                       const uint32_t default_port) {
-  auto section = config.get_default_section();
+std::optional<std::string> get_configured_router_name(
+    const mysql_harness::Config &config, const uint32_t default_port) {
+  const auto section = config.get_default_section();
   if (section.has("name")) {
     return section.get("name");
   }
 
-  std::string port_str = std::to_string(default_port);
+  auto socket_ops = mysql_harness::SocketOperations::instance();
+
+  std::string address;
+  try {
+    address = socket_ops->get_local_hostname();
+  } catch (
+      const mysql_harness::SocketOperations::LocalHostnameResolutionError &) {
+    return std::nullopt;
+  }
+
+  return address + ":" +
+         std::to_string(get_configured_http_port(config, default_port));
+}
+
+uint32_t get_configured_http_port(const mysql_harness::Config &config,
+                                  const uint32_t default_port) {
+  const auto section = config.get_default_section();
+
+  uint32_t port = default_port;
   for (const mysql_harness::ConfigSection *section : config.sections()) {
     if (section->name == "http_server" && section->has("port")) {
-      port_str = section->get("port");
+      const auto port_str = section->get("port");
+      try {
+        port = std::stoul(port_str);
+      } catch (const std::exception &) {
+        port = default_port;
+      }
+
       break;
     }
   }
-
-  auto socket_ops = mysql_harness::SocketOperations::instance();
-
-  return socket_ops->get_local_hostname() + ":" + port_str;
+  return port;
 }

@@ -120,7 +120,7 @@ void Cost_constant_cache::close() {
 
 void Cost_constant_cache::reload() {
   DBUG_TRACE;
-  assert(m_inited = true);
+  assert(m_inited);
 
   // Original optimizer costs.
 

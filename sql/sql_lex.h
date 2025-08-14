@@ -70,7 +70,8 @@
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
-#include "sql/key_spec.h"  // KEY_CREATE_INFO
+#include "sql/json_duality_view/content_tree.h"  // destroy
+#include "sql/key_spec.h"                        // KEY_CREATE_INFO
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_location.h"
@@ -284,6 +285,10 @@ const LEX_CSTRING sp_data_access_name[] = {
     {STRING_WITH_LEN("NO SQL")},
     {STRING_WITH_LEN("READS SQL DATA")},
     {STRING_WITH_LEN("MODIFIES SQL DATA")}};
+
+/* Table type flags for the CREATE TABLE statement */
+#define TABLE_TYPE_TEMPORARY 1 /* 1 << 0 */
+#define TABLE_TYPE_EXTERNAL 2  /* 1 << 1 */
 
 enum class enum_view_create_mode {
   VIEW_CREATE_NEW,        // check that there are not such VIEW/table
@@ -2629,6 +2634,7 @@ struct st_sp_chistics {
   bool detistic = false;
   enum enum_sp_data_access daccess = SP_DEFAULT_ACCESS;
   LEX_CSTRING language = NULL_CSTR;  ///< CREATE|ALTER ... LANGUAGE <language>
+  bool is_binary = false;
 
   /**
     List of imported libraries for this routine
@@ -2712,6 +2718,7 @@ struct st_sp_chistics {
     detistic = false;
     daccess = SP_DEFAULT_ACCESS;
     language = NULL_CSTR;
+    is_binary = false;
     m_imported_libraries = nullptr;
   }
 };
@@ -4068,6 +4075,17 @@ struct LEX : public Query_tables_list {
     m_using_hypergraph_optimizer = use_hypergraph;
   }
 
+  /**
+    Returns true if the statement is executed on a secondary engine. The flag is
+    set when the query tables are opened and keeps its value until the beginning
+    of the next execution.
+   */
+  bool using_secondary_engine() const { return m_using_secondary_engine; }
+
+  void set_using_secondary_engine(bool flag) {
+    m_using_secondary_engine = flag;
+  }
+
   /// RAII class to set state \c m_splitting_window_expression for a scope
   class Splitting_window_expression {
    private:
@@ -4093,6 +4111,7 @@ struct LEX : public Query_tables_list {
 
  private:
   bool m_using_hypergraph_optimizer{false};
+  bool m_using_secondary_engine{false};
 
  public:
   LEX_STRING name;
@@ -4368,6 +4387,7 @@ struct LEX : public Query_tables_list {
   int select_number;  ///< Number of query block (by EXPLAIN)
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  enum_view_type create_view_type;
   /**
     @todo ensure that correct CONTEXT_ANALYSIS_ONLY is set for all preparation
           code, so we can fully rely on this field.
@@ -4515,6 +4535,14 @@ struct LEX : public Query_tables_list {
 
   void cleanup(bool full) {
     unit->cleanup(full);
+    if (query_tables != nullptr) {
+      for (Table_ref *tr = query_tables; tr != nullptr; tr = tr->next_global) {
+        if (tr->jdv_content_tree != nullptr) {
+          jdv::destroy_content_tree(tr->jdv_content_tree);
+          tr->jdv_content_tree = nullptr;
+        }
+      }
+    }
     if (full) {
       m_IS_table_stats.invalidate_cache();
       m_IS_tablespace_stats.invalidate_cache();

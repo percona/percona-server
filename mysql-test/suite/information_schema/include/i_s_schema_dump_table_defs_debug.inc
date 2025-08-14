@@ -99,6 +99,35 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='JSON_DUALITY_VIEW_COLUMNS';
+replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/
+              /columns.referenced_table_(catalog|schema|name) COLLATE utf8mb4_(0900_as_ci|bin)/columns.referenced_table_\1/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='JSON_DUALITY_VIEW_LINKS';
+replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/
+              /links.(parent|child)_table_(catalog|schema|name) COLLATE utf8mb4_(0900_as_ci|bin)/links.\1_table_\2/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='JSON_DUALITY_VIEW_TABLES';
+replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/
+              /tables.referenced_table_(catalog|schema|name) COLLATE utf8mb4_(0900_as_ci|bin)/tables.referenced_table_\1/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='JSON_DUALITY_VIEWS';
+replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/
+              /COLLATE utf8mb4_(0900_as_ci|bin) AS ROOT_TABLE_(CATALOG|SCHEMA|NAME)/AS ROOT_TABLE_\2/;
+
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='KEY_COLUMN_USAGE';
 replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;

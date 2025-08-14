@@ -923,7 +923,8 @@ void Tablespace::alter_active() {
   if (m_rsegs->is_empty()) {
     m_rsegs->set_active();
   } else if (m_rsegs->is_inactive_explicit()) {
-    if (purge_sys->undo_trunc.get_marked_space_num() == num()) {
+    if (purge_sys->undo_trunc.is_marked() &&
+        purge_sys->undo_trunc.get_marked_space_num() == num()) {
       m_rsegs->set_inactive_implicit();
     } else {
       m_rsegs->set_active();
@@ -960,7 +961,6 @@ dberr_t start_logging(Tablespace *undo_space) {
   }
 #endif /* UNIV_DEBUG */
 
-  dberr_t err;
   char *log_file_name = undo_space->log_file_name();
 
   /* Delete the log file if it exists. */
@@ -987,7 +987,7 @@ dberr_t start_logging(Tablespace *undo_space) {
 
   request.disable_compression();
 
-  err = os_file_write(request, log_file_name, handle, buf, 0, sz);
+  const dberr_t err = os_file_write(request, log_file_name, handle, buf, 0, sz);
 
   os_file_flush(handle);
   os_file_close(handle);
@@ -996,18 +996,11 @@ dberr_t start_logging(Tablespace *undo_space) {
   return (err);
 }
 
-/** Mark completion of undo truncate action by writing magic number
-to the log file and then removing it from the disk.
-If we are going to remove it from disk then why write magic number?
-This is to safeguard from unlink (file-system) anomalies that will
-keep the link to the file even after unlink action is successful
-and ref-count = 0.
-@param[in]  space_num  number of the undo tablespace to truncate. */
 void done_logging(space_id_t space_num) {
-  dberr_t err;
-  /* Calling id2num(space_num) will return the first space_id for this
-  space_num. That is good enough since we only need the log_file_name. */
-  Tablespace undo_space(id2num(space_num));
+  /* Get the first space id for this space_num. That is good enough since we
+  only need the log_file_name. */
+  Tablespace undo_space(num2id(space_num, 0));
+
   char *log_file_name = undo_space.log_file_name();
 
   /* If this file does not exist, there is nothing to do. */
@@ -1015,8 +1008,7 @@ void done_logging(space_id_t space_num) {
     return;
   }
 
-  /* Open log file and write magic number to indicate
-  done phase. */
+  /* Open log file and write magic number to indicate done phase. */
   bool ret;
   pfs_os_file_t handle = os_file_create_simple_no_error_handling(
       innodb_log_file_key, log_file_name, OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -1041,7 +1033,7 @@ void done_logging(space_id_t space_num) {
 
   request.disable_compression();
 
-  err = os_file_write(request, log_file_name, handle, buf, 0, sz);
+  const dberr_t err = os_file_write(request, log_file_name, handle, buf, 0, sz);
 
   ut_a(err == DB_SUCCESS);
 
@@ -1052,13 +1044,10 @@ void done_logging(space_id_t space_num) {
   os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
 }
 
-/** Check if TRUNCATE_DDL_LOG file exist.
-@param[in]  space_num  undo tablespace number
-@return true if exist else false. */
 bool is_active_truncate_log_present(space_id_t space_num) {
-  /* Calling id2num(space_num) will return the first space_id for this
-  space_num. That is good enough since we only need the log_file_name. */
-  Tablespace undo_space(id2num(space_num));
+  /* Get the first space id for thus space_num. That is good enough since we
+  only need the log_file_name. */
+  Tablespace undo_space(num2id(space_num, 0));
 
   /* The truncation log file location changed to a new default location.
   Check if it exists in either location. */
@@ -1666,15 +1655,6 @@ static void trx_purge_truncate_history(purge_iter_t *limit,
   undo::spaces->s_unlock();
   mutex_exit(&undo::ddl_mutex);
 
-  /* Purge rollback segments in the system tablespace, if any.
-  Use an s-lock for the whole list since it can have gaps and
-  may be sorted when added to. */
-  trx_sys->rsegs.s_lock();
-  for (auto rseg : trx_sys->rsegs) {
-    trx_purge_truncate_rseg_history(rseg, limit);
-  }
-  trx_sys->rsegs.s_unlock();
-
   /* Purge rollback segments in the temporary tablespace. */
   trx_sys->tmp_rsegs.s_lock();
   for (auto rseg : trx_sys->tmp_rsegs) {
@@ -2061,6 +2041,7 @@ struct Purge_groups_t {
   void assign(que_thr_t **thrs) {
     const std::size_t n_purge_threads = m_groups.size();
     for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+      ut_ad(thrs[grpid] != nullptr);
       purge_node_t *node = static_cast<purge_node_t *>(thrs[grpid]->child);
       ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
       ut_ad(node->recs == nullptr);
@@ -2495,7 +2476,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   we rely on purge history length. So truncate the
   undo logs during upgrade to update purge history
   length. */
-  if (truncate || srv_upgrade_old_undo_found) {
+  if (truncate) {
     trx_purge_truncate();
   }
 

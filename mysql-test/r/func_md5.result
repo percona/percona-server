@@ -1,7 +1,12 @@
 select md5('a'), hex(md5('a'));
 md5('a')	hex(md5('a'))
 0cc175b9c0f1b6a831c399e269772661	3063633137356239633066316236613833316333393965323639373732363631
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 as select md5('a') as c1;
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -11,28 +16,48 @@ drop table t1;
 select md5('hello');
 md5('hello')
 5d41402abc4b2a76b9719d911017c592
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 explain select md5('hello');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`
 select length(unhex(md5("abrakadabra")));
 length(unhex(md5("abrakadabra")))
 16
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
 insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
 f1	f2
 test	098f6bcd4621d373cade4e832627b4f6
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t1 where f1='test' and (f2= md5("TEST") or f2= md5("test"));
 f1	f2
 test	098f6bcd4621d373cade4e832627b4f6
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t1 where f1='test' and (f2= sha("test") or f2= sha("TEST"));
 f1	f2
 test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
 f1	f2
 test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1;
 # MD5()
 set sql_warnings = 1;
@@ -49,3 +74,36 @@ a	b
 testing	ae2b1fca515949e5d54fb22b8ed95575
 drop table t1;
 set sql_warnings = 0;
+#
+# WL#16955: Deprecate SQL functions MD5() and SHA1()
+#
+CREATE TABLE wl16995_t1 (a INT);
+INSERT INTO wl16995_t1 VALUES (1),(2),(3),(4);
+# FR2: MD5 must return a warning;
+SELECT MD5(12);
+MD5(12)
+#
+Warnings:
+#	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+# FR2.1: MD5 must return 1 warning per statement
+SELECT MD5(a) FROM wl16995_t1;
+MD5(a)
+#
+#
+#
+#
+Warnings:
+#	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+# FR1.1 and FR2.1: must produce warning for prepared statements
+PREPARE wl16995_stmt1 FROM 'SELECT MD5(a) FROM wl16995_t1';
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+EXECUTE wl16995_stmt1;
+MD5(a)
+#
+#
+#
+#
+DEALLOCATE PREPARE wl16995_stmt1;
+# cleanup
+DROP TABLE wl16995_t1;

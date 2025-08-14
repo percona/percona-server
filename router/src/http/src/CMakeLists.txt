@@ -133,7 +133,6 @@ ROUTER_ADD_SHARED_LIBRARY(http_server_lib
   http/server/bind.cc
   http/server/request.cc
   http/server/server.cc
-  http/server/regex_matcher.cc
   http/http_server_context.cc
   http_auth.cc
   http_server_component.cc

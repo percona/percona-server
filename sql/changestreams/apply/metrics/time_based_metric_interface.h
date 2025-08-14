@@ -24,9 +24,8 @@
 #ifndef CHANGESTREAMS_APPLY_METRICS_TIME_BASED_METRIC_INTERFACE_H
 #define CHANGESTREAMS_APPLY_METRICS_TIME_BASED_METRIC_INTERFACE_H
 
-#include <scope_guard.h>            // create_scope_guard
-#include <cstdint>                  // int64_t
-#include "mysql/utils/nodiscard.h"  // NODISCARD
+#include <scope_guard.h>  // create_scope_guard
+#include <cstdint>        // int64_t
 
 /// @brief Abstract class for time based metrics implementations
 class Time_based_metric_interface {
@@ -55,7 +54,7 @@ class Time_based_metric_interface {
 
   /// Start the timer, and return an object that will stop the timer when it
   /// is deleted.
-  [[NODISCARD]] auto time_scope() {
+  [[nodiscard]] auto time_scope() {
     start_timer();
     return create_scope_guard([=, this] { this->stop_timer(); });
   }

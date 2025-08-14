@@ -592,17 +592,12 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_timestamp");
-    Field_timestamp fts(false, "");
-    test_integer_field(&fts);
+    Field_timestamp fts(nullptr, nullptr, 0, Field::NONE, "",
+                        DATETIME_MAX_DECIMALS);
+    test_make_sort_key(&fts);
   }
   {
-    SCOPED_TRACE("Field_timestampf");
-    Field_timestampf ftsf(nullptr, nullptr, 0, Field::NONE, "",
-                          DATETIME_MAX_DECIMALS);
-    test_make_sort_key(&ftsf);
-  }
-  {
-    SCOPED_TRACE("field_newdate");
+    SCOPED_TRACE("field_date");
     Field_date fnd(false, "");
     uchar from[] = {'3', '2', '1'};
     uchar expected[] = {'1', '2', '3'};
@@ -615,8 +610,8 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_datetime");
-    Field_datetime fdt(nullptr, nullptr, '\0', Field::NONE, nullptr);
-    test_integer_field(&fdt);
+    Field_datetime fdt(nullptr, nullptr, '\0', Field::NONE, nullptr, 0);
+    test_make_sort_key(&fdt);
   }
   {
     SCOPED_TRACE("Field_string");

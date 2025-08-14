@@ -40,8 +40,6 @@
 
 #include <sys/types.h>  // timeval
 
-#include <unicode/uclean.h>  // u_cleanup
-
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
@@ -273,9 +271,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       HttpServerComponent::get_instance().init(srv);
 
       if (!config.static_basedir.empty()) {
-        srv->add_route("", "",
-                       std::make_unique<HttpStaticFolderHandler>(
-                           config.static_basedir, config.require_realm));
+        srv->add_regex_route("", "",
+                             std::make_unique<HttpStaticFolderHandler>(
+                                 config.static_basedir, config.require_realm));
       }
     }
   } catch (const std::invalid_argument &exc) {
@@ -294,8 +292,6 @@ static void deinit(mysql_harness::PluginFuncEnv *) {
   http_servers.clear();
 
   io_context_work_guards.clear();
-
-  u_cleanup();
 }
 
 static void start(mysql_harness::PluginFuncEnv *env) {

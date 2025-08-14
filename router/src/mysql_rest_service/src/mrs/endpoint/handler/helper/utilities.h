@@ -138,8 +138,11 @@ inline std::optional<std::string> merge_options(
     std::optional<std::string> parent_options) {
   static const std::set<std::string> k_non_inherited_options{
       "directoryIndexDirective", "defaultStaticContent", "defaultRedirects"};
+  static const std::set<std::string> k_always_inherited_options{
+      "passthroughDbUser"};
   return helper::json::merge_objects(options, parent_options,
-                                     k_non_inherited_options);
+                                     k_non_inherited_options,
+                                     k_always_inherited_options);
 }
 
 inline std::optional<std::string> get_endpoint_options(

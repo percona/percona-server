@@ -206,9 +206,6 @@ inline space_id_t num2id(space_id_t space_num) {
 
 /* clang-format off */
 /** Convert an undo space ID into an undo space number.
-NOTE: This may be an undo space_id from a pre-exisiting 5.7
-database which used space_ids from 1 to 127.  If so, the
-space_id is the space_num.
 The space_ids are assigned to number ranges in reverse from high to low.
 In addition, the first space IDs for each undo number occur sequentially
 and descending before the second space_id.
@@ -220,14 +217,15 @@ and s_undo_space_id_range = 400,000:
   0xFFFFFF70      1       0xFFFFFF6F       2     ...  0xFFFFFEF2    127
   0xFFFFFEF1      1       0xFFFFFEF0       2     ...  0xFFFFFE73    127
 ...
+*/
 
-This is done to maintain backward compatibility to when there was only one
-space_id per undo space number.
+/** Get the corresponding UNDO space number for a given UNDO space id
 @param[in]      space_id        undo tablespace ID
 @return space number of the undo tablespace */
 /* clang-format on */
 inline space_id_t id2num(space_id_t space_id) {
   if (!is_reserved(space_id)) {
+    ut_ad_eq(space_id, 0);
     return (space_id);
   }
 
@@ -457,13 +455,12 @@ struct Tablespace {
   @return tablespace ID */
   space_id_t id() { return (m_id); }
 
-  /** Get the undo tablespace number.  This is the same as m_id
-  if m_id is 0 or this is a v5.6-5.7 undo tablespace. v8+ undo
-  tablespaces use a space_id from the reserved range.
+  /** Get the undo tablespace number.
+  This is the same as m_id if m_id is 0.
   @return undo tablespace number */
   space_id_t num() {
     const auto n = undo::id2num(m_id);
-    ut_ad(n < FSP_MAX_ROLLBACK_SEGMENTS);
+    ut_ad(n <= FSP_MAX_UNDO_TABLESPACES);
     return n;
   }
 
@@ -896,8 +893,8 @@ class Truncate {
   @param[in]  undo_space  undo tablespace to truncate. */
   void mark(Tablespace *undo_space);
 
-  /** Get the ID of the tablespace marked for truncate.
-  @return tablespace ID marked for truncate. */
+  /** Get the number of the tablespace marked for truncate.
+  @return tablespace number marked for truncate. */
   space_id_t get_marked_space_num() const {
     return (id2num(m_space_id_marked));
   }

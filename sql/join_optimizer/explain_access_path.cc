@@ -1141,6 +1141,15 @@ class ColumnNameCollector {
 }  // namespace
 
 /**
+   Return 'true' if 'path' does deduplication (typically in the context
+   if a semi-join to inner-join transformation.)
+*/
+static bool DoesDeduplicate(const AccessPath &path) {
+  return path.type == AccessPath::REMOVE_DUPLICATES ||
+         (path.type == AccessPath::SORT && path.sort().remove_duplicates);
+}
+
+/**
    Given a json object, update it's appropriate json fields according to the
    input path. Also update the 'children' with a flat list of direct children
    of the passed object.  In most of cases, the returned object is same as the
@@ -1484,8 +1493,7 @@ static unique_ptr<Json_object> SetObjectMembers(
       if (predicate != nullptr &&
           predicate->expr->type == RelationalExpression::SEMIJOIN &&
           path->nested_loop_join().join_type == JoinType::INNER) {
-        if (path->nested_loop_join().outer->type ==
-            AccessPath::REMOVE_DUPLICATES) {
+        if (DoesDeduplicate(*path->nested_loop_join().outer)) {
           description.append(" (LooseScan)");
           error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
                                                   "loosescan");
@@ -1544,7 +1552,7 @@ static unique_ptr<Json_object> SetObjectMembers(
                                                 "firstmatch");
       }
       if (path->hash_join().rewrite_semi_to_inner) {
-        if (path->hash_join().outer->type == AccessPath::REMOVE_DUPLICATES) {
+        if (DoesDeduplicate(*path->hash_join().outer)) {
           description.append(" (LooseScan)");
           error |= AddMemberToObject<Json_string>(obj, "semijoin_strategy",
                                                   "loosescan");
@@ -1916,10 +1924,9 @@ static unique_ptr<Json_object> SetObjectMembers(
       description = "Remove duplicates from input grouped on ";
       unique_ptr<Json_array> group_items(new (std::nothrow) Json_array());
       if (group_items == nullptr) return nullptr;
-      for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
-        string group_item =
-            ItemToString(path->remove_duplicates().group_items[i]);
-        if (i != 0) {
+      for (Item *item : path->remove_duplicates().group_items()) {
+        string group_item = ItemToString(item);
+        if (item != path->remove_duplicates().group_items().front()) {
           description += ", ";
         }
         description += group_item;

@@ -882,7 +882,7 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
 
   if (table != nullptr) {
     err = ib_create_cursor_with_clust_index(ib_crsr, table, (trx_t *)ib_trx);
-    if (mdl != nullptr) {
+    if (mdl != nullptr && err == DB_SUCCESS) {
       (*ib_crsr)->mdl = mdl;
     }
   } else {
@@ -1001,6 +1001,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
   cursor->prebuilt = nullptr;
 
   if (cursor->mdl != nullptr) {
+    ut_ad(trx != nullptr);
     dd_mdl_release(trx->mysql_thd, &cursor->mdl);
   }
 
@@ -2687,7 +2688,9 @@ static ib_err_t ib_cursor_open_table_using_id(
   }
 
   err = ib_create_cursor_with_clust_index(ib_crsr, table, (trx_t *)ib_trx);
-  (*ib_crsr)->mdl = mdl;
+  if (err == DB_SUCCESS) {
+    (*ib_crsr)->mdl = mdl;
+  }
 
   return (err);
 }

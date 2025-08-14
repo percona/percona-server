@@ -135,6 +135,13 @@ void lower(std::string &s);
 HARNESS_EXPORT
 std::string make_lower(std::string s);
 
+/**
+ * Replace string
+ */
+HARNESS_EXPORT
+std::string replace(std::string_view s, std::string_view from,
+                    std::string_view to);
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_STRING_UTILS_INCLUDED */

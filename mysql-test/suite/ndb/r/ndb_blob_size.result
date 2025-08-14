@@ -83,6 +83,14 @@ INSERT INTO test.shortinline VALUES (
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.shortinline;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DROP TABLE test.shortinline;
 
 ## Create table with large inline values
@@ -121,6 +129,14 @@ INSERT INTO test.longinline values (
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.longinline;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DROP TABLE test.longinline;
 
 ## Create table with some inline values below their default
@@ -159,6 +175,14 @@ INSERT INTO test.mixedinline VALUES (
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.mixedinline;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 DROP TABLE test.mixedinline;
 
@@ -198,6 +222,14 @@ INSERT INTO test.withmaxparts VALUES (
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 DROP TABLE test.withmaxparts;
 
@@ -359,6 +391,10 @@ INSERT INTO test.inline (a, b, t, j) VALUES (1,
 SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 sha1(b)	sha1(t)	sha1(j)
 c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	8bef4ce42aa0c9268e300438f01d118b75e3b423
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Copy ALTER TABLE change column BLOB_INLINE_SIZE changes inline_blob_size
 ALTER TABLE test.inline algorithm=copy,
@@ -376,6 +412,10 @@ inline_size
 SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 sha1(b)	sha1(t)	sha1(j)
 c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	8bef4ce42aa0c9268e300438f01d118b75e3b423
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Copy ALTER TABLE change back BLOB_INLINE_SIZE to less
 ALTER TABLE test.inline algorithm=copy,
@@ -393,6 +433,10 @@ inline_size
 SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 sha1(b)	sha1(t)	sha1(j)
 c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	8bef4ce42aa0c9268e300438f01d118b75e3b423
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Copy ALTER TABLE change to zero inline size
 ALTER TABLE test.inline algorithm=copy,
@@ -410,6 +454,10 @@ inline_size
 SELECT sha1(b), sha1(t), sha1(j) FROM test.inline;
 sha1(b)	sha1(t)	sha1(j)
 c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	c0bb7371406f4b1c5d579dcaad1ff066a3bd09e6	8bef4ce42aa0c9268e300438f01d118b75e3b423
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Copy ALTER TABLE too big BLOB_INLINE_SIZE
 ALTER TABLE test.inline algorithm=copy,
@@ -490,6 +538,14 @@ INSERT INTO test.withmaxparts VALUES (
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 
 
@@ -509,6 +565,14 @@ CREATE TABLE test.withmaxparts(
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl), sha1(j) FROM test.withmaxparts;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)	sha1(j)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	097feaddb29114042fe77f8cdfc7aa6b9074b939
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Verify that inline of test.withmaxparts are the new sizes
 SELECT inline_size FROM ndbinfo.blobs WHERE table_name = 'withmaxparts';

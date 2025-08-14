@@ -60,16 +60,15 @@ NdbRestarter::NdbRestarter(const char *_addr, Ndb_cluster_connection *con)
 NdbRestarter::~NdbRestarter() { disconnect(); }
 
 int NdbRestarter::getDbNodeId(int _i) {
-  if (!isConnected()) return -1;
-
-  if (getStatus() != 0) return -1;
-
-  for (unsigned i = 0; i < ndbNodes.size(); i++) {
-    if (i == (unsigned)_i) {
-      return ndbNodes[i].node_id;
-    }
+  if (!isConnected() || getStatus() != 0) {
+    return -1;
   }
-  return -1;
+
+  const auto i = static_cast<unsigned>(_i);
+  if (i >= ndbNodes.size()) {
+    return -1;
+  }
+  return ndbNodes[i].node_id;
 }
 
 int NdbRestarter::restartOneDbNode(int _nodeId, bool inital, bool nostart,
@@ -495,7 +494,7 @@ int NdbRestarter::waitNodesState(const int *_nodes, int _num_nodes,
         if (ndbNode->node_status != _status) allInState = false;
       }
     }
-    g_info << "Waiting for cluster enter state"
+    g_info << "Waiting for cluster enter state "
            << ndb_mgm_get_node_status_string(_status) << endl;
     NdbSleep_SecSleep(1);
     attempts++;

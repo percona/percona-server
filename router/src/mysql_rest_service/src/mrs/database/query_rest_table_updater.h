@@ -74,6 +74,8 @@ class JsonMappingUpdater : public Query {
 
   uint64_t delete_(MySQLSession *session, const FilterObjectGenerator &filter);
 
+  bool has_references() const;
+
   const ObjectRowOwnership &row_ownership_info() const {
     return m_row_ownership_info;
   }

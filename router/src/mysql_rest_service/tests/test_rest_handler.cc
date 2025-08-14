@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "helper/set_http_component.h"
+#include "http/base/uri_path_matcher.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_http_request.h"
@@ -36,6 +37,7 @@
 #include "mock/partialmock_rest_handler.h"
 
 using helper::SetHttpComponent;
+using ::http::base::UriPathMatcher;
 using testing::_;
 using testing::Invoke;
 using testing::Mock;
@@ -47,17 +49,17 @@ using testing::Test;
 
 class RestHandlerTests : public Test {
  public:
-  void make_sut(const std::string &rest_path) {
-    EXPECT_CALL(mock_http_component_, add_route(_, rest_path, _))
+  void make_sut(const UriPathMatcher &rest_path) {
+    EXPECT_CALL(mock_http_component_, add_direct_match_route(_, rest_path, _))
         .WillOnce(Invoke(
             [this](
-                const ::std::string &, const ::std::string &,
+                const ::std::string &, const UriPathMatcher &,
                 std::unique_ptr<http::base::RequestHandler> handler) -> void * {
               request_handler_ = std::move(handler);
               return request_handler_.get();
             }));
     sut_ = std::make_shared<StrictMock<PartialMockRestHandler>>(
-        rest_path, &mock_auth_manager_);
+        rest_path.path, &mock_auth_manager_);
     sut_->initialize(mrs::interface::RestHandler::Configuration());
     ASSERT_NE(nullptr, request_handler_.get());
   }
@@ -68,7 +70,7 @@ class RestHandlerTests : public Test {
   }
 
   const std::string k_url{"https://mysql.com/mrs/schema/table"};
-  const std::string k_path{"^/mrs/schema/table/?"};
+  const UriPathMatcher k_path{"/mrs/schema/table/", false, false};
   const std::string k_empty{};
 
   StrictMock<MockMysqlCacheManager> mock_cache_manager_;

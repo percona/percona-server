@@ -63,6 +63,7 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/json_duality_view/ddl.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"     // stage_end reg_ext key_file_frm
@@ -313,6 +314,8 @@ static bool fill_defined_view_parts(THD *thd, Table_ref *view) {
     lex->create_view_suid =
         decoy.view_suid ? VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
 
+  view->view_type = decoy.view_type;
+
   return false;
 }
 
@@ -511,10 +514,47 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
     goto err;
   }
 
-  if (mode == enum_view_create_mode::VIEW_ALTER &&
-      fill_defined_view_parts(thd, view)) {
-    res = true;
-    goto err;
+  if (mode == enum_view_create_mode::VIEW_ALTER) {
+    if (fill_defined_view_parts(thd, view)) {
+      res = true;
+      goto err;
+    }
+
+    if (view->view_type != lex->create_view_type) {
+      my_error(ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED, MYF(0),
+               view->get_db_name(), view->get_table_name(),
+               view->is_json_duality_view() ? "JSON_DUALITY" : "SQL");
+      res = true;
+      goto err;
+    }
+  } else {
+    view->view_type = lex->create_view_type;
+    if (mode == enum_view_create_mode::VIEW_CREATE_OR_REPLACE) {
+      const dd::Abstract_table *at = nullptr;
+      if (current_thd->dd_client()->acquire(view->db, view->table_name, &at)) {
+        res = true;
+        goto err;
+      }
+
+      if (at != nullptr) {
+        dd::String_type str_view_type = "SQL";
+        const dd::Properties *at_options = &at->options();
+        if (at_options->exists("view_type") &&
+            at_options->get("view_type", &str_view_type)) {
+          res = true;
+          goto err;
+        }
+
+        enum_view_type view_type = dd::get_sql_view_type(str_view_type);
+        if (view_type != lex->create_view_type) {
+          my_error(ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED, MYF(0),
+                   view->get_db_name(), view->get_table_name(),
+                   str_view_type.c_str());
+          res = true;
+          goto err;
+        }
+      }
+    }
   }
 
   sp_cache_invalidate();
@@ -617,6 +657,11 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
     bind_fields(thd->stmt_arena->item_list());
   }
 
+  if (view->is_json_duality_view() && jdv::prepare(thd, view)) {
+    res = true;
+    goto err;
+  }
+
   /*
     Compare/check grants on view with grants of underlying tables
   */
@@ -698,6 +743,9 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
     buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
                 command[static_cast<int>(thd->lex->create_view_mode)].length);
     view_store_options(thd, views, &buff);
+    if (lex->create_view_type == enum_view_type::JSON_DUALITY_VIEW) {
+      buff.append(STRING_WITH_LEN("JSON RELATIONAL DUALITY "));
+    }
     buff.append(STRING_WITH_LEN("VIEW "));
 
     if ((mode == enum_view_create_mode::VIEW_CREATE_NEW) &&
@@ -712,7 +760,8 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
       buff.append('.');
     }
     append_identifier(thd, &buff, views->table_name, views->table_name_length);
-    if (view->derived_column_names()) {
+    if ((lex->create_view_type != enum_view_type::JSON_DUALITY_VIEW) &&
+        view->derived_column_names()) {
       int i = 0;
       for (auto name : *view->derived_column_names()) {
         buff.append(i++ ? ", " : "(");
@@ -781,6 +830,11 @@ err:
 bool is_updatable_view(THD *thd, Table_ref *view) {
   bool updatable_view = false;
   LEX *lex = thd->lex;
+
+  // JSON duality views are updatable always.
+  if (view->is_json_duality_view()) {
+    return true;
+  }
 
   /*
     A view can be merged if it is technically possible and if the user didn't
@@ -1295,6 +1349,9 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   // Needed for correct units markup for EXPLAIN
   view_lex->explain_format = old_lex->explain_format;
 
+  bool parsing_json_duality_view_saved = thd->parsing_json_duality_view;
+  thd->parsing_json_duality_view = view_ref->is_json_duality_view();
+
   /*
     Push error handler allowing DD table access. Creating views referring
     to DD tables is rejected except for the I_S views. Thus, when parsing
@@ -1332,6 +1389,8 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   if (thd->parsing_system_view) thd->pop_internal_handler();
 
   thd->parsing_system_view = parsing_system_view_saved;
+
+  thd->parsing_json_duality_view = parsing_json_duality_view_saved;
 
   // Restore environment
   if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
@@ -1645,13 +1704,16 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   // Updatability is not decided yet
   assert(!view_ref->is_updatable());
 
-  // another level of nesting would exceed the max supported nesting level
-  if (view_ref->query_block->nest_level >= MAX_SELECT_NESTING) {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
-    return true;
+  if (view_ref->query_block) {
+    // another level of nesting would exceed the max supported nesting level
+    if (view_ref->query_block->nest_level >= MAX_SELECT_NESTING) {
+      my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
+      return true;
+    }
+    // Link query expression of view into the outer query
+    view_lex->unit->include_down(old_lex, view_ref->query_block);
   }
-  // Link query expression of view into the outer query
-  view_lex->unit->include_down(old_lex, view_ref->query_block);
+
   //  Set hints specified in created view to allow printing them in view body.
   if (view_lex->opt_hints_global && !old_lex->opt_hints_global &&
       (old_lex->sql_command == SQLCOM_CREATE_VIEW ||

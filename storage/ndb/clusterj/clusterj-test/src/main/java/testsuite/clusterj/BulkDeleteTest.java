@@ -86,7 +86,8 @@ public class BulkDeleteTest extends AbstractClusterJModelTest {
         int result = 0;
         do {
             result = query.deletePersistentAll();
-            System.out.println("Batch result: " + result);
+            if(logger.isInfoEnabled())
+                logger.info("Batch result: " + result);
         } while(result == DeleteBatchSize);
     }
 }

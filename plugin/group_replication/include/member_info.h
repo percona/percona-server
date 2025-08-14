@@ -43,7 +43,6 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/utils/nodiscard.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/member_version.h"
 #include "plugin/group_replication/include/plugin_constants.h"
@@ -843,7 +842,7 @@ class Group_member_info_manager_interface {
     @return true  if the member is not found.
             false if the member is found.
    */
-  [[NODISCARD]] virtual bool get_group_member_info(
+  [[nodiscard]] virtual bool get_group_member_info(
       const std::string &uuid, Group_member_info &member_info_arg) = 0;
 
   /**
@@ -859,7 +858,7 @@ class Group_member_info_manager_interface {
     @return true  if the member is not found.
             false if the member is found.
    */
-  [[NODISCARD]] virtual bool get_group_member_info_by_index(
+  [[nodiscard]] virtual bool get_group_member_info_by_index(
       int idx, Group_member_info &member_info_arg) = 0;
 
   /**
@@ -881,7 +880,7 @@ class Group_member_info_manager_interface {
     @return true  if the member is not found.
             false if the member is found.
    */
-  [[NODISCARD]] virtual bool get_group_member_info_by_member_id(
+  [[nodiscard]] virtual bool get_group_member_info_by_member_id(
       const Gcs_member_identifier &id, Group_member_info &member_info_arg) = 0;
 
   /**
@@ -1076,7 +1075,7 @@ class Group_member_info_manager_interface {
     @return true  if the member is not found.
             false if the member is found.
   */
-  [[NODISCARD]] virtual bool get_primary_member_info(
+  [[nodiscard]] virtual bool get_primary_member_info(
       Group_member_info &member_info_arg) = 0;
 
   /**
@@ -1227,15 +1226,15 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   bool is_member_info_present(const std::string &uuid) override;
 
-  [[NODISCARD]] bool get_group_member_info(
+  [[nodiscard]] bool get_group_member_info(
       const std::string &uuid, Group_member_info &member_info_arg) override;
 
-  [[NODISCARD]] bool get_group_member_info_by_index(
+  [[nodiscard]] bool get_group_member_info_by_index(
       int idx, Group_member_info &member_info_arg) override;
 
   Member_version get_group_lowest_online_version() override;
 
-  [[NODISCARD]] bool get_group_member_info_by_member_id(
+  [[nodiscard]] bool get_group_member_info_by_member_id(
       const Gcs_member_identifier &id,
       Group_member_info &member_info_arg) override;
 
@@ -1291,7 +1290,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   bool get_primary_member_uuid(std::string &primary_member_uuid) override;
 
-  [[NODISCARD]] bool get_primary_member_info(
+  [[nodiscard]] bool get_primary_member_info(
       Group_member_info &member_info_arg) override;
 
   bool is_majority_unreachable() override;

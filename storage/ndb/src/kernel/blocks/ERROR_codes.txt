@@ -882,6 +882,8 @@ SUMA:
        Also 13061 and 13062 shows that event-API flushes all
        incomplete buckets having epochs <= MISSING_DATA-epoch,
        including the non-sent-epoch at node crash.
+13063: Solely ignore execSUB_GCP_COMPLETE_ACK from subscribers to provoke
+       start_resend
 
 LGMAN:
 -----

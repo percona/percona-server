@@ -67,7 +67,8 @@ static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
   return c;
 }
 #else
-static inline connection_descriptor *new_connection(int fd) {
+static inline connection_descriptor *new_connection(int fd,
+                                                    void *p [[maybe_unused]]) {
   connection_descriptor *c = (connection_descriptor *)xcom_calloc(
       (size_t)1, sizeof(connection_descriptor));
   c->fd = fd;

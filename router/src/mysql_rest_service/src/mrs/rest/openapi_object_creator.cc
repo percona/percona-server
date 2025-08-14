@@ -32,6 +32,7 @@
 
 #include "helper/string/contains.h"  // starts_with
 #include "mrs/database/converters/column_datatype_converter.h"
+#include "mrs/rest/handler.h"            // parse_json_options
 #include "mysql/harness/string_utils.h"  // split_string
 
 namespace mrs {
@@ -55,6 +56,15 @@ std::string get_timestamp() {
   return oss.str();
 }
 }  // anonymous namespace
+
+bool async_enabled(const std::optional<std::string> &options) {
+  const auto parsed_options = mrs::rest::parse_json_options(options);
+
+  return (parsed_options.mysql_task.driver ==
+              mrs::interface::Options::MysqlTask::DriverType::kDatabase ||
+          parsed_options.mysql_task.driver ==
+              mrs::interface::Options::MysqlTask::DriverType::kRouter);
+}
 
 rapidjson::Value get_header_info(
     std::shared_ptr<DbService> service,
@@ -180,8 +190,17 @@ class OpenApiCreator {
 
   /**
    * Add OpenAPI path items for MRS Funcions and Pocedure objects.
+   * @param[in] is_async Callable supports async operations
+   * @param[in] privileges User privileges
    */
-  rapidjson::Value get_procedure_items() const;
+  rapidjson::Value get_procedure_items(const std::optional<uint32_t> privileges,
+                                       const bool is_async) const;
+
+  /**
+   * Add parameter for entries with Primary Key.
+   */
+  rapidjson::Value create_parameter(std::string_view name,
+                                    std::string_view type) const;
 
  private:
   /**
@@ -191,12 +210,6 @@ class OpenApiCreator {
   rapidjson::Value add_type_constraints(
       const std::string &type_name,
       const mrs::database::entry::ColumnType type) const;
-
-  /**
-   * Add parameter for entries with Primary Key.
-   */
-  rapidjson::Value create_parameter(std::string_view name,
-                                    std::string_view type) const;
 
   /**
    * Add filter parameters to GET and DELETE methods.
@@ -956,7 +969,8 @@ static rapidjson::Value get_http_500_schema(
   return result;
 }
 
-rapidjson::Value OpenApiCreator::get_procedure_items() const {
+rapidjson::Value OpenApiCreator::get_procedure_items(
+    const std::optional<uint32_t> privileges, const bool is_async) const {
   rapidjson::Value input_properties(rapidjson::kObjectType);
   for (const auto &p : entry_->fields.parameters.fields) {
     if (p.mode == mrs::database::entry::Field::Mode::modeOut) continue;
@@ -967,6 +981,77 @@ rapidjson::Value OpenApiCreator::get_procedure_items() const {
                                  *property_details_res, allocator_);
     }
   }
+
+  rapidjson::Value call_result(rapidjson::kObjectType);
+  if (is_async) {
+    call_result.AddMember(
+        "202",
+        rapidjson::Value(rapidjson::kObjectType)
+            .AddMember("description", entry_->name + " async task started",
+                       allocator_)
+            .AddMember(
+                "content",
+                rapidjson::Value(rapidjson::kObjectType)
+                    .AddMember(
+                        "application/json",
+                        rapidjson::Value(rapidjson::kObjectType)
+                            .AddMember(
+                                "schema",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember("type", "object", allocator_)
+                                    .AddMember(
+                                        "properties",
+                                        rapidjson::Value(rapidjson::kObjectType)
+                                            .AddMember(
+                                                "message",
+                                                rapidjson::Value(
+                                                    rapidjson::kObjectType)
+                                                    .AddMember("type", "string",
+                                                               allocator_),
+                                                allocator_)
+                                            .AddMember(
+                                                "statusUrl",
+                                                rapidjson::Value(
+                                                    rapidjson::kObjectType)
+                                                    .AddMember("type", "string",
+                                                               allocator_),
+                                                allocator_)
+                                            .AddMember(
+                                                "taskId",
+                                                rapidjson::Value(
+                                                    rapidjson::kObjectType)
+                                                    .AddMember("type",
+                                                               "integer",
+                                                               allocator_),
+                                                allocator_),
+                                        allocator_),
+                                allocator_),
+                        allocator_),
+                allocator_),
+        allocator_);
+  } else {
+    call_result.AddMember(
+        "200",
+        rapidjson::Value(rapidjson::kObjectType)
+            .AddMember("description", entry_->name + " results", allocator_)
+            .AddMember("content", get_content_schema_single(), allocator_),
+        allocator_);
+  }
+  call_result.AddMember(
+      "500",
+      rapidjson::Value(rapidjson::kObjectType)
+          .AddMember("description", "Internal Server Error", allocator_)
+          .AddMember(
+              "content",
+              rapidjson::Value(rapidjson::kObjectType)
+                  .AddMember(
+                      "application/json",
+                      rapidjson::Value(rapidjson::kObjectType)
+                          .AddMember("schema", get_http_500_schema(allocator_),
+                                     allocator_),
+                      allocator_),
+              allocator_),
+      allocator_);
 
   rapidjson::Value request_body(rapidjson::kObjectType);
   request_body.AddMember(
@@ -1009,38 +1094,20 @@ rapidjson::Value OpenApiCreator::get_procedure_items() const {
                         allocator_),
           allocator_)
       .AddMember("requestBody", request_body, allocator_)
-      .AddMember(
-          "responses",
-          rapidjson::Value(rapidjson::kObjectType)
-              .AddMember("200",
-                         rapidjson::Value(rapidjson::kObjectType)
-                             .AddMember("description",
-                                        entry_->name + " results", allocator_)
-                             .AddMember("content", get_content_schema_single(),
-                                        allocator_),
-                         allocator_)
-              .AddMember(
-                  "500",
-                  rapidjson::Value(rapidjson::kObjectType)
-                      .AddMember("description", "Internal Server Error",
-                                 allocator_)
-                      .AddMember(
-                          "content",
-                          rapidjson::Value(rapidjson::kObjectType)
-                              .AddMember(
-                                  "application/json",
-                                  rapidjson::Value(rapidjson::kObjectType)
-                                      .AddMember(
-                                          "schema",
-                                          get_http_500_schema(allocator_),
-                                          allocator_),
-                                  allocator_),
-                          allocator_),
-                  allocator_),
-          allocator_);
+      .AddMember("responses", call_result, allocator_);
 
   rapidjson::Value function_item(rapidjson::kObjectType);
-  function_item.AddMember("put", function_detail, allocator_);
+  rapidjson::Value post_detail(function_detail, allocator_);
+
+  if (privileges.value_or(mrs::database::entry::Operation::valueUpdate) &
+      mrs::database::entry::Operation::valueUpdate) {
+    function_item.AddMember("put", function_detail, allocator_);
+  }
+
+  if (privileges.value_or(mrs::database::entry::Operation::valueCreate) &
+      mrs::database::entry::Operation::valueCreate) {
+    function_item.AddMember("post", post_detail, allocator_);
+  }
 
   return function_item;
 }
@@ -1209,7 +1276,8 @@ rapidjson::Value OpenApiCreator::get_procedure_components() const {
 
 rapidjson::Value get_route_openapi_schema_path(
     const std::optional<uint32_t> privileges, DbObjectPtr entry,
-    const std::string &url, rapidjson::Document::AllocatorType &allocator) {
+    const std::string &url, const bool is_async,
+    rapidjson::Document::AllocatorType &allocator) {
   OpenApiCreator api_creator{entry, allocator};
 
   rapidjson::Value items(rapidjson::kObjectType);
@@ -1221,8 +1289,11 @@ rapidjson::Value get_route_openapi_schema_path(
       entry->type ==
           mrs::database::entry::DbObject::ObjectType::k_objectTypeFunction) {
     if (privileges.value_or(mrs::database::entry::Operation::valueUpdate) &
-        mrs::database::entry::Operation::valueUpdate) {
-      auto function_item = api_creator.get_procedure_items();
+            mrs::database::entry::Operation::valueUpdate ||
+        privileges.value_or(mrs::database::entry::Operation::valueCreate) &
+            mrs::database::entry::Operation::valueCreate) {
+      auto function_item =
+          api_creator.get_procedure_items(privileges, is_async);
       items.AddMember(rapidjson::Value(url, allocator), function_item,
                       allocator);
     }
@@ -1283,6 +1354,103 @@ bool is_supported(
   }
 
   return true;
+}
+
+rapidjson::Value add_task_id_endpoint(
+    const std::optional<uint32_t> privileges, DbObjectPtr entry,
+    rapidjson::Document::AllocatorType &allocator) {
+  rapidjson::Value result(rapidjson::kObjectType);
+  OpenApiCreator api_creator{entry, allocator};
+
+  rapidjson::Value tags{rapidjson::kArrayType};
+  tags.PushBack(rapidjson::Value(
+                    std::string{entry->schema_name + "/" + entry->name}.c_str(),
+                    allocator),
+                allocator);
+
+  rapidjson::Value parameters{rapidjson::kArrayType};
+  parameters.PushBack(api_creator.create_parameter("taskId", "integer"),
+                      allocator);
+
+  if (privileges.value_or(mrs::database::entry::Operation::valueDelete) &
+      mrs::database::entry::Operation::valueDelete) {
+    result.AddMember(
+        "delete",
+        rapidjson::Value(rapidjson::kObjectType)
+            .AddMember("summary", "Delete async task", allocator)
+            .AddMember("parameters", rapidjson::Value(parameters, allocator),
+                       allocator)
+            .AddMember("tags", rapidjson::Value(tags, allocator), allocator)
+            .AddMember(
+                "responses",
+                rapidjson::Value(rapidjson::kObjectType)
+                    .AddMember(
+                        "200",
+                        rapidjson::Value(rapidjson::kObjectType)
+                            .AddMember("description",
+                                       "Task deleted successfully", allocator),
+                        allocator),
+                allocator),
+        allocator);
+  }
+
+  rapidjson::Value get_schema{rapidjson::kObjectType};
+  get_schema.AddMember("type", "object", allocator)
+      .AddMember("properties",
+                 rapidjson::Value(rapidjson::kObjectType)
+                     .AddMember("data",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember("type", "object", allocator)
+                                    .AddMember("nullable", true, allocator)
+                                    .AddMember("additionalProperties", true,
+                                               allocator),
+                                allocator)
+                     .AddMember("status",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember("type", "string", allocator),
+                                allocator)
+                     .AddMember("message",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember("type", "string", allocator),
+                                allocator)
+                     .AddMember("progress",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember("type", "integer", allocator),
+                                allocator),
+                 allocator);
+
+  if (privileges.value_or(mrs::database::entry::Operation::valueRead) &
+      mrs::database::entry::Operation::valueRead) {
+    result.AddMember(
+        "get",
+        rapidjson::Value(rapidjson::kObjectType)
+            .AddMember("summary", "Check async task status", allocator)
+            .AddMember("parameters", parameters, allocator)
+            .AddMember("tags", tags, allocator)
+            .AddMember(
+                "responses",
+                rapidjson::Value(rapidjson::kObjectType)
+                    .AddMember(
+                        "200",
+                        rapidjson::Value(rapidjson::kObjectType)
+                            .AddMember("description", "Async task status",
+                                       allocator)
+                            .AddMember(
+                                "content",
+                                rapidjson::Value(rapidjson::kObjectType)
+                                    .AddMember(
+                                        "application/json",
+                                        rapidjson::Value(rapidjson::kObjectType)
+                                            .AddMember("schema", get_schema,
+                                                       allocator),
+                                        allocator),
+                                allocator),
+                        allocator),
+                allocator),
+        allocator);
+  }
+
+  return result;
 }
 
 }  // namespace rest

@@ -3311,20 +3311,26 @@ void PromoteCycleJoinPredicates(
 void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
                                            JoinHypergraph *graph) {
   if (expr->type == RelationalExpression::TABLE) {
-    graph->graph.AddNode();
-    JoinHypergraph::Node node{thd->mem_root, expr->table->table,
-                              expr->companion_set};
+    const Table_ref *const table_ref = expr->table;
+    TABLE *const table = table_ref->table;
 
+    graph->graph.AddNode();
+    graph->nodes.emplace_back(thd->mem_root, table, expr->companion_set);
+
+    JoinHypergraph::Node &node = graph->nodes.back();
     for (Item *cond : expr->pushable_conditions()) {
       node.AddPushable(cond);
     }
 
-    graph->nodes.push_back(std::move(node));
+    // Estimate and cache the number of bytes to read per row for this table, so
+    // that we don't need to recalculate it every time it is needed.
+    table->set_bytes_per_row(
+        new (thd->mem_root) BytesPerTableRow{EstimateBytesPerRowTable(table)});
 
-    assert(expr->table->tableno() < MAX_TABLES);
-    graph->table_num_to_node_num[expr->table->tableno()] =
-        graph->graph.nodes.size() - 1;
-    expr->nodes_in_subtree = NodeMap{1} << (graph->graph.nodes.size() - 1);
+    assert(table_ref->tableno() < MAX_TABLES);
+    const size_t node_num = graph->nodes.size() - 1;
+    graph->table_num_to_node_num[table_ref->tableno()] = node_num;
+    expr->nodes_in_subtree = TableBitmap(node_num);
     return;
   }
 

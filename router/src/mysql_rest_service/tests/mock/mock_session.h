@@ -32,6 +32,8 @@
 
 class MockMySQLSession : public collector::CountedMySQLSession {
  public:
+  MOCK_METHOD(void, connect, (const ConnectionParameters &connection_params),
+              (override));
   MOCK_METHOD(void, connect,
               (const std::string &, unsigned int, const std::string &,
                const mysql_harness::SecureString &, const std::string &,

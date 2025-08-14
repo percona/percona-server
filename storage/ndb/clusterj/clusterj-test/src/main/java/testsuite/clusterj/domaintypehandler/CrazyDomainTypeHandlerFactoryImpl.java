@@ -184,7 +184,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public Class getOidClass() {
+                public Class getDomainClass() {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -222,6 +222,11 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
+                public boolean isClosing() { return false; }
+                public void setClosing()   { }
+                public boolean isClosed()  { return false; }
+                public void setClosed()    { }
+                public String getTableVersion() { return "1"; }
             };
         } else {
             return null;

@@ -117,11 +117,10 @@ fx(f) - OrderedIndex
 # restore data from backup with demote
 # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
-ERROR HY000: Incorrect information in file: './test/t1.frm'
+ERROR 42S02: Table 'test.t1' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
-Error	1033	Incorrect information in file: './test/t1.frm'
-Warning	10758	Error in creating TABLE_SHARE from t1.frm file
+Warning	10923	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
 set time_zone = default;

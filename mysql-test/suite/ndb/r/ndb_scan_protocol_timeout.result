@@ -533,3 +533,25 @@ ops
 0
 drop table test.t1;
 drop table test.t2;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_reduced_api_protocol_timeout";
+Determine our NdbApi connection id
+Determine row ids used to control data nodes involved
+Drop down to just the row on node 1
+Block send from node 1 to our API
+Hint transaction to node 2
+a	nodeid
+Send select of all - will hang
+Now cause restart of node 1
+Node 1 is being restarted
+
+Wait for data node to restart
+Reap query - will get timeout error
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Issue more queries to check all is well
+select * from test.t1;
+select * from test.t1;
+select * from test.t1;
+Cleanup
+drop table test.t1;
+SET SESSION debug=@save_debug;

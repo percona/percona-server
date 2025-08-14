@@ -42,6 +42,8 @@ a	sha1(b)
 1	1d42dd9090cf78314a06665d4ea938c35cc760f4
 2	10d3c783026b310218d10b7188da96a2401648c6
 3	a33549d9844092289a58ac348dd59f09fc28406a
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select sha1(a), sha1(c), e from t2 order by b, d, f;
 sha1(a)	sha1(c)	e
 1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
@@ -53,6 +55,9 @@ a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630
 1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
 a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
 70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1, t2;
 select a, sha1(b) from t1 order by a;
 a	sha1(b)
@@ -110,6 +115,8 @@ a	sha1(b)
 1	1d42dd9090cf78314a06665d4ea938c35cc760f4
 2	10d3c783026b310218d10b7188da96a2401648c6
 3	a33549d9844092289a58ac348dd59f09fc28406a
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select sha1(a), sha1(c), e from t2 order by b, d, f;
 sha1(a)	sha1(c)	e
 1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
@@ -121,6 +128,9 @@ a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630
 1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
 a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
 70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1, t2;
 select a, sha1(b) from t1 order by a;
 a	sha1(b)

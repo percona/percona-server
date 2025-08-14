@@ -109,7 +109,9 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/item_func.h"
+#include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
+#include "sql/json_duality_view/ddl.h"
 #include "sql/lock.h"  // mysql_lock_remove
 #include "sql/log.h"
 #include "sql/log_event.h"           // Query_log_event
@@ -6201,6 +6203,29 @@ restart:
                  ER_THD(thd, ER_NON_RO_SELECT_DISABLE_TIMER));
   }
 
+  for (tables = *start; tables; tables = tables->next_global) {
+    if (!tables->is_view() || !tables->is_json_duality_view()) continue;
+
+    /*
+      This is to block below scenario where a normal view references a JDV.
+    */
+    if (thd->lex->create_view_type == enum_view_type::SQL_VIEW ||
+        tables->top_table() != tables) {
+      if (thd->lex->sql_command == enum_sql_command::SQLCOM_SHOW_CREATE) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_JDV_CANNOT_BE_USED_WITH,
+                            tables->get_table_name(), "a normal SQL view.");
+        continue;
+      }
+      my_error(ER_JDV_CANNOT_BE_USED_WITH, MYF(0), tables->get_table_name(),
+               "a normal SQL view");
+      return true;
+    }
+
+    if (jdv::is_prepare_required(thd, tables) && jdv::prepare(thd, tables))
+      return true;
+  }
+
   /*
     After successful open of all tables, including MERGE parents and
     children, attach the children to their parents. At end of statement,
@@ -7068,8 +7093,16 @@ bool open_tables_for_query(THD *thd, Table_ref *tables, uint flags) {
                                     OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
   }
 
+<<<<<<< HEAD
   thd->check_rpl_stmt_event_format_used();
 
+||||||| merged common ancestors
+=======
+  thd->lex->set_using_secondary_engine(
+      thd->secondary_engine_optimization() ==
+      Secondary_engine_optimization::SECONDARY);
+
+>>>>>>> mysql-9.4.0
   return false;
 end:
   /*

@@ -52,10 +52,7 @@ extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 extern REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry,
-                                       mysql_service_registry_no_lock);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                       mysql_service_registration_no_lock);
+
 /**
   An implementation of the password_validation_service to validate password and
   to get its strength.

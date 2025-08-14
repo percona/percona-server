@@ -44,7 +44,7 @@ CommonContext::CommonContext(
     const std::shared_ptr<shcore::polyglot::IFile_system> &fs,
     const std::vector<std::string> &module_files,
     const shcore::Dictionary_t &globals,
-    const std::vector<std::string> &isolate_args)
+    const shcore::polyglot::IsolateArgs &isolate_args)
     : m_file_system{fs},
       m_module_files{module_files},
       m_globals{globals},
@@ -125,7 +125,8 @@ poly_engine CommonContext::create_engine() {
   return engine;
 }
 
-void CommonContext::initialize(const std::vector<std::string> &isolate_args) {
+void CommonContext::initialize(
+    const shcore::polyglot::IsolateArgs &isolate_args) {
   Polyglot_common_context::initialize(isolate_args);
 
   m_base_context = std::make_shared<JavaScript>(this);

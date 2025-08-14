@@ -378,6 +378,9 @@ bool IsForcedMaterialization(THD *thd, Item *cond) {
                if (!is_quantified_comp_predicate(item)) return false;
                Item_in_subselect *item_subs =
                    down_cast<Item_in_subselect *>(item);
+               // Check if strategy for this subquery is already finalized.
+               if (item_subs->strategy == Subquery_strategy::SUBQ_EXISTS)
+                 return false;
                const Query_expression *query_expr = item_subs->query_expr();
                Query_block *qb = query_expr->first_query_block();
                // Sometimes a query block is marked for materialization
@@ -423,6 +426,11 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
         Item_in_subselect *item_subs = down_cast<Item_in_subselect *>(item);
         if (item_subs->strategy == Subquery_strategy::SUBQ_MATERIALIZATION) {
           // This subquery is already set up for materialization.
+          return false;
+        }
+        if (item_subs->strategy == Subquery_strategy::SUBQ_EXISTS) {
+          // The strategy for this subquery is already finalized and it's
+          // not materialization.
           return false;
         }
         const Query_expression *query_expr = item_subs->query_expr();
@@ -1280,8 +1288,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<RemoveDuplicatesIterator>(
-            thd, mem_root, std::move(job.children[0]), join, param.group_items,
-            param.group_items_size);
+            thd, mem_root, std::move(job.children[0]), join,
+            param.group_items());
         break;
       }
       case AccessPath::REMOVE_DUPLICATES_ON_INDEX: {

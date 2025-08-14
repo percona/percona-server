@@ -155,7 +155,7 @@ with the system time.
 Windows version and Posix version differ slightly, but use the same general
 approach.
 */
-#define crash(x) g_critical("%s\n", x)
+#define crash(x) G_FATAL("%s\n", x)
 
 #ifdef _WIN32
 

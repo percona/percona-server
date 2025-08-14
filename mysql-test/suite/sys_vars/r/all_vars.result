@@ -32,6 +32,10 @@ disabled_storage_engines
 disabled_storage_engines
 explain_format
 explain_format
+external_table_secondary_storage_engine
+external_table_secondary_storage_engine
+external_table_storage_engine
+external_table_storage_engine
 generated_random_password_length
 generated_random_password_length
 group_replication_consistency
@@ -169,8 +173,6 @@ sync_master_info
 sync_master_info
 temptable_max_mmap
 temptable_max_mmap
-temptable_use_mmap
-temptable_use_mmap
 terminology_use_previous
 terminology_use_previous
 tls_certificates_enforced_validation

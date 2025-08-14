@@ -211,6 +211,49 @@ static dd::View::enum_security_type dd_get_new_view_security_type(
 }
 
 /**
+ * @brief Helper function to get type in string format for a view type.
+ *        View type in string format is used store "view_type='<type>'"
+ *        option in options column of DD table.
+ *
+ * @param type       View type.
+ *
+ * @returns View type in string form.
+ */
+static String_type get_dd_view_type(enum_view_type type) {
+  switch (type) {
+    case enum_view_type::SQL_VIEW:
+      return String_type("SQL");
+
+    case enum_view_type::JSON_DUALITY_VIEW:
+      return String_type("JSON_DUALITY");
+
+    case enum_view_type::UNDEFINED:
+    default:
+      break;
+  }
+
+  /* purecov: begin deadcode */
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view type.");
+  assert(false);
+
+  return String_type("SQL");
+  /* purecov: end */
+}
+
+enum_view_type get_sql_view_type(String_type dd_view_type) {
+  if (dd_view_type == "SQL") return enum_view_type::SQL_VIEW;
+
+  if (dd_view_type == "JSON_DUALITY") return enum_view_type::JSON_DUALITY_VIEW;
+
+  /* purecov: begin deadcode */
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view type.");
+  assert(false);
+
+  return enum_view_type::SQL_VIEW;
+  /* purecov: end */
+}
+
+/**
   Method to fill view columns from the first Query_block of view query.
 
   @param  thd       Thread Handle.
@@ -550,6 +593,8 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj, Table_ref *view) {
                     String_type(view->timestamp.str, view->timestamp.length));
   view_options->set("view_valid", true);
 
+  view_options->set("view_type", get_dd_view_type(view->view_type));
+
   /*
     Fill view columns information in View object.
 
@@ -642,6 +687,15 @@ bool read_view(Table_ref *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
 
   // Mark true, if we are reading a system view.
   view->is_system_view = (view_obj.type() == dd::enum_table_type::SYSTEM_VIEW);
+
+  // Get view type.
+  const dd::Properties *view_options = &view_obj.options();
+  String_type view_type = "SQL";
+  if (view_options->exists("view_type") &&
+      view_options->get("view_type", &view_type)) {
+    return true;
+  }
+  view->view_type = get_sql_view_type(view_type);
 
   // Get definition.
   String_type view_definition = view_obj.definition();

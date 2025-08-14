@@ -156,6 +156,21 @@ MYSQL_ADD_COMPONENT(test_component_deinit
   TEST_ONLY
   LINK_LIBRARIES mysys
   )
+MYSQL_ADD_COMPONENT(test_component_init_then_register
+  test_component_init_then_register.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+MYSQL_ADD_COMPONENT(test_component_init_fail
+  test_component_init_fail.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+MYSQL_ADD_COMPONENT(test_component_deinit_no_deadlock
+  test_component_deinit_no_deadlock.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
 MYSQL_ADD_COMPONENT(test_mysql_system_variable_set
   test_mysql_system_variable_set.cc
   MODULE_ONLY

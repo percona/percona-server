@@ -33,10 +33,12 @@
 #include <string>
 #include <string_view>
 #include <type_traits>  // is_base_of
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "field_types.h"  // enum_field_types
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "my_time.h"                 // my_time_flags_t
 #include "mysql_time.h"              // MYSQL_TIME
@@ -54,6 +56,7 @@ class Json_object;
 class Json_path;
 class Json_seekable_path;
 class Json_wrapper;
+class Json_wrapper_hasher;
 class String;
 
 struct CHARSET_INFO;
@@ -64,6 +67,7 @@ typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 using Json_dom_ptr = std::unique_ptr<Json_dom>;
 using Json_array_ptr = std::unique_ptr<Json_array>;
 using Json_object_ptr = std::unique_ptr<Json_object>;
+using ha_checksum = std::uint32_t;
 
 /**
   @file
@@ -1134,6 +1138,12 @@ bool double_quote(const char *cptr, size_t length, String *buf);
 */
 Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
+constexpr uchar JSON_KEY_NULL = '\x00';
+constexpr uchar JSON_KEY_OBJECT = '\x05';
+constexpr uchar JSON_KEY_ARRAY = '\x06';
+constexpr uchar JSON_KEY_FALSE = '\x07';
+constexpr uchar JSON_KEY_TRUE = '\x08';
+
 /**
   Abstraction for accessing JSON values irrespective of whether they
   are (started out as) binary JSON values or JSON DOM values. The
@@ -1683,6 +1693,8 @@ class Json_wrapper {
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong hash_val) const;
+
+  void make_hash_key_common(Json_wrapper_hasher &hash_key) const;
 
   /**
     Calculate the amount of unused space inside a JSON binary value.

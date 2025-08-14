@@ -45,17 +45,12 @@ class Entity : public Common {
   virtual uint64_t get_id() const = 0;
   virtual std::string get_name() const = 0;
   virtual uint64_t get_value_and_reset() = 0;
+  virtual void clear() = 0;
 };
 
 template <uint64_t counter_id>
 class EntityWithId : public Entity {
  public:
-  EntityWithId() { assert(!registred_.test_and_set()); }
-
- protected:
-#ifndef NDEBUG
-  static inline std::atomic_flag registred_;
-#endif
 };
 
 template <uint64_t counter_id>
@@ -71,6 +66,7 @@ class EntityCounter : public EntityWithId<counter_id> {
   uint64_t get_id() const override { return counter_id; }
   std::string get_name() const override { return name_; }
   uint64_t get_value_and_reset() override { return value_.exchange(0); }
+  void clear() override { value_.store(0); }
 
  protected:
   std::string name_;

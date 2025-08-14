@@ -732,3 +732,15 @@ DROP TABLE t;
 SET @var = NULL;
 
 SET @@explain_json_format_version = @saved_json_format_version;
+
+--echo #
+--echo # Bug#37838599 EXPLAIN ANALYZE FORMAT=JSON did not handle queries with
+--echo # subqueries correctly when explain_json_format_version=1.
+--echo #
+SET @saved_json_format_version = @@explain_json_format_version;
+SET @@explain_json_format_version = 1;
+
+--error ER_EXPLAIN_ANALYZE_JSON_FORMAT_VERSION_NOT_SUPPORTED
+EXPLAIN ANALYZE FORMAT=JSON SELECT * FROM (SELECT 1) b;
+
+SET @@explain_json_format_version = @saved_json_format_version;

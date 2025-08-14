@@ -41,7 +41,8 @@ bool ConsoleLogHandler::is_open() { return true; }
 // PROTECTED
 //
 void ConsoleLogHandler::writeHeader(const char *pCategory,
-                                    Logger::LoggerLevel level, time_t now) {
+                                    Logger::LoggerLevel level,
+                                    const std::timespec *now) {
   char str[MAX_HEADER_LENGTH];
   _out << getDefaultHeader(str, pCategory, level, now);
 }

@@ -54,7 +54,7 @@ HandlerRedirection::HandlerRedirection(
     const std::string &url_host, const std::string &path,
     const std::string &file_name, const std::string &file_new_location,
     mrs::interface::AuthorizeManager *auth_manager, bool pernament)
-    : Handler(protocol, url_host, {"^"s + path + "$"}, std::string{},
+    : Handler(protocol, url_host, {{path, false, false}}, std::string{},
               auth_manager),
       service_id_{service_id},
       service_path_{service_path},
@@ -95,8 +95,18 @@ uint32_t HandlerRedirection::get_access_rights() const {
 void HandlerRedirection::authorization(rest::RequestContext *) {}
 
 HandlerRedirection::HttpResult HandlerRedirection::handle_get(
-    rest::RequestContext *) {
-  throw http::ErrorRedirect(file_new_location_, pernament_);
+    rest::RequestContext *ctx) {
+  const auto request = ctx->request;
+
+  std::string redirect = file_new_location_;
+  if (!request->get_uri().get_query().empty()) {
+    redirect += "?" + request->get_uri().get_query();
+  }
+  if (!request->get_uri().get_fragment().empty()) {
+    redirect += "#" + request->get_uri().get_fragment();
+  }
+
+  throw http::ErrorRedirect(redirect, pernament_);
 }
 
 HandlerRedirection::HttpResult HandlerRedirection::handle_delete(

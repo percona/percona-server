@@ -24,8 +24,36 @@ select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
 drop table t1;
 
 ## From suite/gcol/inc/gcol_supported_sql_funcs_main.inc
+# we have to disable warnings since different number of them are generated for prepared statements
+--disable_warnings
 --echo # MD5()
 let $cols = a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual;
 let $values1 = 'testing',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
+--enable_warnings
+
+--echo #
+--echo # WL#16955: Deprecate SQL functions MD5() and SHA1()
+--echo #
+
+CREATE TABLE wl16995_t1 (a INT);
+INSERT INTO wl16995_t1 VALUES (1),(2),(3),(4);
+
+--echo # FR2: MD5 must return a warning;
+--replace_column 1 #
+SELECT MD5(12);
+
+--echo # FR2.1: MD5 must return 1 warning per statement
+--replace_column 1 #
+SELECT MD5(a) FROM wl16995_t1;
+
+--echo # FR1.1 and FR2.1: must produce warning for prepared statements
+
+PREPARE wl16995_stmt1 FROM 'SELECT MD5(a) FROM wl16995_t1';
+--replace_column 1 #
+EXECUTE wl16995_stmt1;
+DEALLOCATE PREPARE wl16995_stmt1;
+
+--echo # cleanup
+DROP TABLE wl16995_t1;

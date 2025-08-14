@@ -128,6 +128,9 @@ class OverflowBitset {
   static inline MutableOverflowBitset Xor(MEM_ROOT *mem_root, OverflowBitset a,
                                           OverflowBitset b);
 
+  /// Make a bitset that has no bits set, with the given capacity.
+  static inline OverflowBitset EmptySet(MEM_ROOT *mem_root, size_t capacity);
+
  protected:
   struct Ext {
     size_t m_num_blocks;
@@ -315,6 +318,11 @@ inline MutableOverflowBitset OverflowBitset::Xor(MEM_ROOT *mem_root,
   } else {
     return XorOverflow(mem_root, a, b);
   }
+}
+
+inline OverflowBitset OverflowBitset::EmptySet(MEM_ROOT *mem_root,
+                                               size_t capacity) {
+  return MutableOverflowBitset{mem_root, capacity};
 }
 
 // Definitions overloading utility functions in bit_utils.h, making it generally

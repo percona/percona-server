@@ -231,58 +231,62 @@ bool sql_exchange::do_contextualize(Parse_context *pc) {
     return true;
   }
 
-  if (file_info.filetype == FILETYPE_PARQUET) {
+  if (file_info.filetype == FILETYPE_PARQUET ||
+      file_info.filetype == FILETYPE_JSON) {
+    std::string file_format_msg(file_info.filetype_str);
+    file_format_msg += " format";
     if (field.field_term != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0),
-               "COLUMNS or FIELDS TERMINATED BY", "PARQUET format");
+               "COLUMNS or FIELDS TERMINATED BY", file_format_msg.c_str());
       return true;
     }
     if (field.enclosed != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0),
-               "COLUMNS or FIELDS ENCLOSED BY", "PARQUET format");
+               "COLUMNS or FIELDS ENCLOSED BY", file_format_msg.c_str());
       return true;
     }
     if (field.escaped != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0),
-               "COLUMNS or FIELDS ESCAPED BY", "PARQUET format");
+               "COLUMNS or FIELDS ESCAPED BY", file_format_msg.c_str());
       return true;
     }
     if (field.date_format != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "DATE FORMAT",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (field.time_format != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "TIME FORMAT",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (field.trim_spaces != enum_trim_spaces::DEFAULT_TRIM_SPACES) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "TRIM SPACES",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (file_info.with_header != enum_with_header::DEFAULT_HEADER) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "HEADER",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (field.null_value != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "NULL AS",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (field.empty_value != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "EMPTY VALUE",
-               "PARQUET format");
+               file_format_msg.c_str());
       return true;
     }
     if (field.not_enclosed) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0),
-               "COLUMNS or FIELDS NOT ENCLOSED", "PARQUET format");
+               "COLUMNS or FIELDS NOT ENCLOSED", file_format_msg.c_str());
       return true;
     }
-
+  }
+  if (file_info.filetype == FILETYPE_PARQUET) {
     if (line.line_term != nullptr) {
       my_error(ER_INVALID_CLAUSE_IN_CONTEXT, MYF(0), "LINES TERMINATED BY",
                "PARQUET format");
@@ -297,12 +301,21 @@ bool sql_exchange::do_contextualize(Parse_context *pc) {
   auto *thd = pc->thd;
   if (dumpfile == OBJECT_STORE_DEST) {
     if (file_info.filetype == FILETYPE_CSV ||
-        file_info.filetype == FILETYPE_TEXT) {
+        file_info.filetype == FILETYPE_TEXT ||
+        file_info.filetype == FILETYPE_JSON) {
       if (file_info.compression != nullptr) {
         push_warning_printf(thd, Sql_condition::SL_WARNING, ER_CLAUSE_IGNORED,
                             ER_THD(thd, ER_CLAUSE_IGNORED), "COMPRESSION",
                             "OUTFILE");
       }
+      if (file_info.cs != nullptr) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_CLAUSE_IGNORED,
+                            ER_THD(thd, ER_CLAUSE_IGNORED), "CHARACTER SET",
+                            "OUTFILE");
+      }
+    }
+    if (file_info.filetype == FILETYPE_CSV ||
+        file_info.filetype == FILETYPE_TEXT) {
       if (field.empty_value != nullptr) {
         push_warning_printf(thd, Sql_condition::SL_WARNING, ER_CLAUSE_IGNORED,
                             ER_THD(thd, ER_CLAUSE_IGNORED), "EMPTY VALUE",
@@ -337,11 +350,6 @@ bool sql_exchange::do_contextualize(Parse_context *pc) {
       if (field.time_format != nullptr) {
         push_warning_printf(thd, Sql_condition::SL_WARNING, ER_CLAUSE_IGNORED,
                             ER_THD(thd, ER_CLAUSE_IGNORED), "TIME FORMAT",
-                            "OUTFILE");
-      }
-      if (file_info.cs != nullptr) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_CLAUSE_IGNORED,
-                            ER_THD(thd, ER_CLAUSE_IGNORED), "CHARACTER SET",
                             "OUTFILE");
       }
     }

@@ -788,7 +788,7 @@ class Tsid_map {
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
   */
-  [[NODISCARD]] rpl_sidno add_tsid(const Tsid &tsid);
+  [[nodiscard]] rpl_sidno add_tsid(const Tsid &tsid);
   /**
     Get the SIDNO for a given TSID
 
@@ -898,7 +898,7 @@ class Tsid_map {
     @param tsid The TSID to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  [[NODISCARD]] enum_return_status add_node(rpl_sidno sidno, const Tsid &tsid);
+  [[nodiscard]] enum_return_status add_node(rpl_sidno sidno, const Tsid &tsid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *tsid_lock;
@@ -1173,7 +1173,7 @@ struct Gtid {
     @param text The text to parse
     @return status of operation
   */
-  [[NODISCARD]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
+  [[nodiscard]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
                                                   const char *text);
 
   /// @brief Parses TAG from a textual representation of the GTID (text)
@@ -1739,7 +1739,7 @@ class Gtid_set {
   /// @brief Adds specified GTID (TSID+GNO) to this Gtid_set.
   /// @param gtid mysql::gtid::Gtid object
   /// @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  [[NODISCARD]] enum_return_status add_gtid(const mysql::gtid::Gtid &gtid);
+  [[nodiscard]] enum_return_status add_gtid(const mysql::gtid::Gtid &gtid);
 
   /**
     Decodes a Gtid_set from the given string.
@@ -4115,7 +4115,7 @@ struct Gtid_specification {
     @param text The text to parse
     @return operation status
   */
-  [[NODISCARD]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
+  [[nodiscard]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
                                                   const char *text);
 
   /// @brief Returns true if the given string is a valid Gtid_specification.

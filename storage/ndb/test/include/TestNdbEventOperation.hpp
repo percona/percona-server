@@ -31,3 +31,9 @@ struct EventOperationStats {
   int n_consecutive;
   int n_inconsistent_gcis;
 };
+
+struct EventOperationConfig {
+  unsigned int slice_count = 1;
+  unsigned int slice_id = 0;
+  unsigned int slice_records = 0;
+};

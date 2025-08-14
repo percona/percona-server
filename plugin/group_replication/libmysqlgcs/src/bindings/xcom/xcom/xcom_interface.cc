@@ -119,7 +119,7 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
 
   if (app_status == delivery_ok) {
     if (!pma) {
-      g_critical(
+      G_FATAL(
           "A fatal error ocurred that prevents XCom from delivering a message "
           "that achieved consensus. XCom cannot proceed without compromising "
           "correctness. XCom will now crash.");

@@ -76,7 +76,6 @@ class BlobImpl implements Blob {
     }
 
     /** Release any resources associated with this object.
-     * This method is called by the owner of this object when it is being finalized by garbage collection.
      */
     public void release() {
         if (logger.isDetailEnabled()) logger.detail("BlobImpl.release");

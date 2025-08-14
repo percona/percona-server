@@ -54,7 +54,6 @@ Data dictionary interface */
 #include "dict0stats.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "data0type.h"
-#include "dict0dict.h"
 #include "fil0fil.h"
 #include "mach0data.h"
 #include "rem0rec.h"
@@ -7333,27 +7332,6 @@ void table_to_file(std::string &name) {
   name.assign(conv_name);
 }
 
-/** Get partition and sub-partition separator strings.
-@param[in]      is_57           true, if 5.7 style separator is needed
-@param[out]     part_sep        partition separator
-@param[out]     sub_part_sep    sub-partition separator */
-static void get_partition_separators(bool is_57, std::string &part_sep,
-                                     std::string &sub_part_sep) {
-  if (!is_57) {
-    part_sep.assign(PART_SEPARATOR);
-    sub_part_sep.assign(SUB_PART_SEPARATOR);
-    return;
-  }
-  /* 5.7 style partition separators. */
-#ifdef _WIN32
-  part_sep.assign(PART_SEPARATOR);
-  sub_part_sep.assign(SUB_PART_SEPARATOR);
-#else
-  part_sep.assign(ALT_PART_SEPARATOR);
-  sub_part_sep.assign(ALT_SUB_PART_SEPARATOR);
-#endif /* _WIN32 */
-}
-
 /** Check for partition and sub partition.
 @param[in]      dict_name       name from innodb dictionary
 @param[in]      sub_part        true, if checking sub partition
@@ -7361,26 +7339,8 @@ static void get_partition_separators(bool is_57, std::string &part_sep,
 @return true, iff partition/sub-partition exists. */
 static bool check_partition(const std::string &dict_name, bool sub_part,
                             size_t &position) {
-  std::string part_sep = sub_part ? SUB_PART_SEPARATOR : PART_SEPARATOR;
-
-  /* Check for partition separator string. */
-  position = dict_name.find(part_sep);
-
-  if (position != std::string::npos) {
-    return true;
-  }
-
-  std::string alt_sep = sub_part ? ALT_SUB_PART_SEPARATOR : ALT_PART_SEPARATOR;
-
-  /* Check for alternative partition separator. It is safe check for
-  release build server and for upgrade. */
-  position = dict_name.find(alt_sep);
-
-  if (position != std::string::npos) {
-    return true;
-  }
-
-  return false;
+  position = dict_name.find(sub_part ? SUB_PART_SEPARATOR : PART_SEPARATOR);
+  return position != std::string::npos;
 }
 
 /** Check for TMP extension name.
@@ -7541,27 +7501,16 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
   table_info.table_name = temp_table.substr(0, hash_pos);
   file_to_table(table_info.table_name, false);
 
-  std::string part_seperator(PART_SEPARATOR);
-  std::string sub_part_seperator(SUB_PART_SEPARATOR);
-
   // Check for partitions and subpartitions
   bool has_partitions = temp_table.find(PART_SEPARATOR) != std::string::npos;
-  if (!has_partitions) {
-    has_partitions = temp_table.find(ALT_PART_SEPARATOR) != std::string::npos;
-    if (has_partitions) {
-      part_seperator = ALT_PART_SEPARATOR;
-      sub_part_seperator = ALT_SUB_PART_SEPARATOR;
-    }
-  }
-
   bool has_subpartitions =
-      temp_table.find(sub_part_seperator) != std::string::npos;
+      temp_table.find(SUB_PART_SEPARATOR) != std::string::npos;
 
   if (has_partitions) {
     // Extract partition name
     size_t part_start =
-        temp_table.find(part_seperator) + std::string(part_seperator).length();
-    size_t part_end = has_subpartitions ? temp_table.find(sub_part_seperator)
+        temp_table.find(PART_SEPARATOR) + strlen(PART_SEPARATOR);
+    size_t part_end = has_subpartitions ? temp_table.find(SUB_PART_SEPARATOR)
                                         : temp_table.find('.');
 
     ut_ad(part_end != std::string::npos);
@@ -7573,8 +7522,8 @@ std::optional<table_name_components> parse_tablespace_path(std::string path) {
 
   if (has_subpartitions) {
     // Extract subpartition name
-    size_t sub_part_start = temp_table.find(sub_part_seperator) +
-                            std::string(sub_part_seperator).length();
+    size_t sub_part_start =
+        temp_table.find(SUB_PART_SEPARATOR) + strlen(SUB_PART_SEPARATOR);
     size_t sub_part_end = temp_table.find('.');
     ut_ad(sub_part_end != std::string::npos);
     std::string temp_subpartition =
@@ -7664,11 +7613,10 @@ void build_table(const std::string &schema, const std::string &table,
 @param[in]      part            partition name
 @param[in]      sub_part        sub-partition name
 @param[in]      conv            callback to convert partition/sub-partition name
-@param[in]      is_57           if 5.7 style partition name is needed
 @param[out]     partition       partition string for dictionary table name */
 static void build_partition_low(const std::string part,
                                 const std::string sub_part, Convert_Func conv,
-                                bool is_57, std::string &partition) {
+                                std::string &partition) {
   partition.clear();
   std::string conv_str;
 
@@ -7677,14 +7625,8 @@ static void build_partition_low(const std::string part,
     ut_o(return);
   }
 
-  /* Get partition separator strings */
-  std::string part_sep;
-  std::string sub_part_sep;
-
-  get_partition_separators(is_57, part_sep, sub_part_sep);
-
   /* Append separator and partition. */
-  partition.append(part_sep);
+  partition.append(PART_SEPARATOR);
 
   conv_str.assign(part);
   if (conv) {
@@ -7697,7 +7639,7 @@ static void build_partition_low(const std::string part,
   }
 
   /* Append separator and sub-partition. */
-  partition.append(sub_part_sep);
+  partition.append(SUB_PART_SEPARATOR);
 
   conv_str.assign(sub_part);
   if (conv) {
@@ -7706,13 +7648,12 @@ static void build_partition_low(const std::string part,
   partition.append(conv_str);
 }
 
-/** Get partition and sub-partition name from DD. We convert the names to
-lower case.
+/** Get partition and sub-partition name from DD. We convert the names to lower
+case before fetching it from DD.
 @param[in]      dd_part         partition object from DD
-@param[in]      lower_case      convert to lower case name
 @param[out]     part_name       partition name
 @param[out]     sub_name        sub-partition name */
-static void get_part_from_dd(const dd::Partition *dd_part, bool lower_case,
+static void get_part_from_dd(const dd::Partition *dd_part,
                              std::string &part_name, std::string &sub_name) {
   /* Assume sub-partition and get the parent partition. */
   auto sub_part = dd_part;
@@ -7726,21 +7667,16 @@ static void get_part_from_dd(const dd::Partition *dd_part, bool lower_case,
 
   ut_ad(part->name().length() < FN_REFLEN);
 
-  part_name.assign(part->name().c_str());
+  part_name = part->name();
   /* Convert partition name to lower case. */
-  if (lower_case) {
-    to_lower(part_name);
-  }
+  to_lower(part_name);
 
   sub_name.clear();
   if (sub_part != nullptr) {
     ut_ad(sub_part->name().length() < FN_REFLEN);
-
-    sub_name.assign(sub_part->name().c_str());
+    sub_name = sub_part->name();
     /* Convert sub-partition name to lower case. */
-    if (lower_case) {
-      to_lower(sub_name);
-    }
+    to_lower(sub_name);
   }
 }
 
@@ -7749,29 +7685,10 @@ void build_partition(const dd::Partition *dd_part, std::string &partition) {
   std::string sub_name;
 
   /* Extract partition and sub-partition name from DD. */
-  get_part_from_dd(dd_part, true, part_name, sub_name);
+  get_part_from_dd(dd_part, part_name, sub_name);
 
   /* Build partition string after converting names. */
-  build_partition_low(part_name, sub_name, table_to_file, false, partition);
-}
-
-void build_57_partition(const dd::Partition *dd_part, std::string &partition) {
-  std::string part_name;
-  std::string sub_name;
-
-  /* Extract partition and sub-partition name from DD. In 5.7, partition and
-  sub-partition names are kept in same letter case as given by user. */
-  bool lower_case = false;
-
-  /* On windows, 5.7 partition sub-partition names are in lower case always. */
-#ifdef _WIN32
-  lower_case = true;
-#endif /* _WIN32 */
-
-  get_part_from_dd(dd_part, lower_case, part_name, sub_name);
-
-  /* Build partition string after converting names. */
-  build_partition_low(part_name, sub_name, table_to_file, true, partition);
+  build_partition_low(part_name, sub_name, table_to_file, partition);
 }
 
 bool match_partition(const std::string &dict_name,
@@ -7846,7 +7763,7 @@ static void get_table_parts(const std::string &dict_name, std::string &schema,
 
     /* Build partition string. No conversion required. */
     partition.clear();
-    build_partition_low(part, sub_part, nullptr, false, partition);
+    build_partition_low(part, sub_part, nullptr, partition);
   }
 }
 
@@ -7931,7 +7848,7 @@ void rebuild(std::string &dict_name) {
 
     /* Build partition string converting to file cs. */
     partition.clear();
-    build_partition_low(part, sub_part, table_to_file, false, partition);
+    build_partition_low(part, sub_part, table_to_file, partition);
   }
 
   /* Re-build the table name. No cs conversion required. */

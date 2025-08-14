@@ -318,7 +318,6 @@ extern Log_DDL *log_ddl;
 #ifdef INNODB_DD_TABLE
 extern bool srv_is_upgrade_mode;
 extern bool srv_downgrade_logs;
-extern bool srv_upgrade_old_undo_found;
 #endif /* INNODB_DD_TABLE */
 
 extern bool srv_downgrade_partition_files;
@@ -1200,11 +1199,11 @@ This is called during CREATE UNDO TABLESPACE.
 dberr_t srv_undo_tablespace_create(const char *space_name,
                                    const char *file_name, space_id_t space_id);
 
-/** Initialize undo::spaces and trx_sys_undo_spaces,
+/** Initialize undo::spaces,
 called once during srv_start(). */
 void undo_spaces_init();
 
-/** Free the resources occupied by undo::spaces and trx_sys_undo_spaces,
+/** Free the resources occupied by undo::spaces,
 called once during thread de-initialization. */
 void undo_spaces_deinit();
 

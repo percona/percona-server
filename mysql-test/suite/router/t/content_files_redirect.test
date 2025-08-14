@@ -40,6 +40,9 @@ SET @my_content_set=@content_set_id;
 --echo # 2. Set defaultRedirects with an entry matching an existing Content File
 --echo # 3. Empty redirect target.
 --echo # 4. Redirect target references itself.
+--echo # 5. Redirect with additional query.
+--echo # 6. Redirect with additional fragment.
+--echo # 7. Redirect with additional query and fragment.
 --echo #
 --echo
 
@@ -106,6 +109,55 @@ exec $MRS_CLIENT_ARGS
   --display HEADER,BODY
   --response-type RAW
   --expected-status 307;
+
+
+--echo #
+--echo # I.5
+
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"defaultRedirects":{"first.html":"second.html"}}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/svc1/set/first.html?q1=a&q2=b&q3=c'
+--let $mrs_client_arg_display=header,body
+--let $mrs_client_arg_response_type=RAW
+--let $mrs_client_arg_expected_status=307
+--replace_regex /^Date.*/Date -> %DATE%/
+--source ../include/mrs/mrs_client.inc
+
+
+--echo #
+--echo # I.6
+
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"defaultRedirects":{"first.html":"second.html"}}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/svc1/set/first.html#fragment'
+--let $mrs_client_arg_display=header,body
+--let $mrs_client_arg_response_type=RAW
+--let $mrs_client_arg_expected_status=307
+--replace_regex /^Date.*/Date -> %DATE%/
+--source ../include/mrs/mrs_client.inc
+
+
+--echo #
+--echo # I.7
+
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"defaultRedirects":{"first.html":"second.html"}}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--let $mrs_client_arg_path='/svc1/set/first.html?q1=a&q2=b#fragment'
+--let $mrs_client_arg_display=header,body
+--let $mrs_client_arg_response_type=RAW
+--let $mrs_client_arg_expected_status=307
+--replace_regex /^Date.*/Date -> %DATE%/
+--source ../include/mrs/mrs_client.inc
+
 
 # Cleanup
 --let $cleanup_arg_mrs_existing_service=/svc1/set/first.html

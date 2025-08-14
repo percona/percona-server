@@ -9192,4 +9192,13 @@ JSON_KEYS(@var)
 DROP TABLE t;
 SET @var = NULL;
 SET @@explain_json_format_version = @saved_json_format_version;
+#
+# Bug#37838599 EXPLAIN ANALYZE FORMAT=JSON did not handle queries with
+# subqueries correctly when explain_json_format_version=1.
+#
+SET @saved_json_format_version = @@explain_json_format_version;
+SET @@explain_json_format_version = 1;
+EXPLAIN ANALYZE FORMAT=JSON SELECT * FROM (SELECT 1) b;
+ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
+SET @@explain_json_format_version = @saved_json_format_version;
 set optimizer_switch=default;

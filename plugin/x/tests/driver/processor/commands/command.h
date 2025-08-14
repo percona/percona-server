@@ -71,6 +71,8 @@ class Command {
   std::list<Loop_do> m_loop_stack;
   static xpl::chrono::Time_point m_start_measure;
 
+  Result cmd_debug_stmt(std::istream &input, Execution_context *context,
+                        const std::string &args);
   Result cmd_echo(std::istream &input, Execution_context *context,
                   const std::string &args);
   Result cmd_title(std::istream &input, Execution_context *context,

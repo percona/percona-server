@@ -59,6 +59,7 @@ enum TA_field_type {
   TA_TYPE_VARCHAR = 2,
   TA_TYPE_JSON = 3,
   TA_TYPE_ENUM = 4,
+  TA_TYPE_TEXT = 5
 };
 
 /**

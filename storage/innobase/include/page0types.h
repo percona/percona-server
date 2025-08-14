@@ -236,6 +236,14 @@ struct page_zip_stat_t {
   std::chrono::microseconds compress_time;
   /** Duration of page decompressions */
   std::chrono::microseconds decompress_time;
+  /** The pages can linger in BP for a while after the index was already
+  dropped. Compression and decompression are done at very low level. We have no
+  access to a dict_index_t object there. Such objects might be evicted by
+  LRU anyway. We use this flag here to indicate that the stats for this index
+  are no longer of interest. This way this information is easily accessible to
+  the low-level logic, and can outlive eviction or drop of dict_index_t. */
+  bool dropped{false};
+
   page_zip_stat_t()
       : /* Initialize members to 0 so that when we do
         stlmap[key].compressed++ and element with "key" does not

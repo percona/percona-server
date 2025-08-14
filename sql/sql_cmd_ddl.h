@@ -75,7 +75,7 @@ class Sql_cmd_create_library final : public Sql_cmd_ddl {
  public:
   Sql_cmd_create_library(THD *thd, bool if_not_exists, sp_name *name,
                          LEX_CSTRING language, LEX_CSTRING comment,
-                         LEX_STRING source_code);
+                         LEX_STRING source_code, bool is_binary);
 
   enum_sql_command sql_command_code() const override {
     return SQLCOM_CREATE_LIBRARY;
@@ -91,6 +91,7 @@ class Sql_cmd_create_library final : public Sql_cmd_ddl {
   // statements, we need to keep a copy of the source code and the comment.
   LEX_CSTRING m_source;
   LEX_CSTRING m_comment;
+  bool m_is_binary;
 };
 
 class Sql_cmd_alter_library final : public Sql_cmd_ddl {

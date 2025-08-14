@@ -179,6 +179,26 @@ BEGIN
   SET result = a;
 END;$$
 
+CREATE PROCEDURE `proc_schema`.`move_geometry` (a GEOMETRY, OUT result GEOMETRY)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_blob` (a BLOB, OUT result BLOB)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_timestamp` (a TIMESTAMP, OUT result TIMESTAMP)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_json` (a JSON, OUT result JSON)
+BEGIN
+  SET result = a;
+END;$$
+
 CREATE PROCEDURE `proc_schema`.`resultset_vector` (a VECTOR)
 BEGIN
   SELECT a;

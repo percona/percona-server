@@ -48,7 +48,8 @@
 #include <utility>
 #include <vector>
 
-#include "my_config.h"  // NOLINT(build/include_subdir)
+#include "my_aligned_malloc.h"  // NOLINT(build/include_subdir)
+#include "my_config.h"          // NOLINT(build/include_subdir)
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
@@ -110,12 +111,7 @@ static_assert(sizeof(void *) <= kBlockSize);
  * Allocates memory which cannot be swapped.
  */
 inline void *allocate_secure_memory(std::size_t count) {
-  const auto ptr =
-#ifdef _WIN32
-      _aligned_malloc(count, system_page_size());
-#else   // !_WIN32
-      std::aligned_alloc(system_page_size(), count);
-#endif  // !_WIN32
+  const auto ptr = my_aligned_malloc(count, system_page_size());
 
   if (!ptr) [[unlikely]] {
     throw std::bad_alloc{};
@@ -123,7 +119,7 @@ inline void *allocate_secure_memory(std::size_t count) {
 
 #ifdef _WIN32
   if (!VirtualLock(ptr, count)) {
-    _aligned_free(ptr);
+    my_aligned_free(ptr);
 
     const auto code = GetLastError();
     throw std::system_error{
@@ -133,7 +129,7 @@ inline void *allocate_secure_memory(std::size_t count) {
   }
 #else   // !_WIN32
   if (0 != mlock(ptr, count)) {
-    std::free(ptr);
+    my_aligned_free(ptr);
 
     const auto code = errno;
     throw std::system_error{
@@ -159,11 +155,11 @@ inline void free_secure_memory(void *ptr, std::size_t count) noexcept {
 
 #ifdef _WIN32
   VirtualUnlock(ptr, count);
-  _aligned_free(ptr);
 #else   // !_WIN32
   munlock(ptr, count);
-  std::free(ptr);
 #endif  // !_WIN32
+
+  my_aligned_free(ptr);
 }
 
 inline void *allocate_memory(std::size_t count) {

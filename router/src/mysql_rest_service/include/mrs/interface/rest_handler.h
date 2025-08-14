@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "mrs/database/entry/column_type.h"
 #include "mrs/interface/http_result.h"
 #include "mrs/interface/universal_id.h"
 
@@ -112,10 +113,15 @@ class Options {
     uint64_t wait{1};
     bool embed_wait{false};
     uint64_t timeout{0};
+
+    // query db with MySQL Internal auth user
+    bool passthrough_db_user{false};
   } query;
 
   class MysqlTask {
    public:
+    using ColumnType = mrs::database::entry::ColumnType;
+
     enum class DriverType { kNone, kDatabase, kRouter };
 
     std::string name;

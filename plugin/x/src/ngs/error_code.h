@@ -40,7 +40,7 @@ namespace ngs {
 struct Error_code {
   static const int MAX_MESSAGE_LENGTH = 1024;
 
-  int error;
+  int error{};
   std::string message;
   std::string sql_state;
   enum Severity {

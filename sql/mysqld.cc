@@ -721,6 +721,7 @@ MySQL clients support the protocol:
 #include "myisam.h"
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/control_events.h"
+#include "mysql/components/library_mysys/my_system.h"  // my_num_vcpus
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -806,8 +807,9 @@ MySQL clients support the protocol:
 #include "sql/item_cmpfunc.h"  // Arg_comparator
 #include "sql/item_create.h"
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"  // Item_func_uuid
-#include "sql/keycaches.h"     // get_or_create_key_cache
+#include "sql/item_strfunc.h"                    // Item_func_uuid
+#include "sql/json_duality_view/option_usage.h"  // Option tracker for JDV
+#include "sql/keycaches.h"                       // get_or_create_key_cache
 #include "sql/log.h"
 #include "sql/log_event.h"  // Rows_log_event
 #include "sql/log_resource.h"
@@ -838,6 +840,7 @@ MySQL clients support the protocol:
 #include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "pfs_metric_provider.h"
 #include "pfs_telemetry_logs_client_provider.h"
+#include "secure_file.h"
 #include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_event_ctx.h"  // Rpl_event_ctx
@@ -884,7 +887,6 @@ MySQL clients support the protocol:
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_udf.h"
-#include "sql/srv_event_plugin_handles.h"
 #include "sql/ssl_acceptor_context_iterator.h"
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/ssl_acceptor_context_status.h"
@@ -1198,13 +1200,17 @@ char *my_bind_addr_str;
 char *my_admin_bind_addr_str;
 uint mysqld_admin_port;
 bool listen_admin_interface_in_separate_thread;
+<<<<<<< HEAD
 char *my_proxy_protocol_networks;
+||||||| merged common ancestors
+=======
+ulonglong server_memory;
+>>>>>>> mysql-9.4.0
 static const char *default_collation_name;
 const char *default_storage_engine;
 const char *default_tmp_storage_engine;
 ulonglong temptable_max_ram;
 ulonglong temptable_max_mmap;
-bool temptable_use_mmap;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used = false;
 
@@ -2068,8 +2074,6 @@ SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 SERVICE_TYPE_NO_CONST(registry_registration) * srv_registry_registration{
                                                    nullptr};
-SERVICE_TYPE_NO_CONST(registry_registration) *
-    srv_registry_registration_no_lock{nullptr};
 SERVICE_TYPE_NO_CONST(registry_query) * srv_registry_query{nullptr};
 SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
@@ -2104,6 +2108,8 @@ static bool component_infrastructure_init() {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
+  // We still need this because _no_lock registry API variant introduced by
+  // Bug#34741098 is not removed yet.
   srv_registry->acquire(
       "registry.mysql_minimal_chassis_no_lock",
       reinterpret_cast<my_h_service *>(&srv_registry_no_lock));
@@ -2122,10 +2128,6 @@ static bool component_infrastructure_init() {
   srv_registry->acquire(
       "registry_registration",
       reinterpret_cast<my_h_service *>(&srv_registry_registration));
-
-  srv_registry->acquire(
-      "registry_registration.mysql_minimal_chassis_no_lock",
-      reinterpret_cast<my_h_service *>(&srv_registry_registration_no_lock));
 
   srv_registry->acquire("registry_query",
                         reinterpret_cast<my_h_service *>(&srv_registry_query));
@@ -2180,7 +2182,8 @@ static void server_component_init() {
       srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         return 0 != opt->define("MySQL Server", "mysql_server", 1) ||
-               optimizer_options_usage_init(opt, srv_registry);
+               optimizer_options_usage_init(opt, srv_registry) ||
+               jdv_options_usage_init(opt, srv_registry);
       },
       false);
 }
@@ -2239,10 +2242,11 @@ static bool component_infrastructure_deinit(bool print_message) {
   }
 
   srv_weak_option_option::deinit(
-      srv_registry_no_lock, srv_registry_registration_no_lock,
+      srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         return 0 != opt->undefine("MySQL Server") ||
-               optimizer_options_usage_deinit(opt, srv_registry_no_lock);
+               optimizer_options_usage_deinit(opt, srv_registry) ||
+               jdv_options_usage_deinit(opt, srv_registry);
       });
   persistent_dynamic_loader_deinit();
   bool retval = false;
@@ -2260,8 +2264,6 @@ static bool component_infrastructure_deinit(bool print_message) {
       const_cast<rwlock_type_t *>(rwlock_service)));
   srv_registry->release(
       reinterpret_cast<my_h_service>(srv_registry_registration));
-  srv_registry->release(
-      reinterpret_cast<my_h_service>(srv_registry_registration_no_lock));
   srv_registry->release(reinterpret_cast<my_h_service>(srv_registry_query));
 
   if (deinitialize_minimal_chassis(srv_registry)) {
@@ -2862,7 +2864,6 @@ static void clean_up(bool print_message) {
   if (!opt_noacl) udf_unload_udfs();
   table_def_start_shutdown();
   delegates_shutdown();
-  srv_event_release_plugin_handles();
   plugin_shutdown();
   // needs to be done after plugin shutdown, since plugins can still
   // hold references to the service
@@ -2931,6 +2932,7 @@ static void clean_up(bool print_message) {
   deinitialize_manifest_file_components();
   if (g_event_channels != nullptr) delete g_event_channels;
   g_event_channels = nullptr;
+  deinit_srv_event_tracking_handles();
   Singleton_event_tracking_service_to_plugin_mapping::remove_instance();
   component_infrastructure_deinit(print_message);
   /*
@@ -5107,6 +5109,7 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
     return nullptr;
 }
 
+#ifdef HAVE_PSI_METRICS_INTERFACE
 static void get_metric_connections(void * /* measurement_context */,
                                    measurement_delivery_callback_t delivery,
                                    void *delivery_context) {
@@ -6822,13 +6825,18 @@ static PSI_meter_info_v1 core_meters[] = {
      std::size(ssl_metrics)},
     {"mysql.myisam", "MySql MyISAM storage engine stats", 10, 0, 0,
      myisam_metrics, std::size(myisam_metrics)}};
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 
 void register_server_metric_sources() {
+#ifdef HAVE_PSI_METRICS_INTERFACE
   mysql_meter_register(core_meters, std::size(core_meters));
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 }
 
 void unregister_server_metric_sources() {
+#ifdef HAVE_PSI_METRICS_INTERFACE
   mysql_meter_unregister(core_meters, std::size(core_meters));
+#endif /* HAVE_PSI_METRICS_INTERFACE */
 }
 
 PSI_logger_key key_error_logger = 0;
@@ -6842,6 +6850,20 @@ void register_server_telemetry_loggers() {
 
 void unregister_server_telemetry_loggers() {
   mysql_log_client_unregister(err_loggers, std::size(err_loggers));
+}
+
+/**
+  Log the system resources available to the server. The resources includes the
+number of logical CPUs and total physical memory.
+*/
+static inline void print_available_resources() {
+  if (!(opt_help || opt_validate_config || opt_initialize ||
+        opt_initialize_insecure)) {
+    LogErr(SYSTEM_LEVEL, ER_SERVER_STARTING_WITH_RESOURCE, my_num_vcpus(),
+           "logical CPUs");
+    LogErr(SYSTEM_LEVEL, ER_SERVER_STARTING_WITH_RESOURCE, my_physical_memory(),
+           "bytes of physical memory");
+  }
 }
 
 int init_common_variables() {
@@ -6992,6 +7014,21 @@ int init_common_variables() {
 #endif
 
   if (get_options(&remaining_argc, &remaining_argv)) return 1;
+
+  /* Adjust memory to be used based on "server_memory" iff explicitly provided
+   */
+  if (server_memory > 0) {
+    if (!init_my_physical_memory(server_memory)) {
+      LogErr(ERROR_LEVEL, ER_SERVER_MEMORY_OPTION_INVALID, server_memory,
+             my_physical_memory());
+      return 1;
+    }
+
+    /* temptable_max_ram default is set according physical memory, needs to be
+  updated based on "server_memory" now */
+    update_temptable_max_ram_default();
+  }
+
   /*
     The opt_bin_log can be false (binary log is disabled) only if
     --skip-log-bin/--disable-log-bin is configured or while the
@@ -7043,6 +7080,8 @@ int init_common_variables() {
 
   DBUG_PRINT("info", ("%s  Ver %s for %s on %s\n", my_progname, server_version,
                       SYSTEM_TYPE, MACHINE_TYPE));
+
+  print_available_resources();
 
 #ifdef HAVE_LINUX_LARGE_PAGES
   /* Initialize large page size */
@@ -8349,6 +8388,7 @@ static int init_server_components() {
     dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
     g_event_channels = Event_reference_caching_channels::create();
   }
+  init_srv_event_tracking_handles();
 
   auto instance =
       Singleton_event_tracking_service_to_plugin_mapping::create_instance();
@@ -8823,14 +8863,6 @@ static int init_server_components() {
 
       if (!opt_validate_config)
         LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-    /*
-     This call needs to stay after the plugins are initialized but before the
-     components are loaded. The idea is to catch all of the services registered
-     by the server component itself (core and plugins).
-    */
-    if (srv_event_acquire_plugin_handles()) {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
     if (!opt_initialize)
@@ -9490,7 +9522,9 @@ class Manifest_file_option_parser_helper final {
     else if (basedir)
       convert_dirname(
           local_plugindir_buffer,
-          (std::string{basedir} + get_relative_path(PLUGINDIR)).c_str(), NullS);
+          (std::string{local_basedir_buffer} + get_relative_path(PLUGINDIR))
+              .c_str(),
+          NullS);
     else
       convert_dirname(local_plugindir_buffer, get_relative_path(PLUGINDIR),
                       NullS);
@@ -10586,8 +10620,7 @@ int mysqld_main(int argc, char **argv)
     Delay replication feature tracking to after components are
     initialized.
   */
-  rpl_opt_tracker = new Rpl_opt_tracker(srv_registry_registration,
-                                        srv_registry_registration_no_lock);
+  rpl_opt_tracker = new Rpl_opt_tracker();
   rpl_opt_tracker->start_worker();
 
   /*
@@ -12647,6 +12680,9 @@ SHOW_VAR status_vars[] = {
     {"option_tracker_usage:Hypergraph Optimizer",
      reinterpret_cast<char *>(&option_tracker_hypergraph_optimizer_usage_count),
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"option_tracker_usage:JSON Duality View",
+     reinterpret_cast<char *>(&option_tracker_json_duality_view_usage_count),
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_FUNC, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
@@ -13660,6 +13696,7 @@ bool mysqld_get_one_option(int optid,
       break;
 
     case OPT_EARLY_PLUGIN_LOAD:
+      push_deprecated_warn_no_replacement(nullptr, "--early-plugin-load");
       free_list(opt_early_plugin_load_list_ptr);
       opt_early_plugin_load_list_ptr->push_back(new i_string(argument));
       break;
@@ -14092,6 +14129,7 @@ static bool is_secure_path(const std::string &path, const char *opt_base) {
   @retval false The path isn't secure
 */
 bool is_secure_file_path(const char *path) {
+<<<<<<< HEAD
   return is_secure_path(path, opt_secure_file_priv);
 }
 
@@ -14242,6 +14280,47 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
            variable_name);
 #endif
   return true;
+||||||| merged common ancestors
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  size_t opt_secure_file_priv_len;
+  /*
+    All paths are secure if opt_secure_file_priv is 0
+  */
+  if (!opt_secure_file_priv[0]) return true;
+
+  opt_secure_file_priv_len = strlen(opt_secure_file_priv);
+
+  if (strlen(path) >= FN_REFLEN) return false;
+
+  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
+    return false;
+
+  if (my_realpath(buff1, path, 0)) {
+    /*
+      The supplied file path might have been a file and not a directory.
+    */
+    const int length = (int)dirname_length(path);
+    if (length >= FN_REFLEN) return false;
+    memcpy(buff2, path, length);
+    buff2[length] = '\0';
+    if (length == 0 || my_realpath(buff1, buff2, 0)) return false;
+  }
+  convert_dirname(buff2, buff1, NullS);
+  if (!lower_case_file_system) {
+    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
+      return false;
+  } else {
+    assert(opt_secure_file_priv_len < FN_REFLEN);
+    buff2[opt_secure_file_priv_len] = '\0';
+    if (files_charset_info->coll->strcasecmp(files_charset_info, buff2,
+                                             opt_secure_file_priv))
+      return false;
+  }
+  return true;
+=======
+  return is_secure_file_path(path, opt_secure_file_priv, system_charset_info,
+                             files_charset_info, lower_case_file_system);
+>>>>>>> mysql-9.4.0
 }
 
 /**

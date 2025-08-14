@@ -307,6 +307,7 @@ frag_id_t z_first_page_t::alloc_fragment(bool bulk, ulint len,
   for the selected fragment page. */
   fil_addr_t addr1 = frag_page.get_frag_entry();
   fil_addr_t addr2 = entry.get_self_addr();
+  ut_ad(!entry.is_null());
   ut_ad(addr1.is_equal(addr2));
 
   const ulint big_free_len_1 = frag_page.get_big_free_len();

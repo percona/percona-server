@@ -292,6 +292,14 @@ static inline void log_debug(const char *fmt, ...) {
   va_end(ap);
 }
 
+#ifndef NDEBUG
+#define log_debug2(...) log_debug(__VA_ARGS__)
+#else
+#define log_debug2(...) \
+  do {                  \
+  } while (0)
+#endif
+
 static inline void log_custom(const LogLevel log_level, const char *fmt, ...) {
   extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
                                          const char *fmt, va_list ap);

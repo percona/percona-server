@@ -102,6 +102,13 @@ bool has(const Container &c, Value &&val) {
   return true;
 }
 
+template <typename Container, typename Find_if>
+bool has_if(const Container &c, Find_if &&find_if) {
+  auto it = std::find_if(c.begin(), c.end(), std::forward<Find_if>(find_if));
+  if (c.end() == it) return false;
+  return true;
+}
+
 template <typename Container, typename Value = typename Container::value_type>
 int index_of(Container &c, Value &&val) {
   auto it = std::find(c.begin(), c.end(), std::forward<Value>(val));

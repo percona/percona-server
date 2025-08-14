@@ -121,6 +121,12 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   lock_error = 1;
   errpos = 0;
   head_length = sizeof(share_buff.state.header);
+<<<<<<< HEAD
+||||||| merged common ancestors
+  memset(&info, 0, sizeof(info));
+=======
+  memset((void *)&info, 0, sizeof(info));
+>>>>>>> mysql-9.4.0
 
   realpath_err = my_realpath(
       name_buff, fn_format(org_name, name, "", MI_NAME_IEXT, 4), MYF(0));

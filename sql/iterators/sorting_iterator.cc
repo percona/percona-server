@@ -447,15 +447,16 @@ bool SortingIterator::Init() {
     lookup->eq_ref().ref->key_err = true;
   }
 
-  // Both empty result and error count as errors. (TODO: Why? This is a legacy
-  // choice that doesn't always seem right to me, although it should nearly
-  // never happen in practice.)
-  if (DoSort() != 0) return true;
+  if (DoSort()) return true;
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.
   Mem_root_array<TABLE *> tables(thd()->mem_root, m_filesort->tables);
-  if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
+  if (m_sort_result.found_records == 0) {
+    // There were no rows to sort.
+    m_result_iterator.reset(new (&m_result_iterator_holder.zero_rows)
+                                ZeroRowsIterator(thd(), {}));
+  } else if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
     if (m_fs_info.using_addon_fields()) {
       DBUG_PRINT("info", ("using SortFileIterator"));
@@ -519,18 +520,14 @@ void SortingIterator::SetNullRowFlag(bool is_null_row) {
   }
 }
 
-/*
+/**
   Do the actual sort, by calling filesort. The result will be left in one of
   several places depending on what sort strategy we chose; it is up to Init() to
   figure out what happened and create the appropriate iterator to read from it.
 
-  RETURN VALUES
-    0		ok
-    -1		Some fatal error
-    1		No records
+  @return false on success, true on error.
 */
-
-int SortingIterator::DoSort() {
+bool SortingIterator::DoSort() {
   assert(m_sort_result.io_cache == nullptr);
   m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),

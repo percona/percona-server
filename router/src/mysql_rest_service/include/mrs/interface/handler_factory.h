@@ -52,8 +52,8 @@ class HandlerFactory {
   virtual ~HandlerFactory() = default;
 
   virtual std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>
-  create_persisten_content_file(EndpointBasePtr conent_file_endpoint,
-                                const OptionalIndexNames &index_names) = 0;
+  create_persistent_content_file(EndpointBasePtr conent_file_endpoint,
+                                 const OptionalIndexNames &index_names) = 0;
 
   virtual std::shared_ptr<Handler> create_db_schema_metadata_catalog_handler(
       EndpointBasePtr db_schema_endpoint) = 0;

@@ -285,7 +285,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
-DROP TABLE t1;
+SET charset utf8mb3;
+EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin = "james";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx1	idx1	123	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb4) collate utf8mb4_bin) = 'james')
+SET charset default;
+CREATE TABLE t2(f1 JSON, INDEX idx1 ((CAST(f1->>"$.name" AS CHAR(30) CHARSET utf8mb3)  COLLATE utf8mb3_bin)));
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+EXPLAIN SELECT * FROM t2 WHERE CAST(f1->>"$.name" AS CHAR(30) CHARSET utf8mb3) COLLATE utf8mb3_bin = "james";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	idx1	idx1	93	const	1	100.00	NULL
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1` from `test`.`t2` where ((cast(json_unquote(json_extract(`f1`,_utf8mb4'$.name')) as char(30) charset utf8mb3) collate utf8mb3_bin) = 'james')
+DROP TABLE t1, t2;
 # Test that doing an UPDATE on a hidden generated column returns "column
 # not found".
 CREATE TABLE t1 (col1 INT, INDEX idx1 ((col1 + col1)));

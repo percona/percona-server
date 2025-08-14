@@ -33,12 +33,14 @@
 class MockHttpServerComponent : public HttpServerComponent {
  public:
   MOCK_METHOD(void, init, (HttpServerCtxtPtr srv), (override));
-  MOCK_METHOD(void *, add_route,
+  MOCK_METHOD(void *, add_regex_route,
               (const std::string &url_host, const std::string &url_regex,
                std::unique_ptr<http::base::RequestHandler> cb),
               (override));
-  MOCK_METHOD(void, remove_route,
-              (const std::string &url_host, const std::string &url_regex),
+  MOCK_METHOD(void *, add_direct_match_route,
+              (const std::string &url_host,
+               const ::http::base::UriPathMatcher &url_path,
+               std::unique_ptr<http::base::RequestHandler> cb),
               (override));
   MOCK_METHOD(void, remove_route, (const void *handler), (override));
   MOCK_METHOD(bool, is_ssl_configured, (), (override));

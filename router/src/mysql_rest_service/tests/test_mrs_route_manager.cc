@@ -26,9 +26,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "helper/make_shared_ptr.h"
 #include "mrs/endpoint_configuration.h"
 #include "mrs/endpoint_manager.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_endpoint_factory.h"
@@ -36,6 +36,7 @@
 #include "mrs/configuration.h"
 
 using mrs::database::entry::DbObject;
+using mysql_harness::MakeSharedPtr;
 using EnabledType = mrs::database::entry::EnabledType;
 using testing::_;
 using testing::ByMove;
@@ -174,7 +175,7 @@ class BaseEndpointManagerTests : public Test {
 
   const uint32_t k_host_id{0x1000001};
   const std::vector<UrlHost> k_hosts{create_host({k_host_id})};
-  helper::MakeSharedPtr<StrictMock<MockEndpointFactory>> mock_endpoint_factory_;
+  MakeSharedPtr<StrictMock<MockEndpointFactory>> mock_endpoint_factory_;
   StrictMock<MockAuthManager> mock_auth_manager_;
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   std::unique_ptr<mrs::EndpointManager> sut_;

@@ -52,6 +52,7 @@ struct Field {
   std::string bind_name;
   ColumnType data_type;
   std::string raw_data_type;
+  bool is_user_variable;
 };
 
 struct ResultObject {

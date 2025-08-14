@@ -44,12 +44,14 @@
 #include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"    // Json_path
 #include "sql-common/json_schema.h"  //Json_schema_validator_holder
+#include "sql/current_thd.h"         // current_thd
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/item_strfunc.h"  // Item_str_func
+#include "sql/json_duality_view/content_tree.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_location.h"  // POS
 #include "sql/psi_memory_key.h"  // key_memory_JSON
@@ -63,6 +65,7 @@ class Json_scalar_holder;
 class Json_schema_validator;
 class Json_wrapper;
 class PT_item_list;
+class PT_jdv_name_value_list;
 class THD;
 class my_decimal;
 enum Cast_target : unsigned char;
@@ -748,12 +751,20 @@ class Item_func_json_array final : public Item_json_func {
 /**
   Represents the JSON function JSON_OBJECT()
 */
-class Item_func_json_row_object final : public Item_json_func {
+class Item_func_json_row_object : public Item_json_func {
   String tmp_key_value;
 
  public:
   Item_func_json_row_object(THD *thd, const POS &pos, PT_item_list *a)
       : Item_json_func(thd, pos, a) {
+    // Does not return NULL on NULL input. If a key argument is NULL, an error
+    // is raised. If a value argument is NULL, it is interpreted as the JSON
+    // null literal.
+    null_on_null = false;
+  }
+
+  Item_func_json_row_object(THD *thd, mem_root_deque<Item *> *list)
+      : Item_json_func(thd, list) {
     // Does not return NULL on NULL input. If a key argument is NULL, an error
     // is raised. If a value argument is NULL, it is interpreted as the JSON
     // null literal.
@@ -770,6 +781,42 @@ class Item_func_json_row_object final : public Item_json_func {
   }
 
   bool val_json(Json_wrapper *wr) override;
+};
+
+/**
+ * @brief Represents the JSON function JSON_DUALITY_OBJECT()
+ */
+class Item_func_json_duality_object final : public Item_func_json_row_object {
+  typedef Item_func_json_row_object super;
+
+  jdv::Duality_view_tags m_table_tags{0};
+  PT_jdv_name_value_list *m_jdv_name_value_list{nullptr};
+  bool m_inject_object_hash{false};
+  std::unordered_set<std::string> m_json_arrayagg_keys;
+  bool get_inject_object_hash() const { return m_inject_object_hash; }
+
+ public:
+  Item_func_json_duality_object(THD *thd, const POS &pos, int table_tags,
+                                PT_jdv_name_value_list *jdv_name_value_list);
+
+  const char *func_name() const override { return "json_duality_object"; }
+  enum Functype functype() const override { return JSON_DUALITY_OBJECT_FUNC; }
+
+  bool resolve_type(THD *thd) override;
+  bool val_json(Json_wrapper *wr) override;
+
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+
+  bool set_json_arrayagg_keys(THD *thd);
+
+  jdv::Duality_view_tags table_tags() const { return m_table_tags; }
+  Mem_root_array<LEX_STRING> *name_list();
+  Mem_root_array<uint> *col_tags_list();
+
+  std::unordered_set<std::string> get_json_arrayagg_keys() {
+    return m_json_arrayagg_keys;
+  }
 };
 
 /**

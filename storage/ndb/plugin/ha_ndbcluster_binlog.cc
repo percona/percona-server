@@ -121,6 +121,8 @@ extern ulonglong opt_ndb_eventbuffer_max_alloc;
 extern uint opt_ndb_eventbuffer_free_percent;
 extern ulong opt_ndb_log_purge_rate;
 extern ulong opt_ndb_log_cache_size;
+extern uint opt_ndb_log_row_slice_count;
+extern uint opt_ndb_log_row_slice_id;
 
 void ndb_index_stat_restart();
 
@@ -4669,6 +4671,16 @@ int ndbcluster_binlog_start() {
     }
   }
 
+  // Log warnings
+  if (opt_ndb_log_row_slice_id >= opt_ndb_log_row_slice_count) {
+    ndb_log_error(
+        "Binlog: Row slices can only be filtered in NDB if "
+        "--ndb-log-row-slice-id (%u) is "
+        "less than --ndb-log-row-slice-count (%u)",
+        opt_ndb_log_row_slice_id, opt_ndb_log_row_slice_count);
+    return -1;
+  }
+
   ndb_binlog_thread.init();
   ndb_binlog_purger.init();
 
@@ -4794,10 +4806,9 @@ void NDB_SHARE::set_binlog_flags(Ndb_binlog_type ndb_binlog_type) {
   If the table is not found, or the table does not exist,
   then defaults are returned.
 */
-bool Ndb_binlog_client::read_replication_info(
-    Ndb *ndb, const char *db, const char *table_name, uint server_id,
-    uint32 *binlog_flags, const st_conflict_fn_def **conflict_fn,
-    st_conflict_fn_arg *args, uint *num_args) {
+bool Ndb_binlog_client::read_replication_info(Ndb *ndb, const char *db,
+                                              const char *table_name,
+                                              uint server_id) {
   DBUG_TRACE;
 
   if (opt_ndb_log_apply_status &&
@@ -4807,9 +4818,11 @@ bool Ndb_binlog_client::read_replication_info(
     // updated and those changes should be logged as WRITE to the binlog.
     // NOTE! The table is always subscribed, but these updates are only written
     // to binlog when --ndb-log-apply-status is ON.
-    *binlog_flags = NBT_FULL;
-    *conflict_fn = nullptr;
-    *num_args = 0;
+    m_rpl_info.binlog_flags = NBT_FULL;
+    m_rpl_info.binlog_row_slice_id = 0;
+    m_rpl_info.binlog_row_slice_count = 0;
+    m_rpl_info.conflict_fn = nullptr;
+    m_rpl_info.conflict_num_args = 0;
     return false;
   }
 
@@ -4836,13 +4849,19 @@ bool Ndb_binlog_client::read_replication_info(
     return true;
   }
 
-  *binlog_flags = rep_tab_reader.get_binlog_flags();
+  m_rpl_info.binlog_flags = rep_tab_reader.get_binlog_flags();
+  m_rpl_info.binlog_row_slice_id = rep_tab_reader.get_binlog_row_slice_id();
+  m_rpl_info.binlog_row_slice_count =
+      rep_tab_reader.get_binlog_row_slice_count();
   const char *conflict_fn_spec = rep_tab_reader.get_conflict_fn_spec();
 
   if (conflict_fn_spec != nullptr) {
     char msgbuf[FN_REFLEN];
-    if (parse_conflict_fn_spec(conflict_fn_spec, conflict_fn, args, num_args,
-                               msgbuf, sizeof(msgbuf)) != 0) {
+    if (parse_conflict_fn_spec(
+            conflict_fn_spec,
+            const_cast<const st_conflict_fn_def **>(&(m_rpl_info.conflict_fn)),
+            m_rpl_info.conflict_args, &(m_rpl_info.conflict_num_args), msgbuf,
+            sizeof(msgbuf)) != 0) {
       my_error(ER_CONFLICT_FN_PARSE_ERROR, MYF(0), msgbuf);
 
       /*
@@ -4856,21 +4875,24 @@ bool Ndb_binlog_client::read_replication_info(
     }
   } else {
     /* No conflict function specified */
-    conflict_fn = nullptr;
-    num_args = nullptr;
+    m_rpl_info.conflict_fn = nullptr;
+    m_rpl_info.conflict_num_args = 0;
   }
 
   return false;
 }
 
 int Ndb_binlog_client::apply_replication_info(
-    Ndb *ndb, NDB_SHARE *share, const NdbDictionary::Table *ndbtab,
-    const st_conflict_fn_def *conflict_fn, const st_conflict_fn_arg *args,
-    uint num_args, uint32 binlog_flags) {
+    Ndb *ndb, NDB_SHARE *share, const NdbDictionary::Table *ndbtab) {
   DBUG_TRACE;
 
-  DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
-  share->set_binlog_flags((enum Ndb_binlog_type)binlog_flags);
+  const st_conflict_fn_def *conflict_fn = m_rpl_info.conflict_fn;
+  st_conflict_fn_arg *conflict_args = m_rpl_info.conflict_args;
+  uint conflict_num_args = m_rpl_info.conflict_num_args;
+
+  DBUG_PRINT("info", ("Setting binlog flags to %u", m_rpl_info.binlog_flags));
+  share->set_binlog_flags(
+      static_cast<enum Ndb_binlog_type>(m_rpl_info.binlog_flags));
 
   // Configure the NDB_SHARE to subscribe to changes for constrained
   // columns when calculating transaction dependencies and table has unique
@@ -4891,8 +4913,8 @@ int Ndb_binlog_client::apply_replication_info(
     char tmp_buf[FN_REFLEN];
     if (setup_conflict_fn(ndb, &share->m_cfn_share, share->db,
                           share->table_name, share->get_binlog_use_update(),
-                          ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn, args,
-                          num_args) == 0) {
+                          ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn,
+                          conflict_args, conflict_num_args) == 0) {
       ndb_log_verbose(1, "Replica: %s", tmp_buf);
     } else {
       /*
@@ -4921,18 +4943,10 @@ int Ndb_binlog_client::read_and_apply_replication_info(
     Ndb *ndb, NDB_SHARE *share, const NdbDictionary::Table *ndbtab,
     uint server_id) {
   DBUG_TRACE;
-  uint32 binlog_flags;
-  const st_conflict_fn_def *conflict_fn = nullptr;
-  st_conflict_fn_arg args[MAX_CONFLICT_ARGS];
-  uint num_args = MAX_CONFLICT_ARGS;
-
-  if (read_replication_info(ndb, share->db, share->table_name, server_id,
-                            &binlog_flags, &conflict_fn, args, &num_args) ||
-      apply_replication_info(ndb, share, ndbtab, conflict_fn, args, num_args,
-                             binlog_flags)) {
+  if (read_replication_info(ndb, share->db, share->table_name, server_id) ||
+      apply_replication_info(ndb, share, ndbtab) != 0) {
     return -1;
   }
-
   return 0;
 }
 
@@ -5260,15 +5274,13 @@ struct AnyValueFilter {
    @param ndbtab        The Ndb table to create event operation for
    @param event_name    Name of the event in NDB to create event operation on
    @param event_data    Pointer to Ndb_event_data to setup for receiving events
-   @param skip_setup_datanode_anyvalue_filter Don't setup anyvalue filters in
-                        datanode when creating event subscription.
+   @param skip_filters  Condition to setup filters in event subscription
 
    @return Pointer to created NdbEventOperation on success, nullptr on failure
 */
 NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
     Ndb *ndb, const NdbDictionary::Table *ndbtab, const std::string &event_name,
-    const Ndb_event_data *event_data,
-    bool skip_setup_datanode_anyvalue_filter) {
+    const Ndb_event_data *event_data, bool skip_filters) {
   int retries = 100;
   while (true) {
     // Create the event operation. This incurs one roundtrip to check that event
@@ -5303,13 +5315,13 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
     op->setAllowEmptyUpdate(opt_ndb_log_empty_update);
 
     // Setup nologging to be filtered in NDB
-    if (!skip_setup_datanode_anyvalue_filter) {
+    if (!skip_filters) {
       ndb_log_verbose(1, "Binlog: filter nologging in NDB");
       op->setFilterAnyvalueMySQLNoLogging();
     }
 
     // Setup replica updates to be filtered in NDB
-    if (!opt_log_replica_updates && !skip_setup_datanode_anyvalue_filter) {
+    if (!opt_log_replica_updates && !skip_filters) {
       if (opt_server_id_bits != 32 || opt_ndb_log_apply_status ||
           opt_ndb_log_orig) {
         // Conditions for enabling filter of replica updates in NDB are not met
@@ -5317,6 +5329,48 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
       } else {
         ndb_log_info("Binlog: filter replica updates in NDB");
         op->setFilterAnyvalueMySQLNoReplicaUpdates();
+      }
+    }
+
+    /*
+     * Setup row-hash filtering in NDB. Use ndb_replication
+     * first, else use server parameters
+     */
+    if (!skip_filters) {
+      uint slice_count = 0;
+      uint slice_id = 0;
+      if (m_rpl_info.binlog_row_slice_count > 0) {
+        slice_count = m_rpl_info.binlog_row_slice_count;
+        slice_id = m_rpl_info.binlog_row_slice_id;
+      } else {
+        slice_count = opt_ndb_log_row_slice_count;
+        slice_id = opt_ndb_log_row_slice_id;
+      }
+      if (slice_count > 1) {
+        if (event_data->have_blobs) {
+          ndb_log_error(
+              "Binlog: cannot log row slice because table has BLOB columns");
+          mysql_mutex_assert_owner(&injector_event_mutex);
+          op->setCustomData(nullptr);
+          ndb->dropEventOperation(op);
+          return nullptr;
+        }
+
+        // all good
+        int ret = op->setFilterRowSlice(slice_count, slice_id);
+        if (ret != 0) {
+          ndb_log_error(
+              "Binlog: invalid row slice parameters (slice_id: %u, "
+              "slice_count: %u)",
+              slice_id, slice_count);
+          mysql_mutex_assert_owner(&injector_event_mutex);
+          op->setCustomData(nullptr);
+          ndb->dropEventOperation(op);
+          return nullptr;
+        }
+        ndbcluster::ndbrequire(ret == 0);
+        ndb_log_info("Binlog: logging row slice id %u (total of %u)", slice_id,
+                     slice_count);
       }
     }
 
@@ -5460,11 +5514,11 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
       Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name);
 
-  // Skip anyvalue filter in NDB for the util tables used for
+  // Skip filters in NDB for the util tables used for
   //  1) schema distribution
   //  2) replication applier status
-  const bool skip_setup_anyvalue_filter = is_schema_dist_setup ||          // 1
-                                          share->is_apply_status_table();  // 2
+  const bool skip_filter = is_schema_dist_setup ||          // 1
+                           share->is_apply_status_table();  // 2
 
   const bool use_full_event =
       share->get_binlog_full() || share->get_subscribe_constrained();
@@ -5487,8 +5541,8 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
     return -1;
   }
 
-  NdbEventOperation *new_op = create_event_op_in_NDB(
-      ndb, ndbtab, event_name, event_data, skip_setup_anyvalue_filter);
+  NdbEventOperation *new_op =
+      create_event_op_in_NDB(ndb, ndbtab, event_name, event_data, skip_filter);
   if (new_op == nullptr) {
     // Warnings already printed/logged
     Ndb_event_data::destroy(event_data);
@@ -7577,7 +7631,6 @@ restart_cluster_failure:
         ndb_latest_received_binlog_epoch = latest_epoch;
         tot_poll_wait = 0;
       }
-      DBUG_PRINT("info", ("pollEvents res: %d", res));
     }
 
     // Epoch to handle from i_ndb. Use latest 'empty epoch' if no events.

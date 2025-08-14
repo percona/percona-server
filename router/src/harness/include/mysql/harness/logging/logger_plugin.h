@@ -28,6 +28,7 @@
 
 #include <array>
 #include <functional>
+#include <set>
 
 #include "harness_export.h"
 #include "mysql/harness/loader_config.h"
@@ -65,5 +66,15 @@ using on_switch_to_configured_loggers = std::function<void()>;
  */
 void HARNESS_EXPORT register_on_switch_to_configured_loggers_callback(
     on_switch_to_configured_loggers callback);
+
+void HARNESS_EXPORT register_supported_external_logging_handler_names(
+    const std::set<std::string> &names);
+
+void HARNESS_EXPORT register_external_logging_handler(
+    const std::string &name,
+    std::shared_ptr<mysql_harness::logging::ExternalHandler> handler);
+
+void HARNESS_EXPORT
+unregister_external_logging_handler(const std::string &name);
 
 #endif

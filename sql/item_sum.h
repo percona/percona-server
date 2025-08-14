@@ -451,7 +451,8 @@ class Item_sum : public Item_func {
     SUM_BIT_FUNC,         // BIT_AND, BIT_OR and BIT_XOR
     UDF_SUM_FUNC,         // user defined functions
     GROUP_CONCAT_FUNC,    // GROUP_CONCAT
-    JSON_AGG_FUNC,        // JSON_ARRAYAGG and JSON_OBJECTAGG
+    JSON_OBJECTAGG_FUNC,  // JSON_OBJECTAGG
+    JSON_ARRAYAGG_FUNC,   // JSON_ARRAYAGG
     ROW_NUMBER_FUNC,      // Window functions
     RANK_FUNC,
     DENSE_RANK_FUNC,
@@ -1219,6 +1220,8 @@ class Item_aggr_bit_field : public Item_aggregate_field {
   ulonglong m_reset_bits;
 };
 
+enum class Json_constructor_null_clause { NULL_ON_NULL, ABSENT_ON_NULL };
+
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
 class Item_sum_json : public Item_sum {
   typedef Item_sum super;
@@ -1230,23 +1233,33 @@ class Item_sum_json : public Item_sum {
   String m_conversion_buffer;
   /// Wrapper around the container (object/array) which accumulates the value.
   unique_ptr_destroy_only<Json_wrapper> m_wrapper;
+  /// JSON constructor null clause
+  Json_constructor_null_clause m_json_constructor_null_clause{
+      Json_constructor_null_clause::NULL_ON_NULL};
 
   /**
     Construct an Item_sum_json instance.
 
     @param wrapper a wrapper around the Json_array or Json_object that contains
                    the aggregated result
+    @param json_constructor_null_clause Specifies the behavior for
+                                        handling NULL values in JSON
+                                        constructors
+                                        i.e, NULL_ON_NULL and ABSENT_ON_NULL
     @param parent_args arguments to forward to Item_sum's constructor
   */
   template <typename... Args>
-  explicit Item_sum_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
-                         Args &&...parent_args);
+  explicit Item_sum_json(
+      unique_ptr_destroy_only<Json_wrapper> wrapper,
+      Json_constructor_null_clause json_constructor_null_clause,
+      Args &&...parent_args);
 
  public:
   ~Item_sum_json() override;
   bool fix_fields(THD *thd, Item **pItem) override;
-  enum Sumfunctype sum_func() const override { return JSON_AGG_FUNC; }
   Item_result result_type() const override { return STRING_RESULT; }
+
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   double val_real() override;
   longlong val_int() override;
@@ -1258,6 +1271,9 @@ class Item_sum_json : public Item_sum {
 
   void reset_field() override;
   void update_field() override;
+
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 
   bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override;
@@ -1272,11 +1288,14 @@ class Item_sum_json_array final : public Item_sum_json {
   Item_sum_json_array(THD *thd, Item_sum *item,
                       unique_ptr_destroy_only<Json_wrapper> wrapper,
                       unique_ptr_destroy_only<Json_array> array);
-  Item_sum_json_array(const POS &pos, Item *a, PT_window *w,
+  Item_sum_json_array(const POS &pos, Item *a,
+                      Json_constructor_null_clause json_constructor_null_clause,
+                      PT_window *w,
                       unique_ptr_destroy_only<Json_wrapper> wrapper,
                       unique_ptr_destroy_only<Json_array> array);
   ~Item_sum_json_array() override;
   const char *func_name() const override { return "json_arrayagg"; }
+  enum Sumfunctype sum_func() const override { return JSON_ARRAYAGG_FUNC; }
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
@@ -1313,6 +1332,7 @@ class Item_sum_json_object final : public Item_sum_json {
                        unique_ptr_destroy_only<Json_object> object);
   ~Item_sum_json_object() override;
   const char *func_name() const override { return "json_objectagg"; }
+  enum Sumfunctype sum_func() const override { return JSON_OBJECTAGG_FUNC; }
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;

@@ -44,7 +44,6 @@
 #include "mysql/containers/buffers/buffer_view.h"           // Buffer_view
 #include "mysql/containers/buffers/grow_calculator.h"       // Grow_calculator
 #include "mysql/containers/buffers/grow_status.h"           // Grow_status
-#include "mysql/utils/nodiscard.h"                          // NODISCARD
 
 #include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
 

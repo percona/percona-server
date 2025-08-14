@@ -1189,8 +1189,12 @@ sub optimize_cases {
       }
 
       if ($secondary_engine_support) {
-        optimize_secondary_engine_tests($dash_opt, $tinfo);
+        optimize_secondary_engine_opt_tests($dash_opt, $tinfo);
       }
+    }
+
+    if ($secondary_engine_support) {
+      optimize_secondary_engine_tests($tinfo);
     }
 
     if ($quick_collect && !$tinfo->{'skip'}) {

@@ -34,6 +34,6 @@ public interface Dictionary {
 
     public Table getTable(String tableName);
 
-    public void removeCachedTable(String tableName);
+    public void invalidateTable(String tableName);
 
 }

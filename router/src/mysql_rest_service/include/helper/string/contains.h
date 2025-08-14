@@ -27,6 +27,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_CONTAINS_H_
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "helper/string/generic.h"

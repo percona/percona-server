@@ -86,8 +86,9 @@ bool Statement_runnable::execute_server_code(THD *thd) {
   assert(!executing_statement_under_stored_program ||
          thd->lex->sphead == thd->sp_runtime_ctx->sp);
 
-  // Set multi-result state if statement belongs to SP.
-  if (executing_statement_under_stored_program) {
+  // Set multi-result state if statement belongs to Stored procedure.
+  if (executing_statement_under_stored_program &&
+      thd->sp_runtime_ctx->sp->m_type == enum_sp_type::PROCEDURE) {
     error = set_sp_multi_result_state(thd, thd->lex);
     if (error) goto end;
   }

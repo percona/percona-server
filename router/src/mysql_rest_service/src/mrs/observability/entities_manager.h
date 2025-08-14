@@ -26,6 +26,7 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_OBSERVABILITY_ENTRITIES_MANAGER_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_OBSERVABILITY_ENTRITIES_MANAGER_H_
 
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -47,7 +48,10 @@ class EntitiesManager : private Common {
       entities_.resize(id + 1);
     }
 
+    assert(nullptr == entities_[id]);
+
     entities_[id] = std::move(entity);
+    entities_[id]->clear();
   }
 
   const Snapshot &fetch_counters() {

@@ -43,10 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/time.h>
 #endif
 
-#ifndef UNIV_HOTBACKUP
-#include <mysql_com.h>
-#endif /* !UNIV_HOTBACKUP */
-
 #include "my_compiler.h"
 #include "mysql_com.h"
 #include "os0thread.h"

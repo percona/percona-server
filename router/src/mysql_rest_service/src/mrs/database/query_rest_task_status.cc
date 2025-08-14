@@ -56,28 +56,5 @@ void QueryRestTaskStatus::on_row(const ResultRow &r) {
   }
 }
 
-void QueryRestTaskStatus::execute_monitoring_sql(
-    collector::CountedMySQLSession *session,
-    const MysqlTaskOptions &task_options, const std::string &task_id) {
-  if (!task_options.monitoring_sql.empty()) {
-    // custom progress collection into the task_log
-
-    query_ = {"SET @task_id=?"};
-    query_ << task_id;
-    execute(session);
-
-    try {
-      for (const auto &q : task_options.monitoring_sql) {
-        query_ = {q.c_str()};
-        execute(session);
-      }
-    } catch (const std::exception &e) {
-      log_error("Error executing mysqlTask.monitoringSql for %s: %s",
-                url_.c_str(), e.what());
-      throw;
-    }
-  }
-}
-
 }  // namespace database
 }  // namespace mrs

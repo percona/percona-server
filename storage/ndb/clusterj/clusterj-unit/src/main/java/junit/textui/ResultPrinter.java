@@ -73,7 +73,7 @@ public class ResultPrinter implements TestListener {
      */
     public void addError(Test test, Throwable t) {
         // report status immediately
-        printer.print("ERROR...");
+        printer.print("ERROR... " + t.getMessage());
         // remember details
         messages.append(testNumber);
         messages.append(": ");
@@ -90,7 +90,7 @@ public class ResultPrinter implements TestListener {
      */
     public void addFailure(Test test, AssertionFailedError t) {
         // report status immediately
-        printer.print("FAILURE...");
+        printer.print("FAILURE... " + t.getMessage());
         // remember details
         messages.append(testNumber);
         messages.append(": ");

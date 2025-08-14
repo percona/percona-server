@@ -157,8 +157,9 @@ mysqlrouter::sqlstring RowInsert::insert_sql() const {
 void AutoIncRowInsert::on_post_insert(MySQLSession *session) {
   if (auto pk = pk_.find(gen_id_column_->column_name);
       pk == pk_.end() || pk->second.str() == "NULL") {
-    auto row = session->query_one("SELECT LAST_INSERT_ID()");
-    pk_[gen_id_column_->column_name] = (*row)[0];
+    mysqlrouter::sqlstring tmp("?");
+    tmp << session->last_insert_id();
+    pk_[gen_id_column_->column_name] = std::move(tmp);
 
     // propagate PK to FK references
     for (auto op : after_) {

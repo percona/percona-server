@@ -56,6 +56,18 @@ struct MrsSchemaVersion {
 
   bool operator!=(const MrsSchemaVersion &o) const { return !operator==(o); }
 
+  bool operator<(const MrsSchemaVersion &o) const {
+    if (major == o.major) {
+      if (minor == o.minor) {
+        return patch < o.patch;
+      } else {
+        return minor < o.minor;
+      }
+    } else {
+      return major < o.major;
+    }
+  }
+
   std::string str() const {
     return std::to_string(major) + "." + std::to_string(minor) + "." +
            std::to_string(patch);

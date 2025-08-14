@@ -378,7 +378,8 @@ static double IndexSelectivityOfUnknownValue(const Field &field) {
   The actual operator @c op is created by the concrete subclass in
   create_scalar_predicate().
 */
-Item_bool_func *Linear_comp_creator::create(Item *a, Item *b) const {
+Item_bool_func *Linear_comp_creator::create(const POS &pos, Item *a,
+                                            Item *b) const {
   /*
     Test if the arguments are row constructors and thus can be flattened into
     a list of ANDs or ORs.
@@ -390,54 +391,65 @@ Item_bool_func *Linear_comp_creator::create(Item *a, Item *b) const {
     }
     assert(a->cols() > 1);
     List<Item> list;
-    for (uint i = 0; i < a->cols(); ++i)
-      list.push_back(create(a->element_index(i), b->element_index(i)));
-    return combine(list);
+    for (uint i = 0; i < a->cols(); ++i) {
+      Item *col_item = create(pos, a->element_index(i), b->element_index(i));
+      current_thd->add_item(col_item);
+      list.push_back(col_item);
+    }
+    return combine(pos, list);
   }
-  return create_scalar_predicate(a, b);
+  Item_bool_func *item = create_scalar_predicate(pos, a, b);
+  if (item == nullptr) {
+    return nullptr;
+  }
+
+  return item;
 }
 
-Item_bool_func *Eq_creator::create_scalar_predicate(Item *a, Item *b) const {
+Item_bool_func *Eq_creator::create_scalar_predicate(const POS &pos, Item *a,
+                                                    Item *b) const {
   assert(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
-  return new Item_func_eq(a, b);
+  return new Item_func_eq(pos, a, b);
 }
 
-Item_bool_func *Eq_creator::combine(List<Item> list) const {
-  return new Item_cond_and(list);
+Item_bool_func *Eq_creator::combine(const POS &pos, List<Item> list) const {
+  return new Item_cond_and(pos, list);
 }
 
-Item_bool_func *Equal_creator::create_scalar_predicate(Item *a, Item *b) const {
+Item_bool_func *Equal_creator::create_scalar_predicate(const POS &pos, Item *a,
+                                                       Item *b) const {
   assert(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
-  return new Item_func_equal(a, b);
+  return new Item_func_equal(pos, a, b);
 }
 
-Item_bool_func *Equal_creator::combine(List<Item> list) const {
-  return new Item_cond_and(list);
+Item_bool_func *Equal_creator::combine(const POS &pos, List<Item> list) const {
+  return new Item_cond_and(pos, list);
 }
 
-Item_bool_func *Ne_creator::create_scalar_predicate(Item *a, Item *b) const {
+Item_bool_func *Ne_creator::create_scalar_predicate(const POS &pos, Item *a,
+                                                    Item *b) const {
   assert(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
-  return new Item_func_ne(a, b);
+  return new Item_func_ne(pos, a, b);
 }
 
-Item_bool_func *Ne_creator::combine(List<Item> list) const {
-  return new Item_cond_or(list);
+Item_bool_func *Ne_creator::combine(const POS &pos, List<Item> list) const {
+  return new Item_cond_or(pos, list);
 }
 
-Item_bool_func *Gt_creator::create(Item *a, Item *b) const {
-  return new Item_func_gt(a, b);
+Item_bool_func *Gt_creator::create(const POS &pos, Item *a, Item *b) const {
+  return new Item_func_gt(pos, a, b);
 }
 
-Item_bool_func *Lt_creator::create(Item *a, Item *b) const {
-  return new Item_func_lt(a, b);
+Item_bool_func *Lt_creator::create(const POS &pos, Item *a, Item *b) const {
+  return new Item_func_lt(pos, a, b);
 }
 
-Item_bool_func *Ge_creator::create(Item *a, Item *b) const {
-  return new Item_func_ge(a, b);
+Item_bool_func *Ge_creator::create(const POS &pos, Item *a, Item *b) const {
+  return new Item_func_ge(pos, a, b);
 }
 
-Item_bool_func *Le_creator::create(Item *a, Item *b) const {
-  return new Item_func_le(a, b);
+Item_bool_func *Le_creator::create(const POS &pos, Item *a, Item *b) const {
+  return new Item_func_le(pos, a, b);
 }
 
 float Item_func_not::get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -1349,10 +1361,10 @@ bool Arg_comparator::set_cmp_func(Item_func *owner_arg, Item **left_arg,
       Note this may be considered redundant for non-row arguments but necessary
       for row arguments.
      */
-    if (convert_const_strings(coll, left, 1, 1)) {
+    if (convert_const_strings(coll, left, 1)) {
       return true;
     }
-    if (convert_const_strings(coll, right, 1, 1)) {
+    if (convert_const_strings(coll, right, 1)) {
       return true;
     }
   } else if (try_year_cmp_func(type)) {
@@ -3183,6 +3195,9 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   if (args[1]->result_type() == STRING_RESULT &&
       args[2]->result_type() == STRING_RESULT) {
     if (simplify_string_args(thd, args[0]->collation, args + 1, 2)) return true;
+    // Errors may have gone unnoticed:
+    if (thd->is_error()) return true;
+
     if (!args[1]->eq_by_collation(args[2], args[0]->collation.collation))
       return false;
   } else {
@@ -4694,7 +4709,7 @@ void in_string::set(uint pos, Item *item) {
   if (item->type() == Item::FUNC_ITEM)
     str->copy(*res);
   else
-    *str = *res;
+    str->set(res->ptr(), res->length(), res->charset());
 }
 
 static int srtcmp_in(const CHARSET_INFO *cs, const String *x, const String *y) {
@@ -5243,6 +5258,21 @@ bool Item_func_in::list_contains_null() {
     if ((*arg)->null_inside()) return true;
   }
   return false;
+}
+
+void Item_func_in::set_no_constant_propagation() {
+  // Only when the LHS is a ROW_ITEM that constant propagation
+  // could skip range analysis.
+  if (args[0]->type() != Item::ROW_ITEM) {
+    return;
+  }
+  Item_row *row_predicand = down_cast<Item_row *>(args[0]);
+  for (uint i = 0; i < row_predicand->cols(); ++i) {
+    Item *item = row_predicand->element_index(i)->real_item();
+    if (item->type() == Item::FIELD_ITEM) {
+      item->disable_constant_propagation(nullptr);
+    }
+  }
 }
 
 /**

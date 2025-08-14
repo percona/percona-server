@@ -1083,6 +1083,7 @@ std::string_view find_secondary_engine_fail_reason(const LEX *lex);
 
 void find_and_set_offload_fail_reason(const LEX *lex);
 
-bool reads_not_secondary_columns(const LEX *lex);
+bool reads_not_secondary_columns(const LEX *lex,
+                                 std::string_view *not_secondary_col_str);
 
 #endif /* SQL_SELECT_INCLUDED */

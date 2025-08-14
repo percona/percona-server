@@ -114,6 +114,8 @@ a
 drop table t1;
 # Bug#25669590: regression: assertion failed: collation.collation == ...
 prepare s from "DO SHA1(DATABASE());";
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 execute s;
 #
 # Bug#36871927: database() results truncated at 34 bytes due to union

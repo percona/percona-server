@@ -42,6 +42,14 @@ ROUTER_ADD_SHARED_LIBRARY(connection_pool
   OpenSSL::SSL OpenSSL::Crypto
   )
 
+# snd_buf.resize(frame_size)
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  ADD_COMPILE_FLAGS(connection_pool.cc
+    COMPILE_FLAGS -Wno-error=stringop-overflow
+    )
+  DOWNGRADE_STRINGOP_WARNINGS(connection_pool)
+ENDIF()
+
 # connection pool plugin
 
 ADD_HARNESS_PLUGIN(connection_pool_plugin

@@ -70,6 +70,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/json_duality_view/dml.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
 #include "sql/locked_tables_list.h"
@@ -379,10 +380,18 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   Query_block *const query_block = lex->query_block;
   Query_expression *const unit = lex->unit;
   Table_ref *const table_list = query_block->get_table_list();
+
   Table_ref *const update_table_ref = table_list->updatable_base_table();
   TABLE *const table = update_table_ref->table;
 
-  assert(table->pos_in_table_list == update_table_ref);
+  // When an UPDATE operation on a JSON duality view is part of a Stored Program
+  // or a Prepared Statement, the view query is re-parsed during the execution
+  // of the SP or PS for syntax and semantics validation. The following
+  // condition for update_table_ref, which is obtained from the JSON duality
+  // view Content-tree, will no longer be valid. Hence, skipping assert()
+  // check for JSON duality view.
+  assert(table->pos_in_table_list == update_table_ref ||
+         table_list->is_json_duality_view());
 
   const bool transactional_table = table->file->has_transactions();
 
@@ -609,13 +618,15 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  if (prepare_partial_update(trace, query_block->fields, *update_value_list))
+  if (!table_list->is_json_duality_view() &&
+      prepare_partial_update(trace, query_block->fields, *update_value_list))
     return true; /* purecov: inspected */
 
   if (table->setup_partial_update()) return true; /* purecov: inspected */
 
   ha_rows updated_rows = 0;
   ha_rows found_rows = 0;
+  ulonglong jdv_affected_rows = 0;
 
   unique_ptr_destroy_only<Filesort> fsort;
   unique_ptr_destroy_only<RowIterator> iterator;
@@ -873,6 +884,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     uint dup_key_found;
 
+<<<<<<< HEAD
     error = table->file->ha_fast_update(thd, query_block->fields,
                                         *update_value_list, conds);
     if (error == 0)
@@ -887,6 +899,189 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         thd->inc_examined_row_count(1);
         if (conds != nullptr) {
           const bool skip_record = conds->val_int() == 0;
+||||||| merged common ancestors
+    while (true) {
+      error = iterator->Read();
+      if (error || thd->killed) break;
+      thd->inc_examined_row_count(1);
+      if (conds != nullptr) {
+        const bool skip_record = conds->val_int() == 0;
+        if (thd->is_error()) {
+          error = 1;
+          break;
+        }
+        if (skip_record) {
+          table->file
+              ->unlock_row();  // Row failed condition check, release lock
+          thd->get_stmt_da()->inc_current_row_for_condition();
+          continue;
+        }
+      }
+      assert(!thd->is_error());
+
+      if (table->file->was_semi_consistent_read())
+        /*
+          Reviewer: iterator is reading from the to-be-updated table or
+          from a tmp file.
+          In the latter case, if the condition of this if() is true,
+          it is wrong to "continue"; indeed this will pick up the _next_ row of
+          tempfile; it will not re-read-with-lock the current row of tempfile,
+          as tempfile is not an InnoDB table and not doing semi consistent read.
+          If that happens, we're potentially skipping a row which was found
+          matching! OTOH, as the rowid was written to the tempfile, it means it
+          matched and thus we have already re-read it in the tempfile-write loop
+          above and thus locked it. So we shouldn't come here. How about adding
+          an assertion that if reading from tmp file we shouldn't come here?
+        */
+        continue; /* repeat the read of the same row if it still exists */
+
+      table->clear_partial_update_diffs();
+
+      store_record(table, record[1]);
+      bool is_row_changed = false;
+      if (fill_record_n_invoke_before_triggers(
+              thd, &update, query_block->fields, *update_value_list, table,
+              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
+        error = 1;
+        break;
+      }
+      found_rows++;
+
+      if (is_row_changed) {
+        /*
+          Default function and default expression values are filled before
+          evaluating the view check option. Check option on view using table(s)
+          with default function and default expression breaks otherwise.
+
+          It is safe to not invoke CHECK OPTION for VIEW if records are same.
+          In this case the row is coming from the view and thus should satisfy
+          the CHECK OPTION.
+        */
+        int check_result = table_list->view_check_option(thd);
+        if (check_result != VIEW_CHECK_OK) {
+          if (check_result == VIEW_CHECK_SKIP)
+            continue;
+          else if (check_result == VIEW_CHECK_ERROR) {
+            error = 1;
+            break;
+          }
+        }
+
+        /*
+          Existing rows in table should normally satisfy CHECK constraints. So
+          it should be safe to check constraints only for rows that has really
+          changed (i.e. after compare_records()).
+
+          In future, once addition/enabling of CHECK constraints without their
+          validation is supported, we might encounter old rows which do not
+          satisfy CHECK constraints currently enabled. However, rejecting no-op
+          updates to such invalid pre-existing rows won't make them valid and is
+          probably going to be confusing for users. So it makes sense to stick
+          to current behavior.
+        */
+        if (invoke_table_check_constraints(thd, table)) {
+=======
+    while (true) {
+      error = iterator->Read();
+      if (error || thd->killed) break;
+      thd->inc_examined_row_count(1);
+      if (conds != nullptr) {
+        const bool skip_record = conds->val_int() == 0;
+        if (thd->is_error()) {
+          error = 1;
+          break;
+        }
+        if (skip_record) {
+          table->file
+              ->unlock_row();  // Row failed condition check, release lock
+          thd->get_stmt_da()->inc_current_row_for_condition();
+          continue;
+        }
+      }
+      assert(!thd->is_error());
+
+      if (table->file->was_semi_consistent_read())
+        /*
+          Reviewer: iterator is reading from the to-be-updated table or
+          from a tmp file.
+          In the latter case, if the condition of this if() is true,
+          it is wrong to "continue"; indeed this will pick up the _next_ row of
+          tempfile; it will not re-read-with-lock the current row of tempfile,
+          as tempfile is not an InnoDB table and not doing semi consistent read.
+          If that happens, we're potentially skipping a row which was found
+          matching! OTOH, as the rowid was written to the tempfile, it means it
+          matched and thus we have already re-read it in the tempfile-write loop
+          above and thus locked it. So we shouldn't come here. How about adding
+          an assertion that if reading from tmp file we shouldn't come here?
+        */
+        continue; /* repeat the read of the same row if it still exists */
+
+      table->clear_partial_update_diffs();
+
+      store_record(table, record[1]);
+
+      if (table_list->is_json_duality_view()) {
+        if (found_rows != 0) {
+          my_error(ER_JDV_OPERATION_NOT_SUPPORTED, MYF(0),
+                   "Multiple object update");
+          error = 1;
+          break;
+        }
+
+        found_rows++;
+
+        if (jdv::jdv_update(thd, table_list, &query_block->fields,
+                            update_value_list, &jdv_affected_rows)) {
+          assert(thd->is_error());
+          error = 1;
+          break;
+        }
+        continue;
+      }
+
+      bool is_row_changed = false;
+      if (fill_record_n_invoke_before_triggers(
+              thd, &update, query_block->fields, *update_value_list, table,
+              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
+        error = 1;
+        break;
+      }
+      found_rows++;
+
+      if (is_row_changed) {
+        /*
+          Default function and default expression values are filled before
+          evaluating the view check option. Check option on view using table(s)
+          with default function and default expression breaks otherwise.
+
+          It is safe to not invoke CHECK OPTION for VIEW if records are same.
+          In this case the row is coming from the view and thus should satisfy
+          the CHECK OPTION.
+        */
+        int check_result = table_list->view_check_option(thd);
+        if (check_result != VIEW_CHECK_OK) {
+          if (check_result == VIEW_CHECK_SKIP)
+            continue;
+          else if (check_result == VIEW_CHECK_ERROR) {
+            error = 1;
+            break;
+          }
+        }
+
+        /*
+          Existing rows in table should normally satisfy CHECK constraints. So
+          it should be safe to check constraints only for rows that has really
+          changed (i.e. after compare_records()).
+
+          In future, once addition/enabling of CHECK constraints without their
+          validation is supported, we might encounter old rows which do not
+          satisfy CHECK constraints currently enabled. However, rejecting no-op
+          updates to such invalid pre-existing rows won't make them valid and is
+          probably going to be confusing for users. So it makes sense to stick
+          to current behavior.
+        */
+        if (invoke_table_check_constraints(thd, table)) {
+>>>>>>> mysql-9.4.0
           if (thd->is_error()) {
             error = 1;
             break;
@@ -1138,6 +1333,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Transaction_ctx::STMT);
 
   iterator.reset();
+
+  if (table_list->is_json_duality_view()) {
+    if (error < 0) {
+      char buff[MYSQL_ERRMSG_SIZE];
+      snprintf(buff, sizeof(buff), ER_THD(thd, ER_JDV_DML_INFO),
+               static_cast<long>(jdv_affected_rows),
+               (long)thd->get_stmt_da()->current_statement_cond_count());
+      my_ok(thd, jdv_affected_rows, 0, buff);
+      DBUG_PRINT("info", ("%ld records affected",
+                          static_cast<long>(jdv_affected_rows)));
+    }
+    return error >= 0 || thd->is_error();
+  }
 
   /*
     error < 0 means really no error at all: we processed all rows until the
@@ -1495,6 +1703,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
   const bool is_single_table_syntax = !multitable;
 
+  bool is_jdv = table_list->is_json_duality_view();
   assert(select->fields.size() == select->num_visible_fields());
   assert(select->num_visible_fields() == update_value_list->size());
 
@@ -1549,31 +1758,40 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     - Target table must not be same as one selected from
                                           (checked in unique_table)
   */
-
-  if (!multitable) {
-    // Single-table UPDATE, the table must be updatable:
-    if (!table_list->is_updatable()) {
-      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+  if (is_jdv) {
+    if (jdv::jdv_prepare_update(thd, table_list, is_single_table_plan())) {
       return true;
     }
-    // Perform multi-table operation if table to be updated is multi-table view
-    if (table_list->is_multiple_tables()) multitable = true;
   }
 
-  // The hypergraph optimizer has a unified execution path for single-table and
-  // multi-table UPDATE, and does not need to distinguish between the two. This
-  // enables it to perform optimizations like sort avoidance and semi-join
-  // flattening even if features specific to single-table UPDATE (that is, ORDER
-  // BY and LIMIT) are used.
-  if (lex->using_hypergraph_optimizer()) {
-    multitable = true;
-  }
+  // FIXME.dtjeldvo: This breaks with JDVs
+  if (!is_jdv) {
+    if (!multitable) {
+      // Single-table UPDATE, the table must be updatable:
+      if (!table_list->is_updatable()) {
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+        return true;
+      }
+      // Perform multi-table operation if table to be updated is multi-table
+      // view
+      if (table_list->is_multiple_tables()) multitable = true;
+    }
 
-  if (!multitable && select->first_inner_query_expression() != nullptr &&
-      should_switch_to_multi_table_if_subqueries(thd, select, table_list))
-    multitable = true;
+    // The hypergraph optimizer has a unified execution path for single-table
+    // and multi-table UPDATE, and does not need to distinguish between the two.
+    // This enables it to perform optimizations like sort avoidance and
+    // semi-join flattening even if features specific to single-table UPDATE
+    // (that is, ORDER BY and LIMIT) are used.
+    if (lex->using_hypergraph_optimizer()) {
+      multitable = true;
+    }
 
-  if (multitable) select->set_sj_candidates(&sj_candidates_local);
+    if (!multitable && select->first_inner_query_expression() != nullptr &&
+        should_switch_to_multi_table_if_subqueries(thd, select, table_list))
+      multitable = true;
+
+    if (multitable) select->set_sj_candidates(&sj_candidates_local);
+  }  // if (!is_jdv)
 
   if (select->leaf_table_count >= 2 &&
       setup_natural_join_row_types(thd, select->m_current_table_nest,
@@ -1610,11 +1828,27 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
 
+  // FIXME.dtjeldvo: Need this for the select of previous values for JDV to work
   if (setup_fields(thd, /*want_privilege=*/UPDATE_ACL,
                    /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
-                   /*column_update=*/true, /*typed_items=*/nullptr,
+                   /*column_update=*/(!is_jdv), /*typed_items=*/nullptr,
                    &select->fields, Ref_item_array()))
     return true;
+
+  // FIXME.dtjeldvo: Bailing here since jdv.data is not updatable, but we need
+  // second call to setup_fields() to make things like JSON_REPLACE(data,...)
+  // as the new json value work.
+  if (is_jdv) {
+    bool ret_val =
+        setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                     /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                     /*column_update=*/false, &select->fields,
+                     update_value_list, Ref_item_array());
+    if (!ret_val) {
+      select->master_query_expression()->set_prepared();
+    }
+    return ret_val;
+  }
 
   if (make_base_table_fields(thd, &select->fields))
     return true; /* purecov: inspected */
@@ -1637,7 +1871,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     if (tr->map() & tables_for_update) tr->set_updated();
     tr->updating = tr->is_updated();
   }
-
+  // FIXME.dtjeldvo: Don't we need this also for JDVs?
   if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
                    /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
                    /*column_update=*/false, &select->fields, update_value_list,

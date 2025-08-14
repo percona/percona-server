@@ -93,13 +93,9 @@
 %{?el10:                         %global with_debuginfo 1}
 %{!?with_debuginfo:              %global without_debuginfo 1}
 
-%ifarch aarch64
-%{?el7:%global __strip /opt/rh/devtoolset-10/root/usr/bin/strip}
-%else
 %{?el7:%global __strip /opt/rh/devtoolset-11/root/usr/bin/strip}
-%endif
 %{?el8:%global __strip /opt/rh/gcc-toolset-13/root/usr/bin/strip}
-%{?el9:%global __strip /opt/rh/gcc-toolset-13/root/usr/bin/strip}
+%{?el9:%global __strip /opt/rh/gcc-toolset-14/root/usr/bin/strip}
 %{?el8:%global __brp_strip_static_archive %{nil}}
 %{?el9:%global __brp_strip_static_archive %{nil}}
 
@@ -166,17 +162,10 @@ BuildRequires:  rpcgen
 %else
 BuildRequires:  cmake3 >= 3.14.6
 %endif
-%ifarch aarch64
-%{?el7:BuildRequires:  devtoolset-10-gcc}
-%{?el7:BuildRequires:  devtoolset-10-gcc-c++}
-%{?el7:BuildRequires:  devtoolset-10-binutils}
-%{?el7:BuildRequires:  devtoolset-10-dwz}
-%else
 %{?el7:BuildRequires:  devtoolset-11-gcc}
 %{?el7:BuildRequires:  devtoolset-11-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-11-binutils}
 %{?el7:BuildRequires:  devtoolset-11-dwz}
-%endif # aarch64
 %if 0%{?rhel} == 8 || 0%{?rhel} == 9
 %if 0%{?compatlib}
 BuildRequires:  gcc-toolset-12-annobin-annocheck
@@ -186,12 +175,18 @@ BuildRequires:  gcc-toolset-12-dwz
 BuildRequires:  gcc-toolset-12-gcc-c++
 BuildRequires:  gcc-toolset-12-gcc
 %endif # compatlib
-BuildRequires:  gcc-toolset-13-annobin-annocheck
-BuildRequires:  gcc-toolset-13-annobin-plugin-gcc
-BuildRequires:  gcc-toolset-13-binutils
-BuildRequires:  gcc-toolset-13-dwz
-BuildRequires:  gcc-toolset-13-gcc-c++
-BuildRequires:  gcc-toolset-13-gcc
+%{?el8:BuildRequires:  gcc-toolset-13-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-13-binutils}
+%{?el8:BuildRequires:  gcc-toolset-13-dwz}
+%{?el8:BuildRequires:  gcc-toolset-13-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-13-gcc}
+%{?el9:BuildRequires:  gcc-toolset-14-annobin-annocheck}
+%{?el9:BuildRequires:  gcc-toolset-14-annobin-plugin-gcc}
+%{?el9:BuildRequires:  gcc-toolset-14-binutils}
+%{?el9:BuildRequires:  gcc-toolset-14-dwz}
+%{?el9:BuildRequires:  gcc-toolset-14-gcc-c++}
+%{?el9:BuildRequires:  gcc-toolset-14-gcc}
 %endif # el8 / el9
 %if 0%{?rhel} == 10
 BuildRequires:  annobin-annocheck
@@ -1336,6 +1331,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_firewall.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
@@ -1343,6 +1339,10 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/option_tracker_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/option_tracker_uninstall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_component_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_component_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/firewall_component_to_plugin.sql
+%attr(644, root, root) %{_datadir}/mysql-*/firewall_plugin_to_component.sql
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -1434,6 +1434,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_firewall.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1473,12 +1474,12 @@ fi
 %files icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/cnvalias.icu
-%{_libdir}/mysql/private/icudt73l/uemoji.icu
-%{_libdir}/mysql/private/icudt73l/ulayout.icu
-%{_libdir}/mysql/private/icudt73l/unames.icu
-%{_libdir}/mysql/private/icudt73l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt77l
+%{_libdir}/mysql/private/icudt77l/cnvalias.icu
+%{_libdir}/mysql/private/icudt77l/uemoji.icu
+%{_libdir}/mysql/private/icudt77l/ulayout.icu
+%{_libdir}/mysql/private/icudt77l/unames.icu
+%{_libdir}/mysql/private/icudt77l/brkitr
 
 %files client
 %defattr(-, root, root, -)
@@ -1680,6 +1681,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_prepared_statement.so
@@ -1799,6 +1803,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_prepared_statement.so
@@ -2011,6 +2018,18 @@ fi
 %endif # with_router
 
 %changelog
+* Wed Jun 11 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.5.0-1
+- Added component_test_component_init_fail
+
+* Tue May 27 2025 Michal Jankowski <michal.jankowski@oracle.com> - 9.4.0-1
+- Added component_firewall.so
+
+* Wed Apr 30 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.4.0-1
+- Added component_test_component_deinit_no_deadlock
+
+* Wed Apr 30 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.4.0-1
+- Added component_test_component_init_then_register
+
 * Fri Jan 10 2025 Anibal Pinto <anibal.pinto@oracle.com> - 9.3.0-1
 - Added component_group_replication_elect_prefers_most_updated
 

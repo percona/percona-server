@@ -494,7 +494,7 @@ sqlstring &sqlstring::append_preformatted_sep(const std::string &separator,
   if (!s._format_string_left.empty())
     throw std::invalid_argument("cannot append a sqlstring with escapes left");
 
-  if (!_formatted.empty()) _formatted.append(separator);
+  if (!_formatted.empty() && !separator.empty()) _formatted.append(separator);
   _formatted.append(s._formatted);
 
   return *this;

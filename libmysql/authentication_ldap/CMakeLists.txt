@@ -56,7 +56,9 @@ ENDIF()
 DISABLE_MISSING_PROFILE_WARNING()
 
 IF(SASL_WITHOUT_KERBEROS)
-  MESSAGE(WARNING "Bad custom SASL library")
+  IF(NOT WITH_SASL STREQUAL "system")
+    MESSAGE(WARNING "Bad custom SASL library")
+  ENDIF()
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client WITHOUT Kerberos")
 ELSEIF(KERBEROS_FOUND)
@@ -93,7 +95,7 @@ IF(NOT TARGET authentication_ldap_sasl_client)
   RETURN()
 ENDIF()
 
-IF(KERBEROS_FOUND AND (NOT WIN32))
+IF(KERBEROS_FOUND AND LINUX)
   SET(PLUGIN_VERSION_FILE
     ${CMAKE_CURRENT_SOURCE_DIR}/authentication_ldap_sasl_client.ver)
   # Hide all symbols in mysys, to avoid ODR violations.

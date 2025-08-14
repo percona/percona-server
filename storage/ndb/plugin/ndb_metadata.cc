@@ -89,7 +89,7 @@ dd::String_type Ndb_metadata::partition_expression() const {
   return expr;
 }
 
-void Ndb_metadata::create_columns(dd::Table *table_def) const {
+bool Ndb_metadata::create_columns(dd::Table *table_def) const {
   const bool hidden_pk = ndb_table_has_hidden_pk(m_ndbtab);
 
   // Virtual generated columns are a problem since they aren't stored in NDB
@@ -212,8 +212,10 @@ void Ndb_metadata::create_columns(dd::Table *table_def) const {
         dd_column->set_type(dd::enum_column_types::VARCHAR);
         break;
       case NdbDictionary::Column::Datetime:
-        dd_column->set_type(dd::enum_column_types::DATETIME);
-        break;
+        ndb_log_error(
+            "Can not map NDB Datetime column %s.%s to a MySQL column type.",
+            m_ndbtab->getName(), ndb_column->getName());
+        return false;
       case NdbDictionary::Column::Date:
         dd_column->set_type(dd::enum_column_types::NEWDATE);
         break;
@@ -248,16 +250,20 @@ void Ndb_metadata::create_columns(dd::Table *table_def) const {
         dd_column->set_type(dd::enum_column_types::VARCHAR);
         break;
       case NdbDictionary::Column::Time:
-        dd_column->set_type(dd::enum_column_types::TIME);
-        break;
+        ndb_log_error(
+            "Can not map NDB Time column %s.%s to a MySQL column type.",
+            m_ndbtab->getName(), ndb_column->getName());
+        return false;
       case NdbDictionary::Column::Year:
         dd_column->set_type(dd::enum_column_types::YEAR);
         dd_column->set_unsigned(true);
         dd_column->set_zerofill(true);
         break;
       case NdbDictionary::Column::Timestamp:
-        dd_column->set_type(dd::enum_column_types::TIMESTAMP);
-        break;
+        ndb_log_error(
+            "Can not map NDB Timestamp column %s.%s to a MySQL column type.",
+            m_ndbtab->getName(), ndb_column->getName());
+        return false;
       case NdbDictionary::Column::Time2:
         dd_column->set_type(dd::enum_column_types::TIME2);
         dd_column->set_datetime_precision(ndb_column->getPrecision());
@@ -323,6 +329,7 @@ void Ndb_metadata::create_columns(dd::Table *table_def) const {
       dd_column->options().set(key_column_format,
                                static_cast<uint32>(COLUMN_FORMAT_TYPE_DYNAMIC));
   }
+  return true;
 }
 
 bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
@@ -672,7 +679,10 @@ bool Ndb_metadata::create_table_def(Ndb *ndb, dd::Table *table_def) const {
     // table_def->set_subpartition_expression_utf8();
   }
 
-  create_columns(table_def);
+  if (!create_columns(table_def)) {
+    ndb_log_error("Failed to create columns");
+    return false;
+  }
 
   if (!create_indexes(ndb->getDictionary(), table_def)) {
     ndb_log_error("Failed to create indexes");

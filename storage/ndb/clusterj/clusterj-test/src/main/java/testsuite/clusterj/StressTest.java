@@ -442,7 +442,6 @@ public class StressTest extends AbstractClusterJModelTest {
             long newfree = rt.freeMemory();
             do {
                 oldfree = newfree;
-                rt.runFinalization();
                 rt.gc();
                 newfree = rt.freeMemory();
                 //out.print('.');

@@ -1095,12 +1095,6 @@ static inline void trx_remove_from_rw_trx_list(trx_t *trx) {
 void trx_lists_init_at_db_start(void) {
   ut_a(srv_is_being_started);
 
-  /* Look through the rollback segments in the TRX_SYS for
-  transaction undo logs. */
-  for (auto rseg : trx_sys->rsegs) {
-    trx_resurrect(rseg);
-  }
-
   /* Look through the rollback segments in each RSEG_ARRAY for
   transaction undo logs. */
   undo::spaces->s_lock();
@@ -1136,15 +1130,18 @@ void trx_lists_init_at_db_start(void) {
 }
 
 /** Get next redo rollback segment in round-robin fashion.
+We assume that the assigned slots are not contiguous and have gaps.
+
 While InnoDB is running in multi-threaded mode, the vectors of undo
 tablespaces and rsegs do not shrink.  So they do not need protection
 to get a pointer to an rseg.
+
 If an rseg is not marked for undo tablespace truncation, we assign
 it to a transaction. We increment trx_ref_count to keep the purge
 thread from truncating the undo tablespace that contains this rseg
 until the transaction is done with it.
 @return assigned rollback segment instance */
-static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
+static trx_rseg_t *get_next_redo_rseg() {
   undo::Tablespace *undo_space;
 
   /* The number of undo tablespaces cannot be changed while
@@ -1204,55 +1201,6 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   ut_ad(rseg->trx_ref_count > 0);
 
   return (rseg);
-}
-
-/** Get the next redo rollback segment in round-robin fashion.
-The assigned slots may have gaps but the vector does not.
-@return assigned rollback segment instance */
-static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
-  static std::atomic<ulint> rseg_counter{0};
-  ulong n_rollback_segments = srv_rollback_segments;
-
-  /* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
-  innodb_rollback_segments but would only use 96 since 32 slots were
-  used for temporary rsegs. Now those rsegs are in trx_sys_t::tmp_rsegs
-  and trx_sys_t::rsegs which each can hold all 128.  As a result,
-  an existing system tablespace might have gaps in the slot assignment.
-  The Rsegs vector only contains the rsegs that exist. Since
-  srv_rollback_segments can be set to a smaller number at runtime,
-  it might be smaller than Rsegs::size().  But srv_rollback_segments
-  can never be larger than Rsegs::size() because when the user increases
-  innodb_rollback_segments, the rollback segments are created and rseg
-  objects are added to the vector ready to use before
-  srv_rollback_segments is increased. */
-  ut_ad(n_rollback_segments <= trx_sys->rsegs.size());
-
-  /* Try the next slot that no other thread is looking at */
-  ulint slot = (rseg_counter.fetch_add(1) + 1) % n_rollback_segments;
-
-  /* s_lock the vector since it might be sorted when added to. */
-  trx_sys->rsegs.s_lock();
-  trx_rseg_t *rseg = trx_sys->rsegs.at(slot);
-  trx_sys->rsegs.s_unlock();
-
-  /* It is not necessary to s_lock Rsegs::m_latch here because the
-  system tablespace is never truncated like other undo tablespaces. */
-  rseg->trx_ref_count++;
-
-  ut_ad(rseg->space_id == TRX_SYS_SPACE);
-
-  return (rseg);
-}
-
-/** Get next redo rollback segment in round-robin fashion.
-We assume that the assigned slots are not contiguous and have gaps.
-@return assigned rollback segment instance */
-static trx_rseg_t *get_next_redo_rseg() {
-  if (!trx_sys->rsegs.is_empty()) {
-    return (get_next_redo_rseg_from_trx_sys());
-  } else {
-    return (get_next_redo_rseg_from_undo_spaces());
-  }
 }
 
 /** Get the next noredo rollback segment.

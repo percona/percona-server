@@ -1319,6 +1319,11 @@ dberr_t Page_load::insert(const dtuple_t *tuple, const big_rec_t *big_rec,
   offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
                             UT_LOCATION_HERE, &m_heap);
 
+#ifndef NDEBUG
+  const size_t rec_size_2 = rec_offs_size(offsets);
+  assert(rec_size == rec_size_2);
+#endif /* NDEBUG */
+
   /* Insert the record.*/
   auto err = insert(rec, offsets);
 
@@ -1629,7 +1634,8 @@ Btree_load::Btree_load(dict_index_t *index, trx_t *trx, size_t loader_num,
                     !m_index->is_clustered() && !dict_index_is_unique(m_index)),
       m_loader_num(loader_num),
       m_page_size(dict_table_page_size(m_index->table)),
-      m_blob_inserter(*this) {
+      m_blob_inserter(*this),
+      m_full_blob_inserter(*this) {
   ut_d(fil_space_inc_redo_skipped_count(m_index->space));
   ut_d(m_index_online = m_index->online_status);
   m_bulk_flusher.start(m_index->space, m_loader_num, flush_queue_size);
@@ -1737,6 +1743,7 @@ void Btree_load::add_to_bulk_flusher(bool finish) {
   }
   if (finish) {
     m_blob_inserter.finish();
+    m_full_blob_inserter.finish();
   }
 }
 
@@ -2173,6 +2180,10 @@ dberr_t Btree_load::init() {
     return DB_OUT_OF_MEMORY;
   }
   dberr_t err = m_blob_inserter.init();
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+  err = m_full_blob_inserter.init();
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -2635,6 +2646,13 @@ dberr_t Btree_load::Merger::merge(bool sort) {
   if (m_btree_loads.empty()) {
     return DB_SUCCESS;
   }
+
+  /* When the PK is generated DB_ROW_ID, each loader thread can build multiple
+  subtrees. Try to keep the subtrees as minimal as possible (ideally 1).
+  But we also don't want to waste rowid values, so find a balance. */
+  ib::info(ER_BULK_LOADER_INFO)
+      << "Merging " << m_btree_loads.size() << " subtrees created by "
+      << m_n_threads << " threads";
 
   if (sort) {
     Btree_load_compare cmp_obj(m_index);

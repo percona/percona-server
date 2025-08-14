@@ -36,6 +36,8 @@ if (!$_mrs_schema_version_supported)
   --die MRS test-suite executed with unsupported schema version $mrs_schema_version.
 }
 
+UPDATE mysql_rest_service_metadata.config SET data = JSON_MERGE_PATCH(data, '{"sqlQuery":{"timeout":60000}}');
+
 --enable_query_log
 --enable_result_log
 

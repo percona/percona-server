@@ -76,8 +76,8 @@ class AuthorizeManager {
   virtual void update(const Entries &entries) = 0;
 
   virtual bool authorize(const std::string &proto, const std::string &host,
-                         ServiceId id, rest::RequestContext &ctxt,
-                         AuthUser *out_user) = 0;
+                         ServiceId id, bool passthrough_db_user,
+                         rest::RequestContext &ctxt, AuthUser *out_user) = 0;
   virtual bool is_authorized(ServiceId id, rest::RequestContext &ctxt,
                              AuthUser *user) = 0;
   virtual bool unauthorize(const SessionPtr &session,

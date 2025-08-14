@@ -362,6 +362,7 @@ handlerton *ha_default_handlerton(THD *thd) {
   return hton;
 }
 
+<<<<<<< HEAD
 /** @brief
   Return the enforced storage engine handlerton for thread
 
@@ -391,6 +392,15 @@ handlerton *ha_enforce_handlerton(THD *thd) {
 
 static plugin_ref ha_default_temp_plugin(THD *thd) {
   if (thd->variables.temp_table_plugin) return thd->variables.temp_table_plugin;
+||||||| merged common ancestors
+static plugin_ref ha_default_temp_plugin(THD *thd) {
+  if (thd->variables.temp_table_plugin) return thd->variables.temp_table_plugin;
+=======
+plugin_ref ha_default_temp_plugin(THD *thd) {
+  if (thd->variables.temp_table_plugin != nullptr) {
+    return thd->variables.temp_table_plugin;
+  }
+>>>>>>> mysql-9.4.0
   return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);
 }
 
@@ -2937,6 +2947,19 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
 
   if (secondary_engine_attribute.str == nullptr)
     secondary_engine_attribute = share->secondary_engine_attribute;
+}
+
+bool HA_CREATE_INFO::set_db_type(THD *thd) {
+  if ((options & HA_LEX_CREATE_TMP_TABLE) != 0U) {
+    /* Temporary tables cannot have secondary engine at this stage. This will
+     * later be set if db_type is a secondary engine,
+     * at validate_secondary_engine_temporary_table. */
+    assert(secondary_engine.str == nullptr);
+    db_type = ha_default_temp_handlerton(thd);
+  } else {
+    db_type = ha_default_handlerton(thd);
+  }
+  return false;
 }
 
 /****************************************************************************

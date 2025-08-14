@@ -104,9 +104,11 @@ void Logger::lazy_handle(LogLevel record_level,
 }
 
 bool DomainLogger::init_logger() const {
+  if (logger_ready_.load()) return true;
+
   std::lock_guard lck(logger_mtx_);
 
-  if (logger_) return true;
+  if (logger_ready_.load()) return true;
 
   // if there is no DIM, don't log anything.
   auto &dim = mysql_harness::DIM::instance();
@@ -115,6 +117,7 @@ bool DomainLogger::init_logger() const {
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
   logger_ = registry.get_logger_or_default(domain_);
+  logger_ready_.store(true);
 
   return true;
 }

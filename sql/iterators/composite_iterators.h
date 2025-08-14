@@ -703,8 +703,7 @@ class RemoveDuplicatesIterator final : public RowIterator {
  public:
   RemoveDuplicatesIterator(THD *thd,
                            unique_ptr_destroy_only<RowIterator> source,
-                           JOIN *join, Item **group_items,
-                           int group_items_size);
+                           JOIN *join, std::span<Item *> group_items);
 
   bool Init() override;
   int Read() override;

@@ -477,7 +477,7 @@ static int init_ssl(const char *key_file, const char *cert_file,
   return 0;
 
 error:
-  G_MESSAGE("Error initializing SSL");
+  G_INFO("Error initializing SSL");
   return 1;
 }
 
@@ -762,8 +762,7 @@ std::pair<SSL *, int> Xcom_network_provider_ssl_library::timed_connect_ssl_msec(
 
     return_value_error = 1;
   } else if (ssl_verify_server_cert(ssl_fd, hostname.c_str())) {
-    G_MESSAGE("Error validating certificate and peer from %s.",
-              hostname.c_str());
+    G_INFO("Error validating certificate and peer from %s.", hostname.c_str());
     task_dump_err(ret.funerr);
 
     return_value_error = 1;

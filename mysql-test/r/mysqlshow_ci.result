@@ -129,6 +129,10 @@ Database: information_schema
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
+| JSON_DUALITY_VIEW_COLUMNS             |
+| JSON_DUALITY_VIEW_LINKS               |
+| JSON_DUALITY_VIEW_TABLES              |
+| JSON_DUALITY_VIEWS                    |
 | KEY_COLUMN_USAGE                      |
 | KEYWORDS                              |
 | LIBRARIES                             |
@@ -223,6 +227,10 @@ Database: INFORMATION_SCHEMA
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
+| JSON_DUALITY_VIEW_COLUMNS             |
+| JSON_DUALITY_VIEW_LINKS               |
+| JSON_DUALITY_VIEW_TABLES              |
+| JSON_DUALITY_VIEWS                    |
 | KEY_COLUMN_USAGE                      |
 | KEYWORDS                              |
 | LIBRARIES                             |

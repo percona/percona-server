@@ -411,6 +411,7 @@ LEX::~LEX() {
 void LEX::reset() {
   // CREATE VIEW
   create_view_mode = enum_view_create_mode::VIEW_CREATE_NEW;
+  create_view_type = enum_view_type::UNDEFINED;
   create_view_algorithm = VIEW_ALGORITHM_UNDEFINED;
   create_view_suid = true;
 
@@ -464,6 +465,7 @@ void LEX::reset() {
   explain_format = nullptr;
   is_explain_analyze = false;
   set_using_hypergraph_optimizer(false);
+  m_using_secondary_engine = false;
   is_lex_started = true;
   reset_replica_info.all = false;
   mi.channel = nullptr;
@@ -2051,6 +2053,8 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         state = MY_LEX_CHAR;
         break;
       case MY_LEX_END:
+        /* Unclosed special comments result in a syntax error */
+        if (lip->in_comment == DISCARD_COMMENT) return (ABORT_SYM);
         lip->next_state = MY_LEX_END;
         return (0);  // We found end of input last time
 

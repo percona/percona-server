@@ -35,6 +35,8 @@
 
 namespace jit_executor {
 
+static const size_t k_max_heap_address_space = 32768;
+
 IMPORT_LOG_FUNCTIONS()
 
 ServiceHandlers::ServiceHandlers(const ServiceHandlerConfig &config)
@@ -44,50 +46,59 @@ ServiceHandlers::ServiceHandlers(const ServiceHandlers &other)
     : ServiceHandlers(other.m_config) {}
 
 bool ServiceHandlers::init() {
+  m_error.clear();
+
   init_common_context();
 
   if (m_common_context->start()) {
-    m_context_pool =
-        std::make_shared<ContextPool>(pool_size(), m_common_context.get());
+    m_context_pool = std::make_shared<ContextPool>(m_common_context.get());
 
     return true;
+  } else {
+    m_error = m_common_context->error();
   }
 
   return false;
 }
 
 void ServiceHandlers::init_common_context() {
-  std::vector<std::string> isolate_args;
+  shcore::polyglot::IsolateArgs isolate_args;
 
   // System memory in MB
   static const auto total_memory =
       shcore::getPhysicalMemorySize() / 1024 / 1024;
 
-  // Default: 25% of the system memory
-  static const uint64_t default_max_heap_size = total_memory * 0.25;
-
-  // Using a default of 1024 MB if nothing else is configured
-  auto max_heap_size = m_config.max_heap_size.value_or(default_max_heap_size);
-
   if (total_memory > 0) {
+    // Default: 25% of the system memory
+    static const uint64_t default_max_heap_size = total_memory * 0.25;
+    auto max_heap_size = m_config.max_heap_size.value_or(default_max_heap_size);
+
     // Serial GC would use max 80% of system memory
     auto graal_default_max_heap_size =
         static_cast<uint64_t>(total_memory * 0.8);
 
-    // 10 MB is the minimum allowed
-    if (max_heap_size < 10) {
+    // 256 MB is the minimum allowed
+    if (max_heap_size < 256) {
       log_warning(
           "The configured maximumRamUsage=%" PRIu64
-          " is lower than the minimum allowed value of 10MB, ignoring "
+          " is lower than the minimum allowed value of 256MB, ignoring "
           "configuration, using default (25%% of the system memory: %" PRIu64
           "MB).",
           max_heap_size, default_max_heap_size);
       max_heap_size = default_max_heap_size;
+    } else if (max_heap_size > k_max_heap_address_space) {
+      // The specified maximum heap size (64g) must not be larger than the
+      // largest possible heap address space (32g). To allow larger values, we
+      // should disable compressed references when building the image by adding
+      // the option '-H:-UseCompressedReferences'
+
+      log_warning(
+          "Limiting the maximumRamUsage to the largest possible heap space of "
+          "32GB.");
+      max_heap_size = k_max_heap_address_space;
     }
 
-    if (max_heap_size < graal_default_max_heap_size) {
-      isolate_args.push_back("-Xmx" + std::to_string(max_heap_size) + "m");
-    } else {
+    if (max_heap_size > graal_default_max_heap_size) {
       // Convert the value to gigabytes
       log_warning("The configured maximumRamUsage=%" PRIu64
                   " exceeds the maximum allowed value %" PRIu64
@@ -95,13 +106,20 @@ void ServiceHandlers::init_common_context() {
                   "GB) ignoring configuration, using max RAM possible.",
                   max_heap_size, graal_default_max_heap_size,
                   total_memory / 1024);
+
+      max_heap_size = graal_default_max_heap_size;
     }
+
+    isolate_args.max_heap_size = max_heap_size;
   } else {
     // Not expected to happen, just in case!
-    log_warning(
-        "Unable to retrieve the available system memory, using the configured "
-        "value of maximumRamUsage=%" PRIu64,
-        max_heap_size);
+    if (m_config.max_heap_size.has_value()) {
+      isolate_args.max_heap_size = m_config.max_heap_size;
+      log_warning(
+          "Unable to retrieve the available system memory, using the "
+          "configured value of maximumRamUsage=%" PRIu64,
+          *isolate_args.max_heap_size);
+    }
   }
 
   m_common_context = std::make_unique<CommonContext>(
@@ -122,6 +140,8 @@ void ServiceHandlers::teardown() {
       std::make_unique<std::thread>(&ServiceHandlers::do_tear_down, this);
 }
 
+std::string ServiceHandlers::error() { return m_error; }
+
 void ServiceHandlers::do_tear_down() {
   my_thread_self_setname("Jit-TearDown");
   if (m_context_pool) {
@@ -137,16 +157,12 @@ std::chrono::seconds ServiceHandlers::idle_time() const {
   return std::chrono::duration_cast<std::chrono::seconds>(diff);
 }
 
-uint64_t ServiceHandlers::pool_size() const {
-  return m_config.pool_size.value_or(m_config.default_pool_size);
+uint64_t ServiceHandlers::memory_units() const {
+  return m_config.memory_units.value_or(k_default_memory_units);
 }
 
 void ServiceHandlers::set_max_heap_size(uint64_t size) {
   m_config.max_heap_size = size;
-}
-
-void ServiceHandlers::set_default_pool_size(uint64_t size) {
-  m_config.default_pool_size = size;
 }
 
 std::shared_ptr<IContextHandle> ServiceHandlers::get_context(

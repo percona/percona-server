@@ -125,6 +125,12 @@ FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const uchar *record,
   MYSQL_FTPARSER_PARAM *param;
   DBUG_TRACE;
   if (!(param = ftparser_call_initializer(info, keynr, 0))) return nullptr;
+<<<<<<< HEAD
+||||||| merged common ancestors
+  memset(&ptree, 0, sizeof(ptree));
+=======
+  memset((void *)&ptree, 0, sizeof(ptree));
+>>>>>>> mysql-9.4.0
   param->flags = 0;
   if (_mi_ft_parse(&ptree, info, keynr, record, param, mem_root))
     return nullptr;

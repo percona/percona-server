@@ -47,30 +47,26 @@ using Authorization = mrs::rest::Handler::Authorization;
 
 namespace {
 
-auto get_regex_path_schema_openapi(std::weak_ptr<DbSchemaEndpoint> endpoint) {
+auto get_path_schema_openapi(std::weak_ptr<DbSchemaEndpoint> endpoint) {
   using namespace std::string_literals;
+  std::vector<::http::base::UriPathMatcher> result;
 
   auto endpoint_sch = lock(endpoint);
-  if (!endpoint_sch) return ""s;
+  if (!endpoint_sch) return result;
 
-  return regex_path_schema_openapi_swagger(endpoint_sch->get_url_path());
-}
-
-auto get_regex_path_schema_openapi_alias(
-    std::weak_ptr<DbSchemaEndpoint> endpoint) {
-  using namespace std::string_literals;
-
-  auto endpoint_sch = lock(endpoint);
-  if (!endpoint_sch) return ""s;
+  result.push_back(path_schema_openapi_swagger(endpoint_sch->get_url_path()));
 
   const auto path = endpoint_sch->get_url_path();
   size_t slash_pos = path.find('/', 1);  // skip initial '/'
-  if (slash_pos == std::string::npos) return ""s;
+  if (slash_pos == std::string::npos) return result;
 
   const std::string service_name = path.substr(1, slash_pos - 1);
   const std::string schema_name = path.substr(slash_pos + 1);
 
-  return regex_path_schema_openapi_swagger_alias(service_name, schema_name);
+  result.push_back(
+      path_schema_openapi_swagger_alias(service_name, schema_name));
+
+  return result;
 }
 
 }  // namespace
@@ -80,10 +76,9 @@ HandlerDbSchemaOpenAPI::HandlerDbSchemaOpenAPI(
     mrs::interface::AuthorizeManager *auth_manager)
     : mrs::rest::Handler(handler::get_protocol(endpoint),
                          get_endpoint_host(endpoint),
-                         /*regex-path: ^/service/schema/open-api-catalog$*/
-                         /*regex-path: ^/service/open-api-catalog/schema/$*/
-                         {get_regex_path_schema_openapi(endpoint),
-                          get_regex_path_schema_openapi_alias(endpoint)},
+                         /* path: /service/schema/open-api-catalog */
+                         /* path: /service/open-api-catalog/schema */
+                         get_path_schema_openapi(endpoint),
                          get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint} {
   auto ep = lock(endpoint_);
@@ -136,13 +131,29 @@ HttpResult HandlerDbSchemaOpenAPI::handle_get(rest::RequestContext *ctxt) {
                            db_object->id, db_object->request_path);
     }
 
+    const auto is_async = mrs::rest::async_enabled(
+        get_endpoint_options(std::dynamic_pointer_cast<DbObjectEndpoint>(
+            db_endpoint->shared_from_this())));
+
     const auto path = url_obj_ + db_object->request_path;
-    auto path_obj = rest::get_route_openapi_schema_path(privileges, db_object,
-                                                        path, allocator);
+    auto path_obj = rest::get_route_openapi_schema_path(
+        privileges, db_object, path, is_async, allocator);
 
     for (auto path = path_obj.MemberBegin(); path < path_obj.MemberEnd();
          ++path) {
       items.AddMember(path->name, path->value, allocator);
+    }
+
+    if (is_async && (db_object->type == mrs::database::entry::DbObject::
+                                            ObjectType::k_objectTypeProcedure ||
+                     db_object->type == mrs::database::entry::DbObject::
+                                            ObjectType::k_objectTypeFunction)) {
+      const std::string task_id_path =
+          url_obj_ + db_object->request_path + "/{taskId}";
+      items.AddMember(
+          rapidjson::Value(task_id_path, allocator),
+          rest::add_task_id_endpoint(privileges, db_object, allocator),
+          allocator);
     }
 
     if (db_object->type ==

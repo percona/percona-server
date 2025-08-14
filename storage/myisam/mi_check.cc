@@ -1418,6 +1418,12 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
   DBUG_TRACE;
 
   memset(&sort_info, 0, sizeof(sort_info));
+<<<<<<< HEAD
+||||||| merged common ancestors
+  memset(&sort_param, 0, sizeof(sort_param));
+=======
+  memset((void *)&sort_param, 0, sizeof(sort_param));
+>>>>>>> mysql-9.4.0
   start_records = info->state->records;
   new_header_length =
       (param->testflag & T_UNPACK) ? 0L : share->pack.header_length;
@@ -2045,6 +2051,12 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
     param->testflag |= T_CALC_CHECKSUM;
 
   memset(&sort_info, 0, sizeof(sort_info));
+<<<<<<< HEAD
+||||||| merged common ancestors
+  memset(&sort_param, 0, sizeof(sort_param));
+=======
+  memset((void *)&sort_param, 0, sizeof(sort_param));
+>>>>>>> mysql-9.4.0
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
                              share->base.max_key_block_length)) ||

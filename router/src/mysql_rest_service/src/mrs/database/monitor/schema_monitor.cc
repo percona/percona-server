@@ -25,6 +25,8 @@
 
 #include "mrs/database/schema_monitor.h"
 
+#include <chrono>
+
 #include "helper/string/contains.h"
 #include "helper/string/generic.h"
 
@@ -140,8 +142,9 @@ SchemaMonitor::SchemaMonitor(
     mrs::GtidManager *gtid_manager,
     mrs::database::QueryFactoryProxy *query_factory,
     mrs::ResponseCache *response_cache, mrs::ResponseCache *file_cache,
-    SlowQueryMonitor *slow_query_monitor)
+    SlowQueryMonitor *slow_query_monitor, MetadataLogger *metadata_logger)
     : configuration_{configuration},
+      router_name_{configuration_.router_name_},
       cache_{cache},
       dbobject_manager_{dbobject_manager},
       auth_manager_{auth_manager},
@@ -151,6 +154,7 @@ SchemaMonitor::SchemaMonitor(
       response_cache_{response_cache},
       file_cache_{file_cache},
       slow_query_monitor_{slow_query_monitor},
+      metadata_logger_{metadata_logger},
       md_source_destination_{cache, configuration_.provider_rw_->is_dynamic()} {
 }
 
@@ -231,6 +235,9 @@ void SchemaMonitor::run() {
       log_system("Monitoring MySQL REST metadata (version: %s)",
                  to_string(supported_schema_version).c_str());
 
+      auto last_stored_time = std::chrono::system_clock::now();
+      bool initial_run = true;
+
       do {
         using namespace observability;
         auto session = (*session_check_version).empty()
@@ -240,8 +247,15 @@ void SchemaMonitor::run() {
 
         const auto schema_version = query_schema_version(session.get());
         if (schema_version != current_schema_version) {
+          metadata_logger_->on_metadata_version_change(schema_version);
+
           throw MetadataSchemaVersionChange();
         }
+
+        metadata_logger_->on_metadata_available(schema_version, session.get());
+
+        // Delete expired sessions etc
+        auth_manager_->collect_garbage();
 
         // Detect the inconsistency between audit_log table content and our
         // state. This only does a basic check to detect a scenario where the
@@ -325,8 +339,6 @@ void SchemaMonitor::run() {
         fetcher.update_access_factory_if_needed();
 
         if (fetcher.get_state().service_enabled) {
-          auto socket_ops = mysql_harness::SocketOperations::instance();
-
           mysqlrouter::sqlstring update{
               "INSERT INTO mysql_rest_service_metadata.router"
               " (id, router_name, address, product_name, version, attributes, "
@@ -334,22 +346,33 @@ void SchemaMonitor::run() {
               " VALUES (?,?,?,?,?,?,'{}') ON DUPLICATE KEY UPDATE "
               "version=?, router_name=?, last_check_in=NOW()"};
 
-          update << configuration_.router_id_ << configuration_.router_name_
-                 << socket_ops->get_local_hostname()
+          const auto [name, address] = get_router_name_and_address();
+          update << configuration_.router_id_ << name << address
                  << MYSQL_ROUTER_PACKAGE_NAME << MYSQL_ROUTER_VERSION
                  << (configuration_.developer_.empty()
                          ? "{}"
                          : "{\"developer\": \"" + configuration_.developer_ +
                                "\"}")
-                 << MYSQL_ROUTER_VERSION << configuration_.router_name_;
+                 << MYSQL_ROUTER_VERSION << name;
           session->execute(update.str());
 
           try {
+            const auto actual_stored_time = std::chrono::system_clock::now();
+            auto status_time =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    actual_stored_time - last_stored_time)
+                    .count();
+
+            if (initial_run) {
+              status_time += configuration_.metadata_refresh_interval_.count();
+              initial_run = false;
+            }
+
             QueryStatistics store_stats;
             store_stats.update_statistics(
-                session.get(), configuration_.router_id_,
-                configuration_.metadata_refresh_interval_.count(),
+                session.get(), configuration_.router_id_, status_time,
                 entities_manager_->fetch_counters());
+            last_stored_time = actual_stored_time;
           } catch (const std::exception &exc) {
             log_error(
                 "Storing statistics failed, because of the following error:%s.",
@@ -364,6 +387,7 @@ void SchemaMonitor::run() {
     if (force_clear) {
       dbobject_manager_->clear();
       auth_manager_->clear();
+      metadata_logger_->stop();
       force_clear = false;
     }
   } while (wait_until_next_refresh());
@@ -377,9 +401,36 @@ void SchemaMonitor::run() {
 
 bool SchemaMonitor::wait_until_next_refresh() {
   waitable_.wait_for(
-      std::chrono::seconds(configuration_.metadata_refresh_interval_),
+      std::chrono::milliseconds(configuration_.metadata_refresh_interval_),
       [this](void *) { return !state_.is(k_running); });
   return state_.is(k_running);
+}
+
+std::pair<std::string, std::string>
+SchemaMonitor::get_router_name_and_address() {
+  auto socket_ops = mysql_harness::SocketOperations::instance();
+
+  bool get_hostname_successful{true};
+  std::string address;
+  try {
+    address = socket_ops->get_local_hostname();
+  } catch (
+      const mysql_harness::SocketOperations::LocalHostnameResolutionError &) {
+    address = mrs::kHostOnResolveFailed;
+    get_hostname_successful = false;
+  }
+
+  std::string name;
+  if (!router_name_) {
+    name = address + ":" + std::to_string(configuration_.http_port_);
+    if (get_hostname_successful) {
+      router_name_ = name;
+    }
+  } else {
+    name = *router_name_;
+  }
+
+  return {name, address};
 }
 
 std::optional<collector::MysqlCacheManager::CachedObject>

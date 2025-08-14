@@ -2215,12 +2215,12 @@ static bool fill_dd_table_from_create_info(
   //
 
   /* We should not get any unexpected flags which are not handled below. */
-  assert(
-      !(create_info->table_options &
-        ~(HA_OPTION_PACK_RECORD | HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS |
-          HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM |
-          HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_NO_DELAY_KEY_WRITE |
-          HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)));
+  assert(!(create_info->table_options &
+           ~(HA_OPTION_PACK_RECORD | HA_OPTION_PACK_KEYS |
+             HA_OPTION_NO_PACK_KEYS | HA_OPTION_CHECKSUM |
+             HA_OPTION_NO_CHECKSUM | HA_OPTION_DELAY_KEY_WRITE |
+             HA_OPTION_NO_DELAY_KEY_WRITE | HA_OPTION_STATS_PERSISTENT |
+             HA_OPTION_NO_STATS_PERSISTENT | HA_OPTION_CREATE_EXTERNAL_TABLE)));
 
   /*
     Even though we calculate HA_OPTION_PACK_RECORD flag from the value of
@@ -2278,6 +2278,14 @@ static bool fill_dd_table_from_create_info(
 
     table_options->set("stats_persistent", (create_info->table_options &
                                             HA_OPTION_STATS_PERSISTENT));
+  }
+
+  /*
+    Store whether table was created with CREATE EXTERNAL TABLE syntax.
+    This is used to preserve the EXTERNAL keyword for SHOW CREATE TABLE.
+  */
+  if (create_info->table_options & HA_OPTION_CREATE_EXTERNAL_TABLE) {
+    table_options->set("create_external_table", true);
   }
 
   //

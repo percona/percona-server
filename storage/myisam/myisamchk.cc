@@ -1404,6 +1404,12 @@ static int mi_sort_records(MI_CHECK *param, MI_INFO *info, char *name,
   DBUG_TRACE;
 
   memset(&sort_info, 0, sizeof(sort_info));
+<<<<<<< HEAD
+||||||| merged common ancestors
+  memset(&sort_param, 0, sizeof(sort_param));
+=======
+  memset((void *)&sort_param, 0, sizeof(sort_param));
+>>>>>>> mysql-9.4.0
   sort_param.sort_info = &sort_info;
   sort_info.param = param;
   keyinfo = &share->keyinfo[sort_key];

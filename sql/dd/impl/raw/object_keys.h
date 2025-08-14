@@ -266,8 +266,8 @@ class Se_private_id_key : public Object_key {
 
 class Composite_pk : public Object_key {
  public:
-  Composite_pk(int index_no, uint first_column_no, ulonglong first_id,
-               uint second_column_no, ulonglong second_id)
+  Composite_pk(int index_no, uint first_column_no, Object_id first_id,
+               uint second_column_no, Object_id second_id)
       : m_index_no(index_no),
         m_first_column_no(first_column_no),
         m_first_id(first_id),
@@ -283,10 +283,10 @@ class Composite_pk : public Object_key {
   int m_index_no;
 
   int m_first_column_no;
-  ulonglong m_first_id;
+  Object_id m_first_id;
 
   int m_second_column_no;
-  ulonglong m_second_id;
+  Object_id m_second_id;
 };
 
 ///////////////////////////////////////////////////////////////////////////

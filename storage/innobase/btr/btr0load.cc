@@ -1115,6 +1115,7 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
     err = page_loader->init();
 
     if (err != DB_SUCCESS) {
+      ut::delete_(page_loader);
       return err;
     }
 

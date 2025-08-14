@@ -35,7 +35,7 @@ class MockHandlerFactory : public mrs::interface::HandlerFactory {
 
   MOCK_METHOD(
       std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>,
-      create_persisten_content_file,
+      create_persistent_content_file,
       (EndpointBasePtr, const OptionalIndexNames &index_names), (override));
 
   MOCK_METHOD(std::shared_ptr<Handler>, create_db_service_debug_handler,

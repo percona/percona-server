@@ -47,7 +47,7 @@ public interface DomainTypeHandler<T> {
 
     public String getName();
 
-    public Class<?> getOidClass();
+    public Class<?> getDomainClass();
 
     public boolean isSupportedType();
 
@@ -103,4 +103,13 @@ public interface DomainTypeHandler<T> {
 
     public T newInstance(ResultData resultData, Db db);
 
+    public boolean isClosing();
+
+    public void setClosing();
+
+    public boolean isClosed();
+
+    public void setClosed();
+
+    public String getTableVersion();
 }

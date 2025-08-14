@@ -56,8 +56,9 @@ class HandlerFactory : public mrs::interface::HandlerFactory {
                  const EndpointConfigurationPtr &configuration);
 
   std::shared_ptr<handler::PersistentDataContentFile>
-  create_persisten_content_file(EndpointBasePtr conent_file_endpoint,
-                                const OptionalIndexNames &index_names) override;
+  create_persistent_content_file(
+      EndpointBasePtr conent_file_endpoint,
+      const OptionalIndexNames &index_names) override;
 
   std::shared_ptr<Handler> create_db_service_debug_handler(
       EndpointBasePtr db_service_endpoint) override;

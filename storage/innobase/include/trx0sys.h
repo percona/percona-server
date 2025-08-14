@@ -69,18 +69,15 @@ extern trx_sys_t *trx_sys;
 static inline bool trx_sys_hdr_page(const page_id_t &page_id);
 
 /** Creates and initializes the central memory structures for the transaction
- system. This is called when the database is started.
- @return min binary heap of rsegs to purge */
+system. This is called when the database is started.
+@return min binary heap of rsegs to purge */
 purge_pq_t *trx_sys_init_at_db_start(void);
+
 /** Creates the trx_sys instance and initializes purge_queue and mutex. */
 void trx_sys_create(void);
+
 /** Creates and initializes the transaction system at the database creation. */
 void trx_sys_create_sys_pages(void);
-
-/** Find the page number in the TRX_SYS page for a given slot/rseg_id
-@param[in]      rseg_id         slot number in the TRX_SYS page rseg array
-@return page number from the TRX_SYS page rseg array */
-page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id);
 
 /** Look for a free slot for a rollback segment in the trx system file copy.
 @param[in,out]  mtr             mtr
@@ -90,15 +87,6 @@ ulint trx_sysf_rseg_find_free(mtr_t *mtr);
 /** Gets a pointer to the transaction system file copy and x-locks its page.
  @return pointer to system file copy, page x-locked */
 static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
-
-/** Gets the space of the nth rollback segment slot in the trx system
-file copy.
-@param[in]      sys_header      trx sys file copy
-@param[in]      i               slot index == rseg id
-@param[in]      mtr             mtr
-@return space id */
-static inline space_id_t trx_sysf_rseg_get_space(trx_sysf_t *sys_header,
-                                                 ulint i, mtr_t *mtr);
 
 /** Gets the page number of the nth rollback segment slot in the trx system
 file copy.
@@ -253,13 +241,6 @@ static inline void trx_sys_rw_trx_add(trx_t *trx);
 bool trx_sys_validate_trx_list();
 #endif /* UNIV_DEBUG */
 
-/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
-void trx_sys_undo_spaces_init();
-
-/** Free the resources occupied by trx_sys_undo_spaces,
-called once during thread de-initialization. */
-void trx_sys_undo_spaces_deinit();
-
 /** The automatically created system rollback segment has this id */
 constexpr uint32_t TRX_SYS_SYSTEM_RSEG_ID = 0;
 
@@ -278,19 +259,6 @@ constexpr uint32_t TRX_SYS_FSEG_HEADER = 8;
 /** the start of the array of rollback segment specification slots */
 constexpr uint32_t TRX_SYS_RSEGS = 8 + FSEG_HEADER_SIZE;
 /*------------------------------------------------------------- @} */
-
-/* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
-rollback segment.  It initialized some arrays with this number of entries.
-We must remember this limit in order to keep file compatibility. */
-constexpr size_t TRX_SYS_OLD_N_RSEGS = 256;
-
-/* The system temporary tablespace was originally allocated rseg_id slot
-numbers 1 through 32 in the TRX_SYS page.  But those slots were not used
-because those Rollback segments were recreated at startup and after any
-crash. These slots are now used for redo-enabled rollback segments.
-The default number of rollback segments in the temporary tablespace
-remains the same. */
-constexpr size_t TRX_SYS_OLD_TMP_RSEGS = 32;
 
 /** Maximum length of MySQL binlog file name, in bytes. */
 constexpr uint32_t TRX_SYS_MYSQL_LOG_NAME_LEN = 512;
@@ -722,12 +690,6 @@ struct trx_sys_t {
 
   MVCC *mvcc;
 
-  /** Vector of pointers to rollback segments. These rsegs are iterated
-  and added to the end under a read lock. They are deleted under a write
-  lock while the vector is adjusted. They are created and destroyed in
-  single-threaded mode. */
-  Rsegs rsegs;
-
   /** Vector of pointers to rollback segments within the temp tablespace;
   This vector is created and destroyed in single-threaded mode so it is not
   protected by any mutex because it is read-only during multi-threaded
@@ -843,12 +805,6 @@ struct trx_sys_t {
 };
 
 #endif /* !UNIV_HOTBACKUP */
-
-/** A list of undo tablespace IDs found in the TRX_SYS page.
-This cannot be part of the trx_sys_t object because it is initialized before
-that object is created. These are the old type of undo tablespaces that do not
-have space_IDs in the reserved range nor contain an RSEG_ARRAY page. */
-extern Space_Ids *trx_sys_undo_spaces;
 
 #ifndef UNIV_HOTBACKUP
 

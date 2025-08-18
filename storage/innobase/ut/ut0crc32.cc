@@ -93,6 +93,13 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "univ.i"
 #include "ut0crc32.h"
 
+#if defined(UNIV_LINUX) && defined(__aarch64__)
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+#include <arm_acle.h>
+#include <arm_neon.h>
+#endif
+
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t	ut_crc32;
 
@@ -427,6 +434,226 @@ ut_crc32_byte_by_byte_hw(
 
 	return(~crc);
 }
+
+#elif defined(UNIV_LINUX) && defined(__aarch64__)
+
+#ifndef HWCAP_CRC32
+#define HWCAP_CRC32 (1<<7)
+#endif /* HWCAP_CRC32 */
+
+#ifndef HWCAP_PMULL
+#define HWCAP_PMULL (1<<4)
+#endif /* HWCAP_PMULL */
+
+/** The following SIMD micros is for large memory crc32 calculation, such
+ as: page crc32. we use the micro instead of for-loop to reduce some costs*/
+#define SEGMENTBYTES 256
+#define PARALLEL_CRC32_BATCH 1032
+// compute 8bytes for each segment parallelly
+#define CRC32C32BYTES(P, IND)								\
+	do {										\
+		crc1 = __crc32cd(crc1,							\
+			*((const uint64_t *)(P) + (SEGMENTBYTES / 8) * 1 + (IND)));	\
+		crc2 = __crc32cd(crc2,							\
+			*((const uint64_t *)(P) + (SEGMENTBYTES / 8) * 2 + (IND)));	\
+		crc3 = __crc32cd(crc3,							\
+			*((const uint64_t *)(P) + (SEGMENTBYTES / 8) * 3 + (IND)));	\
+		crc0 = __crc32cd(crc0,							\
+			*((const uint64_t *)(P) + (SEGMENTBYTES / 8) * 0 + (IND)));	\
+	} while (0);
+
+// compute 8*8 bytes for each segment parallelly
+#define CRC32C256BYTES(P, IND)				\
+	do {						\
+		CRC32C32BYTES((P), (IND)*8 + 0)		\
+		CRC32C32BYTES((P), (IND)*8 + 1)		\
+		CRC32C32BYTES((P), (IND)*8 + 2)		\
+		CRC32C32BYTES((P), (IND)*8 + 3)		\
+		CRC32C32BYTES((P), (IND)*8 + 4)		\
+		CRC32C32BYTES((P), (IND)*8 + 5)		\
+		CRC32C32BYTES((P), (IND)*8 + 6)		\
+		CRC32C32BYTES((P), (IND)*8 + 7)		\
+	} while (0);
+
+// compute 4*8*8 bytes for each segment parallelly
+#define CRC32C1024BYTES(P)				\
+	do {						\
+		CRC32C256BYTES((P), 0)			\
+		CRC32C256BYTES((P), 1)			\
+		CRC32C256BYTES((P), 2)			\
+		CRC32C256BYTES((P), 3)			\
+		(P) += 4 * SEGMENTBYTES;		\
+	} while (0)
+
+/** The following SIMD micros is for small memory crc32 calculation, such
+ as: redo log block's crc32. */
+#define SMALL_SEGMENT 120
+#define PARALLEL_CRC32_SMALL_BATCH 488
+// compute 8bytes for each small segment parallelly
+#define CRC32C32BYTES_SMALL_SEGMENT(P, IND)						\
+	do {										\
+		crc1 = __crc32cd(crc1,							\
+			*((const uint64_t *)(P) + (SMALL_SEGMENT / 8) * 1 + (IND)));	\
+		crc2 = __crc32cd(crc2,							\
+			*((const uint64_t *)(P) + (SMALL_SEGMENT / 8) * 2 + (IND)));	\
+		crc3 = __crc32cd(crc3,							\
+			*((const uint64_t *)(P) + (SMALL_SEGMENT / 8) * 3 + (IND)));	\
+		crc0 = __crc32cd(crc0,							\
+			*((const uint64_t *)(P) + (SMALL_SEGMENT / 8) * 0 + (IND)));	\
+	} while (0);
+
+// compute 4*8*5 bytes for each small segment parallelly
+#define CRC32C160BYTES(P, IND)						\
+	do {								\
+		CRC32C32BYTES_SMALL_SEGMENT((P), (IND)*5 + 0)		\
+		CRC32C32BYTES_SMALL_SEGMENT((P), (IND)*5 + 1)		\
+		CRC32C32BYTES_SMALL_SEGMENT((P), (IND)*5 + 2)		\
+		CRC32C32BYTES_SMALL_SEGMENT((P), (IND)*5 + 3)		\
+		CRC32C32BYTES_SMALL_SEGMENT((P), (IND)*5 + 4)		\
+	} while (0);
+
+// compute 160*3 bytes for each small segment parallelly
+#define CRC32C480BYTES(P)				\
+	do {						\
+		CRC32C160BYTES((P), 0)			\
+		CRC32C160BYTES((P), 1)			\
+		CRC32C160BYTES((P), 2)			\
+		(P) += 4 * SMALL_SEGMENT;		\
+	} while (0)
+
+/** Calculates CRC32 using hardware/CPU instructions.
+@param[in]	buf	data over which to calculate CRC32
+@param[in]	len	data length
+@return CRC-32C (polynomial 0x11EDC6F41) */
+MY_ATTRIBUTE((target("+crc+crypto")))
+uint32_t
+ut_crc32_hw(const byte *buf, ulint len) {
+	ut_ad(ut_crc32_sse2_enabled);
+
+	uint32_t	crc = 0xFFFFFFFFU;
+	int64_t		length = (int64_t)len;
+	uint32_t crc0, crc1, crc2, crc3;
+	uint64_t t0, t1, t2;
+	/* Pre-calculated k value for segent size 256 bytes and 120 bytes to merge
+	four segment crc32 value.
+		k256[0] = CRC(x^(3*SEGMENTBYTES*8))
+		k256[1] = CRC(x^(2*SEGMENTBYTES*8))
+		k256[2] = CRC(x^(SEGMENTBYTES*8))
+
+		k120[0] = CRC(x^(3*SMALL_SEGMENT*8))
+		k120[1] = CRC(x^(2*SMALL_SEGMENT*8))
+		k120[2] = CRC(x^(SMALL_SEGMENT*8)) */
+	const static poly64_t k256[3] = {0x8d96551c, 0xbd6f81f8, 0xdcb17aa4};
+	const static poly64_t k120[3] = {0x61d82e56, 0xffd852c6, 0x0d3b6092};
+
+	const uint8_t *p = reinterpret_cast<const uint8_t*>(buf);
+
+	/* For performance and possible invlid pointer casts in some platforms,
+	we fistly comsume the unaligned prefix of the data*/
+	if (length >= 8) {
+		const size_t unaligned_len =
+			8 - (reinterpret_cast<uintptr_t>(buf) & 7);
+
+		if (unaligned_len & 1) {
+			crc = __crc32cb(crc, *p);
+			p += 1;
+			length -= 1;
+		}
+
+		if (unaligned_len & 2) {
+			crc = __crc32ch(crc, *(uint16_t *)p);
+			p += 2;
+			length -= 2;
+		}
+
+		if (unaligned_len & 4) {
+			crc = __crc32cw(crc, *(uint32_t *)p);
+			p += 4;
+			length -= 4;
+		}
+	}
+
+	while (length >= PARALLEL_CRC32_BATCH) {
+		crc0 = crc;
+		crc1 = 0;
+		crc2 = 0;
+		crc3 = 0;
+
+		// Process 1024 bytes in parallel.
+		CRC32C1024BYTES(p);
+
+		// Merge the 4 partial CRC32C values.
+		t2 = (uint64_t)vmull_p64(crc2, k256[2]);
+		t1 = (uint64_t)vmull_p64(crc1, k256[1]);
+		t0 = (uint64_t)vmull_p64(crc0, k256[0]);
+		crc = __crc32cd(crc3, *(uint64_t *)p);
+		p += sizeof(uint64_t);
+		crc ^= __crc32cd(0, t2);
+		crc ^= __crc32cd(0, t1);
+		crc ^= __crc32cd(0, t0);
+
+		length -= PARALLEL_CRC32_BATCH;
+	}
+
+	/* optimize with linear algorithin for small memory block, such as:
+	redo log block.*/
+	while (length >= PARALLEL_CRC32_SMALL_BATCH) {
+		crc0 = crc;
+		crc1 = 0;
+		crc2 = 0;
+		crc3 = 0;
+
+		// Process 480 bytes in parallel.
+		CRC32C480BYTES(p);
+
+		// Merge the 4 partial CRC32C values.
+		t2 = (uint64_t)vmull_p64(crc2, k120[2]);
+		t1 = (uint64_t)vmull_p64(crc1, k120[1]);
+		t0 = (uint64_t)vmull_p64(crc0, k120[0]);
+		crc = __crc32cd(crc3, *(uint64_t *)p);
+		p += sizeof(uint64_t);
+		crc ^= __crc32cd(0, t2);
+		crc ^= __crc32cd(0, t1);
+		crc ^= __crc32cd(0, t0);
+
+		length -= PARALLEL_CRC32_SMALL_BATCH;
+	}
+
+	/* continue calculated the rest buf's crc32....*/
+	while (length >= 8) {
+		crc = __crc32cd(crc, *(uint64_t *)p);
+		p += 8;
+		length -= 8;
+	}
+
+	if (length & 4) {
+		crc = __crc32cw(crc, *(uint32_t *)p);
+		p += 4;
+	}
+
+	if (length & 2) {
+		crc = __crc32ch(crc, *(uint16_t *)p);
+		p += 2;
+	}
+
+	if (length & 1) {
+		crc = __crc32cb(crc, *p);
+	}
+
+	return (~crc);
+}
+
+/** Whether or not the hardware platform support accelerated polynomial
+ multiplication.*/
+UNIV_INLINE
+bool
+can_use_crc32_poly_mul() {
+	bool enable_crc32 = getauxval(AT_HWCAP) & HWCAP_CRC32;
+	bool enable_poly_mul = getauxval(AT_HWCAP) & HWCAP_PMULL;
+
+	return (enable_crc32 && enable_poly_mul);
+}
+
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
 /* CRC32 software implementation. */
@@ -714,7 +941,15 @@ ut_crc32_init()
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 	}
+#elif defined(UNIV_LINUX) && defined(__aarch64__)
+	ut_crc32_sse2_enabled = can_use_crc32_poly_mul();
 
+	if (ut_crc32_sse2_enabled) {
+		ut_crc32_slice8_table_init();
+		ut_crc32 = ut_crc32_hw;
+		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
+		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_sw;
+	}
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
 	if (!ut_crc32_sse2_enabled) {

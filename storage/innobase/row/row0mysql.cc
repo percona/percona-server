@@ -1195,10 +1195,7 @@ row_mysql_store_col_in_innobase_format(
 				break;
 			case 1:
 				/* space=0x20 */
-				while (col_len > 0
-				       && ptr[col_len - 1] == 0x20) {
-					col_len--;
-				}
+				col_len = skip_trailing_space(ptr, col_len) - ptr;
 			}
 		}
 	} else if (comp && type == DATA_MYSQL
@@ -1234,9 +1231,7 @@ row_mysql_store_col_in_innobase_format(
 		n_chars = dtype_get_len(dtype) / dtype_get_mbmaxlen(dtype);
 
 		/* Strip space padding. */
-		while (col_len > n_chars && ptr[col_len - 1] == 0x20) {
-			col_len--;
-		}
+		col_len = skip_trailing_space(ptr + n_chars, col_len - n_chars) - ptr;
 	} else if (!row_format_col) {
 		/* if mysql data is from a MySQL key value
 		since the length is always stored in 2 bytes,

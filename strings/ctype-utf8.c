@@ -22,6 +22,9 @@
 #include "m_ctype.h"
 #include <errno.h>
 #include "my_uctype.h"
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT
@@ -5129,6 +5132,105 @@ my_strxfrm_pad_unicode(uchar *str, const uchar *const strend)
 }
 
 
+#if defined(__aarch64__)
+/*
+  Store sorting weights using 2 bytes per character.
+
+  This function is shared between
+  - utf8mb3_general_ci, utf8_bin, ucs2_general_ci, ucs2_bin
+    which support BMP only (U+0000..U+FFFF).
+  - utf8mb4_general_ci, utf16_general_ci, utf32_general_ci,
+    which map all supplementary characters to weight 0xFFFD.
+*/
+size_t
+my_strnxfrm_unicode(const CHARSET_INFO *cs,
+                    uchar *dst, size_t dstlen, uint nweights,
+                    const uchar *src, size_t srclen, uint flags)
+{
+  my_wc_t wc = 0;
+  int res;
+  uchar *const dst0 = dst;
+  const uchar *const de = dst + dstlen;
+  const uchar *const se = src + srclen;
+  const MY_UNICASE_INFO *uni_plane = (cs->state & MY_CS_BINSORT) ?
+                                      NULL : cs->caseinfo;
+  assert(src || srclen == 0);
+
+  if (!(cs->state & MY_CS_NONASCII))
+  {
+    for (; dst + 16 <= de && src + 16 <= se && nweights >= 8; nweights -= 8)
+    {
+      uint8x8_t vec_src;
+
+      if (uint8korr((const unsigned char *)src) & 0x8080808080808080)
+      {
+        break;
+      }
+
+      vec_src = vld1_u8((const unsigned char *)src);
+      if (uni_plane)
+      {
+        const uint8x8_t diff = vdup_n_u8(0x20);
+        if (cs->state & MY_CS_LOWER_SORT)
+        {
+          uint8x8_t mask = vcge_u8(vec_src, vdup_n_u8('A')) &
+                              vcle_u8(vec_src, vdup_n_u8('Z'));
+          vec_src = vbsl_u8(mask, vadd_u8(vec_src, diff), vec_src);
+        }
+        else
+        {
+          uint8x8_t mask = vcge_u8(vec_src, vdup_n_u8('a')) &
+                              vcle_u8(vec_src, vdup_n_u8('z'));
+          vec_src = vbsl_u8(mask, vsub_u8(vec_src, diff), vec_src);
+        }
+      }
+
+      {
+        uint8x16_t vec_dst = vreinterpretq_u8_u16(vmovl_u8(vec_src));
+        vec_dst = vrev16q_u8(vec_dst);
+        vst1q_u8(dst, vec_dst);
+      }
+
+      src += 8;
+      dst += 16;
+    }
+  }
+
+  for (; dst < de && nweights; nweights--)
+  {
+    if ((res = cs->cset->mb_wc(cs, &wc, src, se)) <= 0)
+    {
+      break;
+    }
+    src += res;
+
+    if (uni_plane)
+    {
+      my_tosort_unicode(uni_plane, &wc, cs->state);
+    }
+
+    *dst++ = (uchar) (wc >> 8);
+    if (dst < de)
+    {
+      *dst++ = (uchar) (wc & 0xFF);
+    }
+  }
+
+  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  {
+    dst += my_strxfrm_pad_nweights_unicode(dst, de, nweights);
+  }
+
+  my_strxfrm_desc_and_reverse(dst0, dst, flags, 0);
+
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
+  {
+    dst += my_strxfrm_pad_unicode(dst, de);
+  }
+
+  return dst - dst0;
+}
+#else
 /*
   Store sorting weights using 2 bytes per character.
 
@@ -5175,6 +5277,7 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
     dst+= my_strxfrm_pad_unicode(dst, de);
   return dst - dst0;
 }
+#endif
 
 
 /*
@@ -5536,6 +5639,75 @@ my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 
+#if defined(__aarch64__)
+static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
+                              size_t slen, ulong *n1, ulong *n2)
+{
+  my_wc_t wc;
+  int res;
+  const uchar *e = skip_trailing_space(s, slen);
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  uint64 tmp1 = *n1;
+  uint64 tmp2 = *n2;
+
+  const size_t neon_vector_length = 16;
+  const uint8x16_t max_ascii = vdupq_n_u8(0x7F);
+  const uint8x16_t diff = vdupq_n_u8(0x20);
+  uchar vec_dst[16];
+
+  if (!(cs->state & MY_CS_NONASCII))
+  {
+    while (s + neon_vector_length <= e)
+    {
+      uint8x16_t vec_src = vld1q_u8((const unsigned char *)s);
+      // check if exists non-ascii character
+      // ascii -> non zero, non-ascii -> zero
+      uint8x16_t result = vcleq_u8(vec_src, max_ascii);
+      if (vminvq_u8(result) == 0)
+      {
+        // have non-ascii character
+        break;
+      }
+
+      if (cs->state & MY_CS_LOWER_SORT)
+      {
+        uint8x16_t mask = vcgeq_u8(vec_src, vdupq_n_u8('A')) &
+                            vcleq_u8(vec_src, vdupq_n_u8('Z'));
+        vec_src = vbslq_u8(mask, vaddq_u8(vec_src, diff), vec_src);
+      }
+      else
+      {
+        uint8x16_t mask = vcgeq_u8(vec_src, vdupq_n_u8('a')) &
+                            vcleq_u8(vec_src, vdupq_n_u8('z'));
+        vec_src = vbslq_u8(mask, vsubq_u8(vec_src, diff), vec_src);
+      }
+
+      vst1q_u8(vec_dst, vec_src);
+      for (size_t i = 0; i < neon_vector_length; i++)
+      {
+        tmp1 ^= (((tmp1 & 63) + tmp2) * vec_dst[i]) + (tmp1 << 8);
+        tmp1 ^= (tmp1 << 8);
+        tmp2 += 6;
+      }
+
+      s += neon_vector_length;
+    }
+  }
+
+  while ((s < e) && (res = my_utf8_uni(cs, &wc, (uchar *)s, (uchar*)e)) > 0)
+  {
+    my_tosort_unicode(uni_plane, &wc, cs->state);
+    tmp1 ^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
+    tmp2 +=3;
+    tmp1 ^= (((tmp1 & 63) + tmp2) * (wc >> 8)) + (tmp1 << 8);
+    tmp2 +=3;
+    s += res;
+  }
+
+  *n1 = tmp1;
+  *n2 = tmp2;
+}
+#else
 static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
                               size_t slen, ulong *n1, ulong *n2)
 {
@@ -5569,6 +5741,7 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   *n1= tmp1;
   *n2= tmp2;
 }
+#endif
 
 
 static size_t my_caseup_str_utf8(const CHARSET_INFO *cs, char *src)
@@ -5690,6 +5863,56 @@ static int my_strnncoll_utf8(const CHARSET_INFO *cs,
 }
 
 
+#if defined(__aarch64__)
+/**
+  Simultaneously skip space for two strings (ASCII spaces only).
+  Small special routine function for my_strnncollsp_utf8(mb4) functions
+*/
+static inline void skip_space(const uchar **sp, const uchar **tp,
+                              const uchar *const se, const uchar *const te)
+{
+  const uint8x16_t space_ascii = vdupq_n_u8(0x20);
+  const size_t neon_vector_length = 16;
+
+  while (*sp + neon_vector_length < se && *tp + neon_vector_length < te)
+  {
+    uint8x16_t vec_sp = vld1q_u8((const unsigned char *)sp);
+    uint8x16_t vec_tp = vld1q_u8((const unsigned char *)tp);
+    uint8x16_t res_sp = vceqq_u8(vec_sp, space_ascii);
+    uint8x16_t res_tp = vceqq_u8(vec_tp, space_ascii);
+
+    if (vminvq_u8(res_sp) == 0 || vminvq_u8(res_tp) == 0)
+    {
+      // has non-space character
+      break;
+    }
+
+    *sp += neon_vector_length;
+    *tp += neon_vector_length;
+  }
+
+  while (*sp + 8 < se && *tp + 8 < te)
+  {
+    uint64_t s, t;
+    memcpy(&s, *sp, 8);
+    memcpy(&t, *tp, 8);
+    if (s != 0x2020202020202020ULL || t != 0x2020202020202020ULL)
+    {
+      break;
+    }
+
+    *sp += 8;
+    *tp += 8;
+  }
+
+  while (*sp < se && *tp < te && **sp == 0x20 && **tp == 0x20)
+  {
+    ++*sp;
+    ++*tp;
+  }
+}
+#endif
+
 
 /*
   Compare strings, discarding end space
@@ -5737,6 +5960,15 @@ static int my_strnncollsp_utf8(const CHARSET_INFO *cs,
 
   while ( s < se && t < te )
   {
+#if defined(__aarch64__)
+    /* aggressive space skipping improves performance */
+    if (*s == ' ' && *t == ' ')
+    {
+      skip_space(&s, &t, se, te);
+      continue;
+    }
+#endif
+
     s_res=my_utf8_uni(cs,&s_wc, s, se);
     t_res=my_utf8_uni(cs,&t_wc, t, te);
 
@@ -8096,6 +8328,95 @@ my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 
+#if defined(__aarch64__)
+static void
+my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
+                     ulong *n1, ulong *n2)
+{
+  my_wc_t wc;
+  int res;
+  const uchar *e = skip_trailing_space(s, slen);
+  const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  uint64 tmp1 = *n1;
+  uint64 tmp2 = *n2;
+  uint ch;
+
+  const size_t neon_vector_length = 16;
+  const uint8x16_t max_ascii = vdupq_n_u8(0x7F);
+  const uint8x16_t diff = vdupq_n_u8(0x20);
+  uchar vec_dst[16];
+
+  if (!(cs->state & MY_CS_NONASCII))
+  {
+    while (s + neon_vector_length <= e)
+    {
+      uint8x16_t vec_src = vld1q_u8((const unsigned char *)s);
+      // check if exists non-ascii character
+      // ascii -> non zero, non-ascii -> zero
+      uint8x16_t result = vcleq_u8(vec_src, max_ascii);
+      if (vminvq_u8(result) == 0)
+      {
+        // have non-ascii character
+        break;
+      }
+
+      if (cs->state & MY_CS_LOWER_SORT)
+      {
+        uint8x16_t mask = vcgeq_u8(vec_src, vdupq_n_u8('A')) &
+                            vcleq_u8(vec_src, vdupq_n_u8('Z'));
+        vec_src = vbslq_u8(mask, vaddq_u8(vec_src, diff), vec_src);
+      }
+      else
+      {
+        uint8x16_t mask = vcgeq_u8(vec_src, vdupq_n_u8('a')) &
+                            vcleq_u8(vec_src, vdupq_n_u8('z'));
+        vec_src = vbslq_u8(mask, vsubq_u8(vec_src, diff), vec_src);
+      }
+
+      vst1q_u8(vec_dst, vec_src);
+      for (size_t i = 0; i < neon_vector_length; i++)
+      {
+        tmp1 ^= (((tmp1 & 63) + tmp2) * vec_dst[i]) + (tmp1 << 8);
+        tmp1 ^= (tmp1 << 8);
+        tmp2 += 6;
+      }
+
+      s += neon_vector_length;
+    }
+  }
+
+  while ((res = my_mb_wc_utf8mb4(cs, &wc, (uchar*) s, (uchar*) e)) > 0)
+  {
+    my_tosort_unicode(uni_plane, &wc, cs->state);
+
+    ch = (wc & 0xFF);
+    tmp1 ^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2 += 3;
+
+    ch = (wc >> 8) & 0xFF;
+    tmp1 ^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2 += 3;
+
+    if (wc > 0xFFFF)
+    {
+       /*
+        Put the highest byte only if it is non-zero,
+        to make hash functions for utf8mb3 and utf8mb4
+        compatible for BMP characters.
+        This is useful to keep order of records in
+        test results, e.g. for "SHOW GRANTS".
+      */
+      ch = (wc >> 16) & 0xFF;
+      tmp1 ^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+      tmp2 += 3;
+    }
+    s += res;
+  }
+
+  *n1 = tmp1;
+  *n2 = tmp2;
+}
+#else
 static void
 my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
                      ulong *n1, ulong *n2)
@@ -8149,6 +8470,7 @@ my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   *n1= tmp1;
   *n2= tmp2;
 }
+#endif
 
 
 static size_t
@@ -8252,8 +8574,19 @@ my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
 
   while ( s < se && t < te )
   {
-    int s_res= my_mb_wc_utf8mb4(cs, &s_wc, s, se);
-    int t_res= my_mb_wc_utf8mb4(cs, &t_wc, t, te);
+    int s_res, t_res;
+
+#if defined(__aarch64__)
+    /* aggressive space skipping improves performance */
+    if (*s == ' ' && *t == ' ')
+    {
+      skip_space(&s, &t, se, te);
+      continue;
+    }
+#endif
+
+    s_res= my_mb_wc_utf8mb4(cs, &s_wc, s, se);
+    t_res= my_mb_wc_utf8mb4(cs, &t_wc, t, te);
 
     if ( s_res <= 0 || t_res <= 0 )
     {

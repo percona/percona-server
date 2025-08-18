@@ -28,6 +28,9 @@
 #include <my_global.h>
 #include "m_ctype.h"
 #include "m_string.h"
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
@@ -383,6 +386,80 @@ int my_wildcmp_mb(const CHARSET_INFO *cs,
 }
 
 
+#if defined(__aarch64__)
+size_t my_numchars_mb(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+		      const char *pos, const char *end)
+{
+  size_t count = 0;
+
+  if ((cs->state & MY_CS_UNICODE) && !(cs->state & MY_CS_NONASCII))
+  {
+    const uint8x16_t max_ascii = vdupq_n_u8(0x7F);
+    const size_t neon_vector_length = 16;
+
+    while (pos + neon_vector_length <= end)
+    {
+      uint8x16_t vec_src = vld1q_u8((const unsigned char *)pos);
+      // check if exists non-ascii character
+      // ascii -> non zero, non-ascii -> zero
+      uint8x16_t result = vcleq_u8(vec_src, max_ascii);
+      if (vminvq_u8(result) == 0)
+      {
+        // has non-ascii character
+        break;
+      }
+
+      count += neon_vector_length;
+      pos += neon_vector_length;
+    }
+  }
+
+  while (pos < end)
+  {
+    uint mb_len;
+    pos += (mb_len = my_ismbchar(cs, pos, end)) ? mb_len : 1;
+    count++;
+  }
+  return count;
+}
+
+
+size_t my_charpos_mb(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+		     const char *pos, const char *end, size_t length)
+{
+  const char *start = pos;
+
+  if ((cs->state & MY_CS_UNICODE) && !(cs->state & MY_CS_NONASCII))
+  {
+    const uint8x16_t max_ascii = vdupq_n_u8(0x7F);
+    const size_t neon_vector_length = 16;
+
+    while (length >= neon_vector_length && pos + neon_vector_length <= end)
+    {
+      uint8x16_t vec_src = vld1q_u8((const unsigned char *)pos);
+      // check if exists non-ascii character
+      // ascii -> non zero, non-ascii -> zero
+      uint8x16_t result = vcleq_u8(vec_src, max_ascii);
+      if (vminvq_u8(result) == 0)
+      {
+        // has non-ascii character
+        break;
+      }
+
+      length -= neon_vector_length;
+      pos += neon_vector_length;
+    }
+  }
+
+  while (length && pos < end)
+  {
+    uint mb_len;
+    pos += (mb_len = my_ismbchar(cs, pos, end)) ? mb_len : 1;
+    length--;
+  }
+  return (size_t) (length ? end+2-start : pos-start);
+}
+#else
 size_t my_numchars_mb(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 		      const char *pos, const char *end)
 {
@@ -410,6 +487,7 @@ size_t my_charpos_mb(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   }
   return (size_t) (length ? end+2-start : pos-start);
 }
+#endif
 
 
 size_t my_well_formed_len_mb(const CHARSET_INFO *cs, const char *b,

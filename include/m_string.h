@@ -27,6 +27,9 @@
 #include "my_global.h"                          /* HAVE_* */
 
 #include <string.h>
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 #define bfill please_use_memset_rather_than_bfill
 #ifdef bzero
@@ -338,6 +341,38 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
   }
   while (end > ptr && end[-1] == 0x20)
     end--;
+  return (end);
+}
+#elif defined(__aarch64__)
+static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
+{
+  const uchar *end = ptr + len;
+  const size_t neno_vector_length = 16;
+  const uint8x16_t space_vec = vdupq_n_u8(0x20);
+  const uchar *current_end = end - neno_vector_length;
+  size_t vector_size = len >> 4;
+
+  while (vector_size > 0) {
+    uint8x16_t data_vec = vld1q_u8(current_end);
+    uint8x16_t result = vceqq_u8(data_vec, space_vec);
+
+    if (vminvq_u8(result) == 0) {
+      break;
+    }
+    vector_size--;
+    end -= neno_vector_length;
+    current_end -= neno_vector_length;
+  }
+
+  while (end - ptr >= 8) {
+    if (uint8korr(end-8) != 0x2020202020202020ULL) {
+      break;
+    }
+    end-= 8;
+  }
+  while (end > ptr && end[-1] == 0x20) {
+    end--;
+  }
   return (end);
 }
 #else

@@ -1,0 +1,45 @@
+INSTALL COMPONENT 'file://component_bulk_load';
+
+--let $csv_file_path = $MYSQL_TMP_DIR/test_data.csv
+
+CREATE TABLE t (
+    a int primary key,
+    b varchar(100)
+) engine=innodb;
+
+# FIELDS
+#    TERMINATED BY 'string'
+#    [OPTIONALLY] ENCLOSED BY 'char'
+#    ESCAPED BY 'char'
+# LINES
+#    TERMINATED BY 'string'
+
+#write_file $csv_file_path;
+#"1","test string 1"\\n"2","test string 2"\\n
+#EOF
+
+#let $csv_file_data=\\"1\\",\\"test string 1\\"\n\\"2\\",\\"test string 2\\"\n;
+#--source ../inc/write_file.inc
+#--replace_result $csv_file_path FILE_NAME
+#--eval LOAD DATA FROM INFILE "$csv_file_path" INTO TABLE t FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n' ALGORITHM = BULK
+#select * from t;
+
+--echo #
+--echo # Multi char LINES TERMINATED BY
+
+let $csv_file_data=\\"1\\",\\"test string 1\\"\r\n\\"2\\",\\"test string 2\\"\r\n;
+--source ../inc/write_file.inc
+
+--echo ====================================
+--cat_file $csv_file_path
+--echo ====================================
+
+--replace_result $csv_file_path FILE_NAME
+--eval LOAD DATA FROM INFILE "$csv_file_path" INTO TABLE t FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\r\n' ALGORITHM = BULK
+select * from t;
+
+
+# Cleanup
+drop table t;
+--remove_file $csv_file_path
+UNINSTALL COMPONENT 'file://component_bulk_load';

@@ -1,0 +1,27 @@
+INSTALL COMPONENT 'file://component_bulk_load';
+
+--let bulk_load_data_csv=$MYSQL_TMP_DIR/test_data.csv
+
+write_file $bulk_load_data_csv;
+"1","2","3"
+"21","22","23"
+"31","32","33"
+EOF
+
+--echo ====================================
+--cat_file $bulk_load_data_csv
+--echo ====================================
+
+CREATE TABLE t (
+    a int primary key,
+    b int,
+    c int
+) engine=innodb;
+
+--eval LOAD DATA FROM INFILE "$bulk_load_data_csv" INTO TABLE t FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n' ALGORITHM = BULK
+
+select * from t;
+drop table t;
+
+UNINSTALL COMPONENT 'file://component_bulk_load';
+--remove_file $bulk_load_data_csv

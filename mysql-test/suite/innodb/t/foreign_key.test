@@ -279,3 +279,26 @@ INSERT INTO `t2` (`t2_id`, `c1`, `t1_id`) VALUES (1,5.00,10);
 DELETE FROM `t1` WHERE `t1_id`=10;
 DROP TABLE `t2`;
 DROP TABLE `t1`;
+
+--echo #
+--echo # PS-10125 : Port fix for Bug#37478594 to 5.7 EOL branch
+--echo # Bug#37478594 : Virtual column value may be incorrectly set to NULL on cascade update
+--echo #
+
+CREATE TABLE p (pk INT PRIMARY KEY);
+CREATE TABLE c (pk INT PRIMARY KEY, fk INT, g VARCHAR(20) GENERATED ALWAYS AS (IFNULL(fk, "nullptr")) VIRTUAL, KEY(g));
+ALTER TABLE c ADD FOREIGN KEY (fk) REFERENCES p (pk) ON UPDATE SET NULL ON DELETE SET NULL;
+INSERT INTO p VALUES (1), (2), (3), (4);
+INSERT INTO c (pk, fk) VALUES (1, 1), (2, 2), (3,3), (4,4);
+DELETE FROM p WHERE pk = 3;
+SELECT * FROM c;
+SELECT * FROM c WHERE g = 'nullptr';
+DELETE FROM c WHERE pk = 3;
+
+INSERT INTO p VALUES (3);
+INSERT INTO c (pk, fk) VALUES (3,3);
+SELECT * FROM c WHERE g = 'nullptr';
+DELETE FROM p WHERE pk = 3;
+SELECT * FROM c WHERE g = 'nullptr';
+DROP TABLE c;
+DROP TABLE p;

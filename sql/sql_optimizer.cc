@@ -11631,8 +11631,15 @@ static double EstimateRowAccessesInItem(Item *item, double num_evaluations) {
       } else {
         path = subselect->unit->item->root_access_path();
       }
-      rows += EstimateRowAccesses(
-          path, query_block->is_cacheable() ? 1.0 : num_evaluations, kNoLimit);
+      // In some cases, for old optimizer, when subtitem is a
+      // Item_singlerow_subselect, its Query_expression::root_access_path has
+      // not been set, and Item_singlerow_subselect::root_access_path() always
+      // returns nullptr, so we need to check:
+      if (path != nullptr) {
+        rows += EstimateRowAccesses(
+            path, query_block->is_cacheable() ? 1.0 : num_evaluations,
+            kNoLimit);
+      }
     }
     return false;
   });

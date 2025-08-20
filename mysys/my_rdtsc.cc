@@ -453,6 +453,13 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti) {
   time4 = my_timer_cycles() - mti->cycles.overhead;
   time4 -= mti->microseconds.overhead;
 
+  if (time4 <= time1) {
+    /*
+      Seen happening on Sparc S7 when execution during measurement switched to
+      different CPU that has different value of the tick.
+    */
+    return 0;
+  }
   if (time3 <= time2) {
     /*
       Seen happening with ASAN / UBSAN builds.
@@ -684,17 +691,26 @@ void my_timer_init(MY_TIMER_INFO *mti) {
         mti->microseconds.resolution > 100)
       mti->cycles.frequency = mti->microseconds.frequency;
     else {
-      ulonglong time1, time2, lowest;
-      time1 = my_timer_init_frequency(mti);
-      /* Repeat once in case there was an interruption. */
-      time2 = my_timer_init_frequency(mti);
-
-      lowest = 0;
-      if (time1 != 0) {
-        lowest = time1;
-      }
-      if ((time2 != 0) && (time2 < lowest)) {
-        lowest = time2;
+      ulonglong lowest = 0;
+      int values = 0;
+      /*
+        We measure frequency for 200us, there is some probability we will end up
+        switched off the cpu entirely, or be switched to different CPU that has
+        different values of tick. We measure till we have 3 values that are less
+        than 1THz, as a higher value would yield 0 ticks per picosecond leading
+        to useless calculations later on, and in itself look incorrect. We give
+        up after taking 10 readouts.
+      */
+      for (int i = 10; i-- > 0;) {
+        const auto freq = my_timer_init_frequency(mti);
+        if (freq != 0 && freq <= 1'000'000'000'000) {
+          if (lowest == 0 || freq < lowest) {
+            lowest = freq;
+          }
+          if (++values >= 3) {
+            break;
+          }
+        }
       }
 
       mti->cycles.frequency = lowest;

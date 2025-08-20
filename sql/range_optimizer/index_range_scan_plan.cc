@@ -1023,13 +1023,6 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   return false;
 }
 
-// TODO(sgunders): This becomes a bit simpler with C++20's string_view
-// constructors.
-static inline std::basic_string_view<uchar> make_string_view(const uchar *start,
-                                                             const uchar *end) {
-  return {start, static_cast<size_t>(end - start)};
-}
-
 /**
   Generate key values for range select from given sel_arg tree
 
@@ -1090,8 +1083,7 @@ static bool get_ranges_from_tree_given_base(
         node->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
         node->next_key_part->root->part == part + 1) {
       if (node->min_flag == 0 && node->max_flag == 0 &&
-          make_string_view(min_key, tmp_min_key) ==
-              make_string_view(max_key, tmp_max_key)) {
+          std::equal(min_key, tmp_min_key, max_key, tmp_max_key)) {
         // This range was an equality predicate, and we have more
         // keyparts to scan, so use its range as a base for ranges on
         // the next keypart(s). E.g. if we have (a = 3) on this keypart,
@@ -1167,8 +1159,8 @@ static bool get_ranges_from_tree_given_base(
       else
         flag |= NO_MAX_RANGE;
     }
-    if (flag == 0 && make_string_view(base_min_key, tmp_min_key) ==
-                         make_string_view(base_max_key, tmp_max_key)) {
+    if (flag == 0 &&
+        std::equal(base_min_key, tmp_min_key, base_max_key, tmp_max_key)) {
       flag |= EQ_RANGE;
       /*
         Note that keys which are extended with PK parts have no

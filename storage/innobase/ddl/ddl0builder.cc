@@ -365,10 +365,6 @@ bool Merge_cursor::Compare::operator()(const File_cursor *lhs,
 dberr_t Merge_cursor::add_file(const ddl::file_t &file, size_t buffer_size,
                                const Range &range) noexcept {
   ut_a(file.m_file.is_open());
-  /* Keep the buffer size as much required to avoid the overlapping reads from
-  the subsequent ranges. In this iteration, buffer size would remain same for
-  subsequent reads */
-  buffer_size = std::min(size_t(range.second - range.first), buffer_size);
   auto cursor = ut::new_withkey<File_cursor>(
       ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
       range, m_stage, file.m_write_offsets);
@@ -812,7 +808,6 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
                                     size_t &mv_rows_added) noexcept {
   const auto n_added = mv_rows_added;
   auto v_col = reinterpret_cast<const dict_v_col_t *>(col);
-  const auto clust_index = m_ctx.m_new_table->first_index();
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
   mem_heap_t **compress_heap = &m_thread_ctxs[ctx.m_thread_id]->m_compress_heap;
 
@@ -827,9 +822,9 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
       auto p = m_v_heap.get();
 
       src_field = innobase_get_computed_value(
-          ctx.m_row.m_ptr, v_col, clust_index, &p, key_buffer->heap(), ifield,
-          m_ctx.thd(), ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr,
-          compress_heap);
+          ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p, key_buffer->heap(),
+          m_ctx.thd(), ctx.m_my_table, compress_heap, ifield,
+          m_ctx.m_old_table);
 
       m_v_heap.reset(p);
 
@@ -859,8 +854,8 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
     auto p = m_v_heap.get();
 
     src_field = innobase_get_computed_value(
-        ctx.m_row.m_ptr, v_col, clust_index, &p, nullptr, ifield, m_ctx.thd(),
-        ctx.m_my_table, m_ctx.m_old_table, nullptr, nullptr, compress_heap);
+        ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p, nullptr, m_ctx.thd(),
+        ctx.m_my_table, compress_heap, ifield, m_ctx.m_old_table);
 
     m_v_heap.reset(p);
 
@@ -917,10 +912,11 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
                               doc_id_t &write_doc_id) noexcept {
   auto &fts = m_ctx.m_fts;
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
-  auto &fields = key_buffer->m_dtuples[key_buffer->size()];
 
+  dfield_t *fields;
   const dict_field_t *ifield = m_index->get_field(0);
   auto field = fields = key_buffer->alloc(ctx.m_n_fields);
+  key_buffer->m_dtuples.push_back(fields);
   const auto page_size = dict_table_page_size(m_ctx.m_old_table);
 
   for (size_t i = 0; i < ctx.m_n_fields; ++i, ++field, ++ifield) {
@@ -1065,10 +1061,6 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
 
   ut_a(ctx.m_n_rows_added == 0);
 
-  if (unlikely(key_buffer->full())) {
-    return DB_OVERFLOW;
-  }
-
   // clang-format off
   DBUG_EXECUTE_IF(
       "ddl_buf_add_two",
@@ -1083,10 +1075,6 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
   doc_id_t write_doc_id{};
 
   for (;;) {
-    if (unlikely(key_buffer->full())) {
-      return ctx.m_n_rows_added == 0 ? DB_OVERFLOW : DB_SUCCESS;
-    }
-
     // clang-format off
     DBUG_EXECUTE_IF(
         "ddl_add_multi_value",
@@ -1442,9 +1430,12 @@ dberr_t Builder::add_to_key_buffer(Copy_ctx &ctx,
     ut_ad(m_id == 0);
     ut_ad(key_buffer->is_clustered());
 
-    /* Detect duplicates by comparing the current record with previous record.*/
+    /* Detect duplicates by comparing the current record with previous record.
+    The current record will be used to report duplicates. m_prev_fields cannot
+    be used for it, because contrary to current record it contains only unique
+    fields. Which is fine for key comparison, but not enough for reporting. */
     if (m_prev_fields != nullptr &&
-        Key_sort_buffer::compare(m_prev_fields, fields, &m_clust_dup) == 0) {
+        Key_sort_buffer::compare(fields, m_prev_fields, &m_clust_dup) == 0) {
       set_error(DB_DUPLICATE_KEY);
       return get_error();
     }

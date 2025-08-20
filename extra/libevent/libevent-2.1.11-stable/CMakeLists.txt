@@ -19,6 +19,10 @@
 #       start libevent.sln
 #
 
+IF(APPLE)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wdangling-pointer" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
@@ -67,6 +71,10 @@ IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-switch-enum")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unreachable-code-return")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-macros")
+ENDIF()
+
+IF(APPLE_XCODE)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
 ENDIF()
 
 # Don't do this here, it will load policies for an older version of cmake.

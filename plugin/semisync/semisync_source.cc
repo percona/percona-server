@@ -125,6 +125,14 @@ unsigned int ActiveTranx::get_hash_value(const char *log_file_name,
 
 int ActiveTranx::compare(const char *log_file_name1, my_off_t log_file_pos1,
                          const char *log_file_name2, my_off_t log_file_pos2) {
+  unsigned int len1 = strlen(log_file_name1);
+  unsigned int len2 = strlen(log_file_name2);
+  if (len1 > len2)
+    return 1;
+  else if (len1 < len2)
+    return -1;
+
+  assert(len1 == len2);
   int cmp = strcmp(log_file_name1, log_file_name2);
 
   if (cmp != 0) return cmp;
@@ -539,7 +547,7 @@ void ReplSemiSyncMaster::remove_slave() {
         if (commit_file_name_inited_ && reply_file_name_inited_) {
           int cmp = ActiveTranx::compare(reply_file_name_, reply_file_pos_,
                                          commit_file_name_, commit_file_pos_);
-          if (cmp < 0) LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
+          if (cmp < 0) LogErr(ERROR_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         }
       }
       switch_off();
@@ -761,7 +769,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
           (rpl_semi_sync_source_clients ==
            rpl_semi_sync_source_wait_for_replica_count - 1) &&
           is_on()) {
-        LogErr(WARNING_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
+        LogErr(ERROR_LEVEL, ER_SEMISYNC_FORCED_SHUTDOWN);
         switch_off();
         break;
       }

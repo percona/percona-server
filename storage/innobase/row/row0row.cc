@@ -590,11 +590,11 @@ dtuple_t *row_rec_to_index_entry_low(
 
   ut_ad(rec_len == dict_index_get_n_fields(index) ||
         /* non-leaf record which has keys and child page no as record data */
-        rec_len == dict_index_get_n_unique(index) + 1
+        rec_len == dict_index_get_n_unique(index) + 1U
         /* a record for older SYS_INDEXES table
         (missing merge_threshold column) is acceptable. */
         || (index->table->id == DICT_INDEXES_ID &&
-            rec_len == dict_index_get_n_fields(index) - 1));
+            rec_len == dict_index_get_n_fields(index) - 1U));
 
   dict_index_copy_types(entry, index, rec_len);
 

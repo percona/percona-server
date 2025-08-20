@@ -578,6 +578,8 @@ end:
         "Fatal error during execution on the Applier module of Group "
         "Replication.";
     leave_group_on_failure::mask leave_actions;
+    if (applier_thd->killed)
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_KILLED_BY_SQL_KILL);
     /*
       Only follow exit_state_action if we were already inside a group. We may
       happen to come across an applier error during the startup of GR (i.e.

@@ -2130,11 +2130,11 @@ void Query_block::destroy() {
     unit->destroy();
     unit = next;
   }
-
   List_iterator<Window> li(m_windows);
   Window *w;
-  while ((w = li++)) w->destroy();
-
+  while ((w = li++)) {
+    w->destroy();
+  }
   // Destroy allocated derived tables
   destroy_tmp_tables(get_table_list());
 

@@ -16,6 +16,8 @@
 #include "plugin/audit_log_filter/log_record_formatter/json.h"
 #include "plugin/audit_log_filter/sys_vars.h"
 
+#include <boost/date_time/c_time.hpp>
+
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -884,10 +886,16 @@ std::string LogRecordFormatterJson::make_timestamp(
         SysVars::get_debug_time_point_for_rotation());
   });
 
-  std::stringstream timestamp;
-  timestamp << std::put_time(std::localtime(&t), "%F %T");
+  std::tm tm;
+  static constexpr std::size_t max_buffer_size{32};
+  std::string result(max_buffer_size, '\0');
 
-  return timestamp.str();
+  boost::date_time::c_time::localtime(&t, &tm);
+  const std::size_t len =
+      std::strftime(result.data(), result.size(), "%F %T", &tm);
+  result.resize(len);
+
+  return result;
 }
 
 void LogRecordFormatterJson::apply_debug_info(

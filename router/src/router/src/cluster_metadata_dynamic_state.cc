@@ -23,6 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <cstdint>
+
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE

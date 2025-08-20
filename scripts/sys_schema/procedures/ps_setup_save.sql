@@ -70,7 +70,9 @@ BEGIN
     DECLARE v_lock_result INT;
 
     SET @log_bin := @@sql_log_bin;
-    SET sql_log_bin = 0;
+    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+       SET sql_log_bin = 0;
+    END IF;
 
     SELECT GET_LOCK('sys.ps_setup_save', in_timeout) INTO v_lock_result;
 
@@ -94,7 +96,9 @@ BEGIN
            SET MESSAGE_TEXT = 'Could not lock the sys.ps_setup_save user lock, another thread has a saved configuration';
     END IF;
 
-    SET sql_log_bin = @log_bin;
+    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+	SET sql_log_bin = @log_bin;
+    END IF;
 END$$
 
 DELIMITER ;

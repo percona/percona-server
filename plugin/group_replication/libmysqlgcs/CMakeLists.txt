@@ -227,6 +227,16 @@ TARGET_LINK_LIBRARIES(mysqlgcs PRIVATE ext::xxhash ext::lz4)
 # but pick up symbols from the server:
 # TARGET_LINK_LIBRARIES(mysqlgcs mysys)
 
+# Lots of C-style casting in the interface to XDR functions.
+#   xcom_xdr_free((xdrproc_t)proc ...)
+#   xdr_free((xdrproc_t)xdr_app_data_ptr
+# Add -Wno-cast-function-type-mismatch as a PUBLIC property,
+# since we have header files calling xdr_free().
+MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type-mismatch" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  TARGET_COMPILE_OPTIONS(mysqlgcs PUBLIC ${HAS_WARN_FLAG})
+ENDIF()
+
 IF(CMAKE_VERSION VERSION_GREATER "3.19" AND NOT APPLE_XCODE)
   # New in version 3.19:
   # An interface library target may be created with source files.

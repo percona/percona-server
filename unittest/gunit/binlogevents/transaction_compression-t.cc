@@ -23,6 +23,7 @@
 */
 
 #include <array>
+#include <string>
 
 #include <gtest/gtest.h>
 #include "libbinlogevents/include/binary_log.h"
@@ -51,14 +52,13 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
   using Managed_buffer_t = Decompressor_t::Managed_buffer_t;
   using Size_t = Decompressor_t::Size_t;
   using Char_t = Decompressor_t::Char_t;
-  using String_t = std::basic_string<Char_t>;
   using Decompress_status_t =
       binary_log::transaction::compression::Decompress_status;
   using Compress_status_t =
       binary_log::transaction::compression::Compress_status;
 
-  static String_t constant_data(Size_t size) {
-    return String_t(size, (Char_t)'a');
+  static std::string constant_data(Size_t size) {
+    return std::string(size, (Char_t)'a');
   }
 
  protected:
@@ -69,7 +69,7 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
   void TearDown() override {}
 
   static void compression_idempotency_test(Compressor_t &c, Decompressor_t &d,
-                                           String_t data) {
+                                           const std::string &data) {
     auto debug_string = concat(
         binary_log::transaction::compression::type_to_string(c.get_type_code()),
         " ", data.size());
@@ -104,8 +104,8 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
 
     // Check decompressed data
     ASSERT_EQ(managed_buffer.read_part().size(), data.size()) << debug_string;
-    ASSERT_EQ(data, String_t(managed_buffer.read_part().begin(),
-                             managed_buffer.read_part().end()))
+    ASSERT_EQ(data, std::string(managed_buffer.read_part().begin(),
+                                managed_buffer.read_part().end()))
         << debug_string;
 
     // Check that we reached EOF
@@ -118,7 +118,7 @@ TEST_F(TransactionPayloadCompressionTest, CompressDecompressZstdTest) {
   for (auto size : buffer_sizes) {
     binary_log::transaction::compression::Zstd_dec d;
     binary_log::transaction::compression::Zstd_comp c;
-    String_t data{TransactionPayloadCompressionTest::constant_data(size)};
+    std::string data{TransactionPayloadCompressionTest::constant_data(size)};
     TransactionPayloadCompressionTest::compression_idempotency_test(c, d, data);
     c.set_compression_level(22);
     TransactionPayloadCompressionTest::compression_idempotency_test(c, d, data);
@@ -129,7 +129,7 @@ TEST_F(TransactionPayloadCompressionTest, CompressDecompressNoneTest) {
   for (auto size : buffer_sizes) {
     binary_log::transaction::compression::None_dec d;
     binary_log::transaction::compression::None_comp c;
-    String_t data{TransactionPayloadCompressionTest::constant_data(size)};
+    std::string data{TransactionPayloadCompressionTest::constant_data(size)};
     TransactionPayloadCompressionTest::compression_idempotency_test(c, d, data);
   }
 }

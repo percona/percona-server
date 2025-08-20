@@ -80,8 +80,6 @@ inline void merge_sort(T *arr, T *aux_arr, const size_t low, const size_t high,
 
 Key_sort_buffer::Key_sort_buffer(dict_index_t *index, size_t size) noexcept
     : m_index(index), m_buffer_size(size) {
-  m_max_tuples = m_buffer_size / std::max(ulint{1}, m_index->get_min_size());
-  m_dtuples.resize(m_max_tuples);
   m_heap = mem_heap_create(1024, UT_LOCATION_HERE);
 }
 
@@ -98,6 +96,7 @@ void Key_sort_buffer::deep_copy(size_t n_fields, size_t data_size) noexcept {
 void Key_sort_buffer::clear() noexcept {
   m_n_tuples = 0;
   m_total_size = 0;
+  m_dtuples = {};
   mem_heap_empty(m_heap);
 }
 

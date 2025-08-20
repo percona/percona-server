@@ -7554,19 +7554,19 @@ column_attribute:
           }
         | UNIQUE_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_UNIQUE);
+            $$= NEW_PTN PT_unique_key_column_attr;
           }
         | UNIQUE_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_UNIQUE);
+            $$= NEW_PTN PT_unique_key_column_attr;
           }
         | CLUSTERING_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_CLUSTERING);
+            $$= NEW_PTN PT_clustering_key_column_attr;
           }
         | CLUSTERING_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(KEYTYPE_CLUSTERING);
+            $$= NEW_PTN PT_clustering_key_column_attr;
           }
         | COMMENT_SYM TEXT_STRING_sys
         {

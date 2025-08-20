@@ -7972,6 +7972,12 @@ static Create_field *add_functional_index_to_create_list(
     return nullptr;
   }
 
+  // Don't even bother trying to create a non-conformant table.
+  if (alter_info->create_list.is_empty()) {
+    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
+    return nullptr;
+  }
+
   cr->field_name = field_name;
   cr->field = nullptr;
   cr->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
@@ -13809,6 +13815,9 @@ static bool mysql_inplace_alter_table(
     close_all_tables_for_name(thd, table->s, false, nullptr);
     table_list->table = table = nullptr;
     reopen_tables = true;
+
+    DEBUG_SYNC(thd, "alter_before_close_temp_tables");
+
     close_temporary_table(thd, altered_table, true, false);
     rollback_needs_dict_cache_reset = true;
 

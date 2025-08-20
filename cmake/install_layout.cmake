@@ -197,7 +197,11 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_TARGZ ${secure_file_priv_path})
 # RPM layout
 #
 SET(INSTALL_BINDIR_RPM                  "bin")
-SET(INSTALL_SBINDIR_RPM                 "sbin")
+IF(LINUX_FEDORA_SBIN_MERGE)
+  SET(INSTALL_SBINDIR_RPM                 "bin")
+ELSE()
+  SET(INSTALL_SBINDIR_RPM                 "sbin")
+ENDIF()
 #
 IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
   SET(INSTALL_LIBDIR_RPM                "lib64/mysql")

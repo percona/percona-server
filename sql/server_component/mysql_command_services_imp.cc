@@ -61,6 +61,12 @@ struct Error_handler {
 DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
   bool ret = false;
   try {
+    THD *thd = current_thd;
+    /* Not supposed to work recursively */
+    if (thd != nullptr && thd->is_a_srv_session()) {
+      my_error(ER_CANT_RUN_COMMAND_SERVICES_RECURSIVELY, MYF(0));
+      return true;
+    }
     Mysql_handle *mysql_handle = (Mysql_handle *)my_malloc(
         key_memory_query_service, sizeof(Mysql_handle),
         MYF(MY_WME | MY_ZEROFILL));

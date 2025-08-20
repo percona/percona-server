@@ -2363,11 +2363,24 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
 
   /**
-    Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
-    This is done only while binlogging CREATE TABLE AS SELECT.
+    Append START TRANSACTION clause for:
+    a. CREATE TABLE AS SELECT if the SE supports atomic DDL.
+    b. CREATE TABLE ... START TRANSACTION
+      - HA_CREATE_INFO::m_transactional_ddl indicates if the table should be
+        created and not committed at the end of the statement. This flag is
+        set for CREATE TABLE ... START TRANSACTION statement only.
+
+    These checks also ensure we do not append 'START TRANSACTION' clause for
+    'SHOW CREATE TABLE' query or the normal 'CREATE TABLE' query without the
+    'START TRANSACTION' clause where the query needs to be rewritten (for eg:
+    adding GIPK information on a table without primary key when
+    sql_generate_invisible_primary_key is enabled).
   */
-  if (!thd->lex->query_block->field_list_is_empty() &&
-      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+  if ((!thd->lex->query_block->field_list_is_empty()  // contains SELECT clause
+       &&
+       (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))  // case a
+      || (create_info_arg && create_info_arg->m_transactional_ddl)    // case b
+  ) {
     packet->append(STRING_WITH_LEN(" START TRANSACTION"));
   }
 
@@ -4468,12 +4481,13 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
 
   /* We have only one handler object for a temp table globally and it might
   be in use by other thread.  Do not trash it by invoking handler methods on
-  it but rather clone it. */
-  if (file) {
+  it but rather clone it. if db_stat is 0, the table is not opened in SE,
+  do not clone it */
+  if (file && tmp_table->db_stat != 0) {
     file = file->clone(tmp_table->s->normalized_path.str, mem_root);
   }
 
-  if (file) {
+  if (file && tmp_table->db_stat != 0) {
     MYSQL_TIME time;
 
     /**

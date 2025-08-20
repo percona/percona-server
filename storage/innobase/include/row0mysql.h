@@ -996,35 +996,28 @@ struct SysIndexCallback {
   virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
 
-/** Get the updated parent field value from the update vector for the
-given col_no.
-@param[in]      foreign         foreign key information
-@param[in]      update          updated parent vector.
-@param[in]      col_no          base column position of the child table to check
-@return updated field from the parent update vector, else NULL */
-dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
-                                                upd_t *update, uint32_t col_no);
-
 /** Get the computed value by supplying the base column values.
 @param[in,out]  row             the data row
 @param[in]      col             virtual column
-@param[in]      index           index on the virtual column
+@param[in]      table           the table on which the virtual column is
+                                defined
 @param[in,out]  local_heap      heap memory for processing large data etc.
 @param[in,out]  heap            memory heap that copies the actual index row
-@param[in]      ifield          index field
 @param[in]      thd             MySQL thread handle
 @param[in,out]  mysql_table     mysql table object
+@param[in]      ifield          metadata for secondary index field into which
+                                the computed value is to be materialized,
+                                nullptr if not applicable
 @param[in]      old_table       during ALTER TABLE, this is the old table
-                                or NULL.
-@param[in]      parent_update   update vector for the parent row
-@param[in]      foreign         foreign key information
-@return the field filled with computed value, or NULL if just want
-to store the value in passed in "my_rec" */
+                                or nullptr.
+@param[in]      row_update      update vector for the row, supersedes row
+                                values
+@return the field filled with computed value, or nullptr on failure */
 dfield_t *innobase_get_computed_value(
-    const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
-    mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
-    THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign, mem_heap_t **compress_heap);
+    const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
+    mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
+    mem_heap_t **compress_heap, const dict_field_t *ifield = nullptr,
+    const dict_table_t *old_table = nullptr, upd_t *row_update = nullptr);
 
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure

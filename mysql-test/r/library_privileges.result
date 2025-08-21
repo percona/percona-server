@@ -213,7 +213,8 @@ localhost	db2	userAltersDb2	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N	N
 localhost	db2	userCreatesDb2	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N	N	N
 localhost	db2	userExecutesDb2	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N
 localhost	db2	userSelectsDb2	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-SELECT User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv,Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv, Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv, Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv, Create_user_priv, Event_priv, Trigger_priv, Create_tablespace_priv FROM mysql.user WHERE USER NOT LIKE 'mysql.%' AND USER NOT LIKE 'root';
+SELECT User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv,Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv, Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv, Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv, Create_user_priv, Event_priv, Trigger_priv, Create_tablespace_priv
+FROM mysql.user WHERE USER NOT LIKE 'mysql.%' AND USER NOT LIKE 'root' AND User != 'percona.telemetry';
 User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv
 myRoot	Y	Y	N	N	Y	N	N	N	N	N	Y	N	N	N	N	N	N	N	Y	N	N	N	N	Y	Y	Y	N	N	N
 userAltersAll	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	Y	N	N	N	N

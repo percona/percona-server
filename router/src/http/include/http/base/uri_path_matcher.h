@@ -42,6 +42,11 @@ struct UriPathMatcher {
   bool allow_id_element;
   bool allow_trailing_slash;
 
+  UriPathMatcher(std::string p, bool id, bool trailing)
+      : path(std::move(p)),
+        allow_id_element(id),
+        allow_trailing_slash(trailing) {}
+
   std::string str() const {
     return path + (allow_trailing_slash ? "/" : "") +
            (allow_id_element ? "[*]" : "");

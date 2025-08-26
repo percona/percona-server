@@ -1,0 +1,26 @@
+# Tests for DDL on PERFORMANCE_SCHEMA.ACCOUNT_FAILED_LOGIN_LOCK_STATUS.
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.account_failed_login_lock_status
+  ADD COLUMN foo INTEGER;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.account_failed_login_lock_status;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.account_failed_login_lock_status
+  ADD INDEX test_index(MAX_ATTEMPTS);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE INDEX test_index
+  ON performance_schema.account_failed_login_lock_status(IS_LOCKED);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `ACCOUNT`
+  ON performance_schema.account_failed_login_lock_status;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.account_failed_login_lock_status;
+
+DROP TABLE test.create_select;
+

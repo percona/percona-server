@@ -460,6 +460,9 @@ void set_field_object_name(Field *f, const PFS_object_name *object);
 void set_nullable_field_routine_name(Field *f, const PFS_routine_name *object);
 void set_field_routine_name(Field *f, const PFS_routine_name *object);
 
+void set_nullable_field_user_name(Field *f, const PFS_user_name *user);
+void set_nullable_field_host_name(Field *f, const PFS_host_name *host);
+
 /**
   Helper, format sql text for output.
 
@@ -1512,6 +1515,7 @@ class PFS_key_user : public PFS_key_string<USERNAME_LENGTH> {
   bool match(const PFS_user *pfs);
   bool match(const PFS_account *pfs);
   bool match(const PFS_setup_actor *pfs);
+  bool match(const PFS_user_name *pfs);
 };
 
 class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH> {
@@ -1525,6 +1529,7 @@ class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH> {
   bool match(const PFS_account *pfs);
   bool match(const PFS_setup_actor *pfs);
   bool match(const char *host, size_t hostname_length);
+  bool match(const PFS_host_name *pfs);
 };
 
 class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH> {

@@ -681,9 +681,12 @@ static inline buf_page_t *buf_page_alloc_descriptor(void) {
   UNIV_MEM_ALLOC(bpage, sizeof *bpage);
   /* This is required for valgrind to work correctly. */
   bpage->m_space = nullptr;
-#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG_VALGRIND
+  /* There is a counterpart assertion of the following assignment in
+   buf_page_init_low(). The assertion is to check if we call buf_page_init_low()
+   on buf_page_t that is not buf-fixed. buf_page_alloc_descriptor() does not
+   init buf_fix_count explicitly, so Valgrind would complain there. */
   bpage->buf_fix_count.store(0);
-  bpage->is_corrupt = false;
 #endif
 
   return (bpage);

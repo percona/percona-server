@@ -9,6 +9,7 @@ use performance_schema;
 show tables;
 
 show create table accounts;
+show create table account_failed_login_lock_status;
 show create table cond_instances;
 show create table events_stages_current;
 show create table events_stages_history;

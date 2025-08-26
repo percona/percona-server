@@ -326,6 +326,7 @@ class ACL_USER : public ACL_ACCESS {
                                              long daynr_locked);
     void set_parameters(int password_lock_time_days,
                         uint failed_login_attempts);
+    long get_remaining_days_locked(long now_day) const;
     bool update(THD *thd, bool successful_login, long *ret_days_remaining);
     Password_locked_state()
         : m_password_lock_time_days(0),

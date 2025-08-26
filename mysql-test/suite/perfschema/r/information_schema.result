@@ -2,6 +2,7 @@ select TABLE_SCHEMA, lower(TABLE_NAME), TABLE_CATALOG
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 TABLE_SCHEMA	lower(TABLE_NAME)	TABLE_CATALOG
+performance_schema	account_failed_login_lock_status	def
 performance_schema	accounts	def
 performance_schema	binary_log_transaction_compression_stats	def
 performance_schema	cond_instances	def
@@ -121,6 +122,7 @@ select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_TYPE	ENGINE
+account_failed_login_lock_status	BASE TABLE	PERFORMANCE_SCHEMA
 accounts	BASE TABLE	PERFORMANCE_SCHEMA
 binary_log_transaction_compression_stats	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
@@ -240,6 +242,7 @@ select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	VERSION	ROW_FORMAT
+account_failed_login_lock_status	10	Fixed
 accounts	10	Fixed
 binary_log_transaction_compression_stats	10	Dynamic
 cond_instances	10	Dynamic
@@ -360,6 +363,7 @@ from information_schema.tables
 where TABLE_SCHEMA='performance_schema' and
 lower(TABLE_NAME) not regexp '^variables|variables$|^status|session_status|global_status';
 lower(TABLE_NAME)	AVG_ROW_LENGTH
+account_failed_login_lock_status	0
 accounts	0
 binary_log_transaction_compression_stats	0
 cond_instances	0
@@ -484,6 +488,7 @@ select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
+account_failed_login_lock_status	0	0
 accounts	0	0
 binary_log_transaction_compression_stats	0	0
 cond_instances	0	0
@@ -603,6 +608,7 @@ select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
+account_failed_login_lock_status	0	0	NULL
 accounts	0	0	NULL
 binary_log_transaction_compression_stats	0	0	NULL
 cond_instances	0	0	NULL
@@ -722,6 +728,7 @@ select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
+account_failed_login_lock_status	NULL	NULL	NULL
 accounts	NULL	NULL	NULL
 binary_log_transaction_compression_stats	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
@@ -841,6 +848,7 @@ select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
+account_failed_login_lock_status	utf8mb4_0900_ai_ci	NULL
 accounts	utf8mb4_0900_ai_ci	NULL
 binary_log_transaction_compression_stats	utf8mb4_0900_ai_ci	NULL
 cond_instances	utf8mb4_0900_ai_ci	NULL
@@ -960,6 +968,7 @@ select lower(TABLE_NAME), CREATE_OPTIONS
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_OPTIONS
+account_failed_login_lock_status	
 accounts	
 binary_log_transaction_compression_stats	
 cond_instances	
@@ -1079,6 +1088,7 @@ select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COMMENT
+account_failed_login_lock_status	
 accounts	
 binary_log_transaction_compression_stats	
 cond_instances	

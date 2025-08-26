@@ -1,0 +1,381 @@
+# We use DEBUG flag to simulate situation when 10 days pass.
+--source include/have_debug.inc
+
+--echo #
+--echo # Test coverage for PS-8980 / p_s.account_failed_login_lock_status table.
+--echo #
+--echo # There is additional test coverage in schema, table_schema, index_schema
+--echo # and dml/ddl/idx_account_failed_login_lock_status tests in perfschema
+--echo # suite.
+
+--enable_connect_log
+
+--echo #
+--echo # 1) Check contents of the table in various scenario.
+--echo #
+
+--echo #
+--echo # 1.1) User with failed login tracking disabled (default case).
+--echo #
+CREATE USER foo@localhost IDENTIFIED BY 'foo';
+
+--echo
+--echo # Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After successful login.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After failed login.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+DROP USER foo@localhost;
+
+--echo #
+--echo # 1.2) User with failed login tracking enabled.
+--echo #
+CREATE USER foo@localhost IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 3;
+
+--echo
+--echo # Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After successful login.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After failed login, not locked yet.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Since it is not locked yet, failure count should be reset by successful connect.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Now let us see what happens when two failed attempts to login lead
+--echo # to account locking.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # The second attempt fails due to account being locked.
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # The third attempt fails due to account being locked.
+--echo # P_S table contents should stay untouched.
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Even providing correct password should not help. P_S table content
+--echo # stays the same.
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(con_ok,localhost,foo,foo,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # ALTER USER ... ACCOUNT UNLOCK should reset failed login tracking state.
+ALTER USER foo@localhost ACCOUNT UNLOCK;
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # We should be able to login with correct password after that.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Again, failing to login twice should cause account being locked.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Let us test what happens when ten days pass.
+--echo # Account should become unlocked.
+SET GLOBAL DEBUG = '+d,account_lock_daynr_add_ten';
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SET GLOBAL DEBUG = '-d,account_lock_daynr_add_ten';
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # We should be able to login with correct password after that.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+DROP USER foo@localhost;
+
+--echo
+--echo # Bonus: P_S table should not contain row once account has been deleted.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo #
+--echo # 1.3) User with failed login tracking enabled and unlimited lock time.
+--echo #
+CREATE USER foo@localhost IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME UNBOUNDED;
+
+--echo
+--echo # Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After successful login.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # After failed login, not locked yet.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # The second attempt fails due to account being locked.
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Even after ten days pass account stays locked.
+SET GLOBAL DEBUG = '+d,account_lock_daynr_add_ten';
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+--connect(errcon,localhost,foo,,test)
+--enable_query_log
+--connection default
+SET GLOBAL DEBUG = '-d,account_lock_daynr_add_ten';
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Still ALTER USER ... ACCOUNT UNLOCK should reset failed login tracking state.
+ALTER USER foo@localhost ACCOUNT UNLOCK;
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # And we should be able to login with correct password after that.
+--connect(con_ok,localhost,foo,foo,test)
+--disconnect con_ok
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+DROP USER foo@localhost;
+
+--echo #
+--echo # 2) Test various types of accesses to our P_S table.
+--echo #  
+--echo # The below statements invoke different methods implemented by
+--echo # our descendant of PFS_engine_table class.
+
+--echo #
+--echo # 2.1) Simple table scan.
+CREATE USER foo1@localhost IDENTIFIED BY 'foo';
+CREATE USER foo2@localhost IDENTIFIED BY 'foo';
+
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user LIKE 'foo%';
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user LIKE 'foo%';
+
+--echo #
+--echo # 2.2) Index lookup by the whole key.
+--replace_column 10 #
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1' AND host = 'localhost';
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1' AND host = 'localhost';
+
+--echo #
+--echo # 2.3) Index lookup by the first column in the key
+--echo #
+--echo # Create extra entries so index lookup by partial key is preferred over table scan.
+--let $i= 0
+while ($i < 10)
+{
+  --eval CREATE USER bar$i@localhost
+  --inc $i
+}
+
+--replace_column 10 #
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1';
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1';
+
+--let $i= 0
+while ($i < 10)
+{
+  --eval DROP USER bar$i@localhost
+  --inc $i
+}
+
+DROP USER foo1@localhost;
+DROP USER foo2@localhost;
+
+--echo #
+--echo # 3) Test users with hostname other than 'localhost'.
+--echo #
+CREATE USER foo@'%' IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 2;
+CREATE USER foo@'santa.claus.ipv4.example.com' IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 4;
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo';
+
+--echo
+--echo # Try to connect to locally.
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect(errloc,localhost,foo,,test)
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Now simulate external connection.
+SET GLOBAL debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (errrem,"127.0.0.1",foo,,test,$MASTER_MYPORT,);
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--echo
+--echo # Yet another failed remote login attempt should lead to account being locked.
+--disable_query_log
+--error ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+connect (errrem,"127.0.0.1",foo,,test,$MASTER_MYPORT,);
+--enable_query_log
+--connection default
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+SET GLOBAL debug= "-d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+
+DROP USER foo@'%';
+DROP USER foo@'santa.claus.ipv4.example.com';
+
+--echo #
+--echo # 4) Test that performance_schema.account_failed_login_lock_status is not world readable.
+--echo #
+CREATE USER foo@localhost;
+
+--connect(con_foo,localhost,foo,,test)
+
+--echo
+--echo # Check that P_S is accessible in general, e.g. by accessing session_status table.
+--disable_result_log
+SELECT * FROM performance_schema.session_status;
+--enable_result_log
+
+--echo
+--echo # However, performance_schema.account_failed_login_lock_status should not be accessible.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM performance_schema.account_failed_login_lock_status;
+
+--connection default
+
+--echo
+--echo # Granting SELECT privilege on the table should help.
+GRANT SELECT ON performance_schema.account_failed_login_lock_status TO foo@localhost;
+
+--connection con_foo
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--disconnect con_foo
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+DROP USER foo@localhost;
+
+--disable_connect_log
+
+--echo #
+--echo # 5) Finally, let us check how account_failed_login_status P_S table works
+--echo #    in --skip-grant-tables mode.
+--echo #
+--let $restart_parameters = "restart:--skip-grant-tables"
+--let $wait_for_tcpsocket_status = no_wait
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--echo
+--echo # In --skip-grant-tables mode we simply return empty table.
+
+SELECT * FROM performance_schema.account_failed_login_lock_status;
+
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

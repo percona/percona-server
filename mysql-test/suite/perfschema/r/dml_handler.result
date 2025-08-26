@@ -3,7 +3,11 @@
 
 CREATE TEMPORARY TABLE table_list (id INT AUTO_INCREMENT, PRIMARY KEY (id)) AS
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA='performance_schema' ORDER BY TABLE_NAME;
+WHERE TABLE_SCHEMA='performance_schema' AND
+# Exclude Percona-specific tables from the list to reduce merge conflicts.
+# We will test them separately below.
+TABLE_NAME != 'account_failed_login_lock_status'
+  ORDER BY TABLE_NAME;
 SELECT COUNT(*) FROM table_list INTO @table_count;
 
 # For each table in the performance schema, attempt HANDLER...OPEN,
@@ -354,4 +358,6 @@ ERROR HY000: Table storage engine for 'binary_log_transaction_compression_stats'
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=1;
 HANDLER performance_schema.accounts OPEN;
 ERROR HY000: Table storage engine for 'accounts' doesn't have this option
+HANDLER performance_schema.account_failed_login_lock_status OPEN;
+ERROR HY000: Table storage engine for 'account_failed_login_lock_status' doesn't have this option
 DROP TEMPORARY TABLE table_list;

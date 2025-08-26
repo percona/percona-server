@@ -1,0 +1,335 @@
+#
+# Test coverage for PS-8980 / p_s.account_failed_login_lock_status table.
+#
+# There is additional test coverage in schema, table_schema, index_schema
+# and dml/ddl/idx_account_failed_login_lock_status tests in perfschema
+# suite.
+#
+# 1) Check contents of the table in various scenario.
+#
+#
+# 1.1) User with failed login tracking disabled (default case).
+#
+CREATE USER foo@localhost IDENTIFIED BY 'foo';
+
+# Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	NO	0	0	NULL	NULL	NULL
+
+# After successful login.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	NO	0	0	NULL	NULL	NULL
+
+# After failed login.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	NO	0	0	NULL	NULL	NULL
+DROP USER foo@localhost;
+#
+# 1.2) User with failed login tracking enabled.
+#
+CREATE USER foo@localhost IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 3;
+
+# Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# After successful login.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# After failed login, not locked yet.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	1	0
+
+# Since it is not locked yet, failure count should be reset by successful connect.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# Now let us see what happens when two failed attempts to login lead
+# to account locking.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	1	0
+
+# The second attempt fails due to account being locked.
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for 3 day(s) (3 day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	YES	0	3
+
+# The third attempt fails due to account being locked.
+# P_S table contents should stay untouched.
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for 3 day(s) (3 day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	YES	0	3
+
+# Even providing correct password should not help. P_S table content
+# stays the same.
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for 3 day(s) (3 day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	YES	0	3
+
+# ALTER USER ... ACCOUNT UNLOCK should reset failed login tracking state.
+ALTER USER foo@localhost ACCOUNT UNLOCK;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# We should be able to login with correct password after that.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# Again, failing to login twice should cause account being locked.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	1	0
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for 3 day(s) (3 day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	YES	0	3
+
+# Let us test what happens when ten days pass.
+# Account should become unlocked.
+SET GLOBAL DEBUG = '+d,account_lock_daynr_add_ten';
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SET GLOBAL DEBUG = '-d,account_lock_daynr_add_ten';
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+
+# We should be able to login with correct password after that.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	3	NO	2	0
+DROP USER foo@localhost;
+
+# Bonus: P_S table should not contain row once account has been deleted.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+#
+# 1.3) User with failed login tracking enabled and unlimited lock time.
+#
+CREATE USER foo@localhost IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME UNBOUNDED;
+
+# Prior to any logins.
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	NO	2	0
+
+# After successful login.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	NO	2	0
+
+# After failed login, not locked yet.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	NO	1	0
+
+# The second attempt fails due to account being locked.
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for unlimited day(s) (unlimited day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	YES	0	-1
+
+# Even after ten days pass account stays locked.
+SET GLOBAL DEBUG = '+d,account_lock_daynr_add_ten';
+ERROR HY000: Access denied for user 'foo'@'localhost'. Account is blocked for unlimited day(s) (unlimited day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SET GLOBAL DEBUG = '-d,account_lock_daynr_add_ten';
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	YES	0	-1
+
+# Still ALTER USER ... ACCOUNT UNLOCK should reset failed login tracking state.
+ALTER USER foo@localhost ACCOUNT UNLOCK;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	NO	2	0
+
+# And we should be able to login with correct password after that.
+connect con_ok,localhost,foo,foo,test;
+disconnect con_ok;
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	YES	2	-1	NO	2	0
+DROP USER foo@localhost;
+#
+# 2) Test various types of accesses to our P_S table.
+#  
+# The below statements invoke different methods implemented by
+# our descendant of PFS_engine_table class.
+#
+# 2.1) Simple table scan.
+CREATE USER foo1@localhost IDENTIFIED BY 'foo';
+CREATE USER foo2@localhost IDENTIFIED BY 'foo';
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user LIKE 'foo%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	account_failed_login_lock_status	NULL	ALL	ACCOUNT	NULL	NULL	NULL	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`account_failed_login_lock_status`.`USER` AS `USER`,`performance_schema`.`account_failed_login_lock_status`.`HOST` AS `HOST`,`performance_schema`.`account_failed_login_lock_status`.`IS_TRACKING_ACTIVE` AS `IS_TRACKING_ACTIVE`,`performance_schema`.`account_failed_login_lock_status`.`MAX_ATTEMPTS` AS `MAX_ATTEMPTS`,`performance_schema`.`account_failed_login_lock_status`.`PASSWORD_LOCK_DAYS` AS `PASSWORD_LOCK_DAYS`,`performance_schema`.`account_failed_login_lock_status`.`IS_LOCKED` AS `IS_LOCKED`,`performance_schema`.`account_failed_login_lock_status`.`REMAINING_ATTEMPTS` AS `REMAINING_ATTEMPTS`,`performance_schema`.`account_failed_login_lock_status`.`REMAINING_DAYS_LOCKED` AS `REMAINING_DAYS_LOCKED` from `performance_schema`.`account_failed_login_lock_status` where (`performance_schema`.`account_failed_login_lock_status`.`USER` like 'foo%')
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user LIKE 'foo%';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo1	localhost	NO	0	0	NULL	NULL	NULL
+foo2	localhost	NO	0	0	NULL	NULL	NULL
+#
+# 2.2) Index lookup by the whole key.
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1' AND host = 'localhost';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	account_failed_login_lock_status	NULL	const	ACCOUNT	ACCOUNT	385	const,const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'foo1' AS `USER`,'localhost' AS `HOST`,'NO' AS `IS_TRACKING_ACTIVE`,'0' AS `MAX_ATTEMPTS`,'0' AS `PASSWORD_LOCK_DAYS`,NULL AS `IS_LOCKED`,NULL AS `REMAINING_ATTEMPTS`,NULL AS `REMAINING_DAYS_LOCKED` from `performance_schema`.`account_failed_login_lock_status` where true
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1' AND host = 'localhost';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo1	localhost	NO	0	0	NULL	NULL	NULL
+#
+# 2.3) Index lookup by the first column in the key
+#
+# Create extra entries so index lookup by partial key is preferred over table scan.
+CREATE USER bar0@localhost;
+CREATE USER bar1@localhost;
+CREATE USER bar2@localhost;
+CREATE USER bar3@localhost;
+CREATE USER bar4@localhost;
+CREATE USER bar5@localhost;
+CREATE USER bar6@localhost;
+CREATE USER bar7@localhost;
+CREATE USER bar8@localhost;
+CREATE USER bar9@localhost;
+EXPLAIN SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	account_failed_login_lock_status	NULL	ref	ACCOUNT	ACCOUNT	129	const	#	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `performance_schema`.`account_failed_login_lock_status`.`USER` AS `USER`,`performance_schema`.`account_failed_login_lock_status`.`HOST` AS `HOST`,`performance_schema`.`account_failed_login_lock_status`.`IS_TRACKING_ACTIVE` AS `IS_TRACKING_ACTIVE`,`performance_schema`.`account_failed_login_lock_status`.`MAX_ATTEMPTS` AS `MAX_ATTEMPTS`,`performance_schema`.`account_failed_login_lock_status`.`PASSWORD_LOCK_DAYS` AS `PASSWORD_LOCK_DAYS`,`performance_schema`.`account_failed_login_lock_status`.`IS_LOCKED` AS `IS_LOCKED`,`performance_schema`.`account_failed_login_lock_status`.`REMAINING_ATTEMPTS` AS `REMAINING_ATTEMPTS`,`performance_schema`.`account_failed_login_lock_status`.`REMAINING_DAYS_LOCKED` AS `REMAINING_DAYS_LOCKED` from `performance_schema`.`account_failed_login_lock_status` where (`performance_schema`.`account_failed_login_lock_status`.`USER` = 'foo1')
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo1';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo1	localhost	NO	0	0	NULL	NULL	NULL
+DROP USER bar0@localhost;
+DROP USER bar1@localhost;
+DROP USER bar2@localhost;
+DROP USER bar3@localhost;
+DROP USER bar4@localhost;
+DROP USER bar5@localhost;
+DROP USER bar6@localhost;
+DROP USER bar7@localhost;
+DROP USER bar8@localhost;
+DROP USER bar9@localhost;
+DROP USER foo1@localhost;
+DROP USER foo2@localhost;
+#
+# 3) Test users with hostname other than 'localhost'.
+#
+CREATE USER foo@'%' IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 2;
+CREATE USER foo@'santa.claus.ipv4.example.com' IDENTIFIED BY 'foo' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 4;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user = 'foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	santa.claus.ipv4.example.com	YES	2	4	NO	2	0
+foo	%	YES	2	2	NO	2	0
+
+# Try to connect to locally.
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	santa.claus.ipv4.example.com	YES	2	4	NO	2	0
+foo	%	YES	2	2	NO	1	0
+
+# Now simulate external connection.
+SET GLOBAL debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+ERROR 28000: Access denied for user 'foo'@'santa.claus.ipv4.example.com' (using password: NO)
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	santa.claus.ipv4.example.com	YES	2	4	NO	1	0
+foo	%	YES	2	2	NO	1	0
+
+# Yet another failed remote login attempt should lead to account being locked.
+ERROR HY000: Access denied for user 'foo'@'santa.claus.ipv4.example.com'. Account is blocked for 4 day(s) (4 day(s) remaining) due to 2 consecutive failed logins.
+connection default;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	santa.claus.ipv4.example.com	YES	2	4	YES	0	4
+foo	%	YES	2	2	NO	1	0
+SET GLOBAL debug= "-d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+DROP USER foo@'%';
+DROP USER foo@'santa.claus.ipv4.example.com';
+#
+# 4) Test that performance_schema.account_failed_login_lock_status is not world readable.
+#
+CREATE USER foo@localhost;
+connect con_foo,localhost,foo,,test;
+
+# Check that P_S is accessible in general, e.g. by accessing session_status table.
+SELECT * FROM performance_schema.session_status;
+
+# However, performance_schema.account_failed_login_lock_status should not be accessible.
+SELECT * FROM performance_schema.account_failed_login_lock_status;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'account_failed_login_lock_status'
+connection default;
+
+# Granting SELECT privilege on the table should help.
+GRANT SELECT ON performance_schema.account_failed_login_lock_status TO foo@localhost;
+connection con_foo;
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+foo	localhost	NO	0	0	NULL	NULL	NULL
+disconnect con_foo;
+connection default;
+DROP USER foo@localhost;
+#
+# 5) Finally, let us check how account_failed_login_status P_S table works
+#    in --skip-grant-tables mode.
+#
+# restart:--skip-grant-tables
+
+# In --skip-grant-tables mode we simply return empty table.
+SELECT * FROM performance_schema.account_failed_login_lock_status;
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+SELECT * FROM performance_schema.account_failed_login_lock_status WHERE user='foo';
+USER	HOST	IS_TRACKING_ACTIVE	MAX_ATTEMPTS	PASSWORD_LOCK_DAYS	IS_LOCKED	REMAINING_ATTEMPTS	REMAINING_DAYS_LOCKED
+# restart:

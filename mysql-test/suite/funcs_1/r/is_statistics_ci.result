@@ -167,6 +167,8 @@ def	mysql	time_zone_transition_type	mysql	PRIMARY
 def	mysql	time_zone_transition_type	mysql	PRIMARY
 def	mysql	user	mysql	PRIMARY
 def	mysql	user	mysql	PRIMARY
+def	performance_schema	account_failed_login_lock_status	performance_schema	ACCOUNT
+def	performance_schema	account_failed_login_lock_status	performance_schema	ACCOUNT
 def	performance_schema	accounts	performance_schema	ACCOUNT
 def	performance_schema	accounts	performance_schema	ACCOUNT
 def	performance_schema	cond_instances	performance_schema	NAME

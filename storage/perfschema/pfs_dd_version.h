@@ -244,6 +244,10 @@
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
+  80043:
+   - Percona Server added performance_schema.account_failed_login_lock_stats
+     table.
+
   80200:
 
    - WL#15199: PERFORMANCE_SCHEMA, OTEL METRICS INTERFACE
@@ -275,6 +279,10 @@
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
+  80406:
+   - Percona Server added performance_schema.account_failed_login_lock_stats
+     table.
+
   90000:
 
    - WL#15855: System variable metadata
@@ -286,8 +294,12 @@
    - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
+
+  90400:
+   - Percona Server added performance_schema.account_failed_login_lock_stats
+     table.
 */
 
-static const uint PFS_DD_VERSION = 90100;
+static const uint PFS_DD_VERSION = 90400;
 
 #endif /* PFS_DD_VERSION_H */

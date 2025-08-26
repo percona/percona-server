@@ -4830,7 +4830,12 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
 
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->reinit_io_fix();
+#ifndef HAVE_VALGRIND
+  /* This is to check if we call buf_page_init_low() on buf_page_t that is not
+   buf-fixed. buf_page_alloc_descriptor() does not init buf_fix_count in release
+   version, so Valgrind would complain here */
   ut_a(bpage->buf_fix_count == 0);
+#endif
   bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
   bpage->access_time = {};

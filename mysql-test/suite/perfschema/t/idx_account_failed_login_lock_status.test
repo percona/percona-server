@@ -1,0 +1,40 @@
+# Test indexes on PERFORMANCE_SCHEMA.ACCOUNT_FAILED_LOGIN_LOCK_STATUS
+
+# Setup
+let $select_column = is_tracking_active;
+let $table = performance_schema.account_failed_login_lock_status;
+
+CREATE USER foo@localhost;
+
+# Create additional so index lookup by only the first column in (USER,
+# HOST) index is preferred to full table scan. Unlike MEMORY SE HASH
+# indexes, which require values of all indexed column values for lookup,
+# P_S multi-column HASH indexes support lookups by the first column value.
+
+--let $i= 0
+while ($i < 10)
+{
+  --eval CREATE USER bar$i@localhost
+  --inc $i
+}
+
+###########################################################################
+# Test index on USER, HOST
+###########################################################################
+
+let $column_count = 2;
+let $col1 = user;
+let $col2 = host;
+let $col1_act = "foo";
+let $col2_act = "localhost";
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+--let $i= 0
+while ($i < 10)
+{
+  --eval DROP USER bar$i@localhost
+  --inc $i
+}
+DROP USER foo@localhost;

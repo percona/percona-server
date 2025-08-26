@@ -154,6 +154,8 @@ def	mysql	PRIMARY	def	mysql	user	Host
 def	mysql	PRIMARY	def	mysql	user	User
 def	mysql	table_idx	def	mysql	compression_dictionary_cols	column_id
 def	mysql	table_idx	def	mysql	compression_dictionary_cols	table_id
+def	performance_schema	ACCOUNT	def	performance_schema	account_failed_login_lock_status	HOST
+def	performance_schema	ACCOUNT	def	performance_schema	account_failed_login_lock_status	USER
 def	performance_schema	ACCOUNT	def	performance_schema	accounts	HOST
 def	performance_schema	ACCOUNT	def	performance_schema	accounts	USER
 def	performance_schema	ACCOUNT	def	performance_schema	events_errors_summary_by_account_by_error	ERROR_NUMBER

@@ -1,0 +1,37 @@
+# Tests for DML on PERFORMANCE_SCHEMA.ACCOUNT_FAILED_LOGIN_LOCK_STATUS.
+
+--disable_result_log
+SELECT * FROM performance_schema.account_failed_login_lock_status
+  WHERE user LIKE '%' LIMIT 1;
+
+SELECT * FROM performance_schema.account_failed_login_lock_status
+  WHERE user='nosuchuser';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.account_failed_login_lock_status
+  SET user='foo', host='%', is_tracking_active='NO',
+  max_attempts = 0, password_lock_days=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.account_failed_login_lock_status
+  SET is_tracking_active='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.account_failed_login_lock_status
+  SET is_tracking_active='YES' WHERE user='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.account_failed_login_lock_status
+  WHERE user='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.account_failed_login_lock_status;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.account_failed_login_lock_status READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.account_failed_login_lock_status WRITE;
+UNLOCK TABLES;

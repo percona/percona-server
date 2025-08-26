@@ -24,6 +24,8 @@
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
 # Tip: ls -1 *.h, ls -1 *.cc
@@ -383,6 +385,8 @@ table_binary_log_transaction_compression_stats.cc
 telemetry_pfs_metrics.cc
 table_malloc_stats.cc
 table_malloc_stats.h
+table_account_failed_login_lock_status.cc
+table_account_failed_login_lock_status.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY

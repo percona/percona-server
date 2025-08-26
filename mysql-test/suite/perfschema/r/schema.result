@@ -7,6 +7,7 @@ performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACT
 use performance_schema;
 show tables;
 Tables_in_performance_schema
+account_failed_login_lock_status
 accounts
 binary_log_transaction_compression_stats
 cond_instances
@@ -132,6 +133,19 @@ accounts	CREATE TABLE `accounts` (
   `TOTAL_CONNECTIONS` bigint NOT NULL,
   `MAX_SESSION_CONTROLLED_MEMORY` bigint unsigned NOT NULL,
   `MAX_SESSION_TOTAL_MEMORY` bigint unsigned NOT NULL,
+  UNIQUE KEY `ACCOUNT` (`USER`,`HOST`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table account_failed_login_lock_status;
+Table	Create Table
+account_failed_login_lock_status	CREATE TABLE `account_failed_login_lock_status` (
+  `USER` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+  `IS_TRACKING_ACTIVE` enum('YES','NO') NOT NULL,
+  `MAX_ATTEMPTS` int unsigned NOT NULL,
+  `PASSWORD_LOCK_DAYS` int NOT NULL,
+  `IS_LOCKED` enum('YES','NO') DEFAULT NULL,
+  `REMAINING_ATTEMPTS` int unsigned DEFAULT NULL,
+  `REMAINING_DAYS_LOCKED` int DEFAULT NULL,
   UNIQUE KEY `ACCOUNT` (`USER`,`HOST`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table cond_instances;

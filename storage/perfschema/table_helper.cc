@@ -2114,6 +2114,11 @@ bool PFS_key_user::match(const PFS_setup_actor *pfs) {
                   pfs->m_key.m_user_name.length());
 }
 
+bool PFS_key_user::match(const PFS_user_name *pfs) {
+  const bool record_null = (pfs->length() == 0);
+  return do_match(record_null, pfs->ptr(), pfs->length());
+}
+
 bool PFS_key_host::match(const PFS_thread *pfs) {
   const bool record_null = (pfs->m_host_name.length() == 0);
   return do_match(record_null, pfs->m_host_name.ptr(),
@@ -2141,6 +2146,11 @@ bool PFS_key_host::match(const PFS_setup_actor *pfs) {
 bool PFS_key_host::match(const char *hostname, size_t hostname_length) {
   const bool record_null = (hostname_length == 0);
   return do_match(record_null, hostname, hostname_length);
+}
+
+bool PFS_key_host::match(const PFS_host_name *pfs) {
+  const bool record_null = (pfs->length() == 0);
+  return do_match(record_null, pfs->ptr(), pfs->length());
 }
 
 bool PFS_key_role::match(const PFS_setup_actor *pfs) {

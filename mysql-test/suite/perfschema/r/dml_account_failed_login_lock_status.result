@@ -1,0 +1,25 @@
+SELECT * FROM performance_schema.account_failed_login_lock_status
+WHERE user LIKE '%' LIMIT 1;
+SELECT * FROM performance_schema.account_failed_login_lock_status
+WHERE user='nosuchuser';
+INSERT INTO performance_schema.account_failed_login_lock_status
+SET user='foo', host='%', is_tracking_active='NO',
+max_attempts = 0, password_lock_days=0;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+UPDATE performance_schema.account_failed_login_lock_status
+SET is_tracking_active='YES';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+UPDATE performance_schema.account_failed_login_lock_status
+SET is_tracking_active='YES' WHERE user='foo';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+DELETE FROM performance_schema.account_failed_login_lock_status
+WHERE user='foo';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+DELETE FROM performance_schema.account_failed_login_lock_status;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+LOCK TABLES performance_schema.account_failed_login_lock_status READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.account_failed_login_lock_status WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'account_failed_login_lock_status'
+UNLOCK TABLES;

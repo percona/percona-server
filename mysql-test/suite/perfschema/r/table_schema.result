@@ -7,6 +7,14 @@ def	performance_schema	accounts	CURRENT_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	1
 def	performance_schema	accounts	TOTAL_CONNECTIONS	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	accounts	MAX_SESSION_CONTROLLED_MEMORY	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	accounts	MAX_SESSION_TOTAL_MEMORY	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	MUL		select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	HOST	2	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	IS_TRACKING_ACTIVE	3	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('YES','NO')			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	MAX_ATTEMPTS	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	PASSWORD_LOCK_DAYS	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	IS_LOCKED	6	NULL	YES	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('YES','NO')			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	REMAINING_ATTEMPTS	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
+def	performance_schema	account_failed_login_lock_status	REMAINING_DAYS_LOCKED	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	binary_log_transaction_compression_stats	LOG_TYPE	1	NULL	NO	enum	6	24	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('BINARY','RELAY')			select,insert,update,references	The log type to which the transactions were written.		NULL
 def	performance_schema	binary_log_transaction_compression_stats	COMPRESSION_TYPE	2	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references	The transaction compression algorithm used.		NULL
 def	performance_schema	binary_log_transaction_compression_stats	TRANSACTION_COUNTER	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	Number of transactions written to the log		NULL

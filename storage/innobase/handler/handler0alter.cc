@@ -6792,14 +6792,11 @@ but do not touch the data dictionary cache.
       }
     }
 
-    /* During upgrade, inserts into SYS_* should be avoided. */
-    if (!srv_is_upgrade_mode) {
-      DBUG_EXECUTE_IF("innodb_test_cannot_add_fk_system", error = DB_ERROR;);
+    DBUG_EXECUTE_IF("innodb_test_cannot_add_fk_system", error = DB_ERROR;);
 
-      if (error != DB_SUCCESS) {
-        my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0), fk->id);
-        return true;
-      }
+    if (error != DB_SUCCESS) {
+      my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0), fk->id);
+      return true;
     }
   }
   DBUG_EXECUTE_IF("ib_drop_foreign_error",

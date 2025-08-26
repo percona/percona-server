@@ -113,13 +113,6 @@ Srv_threads srv_threads;
 Srv_cpu_usage srv_cpu_usage;
 #endif /* UNIV_HOTBACKUP */
 
-#ifdef INNODB_DD_TABLE
-/* true when upgrading. */
-/* TODO To be removed in WL#16210 */
-bool srv_is_upgrade_mode = false;
-bool srv_downgrade_logs = false;
-#endif /* INNODB_DD_TABLE */
-
 /* Revert to old partition file name if upgrade fails. */
 bool srv_downgrade_partition_files = false;
 

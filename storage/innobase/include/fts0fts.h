@@ -950,21 +950,4 @@ tables' metadata updated in DD
 @return DB_SUCCESS or error code */
 dberr_t fts_create_index_dd_tables(dict_table_t *table);
 
-/** Upgrade FTS AUX Tables. The FTS common and aux tables are
-renamed because they have table_id in their name. We move table_ids
-by DICT_MAX_DD_TABLES offset. Aux tables are registered into DD
-after rename.
-@param[in]      table           InnoDB table object
-@return DB_SUCCESS or error code */
-dberr_t fts_upgrade_aux_tables(dict_table_t *table);
-
-/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
-This will be done on upgrade failure
-@param[in]      table           parent table
-@param[in]      rollback        rollback the rename from 8.0 to 5.7
-                                if true, rename to 5.7 format
-                                if false, mark the table as evictable
-@return DB_SUCCESS on success, DB_ERROR on error */
-dberr_t fts_upgrade_rename(const dict_table_t *table, bool rollback);
-
 #endif

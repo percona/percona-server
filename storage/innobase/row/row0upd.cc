@@ -3046,7 +3046,6 @@ func_exit:
   DEBUG_SYNC(trx->mysql_thd, "innodb_row_upd_clust_step_enter");
 
   if (dict_index_is_online_ddl(index)) {
-    ut_ad(node->table->id != DICT_INDEXES_ID);
     mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
     mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   } else {

@@ -1616,6 +1616,8 @@ typedef const char *(*get_tablespace_filename_ext_t)();
 /**
   Get the tablespace data from SE and insert it into Data dictionary
 
+  @deprecated Was used to upgrade from 5.7.
+
   @param    thd         Thread context
 
   @return Operation status.
@@ -1626,6 +1628,8 @@ typedef int (*upgrade_tablespace_t)(THD *thd);
 
 /**
   Get the tablespace data from SE and insert it into Data dictionary
+
+  @deprecated Was used to upgrade from 5.7.
 
   @param[in]  tablespace     tablespace object
 
@@ -1640,6 +1644,8 @@ typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
   This includes resetting flags to indicate upgrade process
   and cleanup after upgrade.
 
+  @deprecated Was used to upgrade from 5.7.
+
   @param    thd      Thread context
   @param failed_upgrade True if the upgrade failed.
 
@@ -1652,6 +1658,8 @@ typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
 /**
   Upgrade logs after the checkpoint from where upgrade
   process can only roll forward.
+
+  @deprecated Was used to upgrade from 5.7.
 
   @param    thd      Thread context
 
@@ -2956,11 +2964,15 @@ struct handlerton {
   is_valid_tablespace_name_t is_valid_tablespace_name;
   alter_tablespace_t alter_tablespace;
   get_tablespace_filename_ext_t get_tablespace_filename_ext;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_tablespace_t upgrade_tablespace;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
   get_tablespace_type_by_name_t get_tablespace_type_by_name;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_logs_t upgrade_logs;
+  /** @deprecated Was used to upgrade from 5.7. */
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;

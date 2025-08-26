@@ -6057,7 +6057,7 @@ ER_IB_MSG_173
 ER_IB_MSG_174
   eng "%s"
 
-ER_IB_MSG_175
+OBSOLETE_ER_IB_MSG_175
   eng "%s"
 
 OBSOLETE_ER_IB_MSG_176
@@ -6093,82 +6093,82 @@ OBSOLETE_ER_IB_MSG_185
 OBSOLETE_ER_IB_MSG_186
   eng "%s"
 
-ER_IB_MSG_187
+OBSOLETE_ER_IB_MSG_187
   eng "%s"
 
-ER_IB_MSG_188
+OBSOLETE_ER_IB_MSG_188
   eng "%s"
 
-ER_IB_MSG_189
+OBSOLETE_ER_IB_MSG_189
   eng "%s"
 
-ER_IB_MSG_190
+OBSOLETE_ER_IB_MSG_190
   eng "%s"
 
-ER_IB_MSG_191
+OBSOLETE_ER_IB_MSG_191
   eng "%s"
 
-ER_IB_MSG_192
+OBSOLETE_ER_IB_MSG_192
   eng "%s"
 
-ER_IB_MSG_193
+OBSOLETE_ER_IB_MSG_193
   eng "%s"
 
-ER_IB_MSG_194
+OBSOLETE_ER_IB_MSG_194
   eng "%s"
 
-ER_IB_MSG_195
+OBSOLETE_ER_IB_MSG_195
   eng "%s"
 
-ER_IB_MSG_196
+OBSOLETE_ER_IB_MSG_196
   eng "%s"
 
-ER_IB_MSG_197
+OBSOLETE_ER_IB_MSG_197
   eng "%s"
 
-ER_IB_MSG_198
+OBSOLETE_ER_IB_MSG_198
   eng "%s"
 
-ER_IB_MSG_199
+OBSOLETE_ER_IB_MSG_199
   eng "%s"
 
-ER_IB_MSG_200
+OBSOLETE_ER_IB_MSG_200
   eng "%s"
 
-ER_IB_MSG_201
+OBSOLETE_ER_IB_MSG_201
   eng "%s"
 
-ER_IB_MSG_202
+OBSOLETE_ER_IB_MSG_202
   eng "%s"
 
-ER_IB_MSG_203
+OBSOLETE_ER_IB_MSG_203
   eng "%s"
 
-ER_IB_MSG_204
+OBSOLETE_ER_IB_MSG_204
   eng "%s"
 
-ER_IB_MSG_205
+OBSOLETE_ER_IB_MSG_205
   eng "%s"
 
-ER_IB_MSG_206
+OBSOLETE_ER_IB_MSG_206
   eng "%s"
 
-ER_IB_MSG_207
+OBSOLETE_ER_IB_MSG_207
   eng "%s"
 
-ER_IB_MSG_208
+OBSOLETE_ER_IB_MSG_208
   eng "%s"
 
-ER_IB_MSG_209
+OBSOLETE_ER_IB_MSG_209
   eng "%s"
 
-ER_IB_MSG_210
+OBSOLETE_ER_IB_MSG_210
   eng "%s"
 
-ER_IB_MSG_211
+OBSOLETE_ER_IB_MSG_211
   eng "%s"
 
-ER_IB_MSG_212
+OBSOLETE_ER_IB_MSG_212
   eng "%s"
 
 ER_IB_MSG_213
@@ -6219,115 +6219,115 @@ OBSOLETE_ER_IB_MSG_227
 OBSOLETE_ER_IB_MSG_228
   eng "%s"
 
-ER_IB_MSG_229
+OBSOLETE_ER_IB_MSG_229
   eng "%s"
 
-ER_IB_MSG_230
+OBSOLETE_ER_IB_MSG_230
   eng "%s"
 
-ER_IB_MSG_231
+OBSOLETE_ER_IB_MSG_231
   eng "%s"
 
-ER_IB_MSG_232
+OBSOLETE_ER_IB_MSG_232
   eng "%s"
 
-ER_IB_MSG_233
+OBSOLETE_ER_IB_MSG_233
   eng "%s"
 
-ER_IB_MSG_234
+OBSOLETE_ER_IB_MSG_234
   eng "%s"
 
-ER_IB_MSG_235
+OBSOLETE_ER_IB_MSG_235
   eng "%s"
 
-ER_IB_MSG_236
+OBSOLETE_ER_IB_MSG_236
   eng "%s"
 
-ER_IB_MSG_237
+OBSOLETE_ER_IB_MSG_237
   eng "%s"
 
-ER_IB_MSG_238
+OBSOLETE_ER_IB_MSG_238
   eng "%s"
 
-ER_IB_MSG_239
+OBSOLETE_ER_IB_MSG_239
   eng "%s"
 
-ER_IB_MSG_240
+OBSOLETE_ER_IB_MSG_240
   eng "%s"
 
-ER_IB_MSG_241
+OBSOLETE_ER_IB_MSG_241
   eng "%s"
 
-ER_IB_MSG_242
+OBSOLETE_ER_IB_MSG_242
   eng "%s"
 
-ER_IB_MSG_243
+OBSOLETE_ER_IB_MSG_243
   eng "%s"
 
-ER_IB_MSG_244
+OBSOLETE_ER_IB_MSG_244
   eng "%s"
 
-ER_IB_MSG_245
+OBSOLETE_ER_IB_MSG_245
   eng "%s"
 
-ER_IB_MSG_246
+OBSOLETE_ER_IB_MSG_246
   eng "%s"
 
-ER_IB_MSG_247
+OBSOLETE_ER_IB_MSG_247
   eng "%s"
 
-ER_IB_MSG_248
+OBSOLETE_ER_IB_MSG_248
   eng "%s"
 
-ER_IB_MSG_249
+OBSOLETE_ER_IB_MSG_249
   eng "%s"
 
-ER_IB_MSG_250
+OBSOLETE_ER_IB_MSG_250
   eng "%s"
 
-ER_IB_MSG_251
+OBSOLETE_ER_IB_MSG_251
   eng "%s"
 
-ER_IB_MSG_252
+OBSOLETE_ER_IB_MSG_252
   eng "%s"
 
-ER_IB_MSG_253
+OBSOLETE_ER_IB_MSG_253
   eng "%s"
 
-ER_IB_MSG_254
+OBSOLETE_ER_IB_MSG_254
   eng "%s"
 
-ER_IB_MSG_255
+OBSOLETE_ER_IB_MSG_255
   eng "%s"
 
-ER_IB_MSG_256
+OBSOLETE_ER_IB_MSG_256
   eng "%s"
 
-ER_IB_MSG_257
+OBSOLETE_ER_IB_MSG_257
   eng "%s"
 
-ER_IB_MSG_258
+OBSOLETE_ER_IB_MSG_258
   eng "%s"
 
-ER_IB_MSG_259
+OBSOLETE_ER_IB_MSG_259
   eng "%s"
 
-ER_IB_MSG_260
+OBSOLETE_ER_IB_MSG_260
   eng "%s"
 
-ER_IB_MSG_261
+OBSOLETE_ER_IB_MSG_261
   eng "%s"
 
-ER_IB_MSG_262
+OBSOLETE_ER_IB_MSG_262
   eng "%s"
 
-ER_IB_MSG_263
+OBSOLETE_ER_IB_MSG_263
   eng "%s"
 
-ER_IB_MSG_264
+OBSOLETE_ER_IB_MSG_264
   eng "%s"
 
-ER_IB_MSG_265
+OBSOLETE_ER_IB_MSG_265
   eng "%s"
 
 ER_IB_MSG_266
@@ -6984,10 +6984,10 @@ ER_IB_MSG_482
 ER_IB_MSG_483
   eng "%s"
 
-ER_IB_MSG_484
+OBSOLETE_ER_IB_MSG_484
   eng "%s"
 
-ER_IB_MSG_485
+OBSOLETE_ER_IB_MSG_485
   eng "%s"
 
 ER_IB_MSG_486
@@ -8280,7 +8280,7 @@ ER_IB_MSG_914
 ER_IB_MSG_915
   eng "%s"
 
-ER_IB_MSG_916
+OBSOLETE_ER_IB_MSG_916
   eng "%s"
 
 ER_IB_MSG_917
@@ -8862,10 +8862,10 @@ ER_IB_MSG_1108
 ER_IB_MSG_1109
   eng "Size of InnoDB's ulint is %zu but size of void* is %zu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
 
-ER_IB_MSG_1110
+OBSOLETE_ER_IB_MSG_1110
   eng "Database upgrade cannot be accomplished in read-only mode."
 
-ER_IB_MSG_1111
+OBSOLETE_ER_IB_MSG_1111
   eng "Database upgrade cannot be accomplished with innodb_force_recovery > 0"
 
 ER_IB_MSG_1112
@@ -9213,13 +9213,13 @@ ER_IB_MSG_1225
 ER_IB_MSG_1226
   eng "%s"
 
-ER_IB_MSG_1227
+OBSOLETE_ER_IB_MSG_1227
   eng "%s"
 
 ER_IB_MSG_1228
   eng "%s"
 
-ER_IB_MSG_1229
+OBSOLETE_ER_IB_MSG_1229
   eng "%s"
 
 OBSOLETE_ER_IB_MSG_1230
@@ -9659,7 +9659,7 @@ ER_IB_MSG_1280
 ER_IB_MSG_1281
   eng "%s"
 
-ER_IB_MSG_1282
+OBSOLETE_ER_IB_MSG_1282
   eng "%s"
 
 ER_IB_MSG_1283
@@ -10645,7 +10645,7 @@ ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
 ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
   eng "Table name '%s.%s' containing upper case characters, used by foreign key '%s' in table '%s.%s', is not allowed with lower_case_table_names = 1."
 
-ER_IB_MSG_DICT_PARTITION_NOT_FOUND
+OBSOLETE_ER_IB_MSG_DICT_PARTITION_NOT_FOUND
   eng "Table Partition: %s is not found in InnoDB dictionary"
 
 ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
@@ -10786,7 +10786,7 @@ ER_IB_MSG_DBLWR_1327
 ER_IB_MSG_GTID_FLUSH_AT_SHUTDOWN
   eng "Could not flush all GTIDs during slow shutdown. Will recover GTIDs when server restarts."
 
-ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
+OBSOLETE_ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 stat tablespace: %s during upgrade"
 
 ER_NDBINFO_UPGRADING_SCHEMA
@@ -10888,7 +10888,7 @@ ER_TLS_CONFIGURATION_REUSED
 ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
   eng "Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!"
 
-ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
+OBSOLETE_ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
   eng "Upgrade failed because database contains discarded tablespaces."
 
 ER_USERNAME_TRUNKATED
@@ -11260,7 +11260,7 @@ ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
 ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
   eng "Innodb could not acquire service : %s"
 
-ER_IB_WRN_OLD_GEOMETRY_TYPE
+OBSOLETE_ER_IB_WRN_OLD_GEOMETRY_TYPE
   eng "Column %s of type GEOMETRY is in old (5.6) format which could be deprecated in the future. To change the format to latest, please consider rebuilding the table after the upgrade."
 
 ER_NET_WAIT_ERROR2

@@ -5785,10 +5785,6 @@ static int innodb_init(void *p) {
   innobase_hton->alter_tablespace = innobase_alter_tablespace;
   innobase_hton->get_tablespace_filename_ext =
       innobase_get_tablespace_filename_ext;
-  innobase_hton->upgrade_tablespace = dd_upgrade_tablespace;
-  innobase_hton->upgrade_space_version = upgrade_space_version;
-  innobase_hton->upgrade_logs = dd_upgrade_logs;
-  innobase_hton->finish_upgrade = dd_upgrade_finish;
   innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;
   innobase_hton->panic = innodb_shutdown;
   innobase_hton->partition_flags = innobase_partition_flags;
@@ -15940,9 +15936,16 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 @param[in]      table_name      table name
 @param[in,out]  dd_table        data dictionary cache object
 @return 0 on success, non-zero on failure */
-bool ha_innobase::upgrade_table(THD *thd, const char *db_name,
-                                const char *table_name, dd::Table *dd_table) {
-  return (dd_upgrade_table(thd, db_name, table_name, dd_table, table));
+bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
+                                const char * /*table_name*/,
+                                dd::Table * /*dd_table*/) {
+// TODO: get rid of upgrade_table from the interface, which is needed by NDB
+// only
+#ifdef UNIV_DEBUG
+  ut_error;
+#else
+  return false;
+#endif
 }
 
 /** Get storage-engine private data for a data dictionary table.

@@ -1415,17 +1415,6 @@ dberr_t srv_start(bool create_new_db) {
                 "sizes should be the same so that on a 64-bit platforms you "
                 "can allocate more than 4 GB of memory.");
 
-  if (srv_is_upgrade_mode) {
-    if (srv_force_recovery != 0) {
-      ib::error(ER_IB_MSG_1111);
-      return (srv_init_abort(DB_ERROR));
-    }
-    if (srv_read_only_mode) {
-      ib::error(ER_IB_MSG_1110);
-      return (srv_init_abort(DB_ERROR));
-    }
-  }
-
 #ifdef UNIV_DEBUG
   ib::info(ER_IB_MSG_1112) << "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!";
 #endif
@@ -2026,10 +2015,6 @@ dberr_t srv_start(bool create_new_db) {
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys is inited. */
     purge_queue = trx_sys_init_at_db_start();
-
-    if (srv_is_upgrade_mode) {
-      ut_a(purge_queue->empty());
-    }
 
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys and trx lists were
@@ -2752,13 +2737,6 @@ static lsn_t srv_shutdown_log() {
 
   buf_assert_all_are_replaceable();
   ut_a(lsn == log_get_lsn(*log_sys));
-
-  if (srv_downgrade_logs) {
-    ut_a(!srv_read_only_mode);
-
-    /* InnoDB in any version is able to start on empty set of redo files. */
-    log_files_remove(*log_sys);
-  }
 
   return (lsn);
 }

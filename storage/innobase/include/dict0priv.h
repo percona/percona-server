@@ -36,18 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-/** Gets a table; loads it to the dictionary cache if necessary. A low-level
-function. Note: Not to be called from outside dict0*c functions.
-@param[in]   table_name   the table name
-@param[in]   prev_table   previous table name. The current table load
-                          is happening because of the load of the
-                          previous table name.  This parameter is used
-                          to check for cyclic calls.
-@return table, NULL if not found */
-inline dict_table_t *dict_table_get_low(
-    const char *table_name,
-    const std::string *prev_table = nullptr); /*!< in: table name */
-
 /** Checks if a table is in the dictionary cache.
  @return table, NULL if not found */
 static inline dict_table_t *dict_table_check_if_in_cache_low(

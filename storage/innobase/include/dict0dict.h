@@ -334,19 +334,6 @@ void dict_foreign_remove_from_cache(
     to use table->col_names */
     const dict_index_t *index); /*!< in: index to be replaced */
 #endif                          /* !UNIV_HOTBACKUP */
-/** Returns a table object and increments its open handle count.
- NOTE! This is a high-level function to be used mainly from outside the
- 'dict' directory. Inside this directory dict_table_get_low
- is usually the appropriate function.
- @param[in] table_name Table name
- @param[in] dict_locked true=data dictionary locked
- @param[in] try_drop true=try to drop any orphan indexes after
-                                 an aborted online index creation
- @param[in] ignore_err error to be ignored when loading the table
- @return table, NULL if does not exist */
-[[nodiscard]] dict_table_t *dict_table_open_on_name(
-    const char *table_name, bool dict_locked, bool try_drop,
-    dict_err_ignore_t ignore_err);
 
 /** Tries to find an index whose first fields are the columns in the array,
  in the same order and is not marked for deletion and is not the same
@@ -1053,12 +1040,6 @@ struct dict_sys_t {
   size_t size;                 /*!< varying space in bytes occupied
                                by the data dictionary table and
                                index objects */
-  /** Handler to sys_* tables, they're only for upgrade */
-  dict_table_t *sys_tables;  /*!< SYS_TABLES table */
-  dict_table_t *sys_columns; /*!< SYS_COLUMNS table */
-  dict_table_t *sys_indexes; /*!< SYS_INDEXES table */
-  dict_table_t *sys_fields;  /*!< SYS_FIELDS table */
-  dict_table_t *sys_virtual; /*!< SYS_VIRTUAL table */
 
   /** Permanent handle to mysql.innodb_table_stats */
   dict_table_t *table_stats;
@@ -1433,11 +1414,6 @@ write dirty persistent data of table to mysql.innodb_dynamic_metadata
 accordingly. */
 void dict_persist_to_dd_table_buffer();
 
-/** Sets merge_threshold in the SYS_INDEXES
-@param[in,out]  index           index
-@param[in]      merge_threshold value to set */
-void dict_index_set_merge_threshold(dict_index_t *index, ulint merge_threshold);
-
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in dictionary cache for debug.
 @param[in]      merge_threshold_all     value to set for all indexes */
@@ -1668,10 +1644,6 @@ static inline bool dict_table_is_partition(const dict_table_t *table);
 /** Allocate memory for intrinsic cache elements in the index
 @param[in]      index   index object */
 static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index);
-
-/** @return true if table is InnoDB SYS_* table
-@param[in]      table_id        table id  */
-bool dict_table_is_system(table_id_t table_id);
 
 /** Get the tablespace data directory if set, otherwise empty string.
 @return the data directory */

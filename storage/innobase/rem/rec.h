@@ -458,11 +458,7 @@ record in the same page specified
 @return true if n_fields is sane */
 static inline bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
                                         const dtuple_t *entry) {
-  return (rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry)
-          /* a record for older SYS_INDEXES table
-          (missing merge_threshold column) is acceptable. */
-          || (index->table->id == DICT_INDEXES_ID &&
-              rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry) - 1));
+  return rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry);
 }
 
 /** The following function returns the number of allocated elements

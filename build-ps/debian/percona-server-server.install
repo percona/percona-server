@@ -133,8 +133,8 @@ usr/lib/mysql/private/libabsl_throw_delegate.so
 usr/lib/mysql/private/libabsl_time.so
 usr/lib/mysql/private/libabsl_time_zone.so
 # private data files
-usr/lib/mysql/private/icudt73l/*.icu
-usr/lib/mysql/private/icudt73l/brkitr/*
+usr/lib/mysql/private/icudt77l/*.icu
+usr/lib/mysql/private/icudt77l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so

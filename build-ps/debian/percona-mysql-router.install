@@ -24,6 +24,8 @@ usr/bin/mysqlrouter
 usr/bin/mysqlrouter_keyring
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
+usr/bin/mysqlrouter_bootstrap
+usr/bin/mysqlrouter_mrs_client
 usr/lib/mysqlrouter/plugin/connection_pool.so
 usr/lib/mysqlrouter/plugin/destination_status.so
 usr/lib/mysqlrouter/plugin/http_auth_backend.so
@@ -65,6 +67,7 @@ usr/lib/mysqlrouter/private/libmysqlrouter_mysqlclient.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_utils.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_server.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_mysql.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_client.so.1
 
 usr/share/mysqlrouter/docs/sample_mysqlrouter.conf
 usr/share/mysqlrouter/mysqlrouter-systemd-start

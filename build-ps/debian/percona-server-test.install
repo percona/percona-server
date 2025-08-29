@@ -43,6 +43,10 @@ usr/lib/mysql/plugin/component_test_system_variable_source.so
 usr/lib/mysql/plugin/component_test_execute_prepared_statement.so
 usr/lib/mysql/plugin/component_test_execute_regular_statement.so
 usr/lib/mysql/plugin/component_test_mysql_signal_handler.so
+usr/lib/mysql/plugin/component_test_component_deinit_no_deadlock.so
+usr/lib/mysql/plugin/component_test_component_init_fail.so
+usr/lib/mysql/plugin/component_test_component_init_then_register.so
+usr/lib/mysql/plugin/component_test_udf_aggregate.so
 usr/lib/mysql/plugin/daemon_example.ini
 usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/libdaemon_example.so
@@ -132,6 +136,10 @@ usr/lib/mysql/plugin/debug/component_test_system_variable_source.so
 usr/lib/mysql/plugin/debug/component_test_execute_prepared_statement.so
 usr/lib/mysql/plugin/debug/component_test_execute_regular_statement.so
 usr/lib/mysql/plugin/debug/component_test_mysql_signal_handler.so
+usr/lib/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
+usr/lib/mysql/plugin/debug/component_test_component_init_fail.so
+usr/lib/mysql/plugin/debug/component_test_component_init_then_register.so
+usr/lib/mysql/plugin/debug/component_test_udf_aggregate.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so
 usr/lib/mysql/plugin/debug/libtest_framework.so
 usr/lib/mysql/plugin/debug/libtest_services.so

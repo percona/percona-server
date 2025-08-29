@@ -63,6 +63,7 @@
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
 %{?el9:                          %global systemd 1}
+%{?el10:                         %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
@@ -103,7 +104,7 @@
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
 %endif
 
 %if 0%{?rhel} == 6
@@ -111,7 +112,7 @@
 %global compatver             5.1.73
 %global percona_compatver     14.12
 %global compatlib             16
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch
@@ -485,6 +486,11 @@ This package contains ICU data files needer by MySQL regular expressions.
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p0
+%if 0%{?rhel} == 9 || 0%{?rhel} == 10
+# Ensure getpid is declared
+grep -q unistd.h extra/coredumper/src/thread_lister.c || \
+    sed -i '1i #include <unistd.h>' extra/coredumper/src/thread_lister.c
+%endif
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -526,7 +532,7 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-error /' -e 's/%{_lto_cflags}/ /')
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ -Wno-missing-field-initializers -Wno-implicit-function-declaration -Wno-error /' -e 's/%{_lto_cflags}/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
@@ -1149,6 +1155,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_export.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_then_register.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_aggregate.so
 
 
 %dir %{_libdir}/mysql/plugin/debug
@@ -1204,6 +1214,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_then_register.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_aggregate.so
 %if 0%{?rhel} >= 8
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
@@ -1595,6 +1609,8 @@ fi
 %{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
+%{_bindir}/mysqlrouter_bootstrap
+%{_bindir}/mysqlrouter_mrs_client
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
@@ -1628,6 +1644,7 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_utils.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_server.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysql.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_client.so.*
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so
@@ -1637,9 +1654,9 @@ fi
 %files -n percona-icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/*.icu
-%{_libdir}/mysql/private/icudt73l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt77l
+%{_libdir}/mysql/private/icudt77l/*.icu
+%{_libdir}/mysql/private/icudt77l/brkitr
 
 %changelog
 * Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13

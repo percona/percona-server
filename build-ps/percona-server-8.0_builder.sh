@@ -391,14 +391,15 @@ install_deps() {
                 percona-release enable tools testing
               #  percona-release enable tools experimental
             fi
-            yum -y install yum-utils
-            yum-config-manager --enable ol"${RHEL}"_codeready_builder
-        else
-            yum -y install yum-utils
-            yum-config-manager --enable ol"${RHEL}"_codeready_builder
         fi
+        yum -y install yum-utils
+        yum-config-manager --enable ol"${RHEL}"_codeready_builder
         yum -y update
-        yum -y install epel-release
+        if [ "x${RHEL}" = "x10" ]; then
+            dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+        else
+            yum -y install epel-release
+        fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
@@ -456,9 +457,11 @@ install_deps() {
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
+            yum -y install MySQL-python
+        else
+            yum -y install libtirpc-devel
         fi
         if [ "x$RHEL" = "x9" ]; then
-            yum -y install libtirpc-devel
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
@@ -469,8 +472,12 @@ install_deps() {
                 ln -s annobin.so gcc-annobin.so
                 popd
             fi
-        else
-            yum -y install MySQL-python
+        fi
+        if [ "x$RHEL" = "x10" ]; then
+            yum -y install libatomic
+            if [ x"$ARCH" = "xx86_64" ]; then
+                yum -y install gcc-gfortran
+            fi
         fi
     else
         apt-get update
@@ -500,17 +507,6 @@ install_deps() {
         else
             apt-get -y install python-mysqldb
         fi
-        if [ x"${DIST}" = xbionic ]; then
-            apt-get -y install gcc-8 g++-8
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
-        elif [ x"${DIST}" = xnoble ]; then
-            apt-get -y install gcc-13 g++-13
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
-        else
-            apt-get -y install gcc-10 g++-10 cpp-10
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-        fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
         apt-get -y install libmecab2 mecab mecab-ipadic
@@ -529,6 +525,19 @@ install_deps() {
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
         if [ x${DIST} = xnoble ]; then
             apt-get -y install libtirpc-dev gsasl-common
+        fi
+        if [ x"${DIST}" = xbionic ]; then
+            apt-get -y install gcc-8 g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+        elif [ x"${DIST}" = xnoble ]; then
+            apt-get -y install gcc-13 g++-13
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100
+        else
+            apt-get -y install gcc-10 g++-10 cpp-10
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-10 100
         fi
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then

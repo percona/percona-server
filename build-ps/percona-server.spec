@@ -63,6 +63,7 @@
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
 %{?el9:                          %global systemd 1}
+%{?el10:                         %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
@@ -103,7 +104,7 @@
 %global compatver             5.6.51
 %global percona_compatver     91.0
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.1.el7.x86_64.rpm
 %endif
 
 %if 0%{?rhel} == 6
@@ -111,7 +112,7 @@
 %global compatver             5.1.73
 %global percona_compatver     14.12
 %global compatlib             16
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
+%global compatsrc             https://downloads.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch
@@ -493,6 +494,11 @@ This package contains ICU data files needer by MySQL regular expressions.
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p0
+%if 0%{?rhel} == 9 || 0%{?rhel} == 10
+# Ensure getpid is declared
+grep -q unistd.h extra/coredumper/src/thread_lister.c || \
+    sed -i '1i #include <unistd.h>' extra/coredumper/src/thread_lister.c
+%endif
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -573,6 +579,9 @@ mkdir debug
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8
+           -DWITH_LTO=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -628,6 +637,9 @@ mkdir release
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8
+           -DWITH_LTO=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -1626,9 +1638,9 @@ fi
 %files -n percona-icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/*.icu
-%{_libdir}/mysql/private/icudt73l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt77l
+%{_libdir}/mysql/private/icudt77l/*.icu
+%{_libdir}/mysql/private/icudt77l/brkitr
 
 %changelog
 * Fri Feb 12 2021 Percona Development Team <info@percona.com> - 8.0.22-13

@@ -527,6 +527,16 @@ static void vio_wait_until_woken(Vio *vio) {
 }
 #endif
 
+
+#ifdef HAVE_POOL_OF_THREADS
+static void vio_wait_until_epoll_woken(Vio *vio) {
+  while (vio->epoll_shutdown_flag.test_and_set()) {
+    // make connection wake up from epoll_wait in the worker thread.
+    vio_cancel(vio, SHUT_RD);
+  }
+}
+#endif
+
 int vio_shutdown(Vio *vio, int how) {
   DBUG_TRACE;
 
@@ -551,6 +561,12 @@ int vio_shutdown(Vio *vio, int how) {
 #elif defined HAVE_KQUEUE
     if (vio->kq_fd != -1 && vio->kevent_wakeup_flag.test_and_set())
       vio_wait_until_woken(vio);
+#endif
+
+#ifdef HAVE_POOL_OF_THREADS
+    if (vio->thread_id.value() != 0 && vio->epoll_shutdown_flag.test_and_set()) {
+      vio_wait_until_epoll_woken(vio);
+    }
 #endif
 
     if (mysql_socket_close(vio->mysql_socket)) r = -1;

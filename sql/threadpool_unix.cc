@@ -712,6 +712,8 @@ static connection_t *listener(thread_group_t *thread_group) {
     */
     for (int i = (listener_picks_event) ? 1 : 0; i < cnt; i++) {
       connection_t *c = (connection_t *)native_event_get_userdata(&ev[i]);
+      Vio *vio = c->thd->get_protocol_classic()->get_vio();
+      vio->epoll_shutdown_flag.clear();
       if (connection_is_high_prio(*c)) {
         c->tickets--;
         thread_group->high_prio_queue.push_back(c);
@@ -724,6 +726,8 @@ static connection_t *listener(thread_group_t *thread_group) {
     if (listener_picks_event) {
       /* Handle the first event. */
       retval = (connection_t *)native_event_get_userdata(&ev[0]);
+      Vio *vio = retval->thd->get_protocol_classic()->get_vio();
+      vio->epoll_shutdown_flag.clear();
       mysql_mutex_unlock(&thread_group->mutex);
       break;
     }
@@ -1403,6 +1407,14 @@ static int start_io(connection_t *connection) {
     Bind to poll descriptor if not yet done.
   */
   Vio *vio = connection->thd->get_protocol_classic()->get_vio();
+  if (vio && vio->epoll_shutdown_flag.test_and_set()) {
+    /*
+      connection in the shutdown progress,
+      return -1 make sure abort this connection
+     */
+    vio->epoll_shutdown_flag.clear();
+    return -1;
+  }
   int fd = mysql_socket_getfd(vio->mysql_socket);
   if (!connection->bound_to_poll_descriptor) {
     connection->bound_to_poll_descriptor = true;

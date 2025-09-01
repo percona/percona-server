@@ -407,6 +407,10 @@ struct Vio {
   std::atomic_flag kevent_wakeup_flag = ATOMIC_FLAG_INIT;
 #endif
 
+#ifdef HAVE_POOL_OF_THREADS
+  std::atomic_flag epoll_shutdown_flag = ATOMIC_FLAG_INIT;
+#endif
+
 #ifdef HAVE_SETNS
   /**
     Socket network namespace.

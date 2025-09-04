@@ -1198,7 +1198,8 @@ class buf_page_t {
         m_version(other.m_version),
         access_time(other.access_time),
         m_dblwr_id(other.m_dblwr_id),
-        old(other.old)
+        old(other.old),
+        is_corrupt(other.is_corrupt)
 #ifdef UNIV_DEBUG
         ,
         file_page_was_freed(other.file_page_was_freed),

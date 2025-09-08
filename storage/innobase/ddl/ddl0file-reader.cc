@@ -116,11 +116,12 @@ dberr_t File_reader::prepare() noexcept {
     return DB_OUT_OF_MEMORY;
   }
 
+  /* Position the m_ptr to the first record. */
   if (const auto err = seek(); err != DB_SUCCESS) {
     return err;
   }
 
-  /* Position m_mrec on the first record. */
+  /* Position m_mrec on the first record and advance to next record. */
   return next();
 }
 
@@ -132,7 +133,7 @@ dberr_t File_reader::seek() noexcept {
                               m_range.first, m_crypt_buffer.first, m_space_id);
 
   if (err == DB_SUCCESS) {
-    /* Fetch and advance to the next record. */
+    /* Fetch the record. */
     m_ptr = m_io_buffer.first;
   }
 

@@ -283,6 +283,8 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
 
     destination_ec_ = ec;
 
+    destination->connect_status(destination_ec_);
+
     // resolve(...) failed, move host:port to the quarantine to monitor the
     // solve to come back.
 

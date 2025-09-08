@@ -214,16 +214,92 @@ class Client::CallbacksPrivateImpl
   Client *parent_;
 };
 
+#define PRINT_AND_CALL(X) \
+  print(#X);              \
+  X
+
+template <typename Callbacks>
+class TraceCallbacks : public Callbacks {
+ public:
+  template <typename... Args>
+  TraceCallbacks(Args &&...args)  // NOLINT(runtime/explicit)
+      : Callbacks{std::forward<Args>(args)...}, out_{&std::cout} {
+    print("ctor");
+  }
+
+  void on_connection_ready() override {
+    PRINT_AND_CALL(Callbacks::on_connection_ready());
+  }
+
+  void on_input_payload(const char *data, size_t size) override {
+    PRINT_AND_CALL(Callbacks::on_input_payload(data, size));
+  }
+  void on_input_begin(int status_code,
+                      const std::string &status_text) override {
+    PRINT_AND_CALL(Callbacks::on_input_begin(status_code, status_text));
+  }
+  void on_input_end() override { PRINT_AND_CALL(Callbacks::on_input_end()); }
+  void on_input_header(std::string &&key, std::string &&value) override {
+    PRINT_AND_CALL(
+        Callbacks::on_input_header(std::move(key), std::move(value)));
+  }
+  void on_output_end_payload() override {
+    PRINT_AND_CALL(Callbacks::on_output_end_payload());
+  }
+
+ public:  // ConnectionTls::ConnectionStatusCallbacks
+  void on_connection_close(ConnectionTls::Parent *connection) override {
+    PRINT_AND_CALL(Callbacks::on_connection_close(connection));
+  }
+  void on_connection_io_error(ConnectionTls::Parent *connection,
+                              const std::error_code &ec) override {
+    PRINT_AND_CALL(Callbacks::on_connection_io_error(connection, ec));
+  }
+
+ public:  // ConnectionRaw::ConnectionStatusCallbacks
+  void on_connection_close(ConnectionRaw::Parent *connection) override {
+    PRINT_AND_CALL(Callbacks::on_connection_close(connection));
+  }
+  void on_connection_io_error(ConnectionRaw::Parent *connection,
+                              const std::error_code &ec) override {
+    PRINT_AND_CALL(Callbacks::on_connection_io_error(connection, ec));
+  }
+
+  void print_single() {}
+
+  template <typename Arg, typename... Args>
+  void print_single(const Arg &arg, const Args... args) {
+    *out_ << arg;
+    print_single(args...);
+  }
+
+  std::ostream *out_;
+  template <typename... Args>
+  void print(const Args &...args) {
+    *out_ << "this:" << this << ", thread:" << std::this_thread::get_id()
+          << ": ";
+    print_single(args...);
+    *out_ << std::endl;
+    out_->flush();
+  }
+};
+
+#undef PRINT_AND_CALL
+
+// Choose one of following.
+using UsedCallbackImpl = Client::CallbacksPrivateImpl;
+// TraceCallbacks<Client::CallbacksPrivateImpl>;
+
 Client::Client(io_context &io_context, TlsClientContext &&tls_context,
                bool use_http2)
     : io_context_{io_context},
       tls_context_{std::move(tls_context)},
-      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)},
+      callbacks_{std::make_unique<UsedCallbackImpl>(this)},
       use_http2_{use_http2} {}
 
 Client::Client(io_context &io_context, const bool use_http2)
     : io_context_{io_context},
-      callbacks_{std::make_unique<CallbacksPrivateImpl>(this)},
+      callbacks_{std::make_unique<UsedCallbackImpl>(this)},
       use_http2_{use_http2} {}
 
 Client::~Client() = default;

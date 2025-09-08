@@ -28,7 +28,7 @@ IF(MY_COMPILER_IS_CLANG)
 ENDIF()
 
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
-  ADD_COMPILE_FLAGS(test_next_available.cc COMPILE_FLAGS "-Wno-restrict")
+  ADD_COMPILE_FLAGS(test_next_available.cc test_classic_quit_sender.cc COMPILE_FLAGS "-Wno-restrict")
 ENDIF()
 
 # routing-library as object-lib for testing

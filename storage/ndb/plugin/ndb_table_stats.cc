@@ -197,7 +197,7 @@ bool ndb_get_table_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab,
     return true;  // Error
   }
 
-  int retries = 100;
+  int retries = 10;
   NdbTransaction *trans;
   do {
     /**

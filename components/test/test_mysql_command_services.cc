@@ -90,6 +90,9 @@ static char *test_mysql_command_services_udf(UDF_INIT *, UDF_ARGS *args,
   unsigned int err_no;
   char *sqlstate_errmsg[50];
 
+  /* reset to empty as a start */
+  *result = 0;
+
   //  Execute the SQL specified in the argument.
   if (cmd_factory_srv->init(&mysql_h)) {
     return nullptr;

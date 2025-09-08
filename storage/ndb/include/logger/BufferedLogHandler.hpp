@@ -72,7 +72,7 @@ class BufferedLogHandler : public LogHandler {
 
   struct LogMessageFixedPart {
     Logger::LoggerLevel level;
-    time_t log_timestamp;
+    std::timespec log_timestamp;
     size_t varpart_length[2];  // 0: length of category, 1: length of message
   };
   static constexpr Uint32 MAX_VARPART_SIZE =
@@ -80,7 +80,7 @@ class BufferedLogHandler : public LogHandler {
 
  protected:
   void writeHeader(const char *pCategory, Logger::LoggerLevel level,
-                   time_t now) override;
+                   const std::timespec *now) override;
   void writeMessage(const char *pMsg) override;
   void writeFooter() override;
 

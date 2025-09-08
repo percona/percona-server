@@ -51,7 +51,7 @@ include/stop_mysqld.inc [server 1]
 # Creating manifest file for current MySQL server instance
 *** Deleting the Hashicorp Vault mount point created previously
 *** Starting the server (with component_keyring_file)
-# restart:<hidden args>
+# restart
 *** Asserting that component_keyring_file is installed and active
 *** Installing keyring UDF plugin once again after keyring component switch
 *** Asserting that keys stored in component_keyring_vault successfully migrated to component_keyring_file
@@ -74,7 +74,7 @@ include/stop_mysqld.inc [server 1]
 *** Restoring local manifest file for current server instance with component_keyring_vault
 # Restore local manifest file for MySQL server instance from backup
 *** Starting the server (with component_keyring_vault)
-# restart:<hidden args>
+# restart
 *** Asserting that component_keyring_vault is installed and active again
 *** Installing keyring UDF plugin once again after keyring component switch back
 *** Asserting that keys stored in component_keyring_file successfully migrated to component_keyring_vault

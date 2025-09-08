@@ -1025,20 +1025,24 @@ const char *dict_process_sys_zip_dict(mem_heap_t *heap,
   if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE)) goto err_len;
   *id = mach_read_from_4(field);
 
-  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID, &len);
+  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID,
+                             &len);
   if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL))
     goto err_len;
 
-  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_ROLL_PTR, &len);
+  rec_get_nth_field_offs_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DB_ROLL_PTR,
+                             &len);
   if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL))
     goto err_len;
 
-  field = rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
+  field =
+      rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
   if (UNIV_UNLIKELY(len == 0 || len == UNIV_SQL_NULL)) goto err_len;
   *name = mem_heap_strdupl(heap, (char *)field, len);
   *name_len = len;
 
-  field = rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
+  field =
+      rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
   if (UNIV_UNLIKELY(len == UNIV_SQL_NULL)) goto err_len;
 
   if (rec_get_1byte_offs_flag(rec) == 0 &&
@@ -2338,8 +2342,9 @@ void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err) {
       shared_space_name = static_cast<char *>(ut::malloc_withkey(
           UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
-      sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
-              static_cast<ulint>(table->space));
+      if (shared_space_name != nullptr)
+        sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
+                static_cast<ulint>(table->space));
     }
     tbl_name = shared_space_name;
     space_name = shared_space_name;

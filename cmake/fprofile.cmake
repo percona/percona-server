@@ -147,6 +147,14 @@ IF(FPROFILE_USE)
       ENDFOREACH()
     ENDFOREACH()
   ELSE()
+    IF(MY_COMPILER_IS_GNU)
+      # In case there are more pending feature tests
+      # profile count data file not found [-Werror=missing-profile]
+      STRING_APPEND(CMAKE_REQUIRED_FLAGS " -Wno-missing-profile")
+      # Can be used after CMAKE_PUSH_CHECK_STATE(RESET)
+      SET(DISABLE_MISSING_PROFILE_FLAG -Wno-missing-profile )
+    ENDIF()
+
     STRING_APPEND(CMAKE_C_FLAGS " -fprofile-use=${FPROFILE_DIR}")
     STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-use=${FPROFILE_DIR}")
     # Collection of profile data is not thread safe,
@@ -187,8 +195,9 @@ MACRO(DOWNGRADE_STRINGOP_WARNINGS target)
   IF(MY_COMPILER_IS_GNU AND WITH_LTO AND FPROFILE_USE)
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
       TARGET_LINK_OPTIONS(${target} PRIVATE
-        -Wno-error=stringop-overflow
-        -Wno-error=stringop-overread
+        "-Wno-error=alloc-size-larger-than="
+        "-Wno-error=stringop-overflow"
+        "-Wno-error=stringop-overread"
       )
     ELSE()
       TARGET_LINK_OPTIONS(${target} PRIVATE

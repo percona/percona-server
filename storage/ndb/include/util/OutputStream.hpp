@@ -149,4 +149,50 @@ class StaticBuffOutputStream : public OutputStream {
   }
 };
 
+/**
+ * Use a byte buffer to circularly buffer strings
+ * 'printed' into the buffer.
+ *
+ * When the head meets the tail, previously buffered
+ * strings are partially overwritten.
+ *
+ * Buffered strings can be iterated in order of
+ * insertion, starting with the oldest.
+ *
+ * The first returned string may be prefix truncated so
+ * that only a suffix remains.
+ *
+ * If a string cannot fit in the buffer at all then
+ * it will be suffix truncated on insertion.
+ */
+class CircularStringBuffer {
+ public:
+  CircularStringBuffer(char *buff, size_t len);
+  ~CircularStringBuffer();
+
+  /* Formatted print into buffer, returns number
+   * of characters added (without truncation),
+   * excluding trailing null
+   */
+  int print(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 2, 3);
+
+  class Iterator {
+   public:
+    Iterator(const CircularStringBuffer *csb);
+    ~Iterator();
+
+    /* Get next string from buffer, starting with oldest */
+    const char *getNextString(size_t *nextLen = nullptr);
+
+   private:
+    const CircularStringBuffer *m_csb;
+    size_t m_pos;
+  };
+
+ private:
+  char *m_buff;
+  size_t m_len;
+  size_t m_writtenBytes; /* Total bytes */
+};
+
 #endif

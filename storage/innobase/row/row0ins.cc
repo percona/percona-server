@@ -828,6 +828,82 @@ static void row_ins_foreign_report_add_err(
   mutex_exit(&dict_foreign_err_mutex);
 }
 
+#ifdef UNIV_DEBUG
+
+/* Check that a referential update action of a foreign key (changing key
+fields in referencing/child record when referenced/parent record is
+updated or deleted) has been applied to the child update node. This
+is a prerequisite for calculating the values of virtual fields,
+so we check it on a debug assertion. */
+static void assert_nonvirtual_cascade_fields_are_populated(
+    upd_node_t *cascade, upd_node_t *parent, dict_foreign_t *foreign) {
+  /* Sanity checks - these do not check if the fields are populated,
+  but rather the basic assumptions we rely on to make that check */
+  ut_a(parent);
+  ut_a(parent->update);
+  ut_a(cascade);
+  ut_a(cascade->update);
+  ut_a(foreign);
+  ut_a(foreign->foreign_index);
+  ut_a(foreign->foreign_table);
+  ut_a(foreign->referenced_index);
+  ut_a(foreign->referenced_table);
+  ut_ad_eq(parent->cascade_node, cascade);
+  ut_ad_eq(foreign->foreign_table, cascade->table);
+  ut_ad_eq(foreign->referenced_table, parent->table);
+  /* This cascade update needs to be triggered by an referential action */
+  if (parent->is_delete) {
+    ut_a(foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL);
+  } else {
+    ut_a(foreign->type &
+         (DICT_FOREIGN_ON_UPDATE_SET_NULL | DICT_FOREIGN_ON_UPDATE_CASCADE));
+  }
+
+  for (uint32_t foreign_pos = 0; foreign_pos < foreign->n_fields;
+       ++foreign_pos) {
+    const auto child_col = foreign->foreign_index->get_col(foreign_pos);
+    /* Sanity check - virtual columns in the child table cannot be part of
+    a foreign key which defines a referential update action */
+    ut_a(child_col);
+    ut_a(!child_col->is_virtual());
+    const auto child_col_no = dict_col_get_no(child_col);
+    /* assume update vector positions refer to clustered indexes */
+    const auto child_field_pos =
+        dict_table_get_nth_col_pos(foreign->foreign_table, child_col_no);
+    const auto child_field_update =
+        upd_get_field_by_field_no(cascade->update, child_field_pos, false);
+    if (parent->is_delete) {
+      ut_a(child_field_update);
+      ut_a(dfield_is_null(&child_field_update->new_val));
+    } else {
+      const auto parent_col = foreign->referenced_index->get_col(foreign_pos);
+      /* Sanity check - virtual columns cannot be referenced by a foreign key */
+      ut_a(!parent_col->is_virtual());
+
+      const auto parent_col_no = dict_col_get_no(parent_col);
+      const auto parent_field_pos =
+          dict_table_get_nth_col_pos(foreign->referenced_table, parent_col_no);
+      const auto parent_field_update =
+          upd_get_field_by_field_no(parent->update, parent_field_pos, false);
+      if (!parent_field_update ||
+          dfield_datas_are_binary_equal(&parent_field_update->old_val,
+                                        &parent_field_update->new_val)) {
+        continue;
+      }
+      ut_a(child_field_update);
+      if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+        ut_a(dfield_is_null(&child_field_update->new_val));
+      } else {
+        /* foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE */
+        ut_a(dfield_datas_are_binary_equal(&parent_field_update->new_val,
+                                           &child_field_update->new_val));
+      }
+    }
+  }
+}
+
+#endif /* UNIV_DEBUG */
+
 /** Fill virtual column information in cascade node for the child table.
 @param[out]     cascade         child update node
 @param[in]      rec             clustered rec of child table
@@ -839,46 +915,48 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
                                          dict_index_t *index, upd_node_t *node,
                                          dict_foreign_t *foreign,
                                          dberr_t *err) {
+  /* We rely on non-virtual update fields being filed before virtual fields */
+  ut_d(assert_nonvirtual_cascade_fields_are_populated(cascade, node, foreign));
   row_ext_t *ext;
   THD *thd = current_thd;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   mem_heap_t *v_heap = nullptr;
-  upd_t *update = cascade->update;
+  upd_t *const update = cascade->update;
   rec_offs_init(offsets_);
-  const ulint *offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
-                                         UT_LOCATION_HERE, &update->heap);
-  ulint n_v_fld = index->table->n_v_def;
+  const ulint *const offsets = rec_get_offsets(
+      rec, index, offsets_, ULINT_UNDEFINED, UT_LOCATION_HERE, &update->heap);
+  dict_table_t *const table = index->table;
+  const ulint n_v_fld = table->n_v_def;
   ulint n_diff;
   upd_field_t *upd_field;
-  dict_vcol_set *v_cols = foreign->v_cols;
+  const dict_vcol_set *const v_cols = foreign->v_cols;
   row_prebuilt_t *prebuilt =
       static_cast<que_thr_t *>(node->common.parent)->prebuilt;
 
-  update->old_vrow =
-      row_build(ROW_COPY_POINTERS, index, rec, offsets, index->table, nullptr,
-                nullptr, &ext, update->heap);
+  update->old_vrow = row_build(ROW_COPY_POINTERS, index, rec, offsets, table,
+                               nullptr, nullptr, &ext, update->heap);
 
   n_diff = update->n_fields;
 
   update->n_fields += n_v_fld;
 
-  if (index->table->vc_templ == nullptr) {
+  if (table->vc_templ == nullptr) {
     /** This can occur when there is a cascading
     delete or update after restart. */
-    innobase_init_vc_templ(index->table);
+    innobase_init_vc_templ(table);
   }
 
   for (ulint i = 0; i < n_v_fld; i++) {
-    dict_v_col_t *col = dict_table_get_nth_v_col(index->table, i);
+    dict_v_col_t *const col = dict_table_get_nth_v_col(table, i);
     auto it = v_cols->find(col);
 
     if (it == v_cols->end()) {
       continue;
     }
 
-    dfield_t *vfield = innobase_get_computed_value(
-        update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr, &prebuilt->blob_heap);
+    const dfield_t *const vfield = innobase_get_computed_value(
+        &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
+        update->heap, thd, nullptr);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -894,37 +972,14 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
 
     upd_field_set_v_field_no(upd_field, i, index);
 
-    if (node->is_delete ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-                        : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-      uint32_t col_match_count = dict_vcol_base_is_foreign_key(col, foreign);
-      if (col_match_count == col->num_base) {
-        /* If all base columns of virtual col are in FK */
-        dfield_set_null(&upd_field->new_val);
-      } else if (col_match_count == 0) {
-        /* If no base column of virtual col is in FK */
-        dfield_copy(&(upd_field->new_val), vfield);
-      } else {
-        /* If at least one base column of virtual col is in FK */
-        for (uint32_t j = 0; j < col->num_base; j++) {
-          dict_col_t *base_col = col->base_col[j];
-          uint32_t col_no = base_col->ind;
-          dfield_t *row_field = innobase_get_field_from_update_vector(
-              foreign, node->update, col_no);
-          if (row_field != nullptr) {
-            dfield_set_null(row_field);
-          }
-        }
-        dfield_t *new_vfield = innobase_get_computed_value(
-            update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign, &prebuilt->blob_heap);
-        dfield_copy(&(upd_field->new_val), new_vfield);
-      }
-    }
-
-    if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
-      dfield_t *new_vfield = innobase_get_computed_value(
-          update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign, &prebuilt->blob_heap);
+    if (!dict_vcol_base_is_foreign_key(col, foreign)) {
+      /* If no base column of virtual col is in FK, the virtual field
+      is not affected by update */
+      dfield_copy(&(upd_field->new_val), vfield);
+    } else {
+      const dfield_t *const new_vfield = innobase_get_computed_value(
+          &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
+          update->heap, thd, nullptr, nullptr, nullptr, update);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;
@@ -1033,6 +1088,8 @@ func_exit:
       cascade->update_n_fields = foreign->n_fields;
     }
   }
+
+  cascade->update->table = table;
 
   /* We do not allow cyclic cascaded updating (DELETE is allowed,
   but not UPDATE) of the same table, as this can lead to an infinite

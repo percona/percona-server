@@ -1618,6 +1618,7 @@ static int skip_msg(pax_msg *p) {
   prepare(p, skip_op);
   IFDBG(D_NONE, FN; STRLIT("skipping message "); SYCEXP(p->synode));
   p->msg_type = no_op;
+  cfg_app_get_storage_statistics()->add_empty_proposal_round();
   return send_to_all(p, "skip_msg");
 }
 
@@ -2326,6 +2327,12 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
 
     // Update site to match synode
     *site = proposer_site = find_site_def_rw(*msgno);
+
+    // Update node set get the latest state
+    if (is_view(a->body.c_t)) {
+      free_node_set(&a->body.app_u_u.present);
+      a->body.app_u_u.present = detector_node_set(*site);
+    }
 
     // Set the global current message for all number allocators
     set_current_message(incr_synode(*msgno));
@@ -4652,6 +4659,7 @@ static void propose_noop(synode_no find, pax_machine *p) {
   pax_msg *clone = clone_pax_msg(p->proposer.msg);
   if (clone != nullptr) {
     IFDBG(D_CONS, FN; SYCEXP(find));
+    cfg_app_get_storage_statistics()->add_empty_proposal_round();
     push_msg_3p(site, p, clone, find, no_op);
   } else {
     /* purecov: begin inspected */

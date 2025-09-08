@@ -474,7 +474,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     byte *data;
     ulint longest = 0;
     ulint longest_i = ULINT_MAX;
-    upd_field_t *uf = nullptr;
+    const upd_field_t *uf = nullptr;
 
     for (ulint i = dict_index_get_n_unique_in_tree(index);
          i < dtuple_get_n_fields(entry); i++) {
@@ -606,7 +606,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     if (upd == nullptr) {
       big_rec.ext_in_old = false;
     } else {
-      upd_field_t *uf = upd->get_field_by_field_no(longest_i, index);
+      const upd_field_t *const uf =
+          upd->get_field_by_field_no(longest_i, index);
       ut_ad(uf != nullptr);
       big_rec.ext_in_old = uf->ext_in_old;
     }
@@ -657,7 +658,7 @@ big_rec_t *big_rec_t::alloc(mem_heap_t *heap, ulint n_fld) {
       mem_heap_alloc(heap, n_fld * sizeof(big_rec_field_t)));
 
   rec->n_fields = 0;
-  return (rec);
+  return rec;
 }
 
 dfield_t *dfield_t::clone(mem_heap_t *heap) {
@@ -677,13 +678,13 @@ dfield_t *dfield_t::clone(mem_heap_t *heap) {
     obj->data = nullptr;
   }
 
-  return (obj);
+  return obj;
 }
 
 byte *dfield_t::blobref() const {
   ut_ad(ext);
 
-  return (static_cast<byte *>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
+  return static_cast<byte *>(data) + len - BTR_EXTERN_FIELD_REF_SIZE;
 }
 
 uint32_t dfield_t::lob_version() const {

@@ -654,6 +654,7 @@ void Configuration::setMixologyLevel(Uint32 l) { _mixologyLevel = l; }
 Uint32 Configuration::getShutdownHandlingFault() const {
   return _shutdownHandlingFault;
 }
+
 Uint32 Configuration::getShutdownHandlingFaultExtra() const {
   return _shutdownHandlingFaultExtra;
 }

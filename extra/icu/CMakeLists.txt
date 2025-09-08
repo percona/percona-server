@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@
 #   source/config
 #   source/data
 #   source/extra
+#   source/io
 #   source/layoutex
+#   source/python
 #   source/samples
 #   source/test
 #   source/tools
@@ -182,14 +184,18 @@ IF(MSVC AND NOT WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " /utf-8")
 ENDIF()
 
-#TODO(Bug#33986227): fix the deprecation for ICU
+# "Your code uses a function, class member, variable, or typedef
+#    that's marked deprecated."
+# ICU has deprecated some of its own functions.
 IF(MSVC)
   STRING_APPEND(CMAKE_C_FLAGS " /wd4996")
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4996")
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4101") # unreferenced local variable
 ENDIF()
 
 IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-variable")
 ENDIF()
 
 IF(WITH_ICU STREQUAL "bundled")
@@ -339,6 +345,8 @@ SET(ICU_COMMON_SOURCES
   ${ICU_VERSION_DIR}/source/common/uloc.cpp
   ${ICU_VERSION_DIR}/source/common/uloc_keytype.cpp
   ${ICU_VERSION_DIR}/source/common/uloc_tag.cpp
+  ${ICU_VERSION_DIR}/source/common/ulocale.cpp
+  ${ICU_VERSION_DIR}/source/common/ulocbuilder.cpp
   ${ICU_VERSION_DIR}/source/common/umapfile.cpp
   ${ICU_VERSION_DIR}/source/common/umath.cpp
   ${ICU_VERSION_DIR}/source/common/umutablecptrie.cpp
@@ -422,15 +430,16 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/chnsecal.cpp
   ${ICU_VERSION_DIR}/source/i18n/choicfmt.cpp
   ${ICU_VERSION_DIR}/source/i18n/coleitr.cpp
+  ${ICU_VERSION_DIR}/source/i18n/coll.cpp
+  ${ICU_VERSION_DIR}/source/i18n/collation.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationbuilder.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationcompare.cpp
-  ${ICU_VERSION_DIR}/source/i18n/collation.cpp
-  ${ICU_VERSION_DIR}/source/i18n/collationdatabuilder.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationdata.cpp
+  ${ICU_VERSION_DIR}/source/i18n/collationdatabuilder.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationdatareader.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationdatawriter.cpp
-  ${ICU_VERSION_DIR}/source/i18n/collationfastlatinbuilder.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationfastlatin.cpp
+  ${ICU_VERSION_DIR}/source/i18n/collationfastlatinbuilder.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationfcd.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationiterator.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationkeys.cpp
@@ -441,7 +450,6 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/collationsettings.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationtailoring.cpp
   ${ICU_VERSION_DIR}/source/i18n/collationweights.cpp
-  ${ICU_VERSION_DIR}/source/i18n/coll.cpp
   ${ICU_VERSION_DIR}/source/i18n/compactdecimalformat.cpp
   ${ICU_VERSION_DIR}/source/i18n/coptccal.cpp
   ${ICU_VERSION_DIR}/source/i18n/cpdtrans.cpp
@@ -462,11 +470,11 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/dayperiodrules.cpp
   ${ICU_VERSION_DIR}/source/i18n/dcfmtsym.cpp
   ${ICU_VERSION_DIR}/source/i18n/decContext.cpp
-  ${ICU_VERSION_DIR}/source/i18n/decimfmt.cpp
   ${ICU_VERSION_DIR}/source/i18n/decNumber.cpp
+  ${ICU_VERSION_DIR}/source/i18n/decimfmt.cpp
   ${ICU_VERSION_DIR}/source/i18n/displayoptions.cpp
-  ${ICU_VERSION_DIR}/source/i18n/double-conversion-bignum.cpp
   ${ICU_VERSION_DIR}/source/i18n/double-conversion-bignum-dtoa.cpp
+  ${ICU_VERSION_DIR}/source/i18n/double-conversion-bignum.cpp
   ${ICU_VERSION_DIR}/source/i18n/double-conversion-cached-powers.cpp
   ${ICU_VERSION_DIR}/source/i18n/double-conversion-double-to-string.cpp
   ${ICU_VERSION_DIR}/source/i18n/double-conversion-fast-dtoa.cpp
@@ -480,8 +488,8 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/erarules.cpp
   ${ICU_VERSION_DIR}/source/i18n/esctrn.cpp
   ${ICU_VERSION_DIR}/source/i18n/ethpccal.cpp
-  ${ICU_VERSION_DIR}/source/i18n/fmtable_cnv.cpp
   ${ICU_VERSION_DIR}/source/i18n/fmtable.cpp
+  ${ICU_VERSION_DIR}/source/i18n/fmtable_cnv.cpp
   ${ICU_VERSION_DIR}/source/i18n/format.cpp
   ${ICU_VERSION_DIR}/source/i18n/formatted_string_builder.cpp
   ${ICU_VERSION_DIR}/source/i18n/formattedval_iterimpl.cpp
@@ -504,6 +512,17 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/measunit.cpp
   ${ICU_VERSION_DIR}/source/i18n/measunit_extra.cpp
   ${ICU_VERSION_DIR}/source/i18n/measure.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_arguments.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_checker.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_data_model.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_errors.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_evaluation.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_formattable.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_formatter.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_function_registry.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_parser.cpp
+  ${ICU_VERSION_DIR}/source/i18n/messageformat2_serializer.cpp
   ${ICU_VERSION_DIR}/source/i18n/msgfmt.cpp
   ${ICU_VERSION_DIR}/source/i18n/name2uni.cpp
   ${ICU_VERSION_DIR}/source/i18n/nfrs.cpp
@@ -611,9 +630,9 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/ucal.cpp
   ${ICU_VERSION_DIR}/source/i18n/ucln_in.cpp
   ${ICU_VERSION_DIR}/source/i18n/ucol.cpp
-  ${ICU_VERSION_DIR}/source/i18n/ucoleitr.cpp
   ${ICU_VERSION_DIR}/source/i18n/ucol_res.cpp
   ${ICU_VERSION_DIR}/source/i18n/ucol_sit.cpp
+  ${ICU_VERSION_DIR}/source/i18n/ucoleitr.cpp
   ${ICU_VERSION_DIR}/source/i18n/ucsdet.cpp
   ${ICU_VERSION_DIR}/source/i18n/udat.cpp
   ${ICU_VERSION_DIR}/source/i18n/udateintervalformat.cpp
@@ -632,13 +651,13 @@ SET(ICU_I18N_SOURCES
   ${ICU_VERSION_DIR}/source/i18n/unum.cpp
   ${ICU_VERSION_DIR}/source/i18n/unumsys.cpp
   ${ICU_VERSION_DIR}/source/i18n/upluralrules.cpp
-  ${ICU_VERSION_DIR}/source/i18n/uregexc.cpp
   ${ICU_VERSION_DIR}/source/i18n/uregex.cpp
+  ${ICU_VERSION_DIR}/source/i18n/uregexc.cpp
   ${ICU_VERSION_DIR}/source/i18n/uregion.cpp
   ${ICU_VERSION_DIR}/source/i18n/usearch.cpp
+  ${ICU_VERSION_DIR}/source/i18n/uspoof.cpp
   ${ICU_VERSION_DIR}/source/i18n/uspoof_build.cpp
   ${ICU_VERSION_DIR}/source/i18n/uspoof_conf.cpp
-  ${ICU_VERSION_DIR}/source/i18n/uspoof.cpp
   ${ICU_VERSION_DIR}/source/i18n/uspoof_impl.cpp
   ${ICU_VERSION_DIR}/source/i18n/utf16collationiterator.cpp
   ${ICU_VERSION_DIR}/source/i18n/utf8collationiterator.cpp
@@ -697,18 +716,18 @@ ADD_DEPENDENCIES(icu_all icuuc icui18n icustubdata)
 
 # To build data files on Linux (used for all little-endian platforms)
 #
-# tar xvf icu4c-69_1-src.tgz
+# tar xvf icu4c-77_1-src.tgz
 # cd icu
 # mkdir bin-files
 # cd bin-files
-# export CXXFLAGS=-std=c++11
+# export CXXFLAGS=-std=c++17
 # ../source/configure --with-data-packaging=files
 # make
 # cd data/out/build
-# tar cvf icudt73l.tar icudt73l/brkitr icudt73l/*.icu
+# tar cvf icudt77l.tar icudt77l/brkitr icudt77l/*.icu
 #
 # Solaris sparc, same thing, but:
-# tar cvf icudt73b.tar icudt73b/brkitr icudt73b/*.icu
+# tar cvf icudt77b.tar icudt77b/brkitr icudt77b/*.icu
 #
 # Copy the tarballs, unpack them, and do 'git add'.
 

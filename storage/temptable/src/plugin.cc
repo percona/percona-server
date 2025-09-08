@@ -40,8 +40,7 @@ static handler *create_handler(handlerton *hton, TABLE_SHARE *table_share, bool,
 
 static int close_connection(handlerton *hton, THD *thd) {
   (void)hton;
-  temptable::kv_store_shards_debug_dump();
-  temptable::shared_block_pool_release(thd);
+  temptable::close_connection(thd);
   return 0;
 }
 

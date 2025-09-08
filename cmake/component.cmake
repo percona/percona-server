@@ -108,6 +108,8 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
 
+    DOWNGRADE_STRINGOP_WARNINGS(${target})
+
     # To hide the component symbols in the shared object
     IF(UNIX)
       # Use this also for component libraries and tests.

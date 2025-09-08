@@ -24,6 +24,7 @@
 */
 
 #include <atomic>
+#include <ctime>
 
 #include <ndb_global.h>
 
@@ -2552,8 +2553,8 @@ static void report_events(const ndb_logevent &event) {
         event.SavedEvent.len);
 
   char timestamp_str[64];
-  Logger::format_timestamp(event.SavedEvent.time, timestamp_str,
-                           sizeof(timestamp_str));
+  std::timespec t = {event.SavedEvent.time, 0};
+  Logger::format_timestamp(&t, timestamp_str, sizeof(timestamp_str));
 
   ndbout_c("%s %s", timestamp_str, out);
 }

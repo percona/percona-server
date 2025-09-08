@@ -41,6 +41,10 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+
 #include "common.h"  // truncate_string
 #include "config_builder.h"
 #include "dim.h"
@@ -55,12 +59,14 @@
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/utils.h"  // getpwuid
+#include "openssl_version.h"    // ROUTER_OPENSSL_VERSION
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_config.h"
 #include "router_test_helpers.h"  // get_file_output
+#include "scope_guard.h"
 #include "script_generator.h"
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
@@ -176,7 +182,20 @@ auto get_test_description(
 
 class RouterBootstrapOkTest
     : public RouterComponentBootstrapWithDefaultCertsTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  void verify_password_not_logged(const std::string &console_output) {
+    const auto lines = mysql_harness::split_string(console_output, '\n');
+    size_t found_create_statements{0};
+    for (const auto &line : lines) {
+      if (line.find("CREATE USER") != std::string::npos) {
+        EXPECT_THAT(line, ::testing::HasSubstr("***"));
+        ++found_create_statements;
+      }
+    }
+    EXPECT_GT(found_create_statements, 0);
+  }
+};
 
 /**
  * @test
@@ -211,7 +230,7 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
 
   std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
-      bootstrap_dir.name()};
+      bootstrap_dir.name(), "--logger.level=debug"};
 
   auto &router = launch_router_for_bootstrap(bootstrap_params);
 
@@ -226,6 +245,8 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
     EXPECT_TRUE(pattern_found(router_console_output, expected_output_string))
         << router_console_output;
   }
+
+  verify_password_not_logged(router_console_output);
 
   const std::string conf_file = bootstrap_dir.name() + "/mysqlrouter.conf";
   // 'config_file' is set as side-effect of bootstrap_failover()
@@ -3254,7 +3275,7 @@ INSTANTIATE_TEST_SUITE_P(
              "Failed changing the authentication plugin for account "
              "'.*'@'localhost': Error executing MySQL query \"alter user "
              "'.*'@'localhost' identified with `caching_sha2_password` by "
-             "'.*'\": Unexpected error .*"},
+             "\\*\\*\\*\": Unexpected error .*"},
             /*unexpected_output_strings*/
             {"Successfully changed the authentication plugin for .*"},
             /*test_description*/
@@ -3430,6 +3451,76 @@ INSTANTIATE_TEST_SUITE_P(
             "Error: Unsupported MySQL Server version '.*'. Maximal supported "
             "version is '" +
                 std::to_string(max_supported_version) + "'."}));
+
+std::string get_x509_name(X509_NAME *name) {
+  char buffer[256];
+  X509_NAME_oneline(name, buffer, sizeof(buffer));
+  return std::string(buffer);
+}
+
+class BootstrapCertTest : public RouterComponentBootstrapTest {};
+
+TEST_F(BootstrapCertTest, CheckGeneratedCertDetails) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+
+  const std::string tracefile = "bootstrap_gr.js";
+  const std::string json_stmts = get_data_dir().join(tracefile).str();
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
+
+  std::vector<std::string> cmdline_bs = {"--bootstrap=root:"s + kRootPassword +
+                                             "@localhost:"s +
+                                             std::to_string(server_port),
+                                         "-d", bootstrap_dir.name()};
+
+  auto &router = launch_router_for_bootstrap(cmdline_bs, EXIT_SUCCESS,
+                                             /*disable_rest*/ false);
+  check_exit_code(router, EXIT_SUCCESS);
+
+  Path tmp(bootstrap_dir.name());
+  Path cert_file(tmp.join("data").join("router-cert.pem").str());
+  ASSERT_TRUE(cert_file.exists());
+
+  SCOPED_TRACE("// Open certificate file");
+  FILE *file = fopen(cert_file.str().c_str(), "r");
+  ASSERT_TRUE(file);
+  Scope_guard file_guard([&]() { fclose(file); });
+
+  SCOPED_TRACE("// Read certificate");
+  X509 *cert = PEM_read_X509(file, nullptr, nullptr, nullptr);
+  ASSERT_TRUE(cert);
+  Scope_guard cert_guard([&]() { X509_free(cert); });
+
+  SCOPED_TRACE("// Check certificate validity");
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  const ASN1_TIME *notBefore = X509_get0_notBefore(cert);
+  const ASN1_TIME *notAfter = X509_get0_notAfter(cert);
+#else
+  ASN1_TIME *notBefore = X509_get_notBefore(cert);
+  ASN1_TIME *notAfter = X509_get_notAfter(cert);
+#endif
+  int days = 0, seconds = 0;
+  ASSERT_TRUE(ASN1_TIME_diff(&days, &seconds, notBefore, notAfter));
+  const auto k_year = 365;
+  EXPECT_LE(days, k_year);
+
+  SCOPED_TRACE("// Check certificate serial number");
+  ASN1_INTEGER *serial = X509_get_serialNumber(cert);
+  const auto serialNumber = ASN1_INTEGER_get(serial);
+  EXPECT_NE(serialNumber, 0);
+
+  SCOPED_TRACE("// Check issuer and subject CN");
+  EXPECT_THAT(
+      get_x509_name(X509_get_issuer_name(cert)),
+      ::testing::HasSubstr("MySQL_Router_Auto_Generated_CA_Certificate"));
+  EXPECT_THAT(
+      get_x509_name(X509_get_subject_name(cert)),
+      ::testing::HasSubstr("MySQL_Router_Auto_Generated_Router_Certificate"));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

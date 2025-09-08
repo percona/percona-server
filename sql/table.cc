@@ -2917,8 +2917,15 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
          key_part < key_part_end; key_part++) {
       Field *field = key_part->field = table->field[key_part->fieldnr - 1];
 
+      /*
+        For spatial indexes, the key parts are assigned the length (4 *
+        sizeof(double)) in prepare_key_column() and the field->key_length() is
+        set to 0. This makes it appear like a prefixed index. However, prefixed
+        indexes are not allowed on Geometric columns. Hence skipping new field
+        creation for Geometric columns.
+      */
       if (field->key_length() != key_part->length &&
-          !field->is_flag_set(BLOB_FLAG)) {
+          field->type() != MYSQL_TYPE_GEOMETRY) {
         /*
           We are using only a prefix of the column as a key:
           Create a new field for the key part that matches the index
@@ -3432,6 +3439,34 @@ int closefrm(TABLE *table, bool free_share) {
   if (table->db_stat) error = table->file->ha_close();
   my_free(const_cast<char *>(table->alias));
   table->alias = nullptr;
+
+  /*
+    Iterate through the Table's Key_info and free its key_part->field if the
+    field is of BLOB type.
+
+    When a prefixed key is present, a new Field object is created in
+    create_key_part_field_with_prefix_length(). These field objects get
+    destroyed when the Table's mem_root is cleared here later. In case of
+    Field_blob objects, Field_blob::value is allocated on the heap. Thus
+    Field_blob objects are freed here in order to destruct the Field_blob::value
+    object.
+  */
+  KEY *key_info = table->key_info;
+  if (key_info) {
+    KEY_PART_INFO *key_part = key_info->key_part;
+    for (KEY *key_info_end = key_info + table->s->keys; key_info < key_info_end;
+         key_info++) {
+      for (KEY_PART_INFO *key_part_end = key_part + key_info->actual_key_parts;
+           key_part < key_part_end; key_part++) {
+        if (key_part->field && key_part->field->is_flag_set(BLOB_FLAG) &&
+            key_part->field->type() != MYSQL_TYPE_GEOMETRY) {
+          ::destroy_at(key_part->field);
+          key_part->field = nullptr;
+        }
+      }
+    }
+  }
+
   if (table->field) {
     for (Field **ptr = table->field; *ptr; ptr++) {
       if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);

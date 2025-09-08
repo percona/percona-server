@@ -118,6 +118,9 @@ static inline void mem_block_validate(const mem_block_t *block) {
   }
 }
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// gcc may warn about memset() into a region of size 0
+MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wstringop-overflow")
 /** Allocates and zero-fills n bytes of memory from a memory heap.
 @param[in]      heap    memory heap
 @param[in]      n       number of bytes; if the heap is allowed to grow into
@@ -128,6 +131,7 @@ static inline void *mem_heap_zalloc(mem_heap_t *heap, ulint n) {
   ut_ad(!(heap->type & MEM_HEAP_BTR_SEARCH));
   return (memset(mem_heap_alloc(heap, n), 0, n));
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Allocates n bytes of memory from a memory heap.
 @param[in]      heap    memory heap

@@ -351,16 +351,10 @@ fts_query_find_doc_id(
     dict_index_t *index, /*!< in: FTS index to search */
     fts_query_t *query); /*!< in: query result, to be freed
                         by the client */
-/** This function finds documents that contain all words in a
- phrase or proximity search. And if proximity search, verify
- the words are close enough to each other, as in specified distance.
- This function is called for phrase and proximity search.
- @return true if documents are found, false if otherwise */
-static bool fts_phrase_or_proximity_search(
-    fts_query_t *query,   /*!< in/out:  query instance
-                          query->doc_ids might be instantiated
-                          with qualified doc IDs */
-    ib_vector_t *tokens); /*!< in: Tokens contain words */
+
+static bool fts_search_docs_containing_all_tokens(fts_query_t *query,
+                                                  ib_vector_t *tokens);
+
 /** This function checks whether words in result documents are close to
  each other (within proximity range as specified by "distance").
  If "distance" is MAX_ULINT, then it will find all combinations of
@@ -2502,9 +2496,10 @@ static void fts_query_phrase_split(fts_query_t *query,
   }
 }
 
-/** Text/Phrase search.
+/** Proximity/Phrase search.
+ Used to perform searches which include multiple words.
  @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t fts_query_phrase_search(
+[[nodiscard]] static dberr_t fts_query_multi_word_search(
     fts_query_t *query,         /*!< in: query instance */
     const fts_ast_node_t *node) /*!< in: node to search */
 {
@@ -2635,7 +2630,7 @@ static void fts_query_phrase_split(fts_query_t *query,
     /* If we are doing proximity search, verify the distance
     between all words, and check they are in specified distance. */
     if (query->flags & FTS_PROXIMITY) {
-      fts_phrase_or_proximity_search(query, tokens);
+      fts_search_docs_containing_all_tokens(query, tokens);
     } else {
       /* Phrase Search case:
       We filter out the doc ids that don't contain
@@ -2644,7 +2639,7 @@ static void fts_query_phrase_split(fts_query_t *query,
       and then doing a search through the text. Isolated
       testing shows this also helps in mitigating disruption
       of the buffer cache. */
-      auto matched = fts_phrase_or_proximity_search(query, tokens);
+      auto matched = fts_search_docs_containing_all_tokens(query, tokens);
       query->matched = query->match_array[0];
 
       /* Read the actual text in and search for the phrase. */
@@ -2770,7 +2765,7 @@ static dberr_t fts_query_visitor(
       /* Force collection of doc ids and the positions. */
       query->collect_positions = true;
 
-      query->error = fts_query_phrase_search(query, node);
+      query->error = fts_query_multi_word_search(query, node);
 
       query->collect_positions = false;
 
@@ -4042,91 +4037,84 @@ func_exit:
 
   return (error);
 }
+
 /** This function finds documents that contain all words in a
  phrase or proximity search. And if proximity search, verify
  the words are close enough to each other, as in specified distance.
  This function is called for phrase and proximity search.
+ Expects the match list for each token (query->match_array),
+ to be sorted in increasing order of doc_id.
  @return true if documents are found, false if otherwise */
-static bool fts_phrase_or_proximity_search(
+static bool fts_search_docs_containing_all_tokens(
     fts_query_t *query,  /*!< in/out:  query instance.
                          query->doc_ids might be instantiated
-                         with qualified doc IDs */
+                         with qualified doc IDs.
+                         For phrase search,
+                         query->match_array[0] will be modified.
+                         Documents matching only the 0th token but
+                         not the others (i.e. document doesn't match)
+                         will have their doc_id set to FTS_NULL_DOC_ID. */
     ib_vector_t *tokens) /*!< in: Tokens contain words */
 {
-  ulint n_matched;
-  ulint i;
   bool matched = false;
-  ulint num_token = ib_vector_size(tokens);
+  const Vector_wrapper<fts_string_t> tokens_v(*tokens);
+  const size_t num_tokens = tokens_v.size();
   fts_match_t *match[MAX_PROXIMITY_ITEM];
-  bool end_list = false;
 
-  /* Number of matched documents for the first token */
-  n_matched = ib_vector_size(query->match_array[0]);
+  Vector_wrapper<fts_match_t> matches_of_0th_token(*query->match_array[0]);
 
-  /* We have a set of match list for each word, we shall
+  for (size_t j = 0; j < num_tokens; ++j) {
+    match[j] = Vector_wrapper<fts_match_t>(*query->match_array[j]).begin();
+  }
+
+  /* We have a set of match list for each word, and we expect
+  these lists to be sorted in increasing order of doc_id, we shall
   walk through the list and find common documents that
   contain all the matching words. */
-  for (i = 0; i < n_matched; i++) {
+  for (; match[0] < matches_of_0th_token.end(); match[0]++) {
     ulint j;
-    ulint k = 0;
     fts_proximity_t qualified_pos;
-
-    match[0] =
-        static_cast<fts_match_t *>(ib_vector_get(query->match_array[0], i));
 
     /* For remaining match list for the token(word), we
     try to see if there is a document with the same
     doc id */
-    for (j = 1; j < num_token; j++) {
-      match[j] =
-          static_cast<fts_match_t *>(ib_vector_get(query->match_array[j], k));
+    for (j = 1; j < num_tokens; j++) {
+      Vector_wrapper<fts_match_t> matches_of_jth_token(*query->match_array[j]);
 
-      while (match[j]->doc_id < match[0]->doc_id &&
-             k < ib_vector_size(query->match_array[j])) {
-        match[j] =
-            static_cast<fts_match_t *>(ib_vector_get(query->match_array[j], k));
-        k++;
+      /* Loop until we exhaust the list or find a doc_id which
+      is equal or greater than match[0]->doc_id */
+      while (match[j] < matches_of_jth_token.end() &&
+             match[0]->doc_id > match[j]->doc_id) {
+        match[j]++;
       }
 
-      if (match[j]->doc_id > match[0]->doc_id) {
+      /* Once we reach end of any of the word list, we will not
+      find any greater doc_id which will contain this word.
+      We can stop our search at this point. */
+      if (match[j] == matches_of_jth_token.end()) {
+        if (query->flags & FTS_PHRASE) {
+          /* The i-th doc_id from match_array[0] is greater than any in
+          match_array[j]. As the arrays are sorted it guarantees no further
+          match. */
+          while (match[0] < matches_of_0th_token.end()) {
+            match[0]->doc_id = FTS_NULL_DOC_ID;
+            match[0]++;
+          }
+        }
+
+        return matched;
+      }
+
+      if (match[0]->doc_id < match[j]->doc_id) {
         /* no match */
         if (query->flags & FTS_PHRASE) {
-          match[0]->doc_id = 0;
+          match[0]->doc_id = FTS_NULL_DOC_ID;
         }
         break;
       }
-
-      if (k == ib_vector_size(query->match_array[j])) {
-        end_list = true;
-
-        if (query->flags & FTS_PHRASE) {
-          ulint s;
-          /* Since i is the last doc id in the match_array[j],
-          remove all doc ids > i from the match_array[0]. */
-          fts_match_t *match_temp;
-          for (s = i + 1; s < n_matched; s++) {
-            match_temp = static_cast<fts_match_t *>(
-                ib_vector_get(query->match_array[0], s));
-            match_temp->doc_id = 0;
-          }
-          if (match[j]->doc_id != match[0]->doc_id) {
-            /* no match */
-            match[0]->doc_id = 0;
-          }
-        }
-
-        if (match[j]->doc_id != match[0]->doc_id) {
-          goto func_exit;
-        }
-      }
-
-      /* FIXME: A better solution will be a counter array
-      remember each run's last position. So we don't
-      reset it here very time */
-      k = 0;
     }
 
-    if (j != num_token) {
+    if (j != num_tokens) {
       continue;
     }
 
@@ -4136,7 +4124,7 @@ static bool fts_phrase_or_proximity_search(
     in the proximity search */
     if (query->flags & FTS_PHRASE) {
       matched = true;
-    } else if (fts_proximity_get_positions(match, num_token, ULINT_MAX,
+    } else if (fts_proximity_get_positions(match, num_tokens, ULINT_MAX,
                                            &qualified_pos)) {
       /* Fetch the original documents and count the
       words in between matching words to see that is in
@@ -4145,25 +4133,16 @@ static bool fts_phrase_or_proximity_search(
         /* If so, mark we find a matching doc */
         query->error = fts_query_process_doc_id(query, match[0]->doc_id, 0);
         if (query->error != DB_SUCCESS) {
-          matched = false;
-          goto func_exit;
+          return false;
         }
 
         matched = true;
-        for (ulint z = 0; z < num_token; z++) {
-          fts_string_t *token;
-          token = static_cast<fts_string_t *>(ib_vector_get(tokens, z));
-          fts_query_add_word_to_document(query, match[0]->doc_id, token);
+        for (const auto &token : tokens_v) {
+          fts_query_add_word_to_document(query, match[0]->doc_id, &token);
         }
       }
     }
-
-    if (end_list) {
-      break;
-    }
   }
-
-func_exit:
   return (matched);
 }
 

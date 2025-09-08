@@ -2048,6 +2048,8 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         state = MY_LEX_CHAR;
         break;
       case MY_LEX_END:
+        /* Unclosed special comments result in a syntax error */
+        if (lip->in_comment == DISCARD_COMMENT) return (ABORT_SYM);
         lip->next_state = MY_LEX_END;
         return (0);  // We found end of input last time
 

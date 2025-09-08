@@ -72,3 +72,10 @@ MYSQL_ADD_EXECUTABLE(compatibility_binlogevents-t compatibility_binlogevents-t.c
   LINK_LIBRARIES mysql_gtid mysql_binlog_event_standalone gunit_small
   COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
   COMPILE_OPTIONS ${COMPATIBILITY_TEST_OPT})
+
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  ADD_COMPILE_FLAGS(payload_event_buffer_istream-t.cc COMPILE_FLAGS
+    "-Wno-array-bounds"
+    "-Wno-stringop-overflow"
+    )
+ENDIF()

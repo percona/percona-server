@@ -29,10 +29,12 @@
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <portlib/NdbMem.h>
+#include <portlib/NdbTimestamp.h>
 #include <signal.h>
 #include <Configuration.hpp>
 #include <NdbOut.hpp>
 #include <cstring>
+#include <ctime>
 #include <util/ConfigValues.hpp>
 
 #include <FastScheduler.hpp>
@@ -423,10 +425,11 @@ void SavedEventBuffer::save(const Uint32 *theData, Uint32 len) {
   Uint32 total = len + SavedEvent::HeaderLength;
   alloc(total);
 
+  std::timespec now = NdbTimestamp_GetCurrentTime();
   SavedEvent s;
   s.m_len = len;  // size of SavedEvent
   s.m_seq = m_saved_event_sequence++;
-  s.m_time = (Uint32)time(0);
+  s.m_time = (Uint32)now.tv_sec;
   const Uint32 *src = (const Uint32 *)&s;
   Uint32 *dst = m_data + m_write_pos;
 

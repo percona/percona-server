@@ -2312,6 +2312,42 @@ TEST_F(RouterRequireConnectionPoolTest,
   };
 }
 
+TEST_F(RouterRequireConnectionPoolTest, classic_protocol_user_with_comment) {
+  RecordProperty("Bug", "37903358");
+  RecordProperty("Description",
+                 "If the user's attributes contain other attributes than "
+                 "'router_require', auth shouldn't fail.");
+  // start router.
+  auto &proc = spawn_router(
+      classic_destinations_from_shared_servers(test_env->servers()));
+  ASSERT_TRUE(proc.wait_for_sync_point_result());
+
+  // add a connection to the pool
+  for (auto &srv : test_env->servers()) {
+    auto admin_cli_res = srv->admin_cli();
+
+    ASSERT_NO_ERROR(admin_cli_res);
+    auto admin_cli = std::move(*admin_cli_res);
+
+    ASSERT_NO_ERROR(admin_cli.query("DROP USER IF EXISTS user_with_comment"));
+
+    ASSERT_NO_ERROR(
+        admin_cli.query("CREATE USER user_with_comment IDENTIFIED BY "
+                        "'user_with_comment_password' comment 'Testuser'"));
+  };
+
+  {
+    MysqlClient cli;
+
+    cli.username("user_with_comment");
+    cli.password("user_with_comment_password");
+
+    ASSERT_NO_ERROR(cli.connect(host(), port(kPreferredPreferred)));
+
+    ASSERT_NO_ERROR(cli.query("DO 1"));
+  }
+}
+
 int main(int argc, char *argv[]) {
   net::impl::socket::init();
 

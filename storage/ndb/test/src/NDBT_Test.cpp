@@ -26,11 +26,12 @@
 #include <ndb_global.h>
 #include "util/require.h"
 
-#include <time.h>
+#include <ctime>
 
 #include <ndb_opts.h>
 
 #include <portlib/NdbEnv.h>
+#include <portlib/NdbTimestamp.h>
 #include <NdbIndexStat.hpp>
 #include <logger/Logger.hpp>
 #include "NDBT.hpp"
@@ -1635,11 +1636,10 @@ void NDBT_TestSuite::printCases() {
 
 const char *NDBT_TestSuite::getDate(char *str, size_t len) {
   // Get current time
-  time_t now;
-  time(&now);
+  std::timespec now = NdbTimestamp_GetCurrentTime();
 
   // Print as timestamp to buf
-  Logger::format_timestamp(now, str, len);
+  Logger::format_timestamp(&now, str, len);
 
   return str;
 }

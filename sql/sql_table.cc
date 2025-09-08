@@ -8192,6 +8192,12 @@ static Create_field *add_functional_index_to_create_list(
     return nullptr;
   }
 
+  // Don't even bother trying to create a non-conformant table.
+  if (alter_info->create_list.is_empty()) {
+    my_error(ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN, MYF(0));
+    return nullptr;
+  }
+
   cr->field_name = field_name;
   cr->field = nullptr;
   cr->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_SQL;

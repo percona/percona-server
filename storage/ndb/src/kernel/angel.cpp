@@ -672,6 +672,12 @@ void angel_run(const char *progname, const Vector<BaseString> &original_args,
     one_arg.assfmt("--angel-pid=%d", getpid());
     args.push_back(one_arg);
 
+    if (opt_ndb_log_timestamps < std::size(NdbStdOpt::timestamps_names) - 1) {
+      one_arg.assfmt("--ndb-log-timestamps=%s",
+                     NdbStdOpt::timestamps_names[opt_ndb_log_timestamps]);
+      args.push_back(one_arg);
+    }
+
     if (have_password_option) {
       /**
        * Removes all password opts and adds a new one

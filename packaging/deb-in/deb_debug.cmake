@@ -54,7 +54,7 @@ SET (DEB_RULES_DEBUG_MAKE
 SET (DEB_RULES_DEBUG_EXTRA
 "
 	# The ini file isn't built for debug, so copy over from the standard build
-	install -g root -o root -m 0755 debian/tmp/usr/lib/mysql/plugin/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
+	install -m 0755 debian/tmp/usr/lib/mysql/plugin/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
 ")
 
 SET (DEB_INSTALL_DEBUG_SERVER

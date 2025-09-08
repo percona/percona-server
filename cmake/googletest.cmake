@@ -70,3 +70,8 @@ FOREACH(googletest_library
     TARGET_COMPILE_OPTIONS(${googletest_library} PRIVATE ${HAS_MISSING_PROFILE})
   ENDIF()
 ENDFOREACH()
+
+# googletest/src/gtest-internal-inl.h: In member function 'OnTestEnd'
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  TARGET_LINK_OPTIONS(gtest INTERFACE -Wno-error=stringop-overflow)
+ENDIF()

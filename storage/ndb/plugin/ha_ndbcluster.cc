@@ -110,6 +110,7 @@
 #include "storage/ndb/src/common/util/parse_mask.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
+#include "storage/ndb/src/ndbapi/ndb_internal.hpp"
 #include "string_with_len.h"
 #include "strxnmov.h"
 #include "template_utils.h"
@@ -9488,7 +9489,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     if (ndbtab != nullptr) {
       thd_ndb->push_warning(
           "The temporary named table %s.%s already exists, it will be removed",
-          tabname, dbname);
+          dbname, tabname);
       if (ndb->getDictionary()->dropTableGlobal(*ndbtab, flag) != 0) {
         thd_ndb->push_warning(
             "Attempt to drop temporary named table %s.%s failed", dbname,
@@ -12715,6 +12716,10 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   // Initialize NdbApi
   ndb_init_internal(1);
+  Ndb_internal::set_log_timestamp_format(
+      opt_log_timestamps
+          ? Ndb_internal::log_timestamp_format::iso8601_system_time
+          : Ndb_internal::log_timestamp_format::iso8601_utc);
 
   if (!ndb_server_hooks.register_server_hooks(ndb_wait_setup_server_startup,
                                               ndb_dd_upgrade_hook)) {

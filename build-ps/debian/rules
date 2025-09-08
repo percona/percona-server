@@ -4,9 +4,9 @@
 	dh $@
 
 export DH_VERBOSE=1
-export CFLAGS=
-export CXXFLAGS=
-export CPPFLAGS=
+export CFLAGS=-Wno-error=free-nonheap-object
+export CXXFLAGS=-Wno-error=free-nonheap-object
+export CPPFLAGS=-Wno-error=free-nonheap-object
 
 PACKAGE=percona-server
 PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
@@ -41,6 +41,15 @@ EXPORTED_SOURCE_TARBALL = debian/percona-server-source.tar.gz
 
 DISTRIBUTION = $(shell lsb_release -i -s)
 DISTRELEASE = $(shell lsb_release -c -s)
+
+# Disable LTO only for focal and bullseye
+ifeq ($(DISTRELEASE),focal)
+	LTO_FLAG = -DWITH_LTO=OFF
+else ifeq ($(DISTRELEASE),bullseye)
+	LTO_FLAG = -DWITH_LTO=OFF
+else
+	LTO_FLAG = -DWITH_LTO=ON
+endif
 
 MYSQL_SRC = $(shell pwd)
 
@@ -97,6 +106,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_PERCONA_TELEMETRY=ON \
+		$(LTO_FLAG) \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
 endif
 
@@ -146,6 +156,7 @@ endif
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_PERCONA_TELEMETRY=ON \
+		$(LTO_FLAG) \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
 	touch $@
@@ -158,10 +169,11 @@ override_dh_auto_build:
 	--transform="s,^\./,percona-server/,"
 
 ifeq ($(SKIP_DEBUG_BINARY),)
-	cd $(builddebug) && $(MAKE) -j$(NCPU)
+	# limited to 4 due to WITH_LTO=ON
+	cd $(builddebug) && $(MAKE) -j4 VERBOSE=1
 endif
 
-	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
+	cd $(builddir) && $(MAKE) -j$(NCPU)
 
 	touch $@
 

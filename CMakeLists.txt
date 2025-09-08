@@ -806,11 +806,13 @@ INCLUDE(curl)
 INCLUDE(coredumper)
 INCLUDE(prepend_append_cflags_if_supported)
 INCLUDE(rapidjson)
-INCLUDE(fprofile)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
 INCLUDE(libs_mysql_create_library)
 INCLUDE(libcno)
+# Do this last, so that most feature checks are done, and not affected by
+# -fprofile-use or -fprofile-generate
+INCLUDE(fprofile) # Do this last !!
 
 # To simplify building of JET, skip all dependencies for other targets.
 IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
@@ -891,8 +893,25 @@ OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
-# Currently only supported on Linux
-IF(LINUX)
+# Add option WITH_KERBEROS_MAC which will be ignored on older branches.
+UNSET(CUSTOM_KERBEROS_SPECIFIED)
+IF(APPLE)
+  IF(DEFINED WITH_KERBEROS_MAC AND IS_DIRECTORY ${WITH_KERBEROS_MAC})
+    SET(CUSTOM_KERBEROS_SPECIFIED 1)
+  ELSEIF(DEFINED WITH_KERBEROS AND IS_DIRECTORY ${WITH_KERBEROS})
+    SET(CUSTOM_KERBEROS_SPECIFIED 1)
+  ENDIF()
+ENDIF()
+
+# Enable it by default for Linux(system) and MacOS(custom path)
+IF(WITH_INTERNAL AND
+    (LINUX OR
+      (APPLE AND
+        CUSTOM_KERBEROS_SPECIFIED)))
+  # The validity of the WITH_KERBEROS path will be verified later,
+  # in MYSQL_CHECK_KERBEROS
+  # Enabling WITH_AUTHENTICATION_KERBEROS, will also enable
+  # WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT, see below.
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_KERBEROS_DEFAULT OFF)
@@ -1709,6 +1728,13 @@ IF(APPLE)
   OPTION(WITH_DEVELOPER_ENTITLEMENTS "Add developer entitlements" OFF)
 ENDIF()
 
+# Utility target to copy all "custom" libraries into the build directory.
+ADD_CUSTOM_TARGET(copy_custom_libraries)
+IF(APPLE)
+  # Utility target, to inspect all the symlinks created.
+  ADD_CUSTOM_TARGET(symlink_custom_libraries)
+ENDIF()
+
 # Utility target to build every executable tagged with ADD_TEST.
 ADD_CUSTOM_TARGET(unittest_all)
 
@@ -1868,7 +1894,6 @@ MYSQL_CHECK_ZSTD()
 IF(LINUX)
   # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.
   FIND_PROGRAM(PATCHELF_EXECUTABLE patchelf)
-  ADD_CUSTOM_TARGET(copy_linux_custom_dlls)
   SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
 ENDIF()
 

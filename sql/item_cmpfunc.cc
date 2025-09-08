@@ -5179,6 +5179,21 @@ bool Item_func_in::list_contains_null() {
   return false;
 }
 
+void Item_func_in::set_no_constant_propagation() {
+  // Only when the LHS is a ROW_ITEM that constant propagation
+  // could skip range analysis.
+  if (args[0]->type() != Item::ROW_ITEM) {
+    return;
+  }
+  Item_row *row_predicand = down_cast<Item_row *>(args[0]);
+  for (uint i = 0; i < row_predicand->cols(); ++i) {
+    Item *item = row_predicand->element_index(i)->real_item();
+    if (item->type() == Item::FIELD_ITEM) {
+      item->disable_constant_propagation(nullptr);
+    }
+  }
+}
+
 /**
   Perform context analysis of an IN item tree.
 

@@ -97,8 +97,8 @@ IF(APPLE)
       MESSAGE(FATAL_ERROR "obool -L ${FILE_NAME} result: ${OTOOL_RESULT}")
     ENDIF()
     STRING(REPLACE "\n" ";" OTOOL_OUTPUT_LIST "${OTOOL_OUTPUT}")
-    # Skip header, and the library itself
-    LIST(REMOVE_AT OTOOL_OUTPUT_LIST 0 1)
+    # Skip header
+    LIST(REMOVE_AT OTOOL_OUTPUT_LIST 0)
     SET(DEPENDENCIES)
     FOREACH(LINE ${OTOOL_OUTPUT_LIST})
       IF(${LINE} MATCHES "@rpath")

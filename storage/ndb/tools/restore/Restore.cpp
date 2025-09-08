@@ -24,6 +24,7 @@
 */
 
 #include <algorithm>
+#include <ctime>
 #include "util/require.h"
 
 #include <NdbTCP.h>
@@ -44,6 +45,7 @@
 #include "../src/kernel/vm/Emulator.hpp"
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "portlib/NdbMem.h"
+#include "portlib/NdbTimestamp.h"
 #include "portlib/ndb_file.h"
 #include "restore_tables.h"
 #include "util/ndb_opts.h"
@@ -2435,7 +2437,8 @@ void RestoreLogger::log_error(const char *fmt, ...) {
 
   NdbMutex_Lock(m_mutex);
   if (print_timestamp) {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    std::timespec now = NdbTimestamp_GetCurrentTime();
+    Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
     err << timestamp << " ";
   }
 
@@ -2452,7 +2455,8 @@ void RestoreLogger::log_info(const char *fmt, ...) {
 
   NdbMutex_Lock(m_mutex);
   if (print_timestamp) {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    std::timespec now = NdbTimestamp_GetCurrentTime();
+    Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
     info << timestamp << " ";
   }
 
@@ -2469,7 +2473,8 @@ void RestoreLogger::log_debug(const char *fmt, ...) {
 
   NdbMutex_Lock(m_mutex);
   if (print_timestamp) {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    std::timespec now = NdbTimestamp_GetCurrentTime();
+    Logger::format_timestamp(&now, timestamp, sizeof(timestamp));
     debug << timestamp << " ";
   }
 

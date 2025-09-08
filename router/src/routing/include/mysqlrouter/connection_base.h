@@ -28,6 +28,7 @@
 
 #include <cstdint>  // size_t
 #include <functional>
+#include <sstream>
 #include <system_error>  // error_code
 #include <vector>
 

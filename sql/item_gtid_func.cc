@@ -194,7 +194,7 @@ longlong Item_master_gtid_set_wait::val_int() {
       }
       return error_int();
     }
-    mi = channel_map.get_mi(channel_str->ptr());
+    mi = channel_map.get_mi(channel_str->c_ptr_safe());
   } else {
     if (channel_map.get_num_instances() > 1) {
       channel_map.unlock();

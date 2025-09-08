@@ -512,7 +512,7 @@ std::optional<Destinations> DestMetadataCacheGroup::refresh_destinations(
                 err.message().c_str());
 
       if (err == make_error_condition(std::errc::timed_out) ||
-          err == make_error_condition(std::errc::no_such_file_or_directory)) {
+          err.category() == net::ip::resolver_category()) {
         return std::nullopt;
       }
 

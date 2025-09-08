@@ -64,13 +64,14 @@ bool BackupPrinter::logEntry(const LogEntry &logE) {
   return true;
 }
 
-void BackupPrinter::endOfLogEntrys() {
+bool BackupPrinter::endOfLogEntrys() {
   if (m_print || m_print_log || m_print_sql_log) {
     info.setLevel(254);
     info << "Printed " << m_dataCount << " tuples and " << m_logCount
          << " log entries"
          << " to stdout." << endl;
   }
+  return true;
 }
 bool BackupPrinter::update_apply_status(const RestoreMetaData &metaData,
                                         bool snapshotstart) {

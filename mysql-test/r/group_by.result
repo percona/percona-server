@@ -4890,3 +4890,60 @@ COUNT(*)
 200
 DROP PROCEDURE BatchInsert;
 DROP TABLE product;
+#
+# Bug#37415167 ERROR 1022 (23000): Can't write; duplicate key in
+# table '/tmp/#sqlxxxxxxx'
+#
+CREATE TABLE tray (
+data_cd VARCHAR(30),
+data_from_ymd VARCHAR(8),
+data_nm VARCHAR(200),
+PRIMARY KEY (data_cd, data_from_ymd),
+KEY (data_from_ymd)
+);
+INSERT INTO tray VALUES
+('00014', '20120801', ''),
+('00014', '20130801', ''),
+('00015', '20120801', '/');
+SELECT (
+SELECT COUNT(data_from_ymd)
+FROM (
+SELECT
+ROW_NUMBER() OVER (ORDER BY MIN(data_from_ymd) DESC) AS data_from_ymd
+FROM tray
+WHERE data_cd = cte.data_cd
+GROUP BY data_cd, data_nm
+) a
+) AS b
+FROM (
+SELECT *
+FROM tray
+) AS cte;
+b
+1
+1
+1
+DROP TABLE tray;
+CREATE TABLE t (
+x INT,
+y INT);
+INSERT INTO t VALUES
+(1, 1),
+(2, 2),
+(2, 3),
+(3, 2);
+SELECT 1
+FROM t AS t1,
+LATERAL (
+SELECT ROW_NUMBER() OVER (ORDER BY MIN(y))
+FROM t
+WHERE x = t1.x
+GROUP BY x
+) AS t2;
+1
+1
+1
+1
+1
+DROP TABLE t;
+#

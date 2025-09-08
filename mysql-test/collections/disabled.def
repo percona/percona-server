@@ -197,6 +197,7 @@ tokudb_rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
 
 # These will only run in XCom because of the following issue:
 group_replication.gr_join_with_suspect_member : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
+group_replication.gr_kill_restart : BUG#37181867 Disabled until the bug is fixed
 group_replication.gr_leave_with_suspect_member : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_majority_loss_restored_after_timeout : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_primary_mode_group_operations_joining_during_election @windows : BUG#33679225 Disabled until bug is fixed

@@ -249,6 +249,7 @@ Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb
+Obsoletes:      mariadb-client-utils
 Obsoletes:      community-mysql < %{version}-%{release}
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
@@ -851,12 +852,12 @@ fi
 %files icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/cnvalias.icu
-%{_libdir}/mysql/private/icudt73l/uemoji.icu
-%{_libdir}/mysql/private/icudt73l/ulayout.icu
-%{_libdir}/mysql/private/icudt73l/unames.icu
-%{_libdir}/mysql/private/icudt73l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt77l
+%{_libdir}/mysql/private/icudt77l/cnvalias.icu
+%{_libdir}/mysql/private/icudt77l/uemoji.icu
+%{_libdir}/mysql/private/icudt77l/ulayout.icu
+%{_libdir}/mysql/private/icudt77l/unames.icu
+%{_libdir}/mysql/private/icudt77l/brkitr
 
 %files client
 %doc %{?license_files_server}

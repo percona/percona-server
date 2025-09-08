@@ -51,9 +51,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0vec.h"
 #include "ut0wqueue.h"
 
-/** "NULL" value of a document id. */
-#define FTS_NULL_DOC_ID 0
-
 /** FTS hidden column that is used to map to and from the row */
 #define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
 
@@ -101,6 +98,9 @@ those defined in mysql file ft_global.h */
 
 #define FTS_INDEX_TABLE_IND_NAME "FTS_INDEX_TABLE_IND"
 #define FTS_COMMON_TABLE_IND_NAME "FTS_COMMON_TABLE_IND"
+
+/** "NULL" value of a document id. */
+constexpr doc_id_t FTS_NULL_DOC_ID = 0;
 
 /** The number of FTS index partitions for a fulltext index. */
 constexpr size_t FTS_NUM_AUX_INDEX = 6;

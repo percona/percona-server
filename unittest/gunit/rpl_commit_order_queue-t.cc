@@ -51,12 +51,12 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
   constexpr size_t total_transactions{25000};
   cs::apply::Commit_order_queue scheduled{total_workers};
   cs::apply::Commit_order_queue free{total_workers};
-  std::array<std::atomic_flag, total_workers> context;
+  std::array<std::atomic<bool>, total_workers> context;
   std::atomic<cs::apply::Commit_order_queue::value_type> transactions{
       total_transactions};
 
   for (auto n_wrk = 0; n_wrk != total_workers; ++n_wrk) {
-    context[n_wrk].test_and_set();
+    context[n_wrk].store(true);
     free.push(n_wrk);
   }
 
@@ -72,9 +72,9 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
               scheduled[worker_id].m_stage =
                   cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED;
 
-              for (; context[worker_id]
-                         .test_and_set();) {  // Wait for coordinator to
-                                              // schedule the worker in
+              for (; context[worker_id].exchange(
+                       true);) {  // Wait for coordinator to
+                                  // schedule the worker in
                 std::this_thread::yield();
               }
               if (transactions <= 0) break;
@@ -113,7 +113,7 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
                            REQUESTED_GRANT) &&
                   scheduled[next_worker].freeze_commit_sequence_nr(
                       next_seq_nr)) {
-                context[next_worker].clear();  // Releases the next worker
+                context[next_worker].store(false);  // Releases the next worker
                 scheduled[next_worker].unfreeze_commit_sequence_nr(next_seq_nr);
               }
 
@@ -121,7 +121,7 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
 
               scheduled[worker_id].m_stage =
                   cs::apply::Commit_order_queue::enum_worker_stage::FINISHED;
-              context[worker_id].test_and_set();
+              context[worker_id].store(true);
               free.push(worker_id);  // Finishes the work and pushes itself
                                      // into the free worker queue
 
@@ -130,7 +130,7 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
                   cs::apply::Commit_order_queue::enum_worker_stage::
                       REQUESTED_GRANT;  // Starts the commit order wait
 
-              for (; context[worker_id].test_and_set();) {  // Wait for previous
+              for (; context[worker_id].exchange(true);) {  // Wait for previous
                                                             // worker to release
                 std::this_thread::yield();
               }
@@ -138,7 +138,7 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
           }
           for (cs::apply::Commit_order_queue::value_type sib = 0;
                sib != total_workers; ++sib) {  // Work is finished
-            context[sib].clear();              // Release all waiting workers
+            context[sib].store(false);         // Release all waiting workers
           }
         },
         total_workers - n_wrk - 1);
@@ -152,8 +152,8 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
            std::tie(w, std::ignore) =
                free.pop())  // Get a free worker to schedule
         std::this_thread::yield();
-      scheduled.push(w);   // Schedule the worker
-      context[w].clear();  // Signal the worker
+      scheduled.push(w);        // Schedule the worker
+      context[w].store(false);  // Signal the worker
     }
   }};
 

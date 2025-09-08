@@ -659,7 +659,7 @@ static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
   uint sql_fun_errors = 0;
 
   // Function called on each table to validate it.
-  auto process_table = [&](std::unique_ptr<dd::Table> &table) {
+  auto process_cf_table = [&](std::unique_ptr<dd::Table> &table) {
     // Skip non-InnoDB tables as their search engine may not be available yet.
     if (my_strcasecmp(system_charset_info, table->engine().c_str(), "InnoDB"))
       return false;
@@ -668,7 +668,18 @@ static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
     if (dd::uses_functions(table.get(), schema->name().c_str())) {
       Open_table_context ot_ctx(
           thd, MYSQL_OPEN_GET_NEW_TABLE | MYSQL_OPEN_NO_NEW_TABLE_IN_SE);
-      Table_ref tr(schema->name().c_str(), table->name().c_str(), TL_READ);
+
+      char db_name[NAME_LEN + 1];
+      char table_name[NAME_LEN + 1];
+      my_stpncpy(db_name, schema->name().c_str(), NAME_LEN);
+      my_stpncpy(table_name, table->name().c_str(), NAME_LEN);
+
+      if (lower_case_table_names > 1) {
+        my_casedn_str(system_charset_info, db_name);
+        my_casedn_str(system_charset_info, table_name);
+      }
+
+      Table_ref tr(db_name, table_name, TL_READ);
 
       // Did trying to open this table throw any new errors?
       uint old_errors = sql_fun_errors;
@@ -690,6 +701,7 @@ static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
         if (opt_check_table_funs == CHECK_TABLE_FUN_ABORT) (*error_count)++;
       }
     }
+
     return error_count->has_too_many_errors();
   };
 
@@ -705,7 +717,7 @@ static bool check_table_funs(THD *thd, std::unique_ptr<Schema> &schema,
 
   // Iterate over tables in this schema.
   bool res =
-      thd->dd_client()->foreach<dd::Table>(table_key.get(), process_table);
+      thd->dd_client()->foreach<dd::Table>(table_key.get(), process_cf_table);
 
   // Clean up.
   thd->pop_internal_handler();

@@ -31,7 +31,24 @@ IF (CORES EQUAL 0)
   SET(CORES 1)
 ENDIF()
 
+# Use env var CTEST_PARALLEL_LEVEL if found.
+# Note that this must be set permanently in the environment.
+# CTEST_PARALLEL_LEVEL=42 make test-unit will not catch the new value.
+IF(DEFINED ENV{CTEST_PARALLEL_LEVEL})
+  SET(CORES $ENV{CTEST_PARALLEL_LEVEL})
+ENDIF()
+
+IF(DEFINED CTEST_PARALLEL_LEVEL)
+  SET(CORES ${CTEST_PARALLEL_LEVEL})
+ENDIF()
+
 FIND_PROGRAM(CTEST_EXECUTABLE NAMES ctest3 ctest)
+
+IF(WITH_RAPID OR ENABLE_GCOV)
+  SET(TIMEOUT 600)
+ELSE()
+  SET(TIMEOUT 300)
+ENDIF()
 
 # 'man ctest' is confusing: --timeout vs. --test-timeout?
 # The latter affects BUILD AND TEST MODE.
@@ -41,7 +58,11 @@ ADD_CUSTOM_TARGET(
   --output-on-failure
   --parallel ${CORES}
   --progress
-  --timeout 300
+  --timeout ${TIMEOUT}
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Running ctest with --parallel=${CORES}"
   USES_TERMINAL
-)
+  )
+
+# An alias target.
+ADD_CUSTOM_TARGET(run-unit-tests DEPENDS test-unit)

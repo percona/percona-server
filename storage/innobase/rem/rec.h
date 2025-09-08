@@ -357,7 +357,7 @@ current index.
       return n;
     }
 
-    uint16_t n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
+    auto n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
 
     ut_ad(index->is_clustered());
     ut_ad(n <= dict_index_get_n_fields(index));

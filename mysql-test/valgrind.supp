@@ -48,6 +48,18 @@
 }
 
 {
+   pthread allocate_tls timer memory loss
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   ...
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+   ...
+   fun:timer_create*
+}
+
+{
    semi_sync_master_plugin_init
    Memcheck:Leak
    match-leak-kinds: reachable

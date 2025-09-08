@@ -1695,6 +1695,8 @@ bool TemptableAggregateIterator<Profiler>::Init() {
   trace_exec.add_select_number(m_join->query_block->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   const typename Profiler::TimeStamp start_time = Profiler::Now();
+  // The input to the aggregation should be read from the base slice.
+  m_join->set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   if (m_subquery_iterator->Init()) {
     return true;

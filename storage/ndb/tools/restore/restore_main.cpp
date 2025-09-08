@@ -1986,6 +1986,9 @@ int do_restore(RestoreThreadData *thrdata) {
       restoreLogger.log_info(" Object create progress: %u objects out of %u",
                              i + 1, metaData.getNoOfObjects());
     }
+    if (ga_error_thread > 0) {
+      return NdbToolsProgramExitCode::FAILED;
+    }
   }
 
   restoreLogger.log_debug("Handling index stat tables");
@@ -1993,6 +1996,9 @@ int do_restore(RestoreThreadData *thrdata) {
     if (!g_consumers[i]->handle_index_stat_tables()) {
       restoreLogger.log_error(
           "Restore: Failed to handle index stat tables ... Exiting ");
+      return NdbToolsProgramExitCode::FAILED;
+    }
+    if (ga_error_thread > 0) {
       return NdbToolsProgramExitCode::FAILED;
     }
   }
@@ -2054,6 +2060,9 @@ int do_restore(RestoreThreadData *thrdata) {
       restoreLogger.log_info("Table create progress: %u tables out of %u",
                              i + 1, metaData.getNoOfTables());
     }
+    if (ga_error_thread > 0) {
+      return NdbToolsProgramExitCode::FAILED;
+    }
   }
 
   restoreLogger.log_debug("Save foreign key info");
@@ -2061,6 +2070,9 @@ int do_restore(RestoreThreadData *thrdata) {
   for (i = 0; i < metaData.getNoOfObjects(); i++) {
     for (Uint32 j = 0; j < g_consumers.size(); j++) {
       if (!g_consumers[j]->fk(metaData.getObjType(i), metaData.getObjPtr(i))) {
+        return NdbToolsProgramExitCode::FAILED;
+      }
+      if (ga_error_thread > 0) {
         return NdbToolsProgramExitCode::FAILED;
       }
     }
@@ -2228,6 +2240,9 @@ int do_restore(RestoreThreadData *thrdata) {
           ndbout.m_out = tmp;
           if (check_progress())
             report_progress("Data file progress: ", dataIter);
+          if (ga_error_thread > 0) {
+            return NdbToolsProgramExitCode::FAILED;
+          }
         }  // while (tuple != NULL);
 
         if (res < 0) {
@@ -2252,7 +2267,19 @@ int do_restore(RestoreThreadData *thrdata) {
 
       dataIter.validateFooter();  // not implemented
 
-      for (i = 0; i < g_consumers.size(); i++) g_consumers[i]->endOfTuples();
+      {
+        bool consumersOk = true;
+        for (i = 0; i < g_consumers.size(); i++) {
+          consumersOk &= g_consumers[i]->endOfTuples();
+        }
+
+        if (!consumersOk) {
+          restoreLogger.log_error(
+              "Restore: An error occurred while restoring data."
+              "Exiting");
+          return NdbToolsProgramExitCode::FAILED;
+        }
+      }
 
       /* report to clusterlog if applicable */
       for (i = 0; i < g_consumers.size(); i++) {
@@ -2289,6 +2316,9 @@ int do_restore(RestoreThreadData *thrdata) {
         }
 
         if (check_progress()) report_progress("Log file progress: ", logIter);
+        if (ga_error_thread > 0) {
+          return NdbToolsProgramExitCode::FAILED;
+        }
       }
       if (res < 0) {
         restoreLogger.log_error(
@@ -2296,7 +2326,18 @@ int do_restore(RestoreThreadData *thrdata) {
         return NdbToolsProgramExitCode::FAILED;
       }
       logIter.validateFooter();  // not implemented
-      for (i = 0; i < g_consumers.size(); i++) g_consumers[i]->endOfLogEntrys();
+      {
+        bool consumersOk = true;
+        for (i = 0; i < g_consumers.size(); i++) {
+          consumersOk &= g_consumers[i]->endOfLogEntrys();
+        }
+
+        if (!consumersOk) {
+          restoreLogger.log_error(
+              "Restore: Error reading the data log. Exiting");
+          return NdbToolsProgramExitCode::FAILED;
+        }
+      }
 
       /* report to clusterlog if applicable */
       for (i = 0; i < g_consumers.size(); i++) {
@@ -2318,6 +2359,9 @@ int do_restore(RestoreThreadData *thrdata) {
             }
           }
         }
+        if (ga_error_thread > 0) {
+          return NdbToolsProgramExitCode::FAILED;
+        }
       }
     }
 
@@ -2336,6 +2380,9 @@ int do_restore(RestoreThreadData *thrdata) {
                 metaData[i]->getTableName());
             return NdbToolsProgramExitCode::FAILED;
           }
+        }
+        if (ga_error_thread > 0) {
+          return NdbToolsProgramExitCode::FAILED;
         }
       }
       if (ga_num_slices != 1) {
@@ -2426,6 +2473,9 @@ int do_restore(RestoreThreadData *thrdata) {
         if (!g_consumers[j]->rebuild_indexes(*table)) {
           return NdbToolsProgramExitCode::FAILED;
         }
+      }
+      if (ga_error_thread > 0) {
+        return NdbToolsProgramExitCode::FAILED;
       }
     }
     for (Uint32 j = 0; j < g_consumers.size(); j++) {

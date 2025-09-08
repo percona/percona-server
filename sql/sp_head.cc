@@ -1930,8 +1930,15 @@ Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
                             ? field_max_length
                             : m_return_field_def.max_display_width_in_bytes();
 
-  auto field_name =
-      field_name_or_null != nullptr ? field_name_or_null : m_name.str;
+  const char *field_name = field_name_or_null;
+  if (field_name == nullptr) {
+    // No field name was provided, so we use the name of the stored program. The
+    // sp_head could have a different lifespan than the Field, so we copy the
+    // name to the same MEM_ROOT as the Field to ensure that it stays alive as
+    // long as the Field itself.
+    field_name = thd->strmake(m_name.str, m_name.length);
+    if (field_name == nullptr) return nullptr;
+  }
 
   // Add 1 for null byte.
   table->record[0] =

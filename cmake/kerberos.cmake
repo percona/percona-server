@@ -24,7 +24,17 @@
 # cmake -DWITH_KERBEROS=system|<path/to/custom/installation>|none
 # system is the default
 # none will diable the kerberos build
-# Custom path is only supported for LINUX_STANDALONE.
+# no Kerberos support for FREEBSD or SOLARIS,
+# set WITH_KERBEROS to none
+
+# cmake -DWITH_KERBEROS_WIN=system|<path/to/custom/installation>|none
+# ignored when not on Windows
+# when set, WITH_KERBEROS is set to WITH_KERBEROS_WIN
+# and KERBEROS_LIB_SSPI is set to 1
+
+# cmake -DWITH_KERBEROS_MAC=<path/to/custom/installation>|none
+# ignored when not on APPLE
+# when set, WITH_KERBEROS is set to WITH_KERBEROS_MAC
 
 INCLUDE (CheckIncludeFile)
 INCLUDE (CheckIncludeFiles)
@@ -305,6 +315,7 @@ MACRO(FIND_CUSTOM_KERBEROS)
       ENDIF()
     ENDIF()
   ELSE()
+    SET(EXTERNAL_KERBEROS_CUSTOM_LIBS)
     FIND_LIBRARY(KERBEROS_CUSTOM_LIBRARY
       NAMES "krb5"
       PATHS ${WITH_KERBEROS}/lib
@@ -312,6 +323,7 @@ MACRO(FIND_CUSTOM_KERBEROS)
       NO_CMAKE_ENVIRONMENT_PATH
       NO_SYSTEM_ENVIRONMENT_PATH
       )
+    LIST(APPEND EXTERNAL_KERBEROS_CUSTOM_LIBS KERBEROS_CUSTOM_LIBRARY)
     FIND_LIBRARY(GSSAPI_LIBRARIES
       NAMES "gssapi_krb5"
       PATHS ${WITH_KERBEROS}/lib
@@ -321,6 +333,7 @@ MACRO(FIND_CUSTOM_KERBEROS)
       )
     FOREACH(EXTRA_LIB ${CUSTOM_KERBEROS_EXTRA_LIBRARIES})
       SET(VAR_NAME "KERBEROS_CUSTOM_LIBRARY_${EXTRA_LIB}")
+      LIST(APPEND EXTERNAL_KERBEROS_CUSTOM_LIBS ${VAR_NAME})
       FIND_LIBRARY(${VAR_NAME}
         NAMES "${EXTRA_LIB}"
         PATHS ${WITH_KERBEROS}/lib
@@ -344,14 +357,30 @@ ENDMACRO(FIND_CUSTOM_KERBEROS)
 
 MACRO(MYSQL_CHECK_KERBEROS)
   # No Kerberos support for these platforms:
-  IF( APPLE OR
-      FREEBSD OR
+  IF( FREEBSD OR
       SOLARIS
       )
     SET(WITH_KERBEROS "none")
     SET(WITH_KERBEROS "none" CACHE INTERNAL "")
   ENDIF()
 
+  IF(APPLE)
+    # Add option WITH_KERBEROS_MAC which will be ignored on older branches.
+    IF(WITH_KERBEROS_MAC)
+      MESSAGE(STATUS "WITH_KERBEROS_MAC is specified. \
+        Setting WITH_KERBEROS=${WITH_KERBEROS_MAC}.")
+      SET(WITH_KERBEROS ${WITH_KERBEROS_MAC})
+      SET(WITH_KERBEROS ${WITH_KERBEROS_MAC}
+        CACHE STRING "Custom kerberos library" FORCE)
+    ENDIF()
+    IF(WITH_KERBEROS)
+      SET(APPLE_WITH_CUSTOM_KERBEROS 1)
+      SET(APPLE_WITH_CUSTOM_KERBEROS 1 CACHE INTERNAL "" FORCE)
+    ELSE()
+      SET(WITH_KERBEROS "none")
+      SET(WITH_KERBEROS "none" CACHE INTERNAL "")
+    ENDIF()
+  ENDIF()
   # WITH_KERBEROS is set to "none" by default for Windows
   # However, it can be specified on command line
   # through either WITH_KERBEROS_WIN=<path/to/custom/installation>
@@ -398,7 +427,7 @@ MACRO(MYSQL_CHECK_KERBEROS)
     SET(WITH_KERBEROS 0)
     SET(KERBEROS_FOUND 0)
   ELSEIF(WITH_KERBEROS_PATH)
-    IF(LINUX_STANDALONE OR WIN32)
+    IF(LINUX_STANDALONE OR WIN32 OR APPLE)
       FIND_CUSTOM_KERBEROS()
     ELSE()
       MESSAGE(FATAL_ERROR
@@ -420,14 +449,15 @@ MACRO(MYSQL_CHECK_KERBEROS)
     ENDIF()
   ENDIF()
 
-  IF(KERBEROS_FOUND AND (NOT WIN32))
+  # This is used for the sasl plugins
+  IF(KERBEROS_FOUND AND (NOT WIN32) AND NOT APPLE_WITH_CUSTOM_KERBEROS)
     SET(KERBEROS_LIB_CONFIGURED 1)
   ENDIF()
 
 ENDMACRO(MYSQL_CHECK_KERBEROS)
 
 MACRO(MYSQL_CHECK_KERBEROS_DLLS)
-  IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+  IF((APPLE OR LINUX_STANDALONE) AND KERBEROS_CUSTOM_LIBRARY)
     COPY_CUSTOM_SHARED_LIBRARY("${KERBEROS_CUSTOM_LIBRARY}" ""
       KERBEROS_LIBRARIES kerberos_target
       )

@@ -1,5 +1,5 @@
 SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/keyring_vault.conf";
-# restart:<hidden args>
+# restart
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, credit_card VARCHAR(200), private VARCHAR(50)) ENGINE=InnoDB ENCRYPTION='y';
 SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR rotated';
 ALTER TABLE t1 ADD INDEX secret (credit_card), ALGORITHM=INPLACE, LOCK=NONE;

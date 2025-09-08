@@ -3127,7 +3127,7 @@ INSTANTIATE_TEST_SUITE_P(
              "Failed changing the authentication plugin for account "
              "'.*'@'localhost': Error executing MySQL query \"alter user "
              "'.*'@'localhost' identified with `caching_sha2_password` by "
-             "'.*'\": Unexpected error .*"},
+             "\\*\\*\\*\": Unexpected error .*"},
             /*unexpected_output_strings*/
             {"Successfully changed the authentication plugin for .*"},
             /*test_description*/

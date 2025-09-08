@@ -222,7 +222,7 @@ class Keyring_proxy_imp {
         return false;
       });
 
-      if (retval) {
+      if (retval || local_object->iterator == nullptr) {
         delete local_object;
         return true;
       }

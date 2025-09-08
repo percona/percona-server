@@ -48,8 +48,8 @@ class BackupPrinter : public BackupConsumer {
 #endif
   bool tuple(const TupleS &, Uint32 fragId) override;
   bool logEntry(const LogEntry &) override;
-  void endOfTuples() override {}
-  void endOfLogEntrys() override;
+  bool endOfTuples() override { return true; }
+  bool endOfLogEntrys() override;
   bool update_apply_status(const RestoreMetaData &metaData,
                            bool snapshotstart) override;
   bool delete_epoch_tuple() override;

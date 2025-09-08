@@ -123,10 +123,10 @@ class BackupRestore : public BackupConsumer {
   virtual void cback(int result, restore_callback_t *cb);
   virtual void cback_logentry(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
-  void endOfTuples() override;
+  bool endOfTuples() override;
   bool logEntry(const LogEntry &) override;
   void logEntry_a(restore_callback_t *cb);
-  void endOfLogEntrys() override;
+  bool endOfLogEntrys() override;
   bool prepare_staging(const TableS &) override;
   bool finalize_staging(const TableS &) override;
   bool finalize_table(const TableS &) override;
@@ -220,6 +220,7 @@ class BackupRestore : public BackupConsumer {
   void update_next_auto_val(Uint32 orig_table_id, Uint64 next_val);
   bool get_fatal_error();
   void set_fatal_error(bool);
+  void report_error(restore_callback_t *cb, const NdbError &errObj);
 
   Ndb *m_ndb;
   Ndb_cluster_connection *m_cluster_connection;

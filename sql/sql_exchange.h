@@ -90,6 +90,7 @@ class Field_separators {
   bool not_enclosed{false};
   const String *date_format{nullptr};
   const String *time_format{nullptr};
+  const String *datetime_format{nullptr};
   enum_trim_spaces trim_spaces{enum_trim_spaces::DEFAULT_TRIM_SPACES};
   const String *null_value{nullptr};
   const String *empty_value{nullptr};
@@ -110,6 +111,9 @@ class Field_separators {
     }
     if (field_sep->time_format != nullptr) {
       time_format = field_sep->time_format;
+    }
+    if (field_sep->datetime_format != nullptr) {
+      datetime_format = field_sep->datetime_format;
     }
     if (field_sep->trim_spaces != enum_trim_spaces::DEFAULT_TRIM_SPACES) {
       trim_spaces = field_sep->trim_spaces;

@@ -204,6 +204,8 @@ int split_rtree_node(
       mbr_join(srs, g1, next->coords, n_dim);
     } else {
       size2 += key_size;
+
+      ut_ad(next != nullptr);
       mbr_join(srs, g2, next->coords, n_dim);
     }
 

@@ -101,12 +101,11 @@ std::string generate_json_descriptor(mrs::interface::EndpointBase *endpoint,
 HandlerDbSchemaMetadataCatalog::HandlerDbSchemaMetadataCatalog(
     std::weak_ptr<DbSchemaEndpoint> schema_endpoint,
     mrs::interface::AuthorizeManager *auth_manager)
-    : Handler(
-          handler::get_protocol(schema_endpoint),
-          get_endpoint_host(schema_endpoint),
-          /*regex-path: ^/service/schema/metadata-catalog/? $*/
-          {regex_path_schema_catalog(lock(schema_endpoint)->get_url_path())},
-          get_endpoint_options(lock(schema_endpoint)), auth_manager),
+    : Handler(handler::get_protocol(schema_endpoint),
+              get_endpoint_host(schema_endpoint),
+              /* path: /service/schema/metadata-catalog/ */
+              {path_schema_catalog(lock(schema_endpoint)->get_url_path())},
+              get_endpoint_options(lock(schema_endpoint)), auth_manager),
       endpoint_{schema_endpoint} {
   // Please note that constructor should either, make copy
   //  of shared pointers, or copy the data, because

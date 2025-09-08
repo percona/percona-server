@@ -25,14 +25,20 @@
 
 package com.mysql.clusterj.core.util;
 
+import java.util.function.Supplier;
+
 public class DeMinimisLogger implements Logger {
 
     public DeMinimisLogger() {}
 
     public void detail(String message) {}
+    public void detail(Supplier<String> gen) {}
     public void debug(String message) {}
+    public void debug(Supplier<String> gen) {}
     public void trace(String message) {}
-    public void info(String message) {System.out.println(message);}
+    public void trace(Supplier<String> gen) {}
+    public void info(String message) {}
+    public void info(Supplier<String> gen) {}
     public void warn(String message) {System.err.println(message);}
     public void error(String message) {System.err.println(message);}
     public void fatal(String message) {System.err.println(message);}

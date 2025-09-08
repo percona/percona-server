@@ -1082,6 +1082,12 @@ static bool plugin_add(MEM_ROOT *tmp_root, LEX_CSTRING name,
         report_error(report, ER_CANT_OPEN_LIBRARY, dl_name, 0, buf);
         return true;
       }
+
+      if (plugin->type == MYSQL_KEYRING_PLUGIN) {
+        LogErr(WARNING_LEVEL, ER_WARN_KEYRING_PLUGIN_DEPRECTED,
+               plugin->name ? plugin->name : "<unknown name>");
+      }
+
       tmp.plugin = plugin;
       tmp.name.str = plugin->name;
       tmp.name.length = name_len;

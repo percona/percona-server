@@ -147,6 +147,7 @@ static bool wrapped_in_intersect_except(Query_term *qb) {
 /**
   Generate a comparison function, possibly with negation.
 
+  @param pos    Parser position information for function
   @param func   Comparison function factory
   @param left   Left argument to comparison function
   @param right  Right argument to comparison function
@@ -154,10 +155,12 @@ static bool wrapped_in_intersect_except(Query_term *qb) {
 
   @returns pointer to comparison function, or NULL if error
 */
-static Item_bool_func *new_comparison_func(Comp_creator *func, Item *left,
-                                           Item *right, bool negate) {
-  Item_bool_func *comp = func->create(left, right);
+static Item_bool_func *new_comparison_func(const POS &pos, Comp_creator *func,
+                                           Item *left, Item *right,
+                                           bool negate) {
+  Item_bool_func *comp = func->create(pos, left, right);
   if (comp == nullptr) return nullptr;
+  current_thd->add_item(comp);
   if (negate) {
     comp = down_cast<Item_func_comparison *>(comp)->negate_item();
   }
@@ -2105,7 +2108,7 @@ bool Item_in_subselect::single_value_transformer(THD *thd, Comp_creator *func,
     m_query_result = new_result;
 
     *transformed =
-        new_comparison_func(func, left_expr, subquery, all_predicate);
+        new_comparison_func(m_pos, func, left_expr, subquery, all_predicate);
     if (*transformed == nullptr) return true;
 
     return false;
@@ -2216,8 +2219,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
       select->with_sum_func || select->has_windows()) {
     Item_ref_null_helper *ref_null = new Item_ref_null_helper(
         &select->context, this, &select->base_ref_items[0]);
-    Item_bool_func *item = new_comparison_func(func, m_injected_left_expr,
-                                               ref_null, all_predicate);
+    Item_bool_func *item = new_comparison_func(
+        m_pos, func, m_injected_left_expr, ref_null, all_predicate);
     if (item == nullptr) return true;
 
     item->set_created_by_in2exists();
@@ -2285,8 +2288,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
     Item *orig_item = select->single_visible_field();
 
     if (!select->source_table_is_one_row() || select->where_cond() != nullptr) {
-      Item_bool_func *item = new_comparison_func(func, m_injected_left_expr,
-                                                 orig_item, all_predicate);
+      Item_bool_func *item = new_comparison_func(
+          m_pos, func, m_injected_left_expr, orig_item, all_predicate);
       if (item == nullptr) return true;
       /*
         We may soon add a 'OR inner IS NULL' to 'item', but that may later be
@@ -2362,7 +2365,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
         argument (reference) to fix_fields()
       */
       Item_bool_func *new_having = new_comparison_func(
-          func, m_injected_left_expr,
+          m_pos, func, m_injected_left_expr,
           new Item_ref_null_helper(&select->context, this,
                                    &select->base_ref_items[0]),
           all_predicate);
@@ -2721,8 +2724,8 @@ bool Item_in_subselect::quantified_comp_transformer(THD *thd,
     selected_item->fix_after_pullout(outer, inner);
 
     // Resolving of substitution item will be done in time of substituting
-    *transformed =
-        new_comparison_func(func, left_expr, selected_item, all_predicate);
+    *transformed = new_comparison_func(m_pos, func, left_expr, selected_item,
+                                       all_predicate);
     if (*transformed == nullptr) return true;
 
     if (thd->lex->is_explain()) {

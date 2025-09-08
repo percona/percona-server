@@ -35,6 +35,7 @@
 #include <fstream>
 #include <initializer_list>
 #include <memory>  // unique_ptr
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -100,6 +101,9 @@ using mysql_harness::utility::wrap_string;
 using mysqlrouter::SysUserOperationsBase;
 
 static const char kProgramName[] = "mysqlrouter";
+
+static const std::set<std::string> kSupportedExternalLoggingHandlerNames{
+    "mysql_rest_service"};
 
 namespace {
 
@@ -599,6 +603,9 @@ void MySQLRouter::start() {
           "PID file %s found. Already running?", pid_file_path_.c_str()));
     }
   }
+
+  register_supported_external_logging_handler_names(
+      kSupportedExternalLoggingHandlerNames);
 
   register_on_switch_to_configured_loggers_callback([]() {
     // once we switched to the configured logger(s) log the Router version

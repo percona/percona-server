@@ -100,23 +100,23 @@ constexpr uint32_t SEL_RETRY = 2;
  fields are compared with collation!
  @return true if the columns are equal */
 static bool row_sel_sec_rec_is_for_blob(
-    trx_t *trx,              /*!< in: the operating transaction */
-    ulint mtype,             /*!< in: main type */
-    ulint prtype,            /*!< in: precise type */
-    ulint mbminmaxlen,       /*!< in: minimum and maximum length of
-                             a multi-byte character */
-    const byte *clust_field, /*!< in: the locally stored part of
-                             the clustered index column, including
-                             the BLOB pointer; the clustered
-                             index record must be covered by
-                             a lock or a page latch to protect it
-                             against deletion (rollback or purge) */
-    ulint clust_len,         /*!< in: length of clust_field */
-    const byte *sec_field,   /*!< in: column in secondary index */
-    ulint sec_len,           /*!< in: length of sec_field */
-    ulint prefix_len,        /*!< in: index column prefix length
-                             in bytes */
-    dict_table_t *table)     /*!< in: table */
+    trx_t *trx,                /*!< in: the operating transaction */
+    ulint mtype,               /*!< in: main type */
+    ulint prtype,              /*!< in: precise type */
+    ulint mbminmaxlen,         /*!< in: minimum and maximum length of
+                               a multi-byte character */
+    const byte *clust_field,   /*!< in: the locally stored part of
+                               the clustered index column, including
+                               the BLOB pointer; the clustered
+                               index record must be covered by
+                               a lock or a page latch to protect it
+                               against deletion (rollback or purge) */
+    ulint clust_len,           /*!< in: length of clust_field */
+    const byte *sec_field,     /*!< in: column in secondary index */
+    ulint sec_len,             /*!< in: length of sec_field */
+    ulint prefix_len,          /*!< in: index column prefix length
+                               in bytes */
+    const dict_table_t *table) /*!< in: table */
 {
   ulint len;
   byte buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -178,8 +178,8 @@ clustered record has been marked for deletion; only valid if DB_SUCCESS was
 returned
 @return DB_SUCCESS or error code */
 static dberr_t row_sel_sec_rec_is_for_clust_rec(
-    const rec_t *sec_rec, dict_index_t *sec_index, const rec_t *clust_rec,
-    dict_index_t *clust_index, que_thr_t *thr, bool &is_equal) {
+    const rec_t *sec_rec, const dict_index_t *sec_index, const rec_t *clust_rec,
+    const dict_index_t *clust_index, que_thr_t *thr, bool &is_equal) {
   const byte *sec_field;
   ulint sec_len;
   const byte *clust_field;
@@ -192,13 +192,14 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
   ulint *sec_offs = sec_offsets_;
   trx_t *trx = thr_get_trx(thr);
   dberr_t err = DB_SUCCESS;
+  const dict_table_t *const table = clust_index->table;
 
   is_equal = true;
 
   rec_offs_init(clust_offsets_);
   rec_offs_init(sec_offsets_);
 
-  if (rec_get_deleted_flag(clust_rec, dict_table_is_comp(clust_index->table))) {
+  if (rec_get_deleted_flag(clust_rec, dict_table_is_comp(table))) {
     /* The clustered index record is delete-marked;
     it is not visible in the read view.  Besides,
     if there are any externally stored columns,
@@ -230,19 +231,15 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
     /* For virtual column, its value will need to be
     reconstructed from base column in cluster index */
     if (col->is_virtual()) {
-      const dict_v_col_t *v_col;
-      const dtuple_t *row;
-      dfield_t *vfield;
+      const dict_v_col_t *v_col = reinterpret_cast<const dict_v_col_t *>(col);
 
-      v_col = reinterpret_cast<const dict_v_col_t *>(col);
+      const dtuple_t *const row =
+          row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
+                    nullptr, nullptr, nullptr, &ext, heap);
 
-      row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
-                      nullptr, nullptr, nullptr, &ext, heap);
-
-      vfield = innobase_get_computed_value(
-          row, v_col, clust_index, &heap, heap, nullptr,
-          thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table, nullptr,
-          nullptr, nullptr, &thr->prebuilt->blob_heap);
+      const dfield_t *const vfield = innobase_get_computed_value(
+          &thr->prebuilt->blob_heap, row, v_col, table, &heap, heap,
+          thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table);
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
@@ -285,8 +282,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
            (dict_table_has_atomic_blobs(sec_index->table) && sec_len == 0))) {
         if (!row_sel_sec_rec_is_for_blob(
                 trx, col->mtype, col->prtype, col->mbminmaxlen, clust_field,
-                clust_len, sec_field, sec_len, ifield->prefix_len,
-                clust_index->table)) {
+                clust_len, sec_field, sec_len, ifield->prefix_len, table)) {
           is_equal = false;
           goto func_exit;
         }

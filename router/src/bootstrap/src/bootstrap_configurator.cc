@@ -36,6 +36,7 @@
 #include "dim.h"
 #include "harness_assert.h"
 #include "keyring_handler.h"
+#include "mrs/configuration.h"
 #include "mrs/database/query_version.h"
 #include "my_macros.h"
 #include "mysql/harness/filesystem.h"
@@ -842,8 +843,17 @@ uint64_t BootstrapConfigurator::register_mrs_router_instance(
     mysqlrouter::MySQLSession *session) {
   auto socket_ops = mysql_harness::SocketOperations::instance();
 
-  const std::string router_name =
+  std::string router_name;
+  const auto router_name_maybe =
       get_configured_router_name(config_, kDefaultHttpPort);
+  if (!router_name_maybe) {
+    router_name =
+        std::string{mrs::kHostOnResolveFailed} + ":" +
+        std::to_string(get_configured_http_port(config_, kDefaultHttpPort));
+  } else {
+    router_name = *router_name_maybe;
+  }
+
   std::string report_host;
 
   if (auto rh = bootstrapper_.bootstrap_options().find("report-host");
@@ -858,7 +868,7 @@ uint64_t BootstrapConfigurator::register_mrs_router_instance(
                    "Storing 'unknown'. You can use --report-host parameter to "
                    "overwrite it."
                 << std::endl;
-      report_host = "unknown";
+      report_host = mrs::kHostOnResolveFailed;
     }
   }
 

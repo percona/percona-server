@@ -37,4 +37,5 @@ public interface Ndb_cluster_connectionConst
     int get_latest_error() /*_const_*/;
     String/*_const char *_*/ get_latest_error_msg() /*_const_*/;
     int get_recv_thread_activation_threshold() /*_const_*/;
+    String get_system_name() /*_const_*/;
 }

@@ -68,8 +68,9 @@ void ContentFileEndpoint::update() {
 }
 
 void ContentFileEndpoint::activate_common() {
-  persistent_data_ = factory_->create_persisten_content_file(shared_from_this(),
-                                                             get_index_files());
+  persistent_data_.reset();
+  persistent_data_ = factory_->create_persistent_content_file(
+      shared_from_this(), get_index_files());
 }
 
 void ContentFileEndpoint::activate_private() { activate_common(); }
@@ -94,10 +95,16 @@ void ContentFileEndpoint::activate_public() {
     }
   }
 
+  // .reset() has to be done as a separate step to avoid overwriting the
+  // handlers in the map. As a result for a small window there is no handler
+  // (can potentially yield 404).
+  handler_.reset();
   handler_ =
       factory_->create_content_file(shared_from_this(), persistent_data_);
 
   if (is_index_) {
+    // see the comment for a handler_ a few lines above
+    handler_redirection_.reset();
     handler_redirection_ = factory_->create_redirection_handler(
         shared_from_this(), parent->get()->service_id,
         parent->required_authentication(), parent->get_url(),

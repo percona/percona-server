@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -54,6 +55,10 @@ class VariableByteBufferPoolImpl {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(VariableByteBufferPoolImpl.class);
 
+    /** Hash table maps size-spec-array to VariableByteBufferPoolImpl instance */
+    private static final Map<String, VariableByteBufferPoolImpl>
+        bufferPoolsTable = new HashMap<String, VariableByteBufferPoolImpl>();
+
     /** The queues of ByteBuffer */
     final TreeMap<Integer, ConcurrentLinkedQueue<ByteBuffer>> queues;
 
@@ -77,43 +82,6 @@ class VariableByteBufferPoolImpl {
             } catch (ReflectiveOperationException e) {
                 // oh well
             }
-        }
-    }
-
-    /* Cleaner1 is code common to SunMiscCleaner and JavaInternalRefCleaner */
-    abstract static class Cleaner1 extends Cleaner0 {
-        private Field cleanerField = null;
-
-        void test() throws ReflectiveOperationException {
-            ByteBuffer buffer = ByteBuffer.allocateDirect(1);
-            cleanerField = buffer.getClass().getDeclaredField("cleaner");
-            cleanerField.setAccessible(true);
-            invoke(buffer);
-        }
-
-        void invoke(ByteBuffer buffer) throws ReflectiveOperationException {
-             cleanerMethod.invoke(implClass.cast(cleanerField.get(buffer)));
-        }
-    }
-
-    /* SunMiscCleaner should be usable by early Java, Java 1.8, and JDK 9 up
-       until build 105. */
-    static class SunMiscCleaner extends Cleaner1 {
-        SunMiscCleaner() throws ReflectiveOperationException {
-            implClass = Class.forName("sun.misc.cleaner");
-            cleanerMethod = implClass.getMethod("clean");
-            logger.debug("Using SunMiscCleaner (Java 8 and earlier)");
-        }
-    }
-
-    /* In OpenJDK 9 build 105, sun.misc.Cleaner was moved to java.internal.ref;
-       see OpenJDK bug 8148117.
-    */
-    static class JavaInternalRefCleaner extends Cleaner1 {
-        JavaInternalRefCleaner() throws ReflectiveOperationException {
-            implClass = Class.forName("java.internal.ref.Cleaner");
-            cleanerMethod = implClass.getMethod("clean");
-            logger.debug("Using JavaInternalRefCleaner (some Java 9 releases)");
         }
     }
 
@@ -146,19 +114,9 @@ class VariableByteBufferPoolImpl {
     static {
         Cleaner0 cleaner = null;
 
-        try {
-            cleaner = new SunMiscCleaner();
-        } catch (ReflectiveOperationException e) { }
-
         if(cleaner == null) {
             try {
                 cleaner = new SunMiscUnsafeCleaner();
-            } catch (ReflectiveOperationException e) { }
-        }
-
-        if(cleaner == null) {
-            try {
-                cleaner = new JavaInternalRefCleaner();
             } catch (ReflectiveOperationException e) { }
         }
 
@@ -211,7 +169,7 @@ class VariableByteBufferPoolImpl {
     }
 
     /** Construct empty queues based on maximum size buffer each queue will handle */
-    public VariableByteBufferPoolImpl(int[] bufferSizes) {
+    private VariableByteBufferPoolImpl(int[] bufferSizes) {
         queues = new TreeMap<Integer, ConcurrentLinkedQueue<ByteBuffer>>();
         for (int bufferSize: bufferSizes) {
             queues.put(bufferSize, new ConcurrentLinkedQueue<ByteBuffer>());
@@ -219,7 +177,8 @@ class VariableByteBufferPoolImpl {
                 biggest = bufferSize;
             }
         }
-        logger.info(local.message("MSG_ByteBuffer_Pools_Initialized", Arrays.toString(bufferSizes)));
+        logger.info(() -> local.message("MSG_ByteBuffer_Pools_Initialized",
+                                        Arrays.toString(bufferSizes)));
     }
 
     /** Borrow a buffer from the pool. The pool is the smallest that has buffers
@@ -230,8 +189,7 @@ class VariableByteBufferPoolImpl {
         ByteBuffer buffer = null;
         if (entry == null) {
             // oh no, we need a bigger size than any buffer pool, so log a message and direct allocate a buffer
-            if (logger.isDetailEnabled())
-                logger.warn(local.message("MSG_Cannot_allocate_byte_buffer_from_pool", sizeNeeded, this.biggest));
+            logger.warn(local.message("MSG_Cannot_allocate_byte_buffer_from_pool", sizeNeeded, this.biggest));
             buffer = ByteBuffer.allocateDirect(sizeNeeded + guard.length);
             initializeGuard(buffer);
             return buffer;
@@ -269,6 +227,19 @@ class VariableByteBufferPoolImpl {
             } catch(NullPointerException npe) {
                 throw new ClusterJFatalInternalException(npe);
             }
+        }
+    }
+
+    /* Get the VariableByteBufferPoolImpl for a particular size spec */
+    public static VariableByteBufferPoolImpl getPool(int[] bufferSizes) {
+        String key = Arrays.toString(bufferSizes);
+        synchronized(bufferPoolsTable) {
+            VariableByteBufferPoolImpl impl = bufferPoolsTable.get(key);
+            if(impl == null) {
+                impl = new VariableByteBufferPoolImpl(bufferSizes);
+                bufferPoolsTable.put(key, impl);
+            }
+            return impl;
         }
     }
 }

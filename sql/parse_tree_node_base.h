@@ -308,6 +308,7 @@ class Parse_tree_node_tmpl {
 
 #ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }
+  void set_contextualized() { contextualized = true; }
 #endif  // NDEBUG
 
   // Derived classes should not override this. If needed, they should override

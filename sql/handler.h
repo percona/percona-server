@@ -86,6 +86,8 @@ class Item;
 class JOIN;
 class Json_dom;
 class Partition_handler;
+class PT_create_external_file_format;
+class PT_create_external_files;
 class Plugin_table;
 class Plugin_tablespace;
 class Record_buffer;
@@ -633,6 +635,7 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_LEX_CREATE_INTERNAL_TMP_TABLE 8
+#define HA_LEX_CREATE_EXTERNAL_TABLE 16
 #define HA_MAX_REC_LENGTH 65535U
 
 /**
@@ -821,6 +824,22 @@ constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
   specified in the CREATE TABLE statement
 */
 constexpr const uint64_t HA_CREATE_USED_AUTOEXTEND_SIZE{1ULL << 35};
+
+/** Table options for external tables */
+constexpr const uint64_t HA_CREATE_USED_FILE_FORMAT{1ULL << 36};
+constexpr const uint64_t HA_CREATE_USED_EXTERNAL_FILES{1ULL << 37};
+constexpr const uint64_t HA_CREATE_USED_ALLOW_MISSING_FILES{1ULL << 38};
+constexpr const uint64_t HA_CREATE_USED_VERIFY_KEY_CONSTRAINTS{1ULL << 39};
+constexpr const uint64_t HA_CREATE_USED_STRICT_LOAD{1ULL << 40};
+constexpr const uint64_t HA_CREATE_USED_AUTO_REFRESH{1ULL << 41};
+constexpr const uint64_t HA_CREATE_USED_AUTO_REFRESH_SOURCE{1ULL << 42};
+
+/**
+  These flags indicate that ENGINE/SECONDARY_ENGINE were set explicitly
+  (not by EXTERNAL keyword defaults)
+*/
+constexpr const uint64_t HA_CREATE_USED_EXPLICIT_ENGINE{1ULL << 43};
+constexpr const uint64_t HA_CREATE_USED_EXPLICIT_SECONDARY_ENGINE{1ULL << 44};
 
 /*
   End of bits used in used_fields
@@ -3199,6 +3218,11 @@ inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_DISTANCE_SCAN{
 inline constexpr const decltype(handlerton::flags)
     HTON_NO_DEFAULT_ENGINE_SUPPORT{1 << 24};
 
+/** Whether the secondary engine supports creation of temporary tables. */
+inline constexpr const decltype(handlerton::flags)
+    HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE(1 << 25);
+
+
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3221,10 +3245,22 @@ inline constexpr const decltype(handlerton::flags)
 
 /** End of Percona specific HTON_* defines */
 
+
+/* Whether the handlerton is a secondary engine. */
+inline bool hton_is_secondary_engine(const handlerton *hton) {
+  return hton != nullptr && (hton->flags & HTON_IS_SECONDARY_ENGINE) != 0U;
+}
+
+/* Whether the secondary engine handlerton supports DDLs */
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
-
   return (hton->flags & HTON_SECONDARY_ENGINE_SUPPORTS_DDL) != 0;
+}
+
+/* Whether the secondary engine handlerton supports temporary tables. */
+inline bool secondary_engine_supports_temporary_tables(const handlerton *hton) {
+  assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
+  return (hton->flags & HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE) != 0U;
 }
 
 inline bool ddl_is_atomic(const handlerton *hton) {
@@ -3366,7 +3402,7 @@ struct HA_CREATE_INFO {
   ulonglong max_rows{0};
   ulonglong min_rows{0};
   ulonglong auto_increment_value{0};
-  ulong table_options{0};
+  uint64_t table_options{0};
   ulong avg_row_length{0};
   uint64_t used_fields{0};
   // Can only be 1,2,4,8 or 16, but use uint32_t since that how it is
@@ -3412,6 +3448,13 @@ struct HA_CREATE_INFO {
 
   bool m_implicit_tablespace_autoextend_size_change{true};
 
+  PT_create_external_file_format *file_format{nullptr};
+  PT_create_external_files *external_files{nullptr};
+  LEX_CSTRING auto_refresh_event_source = NULL_CSTR;
+
+  // Position in query text where column definitions end and table options start
+  size_t create_table_columns_end_pos{0};
+
   /**
     Contains the actual user table which is being altered. If the system tables
     are being altered, then this will be empty.
@@ -3432,6 +3475,13 @@ struct HA_CREATE_INFO {
 
   void init_create_options_from_share(const TABLE_SHARE *share,
                                       uint64_t used_fields);
+
+  /**
+    Populate the db_type member depending on internal state and thd variables.
+
+    @param[in] thd user session
+   */
+  bool set_db_type(THD *thd);
   Item *zip_dict_name{nullptr};
 };
 
@@ -7746,6 +7796,7 @@ class DsMrr_impl {
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
+plugin_ref ha_default_temp_plugin(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
 handlerton *ha_enforce_handlerton(THD *thd);
 /**

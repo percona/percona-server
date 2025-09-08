@@ -39,7 +39,6 @@
 #include "mysql/containers/buffers/grow_calculator.h"  // Grow_calculator
 #include "mysql/containers/buffers/grow_status.h"      // Grow_status
 #include "mysql/containers/buffers/rw_buffer.h"        // Rw_buffer
-#include "mysql/utils/nodiscard.h"                     // NODISCARD
 
 /// @addtogroup GroupLibsMysqlContainers
 /// @{
@@ -200,7 +199,7 @@ class Managed_buffer : public Rw_buffer<Char_tp> {
   /// exceeds the configured maximum size.
   ///
   /// @retval Grow_status::out_of_memory Memory allocation failed.
-  [[NODISCARD]] Grow_status reserve_total_size(Size_t requested_size) {
+  [[nodiscard]] Grow_status reserve_total_size(Size_t requested_size) {
     BAPI_TRACE;
     auto capacity = this->capacity();
     auto [error, new_capacity] =
@@ -244,7 +243,7 @@ class Managed_buffer : public Rw_buffer<Char_tp> {
   /// Grow_calculator.
   ///
   /// @retval Grow_status::out_of_memory Memory allocation failed.
-  [[NODISCARD]] Grow_status reserve_write_size(Size_t requested_write_size) {
+  [[nodiscard]] Grow_status reserve_write_size(Size_t requested_write_size) {
     auto read_size = this->read_part().size();
     if (requested_write_size > std::numeric_limits<Size_t>::max() - read_size)
       return Grow_status::exceeds_max_size;
@@ -299,7 +298,7 @@ class Managed_buffer : public Rw_buffer<Char_tp> {
   /// @param new_size The size of the buffer.
   ///
   /// @returns the new buffer on success, nullptr on out of memory.
-  [[NODISCARD]] Char_t *allocate_buffer(Size_t new_size) {
+  [[nodiscard]] Char_t *allocate_buffer(Size_t new_size) {
     try {
       return m_char_allocator.allocate(new_size);
     } catch (std::bad_alloc &) {

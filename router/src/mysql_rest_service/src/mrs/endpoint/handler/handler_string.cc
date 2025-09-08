@@ -58,8 +58,7 @@ HandlerString::HandlerString(
     const std::string &path, const std::string &file_name,
     const std::string &file_content, const bool is_index,
     mrs::interface::AuthorizeManager *auth_manager)
-    : Handler(protocol, "",
-              regex_path_file(path, k_slash + file_name, is_index),
+    : Handler(protocol, "", path_file(path, k_slash + file_name, is_index),
               std::string{}, auth_manager),
       service_id_{service_id},
       service_path_{service_path},

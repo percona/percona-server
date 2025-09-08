@@ -158,6 +158,29 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
              "$.out", PARAMETER_MODE like "%OUT%") as js
      FROM information_schema.PARAMETERS
      WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name" and PARAMETER_NAME is not NULL;
+
+    if ($mrs_add_db_object_user_variables) {
+      set @_position=(SELECT MAX(position) FROM `mysql_rest_service_metadata`.`object_field` WHERE object_id=@_proc_id);
+
+      eval INSERT INTO `mysql_rest_service_metadata`.`object_field` (
+        `id`, `object_id`, `position`, `name`, `db_column`)
+      SELECT mysql_rest_service_metadata.get_sequence_id(),
+            @_proc_id,
+            @_position+position, name,
+            JSON_SET("{}",
+              "$.name",name,
+              "$.datatype",datatype,
+              "$.in", mode like "%IN%",
+              "$.out", mode like "%OUT%") as js
+      FROM JSON_TABLE(
+          $mrs_add_db_object_user_variables, '$[*]' COLUMNS (
+              position FOR ORDINALITY,
+              name text path '$.name',
+              datatype text path '$.dataType',
+              mode text path '$.mode'
+          )
+      ) AS vars;
+    }
  }
 }
 
@@ -183,6 +206,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 --let $mrs_add_db_object_custom_values=
 --let $mrs_add_db_object_user_ownership_column=
 --let $mrs_add_db_object_metadata=
+--let $mrs_add_db_object_user_variables=
 --let $_mrs_tmp_columns=
 --let $_mrs_tmp_values=
 

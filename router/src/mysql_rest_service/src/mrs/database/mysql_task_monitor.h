@@ -30,7 +30,7 @@
 #include <memory>
 #include <string>
 #include <thread>
-#include "collector/mysql_cache_manager.h"
+#include "collector/mysql_fixed_pool_manager.h"
 #include "helper/wait_variable.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -40,13 +40,16 @@ namespace database {
 
 class MysqlTaskMonitor {
  public:
-  using CachedSession = collector::MysqlCacheManager::CachedObject;
+  using CachedSession = collector::MysqlFixedPoolManager::CachedObject;
+  using PoolManager = collector::MysqlFixedPoolManager;
+  using PoolManagerRef = std::shared_ptr<PoolManager>;
 
   ~MysqlTaskMonitor();
 
   void call_async(
-      CachedSession session, std::list<std::string> preamble,
-      std::string script, std::list<std::string> postamble,
+      CachedSession session, PoolManagerRef session_pool,
+      std::list<std::string> preamble, std::string script,
+      std::list<std::string> postamble,
       std::function<std::list<std::string>(const std::exception &)> on_error,
       const std::string &task_id);
 
@@ -57,6 +60,9 @@ class MysqlTaskMonitor {
 
  private:
   struct Task {
+    // holds a ref to the pool that owns session, so it's not released
+    // while the Task is executing in another thread
+    PoolManagerRef session_pool_ref;
     CachedSession session;
     std::list<std::string> preamble;
     std::string script;

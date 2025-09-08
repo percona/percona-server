@@ -409,7 +409,7 @@ static int Init(MYSQL_PLUGIN p) {
   handlerton *hton = static_cast<handlerton *>(p);
   hton->create = Create;
   hton->state = SHOW_OPTION_YES;
-  hton->flags = HTON_IS_SECONDARY_ENGINE;
+  hton->flags = HTON_IS_SECONDARY_ENGINE | HTON_SECONDARY_ENGINE_SUPPORTS_DDL;
   hton->db_type = DB_TYPE_UNKNOWN;
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->secondary_engine_pre_prepare_hook = SecondaryEnginePrePrepareHook;

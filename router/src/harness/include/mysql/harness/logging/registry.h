@@ -43,6 +43,7 @@ namespace mysql_harness {
 namespace logging {
 
 class Handler;
+class ExternalHandler;
 
 class HARNESS_EXPORT Registry {
  public:
@@ -279,6 +280,15 @@ HARNESS_EXPORT
 void set_log_level_for_all_loggers(Registry &registry, LogLevel level);
 
 /**
+ * Set log level for selected handler to specified value
+ *
+ * @param name Name of the registry in the singleton (DIM)
+ * @param level Log level for handler
+ */
+HARNESS_EXPORT
+void set_log_level_for_handler(std::string name, LogLevel level);
+
+/**
  * Set log levels for all handlers to specified value
  *
  * @param registry Registry object, typically managed by DIM
@@ -453,6 +463,14 @@ void register_handler(std::string name, std::shared_ptr<Handler> handler);
  */
 HARNESS_EXPORT
 void unregister_handler(std::string name);
+
+/**
+ * Returns true if a given handler is in the registry, false otherwise.
+ *
+ * @param name name of the handler to check.
+ */
+HARNESS_EXPORT
+bool handler_registered(std::string name);
 
 /**
  * Returns pointer to the default logger sink stream.

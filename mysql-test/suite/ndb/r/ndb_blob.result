@@ -546,12 +546,18 @@ a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
 b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
 b	1110	b	4	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='a';
 a	b	c	d	sha1(t)
 a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='b';
 a	b	c	d	sha1(t)
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 update t1 set t=@v4 where a='b' and b=1110 and c='a';
 update t1 set t=@v2 where a='b' and b=1110 and c='b';
 select a,b,c,d,sha1(t) from t1 order by c,a;
@@ -560,6 +566,8 @@ a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
 b	1110	a	2	NULL
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
 b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 update t1 set t=@v2 where d=2;
 update t1 set t=@v4 where d=4;
 select a,b,c,d,sha1(t) from t1 order by c,a;
@@ -568,6 +576,8 @@ a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
 b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
 b	1110	b	4	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 update t1 set t=@v4 where a='b' and c='a';
 update t1 set t=@v2 where a='b' and c='b';
 select a,b,c,d,sha1(t) from t1 order by c,a;
@@ -576,6 +586,8 @@ a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
 b	1110	a	2	NULL
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
 b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 update t1 set t=@v2 where b+d=1112;
 update t1 set t=@v4 where b+d=1114;
 select a,b,c,d,sha1(t) from t1 order by c,a;
@@ -584,6 +596,8 @@ a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
 b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
 a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
 b	1110	b	4	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 delete from t1 where a='a' and b=1110 and c='a';
 delete from t1 where a='b' and c='a';
 delete from t1 where d=3;
@@ -647,9 +661,13 @@ insert into t1 values (0, repeat(@stuff, 2000));
 select sha1(repeat(@stuff, 2000));
 sha1(repeat(@stuff, 2000))
 c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select sha1(giga) from t1;
 sha1(giga)
 c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select (giga = repeat(@stuff, 2000)) from t1 where a=0;
 (giga = repeat(@stuff, 2000))
 1

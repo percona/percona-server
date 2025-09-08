@@ -81,9 +81,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/derror.h"
 #endif /* !UNIV_NO_ERR_MSGS */
 
-/** Index name prefix in fast index creation, as a string constant */
-#define TEMP_INDEX_PREFIX_STR "\377"
-
 #ifndef UNIV_HOTBACKUP
 #if defined(HAVE_PAUSE_INSTRUCTION)
 /* According to the gcc info page, asm volatile means that the

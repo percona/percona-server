@@ -2982,6 +2982,76 @@ void Dbtc::dump_trans(ApiConnectRecordPtr transPtr) {
     } while (tcConList.next(tcConnectptr));
 }
 
+void Dbtc::dump_scan_state(ApiConnectRecordPtr scanTransPtr) {
+  jam();
+  if (scanTransPtr.p->apiScanRec != RNIL) {
+    ScanRecordPtr scanRecPtr;
+    scanRecPtr.i = scanTransPtr.p->apiScanRec;
+    scanRecordPool.getPtr(scanRecPtr);
+
+    g_eventLogger->info(
+        "TC %u ACR %u scan record %u state %u noFrag %u booked %u "
+        "parallel %u table %u batch rows %u bytes %u block %x ri %x",
+        instance(), scanTransPtr.i, scanTransPtr.p->apiScanRec,
+        scanRecPtr.p->scanState, scanRecPtr.p->scanNoFrag,
+        scanRecPtr.p->m_booked_fragments_count, scanRecPtr.p->scanParallel,
+        scanRecPtr.p->scanTableref, scanRecPtr.p->first_batch_size_rows,
+        scanRecPtr.p->batch_byte_size, scanRecPtr.p->m_scan_block_no,
+        scanRecPtr.p->scanRequestInfo);
+
+    {
+      ScanFragLocationPtr sflPtr;
+      Local_ScanFragLocation_list fragLocationRecs(
+          m_fragLocationPool, scanRecPtr.p->m_fragLocations);
+      for (fragLocationRecs.first(sflPtr); !sflPtr.isNull();
+           fragLocationRecs.next(sflPtr)) {
+        for (Uint32 idx = sflPtr.p->m_first_index; idx < sflPtr.p->m_next_index;
+             idx++) {
+          const ScanFragLocation *sfl = &sflPtr.p->m_frag_location_array[idx];
+          g_eventLogger->info("TC %u Frag %u location preferred %x primary %x",
+                              instance(), sfl->fragId, sfl->preferredBlockRef,
+                              sfl->primaryBlockRef);
+        }
+      }
+    }
+
+    {
+      ScanFragRecPtr scanFragPtr;
+      Local_ScanFragRec_dllist running(c_scan_frag_pool,
+                                       scanRecPtr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist delivered(c_scan_frag_pool,
+                                         scanRecPtr.p->m_delivered_scan_frags);
+      Local_ScanFragRec_dllist queued(c_scan_frag_pool,
+                                      scanRecPtr.p->m_queued_scan_frags);
+
+      for (running.first(scanFragPtr); !scanFragPtr.isNull();
+           running.next(scanFragPtr)) {
+        g_eventLogger->info(
+            "TC %u   Running   scan frag %u state %u timer %u lqh %x conf %u",
+            instance(), scanFragPtr.i, scanFragPtr.p->scanFragState,
+            scanFragPtr.p->scanFragTimer, scanFragPtr.p->lqhBlockref,
+            scanFragPtr.p->m_scan_frag_conf_status);
+      }
+      for (delivered.first(scanFragPtr); !scanFragPtr.isNull();
+           delivered.next(scanFragPtr)) {
+        g_eventLogger->info(
+            "TC %u   Delivered scan frag %u state %u timer %u lqh %x conf %u",
+            instance(), scanFragPtr.i, scanFragPtr.p->scanFragState,
+            scanFragPtr.p->scanFragTimer, scanFragPtr.p->lqhBlockref,
+            scanFragPtr.p->m_scan_frag_conf_status);
+      }
+      for (queued.first(scanFragPtr); !scanFragPtr.isNull();
+           queued.next(scanFragPtr)) {
+        g_eventLogger->info(
+            "TC %u   Queued    scan frag %u state %u timer %u lqh %x conf %u",
+            instance(), scanFragPtr.i, scanFragPtr.p->scanFragState,
+            scanFragPtr.p->scanFragTimer, scanFragPtr.p->lqhBlockref,
+            scanFragPtr.p->m_scan_frag_conf_status);
+      }
+    }
+  }
+}
+
 bool Dbtc::hasOp(ApiConnectRecordPtr transPtr, Uint32 opPtrI) {
   TcConnectRecordPtr tcPtr;
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, transPtr.p->tcConnect);
@@ -10186,12 +10256,6 @@ void Dbtc::apiFailBlockCleanupCallback(Signal *signal, Uint32 failedNodeId,
   sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
-void Dbtc::checkScanFragList(Signal *signal, Uint32 failedNodeId,
-                             ScanRecord *scanP,
-                             Local_ScanFragRec_dllist::Head &head) {
-  DEBUG("checkScanActiveInFailedLqh: scanFragError");
-}
-
 void Dbtc::execTAKE_OVERTCCONF(Signal *signal) {
   jamEntry();
 
@@ -13945,24 +14009,50 @@ void Dbtc::execSCAN_NEXTREQ(Signal *signal) {
   if (unlikely(apiConnectptr.p->apiConnectstate != CS_START_SCAN)) {
     jam();
     releaseSections(handle);
-    if (apiConnectptr.p->apiConnectstate == CS_CONNECTED) {
+    g_eventLogger->warning(
+        "TC %u : SCAN_NEXTREQ(stop=%u) from node %u to ACR %u "
+        "finds unexpected ACR state %u",
+        instance(), stopScan, refToNode(signal->senderBlockRef()),
+        apiConnectptr.i, apiConnectptr.p->apiConnectstate);
+    if (apiConnectptr.p->apiConnectstate != CS_DISCONNECTED) {
       jam();
-      /*********************************************************************
-       * The application sends a SCAN_NEXTREQ after experiencing a time-out.
-       *  We will send a SCAN_TABREF to indicate a time-out occurred.
-       *********************************************************************/
-      DEBUG("scanTabRefLab: ZSCANTIME_OUT_ERROR2");
-      g_eventLogger->info("apiConnectptr(%d) -> abort", apiConnectptr.i);
-      ndbabort();  // B2 indication of strange things going on
-      scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2, apiConnectptr.p);
+      g_eventLogger->warning("TC %u : ACR seized by node %u, scanRec %u",
+                             instance(),
+                             refToNode(apiConnectptr.p->ndbapiBlockref),
+                             apiConnectptr.p->apiScanRec);
+      if (apiConnectptr.p->apiScanRec != RNIL) {
+        jam();
+        /* Dump scan state */
+        dump_scan_state(apiConnectptr);
+      }
+    }
+
+    if (apiConnectptr.p->apiConnectstate == CS_CONNECTED &&
+        apiConnectptr.p->ndbapiBlockref == signal->senderBlockRef() &&
+        stopScan) {
+      jam();
+
+      g_eventLogger->warning("TC %u : Confirming scan close", instance());
+
+      /* Case where client owns ApiConnectRecord, sent close and it is already
+       * closed.
+       * Acknowledge close as this is not a state problem from our pov.
+       */
+      ScanTabConf *conf = (ScanTabConf *)&signal->theData[0];
+      conf->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
+      conf->requestInfo = ScanTabConf::EndOfData;
+      conf->transId1 = apiConnectptr.p->transid[0];
+      conf->transId2 = apiConnectptr.p->transid[1];
+      sendSignal(signal->senderBlockRef(), GSN_SCAN_TABCONF, signal,
+                 ScanTabConf::SignalLength, JBB);
       return;
     }
-    DEBUG("scanTabRefLab: ZSTATE_ERROR");
-    DEBUG("  apiConnectstate=" << apiConnectptr.p->apiConnectstate);
-    ndbabort();  // B2 indication of strange things going on
-    scanTabRefLab(signal, ZSTATE_ERROR, apiConnectptr.p);
+
+    /* Disconnect sender, and record owner, if different */
+    handleSignalStateProblem(signal, apiConnectptr,
+                             refToNode(signal->senderBlockRef()), 4);
     return;
-  }  // if
+  }
 
   /*******************************************************
    * START THE ACTUAL LOGIC OF SCAN_NEXTREQ.

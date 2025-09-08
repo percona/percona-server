@@ -56,18 +56,18 @@ while($encryption_mode < 2)
   # Creating a simple table.
   CREATE TABLE t1(
     id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-    value CHAR(32) NOT NULL,
+    value CHAR(64) NOT NULL,
     dummy VARCHAR(1024) NOT NULL
   ) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
 
   # Filling the table with pseudo-random data based on MD5 hashes.
   --let $length_multiplier = 16
-  eval INSERT INTO t1 VALUES (0, MD5(0), REPEAT(MD5(0), $length_multiplier));
+  eval INSERT INTO t1 VALUES (0, SHA2(0,256), REPEAT(SHA2(0, 256), $length_multiplier));
   --let $shift = 1
   --let $n = 12
   while($n)
   {
-    eval INSERT INTO t1 SELECT $shift + id, MD5($shift + id), REPEAT(MD5($shift + id), $length_multiplier) FROM t1 ORDER BY id;
+    eval INSERT INTO t1 SELECT $shift + id, SHA2($shift + id, 256), REPEAT(SHA2($shift + id, 256), $length_multiplier) FROM t1 ORDER BY id;
     --let $shift = `SELECT $shift * 2`
     --dec $n
   }
@@ -114,7 +114,7 @@ while($encryption_mode < 2)
   # 'value' column hashes from 't1' table. '42' was randomly chosen.
   # 'UPPER()' is needed as in the temp file keys are stored in upper case.
   --let $assert_file = /proc/$pid_no/fd/$tmp_fd_no
-  --let $assert_select = `SELECT UPPER(MD5(42))`
+  --let $assert_select = `SELECT UPPER(SHA2(42, 256))`
   if($encryption_mode == 0)
   {
     --let $assert_text = filesort() temporary file must not contain unencrypted key

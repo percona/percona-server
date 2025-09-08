@@ -3574,8 +3574,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
-    -> Filter: (t1.a = 1)  (rows=2)
-        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=2)
+    -> Covering index range scan on t1 using a over (a = 1 AND NULL < b < 2000)  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
 a	MAX(b)
@@ -3583,8 +3582,7 @@ a	MAX(b)
 EXPLAIN FORMAT=TREE SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
-    -> Filter: (t1.a = 1)  (rows=2)
-        -> Covering index skip scan on t1 using a over NULL < b < 2000  (rows=2)
+    -> Covering index range scan on t1 using a over (a = 1 AND NULL < b < 2000)  (rows=2)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
 a	MAX(b)
@@ -3594,7 +3592,7 @@ GROUP BY a;
 EXPLAIN
 -> Group aggregate: max(t1.b)  (rows=1)
     -> Filter: ((t1.b between 0 and 1999.5) and (t1.a = 1))  (rows=2)
-        -> Covering index skip scan on t1 using a over 0 <= b < 2000  (rows=2)
+        -> Table scan on t1  (rows=6)
 
 SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
 GROUP BY a;
@@ -3603,8 +3601,8 @@ a	MAX(b)
 EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 EXPLAIN
 -> Group aggregate: min(t1.b)  (rows=1)
-    -> Filter: (t1.a = 1)  (rows=3)
-        -> Covering index skip scan on t1 using a over 2000 < b  (rows=3)
+    -> Filter: ((t1.b > 2000) and (t1.a = 1))  (rows=3)
+        -> Table scan on t1  (rows=6)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
 a	MIN(b)
@@ -3612,8 +3610,8 @@ a	MIN(b)
 EXPLAIN FORMAT=TREE SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 EXPLAIN
 -> Group aggregate: min(t1.b)  (rows=1)
-    -> Filter: (t1.a = 1)  (rows=3)
-        -> Covering index skip scan on t1 using a over 2000 < b  (rows=3)
+    -> Filter: ((t1.b > 2000) and (t1.a = 1))  (rows=3)
+        -> Table scan on t1  (rows=6)
 
 SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
 a	MIN(b)

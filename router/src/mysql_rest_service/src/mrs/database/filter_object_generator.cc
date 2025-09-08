@@ -232,6 +232,15 @@ class tosDate {
   }
 };
 
+class tosNull {
+ public:
+  bool acceptable(entry::Column *, Value *v) const { return v->IsNull(); }
+
+  mysqlrouter::sqlstring to_sqlstring(entry::Column *, Value *) const {
+    return {"NULL"};
+  }
+};
+
 class Result {
  public:
   explicit Result(entry::Column *dfield, Value *v) : dfield_{dfield}, v_{v} {}
@@ -294,15 +303,15 @@ mysqlrouter::sqlstring FilterObjectGenerator::get_result() const {
 
 void FilterObjectGenerator::reset(const Clear clear) {
   if (clear & Clear::kWhere) {
-    log_debug("Resetting where");
+    log_debug2("Resetting where");
     where_.reset("");
   }
   if (clear & Clear::kOrder) {
-    log_debug("Resetting order");
+    log_debug2("Resetting order");
     order_.reset("");
   }
   if (clear & Clear::kAsof) {
-    log_debug("Resetting asof");
+    log_debug2("Resetting asof");
     asof_gtid_.reset("");
   }
 }
@@ -319,8 +328,8 @@ void FilterObjectGenerator::parse(const Document &doc) {
 }
 
 void FilterObjectGenerator::parse(const std::string &filter_query) {
-  log_debug("FilterObjectGenerator::parse(filter_query=%s)",
-            filter_query.c_str());
+  log_debug2("FilterObjectGenerator::parse(filter_query=%s)",
+             filter_query.c_str());
   if (filter_query.empty()) return;
 
   parse(helper::json::text_to_document(filter_query));
@@ -355,7 +364,7 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
 std::optional<mysqlrouter::sqlstring>
 FilterObjectGenerator::parse_complex_value(const std::string_view &column_name,
                                            Value *value) {
-  log_debug("parse_complex_value %s", column_name.data());
+  log_debug2("parse_complex_value %s", column_name.data());
   if (!value->IsObject()) return {};
   if (value->MemberCount() != 1) return {};
 
@@ -383,8 +392,8 @@ std::optional<mysqlrouter::sqlstring>
 FilterObjectGenerator::parse_complex_operator_object(
     const std::string_view &column_name, Value *value,
     const std::string_view &complex_key) {
-  log_debug("parse_complex_operator_object, column=%s, operator=%s",
-            column_name.data(), complex_key.data());
+  log_debug2("parse_complex_operator_object, column=%s, operator=%s",
+             column_name.data(), complex_key.data());
   if ("$or"s == complex_key || "$and"s == complex_key) {
     // 1) complexKey : [complexValues]
     auto result = parse_complex_values(column_name, value, complex_key);
@@ -403,7 +412,7 @@ FilterObjectGenerator::parse_complex_operator_object(
 std::optional<mysqlrouter::sqlstring>
 FilterObjectGenerator::parse_simple_operator_object(
     const std::string_view &column_name, Value *object) {
-  log_debug("parse_simple_operator_object %s", column_name.data());
+  log_debug2("parse_simple_operator_object %s", column_name.data());
   if (column_name.empty()) return {};
   if (!object->IsObject() || (object->MemberCount() != 1)) return {};
 
@@ -413,74 +422,74 @@ FilterObjectGenerator::parse_simple_operator_object(
   mysqlrouter::sqlstring result;
   auto name = object->MemberBegin()->name.GetString();
   Value *value = &object->MemberBegin()->value;
-  log_debug("dispatched type %i", static_cast<int>(value->GetType()));
+  log_debug2("dispatched type %i", static_cast<int>(value->GetType()));
 
   if ("$eq"s == name) {
-    log_debug("parse_simple_operator_object $eq");
+    log_debug2("parse_simple_operator_object $eq");
     result.append_preformatted(db_name)
         .append_preformatted(" = ")
         .append_preformatted(
             to_sqlstring<tosVec, tosGeom, tosString, tosBoolean, tosNumber,
                          tosDate>(dfield.get(), value));
   } else if ("$ne"s == name) {
-    log_debug("parse_simple_operator_object $ne");
+    log_debug2("parse_simple_operator_object $ne");
     result.append_preformatted(db_name)
         .append_preformatted(" <> ")
         .append_preformatted(
             to_sqlstring<tosVec, tosGeom, tosString, tosBoolean, tosNumber,
                          tosDate>(dfield.get(), value));
   } else if ("$lt"s == name) {
-    log_debug("parse_simple_operator_object $lt");
+    log_debug2("parse_simple_operator_object $lt");
     result.append_preformatted(db_name)
         .append_preformatted(" < ")
         .append_preformatted(to_sqlstring<tosNumber, tosDate, tosDateAsString>(
             dfield.get(), value));
   } else if ("$lte"s == name) {
-    log_debug("parse_simple_operator_object $lte");
+    log_debug2("parse_simple_operator_object $lte");
     result.append_preformatted(db_name)
         .append_preformatted(" <= ")
         .append_preformatted(to_sqlstring<tosNumber, tosDate, tosDateAsString>(
             dfield.get(), value));
   } else if ("$gt"s == name) {
-    log_debug("parse_simple_operator_object $gt");
+    log_debug2("parse_simple_operator_object $gt");
     result.append_preformatted(db_name)
         .append_preformatted(" > ")
         .append_preformatted(to_sqlstring<tosNumber, tosDate, tosDateAsString>(
             dfield.get(), value));
   } else if ("$gte"s == name) {
-    log_debug("parse_simple_operator_object $gte");
+    log_debug2("parse_simple_operator_object $gte");
     result.append_preformatted(db_name)
         .append_preformatted(" >= ")
         .append_preformatted(to_sqlstring<tosNumber, tosDate, tosDateAsString>(
             dfield.get(), value));
   } else if ("$instr"s == name) {
-    log_debug("parse_simple_operator_object $instr");
+    log_debug2("parse_simple_operator_object $instr");
     result.append_preformatted("instr(")
         .append_preformatted(db_name)
         .append_preformatted(", ")
         .append_preformatted(to_sqlstring<tosString>(dfield.get(), value))
         .append_preformatted(")");
   } else if ("$ninstr"s == name) {
-    log_debug("parse_simple_operator_object $not instr");
+    log_debug2("parse_simple_operator_object $not instr");
     result.append_preformatted("not instr(")
         .append_preformatted(db_name)
         .append_preformatted(", ")
         .append_preformatted(to_sqlstring<tosString>(dfield.get(), value))
         .append_preformatted(")");
   } else if ("$like"s == name) {
-    log_debug("parse_simple_operator_object $like");
+    log_debug2("parse_simple_operator_object $like");
     result.append_preformatted(db_name)
         .append_preformatted(" like ")
         .append_preformatted(to_sqlstring<tosString>(dfield.get(), value));
   } else if ("$null"s == name) {
-    log_debug("parse_simple_operator_object $null");
+    log_debug2("parse_simple_operator_object $null");
     if (!value->IsNull()) {
       throw RestError(
           "Operator '$null' in Filter object accepts only null value.");
     }
     result.append_preformatted(db_name).append_preformatted(" IS NULL");
   } else if ("$notnull"s == name) {
-    log_debug("parse_simple_operator_object $notnull");
+    log_debug2("parse_simple_operator_object $notnull");
     if (!value->IsNull()) {
       throw RestError(
           "Operator '$notnull' in Filter object accepts only null value.");
@@ -488,20 +497,20 @@ FilterObjectGenerator::parse_simple_operator_object(
 
     result.append_preformatted(db_name).append_preformatted(" IS NOT NULL");
   } else if ("$between"s == name) {
-    log_debug("parse_simple_operator_object $between");
+    log_debug2("parse_simple_operator_object $between");
     if (!value->IsArray())
       throw RestError("Between operator, requires an array field.");
     if (value->Size() != 2)
       throw RestError("Between field, requires array with size of two.");
-    // TODO(lkotula): Support of NULL values with different types of `tos-es`
-    // (Shouldn't be in review)
     result.append_preformatted(db_name)
         .append_preformatted(" BETWEEN ")
-        .append_preformatted(to_sqlstring<tosString, tosNumber, tosDate>(
-            dfield.get(), &(*value)[0]))
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate, tosNull>(dfield.get(),
+                                                                 &(*value)[0]))
         .append_preformatted(" AND ")
-        .append_preformatted(to_sqlstring<tosString, tosNumber, tosDate>(
-            dfield.get(), &(*value)[1]));
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate, tosNull>(dfield.get(),
+                                                                 &(*value)[1]));
   } else {
     return {};
   }
@@ -511,7 +520,7 @@ FilterObjectGenerator::parse_simple_operator_object(
 
 std::optional<mysqlrouter::sqlstring> FilterObjectGenerator::parse_match(
     Value *value) {
-  log_debug("parse_complex_match");
+  log_debug2("parse_complex_match");
   if (!value->IsObject())
     throw RestError("Match operator, requires JSON object as value.");
   auto param = value->FindMember("$params");
@@ -573,7 +582,7 @@ std::optional<mysqlrouter::sqlstring> FilterObjectGenerator::parse_match(
  */
 std::optional<mysqlrouter::sqlstring> FilterObjectGenerator::parse_direct_value(
     const std::string_view &column_name, Value *value) {
-  log_debug("parse_direct_value %s", column_name.data());
+  log_debug2("parse_direct_value %s", column_name.data());
 
   auto [table, dfield] = resolve_field(column_name);
   mysqlrouter::sqlstring dbname =
@@ -612,7 +621,7 @@ std::optional<mysqlrouter::sqlstring>
 FilterObjectGenerator::parse_complex_values(
     const std::string_view &column_name, Value *value,
     const std::string_view &complex_key) {
-  log_debug("parse_complex_values %s", column_name.data());
+  log_debug2("parse_complex_values %s", column_name.data());
   assert(complex_key == "$and" || complex_key == "$or");
 
   const std::string sql_operator = complex_key == "$and" ? "AND" : "OR";
@@ -681,7 +690,7 @@ bool is_valid_column_name(const std::string_view &str) {
 std::optional<mysqlrouter::sqlstring>
 FilterObjectGenerator::parse_column_object(const std::string_view &column_name,
                                            Value *value) {
-  log_debug("parse_column_object %s", column_name.data());
+  log_debug2("parse_column_object %s", column_name.data());
   if (!is_valid_column_name(column_name)) return {};
 
   // 1) columnName : simple type
@@ -726,7 +735,7 @@ bool FilterObjectGenerator::has_asof() const { return !asof_gtid_.is_empty(); }
  */
 bool FilterObjectGenerator::parse_wmember(const std::string_view &name,
                                           Value *value) {
-  log_debug("parse_wmember %s", name.data());
+  log_debug2("parse_wmember %s", name.data());
   // 1) columnProperty
   auto result = parse_column_object(name, value);
 
@@ -740,12 +749,12 @@ bool FilterObjectGenerator::parse_wmember(const std::string_view &name,
     return true;
   }
 
-  log_debug("parse_wmember: no match!");
+  log_debug2("parse_wmember: no match!");
   return false;
 }
 
 void FilterObjectGenerator::parse_asof(Value *value) {
-  log_debug("Parser asof");
+  log_debug2("Parser asof");
   if (!value->IsString())
     throw RestError("Wrong value for `asof`, requires string with GTID.");
   asof_gtid_.reset("?");
@@ -753,7 +762,7 @@ void FilterObjectGenerator::parse_asof(Value *value) {
 }
 
 void FilterObjectGenerator::parse_order(Object object) {
-  log_debug("Parser Order");
+  log_debug2("Parser Order");
   const char *kWrongValueForOrder =
       "Wrong value for order, expected: [1,-1, ASC, DESC].";
   const char *kWrongTypeForOrder =

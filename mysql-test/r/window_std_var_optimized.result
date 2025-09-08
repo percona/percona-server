@@ -1249,7 +1249,7 @@ NULL	NULL	NULL
 5	INTEGER	0.638675
 [1, 2, 3]	ARRAY	3.503675
 SELECT j, JSON_TYPE(j), JSON_TYPE(STD(j) OVER (ORDER BY j RANGE 3 PRECEDING)) FROM tj;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 INSERT INTO tj(j) VALUES ('3.14');
 INSERT INTO tj(j) VALUES ('[1,2,3]');
 SELECT j,

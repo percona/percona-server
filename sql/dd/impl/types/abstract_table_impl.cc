@@ -68,6 +68,7 @@ static const std::set<String_type> default_valid_option_keys = {
     "checksum",
     "compress",
     "connection_string",
+    "create_external_table",
     "delay_key_write",
     "encrypt_type",
     "explicit_tablespace",
@@ -91,6 +92,7 @@ static const std::set<String_type> default_valid_option_keys = {
     "timestamp",
     "view_valid",
     "gipk",
+    "view_type",
     "encryption_key_id",     // Added by Percona InnoDB KEYRING encryption
     "explicit_encryption"};  // Added by Percona InnoDB KEYRING encryption
 

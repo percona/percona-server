@@ -863,12 +863,11 @@ where exists (select 1 from t2, t3
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.a = t2.a)  (rows=0.283)
-    -> Remove duplicates from input grouped on t2.a  (rows=1.41)
-        -> Sort: t2.a  (rows=2004)
-            -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
-                -> Table scan on t3  (rows=1002)
-                -> Hash
-                    -> Table scan on t2  (rows=2)
+    -> Sort with duplicate removal: t2.a  (rows=1.41)
+        -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
+            -> Table scan on t3  (rows=1002)
+            -> Hash
+                -> Table scan on t2  (rows=2)
     -> Hash
         -> Table scan on t1  (rows=2)
 

@@ -54,7 +54,7 @@ SET (DEB_RULES_DEBUG_MAKE
 SET (DEB_RULES_DEBUG_EXTRA
 "
 	# The ini file isn't built for debug, so copy over from the standard build
-	install -g root -o root -m 0755 debian/tmp/usr/lib/mysql/plugin/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
+	install -m 0755 debian/tmp/usr/lib/mysql/plugin/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
 ")
 
 SET (DEB_INSTALL_DEBUG_SERVER
@@ -122,6 +122,9 @@ usr/lib/mysql/plugin/debug/component_test_host_application_signal.so
 usr/lib/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/debug/component_test_component_deinit.so
+usr/lib/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
+usr/lib/mysql/plugin/debug/component_test_component_init_fail.so
+usr/lib/mysql/plugin/debug/component_test_component_init_then_register.so
 usr/lib/mysql/plugin/debug/component_test_mysql_command_services.so
 usr/lib/mysql/plugin/debug/test_services_command_services.so
 usr/lib/mysql/plugin/debug/component_udf_reg_3_func.so
@@ -237,6 +240,7 @@ usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 usr/lib/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
 usr/lib/mysql/plugin/debug/component_group_replication_resource_manager.so
 usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
+usr/lib/mysql/plugin/debug/component_firewall.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so
 ")
   ENDIF()

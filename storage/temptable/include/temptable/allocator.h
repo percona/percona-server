@@ -104,13 +104,7 @@ struct MemoryMonitor {
      * Allocator.
      *
      * @return MMAP-memory threshold. */
-    static size_t threshold() {
-      if (temptable_use_mmap) {
-        return temptable_max_mmap;
-      } else {
-        return 0;
-      }
-    }
+    static size_t threshold() { return temptable_max_mmap; }
     /** Get current level of MMAP-backed memory consumption.
      *
      * @return Current level of MMAP-backed memory consumption (in bytes). */

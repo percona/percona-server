@@ -62,17 +62,17 @@ typedef unsigned short xcom_port;
 #endif
 
 #ifndef idx_check_ret
-#define idx_check_ret(x, limit, ret)                                           \
-  if (x < 0 || x >= limit) {                                                   \
-    g_critical("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
-               __FILE__, __LINE__);                                            \
-    return ret;                                                                \
+#define idx_check_ret(x, limit, ret)                                        \
+  if (x < 0 || x >= limit) {                                                \
+    G_FATAL("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
+            __FILE__, __LINE__);                                            \
+    return ret;                                                             \
   } else
-#define idx_check_fail(x, limit)                                               \
-  if (x < 0 || x >= limit) {                                                   \
-    g_critical("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
-               __FILE__, __LINE__);                                            \
-    abort();                                                                   \
+#define idx_check_fail(x, limit)                                            \
+  if (x < 0 || x >= limit) {                                                \
+    G_FATAL("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
+            __FILE__, __LINE__);                                            \
+    abort();                                                                \
   } else
 #endif
 

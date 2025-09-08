@@ -85,11 +85,22 @@ PluginState *PluginState::get_instance() {
   return &ps;
 }
 
-PluginState::PluginState() {
+void PluginState::reset() {
+  {
+    std::unique_lock<std::mutex> lock(mutex_guard_listeners_);
+    last_used_id_ = k_invalid_id_;
+    listeners_.clear();
+    running_plugins_.clear();
+    stopped_plugins_.clear();
+    loaded_plugins_.clear();
+  }
+
   default_observer_ = std::make_shared<observers::RecordActivePluginsObserver>(
       running_plugins_, stopped_plugins_);
   push_back_observer(default_observer_);
 }
+
+PluginState::PluginState() { reset(); }
 
 ObserverId PluginState::push_back_observer(
     std::weak_ptr<PluginStateObserver> psl) {

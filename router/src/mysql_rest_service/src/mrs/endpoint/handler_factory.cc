@@ -60,12 +60,12 @@ using namespace mrs::endpoint::handler;
 using HandlerPtr = std::shared_ptr<HandlerFactory::Handler>;
 using EndpointBase = mrs::interface::EndpointBase;
 
-static std::string get_regex_path_authnetication(
+static std::string get_path_authnetication(
     const std::shared_ptr<mrs::database::entry::DbService> &service) {
   std::string auth_path = service->auth_path.has_value()
                               ? service->auth_path.value()
                               : "/authentication";
-  return std::string("^") + service->url_context_root + auth_path;
+  return service->url_context_root + auth_path;
 }
 
 static std::string get_path_redirect(
@@ -323,7 +323,7 @@ HandlerPtr HandlerFactory::create_db_object_openapi_handler(
 }
 
 std::shared_ptr<handler::PersistentDataContentFile>
-HandlerFactory::create_persisten_content_file(
+HandlerFactory::create_persistent_content_file(
     EndpointBasePtr endpoint, const OptionalIndexNames &index_names) {
   auto content_file_endpoint =
       std::dynamic_pointer_cast<ContentFileEndpoint>(endpoint);
@@ -402,12 +402,13 @@ HandlerPtr HandlerFactory::create_authentication_login(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/login$$";
+  auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/login", false, false};
   auto redirect_path = get_path_redirect(entry);
 
   auto result = std::make_shared<HandlerAuthorizeLogin>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}), redirect_path,
       entry->auth_completed_url_validation, auth_manager_);
 
@@ -433,11 +434,12 @@ HandlerPtr HandlerFactory::create_authentication_logout(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/logout$";
+  const auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/logout", false, false};
 
   auto result = std::make_shared<HandlerAuthorizeLogout>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}), auth_manager_);
 
   result->initialize(HandlerConfiguration{configuration_});
@@ -462,11 +464,12 @@ HandlerPtr HandlerFactory::create_authentication_completed(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/completed";
+  const auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/completed", false, false};
 
   auto result = std::make_shared<HandlerAuthorizeCompleted>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}),
       entry->auth_completed_page_content.value_or(std::string{}),
       auth_manager_);
@@ -493,11 +496,12 @@ HandlerPtr HandlerFactory::create_authentication_user(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/user";
+  auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/user", false, false};
 
   auto result = std::make_shared<HandlerAuthorizeUser>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}), auth_manager_);
 
   result->initialize(HandlerConfiguration{configuration_});
@@ -522,12 +526,13 @@ HandlerPtr HandlerFactory::create_authentication_auth_apps(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/authApps$";
+  auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/authApps", false, false};
   auto redirect_path = get_path_redirect(entry);
 
   auto result = std::make_shared<HandlerAuthorizeAuthApps>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}), redirect_path, auth_manager_);
 
   result->initialize(HandlerConfiguration{configuration_});
@@ -552,11 +557,12 @@ HandlerPtr HandlerFactory::create_authentication_status(
   auto entry = db_service_endpoint->get();
   auto url_host_entry = url_host_endpoint->get();
 
-  auto regex_path = get_regex_path_authnetication(entry) + "/status$";
+  auto url_path = ::http::base::UriPathMatcher{
+      get_path_authnetication(entry) + "/status", false, false};
 
   auto result = std::make_shared<HandlerAuthorizeStatus>(
       handler::get_protocol(db_service_endpoint), url_host_entry->name,
-      entry->id, entry->url_context_root, regex_path,
+      entry->id, entry->url_context_root, url_path,
       entry->options.value_or(std::string{}), auth_manager_);
 
   result->initialize(HandlerConfiguration{configuration_});

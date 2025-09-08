@@ -54,12 +54,9 @@ public class TestRunner {
         test.run(result);
         if (result.wasSuccessful() && result.successes.size() > 0) {
             System.out.println("All tests succeeded.");
-        } else if(result.failures.size() > 0) {
-            System.out.println(resultPrinter.toString());
-            System.out.println("\nSome tests failed.");
         } else if(result.failures.size() + result.throwables.size() > 0) {
             System.out.println(resultPrinter.toString());
-            System.out.println("\nAll tests failed.");
+            System.out.println("\nSome tests failed.");
         } else {
             System.out.println("No tests run.");
         }

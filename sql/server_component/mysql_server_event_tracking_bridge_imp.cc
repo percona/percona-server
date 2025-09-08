@@ -606,6 +606,133 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define TO_LEXCSTRING(x) \
   { x.str, x.length }
 
+using event_tracking_authentication_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_authentication);
+using event_tracking_command_t = SERVICE_TYPE_NO_CONST(event_tracking_command);
+using event_tracking_connection_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_connection);
+using event_tracking_general_t = SERVICE_TYPE_NO_CONST(event_tracking_general);
+using event_tracking_global_variable_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_global_variable);
+using event_tracking_lifecycle_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_lifecycle);
+using event_tracking_message_t = SERVICE_TYPE_NO_CONST(event_tracking_message);
+using event_tracking_parse_t = SERVICE_TYPE_NO_CONST(event_tracking_parse);
+using event_tracking_query_t = SERVICE_TYPE_NO_CONST(event_tracking_query);
+using event_tracking_stored_program_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_stored_program);
+using event_tracking_table_access_t =
+    SERVICE_TYPE_NO_CONST(event_tracking_table_access);
+SERVICE_TYPE(event_tracking_authentication) *srv_event_tracking_authentication =
+    nullptr;
+SERVICE_TYPE(event_tracking_command) *srv_event_tracking_command = nullptr;
+SERVICE_TYPE(event_tracking_connection) *srv_event_tracking_connection =
+    nullptr;
+SERVICE_TYPE(event_tracking_general) *srv_event_tracking_general = nullptr;
+SERVICE_TYPE(event_tracking_global_variable)
+*srv_event_tracking_global_variable = nullptr;
+SERVICE_TYPE(event_tracking_lifecycle) *srv_event_tracking_lifecycle = nullptr;
+SERVICE_TYPE(event_tracking_message) *srv_event_tracking_message = nullptr;
+SERVICE_TYPE(event_tracking_parse) *srv_event_tracking_parse = nullptr;
+SERVICE_TYPE(event_tracking_query) *srv_event_tracking_query = nullptr;
+SERVICE_TYPE(event_tracking_stored_program) *srv_event_tracking_stored_program =
+    nullptr;
+SERVICE_TYPE(event_tracking_table_access) *srv_event_tracking_table_access =
+    nullptr;
+
+static bool inited = false;
+void init_srv_event_tracking_handles() {
+  srv_registry->acquire("event_tracking_authentication.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_authentication_t **>(
+                                &srv_event_tracking_authentication)));
+  srv_registry->acquire(
+      "event_tracking_command.mysql_server",
+      reinterpret_cast<my_h_service *>(const_cast<event_tracking_command_t **>(
+          &srv_event_tracking_command)));
+  srv_registry->acquire("event_tracking_connection.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_connection_t **>(
+                                &srv_event_tracking_connection)));
+  srv_registry->acquire(
+      "event_tracking_general.mysql_server",
+      reinterpret_cast<my_h_service *>(const_cast<event_tracking_general_t **>(
+          &srv_event_tracking_general)));
+  srv_registry->acquire("event_tracking_global_variable.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_global_variable_t **>(
+                                &srv_event_tracking_global_variable)));
+  srv_registry->acquire("event_tracking_lifecycle.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_lifecycle_t **>(
+                                &srv_event_tracking_lifecycle)));
+  srv_registry->acquire(
+      "event_tracking_message.mysql_server",
+      reinterpret_cast<my_h_service *>(const_cast<event_tracking_message_t **>(
+          &srv_event_tracking_message)));
+  srv_registry->acquire(
+      "event_tracking_parse.mysql_server",
+      reinterpret_cast<my_h_service *>(
+          const_cast<event_tracking_parse_t **>(&srv_event_tracking_parse)));
+  srv_registry->acquire(
+      "event_tracking_query.mysql_server",
+      reinterpret_cast<my_h_service *>(
+          const_cast<event_tracking_query_t **>(&srv_event_tracking_query)));
+  srv_registry->acquire("event_tracking_stored_program.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_stored_program_t **>(
+                                &srv_event_tracking_stored_program)));
+  srv_registry->acquire("event_tracking_table_access.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<event_tracking_table_access_t **>(
+                                &srv_event_tracking_table_access)));
+  assert(srv_event_tracking_authentication != nullptr &&
+         srv_event_tracking_command != nullptr &&
+         srv_event_tracking_connection != nullptr &&
+         srv_event_tracking_general != nullptr &&
+         srv_event_tracking_global_variable != nullptr &&
+         srv_event_tracking_lifecycle != nullptr &&
+         srv_event_tracking_message != nullptr &&
+         srv_event_tracking_parse != nullptr &&
+         srv_event_tracking_query != nullptr &&
+         srv_event_tracking_stored_program != nullptr &&
+         srv_event_tracking_table_access != nullptr);
+  inited = true;
+}
+void deinit_srv_event_tracking_handles() {
+  if (inited) {
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_authentication_t *>(
+            srv_event_tracking_authentication)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_command_t *>(srv_event_tracking_command)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_connection_t *>(
+            srv_event_tracking_connection)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_general_t *>(srv_event_tracking_general)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_global_variable_t *>(
+            srv_event_tracking_global_variable)));
+    srv_registry->release(
+        reinterpret_cast<my_h_service>(const_cast<event_tracking_lifecycle_t *>(
+            srv_event_tracking_lifecycle)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_message_t *>(srv_event_tracking_message)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_parse_t *>(srv_event_tracking_parse)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_query_t *>(srv_event_tracking_query)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_stored_program_t *>(
+            srv_event_tracking_stored_program)));
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<event_tracking_table_access_t *>(
+            srv_event_tracking_table_access)));
+  }
+  inited = false;
+}
+
 namespace {
 
 /**

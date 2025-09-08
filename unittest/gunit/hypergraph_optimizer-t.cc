@@ -66,6 +66,7 @@
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/sort_param.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -2843,7 +2844,8 @@ TEST_F(HypergraphOptimizerTest, UseIndexesInInnerJoinOutsideSemijoin) {
   // It used to do a full table scan on t1 instead of an index lookup.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
   const auto &outer_join = root->nested_loop_join();
-  EXPECT_EQ(AccessPath::REMOVE_DUPLICATES, outer_join.outer->type);
+  EXPECT_EQ(AccessPath::SORT, outer_join.outer->type);
+  EXPECT_TRUE(outer_join.outer->sort().remove_duplicates);
 
   // The exact placement of the t1.y=t3.y filter is not important. It could also
   // have been pushed down directly on top of the index lookup on t1(x). See
@@ -5342,23 +5344,13 @@ TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   ASSERT_EQ(AccessPath::EQ_REF, inner->type);
   EXPECT_STREQ("t1", inner->eq_ref().table->alias);
 
-  // The outer side is slightly trickier. There should first be
-  // a duplicate removal on the join key...
-  AccessPath *outer = root->nested_loop_join().outer;
-  ASSERT_EQ(AccessPath::REMOVE_DUPLICATES, outer->type);
-  ASSERT_EQ(1, outer->remove_duplicates().group_items_size);
-  EXPECT_EQ("t2.x", ItemToString(outer->remove_duplicates().group_items[0]));
-
-  // ...then a sort to get the grouping...
-  AccessPath *sort = outer->remove_duplicates().child;
+  // The outer side should be a sort on the join key with duplicate removal.
+  AccessPath *sort = root->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::SORT, sort->type);
+  EXPECT_TRUE(sort->sort().remove_duplicates);
   Filesort *filesort = sort->sort().filesort;
   ASSERT_EQ(1, filesort->sort_order_length());
   EXPECT_EQ("t2.x", ItemToString(filesort->sortorder[0].item));
-
-  // Note that ideally, we'd have true here instead of the duplicate removal,
-  // but we can't track duplicates-removed status through AccessPaths yet.
-  EXPECT_FALSE(filesort->m_remove_duplicates);
 
   // ...and then finally a table scan.
   AccessPath *t2 = sort->sort().child;
@@ -6893,13 +6885,16 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiPredicate) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  ASSERT_EQ(AccessPath::FILTER, root->type);
-  EXPECT_EQ("((t1.x = 5) and (t1.z > 10))",
-            ItemToString(root->filter().condition));
-  AccessPath *child = root->filter().child;
-  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, child->type);
-  ASSERT_EQ(0, child->index_skip_scan().index);
-  ASSERT_EQ(3, child->index_skip_scan().num_used_key_parts);
+  // Expect the skip scan to subsume both of the predicates in the WHERE clause,
+  // and have no filter on top.
+  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, root->type);
+  EXPECT_EQ(0, root->index_skip_scan().index);
+  EXPECT_EQ(3, root->index_skip_scan().num_used_key_parts);
+  // The x = 5 predicate is used as equality prefix.
+  EXPECT_EQ(1, root->index_skip_scan().param->eq_prefix_key_parts);
+  // The z > 10 predicate is the range condition.
+  EXPECT_STREQ(
+      "z", root->index_skip_scan().param->range_key_part->field->field_name);
 
   query_block->cleanup(/*full=*/true);
 }

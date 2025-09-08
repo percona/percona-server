@@ -74,6 +74,7 @@ static inline que_node_t *que_fork_get_child(
 static inline ulint que_node_get_type(
     const que_node_t *node) /*!< in: graph node */
 {
+  ut_ad(node != nullptr);
   return (reinterpret_cast<const que_common_t *>(node)->type);
 }
 
@@ -171,11 +172,13 @@ static inline que_node_t *que_node_list_get_last(
 
   return (node);
 }
+
 /** Gets the next list node in a list of query graph nodes.
  @return next node in a list of nodes */
 static inline que_node_t *que_node_get_next(
     que_node_t *node) /*!< in: node in a list */
 {
+  ut_ad(node != nullptr);
   return (((que_common_t *)node)->brother);
 }
 

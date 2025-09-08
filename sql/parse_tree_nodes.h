@@ -35,7 +35,6 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
-
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_list.h"
 #include "my_sqlcommand.h"
@@ -2772,7 +2771,7 @@ typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
   A template for options that set HA_CREATE_INFO::table_options and
   also records if the option was explicitly set.
 */
-template <ulong Property_flag, table_options_t Default, table_options_t Yes,
+template <uint64_t Property_flag, table_options_t Default, table_options_t Yes,
           table_options_t No>
 class PT_ternary_create_table_option : public PT_create_table_option {
   typedef PT_create_table_option super;
@@ -3051,6 +3050,156 @@ class PT_create_table_default_collation : public PT_create_table_option {
   bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
+class PT_create_external_file_format : public PT_create_table_option {
+  typedef PT_create_table_option super;
+
+ public:
+  PT_create_external_file_format(const POS &pos,
+                                 File_information *file_info_arg,
+                                 const Field_separators *field_term_arg,
+                                 const Line_separators *line_term_arg,
+                                 ulong ignore_lines_arg)
+      : super(pos),
+        file_info(file_info_arg),
+        field_term(field_term_arg),
+        line_term(line_term_arg),
+        ignore_lines(ignore_lines_arg) {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+  File_information *file_info;
+  const Field_separators *field_term;
+  const Line_separators *line_term;
+  ulong ignore_lines;
+};
+
+class PT_create_external_files : public PT_create_table_option {
+  typedef PT_create_table_option super;
+
+ public:
+  PT_create_external_files(const POS &pos,
+                           PT_external_file_list *external_files_arg)
+      : super(pos), external_files(external_files_arg) {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+  PT_external_file_list *external_files;
+};
+
+class PT_file_attributes {
+ public:
+  bool merge_attributes(PT_file_attributes *attr);
+
+  const String *uri{nullptr};
+  const String *name{nullptr};
+  const String *pattern{nullptr};
+  const String *prefix{nullptr};
+  Ternary_option allow_missing_files{Ternary_option::DEFAULT};
+  Ternary_option strict_load{Ternary_option::DEFAULT};
+};
+
+class PT_external_file_list {
+ public:
+  PT_external_file_list(THD *thd) : files(thd->mem_root) {}
+
+  bool push_back(PT_file_attributes *file_attributes) {
+    return files.push_back(file_attributes);
+  }
+
+  mem_root_deque<PT_file_attributes *> files;
+};
+
+/**
+  Node for the @SQL{ALLOW_MISSING_FILES [=] @B{1|0|DEFAULT}} table option
+
+  @ingroup ptn_create_or_alter_table_options
+
+  ALLOW_MISSING_FILES | Constructor parameter
+  --------------------|------------------------
+  1                   | Ternary_option::ON
+  0                   | Ternary_option::OFF
+  DEFAULT             | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<
+    HA_CREATE_USED_ALLOW_MISSING_FILES,  // flag
+    0,                                   // DEFAULT
+    HA_OPTION_ALLOW_MISSING_FILES,       // ON
+    HA_OPTION_NO_ALLOW_MISSING_FILES>    // OFF
+    PT_create_allow_missing_files_option;
+
+/**
+  Node for the @SQL{VERIFY_KEY_CONSTRAINTS [=] @B{1|0|DEFAULT}} table option
+
+  @ingroup ptn_create_or_alter_table_options
+
+  VERIFY_KEY_CONSTRAINTS | Constructor parameter
+  -----------------------|------------------------
+  1                      | Ternary_option::ON
+  0                      | Ternary_option::OFF
+  DEFAULT                | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<
+    HA_CREATE_USED_VERIFY_KEY_CONSTRAINTS,  // flag
+    0,                                      // DEFAULT
+    HA_OPTION_VERIFY_KEY_CONSTRAINTS,       // ON
+    HA_OPTION_NO_VERIFY_KEY_CONSTRAINTS>    // OFF
+    PT_create_verify_key_constraints_option;
+
+/**
+  Node for the @SQL{STRICT_LOAD [=] @B{1|0|DEFAULT}} table option
+
+  @ingroup ptn_create_or_alter_table_options
+
+  STRICT_LOAD      | Constructor parameter
+  -----------------|------------------------
+  1                | Ternary_option::ON
+  0                | Ternary_option::OFF
+  DEFAULT          | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<HA_CREATE_USED_STRICT_LOAD,  // flag
+                                       0,                           // DEFAULT
+                                       HA_OPTION_STRICT_LOAD,       // ON
+                                       HA_OPTION_NO_STRICT_LOAD>    // OFF
+    PT_create_strict_load_option;
+
+/**
+  Node for the @SQL{AUTO_REFRESH_MODE [=] @B{1|0|DEFAULT}} table option
+
+  @ingroup ptn_create_or_alter_table_options
+
+  AUTO_REFRESH     | Constructor parameter
+  -----------------|------------------------
+  1                | Ternary_option::ON
+  0                | Ternary_option::OFF
+  DEFAULT          | Ternary_option::DEFAULT
+*/
+typedef PT_ternary_create_table_option<HA_CREATE_USED_AUTO_REFRESH,  // flag
+                                       0,                            // DEFAULT
+                                       HA_OPTION_AUTO_REFRESH,       // ON
+                                       HA_OPTION_NO_AUTO_REFRESH>    // OFF
+    PT_create_auto_refresh_option;
+
+/**
+  Node for the @SQL{AUTO_REFRESH_SOURCE [=] @B{@<string@>|NULL}}
+  table option.
+
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_auto_refresh_event_source : public PT_create_table_option {
+  using super = PT_create_table_option;
+
+ public:
+  explicit PT_create_auto_refresh_event_source(const POS &pos) : super(pos) {}
+  explicit PT_create_auto_refresh_event_source(
+      const POS &pos, const LEX_CSTRING &auto_refresh_source)
+      : super(pos), m_auto_refresh_source(auto_refresh_source) {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+ private:
+  const LEX_CSTRING m_auto_refresh_source{nullptr, 0};
+};
+
 class PT_check_constraint final : public PT_table_constraint_def {
   typedef PT_table_constraint_def super;
   Sql_check_constraint_spec cc_spec;
@@ -3097,7 +3246,7 @@ class PT_column_def : public PT_table_element {
 */
 class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
   PT_hint_list *m_opt_hints;
-  bool is_temporary;
+  unsigned int table_type;
   bool only_if_not_exists;
   Table_ident *table_name;
   const Mem_root_array<PT_table_element *> *opt_table_element_list;
@@ -3106,6 +3255,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
   On_duplicate on_duplicate;
   PT_query_expression_body *opt_query_expression;
   Table_ident *opt_like_clause;
+  POS m_columns_end_pos;
 
   HA_CREATE_INFO m_create_info;
 
@@ -3115,7 +3265,8 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
                                       statement.
     @param mem_root                   MEM_ROOT to use for allocation
     @param opt_hints                  SET_VAR hints
-    @param is_temporary               True if @SQL{CREATE @B{TEMPORARY} %TABLE}
+    @param table_type                 TABLE_TYPE_NORMAL, TABLE_TYPE_TEMPORARY or
+    TABLE_TYPE_EXTERNAL
     @param only_if_not_exists  True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}
     @param table_name                 @SQL{CREATE %TABLE ... @B{@<table name@>}}
     @param opt_table_element_list     NULL or a list of table column and
@@ -3129,17 +3280,20 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
                                       for @SQL{CREATE TABLE ... SELECT}
                                       statements).
     @param opt_query_expression       NULL or the @SQL{@B{SELECT}} clause.
+    @param columns_end_pos            Position after column definitions end.
+                                      Used for CREATE EXTERNAL TABLE rewriting.
   */
   PT_create_table_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, bool is_temporary,
-      bool only_if_not_exists, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      uint table_type, bool only_if_not_exists, Table_ident *table_name,
       const Mem_root_array<PT_table_element *> *opt_table_element_list,
       const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
       PT_partition *opt_partitioning, On_duplicate on_duplicate,
-      PT_query_expression_body *opt_query_expression)
+      PT_query_expression_body *opt_query_expression,
+      const POS &columns_end_pos = POS())
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
-        is_temporary(is_temporary),
+        table_type(table_type),
         only_if_not_exists(only_if_not_exists),
         table_name(table_name),
         opt_table_element_list(opt_table_element_list),
@@ -3147,22 +3301,25 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
         opt_partitioning(opt_partitioning),
         on_duplicate(on_duplicate),
         opt_query_expression(opt_query_expression),
-        opt_like_clause(nullptr) {}
+        opt_like_clause(nullptr),
+        m_columns_end_pos(columns_end_pos) {}
   /**
     @param pos                Position of this clause in the SQL statement.
     @param mem_root           MEM_ROOT to use for allocation
     @param opt_hints          SET_VAR hints
-    @param is_temporary       True if @SQL{CREATE @B{TEMPORARY} %TABLE}.
+    @param table_type         TABLE_TYPE_NORMAL, TABLE_TYPE_TEMPORARY or
+    TABLE_TYPE_EXTERNAL.
     @param only_if_not_exists True if @SQL{CREATE %TABLE ... @B{IF NOT EXISTS}}.
     @param table_name         @SQL{CREATE %TABLE ... @B{@<table name@>}}.
     @param opt_like_clause    NULL or the @SQL{@B{LIKE @<table name@>}} clause.
   */
-  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                       bool is_temporary, bool only_if_not_exists,
-                       Table_ident *table_name, Table_ident *opt_like_clause)
+  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                       PT_hint_list *opt_hints, uint table_type,
+                       bool only_if_not_exists, Table_ident *table_name,
+                       Table_ident *opt_like_clause)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
-        is_temporary(is_temporary),
+        table_type(table_type),
         only_if_not_exists(only_if_not_exists),
         table_name(table_name),
         opt_table_element_list(nullptr),
@@ -3170,7 +3327,8 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
         opt_partitioning(nullptr),
         on_duplicate(On_duplicate::ERROR),
         opt_query_expression(nullptr),
-        opt_like_clause(opt_like_clause) {}
+        opt_like_clause(opt_like_clause),
+        m_columns_end_pos(POS()) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };
@@ -5030,7 +5188,8 @@ class PT_alter_table_import_tablespace final
 class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name,
       Mem_root_array<PT_ddl_table_option *> *opt_actions,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
@@ -5059,8 +5218,8 @@ class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
 class PT_alter_table_standalone_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_standalone_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
-      PT_alter_table_standalone_action *action,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name, PT_alter_table_standalone_action *action,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
       Alter_info::enum_with_validation validation)
@@ -5109,8 +5268,8 @@ class PT_repair_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                        bool no_write_to_binlog,
+  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                        PT_hint_list *opt_hints, bool no_write_to_binlog,
                         Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
                         int num_buckets, List<String> *columns, LEX_STRING data,
@@ -5140,7 +5299,8 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                      PT_hint_list *opt_hints,
                       Mem_root_array<Table_ident *> *table_list,
                       decltype(HA_CHECK_OPT::flags) flags,
                       decltype(HA_CHECK_OPT::sql_flags) sql_flags)
@@ -5161,8 +5321,8 @@ class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_optimize_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                         bool no_write_to_binlog,
+  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                         PT_hint_list *opt_hints, bool no_write_to_binlog,
                          Mem_root_array<Table_ident *> *table_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
@@ -5322,7 +5482,8 @@ class PT_load_index_partitions_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_load_index_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root,
+                     PT_hint_list *opt_hints,
                      Mem_root_array<PT_preload_keys *> *preload_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
@@ -5704,9 +5865,11 @@ class PT_create_library_stmt final : public Parse_tree_root {
  public:
   PT_create_library_stmt(const POS &pos, THD *thd, bool if_not_exists,
                          sp_name *lib_name, LEX_CSTRING comment,
-                         LEX_CSTRING language, LEX_STRING lib_source)
+                         LEX_CSTRING language, LEX_STRING lib_source,
+                         bool is_binary)
       : Parse_tree_root(pos),
-        m_cmd(thd, if_not_exists, lib_name, comment, language, lib_source) {}
+        m_cmd(thd, if_not_exists, lib_name, comment, language, lib_source,
+              is_binary) {}
 
   Sql_cmd *make_cmd(THD *) override { return &m_cmd; }
 
@@ -5768,6 +5931,60 @@ class PT_library_list final : public Parse_tree_node {
   mem_root_deque<sp_name_with_alias> &get_libraries() { return m_libraries; }
 };
 
+class PT_jdv_name_value : public Parse_tree_node {
+  typedef Parse_tree_node super;
+
+  LEX_STRING m_name{nullptr, 0};
+  Item *m_value{nullptr};
+  uint m_col_tags{0};
+
+ public:
+  explicit PT_jdv_name_value(const POS &pos, LEX_STRING &name, Item *value,
+                             int col_tags)
+      : super(pos), m_name(name), m_value(value), m_col_tags(col_tags) {}
+
+  LEX_STRING name() { return m_name; }
+  Item *value() { return m_value; }
+  uint col_tags() { return m_col_tags; }
+};
+
+class PT_jdv_name_value_list : public Parse_tree_node {
+  typedef Parse_tree_node super;
+
+  THD *m_thd{nullptr};
+  PT_item_list *m_name_value_list{nullptr};
+  Mem_root_array<LEX_STRING> m_name_list;
+  Mem_root_array<uint> m_jdv_col_tags_list;
+
+ public:
+  explicit PT_jdv_name_value_list(const POS &pos, THD *thd)
+      : super(pos),
+        m_thd(thd),
+        m_name_list(thd->mem_root),
+        m_jdv_col_tags_list(thd->mem_root) {}
+
+  bool push_back(PT_jdv_name_value *jdv_name_value) {
+    if (m_name_value_list == nullptr) {
+      m_name_value_list = new (m_thd->mem_root) PT_item_list(m_pos);
+      if (m_name_value_list == nullptr) return true;
+    }
+
+    Item_string *name = new (m_thd->mem_root)
+        Item_string(jdv_name_value->name().str, jdv_name_value->name().length,
+                    m_thd->charset());
+    if (name == nullptr) return true;
+
+    return (m_name_value_list->push_back(name) ||
+            m_name_value_list->push_back(jdv_name_value->value()) ||
+            m_name_list.push_back(jdv_name_value->name()) ||
+            m_jdv_col_tags_list.push_back(jdv_name_value->col_tags()));
+  }
+
+  Mem_root_array<LEX_STRING> *name_list() { return &m_name_list; }
+  PT_item_list *name_value_list() { return m_name_value_list; }
+  Mem_root_array<uint> *col_tags_list() { return &m_jdv_col_tags_list; }
+};
+
 /**
   Top-level node for the SHUTDOWN statement
 
@@ -5804,6 +6021,7 @@ PT_create_table_option *make_table_secondary_engine_attribute(MEM_ROOT *,
 PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
                                                             LEX_CSTRING);
+PT_column_attr_base *make_column_external_format(MEM_ROOT *, LEX_CSTRING);
 
 PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,

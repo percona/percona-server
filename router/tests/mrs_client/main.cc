@@ -42,6 +42,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/tls_context.h"
+#include "mysql/harness/utility/string.h"
 #include "mysqlrouter/http_client.h"
 
 #include "client/authentication.h"
@@ -146,6 +147,21 @@ static bool display_type_convert(const std::string &value,
   return true;
 }
 
+static bool protocol_type_convert(std::string value,
+                                  http_client::WireProtocol *out_at = nullptr) {
+  using namespace http_client;
+  const static std::map<std::string, WireProtocol> map{
+      {"http2", WireProtocol::kHttp_2}, {"http1", WireProtocol::kHttp_1_1}};
+
+  mysql_harness::lower(value);
+  auto it = map.find(value);
+
+  if (map.end() == it) return false;
+  if (out_at) *out_at = it->second;
+
+  return true;
+}
+
 static bool session_type_convert(std::string value,
                                  http_client::SessionType *out_at = nullptr) {
   using namespace http_client;
@@ -233,6 +249,7 @@ static const std::map<std::string, HttpStatusCode::key_type>
       HTTP_STATUS_ENTRY(NotFound),
       HTTP_STATUS_ENTRY(MethodNotAllowed),
       HTTP_STATUS_ENTRY(InternalError),
+      HTTP_STATUS_ENTRY(TooManyRequests),
       HTTP_STATUS_ENTRY(NotImplemented),
   };
   return map;
@@ -442,7 +459,8 @@ std::vector<CmdOption> g_options{
      [](const std::string &) { check_payload(); }},
 
     {{"--encoded-payload"},
-     "Set the request body for POST, PUT requests (provided as an URL-encoded "
+     "Set the request body for POST, PUT requests (provided as an "
+     "URL-encoded "
      "string).",
      CmdOptionValueReq::required,
      "meta_payload",
@@ -530,7 +548,8 @@ std::vector<CmdOption> g_options{
      [](const std::string &) {
        if (!cnf_should_execute_authentication_flow()) {
          throw std::invalid_argument(
-             "Session type can only be defined while executing authentication "
+             "Session type can only be defined while executing "
+             "authentication "
              "flow.");
        }
      }},
@@ -626,7 +645,8 @@ std::vector<CmdOption> g_options{
            using namespace std::string_literals;
            auto &map = get_status_code_map();
            throw std::invalid_argument(
-               "Invalid value specified for 'expected-status', allowed values "
+               "Invalid value specified for 'expected-status', allowed "
+               "values "
                "are positive integers or predefined text/values: "s +
                helper::container::to_string(map));
          }
@@ -634,7 +654,8 @@ std::vector<CmdOption> g_options{
      }},
 
     {{"--display"},
-     "What should be presented as output: VALUES=(none|all|VALUE[,VALUE[....]])"
+     "What should be presented as output: "
+     "VALUES=(none|all|VALUE[,VALUE[....]])"
      "where VALUE can be: REQUEST, TITLE, BODY, HEADER, STATUS, RESULT. By "
      "default its "
      "set to REQUEST,BODY,RESULT.",
@@ -670,7 +691,8 @@ std::vector<CmdOption> g_options{
 
     {{"--response-type", "-r"},
      "Define expected response type by the server.\n"
-     "By default its JSON, where allowed values are: JSON,RAW, BINARY(same as "
+     "By default its JSON, where allowed values are: JSON,RAW, BINARY(same "
+     "as "
      "raw still shouldn't y).",
      CmdOptionValueReq::required,
      "type",
@@ -765,6 +787,41 @@ std::vector<CmdOption> g_options{
            decode_from_url_query_escaping(value.substr(equal_pos + 1));
        g_configuration.expected_headers[key] = keys_value;
      }},
+    {{"--protocol"},
+     "Force wire protocol. The value must be on of following values: HTTP1, "
+     "HTTP2. Where the default is HTTP1.",
+     CmdOptionValueReq::required,
+     "meta_protcol",
+     [](const std::string &value) {
+       if (!protocol_type_convert(value, &g_configuration.wire_protocol)) {
+         throw std::invalid_argument("Invalid value for wire-protocol: " +
+                                     value);
+       }
+     }},
+    {{"--expected-fatal-error"},
+     "Expect that HTTP client will return connection or protocol error. Match "
+     "the error description with specified value.",
+     CmdOptionValueReq::required,
+     "meta_fatal_error",
+     [](const std::string &value) {
+       g_configuration.expect_fatal_error = value;
+     }},
+    {{"--request-header-upgrade"},
+     "Specifies the value of the Upgrade header to be included in the HTTP/1.1 "
+     "request, typically used to initiate protocol switching (e.g., to "
+     "WebSocket).",
+     CmdOptionValueReq::required,
+     "meta_header_upgrade",
+     [](const std::string &value) { g_configuration.header_upgrade = value; }},
+    {{"--request-header-http2-settings"},
+     "Specifies the value of the HTTP2-Settings header to be included in the "
+     "HTTP/1.1 request, used during HTTP/2 protocol upgrades to convey HTTP/2 "
+     "settings in base64url-encoded format.",
+     CmdOptionValueReq::required,
+     "meta_header_upgrade",
+     [](const std::string &value) {
+       g_configuration.header_http2_settings = value;
+     }},
 };
 
 template <typename Duration>
@@ -849,6 +906,13 @@ json::JsonCopyPointers create_json_copier() {
 
 static void validate_result(Result &result) {
   result.ok = g_configuration.expected_status == result.status;
+
+  if (g_configuration.expect_fatal_error.has_value()) {
+    result.ok = false;
+    std::cerr << "ERROR: Expected a fatal error, but the operation completed "
+                 "without triggering one..\n";
+    return;
+  }
 
   if (!result.ok) return;
 
@@ -947,6 +1011,14 @@ static bool is_debug_log_enabled() {
          0 == strcmp(d, "TRUE");
 }
 
+static void print_error_info(std::ostream &out,
+                             const std::vector<std::string> &messages) {
+  for (const auto &m : messages) {
+    out << "ERROR: " << m << std::endl;
+  }
+  out << std::endl;
+}
+
 int main_app(int argc, char *argv[]) {
   mrs_client_app_debug = is_debug_log_enabled();
   g_executable = argv[0];
@@ -981,7 +1053,10 @@ int main_app(int argc, char *argv[]) {
     http::base::Uri uri{g_configuration.url};
     net::io_context ctx;
     HttpClientSession session{g_configuration.session_file};
-    HttpClientRequest request{&ctx, &session, uri};
+    HttpClientRequest request{
+        &ctx, &session, uri,
+        g_configuration.wire_protocol == http_client::WireProtocol::kHttp_2};
+    std::vector<std::string> header_connection;
 
     if (!g_configuration.accept.empty()) {
       request.add_header("Accept", g_configuration.accept.c_str());
@@ -994,6 +1069,23 @@ int main_app(int argc, char *argv[]) {
 
     if (!g_configuration.host.empty()) {
       request.add_header("Host", g_configuration.host.c_str());
+    }
+
+    if (g_configuration.header_upgrade.has_value()) {
+      request.add_header("Upgrade",
+                         g_configuration.header_upgrade.value().c_str());
+      header_connection.push_back("Upgrade");
+    }
+
+    if (g_configuration.header_http2_settings.has_value()) {
+      request.add_header("HTTP2-Settings",
+                         g_configuration.header_http2_settings.value().c_str());
+      header_connection.push_back("HTTP2-Settings");
+    }
+
+    if (!header_connection.empty()) {
+      request.add_header("Connection",
+                         mysql_harness::join(header_connection, ",").c_str());
     }
 
     auto result = execute_http_flow(&request, g_configuration.path);
@@ -1029,7 +1121,18 @@ int main_app(int argc, char *argv[]) {
 
     return result.ok ? EXIT_SUCCESS : EXIT_FAILURE;
   } catch (const std::exception &e) {
-    std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
+    std::vector<std::string> messages{{e.what()}};
+    if (g_configuration.expect_fatal_error.has_value()) {
+      if (g_configuration.expect_fatal_error.value() == e.what()) {
+        print_error_info(std::cout, messages);
+        return EXIT_SUCCESS;
+      }
+      messages.push_back(
+          "Mismatch detected — expected a different error than "
+          "the one printed above.");
+    }
+    print_error_info(std::cerr, messages);
+
     print_usage();
     return EXIT_FAILURE;
   }

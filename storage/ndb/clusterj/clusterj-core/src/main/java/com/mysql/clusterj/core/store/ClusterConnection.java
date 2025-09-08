@@ -34,31 +34,27 @@ public interface ClusterConnection {
 
     public void connect(int connectRetries, int connectDelay, boolean verbose);
 
-    public Db createDb(String database, int maxTransactions);
-
     public void configureTls(String searchPath, int requirement);
 
     public void waitUntilReady(int connectTimeoutBefore, int connectTimeoutAfter);
 
-    public void closing();
-
     public void close();
 
-    public int dbCount();
+    public int nodeId();
 
-    public void close(Db db);
-
-    public void unloadSchema(String tableName);
+    public String systemName();
 
     public ValueHandlerFactory getSmartValueHandlerFactory();
 
     public void initializeAutoIncrement(long[] autoIncrement);
 
-    public void setByteBufferPoolSizes(int[] poolSizes);
-
     public void setRecvThreadCPUid(short cpuid);
 
     public void unsetRecvThreadCPUid();
 
+    public short getRecvThreadCPUid();
+
     public void setRecvThreadActivationThreshold(int threshold);
+
+    DbFactory createDbFactory(String databaseName, int[] bufferSizes);
 }

@@ -40,10 +40,12 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
 
   void init(std::shared_ptr<http::HttpServerContext> srv) override;
 
-  void *add_route(const std::string &url_host, const std::string &url_regex,
-                  std::unique_ptr<http::base::RequestHandler> cb) override;
-  void remove_route(const std::string &url_host,
-                    const std::string &url_regex) override;
+  void *add_regex_route(
+      const std::string &url_host, const std::string &url_regex,
+      std::unique_ptr<http::base::RequestHandler> cb) override;
+  void *add_direct_match_route(
+      const std::string &url_host, const ::http::base::UriPathMatcher &url_path,
+      std::unique_ptr<http::base::RequestHandler> cb) override;
   void remove_route(const void *handler) override;
 
   bool is_ssl_configured() override;
@@ -53,14 +55,22 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
   HttpServerComponentImpl(HttpServerComponentImpl const &) = delete;
   void operator=(HttpServerComponent const &) = delete;
 
-  struct RouterData {
+  struct RouteData {
     std::string url_host;
-    std::string url_regex_str;
     std::unique_ptr<http::base::RequestHandler> handler;
   };
 
+  struct RegexRouteData : public RouteData {
+    std::string url_regex_str;
+  };
+
+  struct DirectMatchRouteData : public RouteData {
+    ::http::base::UriPathMatcher url_path_matcher;
+  };
+
   std::mutex rh_mu;  // request handler mutex
-  std::vector<RouterData> request_handlers_;
+  std::vector<RegexRouteData> regex_request_handlers_;
+  std::vector<DirectMatchRouteData> direct_match_request_handlers_;
 
   std::weak_ptr<http::HttpServerContext> srv_;
 };
@@ -68,7 +78,7 @@ class HTTP_SERVER_LIB_EXPORT HttpServerComponentImpl
 //
 // HTTP Server's public API
 //
-void *HttpServerComponentImpl::add_route(
+void *HttpServerComponentImpl::add_regex_route(
     const std::string &url_host, const std::string &url_regex,
     std::unique_ptr<http::base::RequestHandler> handler) {
   std::lock_guard<std::mutex> lock(rh_mu);
@@ -77,32 +87,31 @@ void *HttpServerComponentImpl::add_route(
   // if srv_ already points to the http_server forward the
   // route directly, otherwise add it to the delayed backlog
   if (auto srv = srv_.lock()) {
-    srv->add_route(url_host, url_regex, std::move(handler));
+    srv->add_regex_route(url_host, url_regex, std::move(handler));
   } else {
-    request_handlers_.emplace_back(
-        RouterData{url_host, url_regex, std::move(handler)});
+    regex_request_handlers_.emplace_back(
+        RegexRouteData{{url_host, std::move(handler)}, url_regex});
   }
 
   return result_id;
 }
 
-void HttpServerComponentImpl::remove_route(const std::string &url_regex,
-                                           const std::string &url_host) {
+void *HttpServerComponentImpl::add_direct_match_route(
+    const std::string &url_host, const ::http::base::UriPathMatcher &url_path,
+    std::unique_ptr<http::base::RequestHandler> cb) {
   std::lock_guard<std::mutex> lock(rh_mu);
 
+  void *result_id = cb.get();
   // if srv_ already points to the http_server forward the
   // route directly, otherwise add it to the delayed backlog
   if (auto srv = srv_.lock()) {
-    srv->remove_route(url_regex, url_host);
+    srv->add_direct_match_route(url_host, url_path, std::move(cb));
   } else {
-    for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
-      if (it->url_regex_str == url_regex && it->url_host == url_host) {
-        it = request_handlers_.erase(it);
-      } else {
-        it++;
-      }
-    }
+    direct_match_request_handlers_.emplace_back(
+        DirectMatchRouteData{{url_host, std::move(cb)}, url_path});
   }
+
+  return result_id;
 }
 
 void HttpServerComponentImpl::remove_route(const void *handler) {
@@ -113,10 +122,19 @@ void HttpServerComponentImpl::remove_route(const void *handler) {
   if (auto srv = srv_.lock()) {
     srv->remove_route(handler);
   } else {
-    for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
+    for (auto it = regex_request_handlers_.begin();
+         it != regex_request_handlers_.end(); ++it) {
       if (it->handler.get() == handler) {
-        request_handlers_.erase(it);
-        break;
+        regex_request_handlers_.erase(it);
+        return;
+      }
+    }
+
+    for (auto it = direct_match_request_handlers_.begin();
+         it != direct_match_request_handlers_.end(); ++it) {
+      if (it->handler.get() == handler) {
+        // direct_match_request_handlers_.erase(it);
+        return;
       }
     }
   }
@@ -128,12 +146,19 @@ void HttpServerComponentImpl::init(
 
   srv_ = srv;
 
-  for (auto &route : request_handlers_) {
-    srv->add_route(route.url_host, route.url_regex_str,
-                   std::move(route.handler));
+  for (auto &route : regex_request_handlers_) {
+    srv->add_regex_route(route.url_host, route.url_regex_str,
+                         std::move(route.handler));
   }
 
-  request_handlers_.clear();
+  regex_request_handlers_.clear();
+
+  for (auto &route : direct_match_request_handlers_) {
+    srv->add_direct_match_route(route.url_host, route.url_path_matcher,
+                                std::move(route.handler));
+  }
+
+  direct_match_request_handlers_.clear();
 }
 
 bool HttpServerComponentImpl::is_ssl_configured() {

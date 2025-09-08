@@ -368,9 +368,8 @@ TEST_F(ItemTest, ItemString) {
 
 TEST_F(ItemTest, ItemEqual) {
   // Bug#13720201 VALGRIND: VARIOUS BLOCKS OF BYTES DEFINITELY LOST
-  Mock_field_timestamp mft;
+  Mock_field_timestamp mft(Field::NONE, 0);
   mft.table->const_table = true;
-  mft.make_readable();
   // foo is longer than STRING_BUFFER_USUAL_SIZE used by cmp_item_sort_string.
   const char foo[] =
       "0123456789012345678901234567890123456789"
@@ -440,9 +439,9 @@ TEST_F(ItemTest, ItemRollupSwitcher) {
 }
 
 TEST_F(ItemTest, ItemEqualEq) {
-  Mock_field_timestamp field1;
+  Mock_field_timestamp field1(Field::NONE, 0);
   field1.field_name = "field1";
-  Mock_field_timestamp field2;
+  Mock_field_timestamp field2(Field::NONE, 0);
   field2.field_name = "field2";
 
   Item_multi_eq *item_equal1 =

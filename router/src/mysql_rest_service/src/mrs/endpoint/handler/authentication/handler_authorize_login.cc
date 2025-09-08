@@ -29,11 +29,11 @@
 
 #include "helper/http/url.h"
 #include "helper/json/to_string.h"
-#include "http/server/regex_matcher.h"
 #include "mrs/http/cookie.h"
 #include "mrs/http/error.h"
 #include "mrs/http/utilities.h"
 #include "mrs/rest/request_context.h"
+#include "mysql/harness/regex_matcher.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -50,7 +50,7 @@ using Url = helper::http::Url;
 HandlerAuthorizeLogin::HandlerAuthorizeLogin(
     const Protocol protocol, const std::string &url_host,
     const UniversalId service_id, const std::string &service_path,
-    const std::string &rest_path_matcher, const std::string &options,
+    const UriPathMatcher &rest_path_matcher, const std::string &options,
     const std::string &redirection,
     const std::optional<std::string> &redirection_validator,
     interface::AuthorizeManager *auth_manager)
@@ -60,7 +60,7 @@ HandlerAuthorizeLogin::HandlerAuthorizeLogin(
       service_path_{service_path},
       redirection_{redirection} {
   if (redirection_validator.has_value()) {
-    redirection_validator_ = std::make_shared<::http::server::RegexMatcher>(
+    redirection_validator_ = std::make_shared<mysql_harness::RegexMatcher>(
         redirection_validator.value());
     const auto is_valid = redirection_validator_->is_valid();
     if (!is_valid) {
@@ -184,7 +184,7 @@ std::string HandlerAuthorizeLogin::append_status_parameters(
     jwt_token =
         authorization_manager_->get_jwt_token(get_service_id(), session);
   }
-  http::SessionManager::Session dummy{"", UniversalId{}, ""};
+  http::SessionManager::Session dummy{nullptr, "", UniversalId{}, ""};
   auto session_ptr = session ? session.get() : &dummy;
 
   ::http::base::Uri uri(

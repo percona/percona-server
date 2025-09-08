@@ -116,6 +116,8 @@ bool WwwAuthenticationHandler::authorize(RequestContext &ctxt,
                         out_user)) {
     session->user = *out_user;
     session->state = Session::kUserVerified;
+
+    init_session(session, credentials_opt.value());
     return true;
   }
 

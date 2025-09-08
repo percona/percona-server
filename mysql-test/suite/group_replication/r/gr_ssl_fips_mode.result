@@ -25,9 +25,11 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, hash CHAR(32)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, 'test');
 INSERT INTO t1 VALUES (2, MD5(8));
 Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
 #
 # 4. Configure joining member (M2) to use SSL and Fips mode options on recovery.

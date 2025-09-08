@@ -43,7 +43,7 @@ SET GLOBAL innodb_monitor_enable="log_lsn%";
 --let $wait_timeout=600
 # Wait till 8MB - log free margin, that is around 6MB is full
 let $wait_condition=
-  SELECT `count`>6200000
+  SELECT `count`>6150000
   FROM INFORMATION_SCHEMA.INNODB_METRICS
   WHERE NAME LIKE 'log_lsn_checkpoint_age';
 --source include/wait_condition.inc

@@ -500,7 +500,7 @@ class TestEnv : public ::testing::Environment {
               .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
               .spawn({"--host", "127.0.0.1", "--port",
                       std::to_string(srv->classic_tcp_destination().port()),
-                      "--user", "root", "--password=", "-e",
+                      "--user", "root", "--password=", "--commands", "-e",
                       "source " + ProcessManager::get_data_dir()
                                       .join("metadata-model-2.1.0.sql")
                                       .str()});

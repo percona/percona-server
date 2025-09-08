@@ -204,6 +204,15 @@ component_test_execute_regular_statement  plugin_output_directory  no  COMPONENT
 # connection control component
 component_connection_control     plugin_output_directory  no  COMPONENT_CONNECTION_CONTROL
 
+# init before register test component
+component_test_component_init_then_register     plugin_output_directory  no  COMPONENT_TEST_COMPONENT_INIT_THEN_REGISTER
+
+# deinit no deadlock test component
+component_test_component_deinit_no_deadlock     plugin_output_directory  no  COMPONENT_TEST_COMPONENT_DEINIT_NO_DEADLOCK
+
+# init fail test component
+component_test_component_init_fail     plugin_output_directory  no  COMPONENT_TEST_COMPONENT_INIT_FAIL
+
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
 component_audit_log_filter   plugin_output_directory  no  AUDIT_LOG_COMPONENT

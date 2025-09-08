@@ -474,22 +474,24 @@ RESET PERSIST;
 # Bug #33388488: NO DEPRECATION WARNING ON SERVER RESTART IF TWO OR MORE
 # PERSISTED OPTIONS
 #
-SET PERSIST temptable_use_mmap=FALSE;
+SET PERSIST delayed_insert_timeout=300;
 Warnings:
-Warning	1287	'temptable_use_mmap' is deprecated and will be removed in a future release.
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 SET PERSIST delayed_insert_limit=100;
 Warnings:
 Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 # restart:--log_error=LOG_ERR --no-console
-include/assert_grep.inc [Assert that there is a warning at bootstrap when setting temptable_use_mmap]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting delayed_insert_timeout]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting delayed_insert_limit]
 RESET PERSIST;
-SET PERSIST_ONLY temptable_use_mmap=FALSE;
+SET PERSIST_ONLY delayed_insert_timeout=300;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY delayed_insert_limit=100;
 Warnings:
 Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 # restart:--log_error=LOG_ERR --no-console
-include/assert_grep.inc [Assert that there is a warning at bootstrap when setting temptable_use_mmap]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting delayed_insert_timeout]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting delayed_insert_limit]
 RESET PERSIST;
 # restart:
@@ -528,3 +530,13 @@ SET PERSIST ssl_crl = NULL;
 RESET PERSIST ssl_crl;
 SET GLOBAL ssl_crl = DEFAULT;
 # End of the 8.0 tests
+#
+# Bug #36854635: Invalid variable error on restart
+#
+RESET PERSIST;
+SET PERSIST_ONLY TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+ERROR HY000: Cannot persist transaction isolation.
+# Should be empty
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables;
+VARIABLE_VALUE
+# End of the 9.0 tests

@@ -60,15 +60,18 @@ class QueryRestTableSingleRow : public QueryRestTable {
                            const ObjectRowOwnership &row_ownership,
                            const FilterObjectGenerator &fog = {},
                            const bool compute_etag = false,
-                           const std::string &metadata_gtid = {},
+                           std::function<std::string()> commit = {},
                            const bool fetch_any_owner = false);
 
   bool is_owned() const { return is_owned_; }
 
+  static std::string make_short_response(const PrimaryKeyColumnValues &pk,
+                                         const std::string &response_gtid);
+
  private:
-  std::string metadata_gtid_{};
   bool is_owned_ = true;
   RowLockType lock_rows_ = RowLockType::NONE;
+  std::function<std::string()> commit_;
 
   void on_row(const ResultRow &r) override;
   void build_query(const dv::ObjectFieldFilter &field_filter,

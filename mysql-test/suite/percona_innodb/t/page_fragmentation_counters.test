@@ -1,6 +1,6 @@
 # creating a simple table in which MD5 hash will be the primary key
 CREATE TABLE t1(
-  id VARCHAR(32) NOT NULL,
+  id VARCHAR(64) NOT NULL,
   PRIMARY KEY(id)
 ) ENGINE=InnoDB;
 
@@ -12,7 +12,7 @@ BEGIN
   DECLARE i BIGINT UNSIGNED DEFAULT 0;
   START TRANSACTION;
   WHILE i < number_of_records DO
-    INSERT INTO t1 VALUES(MD5(i));
+    INSERT INTO t1 VALUES(SHA2(i, 256));
     SET i = i + 1;
   END WHILE;
   COMMIT;

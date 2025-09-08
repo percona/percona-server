@@ -1704,7 +1704,7 @@ String *Item_func_numhybrid::val_str(String *str) {
     }
     case INT_RESULT: {
       const longlong nr = int_op();
-      if (null_value) return nullptr; /* purecov: inspected */
+      if (null_value || current_thd->is_error()) return error_str();
       str->set_int(nr, unsigned_flag, collation.collation);
       break;
     }
@@ -4880,7 +4880,7 @@ bool udf_handler::get_arguments() {
 double udf_handler::val_real(bool *null_value) {
   assert(is_initialized());
   is_null = 0;
-  if (get_arguments()) {
+  if (u_d->type != UDFTYPE_AGGREGATE && get_arguments()) {
     *null_value = true;
     return 0.0;
   }
@@ -4897,7 +4897,7 @@ double udf_handler::val_real(bool *null_value) {
 longlong udf_handler::val_int(bool *null_value) {
   assert(is_initialized());
   is_null = 0;
-  if (get_arguments()) {
+  if (u_d->type != UDFTYPE_AGGREGATE && get_arguments()) {
     *null_value = true;
     return 0LL;
   }
@@ -4922,7 +4922,7 @@ String *udf_handler::val_str(String *str, String *save_str) {
   DBUG_TRACE;
   assert(is_initialized());
 
-  if (get_arguments()) return nullptr;
+  if (u_d->type != UDFTYPE_AGGREGATE && get_arguments()) return nullptr;
 
   DEBUG_SYNC(current_thd, "before_string_udf_execution");
   Udf_func_string func = reinterpret_cast<Udf_func_string>(u_d->func);
@@ -4958,7 +4958,7 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
 
   assert(is_initialized());
 
-  if (get_arguments()) {
+  if (u_d->type != UDFTYPE_AGGREGATE && get_arguments()) {
     *null_value = true;
     return nullptr;
   }
@@ -7815,7 +7815,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
     }
   }
   return agg_item_collations_for_comparison(cmp_collation, func_name(), args,
-                                            arg_count, 0);
+                                            arg_count);
 }
 
 void Item_func_match::update_used_tables() {

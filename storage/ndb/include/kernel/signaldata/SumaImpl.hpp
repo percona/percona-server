@@ -107,10 +107,29 @@ struct SubStartReq {
   Uint32 subscriberRef;
   Uint32 requestInfo;
 
-  // For requestInfo bitwise options
+  /**
+   * For requestInfo bitwise options. Each bit indicates a mode of
+   * filtering or data for the mode. Following is a description
+   * of the bits used in the value. Read by combining upper line
+   * digits with the directly below digit.
+   *
+   *  3         2         1         0
+   * 10987654321098765432109876543210
+   * ______________cccccccciiiiiiiirl
+   *
+   * l = no-logging updates
+   * r = no replica updates
+   * i = row slice (i)d bits
+   * c = row slice (c)ount bits (stored is `count - 1` == max-id)
+   * _ = unused
+   */
   enum RequestInfo {
     FILTER_ANYVALUE_MYSQL_NO_LOGGING = 1 << 0,
     FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES = 1 << 1,
+    FILTER_ROW_SLICE_ID_SHIFT = 2,
+    FILTER_ROW_SLICE_ID_BITS = 0xFF << 2,
+    FILTER_ROW_SLICE_COUNT_SHIFT = 10,
+    FILTER_ROW_SLICE_COUNT_BITS = 0xFF << 10,
   };
 };
 

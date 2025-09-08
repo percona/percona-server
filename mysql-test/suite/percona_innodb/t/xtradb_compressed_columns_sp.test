@@ -101,16 +101,16 @@ CALL insert_zip_record(1, @json_value);
 # define a function which would return MD5 hash of the BLOB
 # by the given id
 DELIMITER //;
-CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(32) READS SQL DATA
+CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(64) READS SQL DATA
 BEGIN
-  DECLARE res CHAR(32);
+  DECLARE res CHAR(64);
   DECLARE found INT DEFAULT TRUE;
-  DECLARE cur CURSOR FOR SELECT MD5(a) FROM t1 WHERE id = k;
+  DECLARE cur CURSOR FOR SELECT SHA2(a, 256) FROM t1 WHERE id = k;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET found = FALSE;
   OPEN cur;
   FETCH cur INTO res;
   IF NOT found THEN
-    SET res = REPEAT('x', 32);
+    SET res = REPEAT('x', 64);
   END IF;
   CLOSE cur;
   RETURN res;
@@ -118,7 +118,7 @@ END //
 DELIMITER ;//
 
 # calculate MD5 hash of the BLOB directly from the first table
-SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+SELECT SHA2(a, 256) INTO @expected_hash_value FROM t1 WHERE id = 1;
 
 # call the function and check if it returns expected result
 SELECT get_zip_record_hash(1) = @expected_hash_value AS hash_values_match;
@@ -137,7 +137,7 @@ CALL delete_zip_record(1);
 
 # call the function 'get_zip_record_hash()' and check if it returns special
 # value
-SELECT get_zip_record_hash(1) = REPEAT('x', 32) AS hash_values_match;
+SELECT get_zip_record_hash(1) = REPEAT('x', 64) AS hash_values_match;
 
 # define a stored procedure which would remove tables and compression
 # dictionaries created earlier
@@ -195,10 +195,10 @@ EXECUTE insert_zip_record_stmt USING @blob_key, @json_value;
 DEALLOCATE PREPARE insert_zip_record_stmt;
 
 # calculate MD5 hash of the BLOB directly from the first table
-SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+SELECT SHA2(a, 256) INTO @expected_hash_value FROM t1 WHERE id = 1;
 
 # get MD5 hash of the BLOB by the given id using prepared statement
-PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 32), MD5(MAX(a))) INTO @ps_hash_value FROM t1 WHERE id = ?;';
+PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 64), SHA2(MAX(a), 256)) INTO @ps_hash_value FROM t1 WHERE id = ?;';
 EXECUTE get_zip_record_hash_stmt USING @blob_key;
 SELECT @ps_hash_value = @expected_hash_value AS hash_values_match;
 
@@ -211,7 +211,7 @@ DEALLOCATE PREPARE delete_zip_record_stmt;
 # prepared statement after deletion
 EXECUTE get_zip_record_hash_stmt USING @blob_key;
 DEALLOCATE PREPARE get_zip_record_hash_stmt;
-SELECT @ps_hash_value = REPEAT('x', 32) AS hash_values_match;
+SELECT @ps_hash_value = REPEAT('x', 64) AS hash_values_match;
 
 # remove the table created by 'create_table_referencing_zip_dict_stmt()'
 # using prepared statement

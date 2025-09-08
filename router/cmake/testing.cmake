@@ -124,6 +124,9 @@ FUNCTION(_ADD_TEST_FILE FILE)
 
   ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
 
+  # ZSTD_generateSequences generates -Werror=alloc-size-larger-than=
+  DOWNGRADE_STRINGOP_WARNINGS(${test_target})
+
   FOREACH(libtarget ${TEST_LIB_DEPENDS})
     #add_dependencies(${test_target} ${libtarget})
     TARGET_LINK_LIBRARIES(${test_target} ${libtarget})

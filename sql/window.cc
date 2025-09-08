@@ -251,6 +251,11 @@ bool Window::setup_range_expressions(THD *thd) {
       if (m_frame->m_to->m_border_type == WBT_CURRENT_ROW)
         m_frame->m_to->m_border_type = WBT_UNBOUNDED_FOLLOWING;
     }
+  } else if (o->value.first->item_initial->is_non_deterministic()) {
+    // With RANGE frame, the ordering must be monotonically ascending or
+    // descending, so forbid non-deterministic expressions.
+    my_error(ER_WINDOW_RANGE_FRAME_ORDER_TYPE, MYF(0), printable_name());
+    return true;
   }
 
   for (PT_border *border : {m_frame->m_from, m_frame->m_to}) {

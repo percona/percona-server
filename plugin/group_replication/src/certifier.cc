@@ -772,7 +772,7 @@ namespace {
                            added to group_gtid_executed as part of initial
                            try(step 2).
 */
-[[NODISCARD]] Certification_result check_gtid_collision(
+[[nodiscard]] Certification_result check_gtid_collision(
     rpl_sidno gtid_group_sidno, rpl_sidno gtid_global_sidno, rpl_gno gno,
     Gtid_set &group_gtid_executed, const std::string &sid_str) {
   if (group_gtid_executed.contains_gtid(gtid_group_sidno, gno)) {

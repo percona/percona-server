@@ -136,6 +136,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
 
         // disable connection pooling and test the cpu locking properties
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
+        testProperties.put(Constants.PROPERTY_CLUSTER_MULTI_DB, "false");
         // create session factory with modified cpu locking properties
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, 4);
@@ -172,6 +173,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
 
         // disable connection pooling and verify properties are validated
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
+        testProperties.put(Constants.PROPERTY_CLUSTER_MULTI_DB, "false");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "cpu1");
         createSessionFactoryAndFail("The cpuids property .* is invalid.*");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0,0");

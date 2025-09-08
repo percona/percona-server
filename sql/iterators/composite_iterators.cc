@@ -52,6 +52,7 @@
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/debug_sync.h"
+#include "sql/derror.h"
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -1150,10 +1151,19 @@ class SpillState {
   /// chunks.
   size_t m_no_of_chunk_file_sets{0};
 
+  /// Anything more than two file sets is too slow, at least for large volume
+  /// which forces chunk file memory buffers to disk.
+  static const size_t m_max_sets{2};
+
   /// The current chunk under processing. 0-based.
   size_t m_current_chunk_file_set{0};
 
  public:
+  /// If we find that we need more than \c m_max_sets, we need to increase
+  /// space set for \c 'set_operations_buffer_size' by this factor for best
+  /// performance.
+  size_t m_factor_too_little_memory{2};
+
   size_t current_chunk_file_set() const { return m_current_chunk_file_set; }
 
  private:
@@ -2279,9 +2289,20 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(
            (!m_spill_state.spill() && single_row_too_large));
     Opt_trace_context *trace = &thd()->opt_trace;
     Opt_trace_object trace_wrapper(trace);
+    char buff[512];
+    snprintf(buff, sizeof(buff),
+             "hash spill handling overflow, reverting to slower method "
+             "of indexed tmp table. To avoid, try setting "
+             "set_operations_buffer_size to %lli or more. To avoid "
+             "spill to disk, further increase it with a factor of %zu "
+             "or %zu.",
+             m_spill_state.m_factor_too_little_memory *
+                 thd()->variables.set_operations_buffer_size,
+             HashJoinIterator::kMaxChunks / 2, HashJoinIterator::kMaxChunks);
+
     Opt_trace_object trace_exec(
         trace, m_spill_state.spill()
-                   ? "spill handling overflow, reverting to index"
+                   ? buff
                    : "spill handling not attempted due to large row, reverting "
                      "to index");
     Opt_trace_array trace_steps(trace, "steps");
@@ -2291,6 +2312,9 @@ bool MaterializeIterator<Profiler>::handle_hash_map_full(
       m_spill_state.set_secondary_overflow();
       // Save current row for later use, see save_operand_to_IF_chunk_files
       if (m_spill_state.save_offending_row()) return true;
+
+      push_warning(thd(), Sql_condition::SL_NOTE, ER_WARN_SET_OPERATIONS_BUFFER,
+                   ER_THD(thd(), ER_WARN_SET_OPERATIONS_BUFFER));
     }
 
     TABLE *const t = table();
@@ -3019,6 +3043,19 @@ bool SpillState::compute_chunk_file_sets(const Operand *current_operand) {
   m_num_chunks = std::bit_ceil(num_chunks);
   m_no_of_chunk_file_sets = (m_num_chunks + HashJoinIterator::kMaxChunks - 1) /
                             HashJoinIterator::kMaxChunks;
+
+  if (m_no_of_chunk_file_sets > m_max_sets) {
+    // By increasing set_operations_buffer_size we should get down to
+    // one file set if uniform row sizes.
+    m_factor_too_little_memory = m_no_of_chunk_file_sets;
+
+    // We have too little memory set aside for set_operations_buffer_size and/or
+    // the number of estimated row is too high. Use max sets. If this is not
+    // enough, user needs to increase set_operations_buffer_size, cf.
+    // diagnostics given when we get secondary overflow (handle_hash_map_full).
+    m_num_chunks = HashJoinIterator::kMaxChunks;
+    m_no_of_chunk_file_sets = m_max_sets;
+  }
   m_current_chunk_file_set = 0;
 
   // Save offending row, we may not be able to write it in first set of
@@ -3930,6 +3967,8 @@ bool TemptableAggregateIterator<Profiler>::Init() {
   trace_exec.add_select_number(m_join->query_block->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   const typename Profiler::TimeStamp start_time = Profiler::Now();
+  // The input to the aggregation should be read from the base slice.
+  m_join->set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   if (m_subquery_iterator->Init()) {
     return true;
@@ -4275,11 +4314,11 @@ int WeedoutIterator::Read() {
 
 RemoveDuplicatesIterator::RemoveDuplicatesIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
-    Item **group_items, int group_items_size)
+    std::span<Item *> group_items)
     : RowIterator(thd), m_source(std::move(source)) {
   m_caches = Bounds_checked_array<Cached_item *>::Alloc(thd->mem_root,
-                                                        group_items_size);
-  for (int i = 0; i < group_items_size; ++i) {
+                                                        group_items.size());
+  for (size_t i = 0; i < group_items.size(); ++i) {
     m_caches[i] = new_Cached_item(thd, group_items[i]);
     join->semijoin_deduplication_fields.push_back(m_caches[i]);
   }

@@ -945,7 +945,7 @@ int NdbEventOperationImpl::receive_event() {
   const Uint32 *aAttrPtr = m_data_item->ptr[0].p;
   const Uint32 *aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
   const Uint32 *aDataPtr = m_data_item->ptr[1].p;
-  const Uint32 *aDataEndPtr = m_data_item->ptr[1].p + m_data_item->ptr[1].sz;
+  const Uint32 *aDataEndPtr = aDataPtr + m_data_item->ptr[1].sz;
 
   DBUG_DUMP_EVENT("after", (const char *)m_data_item->ptr[1].p,
                   m_data_item->ptr[1].sz * 4);

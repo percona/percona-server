@@ -45,14 +45,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
-#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
-#include "ha_prototypes.h"
 #include "lob0lob.h"
 #include "mach0data.h"
 
@@ -1949,27 +1947,6 @@ loading the index definition */
 
     rec = pcur.get_rec();
 
-    if ((ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) &&
-        (rec_get_n_fields_old_raw(rec) == DICT_NUM_FIELDS__SYS_INDEXES
-         /* a record for older SYS_INDEXES table
-         (missing merge_threshold column) is acceptable. */
-         ||
-         rec_get_n_fields_old_raw(rec) == DICT_NUM_FIELDS__SYS_INDEXES - 1)) {
-      const byte *field;
-      ulint len;
-      field = rec_get_nth_field_old(nullptr, rec, DICT_FLD__SYS_INDEXES__NAME,
-                                    &len);
-
-      if (len != UNIV_SQL_NULL &&
-          static_cast<char>(*field) ==
-              static_cast<char>(*TEMP_INDEX_PREFIX_STR)) {
-        /* Skip indexes whose name starts with
-        TEMP_INDEX_PREFIX, because they will
-        be dropped during crash recovery. */
-        goto next_rec;
-      }
-    }
-
     err_msg =
         dict_load_index_low(buf, table->name.m_name, heap, rec, true, &index);
     ut_ad((index == nullptr && err_msg != nullptr) ||
@@ -2540,8 +2517,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   err = dict_load_indexes(table, heap, index_load_err);
 
   if (err == DB_SUCCESS) {
-    if (srv_is_upgrade_mode && !srv_upgrade_old_undo_found &&
-        !dict_load_is_system_table(table->name.m_name)) {
+    if (srv_is_upgrade_mode && !dict_load_is_system_table(table->name.m_name)) {
       table->id = table->id + DICT_MAX_DD_TABLES;
     }
     if (cached) {

@@ -76,6 +76,11 @@
 --echo # 9. Verify if input FLOAT value is the same at output of stored procedure
 --echo # 10. Verify if input DOUBLE value is the same at output of stored procedure
 --echo # 11. Verify if input VECTOR value is the same at output of stored procedure
+--echo # 12. Verify if input GEOMETRY (GeoJSON) value is the same at output of stored procedure
+--echo # 12.1. Verify if input GEOMETRY (WKT) value is the same at output of stored procedure
+--echo # 13. Verify if input BLOB value is the same at output of stored procedure
+--echo # 14. Verify if input TIMESTAMP value is the same at output of stored procedure
+--echo # 15. Verify if input JSON value is the same at output of stored procedure
 --echo #
 --echo #
 --echo ## V. Verify handling of different MYSQL types and NULL value as input and
@@ -108,6 +113,10 @@
 --echo # 9. Verify if NULL is used for not present FLOAT parameter and it is the same at output of stored procedure
 --echo # 10. Verify if NULL is used for not present DOUBLE parameter and it is the same at output of stored procedure
 --echo # 11. Verify if NULL is used for not present VECTOR parameter and it is the same at output of stored procedure
+--echo # 12. Verify if NULL is used for not present GEOMETRY parameter and it is the same at output of stored procedure
+--echo # 13. Verify if NULL is used for not present BLOB parameter and it is the same at output of stored procedure
+--echo # 14. Verify if NULL is used for not present TIMESTAMP parameter and it is the same at output of stored procedure
+--echo # 15. Verify if NULL is used for not present JSON parameter and it is the same at output of stored procedure
 
 --source ../include/mrs/start_object_definition.inc
 
@@ -195,6 +204,26 @@
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_vector
 --let $mrs_add_db_object_path=/move_vector
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_geometry
+--let $mrs_add_db_object_path=/move_geometry
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_blob
+--let $mrs_add_db_object_path=/move_blob
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_timestamp
+--let $mrs_add_db_object_path=/move_timestamp
+--source ../include/mrs/db_object/add.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_json
+--let $mrs_add_db_object_path=/move_json
 --source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
@@ -359,23 +388,20 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # III.2
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_date?a="1920-12-11";
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_date?a="1920-12-11";
+
 --echo
 --echo #
 --echo # III.3
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_year?a="1920-12-11";
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_year?a="1920";
+
 --echo
 --echo #
 --echo # III.4
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_time?a="12:34:12";
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_time?a="12:34:12";
 
 --echo
 --echo #
@@ -441,15 +467,15 @@ exec $MRS_CLIENT_ARGS
 #exec $MRS_CLIENT_ARGS
 #  --path /svc/proc/move_date
 #  -t PUT --payload '{"a":"1920-12-11"}';
-#
+
 --echo
 --echo #
 --echo # IV.3
 --echo DISABLED
 #exec $MRS_CLIENT_ARGS
 #  --path /svc/proc/move_year
-#  -t PUT --payload '{"a":"1920-12-11"}';
-#
+#  -t PUT --payload '{"a":"1920"}';
+
 --echo
 --echo #
 --echo # IV.4
@@ -516,6 +542,46 @@ exec $MRS_CLIENT_ARGS
 
 --echo
 --echo #
+--echo # IV.12
+--let $mrs_client_arg_path='/svc/proc/move_geometry'
+--let $mrs_client_arg_payload='{"a":{"type":"Point", "coordinates":[100,0]}}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # IV.12.1
+--let $mrs_client_arg_path='/svc/proc/move_geometry'
+--let $mrs_client_arg_payload='{"a":"POINT(20 30)"}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # IV.13
+--let $mrs_client_arg_path='/svc/proc/move_blob'
+--let $mrs_client_arg_payload='{"a":"SGVsbG8gV29ybGQ="}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # IV.14
+--let $mrs_client_arg_path='/svc/proc/move_timestamp'
+--let $mrs_client_arg_payload='{"a":"2025-04-11 14:09:00"}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # IV.15
+--let $mrs_client_arg_path='/svc/proc/move_json'
+--let $mrs_client_arg_payload='{"a":{"foo":"bar"}}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
 --echo # V.1
 --let $mrs_client_arg_path='/svc/proc/move_char'
 --let $mrs_client_arg_request_type='GET'
@@ -524,23 +590,20 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # V.2
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_date;
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_date;
+
 --echo
 --echo #
 --echo # V.3
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_year;
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_year;
+
 --echo
 --echo #
 --echo # V.4
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_time;
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_time;
 
 --echo
 --echo #
@@ -595,26 +658,23 @@ exec $MRS_CLIENT_ARGS
 --echo
 --echo #
 --echo # VI.2
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_date
-#  -t PUT --payload '{}';
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_date
+  -t PUT --payload '{}';
+
 --echo
 --echo #
 --echo # VI.3
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_year
-#  -t PUT --payload '{}';
-#
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_year
+  -t PUT --payload '{}';
+
 --echo
 --echo #
 --echo # VI.4
---echo DISABLED
-#exec $MRS_CLIENT_ARGS
-#  --path /svc/proc/move_time
-#  -t PUT --payload '{}';
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_time
+  -t PUT --payload '{}';
 
 --echo
 --echo #
@@ -668,6 +728,38 @@ exec $MRS_CLIENT_ARGS
 --echo #
 --echo # VI.11
 --let $mrs_client_arg_path='/svc/proc/move_vector'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # VI.12
+--let $mrs_client_arg_path='/svc/proc/move_geometry'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # VI.13
+--let $mrs_client_arg_path='/svc/proc/move_blob'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # VI.14
+--let $mrs_client_arg_path='/svc/proc/move_timestamp'
+--let $mrs_client_arg_payload='{}'
+--let $mrs_client_arg_request_type='PUT'
+--source ../include/mrs/mrs_client.inc
+
+--echo
+--echo #
+--echo # VI.15
+--let $mrs_client_arg_path='/svc/proc/move_json'
 --let $mrs_client_arg_payload='{}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc

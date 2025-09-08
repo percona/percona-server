@@ -62,11 +62,11 @@ bool validate_password_component_option_usage_init() {
 
 bool validate_password_component_option_usage_deinit() {
   return weak_option::deinit(
-      mysql_service_registry_no_lock, mysql_service_registration_no_lock,
+      SERVICE_PLACEHOLDER(registry), SERVICE_PLACEHOLDER(registry_registration),
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         if (!cb_define_failed &&
             option_usage_unregister_callback(c_option_name.c_str(), cb,
-                                             mysql_service_registry_no_lock)) {
+                                             SERVICE_PLACEHOLDER(registry))) {
           return true;
         }
         return 0 != opt->undefine(c_option_name.c_str());

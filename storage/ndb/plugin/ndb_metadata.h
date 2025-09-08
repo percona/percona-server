@@ -62,7 +62,7 @@ class Ndb_metadata {
 
     @return void
   */
-  void create_columns(dd::Table *table_def) const;
+  bool create_columns(dd::Table *table_def) const;
 
   /*
     @brief Create table indexes in the DD

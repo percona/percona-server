@@ -46,7 +46,7 @@ using HttpResult = HandlerAuthorizeStatus::HttpResult;
 HandlerAuthorizeStatus::HandlerAuthorizeStatus(
     const Protocol protocol, const std::string &url_host,
     const UniversalId service_id, const std::string &service_path,
-    const std::string &rest_path_matcher, const std::string &options,
+    const UriPathMatcher &rest_path_matcher, const std::string &options,
     interface::AuthorizeManager *auth_manager)
     : HandlerAuthorizeBase(protocol, url_host, {rest_path_matcher}, options,
                            auth_manager),

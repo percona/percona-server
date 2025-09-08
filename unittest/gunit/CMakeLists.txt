@@ -310,6 +310,13 @@ IF(LINUX_ALPINE)
   LIST(REMOVE_ITEM SERVER_TESTS segfault)
 ENDIF()
 
+# Warnings from googlemock
+IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
+    STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-error=maybe-uninitialized")
+  ENDIF()
+ENDIF()
+
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
   ADD_COMPILE_FLAGS(
     regexp_engine-t.cc
@@ -394,6 +401,7 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
 IF(MY_COMPILER_IS_GNU)
   TARGET_LINK_OPTIONS(merge_large_tests-t PRIVATE -Wno-alloc-size-larger-than)
 ENDIF()
+DOWNGRADE_STRINGOP_WARNINGS(merge_large_tests-t)
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
@@ -449,6 +457,9 @@ MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
 IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
   ADD_COMPILE_FLAGS(dd_string_type-t.cc COMPILE_FLAGS
     "-Wno-alloc-size-larger-than"
+    )
+  ADD_COMPILE_FLAGS(field-t.cc COMPILE_FLAGS
+    "-Wno-stringop-overflow"
     )
 ENDIF()
 

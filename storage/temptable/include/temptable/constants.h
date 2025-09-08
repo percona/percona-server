@@ -33,7 +33,7 @@ namespace temptable {
 
 /** Multiply a number by 1024.
  * @return n * 1024. */
-inline constexpr unsigned long long operator""_KiB(
+constexpr unsigned long long operator""_KiB(
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 10;
@@ -41,7 +41,7 @@ inline constexpr unsigned long long operator""_KiB(
 
 /** Multiply a number by 1024 * 1024.
  * @return n * 1024 * 1024. */
-inline constexpr unsigned long long operator""_MiB(
+constexpr unsigned long long operator""_MiB(
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 20;
@@ -49,7 +49,7 @@ inline constexpr unsigned long long operator""_MiB(
 
 /** Multiply a number by 1024 * 1024 * 1024.
  * @return n * 1024 * 1024 * 1024. */
-inline constexpr unsigned long long operator""_GiB(
+constexpr unsigned long long operator""_GiB(
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 30;

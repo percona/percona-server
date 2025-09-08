@@ -20,9 +20,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.0.2%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'      , 'MD5(@message)'),
-    ('sha1'     , 'SHA(@message)'),
-
     ('sha224'   , 'SHA2(@message, 224)'),
     ('sha256'   , 'SHA2(@message, 256)'),
     ('sha384'   , 'SHA2(@message, 384)'),
@@ -44,9 +41,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.1.0%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'       , 'MD5(@message)'),
-    ('sha1'      , 'SHA(@message)'),
-
     ('sha224'    , 'SHA2(@message, 224)'),
     ('sha256'    , 'SHA2(@message, 256)'),
     ('sha384'    , 'SHA2(@message, 384)'),
@@ -70,9 +64,6 @@ if (`select "$ssl_ver" like "OpenSSL 1.1.1%"`)
   --disable_result_log
 
   INSERT INTO digest_type(digest_name, builtin_template) VALUES
-    ('md5'       , 'MD5(@message)'),
-    ('sha1'      , 'SHA(@message)'),
-
     ('sha224'    , 'SHA2(@message, 224)'),
     ('sha256'    , 'SHA2(@message, 256)'),
     ('sha384'    , 'SHA2(@message, 384)'),

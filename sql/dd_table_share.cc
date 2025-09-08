@@ -662,6 +662,13 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
         bool_opt ? HA_OPTION_STATS_PERSISTENT : HA_OPTION_NO_STATS_PERSISTENT;
   }
 
+  if (table_options.exists("create_external_table")) {
+    table_options.get("create_external_table", &bool_opt);
+    if (bool_opt) {
+      share->db_create_options |= HA_OPTION_CREATE_EXTERNAL_TABLE;
+    }
+  }
+
   share->db_options_in_use = share->db_create_options;
 
   // Average row length

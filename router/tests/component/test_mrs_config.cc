@@ -48,7 +48,8 @@ class RouterMrsConfig : public RouterComponentTest {
     RouterComponentTest::SetUp();
   }
 
-  auto &launch_router(const std::string &config, const int expected_exit_code) {
+  auto &launch_router(const std::string &config, const int expected_exit_code,
+                      bool enable_logger_debug = true) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(
         default_section, get_test_temp_dir_name(),
@@ -61,7 +62,8 @@ class RouterMrsConfig : public RouterComponentTest {
     default_section["dynamic_state"] = state_file;
 
     const std::string conf_file =
-        create_config_file(get_test_temp_dir_name(), config, &default_section);
+        create_config_file(get_test_temp_dir_name(), config, &default_section,
+                           "mysqlrouter.conf", "", enable_logger_debug);
 
     const auto wait_for = expected_exit_code == EXIT_FAILURE ? -1s : 5s;
     return ProcessManager::launch_router({"-c", conf_file}, expected_exit_code,
@@ -217,6 +219,23 @@ TEST_F(RouterMrsConfig, id_mismatch) {
                                 "Metadata already contains Router registered "
                                 "as '.*' at '.*' with id: \\d+, new id: \\d+",
                                 5s));
+}
+
+/**
+ * @test Checks that the Router refuses to start if [logger].sink
+ * 'mysql_rest_service' is configred but [mysql_rest_service] is not
+ */
+TEST_F(RouterMrsConfig, mrs_md_sink_with_no_mrs) {
+  const std::string logger_section = "[logger]\nsinks=mysql_rest_service\n\n";
+  auto &router = launch_router(
+      logger_section + get_routing_section(router_port_rw, "PRIMARY", "rw"),
+      /*expect_error=*/true, /*enable_logger_debug=*/false);
+
+  check_exit_code(router, EXIT_FAILURE);
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "External logging sink 'mysql_rest_service' configured, but "
+                  "section with that name missing in the config file."));
 }
 
 int main(int argc, char *argv[]) {

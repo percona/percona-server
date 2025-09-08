@@ -73,6 +73,7 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   virtual Sqls get_initial_sqls() const;
   virtual void connect_and_set_opts(
       const ConnectionParameters &connection_params, const Sqls &initial_sqls);
+  virtual void connect(const ConnectionParameters &connection_params);
 
   void connect(const MySQLSession &other, const std::string &username,
                const mysql_harness::SecureString &password) override;

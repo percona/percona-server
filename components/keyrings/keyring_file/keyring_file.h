@@ -60,7 +60,3 @@ bool set_paths(const char *component_path, const char *instance_path);
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 extern REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry,
-                                       mysql_service_registry_no_lock);
-extern REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                       mysql_service_registration_no_lock);

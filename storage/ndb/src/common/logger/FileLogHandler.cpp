@@ -75,7 +75,8 @@ bool FileLogHandler::close() {
 }
 
 void FileLogHandler::writeHeader(const char *pCategory,
-                                 Logger::LoggerLevel level, time_t now) {
+                                 Logger::LoggerLevel level,
+                                 const std::timespec *now) {
   char str[MAX_HEADER_LENGTH];
   m_pLogFile->writeChar(getDefaultHeader(str, pCategory, level, now));
 }

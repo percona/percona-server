@@ -1676,3 +1676,69 @@ INSERT INTO t0 VALUES (1), (2);
 SELECT c0, MAX(c0) OVER (ORDER BY c0 DESC ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING)
 FROM t0;
 DROP TABLE t0;
+
+--echo #
+--echo # Bug#35521787 nth_value window function call assertion error
+--echo #
+
+# Frame ORDER BY expression is non-deterministic in a RANGE unit
+# frame. This is not allowed, we need monotonically ascending or
+# descending values.
+CREATE TABLE t0(c0 INT, c1 INT);
+INSERT INTO t0 VALUES (1, 1), (2, 1), (3, 1), (4, 1);
+
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT NTH_VALUE(c0, 1) OVER (PARTITION BY (SELECT 1)
+                              ORDER BY RAND()
+                              RANGE CURRENT ROW)
+FROM t0;
+
+# In contrast, if the unit is ROWS, a non-deterministic expression is
+# allowed.
+--sorted_result
+SELECT NTH_VALUE(c0, 1) OVER (PARTITION BY (SELECT 1)
+                              ORDER BY RAND()
+                              ROWS CURRENT ROW)
+FROM t0;
+
+# Also, in partition expression it is allowed.
+--sorted_result
+SELECT NTH_VALUE(c0, 1) OVER (PARTITION BY RAND()
+                              ORDER BY c0
+                              RANGE CURRENT ROW)
+FROM t0;
+
+DROP TABLE t0;
+--echo #
+--echo # Second case of Bug#35521787
+--echo #
+
+# simplified repro
+CREATE TABLE t1(t0_c1 INT UNSIGNED);
+INSERT INTO t1 VALUES (2), (371);
+
+# We error out because the range computation with integers wraps
+# around: the range end for value 2 is 2 - 10 = -8 (we have DESC)
+# which can't be represented as unsigned without wrapping around.
+# This is currently an implementation restriction in our RANGE
+# comparisons.
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT COUNT(*) OVER (ORDER BY t0_c1 DESC
+                      RANGE BETWEEN CURRENT ROW AND 10 FOLLOWING)
+FROM t1;
+DROP TABLE t1;
+
+# original repro
+CREATE TABLE t0 (c0 INT, c1 INT UNSIGNED);
+INSERT INTO t0 VALUES (1, 2), (3, 371);
+--error ER_DATA_OUT_OF_RANGE
+SELECT CUME_DIST() OVER (PARTITION BY tx.c1
+                         ORDER BY t0.c1 DESC
+                         RANGE BETWEEN CURRENT ROW AND 10 FOLLOWING)
+FROM (SELECT 1) x(x)
+     RIGHT JOIN t0 tx
+     ON tx.c0 = x.x
+     JOIN t0;
+
+DROP TABLE t0;

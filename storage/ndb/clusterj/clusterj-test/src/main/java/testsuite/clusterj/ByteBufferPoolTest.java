@@ -39,14 +39,6 @@ public class ByteBufferPoolTest extends AbstractClusterJTest {
 
     @Override
     protected void localSetUp() {
-        loadProperties();
-        loadSchema();
-        closeAllExistingSessionFactories();
-    }
-
-    @Override
-    protected void localTearDown() {
-        // Get a session for use in AbstractClusterJTest.tearDown()
         createSessionFactory();
         createSession();
         addTearDownClasses(BlobTypes.class);
@@ -57,8 +49,8 @@ public class ByteBufferPoolTest extends AbstractClusterJTest {
     }
 
     public static void printSizes(Properties p, String testName) {
-        System.out.println(testName + " Sizes: " +
-                           p.get("com.mysql.clusterj.byte.buffer.pool.sizes"));
+        logger.info(() -> testName + " Sizes: " +
+                          p.get("com.mysql.clusterj.byte.buffer.pool.sizes"));
     }
 
     protected void storeBlob(Session session, int id, int size) {
@@ -81,7 +73,6 @@ public class ByteBufferPoolTest extends AbstractClusterJTest {
         printSizes(properties, "testDefaultPool");
         SessionFactory factory = ClusterJHelper.getSessionFactory(properties);
         storeOneBlob(factory, 1, 10000);
-        factory.close();
     }
 
     public void testSmallPool() {
@@ -89,9 +80,8 @@ public class ByteBufferPoolTest extends AbstractClusterJTest {
         properties.putAll(props);
         setPoolSizes(properties, "512, 51200");
         printSizes(properties, "testSmallPool");
-        assert sessionFactory == null;
         SessionFactory factory = ClusterJHelper.getSessionFactory(properties);
-        System.out.println(" >> Expect WARNING ... requested: 65,000; maximum: 51,200. ");
+        logger.warn(" >> Expect WARNING ... requested: 65,000; maximum: 51,200. ");
         storeOneBlob(factory, 2, 65000);
         factory.close();
     }

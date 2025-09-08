@@ -57,6 +57,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/json_duality_view/dml.h"  // jdv_delete
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
@@ -246,6 +247,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       has_delete_triggers &&
       table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   unit->set_limit(thd, query_block);
+
+  ulonglong jdv_affected_rows = 0;
 
   AccessPath *range_scan = nullptr;
   join_type type = JT_UNKNOWN;
@@ -610,13 +613,34 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
       assert(!thd->is_error());
 
-      if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
-                                             has_after_triggers,
-                                             &deleted_rows)) {
-        error = 1;
-        break;
-      }
+      if (table_list->is_json_duality_view()) {
+        if (deleted_rows != 0 ||
+            table_list->field_translation->item == nullptr) {
+          my_error(ER_JDV_OPERATION_NOT_SUPPORTED, MYF(0),
+                   "Multiple object delete");
+          error = 1;
+          break;
+        }
 
+        DBUG_LOG("jdv_dml", "DML-DELETE: "
+                                << " table_list->field_translation->name: "
+                                << table_list->field_translation->name
+                                << " ->type():"
+                                << table_list->field_translation->item->type());
+        if (jdv::jdv_delete(thd, table_list, &jdv_affected_rows)) {
+          assert(thd->is_error());
+          error = 1;
+          break;
+        }
+        deleted_rows++;
+      } else {
+        if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
+                                               has_after_triggers,
+                                               &deleted_rows)) {
+          error = 1;
+          break;
+        }
+      }
       if (!--limit && using_limit) {
         error = -1;
         break;
@@ -648,6 +672,14 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
 cleanup:
   assert(!lex->is_explain());
+
+  if (table_list->is_json_duality_view()) {
+    if (error < 0) {
+      my_ok(thd, jdv_affected_rows);
+    }
+    // For JSON duality view, event is already written to binlog.
+    return error > 0;
+  }
 
   if (!transactional_table && deleted_rows > 0)
     thd->get_transaction()->mark_modified_non_trans_table(
@@ -724,6 +756,11 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     if (select->resolve_placeholder_tables(thd, apply_semijoin)) return true;
 
     if (select->check_view_privileges(thd, DELETE_ACL, SELECT_ACL)) return true;
+  }
+
+  if (table_list->is_json_duality_view() &&
+      jdv::jdv_prepare_delete(thd, table_list, is_single_table_plan())) {
+    return true;
   }
 
   /*
@@ -915,8 +952,10 @@ bool Sql_cmd_delete::execute_inner(THD *thd) {
     my_ok(thd);
     return false;
   }
-  return multitable ? Sql_cmd_dml::execute_inner(thd)
-                    : delete_from_single_table(thd);
+  return (multitable &&
+          !lex->query_block->get_table_list()->is_json_duality_view())
+             ? Sql_cmd_dml::execute_inner(thd)
+             : delete_from_single_table(thd);
 }
 
 /***************************************************************************

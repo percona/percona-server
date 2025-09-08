@@ -56,6 +56,7 @@ class AuthorizeHandler {
   using AuthUser = mrs::database::entry::AuthUser;
   using AuthApp = mrs::database::entry::AuthApp;
   using RequestContext = rest::RequestContext;
+  using SessionManager = http::SessionManager;
   using Session = http::SessionManager::Session;
   using SessionPtr = http::SessionManager::SessionPtr;
   using UserManager = mrs::users::UserManager;

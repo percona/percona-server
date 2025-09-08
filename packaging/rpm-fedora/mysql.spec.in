@@ -202,6 +202,7 @@ Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
 Provides:       mysql-compat-server%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 Requires(post):   systemd
 Requires(preun):  systemd
 Requires(postun): systemd
@@ -254,10 +255,13 @@ Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 Requires:       %{name}-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb
+Obsoletes:      mariadb-client-utils
 Obsoletes:      community-mysql < %{version}-%{release}
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4 < %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -281,6 +285,8 @@ Obsoletes:      mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4-common < %{version}-%{release}
+Obsoletes:      mysql8.4-errmsg < %{version}-%{release}
 
 %description    common
 This packages contains common files needed by MySQL client library and
@@ -405,6 +411,7 @@ Obsoletes:      mysql-commercial-client-plugins < %{version}-%{release}
 Conflicts:      mysql-community-server < 8.0.21
 Conflicts:      mysql-community-client < 8.0.22
 %endif
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client-plugins
 This package contains the client-plugins libraries used by MySQL client applications.
@@ -959,12 +966,12 @@ fi
 %files icu-data-files
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
-%{_libdir}/mysql/private/icudt73l/cnvalias.icu
-%{_libdir}/mysql/private/icudt73l/uemoji.icu
-%{_libdir}/mysql/private/icudt73l/ulayout.icu
-%{_libdir}/mysql/private/icudt73l/unames.icu
-%{_libdir}/mysql/private/icudt73l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt77l
+%{_libdir}/mysql/private/icudt77l/cnvalias.icu
+%{_libdir}/mysql/private/icudt77l/uemoji.icu
+%{_libdir}/mysql/private/icudt77l/ulayout.icu
+%{_libdir}/mysql/private/icudt77l/unames.icu
+%{_libdir}/mysql/private/icudt77l/brkitr
 
 %files client
 %doc %{?license_files_server}
@@ -1129,6 +1136,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_execute_prepared_statement.so
@@ -1237,6 +1247,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit_no_deadlock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_fail.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_command_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_execute_prepared_statement.so
@@ -1398,6 +1411,15 @@ fi
 %endif # with_router
 
 %changelog
+* Wed Jun 11 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.5.0-1
+- Added component_test_component_init_fail
+
+* Wed Apr 30 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.4.0
+- Added component_test_component_deinit_no_deadlock
+
+* Wed Apr 30 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.4.0
+- Added component_test_component_init_then_register
+
 * Wed Nov 13 2024 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 9.2.0-1
 - Added component_connection_control
 

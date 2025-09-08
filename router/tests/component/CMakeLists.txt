@@ -135,6 +135,9 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   )
   ROUTERTEST_GET_TARGET(ttt ${test_file} "component")
   DOWNGRADE_STRINGOP_WARNINGS(${ttt})
+  IF(MY_COMPILER_IS_GNU AND (WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO))
+    TARGET_LINK_OPTIONS(${ttt} PRIVATE -Wno-error=stringop-overflow)
+  ENDIF()
 ENDFOREACH()
 
 FOREACH(test_file

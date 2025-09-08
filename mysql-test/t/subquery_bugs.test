@@ -2103,3 +2103,13 @@ UNION ALL
 SELECT 1 FROM t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#37587388:Assertion failure at 'strategy == Subquery_strategy::
+--echo #              CANDIDATE_FOR_IN2EXISTS_OR_MAT' in item_subselect.cc
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+SELECT f1 FROM t1
+WHERE (f1 = ANY(SELECT f1 FROM t1)) OR (f1 IN (SELECT RANK() OVER () FROM t1));
+DROP TABLE t1;

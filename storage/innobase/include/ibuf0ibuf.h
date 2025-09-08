@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Default value for maximum on-disk size of change buffer in terms
 of percentage of the buffer pool. */
-constexpr uint32_t CHANGE_BUFFER_DEFAULT_SIZE = 25;
+constexpr uint32_t CHANGE_BUFFER_DEFAULT_SIZE = 5;
 
 #ifndef UNIV_HOTBACKUP
 /* Possible operations buffered in the insert/whatever buffer. See

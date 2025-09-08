@@ -28,6 +28,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 #include "helper/http/url.h"
 #include "mrs/endpoint/handler/helper/utilities.h"
 #include "mrs/http/error.h"
@@ -63,30 +64,6 @@ inline std::string get_path_after_object_name(
     const ::http::base::Uri &requests_uri) {
   auto endpoint = lock_or_throw_unavail(wp);
   return get_path_after_object_name(endpoint->get_url(), requests_uri);
-}
-
-using DataType = mrs::database::entry::ColumnType;
-
-inline mysqlrouter::sqlstring get_sql_format(DataType type) {
-  using namespace helper;
-  switch (type) {
-    case DataType::BINARY:
-      return mysqlrouter::sqlstring("FROM_BASE64(?)");
-
-    case DataType::GEOMETRY:
-      return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)");
-
-    case DataType::VECTOR:
-      return mysqlrouter::sqlstring("STRING_TO_VECTOR(?)");
-
-    case DataType::JSON:
-      return mysqlrouter::sqlstring("CAST(? as JSON)");
-
-    default: {
-    }
-  }
-
-  return mysqlrouter::sqlstring("?");
 }
 
 inline HttpResult handler_mysqlerror(const mysqlrouter::MySQLSession::Error &e,
@@ -131,6 +108,30 @@ inline mysqlrouter::sqlstring get_user_id(rest::RequestContext *ctxt,
   sql << to_string(ctxt->user.user_id);
 
   return sql;
+}
+
+inline std::string get_user_name(rest::RequestContext *ctxt) {
+  // this will not be set if the endpoint does not require auth, even if the
+  // request IS authenticated
+  if (!ctxt->user.has_user_id) {
+    throw http::Error(HttpStatusCode::Forbidden);
+  }
+
+  return ctxt->user.name;
+}
+
+inline void check_input_parameters(
+    const std::vector<database::entry::Field> &param_fields,
+    const rapidjson::Document &doc) {
+  for (auto el : helper::json::member_iterator(doc)) {
+    auto key = el.first;
+    if (!helper::container::has_if(param_fields, [key](const auto &v) {
+          return v.mode != database::entry::Field::modeOut && v.name == key;
+        })) {
+      throw http::Error(HttpStatusCode::BadRequest,
+                        "Not allowed parameter:" + std::string{key});
+    }
+  }
 }
 
 }  // namespace handler

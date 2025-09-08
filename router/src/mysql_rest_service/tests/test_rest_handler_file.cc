@@ -88,10 +88,10 @@
 //        .WillRepeatedly(ReturnRef(mock_input_headers));
 //    EXPECT_CALL(mock_route_,
 //    get_url_host()).WillRepeatedly(ReturnRef(k_empty));
-//    EXPECT_CALL(mock_http_component_, add_route(_, path, _))
+//    EXPECT_CALL(mock_http_component_, add_regex_route(_, path, _))
 //    EXPECT_CALL(mock_query_factory_, create_query_content_file())
 //        .WillRepeatedly(Return(mock_query_file_.copy_base()));
-//    EXPECT_CALL(mock_http_component_, add_route(path, _))
+//    EXPECT_CALL(mock_http_component_, add_regex_route(path, _))
 //        .WillOnce(Invoke(
 //            [this](
 //                const ::std::string &, const ::std::string &,

@@ -9,7 +9,7 @@ SELECT @@global.audit_log_filter.file;
 audit_log_filter_file
 #
 # Provide full path to some tmp dir
-# restart:<hidden args>
+# restart
 SELECT @@global.audit_log_filter.file;
 @@global.audit_log_filter.file
 <audit_filter_log_name>

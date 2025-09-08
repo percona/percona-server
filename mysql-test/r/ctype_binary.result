@@ -484,7 +484,12 @@ drop table t1;
 select sha('a'), hex(sha('a'));
 sha('a')	hex(sha('a'))
 86f7e437faa5a7fce15d1ddcb9eaeaea377667b8	38366637653433376661613561376663653135643164646362396561656165613337373636376238
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 as select sha('a') as c1;
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -494,7 +499,12 @@ drop table t1;
 select sha1('a'), hex(sha1('a'));
 sha1('a')	hex(sha1('a'))
 86f7e437faa5a7fce15d1ddcb9eaeaea377667b8	38366637653433376661613561376663653135643164646362396561656165613337373636376238
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 as select sha1('a') as c1;
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2577,10 +2587,14 @@ drop function f1;
 # Bug#54668 User variable assignments get wrong type
 #
 SET @ST_X=sha('a');
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 binary	binary
 SET @ST_X=sha1('a');
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 binary	binary

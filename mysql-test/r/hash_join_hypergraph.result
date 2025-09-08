@@ -576,9 +576,8 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
 -> Inner hash join (LooseScan) (t2.i = t1.i)  (rows=0.52)
-    -> Remove duplicates from input grouped on t1.i  (rows=1.73)
-        -> Sort: t1.i  (rows=3)
-            -> Table scan on t1  (rows=3)
+    -> Sort with duplicate removal: t1.i  (rows=1.73)
+        -> Table scan on t1  (rows=3)
     -> Hash
         -> Table scan on t2  (rows=3)
 
@@ -616,9 +615,8 @@ SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (LooseScan) (t2.i = t1.i)  (rows=1536)
-        -> Remove duplicates from input grouped on t1.i  (rows=39.2)
-            -> Sort: t1.i  (rows=1536)
-                -> Table scan on t1  (rows=1536)
+        -> Sort with duplicate removal: t1.i  (rows=39.2)
+            -> Table scan on t1  (rows=1536)
         -> Hash
             -> Table scan on t2  (rows=1536)
 
@@ -767,12 +765,11 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 EXPLAIN
 -> Inner hash join (LooseScan) (t1.i = t3.i)  (rows=0)
-    -> Remove duplicates from input grouped on t3.i  (rows=0)
-        -> Sort: t3.i  (rows=0)
-            -> Inner hash join (no condition)  (rows=0)
-                -> Table scan on t3  (rows=0)
-                -> Hash
-                    -> Table scan on t2  (rows=6)
+    -> Sort with duplicate removal: t3.i  (rows=0)
+        -> Inner hash join (no condition)  (rows=0)
+            -> Table scan on t3  (rows=0)
+            -> Hash
+                -> Table scan on t2  (rows=6)
     -> Hash
         -> Table scan on t1  (rows=6)
 
@@ -2498,9 +2495,8 @@ EXPLAIN FORMAT=tree SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM b
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (LooseScan) (probe.col1 = build.col1)  (rows=256)
-        -> Remove duplicates from input grouped on build.col1  (rows=27.7)
-            -> Sort: build.col1  (rows=768)
-                -> Table scan on build  (rows=768)
+        -> Sort with duplicate removal: build.col1  (rows=27.7)
+            -> Table scan on build  (rows=768)
         -> Hash
             -> Table scan on probe  (rows=256)
 
@@ -2532,7 +2528,7 @@ ANALYZE TABLE build, probe;
 Table	Op	Msg_type	Msg_text
 test.build	analyze	status	OK
 test.probe	analyze	status	OK
-SET optimizer_switch = "materialization=off";
+SET optimizer_switch = "materialization=off,loosescan=off";
 SET join_buffer_size = 1024;
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
 EXPLAIN

@@ -35,12 +35,19 @@
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 #include "mysqlxclient.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+namespace mysqlrouter {
+std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
+  return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
+}
+}  // namespace mysqlrouter
 
 class RoutingGuidelinesAdapterTest : public RouterComponentTest {
  public:
@@ -335,6 +342,12 @@ TEST_F(RoutingGuidelinesAdapterTest, CustomBindPort) {
   check_log_contains(
       router, mysql_harness::utility::string_format(
                   R"_("match": "$.session.targetPort IN (%d)")_", router_port));
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 TEST_F(RoutingGuidelinesAdapterTest, BindAddressHostname) {
@@ -349,8 +362,6 @@ TEST_F(RoutingGuidelinesAdapterTest, BindAddressHostname) {
 
   const auto node_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
-  const std::string js_file =
-      Path(get_data_dir()).join("metadata_1_node_repeat_v2_gr.js").str();
   mock_server_spawner().spawn(
       mock_server_cmdline("metadata_1_node_repeat_v2_gr.js")
           .port(node_port)
@@ -365,9 +376,15 @@ TEST_F(RoutingGuidelinesAdapterTest, BindAddressHostname) {
       launch_router({node_port}, routing_section, get_metadata_cache_section());
   check_log_contains_regex(
       router, mysql_harness::utility::string_format(
-                  "\"match\": \"\\$.session.targetIP IN \\('.*'\\) AND "
+                  "\"match\": \"\\$.session.targetIP IN \\('.*', '.*'\\) AND "
                   "\\$.session.targetPort IN \\(%d\\)\"",
                   router_port));
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port, "localhost");
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 TEST_F(RoutingGuidelinesAdapterTest, BindAddressInvalidHostname) {
@@ -428,6 +445,12 @@ TEST_F(RoutingGuidelinesAdapterTest, BindAddressIP) {
       mysql_harness::utility::string_format(
           R"_("match": "$.session.targetIP IN ('127.0.0.1') AND $.session.targetPort IN (%d)")_",
           router_port));
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port, "127.0.0.1");
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 TEST_F(RoutingGuidelinesAdapterTest, PrimaryMode) {
@@ -466,6 +489,12 @@ TEST_F(RoutingGuidelinesAdapterTest, PrimaryMode) {
                     "priority": 0
                 }
             ])_");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 TEST_F(RoutingGuidelinesAdapterTest, SecondaryModeNoFallback) {
@@ -504,6 +533,9 @@ TEST_F(RoutingGuidelinesAdapterTest, SecondaryModeNoFallback) {
                     "priority": 0
                 }
             ])_");
+
+  SCOPED_TRACE("There is no fallback, connection should fail");
+  ASSERT_FALSE(make_new_connection(router_port));
 }
 
 class RoutingGuidelinesAdapterTestFallback
@@ -566,6 +598,12 @@ TEST_P(RoutingGuidelinesAdapterTestFallback, SecondaryModeWithFallback) {
                     "priority": 1
                 }
             ])_");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_rw_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(SecondaryModeWithFallback,
@@ -610,6 +648,12 @@ TEST_F(RoutingGuidelinesAdapterTest, PrimaryAndSecondaryMode) {
                     "priority": 0
                 }
             ])_");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 class RoutingGuidelinesAdapterTestStrategy
@@ -623,7 +667,7 @@ TEST_P(RoutingGuidelinesAdapterTestStrategy, ExplicitStrategy) {
       {"bind_address", "127.0.0.1"},
       {"bind_port", std::to_string(router_port)},
       {"routing_strategy", strategy},
-      {"destinations", "metadata-cache://test/default?role=SECONDARY"},
+      {"destinations", "metadata-cache://test/default?role=PRIMARY"},
       {"protocol", "classic"}};
   const auto &routing_section =
       mysql_harness::ConfigBuilder::build_section("routing:test", options);
@@ -643,6 +687,12 @@ TEST_P(RoutingGuidelinesAdapterTestStrategy, ExplicitStrategy) {
   auto &router =
       launch_router({node_port}, routing_section, get_metadata_cache_section());
   check_log_contains(router, R"("strategy": ")" + strategy + "\"");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(ExplicitStrategy, RoutingGuidelinesAdapterTestStrategy,
@@ -653,7 +703,7 @@ TEST_F(RoutingGuidelinesAdapterTest, ExplicitName) {
   std::vector<std::pair<std::string, std::string>> options{
       {"bind_address", "127.0.0.1"},
       {"bind_port", std::to_string(router_port)},
-      {"destinations", "metadata-cache://test/default?role=SECONDARY"},
+      {"destinations", "metadata-cache://test/default?role=PRIMARY"},
       {"protocol", "classic"}};
   const auto &routing_section =
       mysql_harness::ConfigBuilder::build_section("routing:foobar", options);
@@ -678,6 +728,12 @@ TEST_F(RoutingGuidelinesAdapterTest, ExplicitName) {
   check_log_contains(router, R"_("routes": [
         {
             "name": "foobar")_");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 TEST_F(RoutingGuidelinesAdapterTest, AutoGeneratedName) {
@@ -685,7 +741,7 @@ TEST_F(RoutingGuidelinesAdapterTest, AutoGeneratedName) {
   std::vector<std::pair<std::string, std::string>> options{
       {"bind_address", "127.0.0.1"},
       {"bind_port", std::to_string(router_port)},
-      {"destinations", "metadata-cache://test/default?role=SECONDARY"},
+      {"destinations", "metadata-cache://test/default?role=PRIMARY"},
       {"protocol", "classic"}};
   const auto &routing_section =
       mysql_harness::ConfigBuilder::build_section("routing", options);
@@ -710,6 +766,12 @@ TEST_F(RoutingGuidelinesAdapterTest, AutoGeneratedName) {
   check_log_contains(router, R"^("routes": [
         {
             "name": "__section_)^");
+
+  SCOPED_TRACE("Connection is matched");
+  {
+    auto client_res = make_new_connection(router_port);
+    ASSERT_NO_ERROR(client_res);
+  }
 }
 
 int main(int argc, char *argv[]) {

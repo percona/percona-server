@@ -60,8 +60,9 @@ bool optimizer_options_usage_init(SERVICE_TYPE(mysql_option_tracker_option) *
   unsigned long long temp_usage_counter = 0;
   // Traditional Optimizer option.
   // Option definition
-  traditional_err |= opt->define(traditional_optimizer_option_name.c_str(),
-                                 container_mysql_server_name.c_str(), true);
+  traditional_err |=
+      (0 != opt->define(traditional_optimizer_option_name.c_str(),
+                        container_mysql_server_name.c_str(), true));
 
   // Fetch usage data from database
   traditional_err |=
@@ -82,9 +83,9 @@ bool optimizer_options_usage_init(SERVICE_TYPE(mysql_option_tracker_option) *
 
   // Hypergraph Optimizer option
   // Option definition
-  hypergraph_err |= opt->define(hypergraph_optimizer_option_name.c_str(),
-                                container_mysql_server_name.c_str(),
-                                with_hypergraph_optimizer);
+  hypergraph_err |= (0 != opt->define(hypergraph_optimizer_option_name.c_str(),
+                                      container_mysql_server_name.c_str(),
+                                      with_hypergraph_optimizer));
 
   // Fetch usage data from database
   hypergraph_err |=
@@ -114,11 +115,11 @@ bool optimizer_options_usage_deinit(SERVICE_TYPE(mysql_option_tracker_option) *
       option_usage_unregister_callback(
           traditional_optimizer_option_name.c_str(),
           set_option_tracker_traditional_optimizer_usage_count, srv_registry);
-  err |= opt->undefine(traditional_optimizer_option_name.c_str());
+  err |= (0 != opt->undefine(traditional_optimizer_option_name.c_str()));
   err |= !hypergraph_optimizer_option_callback_define_failed &&
          option_usage_unregister_callback(
              hypergraph_optimizer_option_name.c_str(),
              set_option_tracker_hypergraph_optimizer_usage_count, srv_registry);
-  err |= opt->undefine(hypergraph_optimizer_option_name.c_str());
+  err |= (0 != opt->undefine(hypergraph_optimizer_option_name.c_str()));
   return err;
 }

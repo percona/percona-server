@@ -47,17 +47,20 @@ using Authorization = mrs::rest::Handler::Authorization;
 
 namespace {
 
-auto get_regex_path_object_openapi(std::weak_ptr<DbObjectEndpoint> endpoint) {
+auto get_path_object_openapi(std::weak_ptr<DbObjectEndpoint> endpoint) {
   using namespace std::string_literals;
+  std::vector<::http::base::UriPathMatcher> result;
 
   auto endpoint_obj = lock(endpoint);
-  if (!endpoint_obj) return ""s;
+  if (!endpoint_obj) return result;
 
   auto endpoint_sch = endpoint_obj->get_parent_ptr();
-  if (!endpoint_sch) return ""s;
+  if (!endpoint_sch) return result;
 
-  return regex_path_obj_openapi_swagger(endpoint_sch->get_url_path(),
-                                        endpoint_obj->get()->request_path);
+  result.push_back(path_obj_openapi_swagger(endpoint_sch->get_url_path(),
+                                            endpoint_obj->get()->request_path));
+
+  return result;
 }
 
 }  // namespace
@@ -66,8 +69,8 @@ HandlerDbObjectOpenAPI::HandlerDbObjectOpenAPI(
     std::weak_ptr<DbObjectEndpoint> endpoint,
     mrs::interface::AuthorizeManager *auth_manager)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              /*regex-path: ^/service/schema/open-api-catalog/object$*/
-              {get_regex_path_object_openapi(endpoint)},
+              /* path: /service/schema/open-api-catalog/object */
+              get_path_object_openapi(endpoint),
               get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint} {
   auto ep = lock(endpoint_);
@@ -106,9 +109,25 @@ HttpResult HandlerDbObjectOpenAPI::handle_get(rest::RequestContext *ctxt) {
                                   entry_->request_path);
   }
 
+  const bool is_async =
+      get_options().mysql_task.driver ==
+          interface::Options::MysqlTask::DriverType::kDatabase ||
+      get_options().mysql_task.driver ==
+          interface::Options::MysqlTask::DriverType::kRouter;
   rapidjson::Value items(rapidjson::kObjectType);
   items = rest::get_route_openapi_schema_path(privileges, entry_, url_obj_,
-                                              allocator);
+                                              is_async, allocator);
+
+  if (is_async &&
+      (entry_->type ==
+           mrs::database::entry::DbObject::ObjectType::k_objectTypeProcedure ||
+       entry_->type ==
+           mrs::database::entry::DbObject::ObjectType::k_objectTypeFunction)) {
+    const std::string task_id_path = url_obj_ + "/{taskId}";
+    items.AddMember(rapidjson::Value(task_id_path, allocator),
+                    rest::add_task_id_endpoint(privileges, entry_, allocator),
+                    allocator);
+  }
 
   auto schema_properties = rest::get_route_openapi_component(entry_, allocator);
   if (entry_->type ==

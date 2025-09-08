@@ -279,7 +279,8 @@ class UserConfigurationInfo {
 
 PluginConfig::PluginConfig(const ConfigSection *section,
                            const std::vector<std::string> &routing_sections,
-                           const std::string &router_name)
+                           const std::optional<std::string> &router_name,
+                           const uint32_t http_port)
     : mysql_harness::BasePluginConfig(section) {
   static const char *kKeyringAttributePassword = "password";
   mysql_user_ = get_option(section, "mysql_user", StringOption{});
@@ -289,8 +290,9 @@ PluginConfig::PluginConfig(const ConfigSection *section,
   routing_ro_ = get_option(section, "mysql_read_only_route", StringOption{});
   router_id_ = get_option(section, "router_id", IntOption<uint64_t>{});
   metadata_refresh_interval_ =
-      get_option(section, k_option_metadata_refresh, SecondsOption{});
+      get_option(section, k_option_metadata_refresh, MilliSecondsOption{});
   router_name_ = router_name;
+  http_port_ = http_port;
 
   if (mysql_user_data_access_.empty()) {
     mysql_user_data_access_ = mysql_user_;

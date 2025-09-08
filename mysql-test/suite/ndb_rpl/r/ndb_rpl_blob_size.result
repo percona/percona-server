@@ -75,11 +75,25 @@ a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67
 2	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	c8309b03b49ea221240972d3dbf6613c9f503283	2abc30b2daa3c61390c442518f34c4b63af579ad	2abc30b2daa3c61390c442518f34c4b63af579ad
 3	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	e8d860ea44ff946acbcd1dd18c462480472847d1	35f775de2d256b02670507c8e96f9c91d671afb8	35f775de2d256b02670507c8e96f9c91d671afb8
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 ORDER BY a;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
 1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67
 2	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	c8309b03b49ea221240972d3dbf6613c9f503283	2abc30b2daa3c61390c442518f34c4b63af579ad	2abc30b2daa3c61390c442518f34c4b63af579ad
 3	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	e8d860ea44ff946acbcd1dd18c462480472847d1	35f775de2d256b02670507c8e96f9c91d671afb8	35f775de2d256b02670507c8e96f9c91d671afb8
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Update values on master, verify, sync and verify those on replica
 UPDATE test.t1 SET
@@ -94,15 +108,36 @@ a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
 1	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	559f4ebf66e0318b821c3914a9df199bab6546d8	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5
 2	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	ebac5ad15b4941997be96ef1a6883aefd4ebc07b	45d1660acc8a8884d8ceff3a6a4594b50a5446a3	45d1660acc8a8884d8ceff3a6a4594b50a5446a3
 3	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	d9dbf90c93dce56f023a0d73060989b63f5c4e8b	9825358fe11f44b2b7b096d0c637a1f1dd727b52	9825358fe11f44b2b7b096d0c637a1f1dd727b52
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 order by a;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
 1	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	559f4ebf66e0318b821c3914a9df199bab6546d8	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5
 2	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	ebac5ad15b4941997be96ef1a6883aefd4ebc07b	45d1660acc8a8884d8ceff3a6a4594b50a5446a3	45d1660acc8a8884d8ceff3a6a4594b50a5446a3
 3	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	d9dbf90c93dce56f023a0d73060989b63f5c4e8b	9825358fe11f44b2b7b096d0c637a1f1dd727b52	9825358fe11f44b2b7b096d0c637a1f1dd727b52
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 
 ## Delete on master, sync and verify deletion on replica
 DELETE FROM test.t1;
 SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 order by a;
 a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DROP TABLE test.t1;
 include/rpl/deinit.inc

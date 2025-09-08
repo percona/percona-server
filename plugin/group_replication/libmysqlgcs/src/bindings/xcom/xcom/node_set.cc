@@ -162,7 +162,7 @@ node_set *reset_node_set(node_set *set) {
 
 #ifdef XCOM_STANDALONE
 /**
-   Debug a node set with G_MESSAGE.
+   Debug a node set with G_INFO.
  */
 void _g_dbg_node_set(node_set set, const char *name [[maybe_unused]]) {
   u_int n = 2 * set.node_set_len + 1;

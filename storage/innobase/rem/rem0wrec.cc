@@ -66,7 +66,9 @@ void validate_rec_offset(const dict_index_t *index, const ulint *offsets,
   ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
   if (n >= rec_offs_n_fields(offsets)) {
 #ifndef UNIV_NO_ERR_MSGS
-    dump_metadata_dict_table(index->table);
+    if (index != nullptr) {
+      dump_metadata_dict_table(index->table);
+    }
     auto num_fields = static_cast<size_t>(rec_offs_n_fields(offsets));
     ib::fatal(L, ER_IB_DICT_INVALID_COLUMN_POSITION, ulonglong{n}, num_fields);
 #endif /* !UNIV_NO_ERR_MSGS */

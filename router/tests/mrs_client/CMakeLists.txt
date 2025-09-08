@@ -26,15 +26,15 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   client/http_client_request.cc
   client/session.cc
   client/authentication.cc
-  COMPONENT Test
+  COMPONENT Router
   LINK_LIBRARIES
-  PUBLIC http_client
-  PUBLIC harness-library
-  PUBLIC harness_tls
-  PUBLIC router_tls
-  PUBLIC mysql_rest_service_if
-  PUBLIC mysql_rest_service_helper
-  PUBLIC router_mysqlclient
+  http_client
+  harness-library
+  harness_tls
+  router_tls
+  mysql_rest_service_if
+  mysql_rest_service_helper
+  router_mysqlclient
   ${SSL_LIBRARIES}
   DEPENDENCIES
   mysql_rest_service_if

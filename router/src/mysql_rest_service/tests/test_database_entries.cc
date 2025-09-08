@@ -27,7 +27,6 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-#include "helper/make_shared_ptr.h"
 #include "helper/string/hex.h"
 #include "mrs/authentication/helper/universal_id_container.h"
 #include "mrs/database/entry/entry.h"

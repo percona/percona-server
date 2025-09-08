@@ -44,7 +44,7 @@ class HandlerAuthorizeCompleted : public HandlerAuthorizeBase {
                             const std::string &url_host,
                             const UniversalId service_id,
                             const std::string &service_path,
-                            const std::string &rest_path_matcher,
+                            const UriPathMatcher &rest_path_matcher,
                             const std::string &options,
                             const std::string &page_content_custom,
                             interface::AuthorizeManager *auth_manager);

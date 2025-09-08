@@ -46,7 +46,7 @@ void QueryRestTableSingleRow::query_entry(
     const PrimaryKeyColumnValues &pk, const dv::ObjectFieldFilter &field_filter,
     const std::string &url_route, const ObjectRowOwnership &row_ownership,
     const FilterObjectGenerator &fog, const bool compute_etag,
-    const std::string &metadata_gtid, const bool fetch_any_owner) {
+    std::function<std::string()> commit, const bool fetch_any_owner) {
   assert(!fog.has_where() && !fog.has_order());
 
   PrimaryKeyColumnValues complete_pk(pk);
@@ -55,10 +55,10 @@ void QueryRestTableSingleRow::query_entry(
       *object, fetch_any_owner ? ObjectRowOwnership() : row_ownership,
       complete_pk);
 
+  commit_ = std::move(commit);
   object_ = object;
   compute_etag_ = compute_etag;
   metadata_received_ = false;
-  metadata_gtid_ = metadata_gtid;
   items = 0;
   config_ = {0, 0, false, url_route};
   field_filter_ = &field_filter;
@@ -74,13 +74,12 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
 
-  std::map<std::string, std::string> metadata;
-  if (!metadata_gtid_.empty()) {
-    metadata.insert({"gtid", metadata_gtid_});
-  }
+  std::string gtid;
+  if (commit_) gtid = commit_();
+
   response = post_process_json(
-      object_, field_filter_ ? *field_filter_ : ObjectFieldFilter{}, metadata,
-      r[0], compute_etag_);
+      object_, field_filter_ ? *field_filter_ : ObjectFieldFilter{}, gtid, r[0],
+      compute_etag_);
 
   is_owned_ = r[1] && strcmp(r[1], "1") == 0;
 

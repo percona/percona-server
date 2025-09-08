@@ -8196,7 +8196,7 @@ ER_WINDOW_FRAME_ILLEGAL
   eng "Window '%s': frame start or end is negative, NULL or of non-integral type"
 
 ER_WINDOW_RANGE_FRAME_ORDER_TYPE
-  eng "Window '%s' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type"
+  eng "Window '%s' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type"
 
 ER_WINDOW_RANGE_FRAME_TEMPORAL_TYPE
   eng "Window '%s' with RANGE frame has ORDER BY expression of datetime type. Only INTERVAL bound value allowed."
@@ -9968,6 +9968,12 @@ ER_VALIDATE_PASSWORD_INSUFFICIENT_CHANGED_CHARACTERS
 ER_WARN_DEPRECATED_WITH_NOTE
   eng "'%s' is deprecated and will be removed in a future release. %s"
 
+ER_CANT_RUN_COMMAND_SERVICES_RECURSIVELY
+  eng "Running recursive calls to SQL execution service is not supported"
+
+ER_WARN_SET_OPERATIONS_BUFFER
+  eng "System variable \"set_operations_buffer_size\" set too low for hashed set operation. Consult optimizer trace for recommendations."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #
@@ -10242,7 +10248,7 @@ ER_LH_AVRO_FILE_DATA_CORRUPT
   eng "File %.*s: File data might be corrupt."
 
 ER_LH_AVRO_INVALID_UNION
-  eng "Column %d in %s: Invalid union encountered. Unions are only supported to represent nullable columns. One of the two types of the union must be null."
+  eng "Column %d in %s: Invalid Avro union encountered. Unions are only supported to represent nullable columns. One of the two types of the union must be null."
 
 ER_LH_AVRO_INVALID_BLOCK_SIZE
   eng "File %.*s: Invalid avro block size."
@@ -10558,7 +10564,241 @@ ER_LH_WARN_INFER_USE_DEFAULT_DELIMITERS
   eng "Feature Auto delimiter detection is skipped (%s)."
 
 ER_LIBRARY_INVALID
-        eng "The routine '%-.192s' references a missing library '%-.192s.%-.192s' or definer/invoker of the routine lack rights to use it."
+  eng "The routine '%-.192s' references a missing library '%-.192s.%-.192s' or definer/invoker of the routine lack rights to use it."
+
+ER_CANNOT_PERSIST_TRANSACTION_ISOLATION
+  eng "Cannot persist transaction isolation."
+
+ER_LH_AVRO_INVALID_RECORD
+  eng "Column %d in %s: Invalid Avro record encountered. Nested records are not supported."
+
+ER_LH_INVALID_VALUE_IN_VECTOR
+  eng "Column %d in %s: Invalid vector: contains a value %s."
+
+ER_LH_WARN_VECTOR_LOSSY_CONVERSION
+  eng "Column %d in %s: Conversion from type Int to type Float could result in loss of precision."
+
+ER_LH_UNSTRUCTURED_TRUNCATION_ERROR
+  eng "Vector chunks are truncated for file: %.*s"
+
+ER_LH_UNSTRUCTURED_PAGE_CHUNK_WARN
+  eng "Split by 'page' chunking is changed to 'document' chunking for %.*s because split by 'page' is not possible for docx, doc, html, or txt formats."
+
+ER_LH_UNSTRUCTURED_TOO_MANY_CHUNKS
+  eng "Too many chunks for file: %.*s"
+
+ER_ACCESS_DENIED_FIREWALL 28000
+  eng "Access denied."
+
+ER_LH_DECOMPRESSION_ERR
+  eng "Failed to extract from %s: corrupted file, wrong compression format, or multiple files in archive."
+
+ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS
+  eng "Invalid JSON duality view definition: Invalid, Duplicate or Conflicting annotations for the JSON field."
+
+ER_JDV_ALGO_TEMPTABLE_NOT_SUPPORTED
+  eng "ALGORITHM = TEMPTABLE is not supported for duality views."
+
+ER_JDV_WITH_CHECK_OPTION_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: WITH [LOCAL/CASCADED] CHECK OPTION clause is not supported."
+
+ER_JDV_INVALID_DEFINITION_NON_SIMPLE_SELECT_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Invalid JSON duality view definition: Set Operations such as UNION, INTERSECT, EXCEPT and multi-level ORDER are not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_CTE_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Common Table Expressions (CTE) are not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_GROUPBY_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Clauses like GROUP BY, HAVING are not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_WINDOW_FUNCTION_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: WINDOW functions are not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_LIMIT_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: LIMIT clause is not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_ORDERBY_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: ORDER BY clause is not supported. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_MULTI_TABLES_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: FROM clause must include exactly one table. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_NO_WHERE_CONDITION_IN_SUBOBJECT
+  eng "Invalid JSON duality view definition: WHERE clause is mandatory with sub-objects. Object \"%s\" is missing this clause."
+
+ER_JDV_INVALID_DEFINITION_WHERE_CONDITION_IN_ROOTOBJECT
+  eng "Invalid JSON duality view definition: WHERE clause is not supported with root object."
+
+ER_JDV_INVALID_DEFINITION_WRONG_WHERE_FORMAT_FOR_SUBOBJECT
+  eng "Invalid JSON Duality View Definition: The WHERE clause in sub-objects must consist of a single condition being an equality comparison between parent object and sub-object's table columns. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_WRONG_FIELD_TYPE
+  eng "Invalid JSON duality view definition: JSON_DUALITY_OBJECT value must be either a table column or a sub-query. Object \"%s\" contains an invalid value."
+
+ER_JDV_INVALID_DEFINITION_CONTEXT_PREPARE_FAILED
+  eng "JSON duality view context initialization failed."
+
+ER_JDV_INVALID_DEFINITION_NO_JSON_OBJECT_IN_ROOT
+  eng "Invalid JSON duality view definition: Only JSON_DUALITY_OBJECT() is allowed in the select list of root object's query."
+
+ER_JDV_INVALID_DEFINITION_MUSTBE_JSON_OBJECT_FOR_SINGLETON
+  eng "Invalid JSON duality view definition: Only JSON_DUALITY_OBJECT() is allowed in the select list of singleton descendant object's query. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_MUSTBE_JSON_OBJECT_FOR_NESTED
+  eng "Invalid JSON duality view definition: Only JSON_ARRAYAGG() is allowed in the select list of nested descendant object's query. Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_NO_JSON_OBJ_IN_ARRAYAGG
+  eng "Invalid JSON duality view definition: Only JSON_DUALITY_OBJECT() is allowed in the argument list of JSON_ARRAYAGG(). Object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_RELATIONSHIP_RULES_VIOLATED
+  eng "Invalid JSON duality view definition: For singleton descendant object, the primary key column of a current object's table must be used in the WHERE condition. For a nested descendant object, the primary key column of the parent object's table must be used in where condition. Object \"%s\" violates the rule."
+
+ER_JDV_INVALID_DEFINITION_COLUMN_TYPE_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Object \"%s\" projecting \"%s.%s\" includes column \"%s\" of type \"%s\". This type of projection is not supported."
+
+ER_JDV_INVALID_DEFINITION_NON_BASE_TABLE_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Only base tables can be used to create JSON DUALITY VIEW. \"%s.%s\" is not a base table."
+
+ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_FOUND
+  eng "Invalid JSON duality view definition: All participating tables should have a primary key, \"%s.%s\" does not have it."
+
+ER_JDV_INVALID_DEFINITION_TABLE_WITHOUT_PK_PROJECTION_FOUND
+  eng "Invalid JSON duality view definition: Primary key column of every table should be projected, object \"%s\" that projects table \"%s.%s\" does not."
+
+ER_JDV_INVALID_DEFINITION_ID_KEY_USED_BY_NOT_ROOT_TABLE
+  eng "Invalid JSON duality view definition: The key name \"_id\" can only be used for primary key column of the root object and cannot be assigned to column \"%s\" of table \"%s.%s\"."
+
+ER_JDV_INVALID_DEFINITION_ID_KEY_NOT_USED_BY_ROOT_TABLE
+  eng "Invalid JSON duality view definition: Primary key column of a root object's table must always be projected as \"_id\"."
+
+ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
+  eng "Invalid JSON duality view definition: Incorrect annotations for \"%s\". For singleton child object linked using primary key column with parent, table annotations must enforce both read-only or INSERT and UPDATE. DELETE is not allowed."
+
+ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_NESTED_OBJ
+  eng "Invalid JSON duality view definition: Incorrect annotations for \"%s\". Table annotations for Root, Nested child object and Singleton child linked using non-primary key column should enforce read-only or full writability (i.e. usage of UPDATE, INSERT and DELETE tags)."
+
+ER_JDV_INVALID_DEFINITION_DUPLICATE_KEYS_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Object \"%s\" projects key \"%s\" more than once."
+
+ER_JDV_INVALID_DEFINITION_DUPLICATE_COLUMN_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Object \"%s\" projecting table \"%s\", projects column \"%s\" more than once."
+
+ER_JDV_INVALID_DEFINITION_SAME_TABLE_INCONSISTENT_PROJECTION
+  eng "Invalid JSON duality view definition: If a table is projected multiple times, the set of columns projected must be consistent across all instances of the table projection. Table \"%s.%s\" violates the rule."
+
+ER_JDV_INVALID_DEFINITION_COLUMN_LIST_NOT_SUPPORTED
+  eng "Invalid JSON duality view definition: Specifying column list is not supported for duality views."
+
+ER_JDV_INVALID_DEFINITION_INCONSISTENT_TABLE_FIELD_IN_THE_OBJECT
+  eng "Invalid JSON duality view definition: JSON_DUALITY_OBJECT can only contain columns from the projected table. Object \"%s\" is expected to project columns from \"%s.%s\" but includes columns from \"%s.%s\", violating this rule."
+
+ER_JDV_INVALID_DEFINITION_WHERE_USES_NON_IMMEDIATE_PARENT
+  eng "Invalid JSON duality view definition: The WHERE condition in sub-objects can only reference columns from the table being projected in the current object and columns from the table projected in the parent object. The object \"%s\" violates this rule."
+
+ER_JDV_INVALID_DEFINITION_COMPOSITE_KEY_USED
+  eng "Invalid JSON duality view definition: Composite primary key is not supported. Object \"%s\" projecting \"%s\" table violates the rule."
+
+ER_JDV_INVALID_DEFINITION_ALIAS_NOT_USED_FOR_SAME_TABLES
+  eng "Invalid JSON duality view definition: Parent and child objects cannot project the same table without aliasing at least one of them. Objects \"%s\" and \"%s\" violate this rule."
+
+# SQLSTATE 0A000 == "feature not supported"
+ER_JDV_OPERATION_NOT_SUPPORTED 0A000
+  eng "%s is not supported for JSON Duality Views."
+
+ER_JDV_ALTER_OR_REPLACE_NOT_SUPPORTED
+  eng "View '%s.%s' of '%s' type already exists. Replacing view with mismatched type is not supported."
+
+ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE
+  eng "JSON_DUALITY_OBJECT() can only be used to define a JSON duality view."
+
+ER_JDV_UNEXPECTED_JSON_TYPE
+  eng "Path '%s' is not of type '%s'."
+
+ER_JDV_PRIMARY_KEY_MUST_BE_PROVIDED
+  eng "Primary key column %s.%s must be provided as path '%s.%s' (this also applies to auto-generated columns)."
+
+ER_JDV_JOIN_CONDITION_NOT_SATISFIED
+  eng "Join condition is not satisfied as path '%s' for child column %s.%s is not equal to path '%s' for parent column %s.%s."
+
+ER_JDV_PK_DUPLICATES_NOT_IDENTICAL
+  eng "Path '%s' is a duplicate for primary key column %s.%s but has conflicting values for column %s: path '%s' vs path '%s'"
+
+ER_JDV_UNMAPPED_KEY
+  eng "Path '%s' is not mapped to any column of %s."
+
+ER_JDV_MISSING_INSERT_TAG
+  eng "Missing INSERT tag on table %s, path '%s'."
+
+ER_JDV_MISSING_READONLY_SUBOBJECT
+  eng "Read-only subobject with path '%s', maps to row where %s.%s = (%s), which does not exist."
+
+ER_JDV_JOIN_CONDITION_VIOLATION
+  eng "Path '%s' references a READ-ONLY subobject for which column %s.%s violates the join condition of the attempted INSERT."
+
+ER_JDV_MISSING_ETAG
+  eng "ETAG missing for updated value"
+
+ER_JDV_ETAG_MISMATCH
+  eng "Cannot update JSON duality view. The ETAG of the document in the database did not match the ETAG '%s' passed in."
+
+ER_JDV_MISSING_VALUE
+  eng "Value was not provided for path '%s' and could not be inferred for column %s.%s."
+
+ER_JDV_PK_UPDATES_NOT_ALLOWED
+  eng "Cannot update primary key column %s.%s from path '%s'."
+
+ER_JDV_MISSING_UPDATE_TAG
+  eng "Missing UPDATE tag on %s.%s, path '%s'."
+
+ER_JDV_MISSING_DELETE_TAG
+  eng "Missing DELETE tag on table %s, path '%s'."
+
+ER_JDV_NULL_INSERT_VALUE
+  eng "NULL is not allowed when inserting into a JSON DUALITY VIEW."
+
+ER_JDV_INSERT_VALUE_NOT_FIXED
+  eng "Insert value must be fixed (not require resolving)."
+
+ER_JDV_NULL_UPDATE_VALUE
+  eng "NULL is not allowed when updating a JSON DUALITY VIEW."
+
+ER_JDV_UPDATE_VALUE_NOT_FIXED
+  eng "Update values must be fixed (not require resolving)."
+
+ER_JDV_FEATURE_EDITION_LIMIT
+  eng "Feature not available in this edition."
+
+ER_JDV_CANNOT_BE_USED_WITH
+   eng "JSON DUALITY VIEW %s cannot be used with %s."
+
+ER_JDV_DML_INFO
+  eng "Rows affected: %ld  Warnings: %ld."
+
+ER_JDV_MISSING_VALUE_FOR_AG_COLUMN
+  eng "A value must be provided explicitly for auto-generated column %s.%s, referenced by path '%s', key '%s'"
+
+ER_JDV_INVALID_BINARY_TYPE_HEADER
+  eng "Path '%s' is mapped to a binary column, but its value does not have a valid base64 type header."
+
+ER_ETAG_NOT_SUPPORTED
+   eng "ETAG is not supported with Vector/ Geometry types."
+
+ER_ENGINE_ATTRIBUTE_CONFLICT
+  eng "ENGINE_ATTRIBUTE conflicts with %s %s."
+
+ER_EXTERNAL_FORMAT_NOT_SUPPORTED
+  eng "Column '%-.192s': EXTERNAL_FORMAT is only supported for temporal data types."
+
+ER_EXTERNAL_TABLE_INVALID_OPTION
+  eng "Invalid option specified for %s of external table: %s"
+
+ER_EXTERNAL_TABLE_ENGINE_NOT_SUPPORTED
+  eng "The '%s' storage engine does not support external tables"
+
+ER_EXTERNAL_TABLE_ENGINE_NOT_SPECIFIED
+  eng "External storage engine is not specified"
+ER_LH_NO_FILES_FOUND_NO_SECURE_FILE_PRIV
+  eng "No files found or files provided not under secure-file-priv."
 
 #
 #  End of 9.x error messages (server-to-client).
@@ -10761,3 +11001,4 @@ ER_CANT_DROP_CF
 # same directory as this file for more
 # information.
 ################################################################################
+

@@ -270,7 +270,7 @@ SET(INNOBASE_SOURCES
   ut/ut0wqueue.cc)
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
-IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
     pars/pars0grm.cc
     COMPILE_FLAGS "-Wno-free-nonheap-object")
@@ -409,4 +409,7 @@ IF(MY_COMPILER_IS_GNU AND FPROFILE_USE)
     rem/rem0wrec.cc
     COMPILE_FLAGS "-Wno-stringop-overflow"
     )
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
+    STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-error=alloc-size-larger-than=")
+  ENDIF()
 ENDIF()

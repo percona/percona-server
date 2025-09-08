@@ -1820,6 +1820,9 @@ DO WEEKOFYEAR(LEAD(('5183-10-18 06:15:35.076079')SOUNDS LIKE(0x9E335D89),68)OVER
 DO DAYOFYEAR(LEAD(ROW_COUNT(),177)OVER());
 DO MONTHNAME(LAG(' =',74) OVER());
 DO SHA(BIN(MONTHNAME(LEAD(UNCOMPRESSED_LENGTH(SHA1("")),224)OVER())));
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DO (((NOT(1)))^(HOUR(MONTHNAME(LEAD(DATABASE(),89)OVER()))));
 DO MONTHNAME(LEAD(CHARSET(CONVERT((MOD(CURTIME(4),STDDEV(NULL)))USING CP850)),12) OVER());
 DO LAST_DAY(LAG(NULL,113) OVER());
@@ -1833,6 +1836,7 @@ Assertion used to fail: !check_time_mmssff_range(ltime)
 DO ((CAST((LEAD(NULL,152) OVER()) AS TIME))*(1));
 DO CAST((LAG(SHA(STDDEV('-0E%_')),224) OVER()) AS TIME);
 Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Warning	1292	Truncated incorrect DOUBLE value: '-0E%_'
 DO CAST((LAG(_UJIS '8CA} ',144) OVER()) AS TIME);
 DO CAST((LAG(-16520,156) OVER()) AS TIME);

@@ -917,7 +917,7 @@ void ibuf_update_free_bits_for_two_pages_low(
     mtr_t *mtr)          /*!< in: mtr */
 {
   ulint state;
-
+  ut_ad(!fsp_is_system_temporary(block1->page.id.space()));
   ut_ad(block1->page.id.space() == block2->page.id.space());
 
   /* As we have to x-latch two random bitmap pages, we have to acquire

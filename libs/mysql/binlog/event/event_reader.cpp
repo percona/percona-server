@@ -211,6 +211,23 @@ void Event_reader::strncpyz(char *destination, size_t max_length,
   m_ptr = m_ptr + strlen(destination) + 1;
 }
 
+void Event_reader::reserve(std::vector<uint8_t> *vector, size_t length) {
+  PRINT_READER_STATUS("Event_reader::reserve");
+  BAPI_ASSERT(vector->empty());
+  try {
+    vector->reserve(length);
+  } catch (const std::bad_alloc &) {
+    vector->clear();
+    set_error("std::bad_alloc");
+    return;
+  } catch (const std::length_error &) {
+    vector->clear();
+    set_error("std::length_error");
+    return;
+  }
+  BAPI_ASSERT(vector->capacity() >= length);
+}
+
 void Event_reader::assign(std::vector<uint8_t> *vector, size_t length) {
   PRINT_READER_STATUS("Event_reader::assign");
   BAPI_ASSERT(vector->empty());

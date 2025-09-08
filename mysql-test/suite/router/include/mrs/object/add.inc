@@ -3,14 +3,11 @@ if(!$mrs_add_object_name)
   --die 'mrs_add_object_name' variable is required.
 }
 
-if(!$mrs_add_object_fields)
-{
-  --die 'mrs_add_object_fields' variable is required.
-}
-
-if(!$mrs_add_object_field_types)
-{
-  --die 'mrs_add_object_field_types' variable is required.
+if ($mrs_add_object_fields) {
+  if(!$mrs_add_object_field_types)
+  {
+    --die 'mrs_add_object_field_types' variable is required.
+  }
 }
 
 if(!$mrs_add_object_type)
@@ -65,6 +62,7 @@ while($name)
               '$name_element',
               JSON_SET("{}",
                   "$.name",'$name_element',
+                  "$.in", true,
                   "$.datatype",'$type_element'),
               $iteration
           );

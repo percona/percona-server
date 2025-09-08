@@ -87,6 +87,25 @@ innodb.portability_tablespace_windows       : Bug#36312666 Several InnoDB testca
 innodb.log_upgrade_empty_disabled_log_normal_shutdown : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_upgrade_empty_log_fast_shutdown            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 innodb.log_upgrade                                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
+innodb.partition_import_8013                          : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8013_debug                    : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8015                          : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8015_debug                    : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8017                          : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8017_debug                    : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_lin_lctn_0               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_lin_lctn_0_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_lin_lctn_1               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_lin_lctn_1_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_mac_lctn_1               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_mac_lctn_1_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_mac_lctn_2               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_mac_lctn_2_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_win_lctn_1               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_win_lctn_1_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_win_lctn_2               : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+innodb.partition_import_8019_win_lctn_2_debug         : Bug#37461062  Remove ALT_PART_SEPARATOR from 9.0 code
+
 main.partition_prefixkey_upgrade            : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_error_cs                    : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
 main.dd_upgrade_cs                          : Bug#36312666 Several InnoDB testcases fail after the change to 9.0
@@ -181,6 +200,7 @@ rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP
 
 # These will only run in XCom because of the following issue:
 group_replication.gr_join_with_suspect_member : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
+group_replication.gr_kill_restart : BUG#37181867 Disabled until the bug is fixed
 group_replication.gr_leave_with_suspect_member : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_majority_loss_restored_after_timeout : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_primary_manual_failover_vs_dcl_rename_user : BUG#36020917 Disabled until bug is fixed

@@ -651,9 +651,9 @@ static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
 
       col = reinterpret_cast<const dict_v_col_t *>(ind_field->col);
 
-      innobase_get_computed_value(row, col, clust_index, &local_heap, heap,
-                                  nullptr, current_thd, nullptr, nullptr,
-                                  nullptr, nullptr, &prebuilt->blob_heap);
+      innobase_get_computed_value(&prebuilt->blob_heap, row, col,
+                                  clust_index->table, &local_heap, heap,
+                                  current_thd, nullptr);
     }
   }
 
@@ -977,17 +977,17 @@ static const dtuple_t *row_vers_build_cur_vrow(
  the alphabetical ordering; exactly in this case we return true.
  @return true if earlier version should have */
 bool row_vers_old_has_index_entry(
-    bool also_curr,         /*!< in: true if also rec is included in the
-                           versions to search; otherwise only versions
-                           prior to it are searched */
-    const rec_t *rec,       /*!< in: record in the clustered index; the
-                            caller must have a latch on the page */
-    mtr_t *mtr,             /*!< in: mtr holding the latch on rec; it will
-                            also hold the latch on purge_view */
-    dict_index_t *index,    /*!< in: the secondary index */
-    const dtuple_t *ientry, /*!< in: the secondary index entry */
-    roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id,        /*!< in: transaction ID on the purging record */
+    bool also_curr,           /*!< in: true if also rec is included in the
+                             versions to search; otherwise only versions
+                             prior to it are searched */
+    const rec_t *rec,         /*!< in: record in the clustered index; the
+                              caller must have a latch on the page */
+    mtr_t *mtr,               /*!< in: mtr holding the latch on rec; it will
+                              also hold the latch on purge_view */
+    dict_index_t *index,      /*!< in: the secondary index */
+    const dtuple_t *ientry,   /*!< in: the secondary index entry */
+    roll_ptr_t roll_ptr,      /*!< in: roll_ptr for the purge record */
+    trx_id_t trx_id,          /*!< in: transaction ID on the purging record */
     row_prebuilt_t *prebuilt) /*!< in: compress_heap must be taken from here */
 {
   const rec_t *version;
@@ -1138,9 +1138,9 @@ bool row_vers_old_has_index_entry(
     deleted, but the previous version of it might not. We will
     need to get the virtual column data from undo record
     associated with current cluster index */
-    cur_vrow =
-        row_vers_build_cur_vrow(also_curr, rec, clust_index, &clust_offsets,
-                                index, roll_ptr, trx_id, heap, v_heap, mtr, prebuilt);
+    cur_vrow = row_vers_build_cur_vrow(also_curr, rec, clust_index,
+                                       &clust_offsets, index, roll_ptr, trx_id,
+                                       heap, v_heap, mtr, prebuilt);
   }
 
   version = rec;

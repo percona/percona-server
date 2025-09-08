@@ -214,6 +214,23 @@ class MysqlCacheManager {
     }
   }
 
+  const ConnectionConfiguration &get_connection_configuration(
+      collector::MySQLConnection type) const {
+    switch (type) {
+      case collector::kMySQLConnectionMetadataRO:
+        return callbacks_metadata_ro_.get_connection_configuration();
+      case collector::kMySQLConnectionUserdataRO:
+        return callbacks_userdata_ro_.get_connection_configuration();
+      case collector::kMySQLConnectionMetadataRW:
+        return callbacks_metadata_rw_.get_connection_configuration();
+      case collector::kMySQLConnectionUserdataRW:
+        return callbacks_userdata_rw_.get_connection_configuration();
+      default:
+        assert(nullptr && "Shouldn't happen");
+        throw std::logic_error("internal error");
+    }
+  }
+
   virtual void return_instance(CachedObject &object) {
     if (object.parent_) object.parent_->return_instance(object);
   }

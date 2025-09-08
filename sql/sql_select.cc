@@ -249,11 +249,13 @@ void reset_statement_timer(THD *thd) {
  * engine (i.e. a column defined with NOT SECONDARY).
  *
  * @param lex Parse tree descriptor.
+ * @param not_secondary_col_str Column defined with NOT SECONDARY (out param).
  *
  * @return True if at least one of the read columns is not in the secondary
  * engine, false otherwise.
  */
-bool reads_not_secondary_columns(const LEX *lex) {
+bool reads_not_secondary_columns(const LEX *lex,
+                                 std::string_view *not_secondary_col_str) {
   // Check all read base tables.
   const Table_ref *tl = lex->query_tables;
   // For INSERT INTO SELECT statements, the table to insert into does not have
@@ -267,6 +269,10 @@ bool reads_not_secondary_columns(const LEX *lex) {
     for (unsigned int i = bitmap_get_first_set(tl->table->read_set);
          i != MY_BIT_NONE; i = bitmap_get_next_set(tl->table->read_set, i)) {
       if (tl->table->field[i]->is_flag_set(NOT_SECONDARY_FLAG)) {
+        assert(not_secondary_col_str != nullptr &&
+               not_secondary_col_str->empty());
+        *not_secondary_col_str =
+            std::string_view{tl->table->field[i]->field_name};
         Opt_trace_context *trace = &lex->thd->opt_trace;
         if (trace->is_started()) {
           std::string message("");
@@ -476,7 +482,8 @@ bool validate_use_secondary_engine(const LEX *lex) {
   const Sql_cmd *sql_cmd = lex->m_sql_cmd;
   // Ensure that all read columns are in the secondary engine.
   if (sql_cmd->using_secondary_storage_engine()) {
-    if (reads_not_secondary_columns(lex)) {
+    std::string_view not_secondary_col_str;
+    if (reads_not_secondary_columns(lex, &not_secondary_col_str)) {
       std::string_view err_msg = find_secondary_engine_fail_reason(lex);
       assert(!err_msg.empty());
       set_fail_reason_and_raise_error(lex, err_msg);
@@ -731,6 +738,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
       privileges for it.
     */
     cleanup(thd);
+    const bool prepared_for_secondary_engine = lex->using_secondary_engine();
     if (open_tables_for_query(thd, lex->query_tables, 0)) goto err;
 #ifndef NDEBUG
     if (sql_command_code() == SQLCOM_SELECT)
@@ -740,11 +748,16 @@ bool Sql_cmd_dml::execute(THD *thd) {
     const bool need_hypergraph_optimizer =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-    if (need_hypergraph_optimizer != lex->using_hypergraph_optimizer() &&
+    // If the query was prepared for execution on a different engine than the
+    // engine chosen at execution, or the query was prepared for a different
+    // optimizer, it must be reprepared.
+    if ((prepared_for_secondary_engine != lex->using_secondary_engine() ||
+         need_hypergraph_optimizer != lex->using_hypergraph_optimizer()) &&
         ask_to_reprepare(thd)) {
       goto err;
     }
     assert(need_hypergraph_optimizer == lex->using_hypergraph_optimizer());
+    assert(prepared_for_secondary_engine == lex->using_secondary_engine());
 
     // Bind table and field information
     if (restore_cmd_properties(thd)) goto err;
@@ -1065,7 +1078,7 @@ void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
    * overhead. */
   bool is_secondary_engine_not_forced =
       thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED;
-  if (is_secondary_engine_not_forced &&
+  if (is_secondary_engine_not_forced && !thd->lex->has_external_tables() &&
       ((thd->secondary_engine_statement_context() == nullptr &&
         thd->m_current_query_cost <=
             thd->variables.secondary_engine_cost_threshold) ||

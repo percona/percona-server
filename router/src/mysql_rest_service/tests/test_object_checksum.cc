@@ -87,10 +87,10 @@ TEST(ObjectChecksum, plain) {
       R"*({"field1":1,"field2":"text","field3":null,"field4":0.3,"field5":true,"field6":{"nested":"json","object":{"another":[{"something":123},{},[]]}},"_metadata":{"etag":"1F4204272C93FD5F5F6BB6E8E3221C6F35C81961E4335C4328E3E916E6614D6A"}})*",
       tmp1);
 
-  std::string tmp2 = mrs::database::post_process_json(
-      root, {}, {{"testmd", "testvalue"}}, doc);
+  std::string tmp2 =
+      mrs::database::post_process_json(root, {}, "testvalue", doc);
   EXPECT_EQ(
-      R"*({"field1":1,"field2":"text","field3":null,"field4":0.3,"field5":true,"field6":{"nested":"json","object":{"another":[{"something":123},{},[]]}},"_metadata":{"etag":"1F4204272C93FD5F5F6BB6E8E3221C6F35C81961E4335C4328E3E916E6614D6A","testmd":"testvalue"}})*",
+      R"*({"field1":1,"field2":"text","field3":null,"field4":0.3,"field5":true,"field6":{"nested":"json","object":{"another":[{"something":123},{},[]]}},"_metadata":{"etag":"1F4204272C93FD5F5F6BB6E8E3221C6F35C81961E4335C4328E3E916E6614D6A","gtid":"testvalue"}})*",
       tmp2);
 
   EXPECT_EQ(make_json(tmp1)["_metadata"]["etag"],

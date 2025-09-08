@@ -539,9 +539,6 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                mysql_service_registration_no_lock);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 
 /* A list of dependencies.
@@ -556,11 +553,6 @@ REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     REQUIRES_SERVICE(pfs_plugin_table_v1),
     REQUIRES_SERVICE(pfs_plugin_column_string_v2),
     REQUIRES_SERVICE(registry_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
     REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
     REQUIRES_SERVICE(status_variable_registration),

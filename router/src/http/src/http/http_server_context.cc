@@ -56,7 +56,7 @@ HttpServerContext::HttpServerContext(net::io_context *context,
 
 void HttpServerContext::start() {
   http.set_allowed_methods({0xFFFFFFFF});
-  http.set_request_handler(&request_handler_);
+  http.set_request_handler(&request_router_);
   http.start();
 }
 
@@ -64,33 +64,31 @@ void HttpServerContext::stop() { http.stop(); }
 
 void HttpServerContext::join_all() {}
 
-void HttpServerContext::add_route(
+void HttpServerContext::add_regex_route(
     const std::string &url_host, const std::string &url_regex,
     std::unique_ptr<http::base::RequestHandler> cb) {
   if (url_regex.empty()) {
-    request_handler_.set_default_route(std::move(cb));
+    request_router_.set_default_route(std::move(cb));
   } else {
-    request_handler_.append(url_host, url_regex, std::move(cb));
+    request_router_.register_regex_handler(url_host, url_regex, std::move(cb));
   }
 }
 
-void HttpServerContext::remove_route(const std::string &url_host,
-                                     const std::string &url_regex) {
-  if (url_regex.empty()) {
-    request_handler_.clear_default_route();
-  } else {
-    request_handler_.remove(url_host, url_regex);
-  }
+void HttpServerContext::add_direct_match_route(
+    const std::string &url_host, const ::http::base::UriPathMatcher &url_path,
+    std::unique_ptr<http::base::RequestHandler> cb) {
+  request_router_.register_direct_match_handler(url_host, url_path,
+                                                std::move(cb));
 }
 
 void HttpServerContext::remove_route(const void *handler_id) {
-  request_handler_.remove(handler_id);
+  request_router_.unregister_handler(handler_id);
 }
 
 bool HttpServerContext::is_ssl_configured() { return ssl_; }
 
 HttpRequestRouter &HttpServerContext::request_router() {
-  return request_handler_;
+  return request_router_;
 }
 
 }  // namespace http

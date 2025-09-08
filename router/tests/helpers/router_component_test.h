@@ -90,12 +90,12 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
   static void sleep_for(std::chrono::milliseconds duration);
 
   static stdx::expected<std::unique_ptr<MySQLSession>, mysqlrouter::MysqlError>
-  make_new_connection(uint16_t router_port) {
+  make_new_connection(uint16_t router_port,
+                      const std::string &host = "127.0.0.1") {
     auto session = std::make_unique<MySQLSession>();
 
     try {
-      session->connect("127.0.0.1", router_port, "username", "password", "",
-                       "");
+      session->connect(host, router_port, "username", "password", "", "");
       return session;
     } catch (const MySQLSession::Error &e) {
       return stdx::unexpected(

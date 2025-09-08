@@ -33,13 +33,13 @@
 #include "collector/mysql_cache_manager.h"
 #include "helper/http/url.h"
 #include "http/base/request.h"
-#include "http/server/matcher_interface.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
 #include "mrs/http/header_accept.h"
 #include "mrs/http/session_manager.h"
 #include "mrs/interface/authorize_handler.h"
 #include "mrs/interface/authorize_manager.h"
+#include "mysql/harness/matcher_interface.h"
 
 namespace mrs {
 namespace rest {
@@ -52,7 +52,7 @@ struct RequestContext {
   using Request = ::http::base::Request;
   using Headers = ::http::base::Headers;
   using Session = ::mrs::http::SessionManager::Session;
-  using Matcher = ::http::server::MatcherInterface;
+  using Matcher = ::mysql_harness::MatcherInterface;
 
   RequestContext(interface::AuthorizeManager *auth_manager = nullptr)
       : auth_manager_{auth_manager} {}

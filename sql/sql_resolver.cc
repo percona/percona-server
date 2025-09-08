@@ -806,17 +806,22 @@ bool Query_block::apply_local_transforms(THD *thd, bool prune) {
   DBUG_TRACE;
 
   assert(first_execution);
-
+  assert(thd->lex->current_query_block() == this);
   /*
     If query block contains one or more merged derived tables/views,
     walk through lists of columns in select lists and remove unused columns.
   */
-  if (derived_table_count) delete_unused_merged_columns(&m_table_nest);
-
+  if (derived_table_count != 0) {
+    delete_unused_merged_columns(&m_table_nest);
+  }
   for (Query_expression *unit = first_inner_query_expression(); unit;
-       unit = unit->next_query_expression())
-    for (auto qt : unit->query_terms<>())
+       unit = unit->next_query_expression()) {
+    for (auto qt : unit->query_terms<>()) {
+      thd->lex->set_current_query_block(qt->query_block());
       if (qt->query_block()->apply_local_transforms(thd, true)) return true;
+    }
+  }
+  thd->lex->set_current_query_block(this);
 
   // Convert all outer joins to inner joins if possible
   if (simplify_joins(thd, &m_table_nest, true, false, &m_where_cond))
@@ -2260,23 +2265,22 @@ void Query_block::clear_sj_expressions(NESTED_JOIN *nested_join) {
 }
 
 /**
-  Build equality conditions using outer expressions and inner
-  expressions. If the equality condition is not constant, add
-  it to the semi-join condition. Otherwise, evaluate it and
-  remove the constant expressions from the
-  outer/inner expressions list if the result is true. If the
-  result is false, remove all the expressions in outer/inner
-  expression list and attach an always false condition
-  to semijoin condition.
+  Build equality predicates using outer expressions and inner expressions.
+  If an equality predicate is not constant, add it to the semi-join condition.
+  Otherwise, evaluate the predicate. If the result of the predicate is true,
+  remove the expressions of the constant predicate from the outer/inner
+  expressions list. If the result is false, remove all the expressions in
+  outer/inner expression list and attach an always false condition to
+  semijoin condition.
 
-  @param thd            Thread context
-  @param nested_join    Join nest
-  @param subq_query_block    Query block for the subquery
-  @param outer_tables_map Map of tables from original outer query block
+  @param thd               Thread context
+  @param nested_join       Join nest
+  @param subq_query_block  Query block for the subquery
+  @param outer_tables_map  Map of tables from original outer query block
   @param[in,out] sj_cond   Semi-join condition to be constructed
                            Contains non-equalities on input.
-  @param[out]    simple_const true if the returned semi-join condition is
-                              a simple true or false predicate, false otherwise.
+  @param[out] simple_const true if the returned semi-join condition is
+                           a simple true or false predicate, false otherwise.
 
   @return false if success, true if error
 */
@@ -2287,12 +2291,13 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
   *simple_const = false;
 
   Item *new_cond = nullptr;
+  bool remove_condition = false;
 
   auto ii = nested_join->sj_inner_exprs.begin();
   auto oi = nested_join->sj_outer_exprs.begin();
   while (ii != nested_join->sj_inner_exprs.end() &&
          oi != nested_join->sj_outer_exprs.end()) {
-    bool should_remove = false;
+    bool remove_predicate = false;
     Item *inner = *ii;
     Item *outer = *oi;
     /*
@@ -2307,7 +2312,7 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     Item *predicate = item_eq;
     if (!item_eq->fixed && item_eq->fix_fields(thd, &predicate)) return true;
 
-    // Evaluate if the condition is on const expressions
+    // Evaluate if the predicate is a const value:
     if (predicate->const_item() &&
         !(predicate)->walk(&Item::is_non_const_over_literals,
                            enum_walk::POSTFIX, nullptr)) {
@@ -2334,20 +2339,14 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
           const condition evaluates to true as Item_cond::fix_fields will
           remove the condition later.
         */
-        should_remove = true;
+        remove_predicate = true;
       } else {
         /*
-          Remove all the expressions in inner/outer expression list if
-          one of condition evaluates to always false. Add an always false
-          condition to semi-join condition.
+          Predicate is false, and thus condition is false. However, generate
+          the full condition so that it can be removed completely when all
+          predicates have been processed.
         */
-        nested_join->sj_inner_exprs.clear();
-        nested_join->sj_outer_exprs.clear();
-        Item *new_item = new Item_func_false();
-        if (new_item == nullptr) return true;
-        (*sj_cond) = new_item;
-        *simple_const = true;
-        return false;
+        remove_condition = true;
       }
     }
     /*
@@ -2365,7 +2364,7 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     */
     nested_join->sj_corr_tables |= inner->used_tables() & outer_tables_map;
 
-    if (should_remove) {
+    if (remove_predicate) {
       ii = nested_join->sj_inner_exprs.erase(ii);
       oi = nested_join->sj_outer_exprs.erase(oi);
     } else {
@@ -2374,6 +2373,25 @@ bool Query_block::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
 
       ++ii, ++oi;
     }
+  }
+  if (remove_condition) {
+    /*
+      Condition is false.
+      Clean up the synthesized condition.
+      Remove all the expressions in inner/outer expression list.
+      Add an always false predicate to semi-join condition.
+    */
+    Item::Cleanup_after_removal_context ctx(this);
+    new_cond->walk(&Item::clean_up_after_removal, walk_options,
+                   pointer_cast<uchar *>(&ctx));
+
+    nested_join->sj_inner_exprs.clear();
+    nested_join->sj_outer_exprs.clear();
+    Item *new_item = new Item_func_false();
+    if (new_item == nullptr) return true;
+    (*sj_cond) = new_item;
+    *simple_const = true;
+    return false;
   }
   /*
     Semijoin processing expects at least one inner/outer expression
@@ -3373,8 +3391,10 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
     const bool merge_heuristic =
         (derived_table->is_view() || allow_merge_derived) &&
         derived_query_expression->merge_heuristic(thd->lex);
-    if (!hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
-                          merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
+    if (!hint_table_state(
+            thd, derived_table, DERIVED_MERGE_HINT_ENUM,
+            merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0) &&
+        !derived_table->is_json_duality_view())
       return false;
   }
 
@@ -5439,7 +5459,7 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
       } else {
         Item_values_column *column = down_cast<Item_values_column *>(
             GetNthVisibleField(fields, item_index));
-        if (column->unify_types(thd, item)) return true;
+        if (column->unify_types(item)) return true;
         column->add_used_tables(item);
         column->fixed = true;  // Does not have regular fix_fields()
       }
@@ -5507,6 +5527,8 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   Query_block *const inner_qb = inner_qe->first_query_block();
 
   assert(inner_qe->query_term()->term_type() == QT_QUERY_BLOCK);
+
+  Change_current_query_block save_query_block(thd);
 
   subq_pred->strategy = Subquery_strategy::DERIVED_TABLE;
 
@@ -6160,9 +6182,10 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
         Item_field(thd, &this->context, tr->table->field[0]);
     if (field == nullptr) return true;
 
-    Item_bool_func *const compare =
-        allany_pred->compare_func()->create(left_expr, field);
+    Item_bool_func *const compare = allany_pred->compare_func()->create(
+        allany_pred->m_pos, left_expr, field);
     if (compare == nullptr) return true;
+
     condition = compare;
 
     if (nulls_field_no > 0) {
@@ -7318,7 +7341,27 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
       *nested_join_list,
       [join_cond, &nested_join_list](Table_ref *tr) mutable -> bool {
         if (tr->join_cond() == join_cond) {
-          nested_join_list = &tr->embedding->nested_join->m_tables;
+          // In certain cases, we can have a degenerate join (after other
+          // transformations, i.e. we have a join clause, but only table.
+          // In optimizer trace, this is printed as e.g.
+          //     <constant table> join
+          //     cte2
+          //     on (select 3 from cte2) <> 0             <-- scalar subquery
+          // In such a case there will be no join nest, so tr->embedding will
+          // be empty. The resulting join after we add the new derived table:
+          //   ( <constant table>
+          //     left join
+          //     (select 3 AS `3` from cte2) derived_2_5  <-- new derived table
+          //     on true )
+          //   join cte2
+          //   on derived_2_5.`3` <> 0
+          // which will be simplified in due course to
+          //   (select 3 AS `3` from `cte2`) derived_2_5
+          //   join cte2
+          //   where derived_2_5.`3` <> 0
+          if (tr->embedding != nullptr) {
+            nested_join_list = &tr->embedding->nested_join->m_tables;
+          }
           return true;  // break off walk
         }
         return false;

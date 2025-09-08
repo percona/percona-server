@@ -54,6 +54,7 @@ static auto acquire_library(THD *thd, std::string_view schema,
 class Mysql_library {
   THD *m_thd;
   bool m_exists{false};
+  bool m_is_binary{false};
   std::string_view m_body;
   std::string_view m_language;
   MDL_ticket *m_lock{nullptr};
@@ -89,6 +90,8 @@ class Mysql_library {
     m_body = library->definition();
     m_language = library->external_language();
     m_exists = true;
+    dd::Object_id collation = library->client_collation_id();
+    m_is_binary = collation == my_charset_bin.number;
     // Existent libraries should be locked.
     assert(m_lock);
   }
@@ -116,6 +119,10 @@ class Mysql_library {
   [[nodiscard]] auto get_language() const -> std::string_view {
     assert(*this);
     return m_language;
+  }
+  [[nodiscard]] auto is_binary() const -> bool {
+    assert(*this);
+    return m_is_binary;
   }
 };
 
@@ -179,9 +186,9 @@ DEFINE_BOOL_METHOD(mysql_library_imp::deinit, (my_h_library library_handle)) {
   return MYSQL_SUCCESS;
 }
 
-DEFINE_BOOL_METHOD(mysql_library_imp::get_body,
+DEFINE_BOOL_METHOD(mysql_library_ext_imp::get_body,
                    (my_h_library library_handle,
-                    mysql_cstring_with_length *body)) {
+                    mysql_cstring_with_length *body, bool *is_binary)) {
   assert(body);
   if (!body) return MYSQL_FAILURE;
   body->str = nullptr;
@@ -195,10 +202,17 @@ DEFINE_BOOL_METHOD(mysql_library_imp::get_body,
     if (library_body.empty()) return MYSQL_FAILURE;
     body->str = library_body.data();
     body->length = library_body.length();
+    if (is_binary) *is_binary = library->is_binary();
   } catch (...) {
     return MYSQL_FAILURE;
   }
   return MYSQL_SUCCESS;
+}
+
+DEFINE_BOOL_METHOD(mysql_library_imp::get_body,
+                   (my_h_library library_handle,
+                    mysql_cstring_with_length *body)) {
+  return mysql_library_ext_imp::get_body(library_handle, body, nullptr);
 }
 
 DEFINE_BOOL_METHOD(mysql_library_imp::get_language,

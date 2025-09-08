@@ -3381,7 +3381,8 @@ class Dblqh : public SimulatedBlock {
   void localAbortStateHandlerLab(Signal *signal, TcConnectionrecPtr);
   void writePrepareLog(Signal *signal, TcConnectionrecPtr);
   void writePrepareLog_problems(Signal *signal, const TcConnectionrecPtr,
-                                LogPartRecord *logPartPtrP);
+                                LogPartRecord *logPartPtrP,
+                                bool out_of_log_buffer);
   void doWritePrepareLog(Signal *signal, TcConnectionrecPtr);
   void update_log_problem(Signal *, LogPartRecord *, Uint32 problem, bool);
   void takeOverErrorLab(Signal *signal, TcConnectionrecPtr);

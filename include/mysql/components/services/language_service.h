@@ -181,4 +181,33 @@ DECLARE_BOOL_METHOD(parse, (mysql_cstring_with_length name,
 
 END_SERVICE_DEFINITION(external_library)
 
+/**
+  @ingroup group_components_services_inventory
+
+  A service to parse library code in either UTF8 or BINARY character set.
+*/
+BEGIN_SERVICE_DEFINITION(external_library_ext)
+
+/**
+  Parses library code.
+
+  @param [in]  name          Name of the library.
+  @param [in]  language      Language of the library source code.
+  @param [in]  body          Library's source code in provided charset.
+  @param [in]  is_binary     Is the library body stored with a binary character
+  set?
+  @param [out] result        True if the parse succeeds.
+                             False if the library cannot be parsed.
+
+  @return Status of the performed operation.
+  @retval false success.
+  @retval true failure.
+*/
+DECLARE_BOOL_METHOD(parse, (mysql_cstring_with_length name,
+                            mysql_cstring_with_length language,
+                            mysql_cstring_with_length body, bool is_binary,
+                            bool *result));
+
+END_SERVICE_DEFINITION(external_library_ext)
+
 #endif /* LANGUAGE_SERVICE_GUARD */

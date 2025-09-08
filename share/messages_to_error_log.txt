@@ -6060,7 +6060,7 @@ ER_IB_MSG_174
 ER_IB_MSG_175
   eng "%s"
 
-ER_IB_MSG_176
+OBSOLETE_ER_IB_MSG_176
   eng "%s"
 
 ER_IB_MSG_177
@@ -6600,7 +6600,7 @@ ER_IB_MSG_354
 ER_IB_MSG_355
   eng "%s"
 
-ER_IB_MSG_356
+OBSOLETE_ER_IB_MSG_356
   eng "%s"
 
 ER_IB_MSG_357
@@ -8784,11 +8784,11 @@ ER_IB_MSG_1082
 ER_IB_MSG_1083
   eng "Error reading encryption for %s"
 
-ER_IB_MSG_CANNOT_OPEN_57_UNDO
+OBSOLETE_ER_IB_MSG_CANNOT_OPEN_57_UNDO
   eng "Unable to open undo tablespace number %lu"
 
-ER_IB_MSG_1085
-  eng "Opened %llu existing undo tablespaces."
+ER_IB_MSG_OPENED_N_UNDO_TS
+  eng "Opened %zu existing undo tablespaces."
 
 ER_IB_MSG_1086
   eng "Cannot create undo tablespaces since innodb_%s has been set. Using %llu existing undo tablespaces."
@@ -8814,13 +8814,13 @@ ER_IB_MSG_1092
 ER_IB_MSG_1093
   eng "Unable to initialize the header page in undo tablespace number %lu."
 
-ER_IB_MSG_1094
+OBSOLETE_ER_IB_MSG_1094
   eng "Cannot delete old undo tablespaces because they contain undo logs for XA PREPARED transactions."
 
-ER_IB_MSG_1095
+OBSOLETE_ER_IB_MSG_1095
   eng "Upgrading %zu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
 
-ER_IB_MSG_1096
+OBSOLETE_ER_IB_MSG_1096
   eng "Deleting %llu new independent undo tablespaces that we just created."
 
 ER_IB_MSG_1097
@@ -8964,7 +8964,7 @@ ER_IB_MSG_1142
 ER_IB_MSG_LOG_FILES_REWRITING
   eng "Starting to delete and rewrite redo log files."
 
-ER_IB_MSG_1144
+OBSOLETE_ER_IB_MSG_1144
   eng "Undo from 5.7 found. It will be purged"
 
 ER_IB_MSG_1145
@@ -9177,8 +9177,8 @@ ER_IB_MSG_1213
 ER_IB_MSG_1214
   eng "Can't create UNDO tablespace %s %s"
 
-ER_IB_MSG_1215
-  eng "%s"
+ER_IB_MSG_WILL_CREATE_N_UNDO_TS
+  eng "Will create %zu new undo tablespaces."
 
 ER_IB_MSG_LOG_FILES_RESIZE_ON_START
   eng "Resizing redo log from %lluM to %lluM (LSN=%llu) synchronously. If this takes too long, consider starting the server with large --innodb_redo_log_capacity, and resizing the redo log online using SET."
@@ -9844,7 +9844,7 @@ ER_IB_MSG_SDI_Z_STREAM_ERROR
 ER_IB_MSG_SDI_Z_UNKNOWN_ERROR
   eng "%s"
 
-ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
+OBSOLETE_ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
   eng "Expected to find undo tablespace '%s' for Space ID=%lu, but found '%s' instead!  Did you change innodb_undo_directory?"
 
 ER_IB_MSG_NOT_END_WITH_IBU
@@ -10663,7 +10663,7 @@ ER_MIGRATE_TABLE_TO_DD_OOM
 ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE
   eng "Applier metadata information for channel '%s' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server. Should that automatic procedure fail please adjust the positions through 'CHANGE REPLICATION SOURCE TO'"
 
-ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
+OBSOLETE_ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 undo tablespace: %s during upgrade"
 
 ER_IB_MSG_DBLWR_1285
@@ -12163,10 +12163,10 @@ ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
 OBSOLETE_ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
   eng "None of the groups extracted from security token matches any of the entries from authentication string."
 
-ER_SYS_VAR_REGISTRATION
+OBSOLETE_ER_SYS_VAR_REGISTRATION
   eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
 
-ER_SYS_VAR_DEREGISTRATION
+OBSOLETE_ER_SYS_VAR_DEREGISTRATION
   eng "Cannot unregister variable '%s'. Please check if it was registered properly in the first place."
 
 ER_UDF_REGISTRATION
@@ -12338,6 +12338,15 @@ ER_GRP_RPL_CERT_BROADCAST_THREAD_STARTED
 
 ER_GRP_RPL_CERT_BROADCAST_THREAD_STOPPED
   eng "The Group Replication certifier broadcast thread (THD_certifier_broadcast) stopped."
+
+ER_GRP_RPL_APPLIER_THD_KILLED_BY_SQL_KILL
+   eng "The group replication applier thread has received KILL request."
+
+ER_IB_MSG_WAITING_ON_LAGGING_REDO_LOG_CONSUMER
+  eng "Threads are unable to reserve space in redo log which can't be reclaimed due to the '%s' consumer still lagging behind at LSN = %llu. Consider increasing innodb_redo_log_capacity."
+
+ER_IB_MSG_ABORTING_LOG_ARCHIVER
+  eng "The redo log archiver is aborted as it was lagging behind at LSN = %llu and unable to advance for more than 2 seconds. Consider increasing the innodb_redo_log_capacity."
 
 #
 # End of 8.0 error messages intended to be written to the server error log.
@@ -12835,6 +12844,9 @@ ER_RPL_KILL_OLD_DUMP_THREAD_ENCOUNTERED
 ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
   eng "The transaction '%-.192s' will commit out of order with respect to its source to follow the group global order."
 
+ER_TEMPTABLE_ENGINE_ERROR
+  eng "Temptable: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -13064,6 +13076,93 @@ ER_KEYRING_COMPONENT_KEYRING_HASHICORP_AUTH_FAIL
 
 ER_KEYRING_COMPONENT_KEYRING_HASHICORP_CURL_SETOPT_FAILED
    eng "Hashicorp Vault server curl_easy_setopt failed."
+
+ER_COMPONENT_FIREWALL_OTHER_ERROR
+  eng "Firewall component error: '%s'."
+
+ER_COMPONENT_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
+   eng "Invalid firewall reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
+
+ER_COMPONENT_FIREWALL_VAR_REGISTRATION_FAILURE
+  eng "Cannot register variable '%s'.'%s'."
+
+ER_COMPONENT_FIREWALL_NOTIFICATION_REGISTRATION_FAILURE
+  eng "Firewall component failed to register notification service. Periodical reloads will not work."
+
+ER_COMPONENT_FIREWALL_RECORDING_TRUNCATED
+  eng "Statement from %s was truncated and won't be recorded, consider enlarging value of max_digest_length variable."
+
+ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT_TRUNCATED
+  eng "SUSPICIOUS STATEMENT from %s. Statement truncated."
+
+ER_COMPONENT_FIREWALL_ACCESS_DENIED_TRUNCATED
+  eng "ACCESS DENIED for %s. Statement truncated."
+
+ER_COMPONENT_FIREWALL_SUSPICIOUS_STMT
+  eng "SUSPICIOUS STATEMENT from %s. Statement \"%s\" doesn't match any statement from any allowlist."
+
+ER_COMPONENT_FIREWALL_ACCESS_DENIED
+  eng "ACCESS DENIED for %s. Statement: Statement \"%s\" doesn't match any statement from any allowlist."
+
+ER_COMPONENT_FIREWALL_CANNOT_ACCESS_TABLE
+  eng "Cannot access %s.%s table."
+
+ER_COMPONENT_FIREWALL_INVALID_TABLE_DEFINITION
+  eng "Invalid definition of %s.%s table."
+
+ER_COMPONENT_FIREWALL_CANNOT_READ_TABLE
+  eng "Cannot read data from %s.%s table."
+
+ER_COMPONENT_FIREWALL_DATABASE
+  eng "Error accessing database: %s."
+
+ER_COMPONENT_FIREWALL_INIT
+  eng "Error while initializing the component: %s."
+
+ER_COMPONENT_FIREWALL_PROCESSING_ERROR
+  eng "Error on processing statement."
+
+ER_COMPONENT_FIREWALL_TRACING_ERROR
+  eng "Error on tracing suspicious statement."
+
+ER_COMPONENT_FIREWALL_PROCESSING_EXCEPTION
+  eng "Exception on processing statement: '%s'."
+
+ER_NOTE_COMPONENT_FIREWALL_RELOAD
+  eng "Cache reload with interval %d seconds is on."
+
+ER_COMPONENT_FIREWALL_RELOAD_TOO_SHORT_PERIOD
+  eng "Attempt to reload cache before the previous reload not finished. Consider increasing value of component_firewall.reload_interval_seconds."
+
+ER_VAR_REGISTRATION
+  eng "Cannot register variable '%s.%s'. Please check if it is not already registered."
+
+ER_VAR_DEREGISTRATION
+  eng "Cannot unregister variable '%s.%s'. Please check if it was registered properly in the first place."
+
+ER_SERVER_STARTING_WITH_RESOURCE
+   eng "MySQL Server has access to %llu %s."
+
+ER_INFO_AUTHENTICATION_OCI
+   eng "authentication_oci plugin reported: %s."
+
+ER_SERVER_MEMORY_OPTION_INVALID
+   eng "MySQL Server configured to use %llu bytes but can only access %llu bytes."
+
+ER_WARN_KEYRING_PLUGIN_DEPRECTED
+  eng "Plugin %s is of the deprecated keyring plugin type. Please use the corresponding keyring component instead."
+
+ER_AUDIT_LOG_OFFLOAD_INFO
+  eng "%s"
+
+ER_AUDIT_LOG_OFFLOAD_WARNING
+  eng "%s"
+
+ER_AUDIT_LOG_OFFLOAD_ERROR
+  eng "%s"
+
+ER_WARN_SERVER_MEMORY_INIT_FAIL
+  eng "Failed to read or validate server_memory, and falling back to total physical memory."
 
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.

@@ -55,7 +55,6 @@ struct DbService {
   EnabledType enabled;
   bool published{true};
   std::optional<std::string> metadata;
-  bool passthrough_db_user{false};
 
   bool deleted{false};
 };

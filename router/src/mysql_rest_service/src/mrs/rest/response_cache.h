@@ -57,6 +57,8 @@ struct CacheEntry {
 
   std::shared_ptr<CacheEntry> next_ptr;
   std::shared_ptr<CacheEntry> prev_ptr;
+
+  bool is_expired() const { return expiration_time < TimeType::clock::now(); }
 };
 
 constexpr const size_t k_default_object_cache_size = 1000000;
@@ -74,9 +76,10 @@ class ResponseCache {
 
   size_t max_cache_size() const { return max_size_; }
 
+  void remove(std::shared_ptr<CacheEntry> entry);
+
  private:
   void push(std::shared_ptr<CacheEntry> entry);
-  void remove(std::shared_ptr<CacheEntry> entry);
   void remove_nolock(std::shared_ptr<CacheEntry> entry);
 
   int remove_all(EndpointResponseCache *cache);
@@ -111,7 +114,7 @@ class EndpointResponseCache {
   virtual void remove_entry_nolock(std::shared_ptr<CacheEntry> entry,
                                    bool ejected);
 
-  std::shared_ptr<CacheEntry> lookup(const std::string &key);
+  std::shared_ptr<CacheEntry> lookup(const std::string &key) const;
 
   friend class ResponseCache;
 
@@ -120,7 +123,7 @@ class EndpointResponseCache {
   std::chrono::milliseconds ttl_;
 
   std::unordered_map<std::string, std::shared_ptr<CacheEntry>> cache_;
-  std::shared_mutex cache_mutex_;
+  mutable std::shared_mutex cache_mutex_;
 };
 
 class ItemEndpointResponseCache : public EndpointResponseCache {

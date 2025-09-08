@@ -84,7 +84,8 @@ int match_node(node_address const *n1, node_address const *n2, u_int with_uid) {
   retval = (!error_ipandport1 && !error_ipandport2 && (n1_port == n2_port) &&
             strcmp(n1->address, n2->address) == 0);
 
-  if (with_uid) {
+  if (with_uid && (n1->uuid.data.data_val != nullptr) &&
+      (n2->uuid.data.data_val != nullptr)) {
     retval =
         retval && (n1->uuid.data.data_len == n2->uuid.data.data_len) &&
         (memcmp((void *)n1->uuid.data.data_val, (void *)n2->uuid.data.data_val,

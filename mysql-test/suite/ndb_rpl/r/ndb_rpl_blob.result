@@ -16,12 +16,16 @@ M	a	sha1(b)
 M	1	8a6c4cf7cf97e66c487c3e3b717e9ae13623d07d
 M	2	0ccd08c0fa6ad6a4382b27b1d36586d6ceb4fffa
 M	3	75e7b3299e0b776aeac2a4d1542d5b3c0ba2e05e
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select 'S', a, sha1(b) from t1
 order by a;
 S	a	sha1(b)
 S	1	8a6c4cf7cf97e66c487c3e3b717e9ae13623d07d
 S	2	0ccd08c0fa6ad6a4382b27b1d36586d6ceb4fffa
 S	3	75e7b3299e0b776aeac2a4d1542d5b3c0ba2e05e
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 update t1 set b = repeat('xyz',3000) where a = 1;
 delete from t1 where a = 2;
 update t1 set b = concat(b,'xyz') where a = 3;
@@ -30,11 +34,15 @@ order by a;
 M	a	sha1(b)
 M	1	00fb68a43c526c2b7e3466ddcf2b3e39277d0fe1
 M	3	e731e68ab2482967619b62a69a5d03dfcbb9ce16
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select 'S', a, sha1(b) from t1
 order by a;
 S	a	sha1(b)
 S	1	00fb68a43c526c2b7e3466ddcf2b3e39277d0fe1
 S	3	e731e68ab2482967619b62a69a5d03dfcbb9ce16
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1;
 create table t1 (
 a int not null primary key,
@@ -76,6 +84,10 @@ M	6	a37e8b0ff4fc13a42be02cdecb36186436959bae	106	NULL	abfe8ae5212b22d023aa6de84b
 M	7	a6bae0cfe6b45ff8c3c12d2ce577a1cd3931190f	107	39ee712b4b9e47f2cf3ba7c9790b2bf0d8f378e8	da39a3ee5e6b4b0d3255bfef95601890afd80709
 M	8	e139adcb7b2974ee7ff227fd405709e5cb7c896c	108	ba8073b0e1a281d4111bd2d82c7722b01574c00b	NULL
 M	9	1fc5168fe4be566b17b658d94e7813f0b5032cdb	NULL	NULL	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select 'S', a, sha1(b), c, sha1(d), sha1(e)
 from t1 order by a;
 S	a	sha1(b)	c	sha1(d)	sha1(e)
@@ -89,6 +101,10 @@ S	6	a37e8b0ff4fc13a42be02cdecb36186436959bae	106	NULL	abfe8ae5212b22d023aa6de84b
 S	7	a6bae0cfe6b45ff8c3c12d2ce577a1cd3931190f	107	39ee712b4b9e47f2cf3ba7c9790b2bf0d8f378e8	da39a3ee5e6b4b0d3255bfef95601890afd80709
 S	8	e139adcb7b2974ee7ff227fd405709e5cb7c896c	108	ba8073b0e1a281d4111bd2d82c7722b01574c00b	NULL
 S	9	1fc5168fe4be566b17b658d94e7813f0b5032cdb	NULL	NULL	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1;
 CREATE TABLE IF NOT EXISTS t1 (
 db VARBINARY(63) NOT NULL,
@@ -132,6 +148,8 @@ M	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
 M	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
 M	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
 M	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select 'S', db, name, sha1(query), node_id, epoch, id, version, type
 from t1 order by db, name;
 S	db	name	sha1(query)	node_id	epoch	id	version	type
@@ -144,5 +162,7 @@ S	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
 S	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
 S	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
 S	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table t1;
 include/rpl/deinit.inc

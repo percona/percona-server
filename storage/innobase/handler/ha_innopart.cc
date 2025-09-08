@@ -1709,6 +1709,8 @@ inline dict_index_t *ha_innopart::innopart_get_index(uint part_id, uint keynr) {
   if (keynr != MAX_KEY && table->s->keys > 0) {
     key = table->key_info + keynr;
 
+    ut_ad(key != nullptr);
+
     index = m_part_share->get_index(part_id, keynr);
 
     if (index != nullptr) {
@@ -1719,8 +1721,8 @@ inline dict_index_t *ha_innopart::innopart_get_index(uint part_id, uint keynr) {
       table exists. */
 
       ib::warn(ER_IB_MSG_592)
-          << "InnoDB could not find index " << (key ? key->name : "NULL")
-          << " key no " << keynr << " for table " << m_prebuilt->table->name
+          << "InnoDB could not find index " << key->name << " key no " << keynr
+          << " for table " << m_prebuilt->table->name
           << " through its index translation table";
 
       index = dict_table_get_index_on_name(m_prebuilt->table, key->name);

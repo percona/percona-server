@@ -127,29 +127,8 @@ namespace {
 //   op->on_value(field, tmp);
 // }
 
-void safe_run(MySQLSession *session,
-              const std::shared_ptr<JsonMappingUpdater::Operation> &op,
-              MySQLSession::Transaction *transaction_started = nullptr) {
-  MySQLSession::Transaction safe_transaction;
-  if (!transaction_started) {
-    const bool is_consisten_snapshot = true;
-    safe_transaction =
-        MySQLSession::Transaction(session, is_consisten_snapshot);
-    transaction_started = &safe_transaction;
-  }
-
-  try {
-    op->run(session);
-
-    transaction_started->commit();
-  } catch (...) {
-    throw;
-  }
-}
-
 PrimaryKeyColumnValues JsonMappingUpdater::insert(
     MySQLSession *session, const rapidjson::Document &doc) {
-  const bool is_consistent_snapshot = true;
   if (view_->is_read_only()) throw_read_only();
 
   check(doc);
@@ -157,9 +136,7 @@ PrimaryKeyColumnValues JsonMappingUpdater::insert(
 
   root_insert->process(JSONInputObject(doc.GetObject()));
 
-  MySQLSession::Transaction transaction{session, is_consistent_snapshot};
-
-  safe_run(session, root_insert, &transaction);
+  root_insert->run(session);
 
   m_affected += root_insert->affected();
 
@@ -170,15 +147,12 @@ PrimaryKeyColumnValues JsonMappingUpdater::update(
     MySQLSession *session, const PrimaryKeyColumnValues &pk_values_a,
     const rapidjson::Document &doc, bool upsert) {
   PrimaryKeyColumnValues pk_values = pk_values_a;
-  const bool is_consistent_snapshot = true;
 
   if (view_->is_read_only()) throw_read_only();
 
   validate_primary_key_values(*view_, row_ownership_info(), pk_values);
 
   check(doc, true);
-
-  MySQLSession::Transaction transaction{session, is_consistent_snapshot};
 
   bool is_owned;
   std::string current_doc;
@@ -199,7 +173,7 @@ PrimaryKeyColumnValues JsonMappingUpdater::update(
 
       root_insert->process(JSONInputObject(doc.GetObject()));
 
-      safe_run(session, root_insert, &transaction);
+      root_insert->run(session);
 
       m_affected += root_insert->affected();
 
@@ -227,19 +201,19 @@ PrimaryKeyColumnValues JsonMappingUpdater::update(
   }
 
   // On success it commits.
-  safe_run(session, root_update, &transaction);
+  root_update->run(session);
 
   m_affected += root_update->affected();
 
   return root_update->primary_key();
-}  // namespace dv
+}
 
 uint64_t JsonMappingUpdater::delete_(
     MySQLSession *session, const PrimaryKeyColumnValues &pk_values_a) {
   PrimaryKeyColumnValues pk_values = pk_values_a;
   if (view_->is_read_only()) throw_read_only();
 
-  const bool is_consistent_snapshot = true;
+  const bool is_consistent_snapshot = false;
 
   validate_primary_key_values(*view_, row_ownership_info(), pk_values);
 
@@ -250,8 +224,9 @@ uint64_t JsonMappingUpdater::delete_(
 
   del->process(JSONInputObject());
 
-  // On success it commits.
-  safe_run(session, del, &transaction);
+  del->run(session);
+
+  transaction.commit();
 
   m_affected += del->affected();
 
@@ -260,7 +235,7 @@ uint64_t JsonMappingUpdater::delete_(
 
 uint64_t JsonMappingUpdater::delete_(MySQLSession *session,
                                      const FilterObjectGenerator &filter) {
-  const bool is_consistent_snapshot = true;
+  const bool is_consistent_snapshot = false;
 
   auto result = filter.get_result();
   if (result.is_empty())
@@ -278,9 +253,16 @@ uint64_t JsonMappingUpdater::delete_(MySQLSession *session,
 
   del->process(JSONInputObject());
 
-  safe_run(session, del, &transaction);
+  del->run(session);
+
+  transaction.commit();
 
   return del->affected();
+}
+
+bool JsonMappingUpdater::has_references() const {
+  return view_->foreach_field<ForeignKeyReference, bool>(
+      [](const ForeignKeyReference &) { return true; });
 }
 
 void JsonMappingUpdater::check(const rapidjson::Document &doc,

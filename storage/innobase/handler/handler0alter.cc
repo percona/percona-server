@@ -76,8 +76,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "lex_string.h"
 #include "log0buf.h"
@@ -90,14 +88,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "clone0api.h"
 #include "ddl0ddl.h"
-#include "dict0dd.h"
-#include "fts0plugin.h"
-#include "fts0priv.h"
-#include "handler0alter.h"
 #include "lock0lock.h"
 #include "mysqld_error.h"
 #include "pars0pars.h"
-#include "partition_info.h"
 #include "rem0types.h"
 #include "row0ins.h"
 #include "row0log.h"
@@ -9692,6 +9685,7 @@ bool alter_part_factory::create_for_reorg(alter_part_array &to_drop,
 
       case PART_NORMAL:
 
+        ut_ad(old_part_elem != nullptr);
         ut_ad(strcmp(part_elem->partition_name,
                      old_part_elem->partition_name) == 0);
 
@@ -11201,11 +11195,6 @@ bool ha_innobase::bulk_load_check(THD *) const {
     return false;
   }
 
-  if (!table->has_pk()) {
-    my_error(ER_TABLE_NO_PRIMARY_KEY, MYF(0), table->name.m_name);
-    return false;
-  }
-
   if (dict_table_in_shared_tablespace(table)) {
     my_error(ER_TABLE_IN_SHARED_TABLESPACE, MYF(0), table->name.m_name);
     return false;
@@ -11256,9 +11245,18 @@ void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
     build_template(true);
   }
 
-  index_init(keynr, false);
+  size_t real_keynr = keynr;
+  if (m_prebuilt->clust_index_was_generated) {
+    if (keynr == 0) {
+      real_keynr = MAX_KEY;
+    } else {
+      real_keynr--;
+    }
+  }
 
-  if (keynr == 0) {
+  index_init(real_keynr, false);
+
+  if (trx->flush_observer == nullptr) {
     innobase_register_trx(ht, ha_thd(), trx);
     trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
 
@@ -11398,7 +11396,9 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
   auto db_err = loader->end(is_error);
 
   auto is_last_index = [this, loader]() {
-    return loader->get_keynr() == this->table->s->keys - 1;
+    return loader->get_keynr() ==
+           this->table->s->keys -
+               (table_share->is_missing_primary_key() ? 0 : 1);
   };
 
   report_error(loader, db_err, 0);
@@ -11406,7 +11406,7 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
     is_error = true;
   }
 
-  if (is_last_index()) {
+  if (is_last_index() || is_error) {
     auto observer = trx->flush_observer;
     ut_a(observer != nullptr);
 

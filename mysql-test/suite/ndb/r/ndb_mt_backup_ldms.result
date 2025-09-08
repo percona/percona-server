@@ -142,6 +142,8 @@ id	sha1(val)
 8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
 9	139101d8480a9a68e4e1256ed300aad365725fbc
 10	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t6 order by id;
 id	val
 1	1
@@ -178,6 +180,8 @@ id	sha1(val)
 8	b37f6ddcefad7e8657837d3177f9ef2462f98acf
 9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
 10	NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select * from t9 order by auto;
 auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
 1	bbbb	bbbb	-22	-22	-22	-22	-22	22.2	22.2200	22.2200	22	00022	22	22	22		two	two	1922-02-22	1922	22:22:22	1922-02-22 22:22:22

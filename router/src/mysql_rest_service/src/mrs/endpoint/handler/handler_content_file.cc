@@ -52,7 +52,7 @@ namespace handler {
 
 namespace {
 
-std::vector<std::string> regex_path_for_db_object(
+auto get_path_for_db_object(
     std::weak_ptr<mrs::endpoint::ContentFileEndpoint> endpoint) {
   auto ep = mrs::endpoint::handler::lock(endpoint);
   auto parent_ep = ep->get_parent_ptr();
@@ -61,8 +61,8 @@ std::vector<std::string> regex_path_for_db_object(
   const std::string &service_schema_path = parent_ep->get_url_path();
   const bool is_index = ep->is_index();
 
-  return mrs::endpoint::handler::regex_path_file(service_schema_path,
-                                                 object_path, is_index);
+  return mrs::endpoint::handler::path_file(service_schema_path, object_path,
+                                           is_index);
 }
 
 }  // namespace
@@ -72,7 +72,7 @@ HandlerContentFile::HandlerContentFile(
     mrs::interface::AuthorizeManager *auth_manager,
     std::shared_ptr<PersistentDataContentFile> persistent_data_content_file)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              regex_path_for_db_object(endpoint),
+              get_path_for_db_object(endpoint),
               get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint},
       persistent_data_content_file_{persistent_data_content_file} {

@@ -26,6 +26,7 @@
 #include "mysql/components/services/bulk_data_service.h"
 #include <assert.h>
 #include <cstdint>
+#include <thread>
 #include "field_types.h"
 #include "my_byteorder.h"
 #include "my_time.h"
@@ -74,34 +75,41 @@ static int format_int_column(const Column_text &text_col,
   const char *end;
 
   auto field_num = (const Field_num *)field;
-  bool is_unsigned = field_num->is_unsigned();
 
-  auto val = charset->cset->strntoull10rnd(charset, text_col.m_data_ptr,
-                                           text_col.m_data_len, is_unsigned,
-                                           &end, &err);
-  if (err != 0) {
-    error_details.column_type = "integer";
-    log_conversion_error(text_col, "Integer conversion failed for: ");
-    return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
-  }
+  /* If field is nullptr, then it is generated rowid column */
+  bool is_unsigned = (field == nullptr) ? true : field_num->is_unsigned();
 
-  if (is_unsigned && val > std::numeric_limits<U>::max()) {
-    error_details.column_type = "integer";
-    log_conversion_error(text_col, "Unsigned Integer out of range: ");
-    return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
-  }
-
-  if (!is_unsigned) {
-    auto signed_val = static_cast<int64_t>(val);
-
-    if (signed_val < std::numeric_limits<S>::min() ||
-        signed_val > std::numeric_limits<S>::max()) {
+  if (field == nullptr) {
+    /* If field is nullptr, then it is generated rowid column */
+    sql_col.m_int_data = text_col.m_row_id;
+  } else {
+    auto val = charset->cset->strntoull10rnd(charset, text_col.m_data_ptr,
+                                             text_col.m_data_len, is_unsigned,
+                                             &end, &err);
+    if (err != 0) {
       error_details.column_type = "integer";
-      log_conversion_error(text_col, "Integer out of range: ");
+      log_conversion_error(text_col, "Integer conversion failed for: ");
       return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
     }
+
+    if (is_unsigned && val > std::numeric_limits<U>::max()) {
+      error_details.column_type = "integer";
+      log_conversion_error(text_col, "Unsigned Integer out of range: ");
+      return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
+    }
+
+    if (!is_unsigned) {
+      auto signed_val = static_cast<int64_t>(val);
+
+      if (signed_val < std::numeric_limits<S>::min() ||
+          signed_val > std::numeric_limits<S>::max()) {
+        error_details.column_type = "integer";
+        log_conversion_error(text_col, "Integer out of range: ");
+        return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
+      }
+    }
+    sql_col.m_int_data = val;
   }
-  sql_col.m_int_data = val;
 
   /* Write the integer bytes in the buffer. */
   if (write_in_buffer) {
@@ -256,6 +264,7 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
       }
 
       if (end_pos < text_col.m_data_ptr + text_col.m_data_len) {
+        error_details.m_column_length = sql_col.m_data_len;
         return ER_TOO_BIG_FIELDLENGTH;
       }
     }
@@ -387,6 +396,7 @@ static int format_char_column(const Column_text &text_col,
       such limit here which is possible for multi-byte character set. We
       return from here and retry with variable length format - mysql_format() */
       if (fixed_length && single_byte) {
+        error_details.m_column_length = sql_col.m_data_len;
         return ER_TOO_BIG_FIELDLENGTH;
       }
       error_details.column_type = "string";
@@ -1276,9 +1286,27 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
 
   for (const auto &col_meta : metadata.m_columns) {
     auto text_index = col_meta.m_field_index;
+    Field *field = nullptr;
 
     assert(text_index < table_share->fields);
-    auto field = table_share->field[text_index];
+
+    /* The table_share does not know about the generated clustered
+    index.  But text_rows contain the generated row id. The variable is_rowid
+    indicates whether the current column is the generated row id. */
+    const bool is_rowid =
+        metadata.dbrowid_is_pk && col_meta.m_field_name == "DB_ROW_ID";
+
+    if (is_rowid) {
+      text_index = 0;
+    }
+
+    if (!is_rowid) {
+      field = table_share->field[text_index];
+
+      if (table_share->is_missing_primary_key()) {
+        text_index++;
+      }
+    }
 
     auto &text_col = text_rows.read_column(text_row_offset, text_index);
 
@@ -1312,8 +1340,14 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     sql_col.set_data(buffer);
     sql_col.m_data_len = field_size;
     sql_col.m_int_data = 0;
-    sql_col.m_type = static_cast<int>(field->type());
-    sql_col.m_is_null = text_col.m_data_ptr == nullptr;
+
+    /* If field is a nullptr, then it is generated rowid column */
+    sql_col.m_is_null =
+        (field == nullptr) ? false : (text_col.m_data_ptr == nullptr);
+
+    /* If field is a nullptr, then it is generated rowid column */
+    sql_col.m_type = (field == nullptr) ? MYSQL_TYPE_LONGLONG
+                                        : static_cast<int>(field->type());
 
     if (sql_col.m_type == MYSQL_TYPE_BLOB) {
       /* Get more accurate blob type. */
@@ -1584,6 +1618,7 @@ static int fill_column_data(char *row_begin, char *buffer, size_t buffer_length,
 
     if (sql_col.m_type == MYSQL_TYPE_LONGLONG) {
       sql_col.m_data_len = sizeof(uint64_t);
+
       assert(sql_col.m_data_len <= buffer_length);
 
       if (buffer_length < sql_col.m_data_len) {
@@ -2164,119 +2199,173 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
     row_meta.m_approx_row_len += col_meta.m_fixed_len;
   }
 
-  for (size_t index = 0; index < pk.user_defined_key_parts; ++index) {
-    auto &key_part = pk.key_part[index];
-    auto key_field = key_part.field;
-    auto field_index = key_field->field_index();
-    if (field_added[field_index]) {
-      continue;
-    }
+  if (table_share->is_missing_primary_key()) {
+    row_meta.dbrowid_is_pk = true;
     Column_meta col_meta;
+    col_meta.m_field_name = "DB_ROW_ID";
     col_meta.m_is_pk = false;
-    fill_column_metadata(key_field, col_meta);
-    /* The column index in the secondary index. */
     col_meta.m_index = col_index++;
-
+    col_meta.m_is_nullable = false;
+    col_meta.m_is_unsigned = true;
+    col_meta.m_type = MYSQL_TYPE_LONGLONG;
+    col_meta.m_fixed_len = 8; /* Refer to DATA_ROW_ID_LEN */
+    col_meta.m_max_len = 8;   /* Refer to DATA_ROW_ID_LEN */
+    col_meta.m_compare = Column_meta::Compare::INTEGER_UNSIGNED;
+    col_meta.m_is_desc_key = false;
+    all_key_int_signed_asc = false;
     row_meta.m_approx_row_len += col_meta.m_fixed_len;
-    col_meta.m_is_key = true;
-
-    col_meta.m_null_byte = col_meta.m_index / 8;
-    col_meta.m_null_bit = col_meta.m_index % 8;
-
-    assert(col_meta.m_null_byte < Row_header::MAX_NULLABLE_BYTES);
-
-    if (col_meta.m_null_byte >= Row_header::MAX_NULLABLE_BYTES) {
-      return false;
-    }
-
     columns.push_back(col_meta);
-    field_added[field_index] = true;
+  } else {
+    for (size_t index = 0; index < pk.user_defined_key_parts; ++index) {
+      auto &key_part = pk.key_part[index];
+      auto key_field = key_part.field;
+      auto field_index = key_field->field_index();
+      if (field_added[field_index]) {
+        continue;
+      }
+      Column_meta col_meta;
+      col_meta.m_is_pk = false;
+      fill_column_metadata(key_field, col_meta);
+      /* The column index in the secondary index. */
+      col_meta.m_index = col_index++;
+
+      row_meta.m_approx_row_len += col_meta.m_fixed_len;
+      col_meta.m_is_key = true;
+
+      col_meta.m_null_byte = col_meta.m_index / 8;
+      col_meta.m_null_bit = col_meta.m_index % 8;
+
+      assert(col_meta.m_null_byte < Row_header::MAX_NULLABLE_BYTES);
+
+      if (col_meta.m_null_byte >= Row_header::MAX_NULLABLE_BYTES) {
+        return false;
+      }
+
+      columns.push_back(col_meta);
+      field_added[field_index] = true;
+    }
   }
   return true;
 }
 
+/* have_key is true if sorting is needed (CSV data is unordered) */
 bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
                              bool have_key, Row_meta &row_meta) {
   auto table_share = table->s;
+  KEY *primary_key = nullptr;
 
-  if (table_share->keys < 1 || table_share->primary_key >= table_share->keys) {
-    return false;
+  if (table_share->primary_key < table_share->keys) {
+    primary_key = &table->key_info[table_share->primary_key];
   }
 
-  const auto &primary_key = table->key_info[table_share->primary_key];
-
   row_meta.is_pk = true;
-  row_meta.m_name = primary_key.name;
+
+  if (primary_key == nullptr) {
+    row_meta.m_name = "GEN_CLUST_INDEX";
+    row_meta.dbrowid_is_pk = true;
+    have_key = false; /* sorting should not be required. */
+  } else {
+    row_meta.m_name = primary_key->name;
+    row_meta.dbrowid_is_pk = false;
+    row_meta.m_keys = have_key ? primary_key->user_defined_key_parts : 0;
+  }
+
   row_meta.m_bitmap_length = 0;
   row_meta.m_header_length = 0;
-  row_meta.m_keys = have_key ? primary_key.user_defined_key_parts : 0;
+
   row_meta.m_non_keys = 0;
   row_meta.m_key_length = 0;
   row_meta.m_key_type = Row_meta::Key_type::ANY;
-  row_meta.m_num_columns = table_share->fields;
+
+  row_meta.m_num_columns =
+      table_share->fields + (table_share->is_missing_primary_key() ? 1 : 0);
   row_meta.m_first_key_len = 0;
 
   std::vector<bool> field_added(table_share->fields, false);
   auto &columns = row_meta.m_columns;
   auto &columns_text_order = row_meta.m_columns_text_order;
-  columns.reserve(table_share->fields);
-  columns_text_order.reserve(table_share->fields);
+
+  /* Just reserve 1 extra, which will be needed when DB_ROW_ID is added. */
+  columns.reserve(table_share->fields + 1);
+  columns_text_order.reserve(table_share->fields + 1);
 
   bool all_key_int_signed_asc = true;
   bool all_key_int = true;
 
+  size_t col_index = 0;
+
   /* Add all key columns. */
-  for (size_t index = 0; index < row_meta.m_keys; ++index) {
-    auto &key_part = primary_key.key_part[index];
-    auto key_field = key_part.field;
-
+  if (primary_key == nullptr) {
+    /* The auto generated DB_ROW_ID is the pk. */
     Column_meta col_meta;
+    col_meta.m_field_name = "DB_ROW_ID";
     col_meta.m_is_pk = true;
-    fill_column_metadata(key_field, col_meta);
-    col_meta.m_is_part_of_sk = is_field_part_of_sk(table, key_field);
-
-    col_meta.m_is_key = true;
-    col_meta.m_is_desc_key = key_part.key_part_flag & HA_REVERSE_SORT;
-
-    if (!col_meta.is_integer()) {
-      all_key_int = false;
-    }
-
-    if (col_meta.m_is_desc_key ||
-        col_meta.m_compare != Column_meta::Compare::INTEGER_SIGNED) {
-      all_key_int_signed_asc = false;
-    }
-
-    if (key_part.key_part_flag & HA_PART_KEY_SEG) {
-      col_meta.m_max_len = key_part.length;
-      col_meta.m_fixed_len = col_meta.m_max_len;
-
-      auto type = key_field->type();
-      if ((type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VARCHAR) &&
-          col_meta.m_compare == Column_meta::Compare::MYSQL) {
-        auto charset = key_field->charset();
-        if (charset->mbmaxlen > 0) {
-          col_meta.m_fixed_len = col_meta.m_max_len / charset->mbmaxlen;
-        }
-      }
-      col_meta.m_is_prefix_key = true;
-
-    } else {
-      auto field_index = key_field->field_index();
-      /* For non-prefix index the column doesn't need to be added again. */
-      field_added[field_index] = true;
-      col_meta.m_null_byte = field_index / 8;
-      col_meta.m_null_bit = field_index % 8;
-    }
+    col_meta.m_index = col_index++;
+    col_meta.m_is_nullable = false;
+    col_meta.m_is_unsigned = true;
+    col_meta.m_type = MYSQL_TYPE_LONGLONG;
+    col_meta.m_compare = Column_meta::Compare::INTEGER_UNSIGNED;
+    col_meta.m_fixed_len = 8; /* Refer to DATA_ROW_ID_LEN */
+    col_meta.m_max_len = 8;   /* Refer to DATA_ROW_ID_LEN */
     columns.push_back(col_meta);
     const auto last_index = columns.size() - 1;
     columns_text_order.push_back(&columns[last_index]);
-    assert(columns.size() == columns_text_order.size());
+  } else {
+    for (size_t index = 0; index < row_meta.m_keys; ++index) {
+      auto &key_part = primary_key->key_part[index];
+      auto key_field = key_part.field;
 
-    if (!col_meta.is_integer()) {
-      row_meta.m_key_length += col_meta.m_fixed_len;
+      Column_meta col_meta;
+      col_meta.m_is_pk = true;
+      fill_column_metadata(key_field, col_meta);
+      if (table_share->is_missing_primary_key()) {
+        col_meta.m_index = col_index++;
+      }
+      col_meta.m_is_part_of_sk = is_field_part_of_sk(table, key_field);
+
+      col_meta.m_is_key = true;
+      col_meta.m_is_desc_key = key_part.key_part_flag & HA_REVERSE_SORT;
+
+      if (!col_meta.is_integer()) {
+        all_key_int = false;
+      }
+
+      if (col_meta.m_is_desc_key ||
+          col_meta.m_compare != Column_meta::Compare::INTEGER_SIGNED) {
+        all_key_int_signed_asc = false;
+      }
+
+      if (key_part.key_part_flag & HA_PART_KEY_SEG) {
+        col_meta.m_max_len = key_part.length;
+        col_meta.m_fixed_len = col_meta.m_max_len;
+
+        auto type = key_field->type();
+        if ((type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VARCHAR) &&
+            col_meta.m_compare == Column_meta::Compare::MYSQL) {
+          auto charset = key_field->charset();
+          if (charset->mbmaxlen > 0) {
+            col_meta.m_fixed_len = col_meta.m_max_len / charset->mbmaxlen;
+          }
+        }
+        col_meta.m_is_prefix_key = true;
+
+      } else {
+        auto field_index = key_field->field_index();
+        /* For non-prefix index the column doesn't need to be added again. */
+        field_added[field_index] = true;
+        col_meta.m_null_byte = field_index / 8;
+        col_meta.m_null_bit = field_index % 8;
+      }
+      columns.push_back(col_meta);
+      const auto last_index = columns.size() - 1;
+      columns_text_order.push_back(&columns[last_index]);
+      assert(columns.size() == columns_text_order.size());
+
+      if (!col_meta.is_integer()) {
+        row_meta.m_key_length += col_meta.m_fixed_len;
+      }
+      row_meta.m_approx_row_len += col_meta.m_fixed_len;
     }
-    row_meta.m_approx_row_len += col_meta.m_fixed_len;
   }
 
   if (have_key && all_key_int) {
@@ -2300,6 +2389,9 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
     Column_meta col_meta;
     col_meta.m_is_pk = true;
     fill_column_metadata(field, col_meta);
+    if (table_share->is_missing_primary_key()) {
+      col_meta.m_index = col_index++;
+    }
     col_meta.m_is_part_of_sk = is_field_part_of_sk(table, field);
     row_meta.m_approx_row_len += col_meta.m_fixed_len;
 
@@ -2331,8 +2423,15 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
       columns_text_order.begin(), columns_text_order.end(),
       [](const auto &p) { return p->can_be_stored_externally(); });
 
-  assert(columns.size() <= table_share->fields);
-  assert(columns_text_order.size() <= table_share->fields);
+#ifndef NDEBUG
+  if (table_share->is_missing_primary_key()) {
+    assert(columns.size() <= table_share->fields + 1);
+    assert(columns_text_order.size() <= table_share->fields + 1);
+  } else {
+    assert(columns.size() <= table_share->fields);
+    assert(columns_text_order.size() <= table_share->fields);
+  }
+#endif /* NDEBUG */
 
   /* Calculate NULL bitmap length. */
   if (have_key) {
@@ -2364,9 +2463,13 @@ bool get_row_metadata_for_sk(THD *thd [[maybe_unused]], const TABLE *table,
                              size_t keynr, Row_meta &row_meta) {
   assert(table != nullptr);
   auto table_share = table->s;
-  assert(table_share->primary_key < table_share->keys);
+  assert(table_share->primary_key < table_share->keys ||
+         table_share->is_missing_primary_key());
 
   const KEY &pk = table->key_info[table_share->primary_key];
+
+  const size_t pk_key_parts =
+      table_share->is_missing_primary_key() ? 1 : pk.user_defined_key_parts;
 
   bool all_key_int = true;
   bool all_key_int_signed_asc = true;
@@ -2377,7 +2480,7 @@ bool get_row_metadata_for_sk(THD *thd [[maybe_unused]], const TABLE *table,
   row_meta.m_name = key.name;
   row_meta.m_bitmap_length = 0;
   row_meta.m_header_length = 0;
-  row_meta.m_keys = key.user_defined_key_parts + pk.user_defined_key_parts;
+  row_meta.m_keys = key.user_defined_key_parts + pk_key_parts;
   row_meta.m_non_keys = 0;
 
   if (!add_index_columns(table_share, key, row_meta, pk, all_key_int,
@@ -2422,6 +2525,16 @@ DEFINE_METHOD(bool, get_table_metadata,
   auto table_share = table->s;
   table_meta.m_n_keys = table_share->keys;
   table_meta.m_keynr_pk = table_share->primary_key;
+
+  table_meta.m_table_name =
+      std::string(table_share->table_name.str, table_share->table_name.length);
+
+  if (table_share->is_missing_primary_key()) {
+    table_meta.m_n_keys++;
+    table_meta.m_keynr_pk = 0;
+    table_meta.dbrowid_is_pk = true;
+  }
+
   return true;
 }
 
@@ -2431,15 +2544,26 @@ DEFINE_METHOD(bool, get_row_metadata_all,
   assert(row_meta_all.size() == 0);
   assert(table != nullptr);
   auto table_share = table->s;
-  assert(table_share->primary_key < table_share->keys);
+  assert(table_share->primary_key < table_share->keys ||
+         table_share->is_missing_primary_key());
   row_meta_all.reserve(table_share->keys);
   Row_meta default_row_meta;
 
   bool success{true};
+
+  if (table_share->is_missing_primary_key()) {
+    // There is no explicit primary key
+    row_meta_all.push_back(default_row_meta);
+    Row_meta &row_meta = row_meta_all.back();
+    row_meta.dbrowid_is_pk = true;
+    success = get_row_metadata_for_pk(thd, table, have_key, row_meta);
+  }
+
   for (size_t keynr = 0; success && keynr < table_share->keys; ++keynr) {
     row_meta_all.push_back(default_row_meta);
     Row_meta &row_meta = row_meta_all.back();
     if (keynr == table_share->primary_key) {
+      assert(!table_share->is_missing_primary_key());
       success = get_row_metadata_for_pk(thd, table, have_key, row_meta);
     } else {
       success = get_row_metadata_for_sk(thd, table, keynr, row_meta);
@@ -2597,15 +2721,6 @@ DEFINE_METHOD(size_t, get_se_memory_size, (THD * thd, const TABLE *table)) {
 DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
   auto share = table->s;
 
-  if (share->keys < 1 || share->primary_key == MAX_KEY) {
-    std::ostringstream err_strm;
-    err_strm << "LOAD DATA ALGORITHM = BULK not supported for tables without"
-                " PRIMARY KEY.";
-    LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO, err_strm.str().c_str());
-    my_error(ER_TABLE_NO_PRIMARY_KEY, MYF(0), table->alias);
-    return false;
-  }
-
   if (table_has_generated_invisible_primary_key(table)) {
     std::ostringstream err_strm;
     err_strm << "LOAD DATA ALGORITHM = BULK not supported for tables with"
@@ -2665,6 +2780,10 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
     }
   }
 
+#ifdef MYSQL_AI
+  size_t n_vector_fields = 0;
+#endif /* MYSQL_AI */
+
   for (size_t index = 0; index < share->fields; ++index) {
     auto field = share->field[index];
     if (field->is_gcol()) {
@@ -2678,6 +2797,11 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
     }
 
     switch (field->real_type()) {
+      case MYSQL_TYPE_VECTOR:
+#ifdef MYSQL_AI
+        ++n_vector_fields;
+        [[fallthrough]];
+#endif /* MYSQL_AI */
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_INT24:
@@ -2699,7 +2823,6 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
-      case MYSQL_TYPE_VECTOR:
         if (!check_for_deprecated_use(field)) {
           return false;
         }
@@ -2728,6 +2851,17 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
     LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO, err_strm.str().c_str());
     return false;
   }
+
+#ifdef MYSQL_AI
+  if (n_vector_fields == 0) {
+    LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO,
+           "LOAD DATA ALGORITHM=BULK not supported for tables without VECTOR "
+           "columns");
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Table without VECTOR columns",
+             "LOAD DATA ALGORITHM=BULK");
+    return false;
+  }
+#endif /* MYSQL_AI */
 
   if (!table->file->bulk_load_check(thd)) {
     /* Innodb already raises the error. */

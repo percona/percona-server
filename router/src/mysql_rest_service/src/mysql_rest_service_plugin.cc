@@ -41,6 +41,7 @@
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_rest_service_export.h"
 #include "mysqlrouter/server_compatibility.h"
@@ -49,6 +50,7 @@
 #include "helper/plugin_monitor.h"
 #include "helper/task_control.h"
 #include "mrs/authentication/auth_handler_factory.h"
+#include "mrs/database/metadata_logger.h"
 #include "mrs/database/query_factory_proxy.h"
 #include "mrs/database/query_router_info.h"
 #include "mrs/database/schema_monitor.h"
@@ -59,6 +61,7 @@
 #include "mrs/gtid_manager.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/router_observation_entities.h"
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql_rest_service_plugin_config.h"
 #include "mysqlrouter/http_constants.h"
 #include "mysqlrouter/router_config_utils.h"
@@ -165,8 +168,21 @@ class MrsModule {
     }
 
     auto socket_ops = mysql_harness::SocketOperations::instance();
-    const auto name = configuration.router_name_;
-    const auto address = socket_ops->get_local_hostname();
+    std::string address;
+    try {
+      address = socket_ops->get_local_hostname();
+    } catch (
+        const mysql_harness::SocketOperations::LocalHostnameResolutionError &) {
+      address = mrs::kHostOnResolveFailed;
+    }
+
+    std::string name;
+    if (configuration.router_name_) {
+      name = *configuration.router_name_;
+    } else {
+      name = address + ":" + std::to_string(configuration.http_port_);
+    }
+
     const auto existing_id_maybe =
         find_existing_routers(conn1.get(), name, address);
     if (existing_id_maybe && *existing_id_maybe != configuration.router_id_) {
@@ -183,6 +199,7 @@ class MrsModule {
     init();
     task_monitor.start();
     slow_monitor.start();
+    metadata_logger.start(&configuration, &mysql_connection_cache);
     // must be called last
     mrs_monitor.start();
   }
@@ -191,6 +208,8 @@ class MrsModule {
     slow_monitor.stop();
     task_monitor.stop();
     mrs_monitor.stop();
+    // metadata_logger has to be stopped after mrs_monitor
+    metadata_logger.stop();
   }
 
   void reset() {
@@ -220,6 +239,8 @@ class MrsModule {
   mrs::database::SlowQueryMonitor slow_monitor{configuration,
                                                &mysql_connection_cache};
   mrs::database::MysqlTaskMonitor task_monitor;
+  mrs::database::MetadataLogger &metadata_logger{
+      mrs::database::MetadataLogger::instance()};
 
   mrs::EndpointManager mrds_object_manager{endpoint_configuration,
                                            &mysql_connection_cache,
@@ -242,7 +263,7 @@ class MrsModule {
       configuration,   &mysql_connection_cache, &mrds_object_manager,
       &authentication, &entities_manager,       &gtid_manager,
       &query_factory,  &response_cache,         &file_cache,
-      &slow_monitor};
+      &slow_monitor,   &metadata_logger};
 };
 
 using HandlerDebug = mrs::endpoint::handler::HandlerDebug;
@@ -268,6 +289,28 @@ class HttpControl : public T, HandlerCallback {
 
 static std::unique_ptr<mrs::PluginConfig> g_mrs_configuration;
 static std::unique_ptr<MrsModule> g_mrds_module;
+
+static void init_metadata_logger(
+    const mysql_harness::Config *config,
+    const mysql_harness::ConfigSection *mrs_section) {
+  if (!mysql_harness::logging::handler_registered(kSectionName)) return;
+
+  // 'mysql_rest_service' is configured as a sink, figure out the log level and
+  // create a sink
+  using mysql_harness::logging::get_default_log_level;
+  using mysql_harness::logging::log_level_from_string;
+  using mysql_harness::logging::LogLevel;
+
+  LogLevel log_level;
+  static constexpr const char *kLogLevel = "level";
+  if (mrs_section->has(kLogLevel)) {
+    log_level = log_level_from_string(mrs_section->get(kLogLevel));
+  } else {
+    log_level = get_default_log_level(*config);
+  }
+
+  mrs::database::MetadataLogger::instance().init(log_level);
+}
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   log_debug("init");
@@ -300,9 +343,12 @@ static void init(mysql_harness::PluginFuncEnv *env) {
           std::string("Found another config-section '") + kSectionName +
           "', only one allowed");
 
+    init_metadata_logger(info->config, sections.front());
+
     g_mrs_configuration.reset(new mrs::PluginConfig(
         sections.front(), routing_instances,
-        get_configured_router_name(*info->config, kDefaultHttpPort)));
+        get_configured_router_name(*info->config, kDefaultHttpPort),
+        get_configured_http_port(*info->config, kDefaultHttpPort)));
 
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -359,6 +405,8 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   if (g_mrs_configuration) g_mrs_configuration->service_monitor_->abort();
   g_mrds_module.reset();
   g_mrs_configuration.reset();
+
+  mrs::database::MetadataLogger::instance().deinit();
 }
 
 #ifndef HAVE_JIT_EXECUTOR_PLUGIN

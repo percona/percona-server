@@ -1176,7 +1176,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root->as_graphql());
 
-    std::string out = post_process_json(root, {}, {}, data, true);
+    std::string out =
+        post_process_json(root, {}, {}, std::string(data).data(), true);
     EXPECT_EQ(
         get_etag(out),
         "D01B8369638740D738D9ACD9D7D46A78B505E6630311AAC7C5F7F86804CFE518");
@@ -1208,7 +1209,8 @@ TEST_F(JsonMappingCheck, checksum) {
             .resolve(m_.get());
 
     SCOPED_TRACE(root->as_graphql());
-    std::string out = post_process_json(root, {}, {}, data, true);
+    std::string out =
+        post_process_json(root, {}, {}, std::string(data).data(), true);
     EXPECT_EQ(
         get_etag(out),
         "9EE8E6454D92F02BA9C0B5A390DA162CC3AF557B5D08CB1A898081EA03EBC8C5");
@@ -1241,7 +1243,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root->as_graphql());
 
-    std::string out = post_process_json(root, {}, {}, data, true);
+    std::string out =
+        post_process_json(root, {}, {}, std::string(data).data(), true);
     EXPECT_EQ(
         get_etag(out),
         "C68960AE8DE1E422AB8E087944B3D56912C7C9D881295A0D17099BCBF02D9626");
@@ -1274,7 +1277,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root->as_graphql());
 
-    std::string out = post_process_json(root, {}, {}, data, true);
+    std::string out =
+        post_process_json(root, {}, {}, std::string(data).data(), true);
     EXPECT_EQ(
         get_etag(out),
         "9EE8E6454D92F02BA9C0B5A390DA162CC3AF557B5D08CB1A898081EA03EBC8C5");
@@ -1309,7 +1313,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root->as_graphql());
 
-    std::string out = post_process_json(root, {}, {}, data, true);
+    std::string out =
+        post_process_json(root, {}, {}, std::string(data).data(), true);
     EXPECT_EQ(
         get_etag(out),
         "8B5CCFA86FDD4C17DCE49BCA229B0D26D821738E9B576C5DB2B9AAFC1197D8FF");
@@ -1357,7 +1362,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root1->as_graphql());
 
-    std::string out = post_process_json(root1, {}, {}, R"*({
+    std::string out = post_process_json(root1, {}, {},
+                                        std::string(R"*({
       "id": 1,
       "language": {
         "language_id": 1
@@ -1368,7 +1374,8 @@ TEST_F(JsonMappingCheck, checksum) {
           "actor_id": 1
         }
       ]
-    })*",
+    })*")
+                                            .data(),
                                         true);
     std::string with_check_pk;
     EXPECT_EQ(
@@ -1377,7 +1384,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root2->as_graphql());
 
-    out = post_process_json(root2, {}, {}, R"*({
+    out = post_process_json(root2, {}, {},
+                            std::string(R"*({
       "id": 1,
       "language": {
         "language_id": 1
@@ -1388,7 +1396,8 @@ TEST_F(JsonMappingCheck, checksum) {
           "actor_id": 1
         }
       ]
-    })*",
+    })*")
+                                .data(),
                             true);
     EXPECT_NE(get_etag(out), with_check_pk);
   }
@@ -1418,7 +1427,8 @@ TEST_F(JsonMappingCheck, checksum) {
 
     SCOPED_TRACE(root->as_graphql());
 
-    std::string out = post_process_json(root, {}, {}, R"*({
+    std::string out = post_process_json(root, {}, {},
+                                        std::string(R"*({
       "id": 1,
       "language": {
         "language_id": 1
@@ -1429,7 +1439,8 @@ TEST_F(JsonMappingCheck, checksum) {
           "actor_id": 1
         }
       ]
-    })*",
+    })*")
+                                            .data(),
                                         true);
     EXPECT_EQ(get_etag(out), "");
   }

@@ -1764,7 +1764,7 @@ INSERT INTO build SELECT col1 FROM probe;
 INSERT INTO build SELECT col1 FROM probe ORDER BY col1 DESC;
 ANALYZE TABLE build, probe;
 
-SET optimizer_switch = "materialization=off";
+SET optimizer_switch = "materialization=off,loosescan=off";
 SET join_buffer_size = 1024;
 
 # Note that we cannot use ORDER BY in the query, as that will allow hash join to

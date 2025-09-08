@@ -231,6 +231,7 @@ MYSQL_BIND *MysqlBind::allocate_bind_buffer(DataType data_type) {
   const size_t k_var_string_maximum_size = 0xFFFF;  // 2^16-1
   const size_t k_tiny_blob_maximum_size = 255;
   const size_t k_vector_maximum_size = 16383 * sizeof(float);
+  const size_t k_blob_maximum_size = 0xFFFF;  // 2^16-1
 
   std::unique_ptr<char[]> &buffer = buffers_.emplace_back();
   bind->buffer_type = to_mysql_type(data_type);
@@ -264,6 +265,16 @@ MYSQL_BIND *MysqlBind::allocate_bind_buffer(DataType data_type) {
       buffer = allocate_buffer(bind, k_vector_maximum_size);
       // Server desn't accept vector type as parameter.
       bind->buffer_type = MYSQL_TYPE_VAR_STRING;
+      break;
+
+    case MYSQL_TYPE_GEOMETRY:
+      // Geometry is a BLOB type under the hood, BLOB requirement is 64k
+      buffer = allocate_buffer(bind, k_blob_maximum_size);
+      bind->buffer_type = MYSQL_TYPE_BLOB;
+      break;
+
+    case MYSQL_TYPE_BLOB:
+      buffer = allocate_buffer(bind, k_blob_maximum_size);
       break;
 
     default:

@@ -91,9 +91,6 @@ class ResultDataImpl implements ResultData {
     /** The buffer manager */
     private BufferManager bufferManager;
 
-    /** The cluster connection */
-    private ClusterConnectionImpl clusterConnection;
-
     /** Construct the ResultDataImpl based on an NdbOperation, a list of columns
      * to include in the result, and the pre-computed buffer layout for the result.
      * @param ndbOperation the NdbOperation
@@ -162,7 +159,7 @@ class ResultDataImpl implements ResultData {
     public Blob getBlob(Column storeColumn) {
         NdbBlob ndbBlob = ndbOperation.getBlobHandle(storeColumn.getColumnId());
         handleError(ndbBlob, ndbOperation);
-        return new BlobImpl(ndbBlob, clusterConnection.getByteBufferPool());
+        return new BlobImpl(ndbBlob, bufferManager.getPool());
     }
 
     public boolean getBoolean(int column) {

@@ -48,7 +48,17 @@
 #include <unistd.h>
 #endif
 
-uint64_t my_physical_memory() noexcept {
+namespace {
+ulonglong configured_memory{0};
+}  // anonymous namespace
+
+/**
+  Get the total physical memory accessible to the server. Tries to read cgroup
+  limits first. If failed or no limits were found, then tries to read from the
+  system using corresponding system APIs.
+  @return  total physical memory available to the server, or 0 on failure
+*/
+static inline uint64_t total_physical_memory() noexcept {
   try {
     uint64_t mem = 0;
 #ifdef _WIN32
@@ -75,6 +85,26 @@ uint64_t my_physical_memory() noexcept {
   } catch (...) {
     return 0;
   }
+}
+
+bool init_my_physical_memory(ulonglong memory) {
+  if (memory == 0) {
+    /* No limit. Physical memory available should be returned */
+    return true;
+  }
+  if (memory <= total_physical_memory()) {
+    configured_memory = memory;
+    return true;
+  }
+
+  return false;
+}
+
+uint64_t my_physical_memory() noexcept {
+  if (configured_memory != 0) {
+    return configured_memory;
+  }
+  return total_physical_memory();
 }
 
 uint32_t my_num_vcpus() noexcept {

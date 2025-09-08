@@ -2269,6 +2269,25 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getTable(
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    getTableGlobal
+ * Signature:
+ * (Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getTableGlobal(
+    JNIEnv *env, jobject obj, jstring p0) {
+  TRACE(
+      "jobject "
+      "Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_"
+      "getTableGlobal(JNIEnv *, jobject, jstring)");
+  return gcall_mfr<ttrait_c_m_n_n_NdbDictionary_Dictionary_ct,
+                   ttrait_c_m_n_n_NdbDictionary_Table_cp,
+                   ttrait_char_cp_jutf8null,
+                   &NdbDictionary::Dictionary::getTableGlobal>(env, obj, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
  * Method:    getIndex
  * Signature:
  * (Ljava/lang/String;Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;
@@ -2284,6 +2303,26 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getIndex(
                    ttrait_c_m_n_n_NdbDictionary_Index_cp,
                    ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null,
                    &NdbDictionary::Dictionary::getIndex>(env, obj, p0, p1);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary
+ * Method:    getIndexGlobal
+ * Signature:
+ * (Ljava/lang/String;Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/IndexConst;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_getIndexGlobal(
+    JNIEnv *env, jobject obj, jstring p0, jstring p1) {
+  TRACE(
+      "jobject "
+      "Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Dictionary_"
+      "getIndexGlobal(JNIEnv *, jobject, jstring, jstring)");
+  return gcall_mfr<ttrait_c_m_n_n_NdbDictionary_Dictionary_ct,
+                   ttrait_c_m_n_n_NdbDictionary_Index_cp,
+                   ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null,
+                   &NdbDictionary::Dictionary::getIndexGlobal>(env, obj, p0,
+                                                               p1);
 }
 
 /*

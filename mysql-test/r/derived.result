@@ -3007,12 +3007,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
 Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where true ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_distinct_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
 SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
 SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)
 0
 0
 0
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DROP TABLE t1, t2;
 SET @@optimizer_switch= @optimizer_switch_saved;
 # Bug#20073930 Assert fail in store_top_level_join_columns
@@ -4791,7 +4794,7 @@ SELECT * FROM (SELECT _utf8mb4 'a' AS a) AS dt UNION SELECT c FROM t;
 a
 a
 SELECT _utf8mb4 'Â±' AS a UNION SELECT c FROM t;
-ERROR HY000: Cannot convert string '\xC2\xB1' from utf8mb4 to latin2
+ERROR HY000: Cannot convert string '\xC3\x82\xC2\xB1' from utf8mb4 to latin2
 SELECT * FROM (SELECT _utf8mb4 'Â±' AS a) AS dt UNION SELECT c FROM t;
 ERROR HY000: Cannot convert string '\xC2\xB1' from utf8mb4 to latin2
 SELECT _utf8mb4 'a' AS a UNION SELECT d FROM t;

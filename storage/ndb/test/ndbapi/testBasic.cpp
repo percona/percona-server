@@ -4032,6 +4032,138 @@ int runCheckWarnMaxGci(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int testCircularStringBuffer(NDBT_Context *ctx, NDBT_Step *step) {
+  char buff[9];
+  int result = NDBT_OK;
+  size_t len;
+
+  do {
+    /* Empty buff iteration gives nothing */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CircularStringBuffer::Iterator it(&csb);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* Adding empty strings gives nothing */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "") == 0);
+      CHK1(csb.print("%s", "") == 0);
+      CircularStringBuffer::Iterator it(&csb);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* Shorter than max content */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "XYZ") == 3);
+
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s = it.getNextString(&len);
+      CHK1(strcmp(s, "XYZ") == 0);
+      CHK1(len == 3);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* Max size content */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "01234567") == 8);
+
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s = it.getNextString(&len);
+      CHK1(strcmp(s, "01234567") == 0);
+      CHK1(len == 8);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* Larger than max size content */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "ABCDEFGHIJKL") == 12);
+
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s = it.getNextString(&len);
+      CHK1(strcmp(s, "ABCDEFGH") == 0);
+      CHK1(len == 8);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* Larger than max size content, then smaller content */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "ABCDEFGHIJKLMNOPQRSTUVWXYZ") == 26);
+      CHK1(csb.print("%s", "123") == 3);
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s = it.getNextString(&len);
+      CHK1(strcmp(s, "EFGH") == 0);
+      CHK1(len == 4);
+      s = it.getNextString(&len);
+      CHK1(strcmp(s, "123") == 0);
+      CHK1(len == 3);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* String spanning end of buffer */
+    {
+      CircularStringBuffer csb(buff, sizeof(buff));
+      CHK1(csb.print("%s", "ABCDEF") == 6);  // 7 bytes/8
+      CHK1(csb.print("%s", "GHIJ") == 4);    // 5 bytes @ start
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s = it.getNextString(&len);
+      CHK1(strcmp(s, "F") == 0);
+      CHK1(len == 1);
+      s = it.getNextString(&len);
+      CHK1(strcmp(s, "GHIJ") == 0);
+      CHK1(len == 4);
+      CHK1(it.getNextString(&len) == nullptr);
+      CHK1(len == 0);
+    }
+
+    /* More normal example */
+    {
+      char buff2[539];
+      CircularStringBuffer csb(buff2, sizeof(buff2));
+
+      const char *sourceMaterial =
+          "The quick brown fox jumped over the lazy dog.";
+      const int sourceLen = strlen(sourceMaterial);
+      const int iterations = 10000;
+      for (int i = 0; i < iterations; i++) {
+        const int sourceStart = rand() % sourceLen;
+        fprintf(stderr, "sourceStart %u sourceLen %u\n", sourceStart,
+                sourceLen);
+        CHK1(csb.print("%d : (%d) %s", i, sourceLen - sourceStart,
+                       &sourceMaterial[sourceStart]) >=
+             6 + (sourceLen - sourceStart));
+        CircularStringBuffer::Iterator it(&csb);
+        int strCount = 0;
+        while (it.getNextString() != nullptr) strCount++;
+        g_err << "It " << i << " count " << strCount << endl;
+      };
+
+      g_err << "Content dump" << endl;
+      CircularStringBuffer::Iterator it(&csb);
+      const char *s;
+      while ((s = it.getNextString()) != nullptr) {
+        g_err << s << endl;
+      }
+      g_err << "End" << endl;
+    }
+  } while (0);
+
+  return result;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert",
          "Verify that we can insert and delete from this table using PK"
@@ -4442,6 +4574,7 @@ TESTCASE("CheckWarnGCPReachMax",
   STEP(runCheckWarnMaxGci);
   FINALIZER(runClearTable);
 }
+TESTCASE("CircularStringBuffer", "") { INITIALIZER(testCircularStringBuffer); }
 NDBT_TESTSUITE_END(testBasic)
 
 #if 0

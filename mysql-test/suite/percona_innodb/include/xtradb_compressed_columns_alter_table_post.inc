@@ -1,9 +1,9 @@
 --echo *** after table alteration
 
-eval SELECT MD5($modified_column_name) = @original_long_value_checksum AS long_value_match
+eval SELECT SHA2($modified_column_name, 256) = @original_long_value_checksum AS long_value_match
   FROM $modified_table_name
   WHERE id = 1;
-eval SELECT MD5($modified_column_name) = @original_short_value_checksum AS short_value_match
+eval SELECT SHA2($modified_column_name, 256) = @original_short_value_checksum AS short_value_match
   FROM $modified_table_name
   WHERE id = 2;
 

@@ -352,14 +352,7 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
     }
 
     protected Table getTable(Dictionary dictionary) {
-        Table result;
-        try {
-            result = dictionary.getTable(tableName);
-        } catch (Exception ex) {
-            throw new ClusterJException(
-                    local.message("ERR_Get_NdbTable", name, tableName), ex);
-        }
-        return result;
+        return dictionary.getTable(tableName);
     }
 
     public int[] getKeyFieldNumbers() {

@@ -2534,6 +2534,21 @@ static bool create_stored_procedure_and_function_string(
 }
 
 /**
+  Convert an input array of binary data into hexadecimal string literal.
+
+  @return
+    Hexadecimal string literal representation of the input data array.
+*/
+static std::string binary_to_hex(std::string_view input) {
+  std::stringstream ss;
+  ss << std::hex << std::uppercase << std::setfill('0');
+  for (char i : input) {
+    ss << std::setw(2) << static_cast<unsigned>(i);
+  }
+  return ss.str();
+}
+
+/**
   Generates the CREATE LIBRARY string from the table information.
 
   @return
@@ -2568,13 +2583,20 @@ static bool create_library_string(THD *thd, String *buf, const char *db,
   buf->append(STRING_WITH_LEN("    LANGUAGE "));
   buf->append(chistics->language.str, chistics->language.length);
   buf->append('\n');
-  if (dollar_quote_len > 0) {  // For external languages, add delimiters
-    buf->append("AS ");
-    buf->append(dollar_quote, dollar_quote_len);
-  }
-  buf->append(body, bodylen);
-  if (dollar_quote_len > 0) {
-    buf->append(dollar_quote, dollar_quote_len);
+  // Library definition.
+  if (chistics->is_binary) {
+    buf->append(STRING_WITH_LEN("AS 0x"));
+    std::string hex = binary_to_hex({body, bodylen});
+    buf->append(hex.data(), hex.length());
+  } else {
+    if (dollar_quote_len > 0) {  // For external languages, add delimiters
+      buf->append("AS ");
+      buf->append(dollar_quote, dollar_quote_len);
+    }
+    buf->append(body, bodylen);
+    if (dollar_quote_len > 0) {
+      buf->append(dollar_quote, dollar_quote_len);
+    }
   }
 
   return false;

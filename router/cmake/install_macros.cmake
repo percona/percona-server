@@ -75,8 +75,6 @@ FUNCTION(ROUTER_COPY_CUSTOM_SHARED_LIBRARY library_full_filename
     CACHE INTERNAL "SONAME for ${library_name_we}" FORCE)
   SET(NEEDED_${library_name_we} "${library_dependencies}"
     CACHE INTERNAL "" FORCE)
-  SET(KNOWN_CUSTOM_LIBRARIES
-    ${KNOWN_CUSTOM_LIBRARIES} ${library_name_we} CACHE INTERNAL "" FORCE)
 
   # Do copying and patching in a sub-process, so that we can skip it if
   # already done. The BYPRODUCTS arguments is needed by Ninja, and is
@@ -100,7 +98,7 @@ FUNCTION(ROUTER_COPY_CUSTOM_SHARED_LIBRARY library_full_filename
   SET(${OUTPUT_LIBRARY_NAME} "${COPIED_LIBRARY_NAME}" PARENT_SCOPE)
   SET(${OUTPUT_TARGET_NAME} "${COPY_TARGET_NAME}" PARENT_SCOPE)
 
-  ADD_DEPENDENCIES(copy_linux_custom_dlls ${COPY_TARGET_NAME})
+  ADD_DEPENDENCIES(copy_custom_libraries ${COPY_TARGET_NAME})
 
   MESSAGE(STATUS "INSTALL ${library_name} to ${INSTALL_PRIV_LIBDIR}")
 
@@ -187,12 +185,16 @@ ENDFUNCTION(ROUTER_COPY_CUSTOM_DLL)
 
 # For 3rd party .dylib on MACOS.
 # Adds a target which copies the .dylib to library_output_directory
-# Adds INSTALL(FILES ....) rule to install the .dylib to ${ROUTER_INSTALL_PLUGINDIR}.
+# Adds INSTALL(FILES ....) rule to install the .dylib to
+#   ${ROUTER_INSTALL_PLUGINDIR}.
 # Sets ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
-FUNCTION(ROUTER_COPY_CUSTOM_DYLIB library_full_filename OUTPUT_LIBRARY_NAME OUTPUT_TARGET_NAME)
+FUNCTION(ROUTER_COPY_CUSTOM_DYLIB library_full_filename
+    OUTPUT_LIBRARY_NAME OUTPUT_TARGET_NAME)
   IF(NOT APPLE)
     RETURN()
   ENDIF()
+  FIND_OBJECT_DEPENDENCIES("${library_full_filename}" LIBRARY_DEPS)
+
   GET_FILENAME_COMPONENT(library_directory "${library_full_filename}" DIRECTORY)
   GET_FILENAME_COMPONENT(library_name "${library_full_filename}" NAME)
   GET_FILENAME_COMPONENT(library_name_we "${library_full_filename}" NAME_WE)
@@ -214,37 +216,40 @@ FUNCTION(ROUTER_COPY_CUSTOM_DYLIB library_full_filename OUTPUT_LIBRARY_NAME OUTP
 
 
   ADD_CUSTOM_TARGET(${COPY_TARGET_NAME} ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${library_full_filename}" "${COPIED_LIBRARY_NAME}"
-    )
-  ADD_CUSTOM_COMMAND(TARGET ${COPY_TARGET_NAME} POST_BUILD
-    COMMAND install_name_tool -id
-      "@rpath/${library_name}"
-      "${COPIED_LIBRARY_NAME}"
-  )
+    COMMAND ${CMAKE_COMMAND}
+    -Dlibrary_full_filename="${library_full_filename}"
+    -Dlibrary_directory="${library_directory}"
+    -Dlibrary_name="${library_name}"
+    -Dlibrary_version="${library_name}"
+    -Dsubdir=""
+    -DLIBRARY_DEPS="${LIBRARY_DEPS}"
+    -DPLUGIN_DIR="${CMAKE_BINARY_DIR}/plugin_output_directory"
 
-  ADD_CUSTOM_TARGET(${LINK_TARGET_NAME} ALL
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
-    "${COPIED_LIBRARY_NAME}" "${library_name}"
-    WORKING_DIRECTORY "${LINK_PLUGIN_DIR}"
-
-    COMMENT "Creating libpolyglot symlinks in plugin_output_directory"
+    -P ${CMAKE_SOURCE_DIR}/cmake/copy_custom_dylib.cmake
 
     BYPRODUCTS
-    "${LINK_PLUGIN_DIR}/${library_name}"
+    ${COPIED_LIBRARY_NAME}
+
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}"
     )
 
   MY_ADD_CUSTOM_TARGET(${BIND_TARGET_NAME} ALL
     DEPENDS "${COPIED_LIBRARY_NAME}"
     )
 
-  ADD_DEPENDENCIES(${BIND_TARGET_NAME}
-    ${LINK_TARGET_NAME}
-    )
-  ADD_DEPENDENCIES(${LINK_TARGET_NAME}
-    ${COPY_TARGET_NAME})
+  # It seems this is not actually needed:
+  IF(NOT BUILD_IS_SINGLE_CONFIG)
+    ADD_CUSTOM_TARGET(${LINK_TARGET_NAME} ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "${COPIED_LIBRARY_NAME}" "${library_name}"
+      WORKING_DIRECTORY "${LINK_PLUGIN_DIR}"
+      )
+    ADD_DEPENDENCIES(${BIND_TARGET_NAME} ${LINK_TARGET_NAME})
+  ENDIF()
 
-  MESSAGE(STATUS "INSTALL ${library_full_filename} to ${ROUTER_INSTALL_PLUGINDIR}")
+  MESSAGE(STATUS
+    "INSTALL ${library_full_filename} to ${ROUTER_INSTALL_PLUGINDIR}")
   INSTALL(FILES "${COPIED_LIBRARY_NAME}"
     DESTINATION "${ROUTER_INSTALL_PLUGINDIR}" COMPONENT Router
     )

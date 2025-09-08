@@ -12,6 +12,7 @@
 # --let $grep_pattern = PERL_REGEX
 # --let $grep_file = FILENAME
 # [--let $wait_timeout = SECONDS]
+# [--let $skip_log_pattern = 0/1]
 # --source include/wait_for_pattern_in_file.inc
 #
 # Parameters:
@@ -31,7 +32,9 @@
 --let _WFPIF_GREP_FILE = $grep_file
 --let _WFPIF_WAIT_TIMEOUT = $wait_timeout
 
+if ($skip_log_pattern!=1) {
 --echo include/wait_for_pattern_in_file.inc [$grep_pattern]
+}
 
 --perl
   use strict;

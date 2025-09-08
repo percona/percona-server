@@ -3357,7 +3357,7 @@ NULL	NULL
 4	2
 5	3
 SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
-ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
 id	FIRST_VALUE(id) OVER w
 NULL	NULL
@@ -3370,7 +3370,7 @@ NULL	NULL
 4	2
 5	3
 SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
-ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
 id	FIRST_VALUE(id) OVER w
 NULL	NULL
@@ -3405,7 +3405,7 @@ NULL	10
 4	NULL
 5	NULL
 SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
-ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window 'w' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 DROP TABLE td_str;
 CREATE TABLE t_date(id DATE);
 INSERT INTO t_date VALUES ('2002-06-09');
@@ -4210,9 +4210,9 @@ d	SUM(d) OVER w	COUNT(*) OVER w
 Illegal range ORDER BY type, cf. SQL 2011 7.11 <window clause>, SR 11.a.ii
 CREATE TABLE t4(c VARCHAR(30), i INT, j INT);
 SELECT COUNT(*) OVER (ORDER BY c RANGE 3 PRECEDING) FROM t4;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 SELECT COUNT(*) OVER (ORDER BY i,j RANGE 3 PRECEDING) FROM t4;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 ----------------------------------------------------------------------
 -    wf over JSON
 ----------------------------------------------------------------------
@@ -4602,7 +4602,7 @@ NULL	NULL	NULL
 4	INTEGER	10
 5	INTEGER	14
 SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j RANGE 3 PRECEDING) FROM tj;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 INSERT INTO tj VALUES ('3.14');
 SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
 j	JSON_TYPE(j)	SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING)
@@ -8177,11 +8177,11 @@ a	b	c	SUM(a) OVER
 SELECT a, b, c, SUM(a) OVER
 (RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
 FROM t1;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 SELECT a, b, c, SUM(a) OVER
 (ORDER BY b RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
 FROM t1;
-ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type
+ERROR HY000: Window '<unnamed window>' with RANGE N PRECEDING/FOLLOWING frame requires exactly one deterministic ORDER BY expression, of numeric or temporal type
 SELECT a, b, c, SUM(a) OVER
 (ORDER BY a RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
 FROM t1;
@@ -9064,6 +9064,8 @@ OVER(),SHA(''))));
 ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
 OVER(),SHA(''))))
 NULL
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
 REPLACE('%M%V   ','',''));
 FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),

@@ -93,6 +93,58 @@ GET /svc/open-api-catalog/
                         }
                     }
                 }
+            },
+            "post": {
+                "summary": "Call move_char function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {
+                                    "a": {
+                                        "type": "string",
+                                        "maxLength": 20
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "move_char results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_move_char"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/svc/func/nothing": {
@@ -142,10 +194,119 @@ GET /svc/open-api-catalog/
                         }
                     }
                 }
+            },
+            "post": {
+                "summary": "Call nothing function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {}
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "nothing results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_nothing"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/svc/func/sum": {
             "put": {
+                "summary": "Call func_sum function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {
+                                    "a": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    },
+                                    "b": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "func_sum results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_func_sum"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
                 "summary": "Call func_sum function",
                 "tags": [
                     "func_schema functions"
@@ -308,6 +469,58 @@ GET /svc/func/open-api-catalog/
                         }
                     }
                 }
+            },
+            "post": {
+                "summary": "Call move_char function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {
+                                    "a": {
+                                        "type": "string",
+                                        "maxLength": 20
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "move_char results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_move_char"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/svc/func/nothing": {
@@ -357,10 +570,119 @@ GET /svc/func/open-api-catalog/
                         }
                     }
                 }
+            },
+            "post": {
+                "summary": "Call nothing function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {}
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "nothing results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_nothing"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/svc/func/sum": {
             "put": {
+                "summary": "Call func_sum function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {
+                                    "a": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    },
+                                    "b": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "func_sum results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_func_sum"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
                 "summary": "Call func_sum function",
                 "tags": [
                     "func_schema functions"
@@ -473,6 +795,68 @@ GET /svc/func/open-api-catalog/sum
     "paths": {
         "/svc/func/sum": {
             "put": {
+                "summary": "Call func_sum function",
+                "tags": [
+                    "func_schema functions"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "description": "Input parameters",
+                                "type": "object",
+                                "properties": {
+                                    "a": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    },
+                                    "b": {
+                                        "type": "integer",
+                                        "format": "int32",
+                                        "maximum": 2147483647,
+                                        "minimum": -2147483648,
+                                        "example": 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "func_sum results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/func_schema_func_sum"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
                 "summary": "Call func_sum function",
                 "tags": [
                     "func_schema functions"

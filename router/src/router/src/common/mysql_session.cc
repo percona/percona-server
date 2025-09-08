@@ -132,8 +132,6 @@ MySQLSession::MySQLSession() {
     // not supposed to happen
     throw std::logic_error("Error initializing MySQL connection structure");
   }
-
-  log_filter_.add_default_sql_patterns();
 }
 
 MySQLSession::~MySQLSession() {
@@ -576,14 +574,57 @@ MySQLSession::real_query_nb(const std::string &q) {
   if (store_res == NET_ASYNC_NOT_READY) {
     return stdx::unexpected(make_mysql_error_code(0U));
   }
-  async_state_ = AsyncQueryState::kNone;
+
   async_query_logged_ = false;
 
   if (!res) {
+    async_state_ = AsyncQueryState::kNone;
+
     // no error, but also no resultset
     if (mysql_errno(connection_) == 0) return {};
 
     return stdx::unexpected(make_mysql_error_code(connection_));
+  } else {
+    async_state_ = AsyncQueryState::kNextResult;
+  }
+
+  return mysql_result_type{res};
+}
+
+stdx::expected<MySQLSession::mysql_result_type, MysqlError>
+MySQLSession::next_result_nb() {
+  if (async_state_ == AsyncQueryState::kNextResult) {
+    auto store_res = mysql_next_result_nonblocking(connection_);
+    if (store_res == NET_ASYNC_ERROR) {
+      async_state_ = AsyncQueryState::kNone;
+      return stdx::unexpected(make_mysql_error_code(connection_));
+    }
+    if (store_res == NET_ASYNC_NOT_READY) {
+      return stdx::unexpected(make_mysql_error_code(0U));
+    }
+
+    async_state_ = AsyncQueryState::kStoreResult;
+  }
+
+  MYSQL_RES *res;
+  auto store_res = mysql_store_result_nonblocking(connection_, &res);
+  if (store_res == NET_ASYNC_ERROR) {
+    async_state_ = AsyncQueryState::kNone;
+    return stdx::unexpected(make_mysql_error_code(connection_));
+  }
+  if (store_res == NET_ASYNC_NOT_READY) {
+    return stdx::unexpected(make_mysql_error_code(0U));
+  }
+
+  if (!res) {
+    async_state_ = AsyncQueryState::kNone;
+
+    // no error, but also no resultset
+    if (mysql_errno(connection_) == 0) return {};
+
+    return stdx::unexpected(make_mysql_error_code(connection_));
+  } else {
+    async_state_ = AsyncQueryState::kNextResult;
   }
 
   return mysql_result_type{res};
@@ -602,7 +643,7 @@ MySQLSession::logged_real_query(const std::string &q) {
                std::to_string(
                    std::chrono::duration_cast<std::chrono::microseconds>(dur)
                        .count()) +
-               " us)> " + log_filter_.filter(q);
+               " us)> " + get_log_filter().filter(q);
 
     if (query_res) {
       auto const *res = query_res.value().get();
@@ -637,7 +678,7 @@ MySQLSession::logged_real_query_nb(const std::string &q) {
                  std::to_string(
                      std::chrono::duration_cast<std::chrono::microseconds>(dur)
                          .count()) +
-                 " us)> " + log_filter_.filter(q);
+                 " us)> " + get_log_filter().filter(q);
 
       if (query_res) {
         auto const *res = query_res.value().get();
@@ -673,7 +714,7 @@ uint64_t MySQLSession::prepare(const std::string &query) {
     auto err_no = mysql_stmt_errno(stmt);
     std::string err_msg = mysql_stmt_error(stmt);
     std::stringstream ss;
-    ss << "Error preparing MySQL query \"" << log_filter_.filter(query);
+    ss << "Error preparing MySQL query \"" << get_log_filter().filter(query);
     ss << "\": " << err_msg << " (" << err_no << ")";
     prepare_remove(current);
     throw Error(ss.str(), err_no, err_msg);
@@ -785,13 +826,13 @@ void MySQLSession::prepare_remove(uint64_t ps_id) {
 }
 
 void MySQLSession::execute(const std::string &q) {
-  auto query_res = logged_real_query(q);
+  auto query_res = log_queries_ ? logged_real_query(q) : real_query(q);
 
   if (!query_res) {
     auto ec = query_res.error();
 
     std::stringstream ss;
-    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "Error executing MySQL query \"" << get_log_filter().filter(q);
     ss << "\": " << ec.message() << " (" << ec.value() << ")";
     throw Error(ss.str(), ec.value(), ec.message());
   }
@@ -838,13 +879,13 @@ class RealResultRow : public MySQLSession::ResultRow {
 void MySQLSession::query(const std::string &q,
                          const ResultRowProcessor &processor,
                          const FieldValidator &validator) {
-  auto query_res = logged_real_query(q);
+  auto query_res = log_queries_ ? logged_real_query(q) : real_query(q);
 
   if (!query_res) {
     auto ec = query_res.error();
 
     std::stringstream ss;
-    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "Error executing MySQL query \"" << get_log_filter().filter(q);
     ss << "\": " << ec.message() << " (" << ec.value() << ")";
     throw Error(ss.str(), ec.value(), ec.message());
   }
@@ -875,13 +916,13 @@ void MySQLSession::query(const std::string &q,
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
     const std::string &q,
     const FieldValidator &validator /*= null_field_validator*/) {
-  auto query_res = logged_real_query(q);
+  auto query_res = log_queries_ ? logged_real_query(q) : real_query(q);
 
   if (!query_res) {
     auto ec = query_res.error();
 
     std::stringstream ss;
-    ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+    ss << "Error executing MySQL query \"" << get_log_filter().filter(q);
     ss << "\": " << ec.message() << " (" << ec.value() << ")";
     throw Error(ss.str(), ec.value(), ec.message());
   }
@@ -913,19 +954,42 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
 }
 
 bool MySQLSession::execute_nb(const std::string &q) {
-  auto query_res = logged_real_query_nb(q);
+  stdx::expected<mysql_result_type, MysqlError> query_res;
 
-  if (!query_res) {
-    auto ec = query_res.error();
-    if (ec.value() == 0) return false;  // ASYNC_NOT_READY
+  if (async_state_ != AsyncQueryState::kNextResult &&
+      async_state_ != AsyncQueryState::kStoreNextResult) {
+    query_res = log_queries_ ? logged_real_query_nb(q) : real_query_nb(q);
 
-    std::stringstream ss;
-    ss << "Error executing \"" << log_filter_.filter(q);
-    ss << "\": " << ec.message() << " (" << ec.value() << ")";
-    throw Error(ss.str(), ec.value(), ec.message());
+    if (!query_res) {
+      auto ec = query_res.error();
+      if (ec.value() == 0) return false;  // ASYNC_NOT_READY
+
+      std::stringstream ss;
+      ss << "Error executing \"" << get_log_filter().filter(q);
+      ss << "\": " << ec.message() << " (" << ec.value() << ")";
+      throw Error(ss.str(), ec.value(), ec.message());
+    }
   }
 
-  // in case we got a result, just let it get freed.
+  while (async_state_ == AsyncQueryState::kNextResult ||
+         async_state_ == AsyncQueryState::kStoreNextResult) {
+    query_res = next_result_nb();
+
+    if (!query_res) {
+      auto ec = query_res.error();
+      if (ec.value() == 0) return false;  // ASYNC_NOT_READY
+
+      std::stringstream ss;
+      ss << "Error executing \"" << get_log_filter().filter(q);
+      ss << "\": " << ec.message() << " (" << ec.value() << ")";
+      throw Error(ss.str(), ec.value(), ec.message());
+    } else {
+      break;
+    }
+
+    // in case we got resultsets, we consume and discard everything
+  }
+
   return true;
 }
 
@@ -995,4 +1059,9 @@ bool MySQLSession::is_ssl_session_reused() {
 
 unsigned long MySQLSession::server_version() {
   return connection_ ? mysql_get_server_version(connection_) : 0;
+}
+
+/*static*/ SQLLogFilter &MySQLSession::get_log_filter() {
+  static SQLLogFilter filter;
+  return filter;
 }

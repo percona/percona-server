@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/mysql_command_services.h"
 #include "mysql/components/services/mysql_cond_service.h"
 #include "mysql/components/services/mysql_library.h"
+#include "mysql/components/services/mysql_library_ext.h"
 #include "mysql/components/services/mysql_mutex_service.h"
 #include "mysql/components/services/mysql_psi_system_service.h"
 #include "mysql/components/services/mysql_query_attributes.h"
@@ -898,6 +899,9 @@ mysql_library_imp::exists, mysql_library_imp::init, mysql_library_imp::get_body,
     mysql_library_imp::get_language,
     mysql_library_imp::deinit END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_library_ext)
+mysql_library_ext_imp::get_body END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -1157,7 +1161,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
 
     PROVIDES_SERVICE(mysql_server, table_access_binlog),
     PROVIDES_SERVICE(mysql_server, replication_applier_metrics),
-    PROVIDES_SERVICE(mysql_server, mysql_library), END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, mysql_library),
+    PROVIDES_SERVICE(mysql_server, mysql_library_ext), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

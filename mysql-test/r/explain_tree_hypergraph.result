@@ -382,13 +382,15 @@ ALTER TABLE t ADD KEY(b);
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-EXPLAIN FORMAT=tree SELECT b FROM t WHERE a IN ( SELECT t1.b FROM t AS t1);
+EXPLAIN FORMAT=tree SELECT b FROM t WHERE a IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1);
 EXPLAIN
 -> Nested loop semijoin (FirstMatch)  (rows=1.41)
     -> Table scan on t  (rows=2)
     -> Covering index lookup on t1 using b (b = t.a)  (rows=1)
 
-EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN ( SELECT t1.b FROM t AS t1);
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
 JSON_SEARCH(@var, 'one', '%FirstMatch%', NULL, '$**.operation') IS NOT NULL

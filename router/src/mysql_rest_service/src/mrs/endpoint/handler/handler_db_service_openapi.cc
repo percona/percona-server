@@ -47,13 +47,17 @@ using Authorization = mrs::rest::Handler::Authorization;
 
 namespace {
 
-auto get_regex_path_service_openapi(std::weak_ptr<DbServiceEndpoint> endpoint) {
+auto get_path_service_openapi(std::weak_ptr<DbServiceEndpoint> endpoint) {
   using namespace std::string_literals;
+  std::vector<::http::base::UriPathMatcher> result;
 
   auto endpoint_service = lock(endpoint);
-  if (!endpoint_service) return ""s;
+  if (!endpoint_service) return result;
 
-  return regex_path_service_openapi_swagger(endpoint_service->get_url_path());
+  result.push_back(
+      path_service_openapi_swagger(endpoint_service->get_url_path()));
+
+  return result;
 }
 
 }  // namespace
@@ -63,8 +67,8 @@ HandlerDbServiceOpenAPI::HandlerDbServiceOpenAPI(
     mrs::interface::AuthorizeManager *auth_manager)
     : mrs::rest::Handler(handler::get_protocol(endpoint),
                          get_endpoint_host(endpoint),
-                         /*regex-path: ^/service/open-api-catalog$*/
-                         {get_regex_path_service_openapi(endpoint)},
+                         /* path: /service/open-api-catalog */
+                         get_path_service_openapi(endpoint),
                          get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint} {
   auto ep = lock(endpoint_);
@@ -132,12 +136,29 @@ HttpResult HandlerDbServiceOpenAPI::handle_get(rest::RequestContext *ctxt) {
       }
       const auto path =
           url_obj_ + schema_endpoint->get()->request_path + entry->request_path;
-      auto path_obj = rest::get_route_openapi_schema_path(privileges, entry,
-                                                          path, allocator);
+
+      const auto is_async = mrs::rest::async_enabled(
+          get_endpoint_options(std::dynamic_pointer_cast<DbObjectEndpoint>(
+              db_endpoint->shared_from_this())));
+
+      auto path_obj = rest::get_route_openapi_schema_path(
+          privileges, entry, path, is_async, allocator);
 
       for (auto path = path_obj.MemberBegin(); path < path_obj.MemberEnd();
            ++path) {
         items.AddMember(path->name, path->value, allocator);
+      }
+
+      if (is_async && (entry->type == mrs::database::entry::DbObject::
+                                          ObjectType::k_objectTypeProcedure ||
+                       entry->type == mrs::database::entry::DbObject::
+                                          ObjectType::k_objectTypeFunction)) {
+        const std::string task_id_path =
+            schema_endpoint->get_url_path() + entry->request_path + "/{taskId}";
+        items.AddMember(
+            rapidjson::Value(task_id_path, allocator),
+            rest::add_task_id_endpoint(privileges, entry, allocator),
+            allocator);
       }
 
       auto components_obj = rest::get_route_openapi_component(entry, allocator);

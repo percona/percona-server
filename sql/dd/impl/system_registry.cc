@@ -42,11 +42,15 @@
 #include "sql/dd/impl/system_views/innodb_foreign.h"       // Innodb_foreign
 #include "sql/dd/impl/system_views/innodb_foreign_cols.h"  // Innodb_foreign_cols
 #include "sql/dd/impl/system_views/innodb_tablespaces_brief.h"  // Innodb_tablespace_brief
-#include "sql/dd/impl/system_views/key_column_usage.h"  // key_column_usage
-#include "sql/dd/impl/system_views/keywords.h"          // keywords
-#include "sql/dd/impl/system_views/libraries.h"         // Libraries
-#include "sql/dd/impl/system_views/parameters.h"        // Parameters
-#include "sql/dd/impl/system_views/partitions.h"        // Partitions
+#include "sql/dd/impl/system_views/json_duality_view_columns.h"  // json_duality_view_columns
+#include "sql/dd/impl/system_views/json_duality_view_links.h"  // json_duality_view_links
+#include "sql/dd/impl/system_views/json_duality_view_tables.h"  // json_duality_view_tables
+#include "sql/dd/impl/system_views/json_duality_views.h"  // json_duality_views
+#include "sql/dd/impl/system_views/key_column_usage.h"    // key_column_usage
+#include "sql/dd/impl/system_views/keywords.h"            // keywords
+#include "sql/dd/impl/system_views/libraries.h"           // Libraries
+#include "sql/dd/impl/system_views/parameters.h"          // Parameters
+#include "sql/dd/impl/system_views/partitions.h"          // Partitions
 #include "sql/dd/impl/system_views/referential_constraints.h"  // Referential_con...
 #include "sql/dd/impl/system_views/resource_groups.h"      // Resource_groups
 #include "sql/dd/impl/system_views/role_column_grants.h"   // Role_column_grant
@@ -268,6 +272,9 @@ void System_views::init() {
       dd::System_views::Types::INFORMATION_SCHEMA;
   dd::System_views::Types const non_dd_based_is =
       dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA;
+  bool register_library_views = true;  // it will be compiled out in release.
+  DBUG_EXECUTE_IF("dd_register_view_sans_libraries",
+                  register_library_views = false;);
 
   register_view<dd::system_views::Enabled_roles>(non_dd_based_is);
   register_view<dd::system_views::Applicable_roles>(non_dd_based_is);
@@ -290,9 +297,13 @@ void System_views::init() {
   register_view<dd::system_views::Innodb_foreign_cols>(is);
   register_view<dd::system_views::Innodb_fields>(is);
   register_view<dd::system_views::Innodb_tablespaces_brief>(is);
+  register_view<dd::system_views::Json_duality_view_columns>(is);
+  register_view<dd::system_views::Json_duality_view_links>(is);
+  register_view<dd::system_views::Json_duality_view_tables>(is);
+  register_view<dd::system_views::Json_duality_views>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Keywords>(is);
-  register_view<dd::system_views::Libraries>(is);
+  if (register_library_views) register_view<dd::system_views::Libraries>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Referential_constraints>(is);
@@ -300,7 +311,8 @@ void System_views::init() {
   register_view<dd::system_views::Role_column_grants>(non_dd_based_is);
   register_view<dd::system_views::Role_routine_grants>(non_dd_based_is);
   register_view<dd::system_views::Role_table_grants>(non_dd_based_is);
-  register_view<dd::system_views::Routine_libraries>(is);
+  if (register_library_views)
+    register_view<dd::system_views::Routine_libraries>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Schemata_extensions>(is);

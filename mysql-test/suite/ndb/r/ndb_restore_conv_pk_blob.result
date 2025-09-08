@@ -55,6 +55,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
 a	b	length(c)	md5(c)	right(c, 20)	length(d)	md5(d)	right(d,20)
 Acht	Acht	40	4e5fab56696355c99c3bcffd5fe39d5e	AchtAchtAchtAchtAcht	8000	50bd6e30f3801a968d8e4044751a98ad	AchtAchtAchtAchtAcht
@@ -64,6 +66,9 @@ Funf	Funf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf	4000	32d2ad
 Neun	Neun	800	9712e7c5fc2470f11185907bcde8293d	NeunNeunNeunNeunNeun	20	c6e516d71a611ae0941d9581e8522b6d	NeunNeunNeunNeunNeun
 Vier	Vier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier
 Zwei	Zwei-jah	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 ********************************************
@@ -86,6 +91,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Extend pk (a,b) -> (a,b,c) with pk type promotion
@@ -105,6 +112,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Extend pk (a,b) -> (a,b,c) with pk type demotion
@@ -124,6 +133,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Extend pk (a,b) -> (a,b,c) with pk and blob type changes
@@ -143,6 +154,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Contract pk (a,b) -> (b)
@@ -162,6 +175,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Contract pk (a,b) -> (b), dropping a
@@ -180,6 +195,8 @@ b	c	length(d)	md5(d)	right(d,20)
 6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Contract pk (a,b) -> (b)
@@ -200,6 +217,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Contract pk (a,b) -> (b)
@@ -220,6 +239,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Contract pk (a,b) -> (b)
@@ -240,6 +261,8 @@ b	c	length(d)	md5(d)	right(d,20)
 6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 truncate table test.t2;
 Test with multiple table requiring changes
@@ -271,6 +294,8 @@ a	b	c	length(d)	md5(d)	right(d,20)
 6a	6b	6c	2009	0f6ca49fc7b53e16d20428904af2d7ff	d6d6d6d6d6d-modified
 7a	7b	7c	2009	fe3251c0a77e687fae5163c4c37d8394	d7d7d7d7d7d-modified
 9a	9b	9c	2009	0e83ae0b9cc46e9ca293663e528d0129	d9d9d9d9d9d-modified
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 select a,b,length(c), md5(c), right(c, 20), length(d), md5(d), right(d,20) from test.t2 order by a;
 a	b	length(c)	md5(c)	right(c, 20)	length(d)	md5(d)	right(d,20)
 Acht	Acht	40	4e5fab56696355c99c3bcffd5fe39d5e	AchtAchtAchtAchtAcht	8000	50bd6e30f3801a968d8e4044751a98ad	AchtAchtAchtAchtAcht
@@ -280,5 +305,8 @@ Funf	Funf	4000	32d2ad309dccb89aab90f178934c3933	FunfFunfFunfFunfFunf	4000	32d2ad
 Neun	Neun	800	9712e7c5fc2470f11185907bcde8293d	NeunNeunNeunNeunNeun	20	c6e516d71a611ae0941d9581e8522b6d	NeunNeunNeunNeunNeun
 Vier	Vier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier	4000	e4c3ae579b61aa4630e10e220c0620e4	VierVierVierVierVier
 Zwei	Zwei-jah	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei	4000	4531420243d24d5002c58f578e8ec114	ZweiZweiZweiZweiZwei
+Warnings:
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 drop table test.t1;
 drop table test.t2;

@@ -1476,9 +1476,9 @@ int xcom_taskmain2(xcom_port listen_port) {
         net_manager.start_active_network_provider();
     if (error_starting_network_provider) {
       /* purecov: begin inspected */
-      g_critical("Unable to start %s Network Provider",
-                 Communication_stack_to_string::to_string(
-                     net_manager.get_running_protocol()));
+      G_FATAL("Unable to start %s Network Provider",
+              Communication_stack_to_string::to_string(
+                  net_manager.get_running_protocol()));
       if (xcom_comms_cb) {
         xcom_comms_cb(XCOM_COMMS_ERROR);
       }
@@ -1496,7 +1496,7 @@ int xcom_taskmain2(xcom_port listen_port) {
       {
         if (pipe(pipe_signal_connections) == -1) {
           /* purecov: begin inspected */
-          g_critical("Unable to start local signaling mechanism");
+          G_FATAL("Unable to start local signaling mechanism");
           if (xcom_comms_cb) {
             xcom_comms_cb(XCOM_COMMS_ERROR);
           }
@@ -1622,6 +1622,7 @@ static int skip_msg(pax_msg *p) {
   prepare(p, skip_op);
   XCOM_IFDBG(D_NONE, FN; STRLIT("skipping message "); SYCEXP(p->synode));
   p->msg_type = no_op;
+  cfg_app_get_storage_statistics()->add_empty_proposal_round();
   return send_to_all(p, "skip_msg");
 }
 
@@ -2279,6 +2280,8 @@ static bool check_delivery_timeout(site_def *site, double start_propose,
 static int reserve_synode_number(synode_allocation_type *synode_allocation,
                                  site_def **site, synode_no *msgno,
                                  int *remote_retry, app_data *a,
+                                 double start_propose [[maybe_unused]],
+                                 int self [[maybe_unused]],
                                  synode_reservation_status *ret) {
   *ret = synode_reservation_status::number_ok;  // Optimistic, will be reset if
                                                 // necessary
@@ -2287,6 +2290,9 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
   ENV_INIT
   END_ENV_INIT
   END_ENV;
+#if TASK_DBUG_ON
+  node_no allocator_node;
+#endif
 
   TASK_BEGIN
   do {
@@ -2295,7 +2301,7 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
     *site = find_site_def_rw(current_message);
     if (is_leader(*site)) {  // Use local synode allocator
       *msgno = local_synode_allocator(current_message);
-      XCOM_IFDBG(D_CONS, FN; SYCEXP(outer_ep->msgno));
+      XCOM_IFDBG(D_CONS, FN; SYCEXP(*msgno));
       *synode_allocation = synode_allocation_type::local;
     } else {  // Cannot use local, try remote
               // Get synode number from another leader
@@ -2308,15 +2314,15 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
           TASK_RETURN(synode_reservation_status::no_nodes);
         }
 #if TASK_DBUG_ON
-        node_no allocator_node =
+        allocator_node =
 #endif
             remote_synode_allocator(get_site_def_rw(),
                                     *a);  // Send request for synode, use
                                           // latest config
         if (*remote_retry > 10) {
-          XCOM_IFDBG(D_BUG, FN; NUMEXP(outer_ep->self); NUMEXP(allocator_node);
+          XCOM_IFDBG(D_BUG, FN; NUMEXP(self); NUMEXP(allocator_node);
                      SYCEXP(executed_msg); SYCEXP(current_message);
-                     SYCEXP(outer_ep->msgno); SYCEXP(get_site_def_rw()->start));
+                     SYCEXP(*msgno); SYCEXP(get_site_def_rw()->start));
         }
         if (synode_number_pool.empty()) {  // Only wait if still empty
           TIMED_TASK_WAIT(&synode_number_pool.queue,
@@ -2325,25 +2331,29 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
         (*remote_retry)++;
       }
       std::tie(*msgno, *synode_allocation) = synode_number_pool.get();
-      XCOM_IFDBG(D_CONS, FN; SYCEXP(outer_ep->msgno));
+      XCOM_IFDBG(D_CONS, FN; SYCEXP(*msgno));
     }
 
     // Update site to match synode
     *site = proposer_site = find_site_def_rw(*msgno);
+
+    // Update node set get the latest state
+    if (is_view(a->body.c_t)) {
+      free_node_set(&a->body.app_u_u.present);
+      a->body.app_u_u.present = detector_node_set(*site);
+    }
 
     // Set the global current message for all number allocators
     set_current_message(incr_synode(*msgno));
 
     while (too_far(*msgno)) { /* Too far ahead of executor */
       TIMED_TASK_WAIT(&exec_wait, 0.2);
-      XCOM_IFDBG(D_NONE, FN; SYCEXP(ep->msgno); TIMECEXP(ep->start_propose);
-                 TIMECEXP(outer_ep->client_msg->p->a->expiry_time);
-                 TIMECEXP(task_now());
-                 NDBG(enough_live_nodes(outer_ep->site), d));
+      XCOM_IFDBG(D_NONE, FN; SYCEXP(*msgno); TIMECEXP(start_propose);
+                 TIMECEXP(a->expiry_time); TIMECEXP(task_now());
+                 NDBG(enough_live_nodes(*site), d));
 #ifdef DELIVERY_TIMEOUT
-      if (check_delivery_timeout(outer_ep->site, outer_ep->start_propose,
-                                 outer_ep->client_msg->p->a)) {
-        TASK_RETURN(delivery_timeout);
+      if (check_delivery_timeout(*site, start_propose, a)) {
+        TASK_RETURN(synode_reservation_status::delivery_timeout);
       }
 #endif
     }
@@ -2484,7 +2494,8 @@ static int proposer_task(task_arg arg) {
     /* Find a free slot */
     TASK_CALL(reserve_synode_number(&ep->synode_allocation, &ep->site,
                                     &ep->msgno, &ep->remote_retry,
-                                    ep->client_msg->p->a, &reservation_status));
+                                    ep->client_msg->p->a, ep->start_propose,
+                                    ep->self, &reservation_status));
 
     // Check result of reservation
     if (reservation_status == synode_reservation_status::no_nodes) {
@@ -2513,8 +2524,8 @@ static int proposer_task(task_arg arg) {
 
       TASK_CALL(wait_for_cache(&ep->p, ep->msgno, 60));
       if (!ep->p) {
-        G_MESSAGE("Could not get a pax_machine for msgno %lu. Retrying",
-                  (unsigned long)ep->msgno.msgno);
+        G_INFO("Could not get a pax_machine for msgno %lu. Retrying",
+               (unsigned long)ep->msgno.msgno);
         goto retry_new;
       }
 
@@ -2530,7 +2541,7 @@ static int proposer_task(task_arg arg) {
       assert(ep->client_msg->p);
       replace_pax_msg(&ep->p->proposer.msg, clone_pax_msg(ep->client_msg->p));
       if (ep->p->proposer.msg == nullptr) {
-        g_critical(
+        G_FATAL(
             "Node %u has run out of memory while sending a message and "
             "will now exit.",
             get_nodeno(proposer_site));
@@ -3031,7 +3042,7 @@ synode_no set_current_message(synode_no msgno) {
 static void update_max_synode(pax_msg *p);
 
 #if TASK_DBUG_ON
-static void perf_dbg(int *_n, int *_old_n, double *_old_t) [[maybe_unused]];
+[[maybe_unused]] static void perf_dbg(int *_n, int *_old_n, double *_old_t);
 static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
   int n = *_n;
   int old_n = *_old_n;
@@ -4157,7 +4168,7 @@ struct execute_context {
 };
 
 static void dump_exec_state(execute_context *xc [[maybe_unused]],
-                            long dbg [[maybe_unused]]);
+                            xcom_dbg_type dbg [[maybe_unused]]);
 static int x_check_exit(execute_context *xc);
 static int x_check_execute_inform(execute_context *xc);
 static void x_fetch(execute_context *xc);
@@ -4395,7 +4406,7 @@ static void x_execute(execute_context *xc) {
 static execute_context *debug_xc;
 
 static void dump_exec_state(execute_context *xc [[maybe_unused]],
-                            long dbg [[maybe_unused]]) {
+                            xcom_dbg_type dbg [[maybe_unused]]) {
   XCOM_IFDBG(dbg, FN; SYCEXP(executed_msg); SYCEXP(delivered_msg);
              SYCEXP(max_synode); SYCEXP(last_delivered_msg);
              NDBG(delay_fifo.n, d); NDBG(delay_fifo.front, d);
@@ -4671,6 +4682,7 @@ static void propose_noop(synode_no find, pax_machine *p) {
   pax_msg *clone = clone_pax_msg(p->proposer.msg);
   if (clone != nullptr) {
     XCOM_IFDBG(D_CONS, FN; SYCEXP(find));
+    cfg_app_get_storage_statistics()->add_empty_proposal_round();
     push_msg_3p(site, p, clone, find, no_op);
   } else {
     /* purecov: begin inspected */
@@ -5622,7 +5634,7 @@ static u_int allow_add_node(app_data_ptr a) {
   }
 
   if (add_node_unsafe_against_ipv4_old_nodes(a)) {
-    G_MESSAGE(
+    G_INFO(
         "This server is unable to join the group as the NIC used is "
         "configured "
         "with IPv6 only and there are members in the group that are unable "
@@ -5698,14 +5710,14 @@ static u_int allow_remove_node(app_data_ptr a) {
         We also cannot allow an upper-layer to remove a new incarnation
         of a node when it tries to remove an old one.
         */
-        G_MESSAGE(
+        G_INFO(
             "New incarnation found while trying to "
             "remove node %s %.*s.",
             nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
             nodes_to_change[i].uuid.data.data_val);
       } else {
         /* The node has already been removed, so we block the request */
-        G_MESSAGE(
+        G_INFO(
             "Node has already been removed: "
             "%s %.*s.",
             nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
@@ -6304,10 +6316,10 @@ static void process_die_op(site_def const *site, pax_msg *p,
   */
   if (!synode_lt(p->synode, executed_msg)) {
     ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-    g_critical("Node %u is unable to get message {%x %" PRIu64
-               " %u}, since the group is too far "
-               "ahead. Node will now exit.",
-               get_nodeno(site), SY_MEM(p->synode));
+    G_FATAL("Node %u is unable to get message {%x %" PRIu64
+            " %u}, since the group is too far "
+            "ahead. Node will now exit.",
+            get_nodeno(site), SY_MEM(p->synode));
     terminate_and_exit();
   }
 }
@@ -6486,8 +6498,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
   }
 
   if (oom_abort) {
-    g_critical("Node %u has run out of memory and will now exit.",
-               get_nodeno(site));
+    G_FATAL("Node %u has run out of memory and will now exit.",
+            get_nodeno(site));
     terminate_and_exit();
   }
   return (p);
@@ -6501,16 +6513,16 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
   msg->max_synode = get_max_synode();       \
   serialize_msg(msg, ep->rfd->x_proto, &ep->buflen, &ep->buf);
 
-#define WRITE_REPLY                                                         \
-  if (ep->buflen) {                                                         \
-    int64_t sent;                                                           \
-    XCOM_IFDBG(D_TRANSPORT, FN; STRLIT("task_write "); NDBG(ep->rfd.fd, d); \
-               NDBG(ep->buflen, u));                                        \
-    TASK_CALL(task_write(ep->rfd, ep->buf, ep->buflen, &sent));             \
-    send_count[ep->p->op]++;                                                \
-    send_bytes[ep->p->op] += ep->buflen;                                    \
-    X_FREE(ep->buf);                                                        \
-  }                                                                         \
+#define WRITE_REPLY                                                          \
+  if (ep->buflen) {                                                          \
+    int64_t sent;                                                            \
+    XCOM_IFDBG(D_TRANSPORT, FN; STRLIT("task_write "); NDBG(ep->rfd->fd, d); \
+               NDBG(ep->buflen, u));                                         \
+    TASK_CALL(task_write(ep->rfd, ep->buf, ep->buflen, &sent));              \
+    send_count[ep->p->op]++;                                                 \
+    send_bytes[ep->p->op] += ep->buflen;                                     \
+    X_FREE(ep->buf);                                                         \
+  }                                                                          \
   ep->buf = NULL;
 
 static inline void update_srv(server **target, server *srv) {
@@ -6695,7 +6707,7 @@ again:
     */
     update_srv(&ep->srv, get_server(ep->site, ep->p->from));
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
-    XCOM_IFDBG(D_NONE, FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
+    XCOM_IFDBG(D_NONE, FN; NDBG(ep->rfd->fd, d); NDBG(task_now(), f);
                COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
     receive_count[ep->p->op]++;
     receive_bytes[ep->p->op] += (uint64_t)n + MSG_HDR_SIZE;
@@ -6809,7 +6821,7 @@ again:
   }
 
   FINALLY
-  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->rfd.fd, d);
+  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->rfd->fd, d);
              NDBG(task_now(), f));
   if (ep->reply_queue.suc && !link_empty(&ep->reply_queue))
     empty_msg_list(&ep->reply_queue);
@@ -6823,7 +6835,7 @@ again:
   /* Unref srv to avoid leak */
   update_srv(&ep->srv, nullptr);
 
-  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown completed"); NDBG(ep->rfd.fd, d);
+  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown completed"); NDBG(ep->rfd->fd, d);
              NDBG(task_now(), f));
   TASK_END;
 }
@@ -6867,11 +6879,11 @@ int reply_handler_task(task_arg arg) {
     {
       unchecked_replace_pax_msg(&ep->reply, pax_msg_new_0(null_synode));
 
-      ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con.fd"));
-              add_event(EVENT_DUMP_PAD, int_arg(ep->s->con.fd)););
+      ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con->fd"));
+              add_event(EVENT_DUMP_PAD, int_arg(ep->s->con->fd)););
       TASK_CALL(read_msg(ep->s->con, ep->reply, ep->s, &n));
-      ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con.fd"));
-              add_event(EVENT_DUMP_PAD, int_arg(ep->s->con.fd)););
+      ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con->fd"));
+              add_event(EVENT_DUMP_PAD, int_arg(ep->s->con->fd)););
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
       if (n <= 0) {
         shutdown_connection(ep->s->con);
@@ -6879,7 +6891,7 @@ int reply_handler_task(task_arg arg) {
       }
       receive_bytes[ep->reply->op] += (uint64_t)n + MSG_HDR_SIZE;
     }
-    XCOM_IFDBG(D_NONE, FN; NDBG(ep->s->con.fd, d); NDBG(task_now(), f);
+    XCOM_IFDBG(D_NONE, FN; NDBG(ep->s->con->fd, d); NDBG(task_now(), f);
                COPY_AND_FREE_GOUT(dbg_pax_msg(ep->reply)););
     receive_count[ep->reply->op]++;
 
@@ -6920,7 +6932,7 @@ int reply_handler_task(task_arg arg) {
 
   shutdown_connection(ep->s->con);
   ep->s->reply_handler = nullptr;
-  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->s->con.fd, d);
+  XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->s->con->fd, d);
              NDBG(task_now(), f));
   srv_unref(ep->s);
 
@@ -8414,8 +8426,7 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
     }
   } while (--retry_count);
   /* Timeout after REQUEST_RETRY has been received 'retry_count' times */
-  G_MESSAGE(
-      "Request failed: maximum number of retries (10) has been exhausted.");
+  G_INFO("Request failed: maximum number of retries (10) has been exhausted.");
   return RETRIES_EXCEEDED;
 }
 

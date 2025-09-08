@@ -388,3 +388,11 @@ max-time: 360
 cmd: testNodeRestart
 args: -n timeout_apifail T1
 max-time: 240
+
+cmd: test_event
+args: -n SubscriberRowFilter T1
+max-time: 120
+
+cmd: test_event
+args: -n SubscriberRowFilterNF T1
+max-time: 120

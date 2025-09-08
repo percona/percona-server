@@ -29,10 +29,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "helper/make_shared_ptr.h"
 #include "helper/mysql_column.h"
 #include "mrs/endpoint/handler/handler_db_object_table.h"
 #include "mrs/rest/request_context.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_endpoint_configuration.h"
@@ -59,7 +59,7 @@ using namespace mrs::endpoint::handler;
 using namespace mrs::endpoint;
 
 template <typename T>
-using MakeMockPtr = helper::MakeSharedPtr<StrictMock<T>>;
+using MakeMockPtr = mysql_harness::MakeSharedPtr<StrictMock<T>>;
 
 using RowUserOwnership = mrs::database::entry::RowUserOwnership;
 using RowGroupOwnership = mrs::database::entry::RowGroupOwnership;

@@ -123,7 +123,7 @@ mysql_user=mysql_router_mrs1_RANDOM
 mysql_user_data_access=
 router_id=3
 developer=developer
-metadata_refresh_interval=4
+metadata_refresh_interval=0.5
 
 DROP USER 'mrs_bootstrap_user'@'%';
 DROP SCHEMA mysql_rest_service_metadata;

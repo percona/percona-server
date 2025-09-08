@@ -49,11 +49,7 @@ static void *launch_thread(void *arg) {
   return nullptr;
 }
 
-Rpl_opt_tracker::Rpl_opt_tracker(SERVICE_TYPE_NO_CONST(registry_registration) *
-                                     srv_registry_registration,
-                                 SERVICE_TYPE_NO_CONST(registry_registration) *
-                                     srv_registry_registration_no_lock)
-    : m_srv_registry_registration_no_lock(srv_registry_registration_no_lock) {
+Rpl_opt_tracker::Rpl_opt_tracker() {
   srv_weak_option_option::init(
       srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
@@ -79,17 +75,17 @@ Rpl_opt_tracker::Rpl_opt_tracker(SERVICE_TYPE_NO_CONST(registry_registration) *
 
 Rpl_opt_tracker::~Rpl_opt_tracker() {
   srv_weak_option_option::deinit(
-      srv_registry_no_lock, m_srv_registry_registration_no_lock,
+      srv_registry, srv_registry_registration,
       [&](SERVICE_TYPE(mysql_option_tracker_option) * opt) {
         opt->undefine(s_f_name_binary_log.c_str());
         if (!cb_binlog_define_failed) {
           option_usage_unregister_callback(s_f_name_binary_log.c_str(),
-                                           cb_binlog, srv_registry_no_lock);
+                                           cb_binlog, srv_registry);
         }
         opt->undefine(s_f_name_replication_replica.c_str());
         if (!cb_replica_define_failed) {
           option_usage_unregister_callback(s_f_name_replication_replica.c_str(),
-                                           cb_replica, srv_registry_no_lock);
+                                           cb_replica, srv_registry);
         }
         return false;
       });

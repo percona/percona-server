@@ -52,6 +52,9 @@ class MysqlHandler : public WwwAuthenticationHandler {
                          SqlSessionCached *out_cache,
                          AuthUser *out_user) override;
 
+  void init_session(const SessionPtr &session,
+                    const Credentials &credentials) override;
+
  private:
   collector::MysqlCacheManager *cache_manager_;
 };

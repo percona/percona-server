@@ -92,7 +92,7 @@ exec $MRS_CLIENT_ARGS
   --path /svc1/authentication/login
   -u u2
   -p p2
-  --expected-status 429
+  --expected-status TooManyRequests
   --session-file $MYSQL_TMP_DIR/user2_session.dat;
 
 --echo # wait 60secs to reset the rate-limiter and check that u2 can login again.
@@ -131,7 +131,7 @@ exec $MRS_CLIENT_ARGS
   --path /svc1/authentication/login
   -u u6
   -p p6
-  --expected-status 429
+  --expected-status TooManyRequests
   --session-file $MYSQL_TMP_DIR/user6_session.dat;
 
 --echo # minimumTimeBetweenRequestsInMs (TSFR_1_2_1)
@@ -152,7 +152,7 @@ exec $MRS_CLIENT_ARGS
   --path /svc1/authentication/login
   -u u8
   -p p8
-  --expected-status 429
+  --expected-status TooManyRequests
   --session-file $MYSQL_TMP_DIR/user8_session.dat;
 
 # Waiting 3 seconds removed the 1s limit

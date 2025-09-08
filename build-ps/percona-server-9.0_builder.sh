@@ -393,7 +393,11 @@ install_deps() {
             yum-config-manager --enable ol"${RHEL}"_codeready_builder
         fi
         yum -y update
-        yum -y install epel-release
+        if [ $RHEL = 10 ]; then
+            yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+        else
+            yum -y install epel-release
+        fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
@@ -443,29 +447,31 @@ install_deps() {
             rm -f /usr/bin/cmake
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
+        yum -y install libtirpc-devel
         if [ "x$RHEL" = "x8" ]; then
-            yum -y install libtirpc-devel
             yum -y install centos-release-stream
             switch_to_vault_repo
             yum -y install gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-annocheck gcc-toolset-13-annobin-plugin-gcc gcc-toolset-13-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 yum -y remove centos-release-stream
             fi
+            yum -y install MySQL-python
         fi
         if [ "x$RHEL" = "x9" ]; then
-            yum -y install libtirpc-devel
-            yum -y install gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-annocheck gcc-toolset-13-annobin-plugin-gcc gcc-toolset-13-libatomic-devel
+            yum -y install gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils gcc-toolset-14-annobin-annocheck gcc-toolset-14-annobin-plugin-gcc gcc-toolset-14-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
-                pushd /opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13/plugin/
+                pushd /opt/rh/gcc-toolset-14/root/usr/lib/gcc/x86_64-redhat-linux/14/plugin/
                 ln -s annobin.so gcc-annobin.so
                 popd
             else
-                pushd /opt/rh/gcc-toolset-13/root/usr/lib/gcc/aarch64-redhat-linux/13/plugin/
+                pushd /opt/rh/gcc-toolset-14/root/usr/lib/gcc/aarch64-redhat-linux/14/plugin/
                 ln -s annobin.so gcc-annobin.so
                 popd
             fi
-        else
-            yum -y install MySQL-python
+        fi
+        if [ "x$RHEL" = "x10" ]; then
+            yum -y install gcc gcc-c++
+            yum -y install libatomic
         fi
     else
         apt-get update
@@ -744,7 +750,7 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-12/enable
+        source /opt/rh/gcc-toolset-13/enable
     fi
     build_mecab_lib
     build_mecab_dict
@@ -938,7 +944,7 @@ build_tarball(){
           source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-12/enable
+          source /opt/rh/gcc-toolset-13/enable
       fi
     fi
     #

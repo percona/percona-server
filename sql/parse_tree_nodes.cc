@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "field_types.h"
+#include "lex_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -2186,16 +2187,33 @@ bool PT_create_table_engine_option::do_contextualize(
   if (super::do_contextualize(pc)) return true;
 
   pc->create_info->used_fields |= HA_CREATE_USED_ENGINE;
+  pc->create_info->used_fields |= HA_CREATE_USED_EXPLICIT_ENGINE;
   const bool is_temp_table = pc->create_info->options & HA_LEX_CREATE_TMP_TABLE;
-  return resolve_engine(pc->thd, engine, is_temp_table, false,
-                        &pc->create_info->db_type);
+  if (resolve_engine(pc->thd, engine, is_temp_table, false,
+                     &pc->create_info->db_type)) {
+    return true;
+  }
+  if ((pc->create_info->options & HA_LEX_CREATE_EXTERNAL_TABLE) != 0U) {
+    handlerton *hton = pc->create_info->db_type;
+    if ((hton->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) == 0) {
+      my_error(ER_EXTERNAL_TABLE_ENGINE_NOT_SUPPORTED, MYF(0), engine.str);
+      return true;
+    }
+  }
+  return false;
 }
 
 bool PT_create_table_secondary_engine_option::do_contextualize(
     Table_ddl_parse_context *pc) {
+  if ((pc->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0U) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Temporary table cannot have a secondary engine");
+    return true;
+  }
   if (super::do_contextualize(pc)) return true;
 
   pc->create_info->used_fields |= HA_CREATE_USED_SECONDARY_ENGINE;
+  pc->create_info->used_fields |= HA_CREATE_USED_EXPLICIT_SECONDARY_ENGINE;
   pc->create_info->secondary_engine = m_secondary_engine;
   return false;
 }
@@ -2307,6 +2325,78 @@ bool PT_create_table_default_collation::do_contextualize(
           set_default_collation(pc->create_info, value));
 }
 
+bool PT_create_external_file_format::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+
+  // Store in create_info
+  pc->create_info->file_format = this;
+  pc->create_info->used_fields |= HA_CREATE_USED_FILE_FORMAT;
+
+  return false;
+}
+
+bool PT_create_external_files::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+
+  // File URLs may contain secret ids
+  auto *const sp = pc->thd->lex->sphead;
+  if (sp != nullptr && sp->m_parser_data.get_top_lex() != nullptr) {
+    // The statement is inside a stored routine
+    sp->m_parser_data.get_top_lex()->set_rewrite_required();
+  } else {
+    pc->thd->lex->set_rewrite_required();
+  }
+
+  // Store in create_info
+  pc->create_info->external_files = this;
+  pc->create_info->used_fields |= HA_CREATE_USED_EXTERNAL_FILES;
+
+  return false;
+}
+
+bool PT_create_auto_refresh_event_source::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+
+  pc->create_info->auto_refresh_event_source = m_auto_refresh_source;
+  pc->create_info->used_fields |= HA_CREATE_USED_AUTO_REFRESH_SOURCE;
+
+  return false;
+}
+
+bool PT_file_attributes::merge_attributes(PT_file_attributes *attr) {
+  if (attr == nullptr) {
+    return false;
+  }
+
+  if (attr->uri != nullptr) {
+    uri = attr->uri;
+  }
+
+  if (attr->name != nullptr) {
+    name = attr->name;
+  }
+
+  if (attr->pattern != nullptr) {
+    pattern = attr->pattern;
+  }
+
+  if (attr->prefix != nullptr) {
+    prefix = attr->prefix;
+  }
+
+  if (attr->allow_missing_files != Ternary_option::DEFAULT) {
+    allow_missing_files = attr->allow_missing_files;
+  }
+
+  if (attr->strict_load != Ternary_option::DEFAULT) {
+    strict_load = attr->strict_load;
+  }
+
+  return false;
+}
+
 bool PT_locking_clause::do_contextualize(Parse_context *pc) {
   LEX *lex = pc->thd->lex;
 
@@ -2401,8 +2491,19 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   lex->create_info = &m_create_info;
   Table_ddl_parse_context pc2(thd, pc.select, &m_alter_info);
 
+  // Transfer position where column definitions end and table options start
+  if (m_columns_end_pos.raw.end) {
+    pc2.create_info->create_table_columns_end_pos =
+        m_columns_end_pos.raw.end - thd->m_parser_state->m_lip.get_buf();
+  } else {
+    pc2.create_info->create_table_columns_end_pos = 0;
+  }
   pc2.create_info->options = 0;
-  if (is_temporary) pc2.create_info->options |= HA_LEX_CREATE_TMP_TABLE;
+  if ((table_type & TABLE_TYPE_TEMPORARY) != 0)
+    pc2.create_info->options |= HA_LEX_CREATE_TMP_TABLE;
+  if ((table_type & TABLE_TYPE_EXTERNAL) != 0) {
+    pc2.create_info->options |= HA_LEX_CREATE_EXTERNAL_TABLE;
+  }
   if (only_if_not_exists)
     pc2.create_info->options |= HA_LEX_CREATE_IF_NOT_EXISTS;
 
@@ -2492,12 +2593,52 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   }
 
   lex->set_current_query_block(pc.select);
-  if ((pc2.create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-      !pc2.create_info->db_type) {
-    pc2.create_info->db_type =
-        pc2.create_info->options & HA_LEX_CREATE_TMP_TABLE
-            ? ha_default_temp_handlerton(thd)
-            : ha_default_handlerton(thd);
+  if (((table_type & TABLE_TYPE_EXTERNAL) != 0) &&
+      ((pc2.create_info->used_fields & HA_CREATE_USED_ENGINE) == 0)) {
+    pc2.create_info->used_fields |= HA_CREATE_USED_ENGINE;
+    // We do NOT set HA_CREATE_USED_EXPLICIT_ENGINE here because
+    // EXTERNAL implicitly sets the engine from session variable.
+    // HA_CREATE_USED_EXPLICIT_ENGINE is only set when ENGINE is
+    // explicitly specified in the CREATE TABLE statement.
+    const char *engine_name = thd->variables.external_table_storage_engine;
+    if (engine_name == nullptr) {
+      my_error(ER_EXTERNAL_TABLE_ENGINE_NOT_SPECIFIED, MYF(0));
+      return nullptr;
+    }
+
+    MYSQL_LEX_CSTRING engine_name_str = {.str = engine_name,
+                                         .length = strlen(engine_name)};
+    if (resolve_engine(thd, engine_name_str, false, false,
+                       &pc2.create_info->db_type)) {
+      return nullptr;  // Error in resolving engine
+    }
+    handlerton *hton = pc2.create_info->db_type;
+    if ((hton->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) == 0) {
+      my_error(ER_EXTERNAL_TABLE_ENGINE_NOT_SUPPORTED, MYF(0), engine_name);
+      return nullptr;
+    }
+  }
+  if (((table_type & TABLE_TYPE_EXTERNAL) != 0) &&
+      ((pc2.create_info->used_fields & HA_CREATE_USED_SECONDARY_ENGINE) == 0)) {
+    const char *secondary_engine_name =
+        thd->variables.external_table_secondary_storage_engine;
+    if (secondary_engine_name != nullptr) {
+      size_t len = strlen(secondary_engine_name);
+      pc2.create_info->secondary_engine = {
+          thd->strmake(secondary_engine_name, len), len};
+      pc2.create_info->used_fields |= HA_CREATE_USED_SECONDARY_ENGINE;
+      // We do NOT set HA_CREATE_USED_EXPLICIT_SECONDARY_ENGINE here because
+      // EXTERNAL implicitly sets the secondary engine from session variable.
+      // HA_CREATE_USED_EXPLICIT_SECONDARY_ENGINE is only set when
+      // SECONDARY_ENGINE is explicitly specified in the CREATE TABLE statement.
+    }
+  }
+
+  if (((pc2.create_info->used_fields & HA_CREATE_USED_ENGINE) != 0U) &&
+      (pc2.create_info->db_type == nullptr)) {
+    if (pc2.create_info->set_db_type(thd)) {
+      return nullptr;
+    }
     push_warning_printf(
         thd, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
         ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
@@ -4340,6 +4481,11 @@ bool PT_start_option_value_list_following_option_type_transaction::
   if (super::do_contextualize(pc) || characteristics->contextualize(pc))
     return true;
 
+  if (pc->thd->lex->option_type == OPT_PERSIST ||
+      pc->thd->lex->option_type == OPT_PERSIST_ONLY) {
+    my_error(ER_CANNOT_PERSIST_TRANSACTION_ISOLATION, MYF(0));
+    return true;
+  }
   if (sp_create_assignment_instr(pc->thd, characteristics_pos.raw.end))
     return true;
   assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
@@ -4399,7 +4545,12 @@ bool PT_into_destination_outfile::do_contextualize(Parse_context *pc) {
       relevant portions of the query.
     */
     auto *const sp = lex->sphead;
-    if (sp != nullptr) {
+
+    /*
+      For unknown reasons, get_top_lex() may be nullptr for a stored procedure.
+      Compensate for this with a nullptr check.
+    */
+    if (sp != nullptr && sp->m_parser_data.get_top_lex() != nullptr) {
       /*
         If the export query is part of a stored procedure/routine, then call
         rewrite on the topmost lex.
@@ -5272,6 +5423,36 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
         // and not destroyed.
         pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *) {
           cf->m_secondary_engine_attribute = a;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_external_format(MEM_ROOT *mem_root,
+                                                 LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        // Note that a std::function is created from the lambda and constructed
+        // directly in the vector.
+        // This means it is necessary to ensure that the elements of the vector
+        // are destroyed. This will not happen automatically when the vector is
+        // moved to the Alter_info struct which is allocated on the mem_root
+        // and not destroyed.
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *ai) {
+          cf->m_external_format = a;
+          ai->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
           return false;
         });
         return false;

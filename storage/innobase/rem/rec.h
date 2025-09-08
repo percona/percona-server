@@ -383,7 +383,7 @@ current index.
       return n;
     }
 
-    uint16_t n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
+    auto n_uniq = dict_index_get_n_unique_in_tree_nonleaf(index);
 
     ut_ad(index->is_clustered());
     ut_ad(n <= dict_index_get_n_fields(index));
@@ -578,8 +578,9 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
     - cached and shared by many records, in which case we've passed rec=nullptr
       when preparing the offsets array.
     We use caching only for the ROW_FORMAT=COMPACT format. */
-    ut_ad((ulint)rec == offsets[2] || ((ulint) nullptr == offsets[2] &&
-                                       offsets == index->rec_cache.offsets));
+    ut_ad((ulint)rec == offsets[2] ||
+          ((ulint) nullptr == offsets[2] &&
+           (index != nullptr && offsets == index->rec_cache.offsets)));
     if (!comp && index != nullptr) {
       ut_a(rec_get_n_fields_old(rec, index) >= i);
     }

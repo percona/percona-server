@@ -137,13 +137,37 @@ if ($mrs_client_arg_request_header_authorization)
   --let $mrs_client_cmd=$mrs_client_cmd --encoded-request-header-authorization=$mrs_escape_query
 }
 
+if ($mrs_client_arg_protocol)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --protocol=$mrs_client_arg_protocol
+}
+
+if ($mrs_client_arg_expected_fatal_error)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --expected-fatal-error=$mrs_client_arg_expected_fatal_error
+}
+
+if ($mrs_client_arg_header_upgrade)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --request-header-upgrade=$mrs_client_arg_header_upgrade
+}
+
+if ($mrs_client_arg_header_http2_settings)
+{
+  --let $mrs_client_cmd=$mrs_client_cmd --request-header-http2-settings=$mrs_client_arg_header_http2_settings
+}
+
 if ($mrs_client_replace_regexp)
 {
   --replace_regex $mrs_client_replace_regexp
 }
 
-exec $mrs_client_cmd;
+exec $mrs_client_cmd 2>&1;
 
+--let $mrs_client_arg_header_upgrade=
+--let $mrs_client_arg_header_http2_settings=
+--let $mrs_client_arg_expected_fatal_error=
+--let $mrs_client_arg_protocol=
 --let $mrs_client_arg_request_header_authorization=
 --let $mrs_client_arg_request_header_host=
 --let $mrs_client_exe_args=

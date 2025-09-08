@@ -62,4 +62,6 @@ public interface Table {
     /** Get the autoincrement column; null if no autoincrement column defined */
     Column getAutoIncrementColumn();
 
+    /** Get a schema object version number in "major.minor" format */
+    String getVersion();
 }

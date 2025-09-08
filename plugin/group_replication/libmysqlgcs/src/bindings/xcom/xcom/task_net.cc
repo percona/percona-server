@@ -223,7 +223,7 @@ int init_net() {
   if (err != 0) {
     /* Tell the user that we could not find a usable */
     /* Winsock DLL. */
-    g_critical("WSAStartup failed with error: %d", err);
+    G_FATAL("WSAStartup failed with error: %d", err);
     return 1;
   }
 
@@ -236,7 +236,7 @@ int init_net() {
   if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
     /* Tell the user that we could not find a usable */
     /* WinSock DLL.                                  */
-    g_critical("Could not find a usable version of Winsock.dll");
+    G_FATAL("Could not find a usable version of Winsock.dll");
     return 1;
   } else {
     G_DEBUG("The Winsock 2.2 dll was found okay");

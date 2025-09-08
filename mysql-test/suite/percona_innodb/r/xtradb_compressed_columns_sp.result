@@ -69,21 +69,21 @@ BEGIN
 INSERT INTO t1 VALUES(id, data);
 END //
 CALL insert_zip_record(1, @json_value);
-CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(32) READS SQL DATA
+CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(64) READS SQL DATA
 BEGIN
-DECLARE res CHAR(32);
+DECLARE res CHAR(64);
 DECLARE found INT DEFAULT TRUE;
-DECLARE cur CURSOR FOR SELECT MD5(a) FROM t1 WHERE id = k;
+DECLARE cur CURSOR FOR SELECT SHA2(a, 256) FROM t1 WHERE id = k;
 DECLARE CONTINUE HANDLER FOR NOT FOUND SET found = FALSE;
 OPEN cur;
 FETCH cur INTO res;
 IF NOT found THEN
-SET res = REPEAT('x', 32);
+SET res = REPEAT('x', 64);
 END IF;
 CLOSE cur;
 RETURN res;
 END //
-SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+SELECT SHA2(a, 256) INTO @expected_hash_value FROM t1 WHERE id = 1;
 SELECT get_zip_record_hash(1) = @expected_hash_value AS hash_values_match;
 hash_values_match
 1
@@ -92,7 +92,7 @@ BEGIN
 DELETE FROM t1 WHERE id = k;
 END //
 CALL delete_zip_record(1);
-SELECT get_zip_record_hash(1) = REPEAT('x', 32) AS hash_values_match;
+SELECT get_zip_record_hash(1) = REPEAT('x', 64) AS hash_values_match;
 hash_values_match
 1
 CREATE PROCEDURE remove_zip_dicts_and_tables()
@@ -139,8 +139,8 @@ PREPARE insert_zip_record_stmt FROM 'INSERT INTO t1 VALUES(?, ?);';
 SET @blob_key = 1;
 EXECUTE insert_zip_record_stmt USING @blob_key, @json_value;
 DEALLOCATE PREPARE insert_zip_record_stmt;
-SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
-PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 32), MD5(MAX(a))) INTO @ps_hash_value FROM t1 WHERE id = ?;';
+SELECT SHA2(a, 256) INTO @expected_hash_value FROM t1 WHERE id = 1;
+PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 64), SHA2(MAX(a), 256)) INTO @ps_hash_value FROM t1 WHERE id = ?;';
 EXECUTE get_zip_record_hash_stmt USING @blob_key;
 SELECT @ps_hash_value = @expected_hash_value AS hash_values_match;
 hash_values_match
@@ -150,7 +150,7 @@ EXECUTE delete_zip_record_stmt USING @blob_key;
 DEALLOCATE PREPARE delete_zip_record_stmt;
 EXECUTE get_zip_record_hash_stmt USING @blob_key;
 DEALLOCATE PREPARE get_zip_record_hash_stmt;
-SELECT @ps_hash_value = REPEAT('x', 32) AS hash_values_match;
+SELECT @ps_hash_value = REPEAT('x', 64) AS hash_values_match;
 hash_values_match
 1
 PREPARE remove_table_referencing_zip_dict_stmt FROM 'DROP TABLE t1';

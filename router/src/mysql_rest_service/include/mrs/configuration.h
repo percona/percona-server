@@ -35,14 +35,16 @@
 #include <mysql.h>
 
 #include "collector/destination_provider.h"
-#include "helper/make_shared_ptr.h"
 #include "helper/plugin_monitor.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 #include "secure_string.h"  // NOLINT(build/include_subdir)
 
 namespace mrs {
 
 enum Authentication { kAuthenticationNone, kAuthenticationBasic2Server };
+
+constexpr const char *kHostOnResolveFailed = "unknown";
 
 class Configuration {
  public:  // Option fetched from configuration file
@@ -51,13 +53,14 @@ class Configuration {
   std::string mysql_user_data_access_;
   mysql_harness::SecureString mysql_user_data_access_password_;
 
-  std::chrono::seconds metadata_refresh_interval_;
+  std::chrono::milliseconds metadata_refresh_interval_;
 
   std::string routing_ro_;
   std::string routing_rw_;
   uint64_t router_id_;
-  std::string router_name_;
+  std::optional<std::string> router_name_;
   uint32_t default_mysql_cache_instances_;
+  uint32_t http_port_;
 
   // how many seconds the schema monitor should wait before starting, for the
   // "mysql_user_data_access"  user to get a proper access granted
@@ -73,7 +76,7 @@ class Configuration {
   std::shared_ptr<collector::DestinationProvider> provider_rw_;
   std::shared_ptr<collector::DestinationProvider> provider_ro_;
   std::string jwt_secret_;
-  helper::MakeSharedPtr<helper::PluginMonitor> service_monitor_;
+  mysql_harness::MakeSharedPtr<helper::PluginMonitor> service_monitor_;
 };
 
 }  // namespace mrs

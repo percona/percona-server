@@ -202,13 +202,16 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_benchmark_kill, ()) {
 }
 
 static mysql_service_status_t init() {
-  const char *service_names[] = {"mysql_test_foo", nullptr};
-  if (mysql_service_reference_caching_channel->create(service_names, &channel))
-    channel = nullptr;
+  // channel is created by mysql_test_ref_cache post load init
+  // since reference_caching_channel service provided by
+  // component_reference_cache can not be acquired yet cause we are before
+  // dyloader register step here
   return 0;
 }
 
 static mysql_service_status_t deinit() {
+  // although init() is empty, we still need to deinit,
+  // because channel was created by mysql_test_ref_cache_init post load init
   if (channel != nullptr) {
     if (!mysql_service_reference_caching_channel->destroy(channel)) {
       channel = nullptr;
@@ -224,6 +227,13 @@ static DEFINE_BOOL_METHOD(mysql_test_foo_emit, (int /*arg*/)) {
   return false;
 }
 
+static DEFINE_BOOL_METHOD(mysql_test_ref_cache_init, ()) {
+  const char *service_names[] = {"mysql_test_foo", nullptr};
+  if (mysql_service_reference_caching_channel->create(service_names, &channel))
+    channel = nullptr;
+  return false;
+}
+
 static DEFINE_BOOL_METHOD(mysql_test_ref_cache_consumer_counter_reset, ()) {
   ctr = 0;
   return false;
@@ -236,6 +246,10 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_consumer_counter_get, ()) {
 BEGIN_SERVICE_IMPLEMENTATION(test_reference_cache, mysql_test_foo)
 mysql_test_foo_emit END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(test_reference_cache,
+                             test_ref_cache_post_load_init)
+mysql_test_ref_cache_init END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(test_reference_cache, test_ref_cache_producer)
 mysql_test_ref_cache_produce_event, mysql_test_ref_cache_flush,
     mysql_test_ref_cache_release_cache, mysql_test_ref_cache_benchmark_run,
@@ -246,8 +260,9 @@ mysql_test_ref_cache_consumer_counter_reset,
     mysql_test_ref_cache_consumer_counter_get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(test_reference_cache)
-PROVIDES_SERVICE(test_reference_cache, mysql_test_foo)
-, PROVIDES_SERVICE(test_reference_cache, test_ref_cache_producer),
+PROVIDES_SERVICE(test_reference_cache, mysql_test_foo),
+    PROVIDES_SERVICE(test_reference_cache, test_ref_cache_post_load_init),
+    PROVIDES_SERVICE(test_reference_cache, test_ref_cache_producer),
     PROVIDES_SERVICE(test_reference_cache, test_ref_cache_consumer),
     END_COMPONENT_PROVIDES();
 

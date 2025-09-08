@@ -41,10 +41,10 @@ void digest_object(std::shared_ptr<entry::Object> object, std::string_view doc,
 std::string compute_checksum(std::shared_ptr<entry::Object> object,
                              std::string_view doc);
 
-std::string post_process_json(
-    std::shared_ptr<entry::Object> view, const dv::ObjectFieldFilter &filter,
-    const std::map<std::string, std::string> &metadata, std::string_view doc,
-    bool compute_checksum = true);
+std::string post_process_json(std::shared_ptr<entry::Object> view,
+                              const dv::ObjectFieldFilter &filter,
+                              const std::string &gtid, std::string_view doc,
+                              bool compute_checksum = true);
 
 }  // namespace database
 }  // namespace mrs

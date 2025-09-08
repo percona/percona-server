@@ -27,7 +27,7 @@ exec $MYSQLROUTER_BOOTSTRAP
    --conf-set-option=mysql_rest_service.mysql_read_write_route=mysql_read_write_route
    --conf-set-option=mysql_rest_service.mysql_read_only_route=mysql_read_only_route
    --conf-set-option=mysql_rest_service.router_id=3
-   --conf-set-option=mysql_rest_service.metadata_refresh_interval=4
+   --conf-set-option=mysql_rest_service.metadata_refresh_interval=0.5
    --conf-set-option=mysql_rest_service.developer=developer
    --mrs --mrs-global-secret something_important ;
 

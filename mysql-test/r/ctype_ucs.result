@@ -1065,6 +1065,8 @@ select sha1(name) from bug20536;
 sha1(name)
 e0b52f38deddb9f9e8d5336b153592794cb49baf
 677d4d505355eb5b0549b865fcae4b7f0c28aef5
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 select make_set(3, name, upper(name)) from bug20536;
 make_set(3, name, upper(name))
 test1,TEST1
@@ -1904,7 +1906,12 @@ drop table t1;
 select sha('a'), hex(sha('a'));
 sha('a')	hex(sha('a'))
 3106600e0327ca77371f2526df794ed84322585c	0033003100300036003600300030006500300033003200370063006100370037003300370031006600320035003200360064006600370039003400650064003800340033003200320035003800350063
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 as select sha('a') as c1;
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1914,7 +1921,12 @@ drop table t1;
 select sha1('a'), hex(sha1('a'));
 sha1('a')	hex(sha1('a'))
 3106600e0327ca77371f2526df794ed84322585c	0033003100300036003600300030006500300033003200370063006100370037003300370031006600320035003200360064006600370039003400650064003800340033003200320035003800350063
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 create table t1 as select sha1('a') as c1;
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3997,10 +4009,14 @@ drop function f1;
 # Bug#54668 User variable assignments get wrong type
 #
 SET @ST_X=sha('a');
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 ucs2	ucs2_general_ci
 SET @ST_X=sha1('a');
+Warnings:
+Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 ucs2	ucs2_general_ci

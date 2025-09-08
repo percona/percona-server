@@ -27,7 +27,6 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "helper/make_shared_ptr.h"
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/database/query_factory.h"
 #include "mrs/endpoint_configuration.h"
@@ -35,7 +34,9 @@
 #include "mock/mock_auth_handler_factory.h"
 #include "mock/mock_mysqlcachemanager.h"
 
-using helper::MakeSharedPtr;
+#include "mysql/harness/make_shared_ptr.h"
+
+using mysql_harness::MakeSharedPtr;
 using testing::_;
 using testing::Mock;
 using testing::Return;

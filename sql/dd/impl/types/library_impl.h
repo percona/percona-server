@@ -159,6 +159,9 @@ class Library_impl : public Routine_impl, public Library {
   bool set_options(const String_type &options_raw) override {
     return Routine_impl::set_options(options_raw);
   }
+  void set_client_collation_id(Object_id client_collation_id) override {
+    Routine_impl::set_client_collation_id(client_collation_id);
+  }
 
   // Disabled functions that do not make sense for a library.
 
@@ -193,12 +196,6 @@ class Library_impl : public Routine_impl, public Library {
   /////////////////////////////////////////////////////////////////////////
   // collation.
   /////////////////////////////////////////////////////////////////////////
-
-  void set_client_collation_id(Object_id client_collation_id
-                               [[maybe_unused]]) override {
-    // Setting this attribute is not allowed for the Library.
-    assert(false);
-  }
 
   void set_connection_collation_id(Object_id connection_collation_id
                                    [[maybe_unused]]) override {

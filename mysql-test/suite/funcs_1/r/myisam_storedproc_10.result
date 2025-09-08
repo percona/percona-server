@@ -256,7 +256,7 @@ INSERT INTO temp VALUES  ('qwe', 'xyz', '1998-03-26', 100, 'uvw', 1000);
 INSERT INTO temp VALUES  ('qwe', 'abc', '2000-11-09', 100, 'uvw', 1000);
 INSERT INTO temp VALUES  ('qwe', 'abc', '2005-11-07', 100, 'uvw', 1000);
 END;
-SELECT COUNT( f1 ), f1 FROM temp GROUP BY f1;
+SELECT COUNT( f1 ), f1 FROM temp GROUP BY f1 ORDER BY f1;
 UPDATE temp SET temp.f1 = 'updated_2' WHERE temp.f1 ='qwe' AND temp.f2 = 'abc';
 END//
 CREATE PROCEDURE sp_del()
@@ -339,7 +339,9 @@ updated	xyz	1989-11-09	100	uvw	1000
 updated	xyz	2005-10-24	100	uvw	1000
 CALL sp_ins_upd();
 COUNT( f1 )	f1
+1	a_aaaaaaaaa
 1	a`
+1	a^aaaaaaaa
 1	aaa
 1	abaa
 1	acaaa
@@ -347,10 +349,8 @@ COUNT( f1 )	f1
 1	aeaaaaa
 1	afaaaaaa
 1	agaaaaaaa
-1	a^aaaaaaaa
-1	a_aaaaaaaaa
-4	updated
 4	qwe
+4	updated
 SELECT row_count();
 row_count()
 3

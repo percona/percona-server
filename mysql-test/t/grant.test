@@ -2276,7 +2276,7 @@ UPDATE mysql.user SET password_last_changed = (now() - INTERVAL 3 DAY) where use
 FLUSH PRIVILEGES;
 --echo # Attempt to execute query should fail
 --error 1
---exec $MYSQL -uwl7131 -pwl7131 -e "EXIT" 2>&1
+--exec $MYSQL --commands -uwl7131 -pwl7131 -e "EXIT" 2>&1
 
 connect(con1,localhost,wl7131,wl7131,,);
 --echo # Doing something should fail
@@ -2308,7 +2308,7 @@ UPDATE mysql.user SET password_last_changed = (now() - INTERVAL 5 DAY) where use
 FLUSH PRIVILEGES;
 
 --echo # This should pass as password is never expired.
---exec $MYSQL -uwl7131 -pwl7131 -e "EXIT" 2>&1
+--exec $MYSQL --commands -uwl7131 -pwl7131 -e "EXIT" 2>&1
 
 ALTER USER 'wl7131' PASSWORD EXPIRE DEFAULT;
 --echo # This should report NULL
@@ -2317,7 +2317,7 @@ SELECT password_lifetime FROM mysql.user where user='wl7131';
 --echo # This should not pass as default_password_lifetime
 --echo # (which is 2 now) is being used.
 --error 1
---exec $MYSQL -uwl7131 -pwl7131 -e "EXIT" 2>&1
+--exec $MYSQL --commands -uwl7131 -pwl7131 -e "EXIT" 2>&1
 
 SET GLOBAL default_password_lifetime = 0;
 
@@ -2326,7 +2326,7 @@ ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 4 DAY;
 SELECT password_lifetime FROM mysql.user where user='wl7131';
 --echo # This should not pass.
 --error 1
---exec $MYSQL -uwl7131 -pwl7131 -e "EXIT" 2>&1
+--exec $MYSQL --commands -uwl7131 -pwl7131 -e "EXIT" 2>&1
 
 SET GLOBAL default_password_lifetime = @saved_value;
 
@@ -2334,7 +2334,7 @@ ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 6 DAY;
 --echo # Should report 6
 select password_lifetime from mysql.user where user='wl7131';
 --echo # This should pass.
---exec $MYSQL -uwl7131 -pwl7131 -e "EXIT" 2>&1
+--exec $MYSQL --commands -uwl7131 -pwl7131 -e "EXIT" 2>&1
 DROP USER 'wl7131';
 
 CREATE USER 'wl7131';

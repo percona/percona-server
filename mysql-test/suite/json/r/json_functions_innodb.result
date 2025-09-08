@@ -3705,8 +3705,8 @@ j	COUNT(*)
 {"a": 1, "b": 2}	2
 {"a": 1, "b": 2, "c": 3, "d": 4}	2
 []	2
-[2]	2
 [1]	2
+[2]	2
 [1, 2]	2
 [2, 1]	2
 [1, 2, 3]	2
@@ -4841,9 +4841,9 @@ json_object('existing', pk),
 json_object('new', 'apple')
 ) as field1 from t21304639 order by field1;
 field1
+{"existing": 1}
 {"existing": 2}
 {"existing": 3}
-{"existing": 1}
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 select json_set(
@@ -4852,9 +4852,9 @@ json_object('existing', pk),
 json_object('new', 'apple')
 ) as field1 from t21304639 order by field1;
 field1
+{"existing": 1}
 {"existing": 2}
 {"existing": 3}
-{"existing": 1}
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 drop table t21304639;
@@ -5541,8 +5541,8 @@ null
 7
 "abc"
 "abcd"
-{"a": 1, "b": 2}
 {"a": 1, "b": 3}
+{"a": 1, "b": 2}
 [true, false]
 [true, true]
 false
@@ -5726,16 +5726,16 @@ a
 "a,b"
 "a,c"
 "b"
-{"a": 1, "b": 2}
-{"a": 1, "b": 3}
+{"type": "Point", "coordinates": [1.0, 2.0]}
+{"type": "Point", "coordinates": [1.0, 4.0]}
+{"type": "Point", "coordinates": [1.0, 3.0]}
 {"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
 {"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 9.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
+{"a": 1, "b": 3}
+{"a": 1, "b": 2}
 {"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}
 {"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 3.0]]}
 {"type": "Point", "coordinates": [1.0, 1.0]}
-{"type": "Point", "coordinates": [1.0, 4.0]}
-{"type": "Point", "coordinates": [1.0, 2.0]}
-{"type": "Point", "coordinates": [1.0, 3.0]}
 [1, 2]
 [1, 3]
 "2013-11-25"

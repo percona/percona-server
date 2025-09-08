@@ -33,20 +33,25 @@
 #include "helper/media_type.h"
 #include "http/base/uri.h"
 #include "mrs/endpoint/handler/helper/protocol.h"
+#include "mrs/endpoint/handler/helper/url_paths.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/rest_handler.h"
 
 namespace mrs {
 namespace rest {
 
+mrs::interface::Options parse_json_options(
+    const std::optional<std::string> &options);
+
 class Handler : public interface::RestHandler {
  public:
   using HttpUri = ::http::base::Uri;
   using Protocol = ::mrs::endpoint::handler::Protocol;
+  using UriPathMatcher = ::http::base::UriPathMatcher;
 
  public:
   Handler(const Protocol protocol, const std::string &url_host,
-          const std::vector<std::string> &rest_path_matcher,
+          const std::vector<UriPathMatcher> &rest_path_matcher,
           const std::optional<std::string> &options,
           interface::AuthorizeManager *auth_manager);
 
@@ -84,7 +89,7 @@ class Handler : public interface::RestHandler {
  protected:
   interface::Options options_;
   const std::string url_host_;
-  std::vector<std::string> rest_path_matcher_;
+  std::vector<UriPathMatcher> rest_path_matcher_;
   std::vector<void *> handler_id_;
   interface::AuthorizeManager *authorization_manager_;
   const std::string protocol_;

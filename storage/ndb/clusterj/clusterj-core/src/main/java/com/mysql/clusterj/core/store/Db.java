@@ -38,7 +38,5 @@ public interface Db {
 
     public ClusterTransaction startTransaction();
 
-    public boolean isRetriable(ClusterJDatastoreException ex);
-
     public void assertNotClosed(String where);
 }

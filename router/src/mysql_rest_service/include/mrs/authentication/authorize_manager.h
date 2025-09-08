@@ -61,6 +61,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   using EndpointConfigurationPtr = std::shared_ptr<EndpointConfiguration>;
   using Container = std::vector<AuthorizeHandlerPtr>;
   using minutes = std::chrono::minutes;
+  using steady_clock = std::chrono::steady_clock;
 
  public:
   AuthorizeManager(const EndpointConfigurationPtr &configuration,
@@ -73,8 +74,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
 
   bool unauthorize(const SessionPtr &session, http::Cookie *cookies) override;
   bool authorize(const std::string &proto, const std::string &host,
-                 ServiceId id, rest::RequestContext &ctxt,
-                 AuthUser *out_user) override;
+                 ServiceId id, bool passthrough_db_user,
+                 rest::RequestContext &ctxt, AuthUser *out_user) override;
   bool is_authorized(ServiceId id, rest::RequestContext &ctxt,
                      AuthUser *user) override;
 
@@ -86,6 +87,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   Container get_supported_authentication_applications(ServiceId id) override;
   void clear() override;
   void update_users_cache(const ChangedUsersIds &changed_users_ids) override;
+
+  void collect_garbage();
 
  private:
   AuthorizeHandlerPtr create_authentication_application(const AuthApp &entry);
@@ -139,6 +142,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   RateControlFor<std::string> accounts_rate_;
   RateControlFor<std::string> hosts_rate_;
   minutes jwt_expire_timeout;
+  steady_clock::time_point last_garbage_collection_{};
+  uint32_t passthrough_db_user_session_pool_size_{0};
 
   /*
    * Random data, created at `authorization_manager` creation.

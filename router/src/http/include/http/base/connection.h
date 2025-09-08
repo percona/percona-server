@@ -50,6 +50,7 @@
 #include "http/cno/string.h"
 
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/string_utils.h"
 #include "mysqlrouter/http_common_export.h"
 
 namespace http {
@@ -122,6 +123,7 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
     socket_.set_option(net::ip::tcp::no_delay{true});
     impl::set_socket_parent(&socket_, ss.str().c_str());
     cno_init(&cno_, kind);
+    cno_.disallow_h2_prior_knowledge = 1;
     cno::callback_init(&cno_, this);
     output_buffers_.emplace_back(4096);
     cno_begin(&cno_, version);
@@ -142,13 +144,25 @@ class Connection : public base::ConnectionInterface, public cno::CnoInterface {
             const Headers &headers, const IOBuffer &data) override {
     cno_message_t message;
     std::vector<cno_header_t> cno_header(headers.size(), cno_header_t());
+    std::vector<std::string> http2_headers_names;
     const bool only_header = 0 == data.length();
+
+    if (CNO_HTTP2 == cno_.mode) {
+      http2_headers_names.reserve(headers.size());
+    }
 
     auto output = cno_header.data();
 
     for (const auto &entry : headers) {
-      output->name.size = entry.first.length();
-      output->name.data = entry.first.c_str();
+      if (CNO_HTTP2 == cno_.mode) {
+        auto &header_name = http2_headers_names.emplace_back(
+            ::mysql_harness::make_lower(entry.first));
+        output->name.size = header_name.length();
+        output->name.data = header_name.c_str();
+      } else {
+        output->name.size = entry.first.length();
+        output->name.data = entry.first.c_str();
+      }
 
       output->value.size = entry.second.length();
       output->value.data = entry.second.c_str();

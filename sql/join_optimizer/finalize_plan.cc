@@ -611,11 +611,10 @@ bool UpdateReferencesToMaterializedItems(
           need_exact_match);
     }
   } else if (path->type == AccessPath::REMOVE_DUPLICATES) {
-    Item **group_items = path->remove_duplicates().group_items;
-    for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
+    for (Item *&group_item : path->remove_duplicates().group_items()) {
       for (const Func_ptr_array *earlier_replacement : *applied_replacements) {
-        group_items[i] = FindReplacementOrReplaceMaterializedItems(
-            thd, group_items[i], *earlier_replacement,
+        group_item = FindReplacementOrReplaceMaterializedItems(
+            thd, group_item, *earlier_replacement,
             /*need_exact_match=*/true);
       }
     }

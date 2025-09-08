@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -176,6 +176,10 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_foreign_cols.cc
   dd/impl/system_views/innodb_fields.cc
   dd/impl/system_views/innodb_tablespaces_brief.cc
+  dd/impl/system_views/json_duality_view_columns.cc
+  dd/impl/system_views/json_duality_view_links.cc
+  dd/impl/system_views/json_duality_view_tables.cc
+  dd/impl/system_views/json_duality_views.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/keywords.cc
   dd/impl/system_views/libraries.cc
@@ -419,6 +423,12 @@ SET(SQL_SHARED_SOURCES
   iterators/ref_row_iterators.cc
   iterators/sorting_iterator.cc
   iterators/window_iterators.cc
+  json_duality_view/content_tree.cc
+  json_duality_view/ddl.cc
+  json_duality_view/dml.cc
+  json_duality_view/i_s.cc
+  json_duality_view/option_usage.cc
+  json_duality_view/utils.cc
   join_optimizer/access_path.cc
   join_optimizer/build_interesting_orders.cc
   join_optimizer/common_subexpression_elimination.cc
@@ -652,7 +662,6 @@ SET(SQL_SHARED_SOURCES
   reference_caching_setup.cc
   sql_event_tracking_to_audit_event_mapping.cc
   command_mapping.cc
-  srv_event_plugin_handles.cc
   )
 
 IF(BUILD_IS_SINGLE_CONFIG)
@@ -665,6 +674,12 @@ IF(BUILD_IS_SINGLE_CONFIG)
       debug_sync.cc
       )
   ENDIF()
+ENDIF()
+
+IF (WITH_INTERNAL)
+  LIST(REMOVE_ITEM SQL_SHARED_SOURCES
+      json_duality_view/dml.cc
+      )
 ENDIF()
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
@@ -804,6 +819,7 @@ SET(SQL_SOURCE
   ../sql-common/my_decimal.cc
   ../sql-common/json_diff.cc
   ../sql-common/json_dom.cc
+  ../sql-common/json_hash.cc
   ../sql-common/json_error_handler.cc
   ../sql-common/json_path.cc
   ../sql-common/json_schema.cc
@@ -903,7 +919,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
   ENDIF()
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
-  IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+  IF(MY_COMPILER_IS_GNU)
     ADD_COMPILE_FLAGS(
       ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc

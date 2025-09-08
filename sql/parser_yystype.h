@@ -85,13 +85,18 @@ class PT_create_table_option;
 class PT_ddl_table_option;
 class PT_derived_table;
 class PT_exclusion;
+class PT_external_file_format;
+class PT_external_file_list;
 class PT_field_def_base;
+class PT_file_attributes;
 class PT_frame;
 class PT_group;
 class PT_tablesample;
 class PT_insert_values_list;
 class PT_into_destination;
 class PT_isolation_level;
+class PT_jdv_name_value;
+class PT_jdv_name_value_list;
 class PT_item_list;
 class PT_joined_table;
 class PT_json_table_column;
@@ -157,6 +162,7 @@ struct LEX;
 struct Sql_cmd_srs_attributes;
 struct udf_func;
 struct PT_install_component_set_element;
+enum class Json_constructor_null_clause;
 
 template <class T>
 class List;
@@ -419,6 +425,7 @@ union MY_SQL_PARSER_STYPE {
   Condition_information_item::Name cond_info_item_name;
   List<Condition_information_item> *cond_info_list;
   bool is_not_empty;
+  uint table_type;
   Set_signal_information *signal_item_list;
   enum_trigger_order_type trigger_action_order_type;
   struct {
@@ -727,6 +734,15 @@ union MY_SQL_PARSER_STYPE {
 
   PT_library_list *library_list;
   PT_library_with_alias *library_with_alias;
+
+  PT_jdv_name_value *jdv_name_value;
+  PT_jdv_name_value_list *jdv_name_value_list;
+
+  Json_constructor_null_clause json_constructor_null_clause;
+
+  PT_external_file_format *external_file_format;
+  PT_external_file_list *external_file_list;
+  PT_file_attributes *file_attributes;
 };
 
 static_assert(sizeof(MY_SQL_PARSER_STYPE) <= 32, "YYSTYPE is too big");

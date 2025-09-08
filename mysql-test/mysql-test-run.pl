@@ -308,6 +308,7 @@ our @DEFAULT_SUITES = qw(
   x
   component_keyring_file
   component_connection_control
+  jdv
 
   component_audit_log_filter
   percona
@@ -787,21 +788,7 @@ sub main {
   }
 
   if ($secondary_engine_support) {
-    # Enable mTLS in Heatwave-AutoML by setting up certificates and keys.
-    # - Paths are pre-set in the environment for accurate server initialization.
-    # - Certificates and keys are generated after the Python virtual environment
-    #   setup.
-    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
-    # Configuration for ml
-    # 20240613: temporary disabled for MTR until find a solution for SSL3
-    my $ml_encryption_enabled = 0; # Replace with $oci_instance_id?1:0 to enable
-    $ml_encryption_enabled?mtr_report("ML encryption enabled"):mtr_report("ML encryption disabled");
-    if ($ml_encryption_enabled) {
-      $ENV{'ML_CERTIFICATES'} = "$::opt_vardir/" . "hwaml_cert_files/";
-      $ENV{'ML_ENABLE_ENCRYPTION'} = "1";
-    }
-    # Setting the number of ML workers per driver
-    set_ml_workers_for_suite($opt_suites);
+    secondary_drivers_setup($opt_suites, $bindir);
   }
 
   initialize_servers();
@@ -859,26 +846,8 @@ sub main {
 
   if ($secondary_engine_support) {
     secondary_engine_offload_count_report_init();
-    # Create virtual environment
-    find_ml_driver($bindir);
-
-    # Generate mTLS certificates & keys for Heatwave-AutoML post Python
-    # virtual environment setup and path pre-setting (referenced earlier).
-    my $oci_instance_id    = $ENV{'OCI_INSTANCE_ID'} || "";
-    my $aws_key_store      = $ENV{'OLRAPID_KEYSTORE'} || "";
-    my $ml_encryption_enabled = $ENV{'ML_ENABLE_ENCRYPTION'} || "";
-    if ($ml_encryption_enabled) {
-      if($aws_key_store)
-      {
-        extract_certs_from_pfx($aws_key_store, $ENV{'ML_CERTIFICATES'});
-      }
-      else
-      {
-        create_cert_keys($ENV{'ML_CERTIFICATES'});
-      }
-    }
-    
-    reserve_secondary_ports();
+    configure_encryption();
+    reserve_secondary_ports($bindir);
   }
 
   if ($opt_summary_report) {
@@ -1589,7 +1558,10 @@ sub run_worker ($) {
 
       my $valgrind_report_text = '';
       if ($opt_valgrind || $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
+        # Look for leaks here, even if we aldready have $shutdown_report.
+        # shutdown_exit_reports() will report some unknown failure.
+        # valgrind_exit_reports() will look specifically for ASAN/LSAN stuff.
+        $valgrind_reports = valgrind_exit_reports();
       }
 
       if ($shutdown_report || $valgrind_report_text) {
@@ -8383,8 +8355,8 @@ sub valgrind_exit_reports() {
       # This line marks the start of a valgrind report
       $found_report = 1 if $line =~ /^==\d+== .* SUMMARY:/;
 
-      # This line marks the start of UBSAN memory leaks
-      $found_report = 1 if $line =~ /^==\d+==ERROR:.*/;
+      # This line marks LSAN memory leaks
+      $found_report = 1 if $line =~ /.*LeakSanitizer: detected memory leaks.*/;
 
       # Various UBSAN runtime errors
       $found_report = 1 if $line =~ /.*runtime error: .*/;

@@ -268,8 +268,8 @@ static double AddInnodbEngineCostOverhead(
 
   double innodb_engine_cost =
       kInnoDBTemptableAggregationOverhead * temptable_engine_cost;
-  return (1 - probability_innodb_engine) * temptable_engine_cost +
-         probability_innodb_engine * innodb_engine_cost;
+  return std::lerp(temptable_engine_cost, innodb_engine_cost,
+                   probability_innodb_engine);
 }
 
 /**
@@ -312,7 +312,7 @@ static double TempTableAggregationCost(
 // also cannot be less than the temp table creation cost, hence always add this
 // cost.  The value was derived by checking actual materialization cost
 // involving one or two rows.
-constexpr double kTempTableCreationCost = 3;
+static constexpr double kTempTableCreationCost = 3;
 
 BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table,
                                               int64_t max_row_size) {
@@ -567,7 +567,7 @@ double EstimateIndexRangeScanCost(const TABLE *table, unsigned key_idx,
           single-range scans will be cheaper if the base table is fully cached.
        */
       const uint fields_read_per_row{bitmap_bits_set(table->read_set)};
-      const BytesPerTableRow bytes_per_row{EstimateBytesPerRowTable(table)};
+      const BytesPerTableRow &bytes_per_row = *table->bytes_per_row();
 
       // Cost of reading single row from base table, except IO cost.
       const double row_cost{RowReadCost(
@@ -941,9 +941,6 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
 
 namespace {
 
-/// Array of aggregation terms.
-using TermArray = Bounds_checked_array<const Item *const>;
-
 /**
    This class finds disjoint sets of aggregation terms that form prefixes of
    some non-hash index, and makes row estimates for those sets based on index
@@ -1016,9 +1013,9 @@ class AggregateRowEstimator {
   /// @param field The field we look for.
   /// @returns An iterator to the position of 'field' in m_terms, or
   /// m_terms.cend().
-  TermArray::const_iterator FindField(const Field *field) const {
+  TermArray::iterator FindField(const Field *field) const {
     return std::find_if(
-        m_terms.cbegin(), m_terms.cend(), [field](const Item *item) {
+        m_terms.begin(), m_terms.end(), [field](const Item *item) {
           assert(field != nullptr);
           return item->type() == Item::FIELD_ITEM &&
                  down_cast<const Item_field *>(item)->field == field;
@@ -1099,7 +1096,7 @@ double AggregateRowEstimator::MakeNextEstimate(THD *thd) {
         For each KEY_PART, check if there is still a corresponding aggregation
         item in m_terms.
       */
-      if (IsBitSet(FindField(field) - m_terms.cbegin(), m_consumed_terms)) {
+      if (IsBitSet(FindField(field) - m_terms.begin(), m_consumed_terms)) {
         // We did not find it, so it must have been removed when we examined
         // some earlier key. We can thus only use the prefix 0..key_part_no of
         // this key.
@@ -1257,9 +1254,8 @@ double EstimateDistinctRowsFromStatistics(THD *thd, TermArray terms,
 
   // Loop over the remaining terms, i.e. those that were not part of
   // a key prefix. Make row estimates for those that are fields.
-  for (TermArray::const_iterator term = terms.cbegin(); term < terms.cend();
-       term++) {
-    if (!IsBitSet(term - terms.cbegin(), index_estimator.GetConsumedTerms()) &&
+  for (TermArray::iterator term = terms.begin(); term < terms.end(); term++) {
+    if (!IsBitSet(term - terms.begin(), index_estimator.GetConsumedTerms()) &&
         (*term)->type() == Item::FIELD_ITEM) {
       const Field *const field = down_cast<const Item_field *>(*term)->field;
 
@@ -1366,12 +1362,10 @@ double SmoothTransition(FunctionLow function_low, FunctionHigh function_high,
     return function_high(argument);
 
   } else {
-    // Might use std::lerp() in C++ 20.
     const double high_fraction =
         (argument - lower_limit) / (upper_limit - lower_limit);
-
-    return function_low(argument) * (1.0 - high_fraction) +
-           function_high(argument) * high_fraction;
+    return std::lerp(function_low(argument), function_high(argument),
+                     high_fraction);
   }
 }
 
@@ -1428,7 +1422,7 @@ double EstimateRollupRowsAdvanced(THD *thd, double aggregate_rows,
   // Make a more accurate rollup row calculation for larger sets.
   double rollup_rows = 1.0;
   while (terms.size() > 1) {
-    terms.resize(terms.size() - 1);
+    terms = terms.first(terms.size() - 1);
 
     if (TraceStarted(thd)) {
       Trace(thd) << StringPrintf(
@@ -1636,11 +1630,10 @@ void EstimateLimitOffsetCost(AccessPath *path) {
         std::min(1.0, double(lim.offset) / child->num_output_rows());
     const double fraction_full_read =
         std::min(1.0, double(lim.limit) / child->num_output_rows());
-    path->set_cost(child->init_cost() +
-                   fraction_full_read * (child->cost() - child->init_cost()));
-    path->set_init_cost(child->init_cost() +
-                        fraction_start_read *
-                            (child->cost() - child->init_cost()));
+    path->set_cost(
+        std::lerp(child->init_cost(), child->cost(), fraction_full_read));
+    path->set_init_cost(
+        std::lerp(child->init_cost(), child->cost(), fraction_start_read));
   }
 }
 

@@ -1327,9 +1327,8 @@ test.t2	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE t1.a IN (SELECT t2.l FROM t2);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=10) (actual rows=10 loops=1)
-    -> Remove duplicates from input grouped on t2.l  (rows=10) (actual rows=10 loops=1)
-        -> Sort: t2.l  (rows=20) (actual rows=20 loops=1)
-            -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+    -> Sort with duplicate removal: t2.l  (rows=10) (actual rows=10 loops=1)
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
     -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1) (actual rows=1 loops=10)
 
 EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
@@ -1347,9 +1346,8 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t2.l+ABS(t2.l)=t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=10) (actual rows=10 loops=1)
-    -> Remove duplicates from input grouped on (t2.l + abs(t2.l))  (rows=4.47) (actual rows=10 loops=1)
-        -> Sort: (t2.l + abs(t2.l))  (rows=20) (actual rows=20 loops=1)
-            -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+    -> Sort with duplicate removal: (t2.l + abs(t2.l))  (rows=4.47) (actual rows=10 loops=1)
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.l + abs(t2.l)))  (rows=0.0333) (actual rows=1 loops=10)
         -> Single-row index lookup on t1 using PRIMARY (a = (t2.l + abs(t2.l)))  (rows=1) (actual rows=1 loops=10)
 
@@ -1359,9 +1357,8 @@ EXPLAIN ANALYZE SELECT * FROM t1 WHERE EXISTS
 (SELECT 1 FROM t2 WHERE t2.k+t2.l=t1.a);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=14.8) (actual rows=15 loops=1)
-    -> Remove duplicates from input grouped on (t2.k + t2.l)  (rows=4.47) (actual rows=15 loops=1)
-        -> Sort: (t2.k + t2.l)  (rows=20) (actual rows=20 loops=1)
-            -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
+    -> Sort with duplicate removal: (t2.k + t2.l)  (rows=4.47) (actual rows=15 loops=1)
+        -> Table scan on t2  (rows=20) (actual rows=20 loops=1)
     -> Filter: (t1.a = (t2.k + t2.l))  (rows=0.0333) (actual rows=1 loops=15)
         -> Single-row index lookup on t1 using PRIMARY (a = (t2.k + t2.l))  (rows=1) (actual rows=1 loops=15)
 
@@ -1392,10 +1389,9 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a IN
 (SELECT t2.l FROM t2 WHERE t2.l<0);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=0.02)
-    -> Remove duplicates from input grouped on t2.l  (rows=0.02)
-        -> Sort: t2.l  (rows=0.02)
-            -> Filter: (t2.l < 0)  (rows=0.02)
-                -> Table scan on t2  (rows=20)
+    -> Sort with duplicate removal: t2.l  (rows=0.02)
+        -> Filter: (t2.l < 0)  (rows=0.02)
+            -> Table scan on t2  (rows=20)
     -> Single-row index lookup on t1 using PRIMARY (a = t2.l)  (rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT 5 FROM t2);
@@ -1423,9 +1419,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.a IN (SELECT x2.b FROM t1 x2);
 EXPLAIN
 -> Nested loop inner join (LooseScan)  (rows=10)
-    -> Remove duplicates from input grouped on x2.b  (rows=10)
-        -> Sort: x2.b  (rows=30)
-            -> Table scan on x2  (rows=30)
+    -> Sort with duplicate removal: x2.b  (rows=10)
+        -> Table scan on x2  (rows=30)
     -> Single-row index lookup on x1 using PRIMARY (a = x2.b)  (rows=1)
 
 SELECT REGEXP_SUBSTR(
@@ -2170,3 +2165,47 @@ SELECT f1 FROM t1 WHERE (f1,f1) IN
 (SELECT f1,f2 FROM t2 WHERE f1 >= 1) GROUP BY f1;
 f1
 DROP TABLE t1,t2;
+#
+# Bug#37667970: Hypergraph assertion failure - 'false && Inconsistent
+#               row counts for different AccessPath objects'
+#
+CREATE TABLE t (a INT, b INT, c INT, KEY (c));
+INSERT INTO t VALUES (1, 1, 1);
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM t AS t1 JOIN t AS t2 ON t1.c = t2.b AND t1.c = t2.c
+LEFT OUTER JOIN t AS t3 ON FALSE
+WHERE t3.a = t2.a OR t2.b > t2.b;
+EXPLAIN
+-> Zero rows (impossible WHERE)  (cost=0..0 rows=0)
+
+DROP TABLE t;
+#
+# Bug#37733272: Planning overhead for ordered range queries in hypergraph
+#
+CREATE TABLE t (
+pk INT PRIMARY KEY,
+a INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL,
+UNIQUE KEY k1(a),
+KEY k2(b)
+);
+INSERT INTO t VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET optimizer_trace='enabled=on';
+EXPLAIN FORMAT=TREE SELECT a, b FROM t ORDER BY a, b;
+EXPLAIN
+-> Sort: t.a  (rows=3)
+    -> Table scan on t  (rows=3)
+
+SET optimizer_trace='enabled=off';
+SELECT REGEXP_SUBSTR(TRACE, '(?s)Functional dependencies.*?""') AS dependencies
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+dependencies
+Functional dependencies (after pruning):",
+              " - {t.a} -> t.b [always active]",
+              ""
+DROP TABLE t;

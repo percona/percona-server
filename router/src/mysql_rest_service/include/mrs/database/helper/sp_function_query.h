@@ -64,14 +64,16 @@ void fill_procedure_argument_list_with_binds(
 
 using DataType = mrs::database::entry::ColumnType;
 
-inline mysqlrouter::sqlstring get_sql_format(DataType type) {
+inline mysqlrouter::sqlstring get_sql_format(
+    DataType type, const rapidjson::Document::ValueType &value) {
   using namespace helper;
   switch (type) {
     case DataType::BINARY:
       return mysqlrouter::sqlstring("FROM_BASE64(?)");
 
     case DataType::GEOMETRY:
-      return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)");
+      return value.IsObject() ? mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)")
+                              : mysqlrouter::sqlstring("ST_GeomFromText(?)");
 
     case DataType::VECTOR:
       return mysqlrouter::sqlstring("STRING_TO_VECTOR(?)");

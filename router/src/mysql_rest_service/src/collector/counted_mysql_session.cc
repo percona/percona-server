@@ -119,6 +119,13 @@ void CountedMySQLSession::connect_and_set_opts(
   connection_params_ = connection_params;
   initial_sqls_ = initial_sqls;
 
+  connect(connection_params);
+  reconnect_at_next_query_ = false;
+  execute_initial_sqls();
+}
+
+void CountedMySQLSession::connect(
+    const ConnectionParameters &connection_params) {
   std::string host;
   uint16_t port{};
   std::string unix_socket;
@@ -136,14 +143,12 @@ void CountedMySQLSession::connect_and_set_opts(
   set_ssl_options(opt.ssl_mode, opt.tls_version, opt.ssl_cipher, opt.ca,
                   opt.capath, opt.crl, opt.crlpath);
 
-  connect(host, port, connection_params_.conn_opts.username,
-          connection_params_.conn_opts.password, unix_socket,
-          connection_params_.conn_opts.default_schema,
-          connection_params_.conn_opts.connect_timeout,
-          connection_params_.conn_opts.read_timeout,
-          connection_params_.conn_opts.extra_client_flags);
-  reconnect_at_next_query_ = false;
-  execute_initial_sqls();
+  MySQLSession::connect(host, port, connection_params.conn_opts.username,
+                        connection_params.conn_opts.password, unix_socket,
+                        connection_params.conn_opts.default_schema,
+                        connection_params.conn_opts.connect_timeout,
+                        connection_params.conn_opts.read_timeout,
+                        connection_params.conn_opts.extra_client_flags);
 }
 
 void CountedMySQLSession::connect(const std::string &host, unsigned int port,

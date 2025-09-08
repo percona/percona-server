@@ -24,6 +24,7 @@
 */
 
 #include "BufferedLogHandler.hpp"
+#include "portlib/NdbTimestamp.h"
 #include "util/cstrbuf.h"
 #include "util/require.h"
 
@@ -99,13 +100,14 @@ bool BufferedLogHandler::is_open() { return m_log_threadvar != nullptr; }
 // PROTECTED
 //
 void BufferedLogHandler::writeHeader(const char *pCategory,
-                                     Logger::LoggerLevel level, time_t now) {
+                                     Logger::LoggerLevel level,
+                                     const std::timespec *now) {
   /**
    * Add log level, timestamp, category length to m_log_fixedpart and
    * category to m_log_varpart.
    */
   m_log_fixedpart.level = level;
-  m_log_fixedpart.log_timestamp = now;
+  m_log_fixedpart.log_timestamp = *now;
 
   size_t pCategory_len = strlen(pCategory);
   m_log_fixedpart.varpart_length[0] = pCategory_len;
@@ -159,7 +161,7 @@ bool BufferedLogHandler::writeToDestLogHandler() {
     msg[log_fixed_part.varpart_length[1]] = '\0';
 
     m_dest_loghandler->append(category, log_fixed_part.level, msg,
-                              log_fixed_part.log_timestamp);
+                              &log_fixed_part.log_timestamp);
     return true;
   }
   return false;
@@ -172,9 +174,9 @@ void BufferedLogHandler::writeLostMsgDestLogHandler() {
     cstrbuf<LostMsgHandler::MAX_LOST_MESSAGE_SIZE> msg;
     require(msg.appendf(LostMsgHandler::LOST_MESSAGES_FMT, lost_count) != -1);
     assert(!msg.is_truncated());
-    const time_t now = ::time(nullptr);
+    std::timespec now = NdbTimestamp_GetCurrentTime();
     m_dest_loghandler->append(m_buffer_msg_category, Logger::LL_INFO,
-                              msg.c_str(), now);
+                              msg.c_str(), &now);
   }
 }
 
@@ -193,7 +195,7 @@ bool MessageStreamLostMsgHandler::writeLostMsg(char *buf, size_t buf_size,
                                                size_t lost_msgs) {
   BufferedLogHandler::LogMessageFixedPart lost_message_fixedpart;
   lost_message_fixedpart.level = Logger::LL_WARNING;
-  lost_message_fixedpart.log_timestamp = time((time_t *)nullptr);
+  lost_message_fixedpart.log_timestamp = NdbTimestamp_GetCurrentTime();
 
   const size_t sz_fixedpart = sizeof(lost_message_fixedpart);
   require(sz_fixedpart <= buf_size);

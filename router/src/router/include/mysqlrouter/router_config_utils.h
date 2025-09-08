@@ -27,6 +27,7 @@
 #define ROUTER_SRC_ROUTER_INCLUDE_MYSQLROUTER_CONFIG_UTILS_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "mysqlrouter/router_utils_export.h"
@@ -35,7 +36,10 @@ namespace mysql_harness {
 class Config;
 }  // namespace mysql_harness
 
-std::string ROUTER_UTILS_EXPORT get_configured_router_name(
+std::optional<std::string> ROUTER_UTILS_EXPORT get_configured_router_name(
+    const mysql_harness::Config &config, const uint32_t default_port);
+
+uint32_t ROUTER_UTILS_EXPORT get_configured_http_port(
     const mysql_harness::Config &config, const uint32_t default_port);
 
 #endif  // ROUTER_SRC_ROUTER_INCLUDE_MYSQLROUTER_CONFIG_UTILS_H_

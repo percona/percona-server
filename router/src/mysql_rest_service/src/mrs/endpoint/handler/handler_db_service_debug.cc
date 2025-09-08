@@ -40,13 +40,16 @@ using Authorization = mrs::rest::Handler::Authorization;
 
 namespace {
 
-auto get_regex_path_service_debug(std::weak_ptr<DbServiceEndpoint> endpoint) {
+auto get_path_service_debug(std::weak_ptr<DbServiceEndpoint> endpoint) {
   using namespace std::string_literals;
+  std::vector<::http::base::UriPathMatcher> result;
 
   auto endpoint_srvc = lock(endpoint);
-  if (!endpoint_srvc) return ""s;
+  if (!endpoint_srvc) return result;
 
-  return regex_path_service_debug(endpoint_srvc->get_url_path());
+  result.push_back(path_service_debug(endpoint_srvc->get_url_path()));
+
+  return result;
 }
 
 }  // namespace
@@ -55,8 +58,8 @@ HandlerDbServiceDebug::HandlerDbServiceDebug(
     std::weak_ptr<DbServiceEndpoint> endpoint,
     mrs::interface::AuthorizeManager *auth_manager)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              /*regex-path: ^/service/_debug$*/
-              {get_regex_path_service_debug(endpoint)},
+              /* path: /service/_debug */
+              get_path_service_debug(endpoint),
               get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint} {
   auto ep = lock(endpoint_);

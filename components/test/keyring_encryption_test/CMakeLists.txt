@@ -36,6 +36,9 @@ SET(KEYRING_ENCRYPTION_TEST_SOURCE
   # Components subsystem
   components.cc
 
+  # log_builtin component implementation helpers
+  ${CMAKE_SOURCE_DIR}/components/keyrings/common/component_helpers/src/keyring_log_builtins_definition.cc
+
   # Main
   keyring_encryption.cc
 )

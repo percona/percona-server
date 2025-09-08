@@ -26,14 +26,22 @@
 #include "mrs/authentication/mysql_handler.h"
 
 #include <cassert>
+#include <map>
 #include <utility>
 
+#include "mrs/http/error.h"
 #include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace authentication {
+
+namespace {
+static std::mutex s_passthrough_sessions_by_user_mutex;
+static std::map<database::entry::AuthUser::UserId, uint32_t>
+    s_passthrough_sessions_by_user;
+}  // namespace
 
 std::string to_string(const std::set<UniversalId> &ids) {
   std::string result;
@@ -77,6 +85,7 @@ bool MysqlHandler::verify_credential(const Credentials &credentials,
     // This potential problem should be documented.
     pre_authorize_account(this, credentials.user);
 
+    // no password -> no login
     if (credentials.password.empty()) return false;
 
     auto default_auth_user =
@@ -92,12 +101,68 @@ bool MysqlHandler::verify_credential(const Credentials &credentials,
     out_user->app_id = entry_.id;
 
     auto ret = um_.user_get(out_user, out_cache, k_do_not_allow_update);
-    out_user->is_mysql_auth = true;
     out_user->name = credentials.user;
-    out_user->mysql_password = credentials.password;
     return ret;
   } catch (const std::exception &) {
     return false;
+  }
+}
+
+static void on_session_created(const MysqlHandler::SessionPtr &session) {
+  assert(!session->user.user_id.empty());
+
+  std::lock_guard<std::mutex> lck{s_passthrough_sessions_by_user_mutex};
+
+  if (auto it = s_passthrough_sessions_by_user.find(session->user.user_id);
+      it != s_passthrough_sessions_by_user.end()) {
+    const auto max_sessions_per_user =
+        session->owner->configuration().max_passthrough_sessions_per_user;
+
+    if (it->second >= max_sessions_per_user) {
+      // indicate that there's no pool
+      session->db_session_pool.reset();
+
+      log_warning(
+          "Too many open sessions (%u) with passthrough DB pool from user %s ",
+          it->second, session->user.user_id.to_string().c_str());
+      throw http::Error(
+          HttpStatusCode::TooManyRequests,
+          "Account exceeded the concurrent session limit for the service");
+    }
+    it->second += 1;
+  } else {
+    s_passthrough_sessions_by_user[session->user.user_id] = 1;
+  }
+}
+
+static void on_session_destroyed(const MysqlHandler::SessionPtr &session) {
+  if (session->db_session_pool && !session->user.user_id.empty()) {
+    std::lock_guard<std::mutex> lck{s_passthrough_sessions_by_user_mutex};
+    if (auto it = s_passthrough_sessions_by_user.find(session->user.user_id);
+        it != s_passthrough_sessions_by_user.end()) {
+      assert(it->second > 0);
+      it->second -= 1;
+    }
+  }
+}
+
+void MysqlHandler::init_session(const SessionPtr &session,
+                                const Credentials &credentials) {
+  if (session->db_session_pool) {
+    session->owner->on_session_delete = on_session_destroyed;
+
+    on_session_created(session);
+
+    auto config = cache_manager_->get_connection_configuration(
+        collector::kMySQLConnectionUserdataRW);
+
+    try {
+      session->db_session_pool->init(config.provider_, credentials.user,
+                                     credentials.password);
+    } catch (const std::exception &e) {
+      log_error("Could not initialize passthrough session cache: %s", e.what());
+      throw;
+    }
   }
 }
 

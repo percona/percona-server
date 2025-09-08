@@ -74,7 +74,8 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "nulls.h"
-#include "scope_guard.h"         // Scope_guard
+#include "scope_guard.h"  // Scope_guard
+#include "sql-common/json_dom.h"
 #include "sql/auth/auth_acls.h"  // DB_ACLS
 #include "sql/auth/auth_common.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -95,7 +96,8 @@
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/events.h"         // Events
-#include "sql/field.h"          // Field
+#include "sql/external_table_const.h"
+#include "sql/field.h"  // Field
 #include "sql/handler.h"
 #include "sql/item.h"  // Item_empty_string
 #include "sql/key.h"
@@ -1975,6 +1977,329 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
 }
 
 /**
+  Helper function to lookup a specific key in a JSON object and add
+  its numeric value, preceded by the specified prefix, and succeeded
+  by the specified suffix, to the statement string.
+
+  @param packet   Pointer to a string where statement will be written.
+  @param json_obj The JSON object to look for the key.
+  @param prefix   The string to precede the numeric value.
+  @param suffix   The string to succeed the numeric value.
+  @param key_name The name of the key.
+
+  @returns true if error, false otherwise.
+*/
+static bool append_number_option(String *packet, const Json_wrapper &json_obj,
+                                 const char *prefix, const char *suffix,
+                                 std::string_view key_name) {
+  Json_wrapper value = json_obj.lookup(key_name);
+  if (!value.empty()) {
+    packet->append(prefix);
+    packet->append(STRING_WITH_LEN(" "));
+    if (value.to_string(packet, true, "append_number_option()",
+                        JsonDepthErrorHandler)) {
+      return true;
+    }
+    packet->append(STRING_WITH_LEN(" "));
+    packet->append(suffix);
+    packet->append(STRING_WITH_LEN(" "));
+  }
+  return false;
+}
+
+/**
+  Helper function to lookup a specific key in a JSON object and add its
+  boolean value, preceded by the specified SQL keyword, to the statement string.
+
+  @param packet   Pointer to a string where statement will be written.
+  @param json_obj The JSON object to look for the key.
+  @param sql_name The SQL keyword to use.
+  @param key_name The name of the key.
+  @param onoff    Whether the boolean value should be printed as ON/OFF or 1/0.
+*/
+static void append_bool_option(String *packet, const Json_wrapper &json_obj,
+                               const char *sql_name,
+                               const std::string_view key_name,
+                               bool onoff = false) {
+  Json_wrapper bool_value = json_obj.lookup(key_name);
+  if (!bool_value.empty()) {
+    packet->append(sql_name);
+    packet->append(STRING_WITH_LEN(" "));
+    if (bool_value.get_boolean()) {
+      if (onoff) {
+        packet->append(STRING_WITH_LEN("ON"));
+      } else {
+        packet->append(STRING_WITH_LEN("1"));
+      }
+    } else {
+      if (onoff) {
+        packet->append(STRING_WITH_LEN("OFF"));
+      } else {
+        packet->append(STRING_WITH_LEN("0"));
+      }
+    }
+    packet->append(STRING_WITH_LEN(" "));
+  }
+}
+
+/**
+  Helper function to lookup a specific key in a JSON object and add its
+  string value, preceded by the specified SQL keyword, to the statement string.
+
+  @param packet   Pointer to a string where statement will be written.
+  @param json_obj The JSON object to look for the key.
+  @param sql_name The SQL keyword to use.
+  @param key_name The name of the key.
+  @param quotes   Whether the string should be enclosed in quotes.
+*/
+static void append_string_option(String *packet, const Json_wrapper &json_obj,
+                                 const char *sql_name,
+                                 std::string_view key_name,
+                                 bool quotes = true) {
+  Json_wrapper str_value = json_obj.lookup(key_name);
+  if (!str_value.empty()) {
+    packet->append(sql_name);
+    packet->append(STRING_WITH_LEN(" "));
+    if (quotes) {
+      append_unescaped(packet, str_value.get_data(),
+                       str_value.get_data_length());
+    } else {
+      packet->append(str_value.get_data(), str_value.get_data_length());
+    }
+    packet->append(STRING_WITH_LEN(" "));
+  }
+}
+
+/**
+  Generate the FILE_FORMAT table option from the content of ENGINE_ATTRIBUTE
+
+  @param packet          Pointer to a string where statement will be written.
+  @param file_format_obj The dialect object in the ENGINE_ATTRIBUTE.
+
+  @returns true if error, false otherwise.
+*/
+static bool generate_sql_from_file_format_object(
+    String *packet, const Json_wrapper &file_format_obj) {
+  packet->append(STRING_WITH_LEN("FILE_FORMAT = ( "));
+
+  append_string_option(packet, file_format_obj, "FORMAT",
+                       external_table::kFormatParam, false);
+  append_string_option(packet, file_format_obj, "COMPRESSION",
+                       external_table::kCompressionParam);
+  append_string_option(packet, file_format_obj, "CHARACTER SET",
+                       external_table::kEncodingParam);
+  append_bool_option(packet, file_format_obj, "HEADER",
+                     external_table::kHasHeaderParam, true);
+
+  // Check if there is any field options
+  if (file_format_obj.lookup(external_table::kDateFormatParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kTimeFormatParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kTimestampFormatParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kNullValueParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kEmptyValueParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kFieldDelimiterParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kQuotationMarksParam).type() !=
+          enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kEscapeCharacterParam).type() !=
+          enum_json_type::J_ERROR) {
+    packet->append(STRING_WITH_LEN("FIELDS "));
+    append_string_option(packet, file_format_obj, "TERMINATED BY",
+                         external_table::kFieldDelimiterParam);
+    append_string_option(packet, file_format_obj, "OPTIONALLY ENCLOSED BY",
+                         external_table::kQuotationMarksParam);
+    append_string_option(packet, file_format_obj, "ESCAPED BY",
+                         external_table::kEscapeCharacterParam);
+    append_string_option(packet, file_format_obj, "DATE FORMAT",
+                         external_table::kDateFormatParam);
+    append_string_option(packet, file_format_obj, "TIME FORMAT",
+                         external_table::kTimeFormatParam);
+    append_string_option(packet, file_format_obj, "DATETIME FORMAT",
+                         external_table::kTimestampFormatParam);
+    append_string_option(packet, file_format_obj, "NULL AS",
+                         external_table::kNullValueParam);
+    append_string_option(packet, file_format_obj, "EMPTY VALUE",
+                         external_table::kEmptyValueParam);
+  }
+  append_string_option(packet, file_format_obj, "LINES TERMINATED BY",
+                       external_table::kRecordDelimiterParam);
+  if (append_number_option(packet, file_format_obj, "IGNORE", "LINES",
+                           external_table::kSkipRowsParam)) {
+    return true;
+  }
+
+  packet->append(STRING_WITH_LEN(") "));
+  return false;
+}
+
+/**
+  Generate SQL clauses that match the content of ENGINE_ATTRIBUTE
+
+  @param thd             The thread.
+  @param packet          Pointer to a string where statement will be written.
+  @param engine_attr_obj JSON object for the parsed ENGINE_ATTRIBUTE.
+  @param table_name      The name of the table.
+  @param redact_par      Whether URLs for external files should be redacted
+
+  @returns true if error, false otherwise.
+*/
+static bool generate_sql_from_engine_attribute(THD *thd, String *packet,
+                                               Json_object *engine_attr_obj,
+                                               LEX_CSTRING table_name,
+                                               bool redact_par) {
+  auto *file_format_dom = engine_attr_obj->get(external_table::kDialectParam);
+  if (file_format_dom != nullptr &&
+      file_format_dom->json_type() == enum_json_type::J_OBJECT) {
+    Json_wrapper file_format_obj(file_format_dom, true);
+    packet->append(STRING_WITH_LEN(" /*!90400 "));
+
+    bool contains_file_format_options = false;
+    Json_object_wrapper object_wrapper(file_format_obj);
+    for (auto iter = object_wrapper.cbegin(); iter != object_wrapper.cend();
+         ++iter) {
+      if (iter->first != external_table::kIsStrictModeParam &&
+          iter->first != external_table::kConstraintCheckParam &&
+          iter->first != external_table::kAllowMissingParam) {
+        contains_file_format_options = true;
+        break;
+      }
+    }
+    if (contains_file_format_options &&
+        generate_sql_from_file_format_object(packet, file_format_obj)) {
+      return true;
+    }
+
+    append_bool_option(packet, file_format_obj, "STRICT_LOAD",
+                       external_table::kIsStrictModeParam);
+    append_bool_option(packet, file_format_obj, "VERIFY_KEY_CONSTRAINTS",
+                       external_table::kConstraintCheckParam);
+    append_bool_option(packet, file_format_obj, "ALLOW_MISSING_FILES",
+                       external_table::kAllowMissingParam);
+
+    packet->append(STRING_WITH_LEN(" */"));
+
+    // Remove dialect object from ENGINE_ATTRIBUTE unless it is requested to
+    // show the original version
+    if (DBUG_EVALUATE_IF("print_engine_attribute", false, true)) {
+      engine_attr_obj->remove(external_table::kDialectParam);
+    }
+  }
+
+  auto *files_dom = engine_attr_obj->get(external_table::kFileParam);
+  if (files_dom != nullptr &&
+      files_dom->json_type() == enum_json_type::J_ARRAY) {
+    Json_wrapper files_array(files_dom, true);
+
+    // If any of the file specs use Resource Principals
+    // (region/namespace/bucket), output ENGINE_ATTRIBUTE instead
+    // since it is not supported in SQL.
+    bool resource_principals_found = false;
+    for (size_t i = 0; i < files_array.length() && !resource_principals_found;
+         ++i) {
+      for (auto key :
+           {external_table::kRegionParam, external_table::kNamespaceParam,
+            external_table::kBucketParam}) {
+        Json_wrapper val = files_array[i].lookup(key);
+        if (!val.empty()) {
+          resource_principals_found = true;
+          break;
+        }
+      }
+    }
+
+    if (!resource_principals_found) {
+      packet->append(STRING_WITH_LEN(" /*!90400 FILES = ( "));
+
+      bool warning_pushed = false;
+      for (size_t i = 0; i < files_array.length(); ++i) {
+        if (i > 0) {
+          packet->append(", ");
+        }
+        if (redact_par) {
+          Json_wrapper url = files_array[i].lookup(external_table::kParParam);
+          if (url.empty()) {
+            // A PAR added with SQL syntax will not be stored as "uri",
+            // but an explicit ENGINE_ATTRIBUTE may contain a PAR in "uri"
+            url = files_array[i].lookup(external_table::kUriParam);
+          }
+          if (!url.empty()) {
+            packet->append(STRING_WITH_LEN("URL = "));
+            String original_url(url.get_data(), url.get_data_length(),
+                                system_charset_info);
+            String rlb;
+            redact_par_url(original_url, rlb);
+            append_unescaped(packet, rlb.ptr(), rlb.length());
+            packet->append(STRING_WITH_LEN(" "));
+            if (!warning_pushed) {
+              push_warning_printf(
+                  thd, Sql_condition::SL_WARNING, ER_WARN_REDACTED_PRIVILEGES,
+                  ER_THD(thd, ER_WARN_REDACTED_PRIVILEGES), table_name.str);
+              warning_pushed = true;
+            }
+          }
+        } else {
+          append_string_option(packet, files_array[i], "URL",
+                               external_table::kParParam);
+          append_string_option(packet, files_array[i], "URI",
+                               external_table::kUriParam);
+        }
+        append_string_option(packet, files_array[i], "FILE_NAME",
+                             external_table::kNameParam);
+        append_string_option(packet, files_array[i], "FILE_PATTERN",
+                             external_table::kPatternParam);
+        append_string_option(packet, files_array[i], "FILE_PREFIX",
+                             external_table::kPrefixParam);
+
+        append_bool_option(packet, files_array[i], "STRICT_LOAD",
+                           external_table::kIsStrictModeParam);
+        append_bool_option(packet, files_array[i], "ALLOW_MISSING_FILES",
+                           external_table::kAllowMissingParam);
+      }
+      packet->append(STRING_WITH_LEN(") */"));
+
+      // Remove file array from ENGINE_ATTRIBUTE unless it is requested to
+      // show the original version
+      if (DBUG_EVALUATE_IF("print_engine_attribute", false, true)) {
+        engine_attr_obj->remove(external_table::kFileParam);
+      }
+    }
+  }
+
+  auto *auto_refresh_dom = engine_attr_obj->get("auto_refresh");
+  if (auto_refresh_dom != nullptr &&
+      auto_refresh_dom->json_type() == enum_json_type::J_BOOLEAN) {
+    Json_wrapper engine_attr(engine_attr_obj, true);
+    packet->append(STRING_WITH_LEN(" /*!90400 "));
+    append_bool_option(packet, engine_attr, "AUTO_REFRESH", "auto_refresh");
+    packet->append(STRING_WITH_LEN(" */"));
+    if (DBUG_EVALUATE_IF("print_engine_attribute", false, true)) {
+      engine_attr_obj->remove("auto_refresh");
+    }
+  }
+
+  auto *auto_refresh_source_dom =
+      engine_attr_obj->get("auto_refresh_event_source");
+  if (auto_refresh_source_dom != nullptr &&
+      auto_refresh_source_dom->json_type() == enum_json_type::J_STRING) {
+    Json_wrapper engine_attr(engine_attr_obj, true);
+    packet->append(STRING_WITH_LEN(" /*!90400 "));
+    append_string_option(packet, engine_attr, "AUTO_REFRESH_SOURCE",
+                         "auto_refresh_event_source");
+    packet->append(STRING_WITH_LEN(" */"));
+    if (DBUG_EVALUATE_IF("print_engine_attribute", false, true)) {
+      engine_attr_obj->remove("auto_refresh_event_source");
+    }
+  }
+
+  return false;
+}
+
+/**
   Build a CREATE TABLE statement for a table.
 
   @param thd              The thread
@@ -2024,6 +2349,8 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
 
   if (share->tmp_table)
     packet->append(STRING_WITH_LEN("CREATE TEMPORARY TABLE "));
+  else if (share->db_create_options & HA_OPTION_CREATE_EXTERNAL_TABLE)
+    packet->append(STRING_WITH_LEN("CREATE EXTERNAL TABLE "));
   else
     packet->append(STRING_WITH_LEN("CREATE TABLE "));
   if (create_info_arg &&
@@ -2254,12 +2581,54 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     }
 
     // Storage engine specific json attributes
-    if (field->m_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
-      // append escaped JSON
-      append_unescaped(packet, field->m_engine_attribute.str,
-                       field->m_engine_attribute.length);
-      packet->append(STRING_WITH_LEN(" */"));
+    if (field->m_engine_attribute.length > 0) {
+      // If content of ENGINE_ATTRIBUTE is not according to the expectations,
+      // we do not try to generate SQL for it, but show the recorded
+      // ENGINE_ATTRIBUTE, instead.
+      bool engine_attribute_error = false;
+      auto engine_attr = Json_dom::parse(
+          field->m_engine_attribute.str, field->m_engine_attribute.length,
+          [](const char *, size_t) {}, JsonDepthErrorHandler);
+      if (engine_attr != nullptr &&
+          engine_attr->json_type() == enum_json_type::J_OBJECT) {
+        auto *engine_attr_obj = down_cast<Json_object *>(engine_attr.get());
+        std::string json_key;
+        switch (field->type()) {
+          case MYSQL_TYPE_DATE:
+            json_key = "date_format";
+            break;
+          case MYSQL_TYPE_TIME:
+            json_key = "time_format";
+            break;
+          case MYSQL_TYPE_TIMESTAMP:
+          case MYSQL_TYPE_DATETIME:
+            json_key = "timestamp_format";
+            break;
+          default:
+            engine_attribute_error = true;
+        }
+        if (!engine_attribute_error) {
+          auto *format_dom = engine_attr_obj->get(json_key);
+          if (format_dom != nullptr &&
+              format_dom->json_type() == enum_json_type::J_STRING) {
+            auto *format = down_cast<Json_string *>(format_dom);
+            packet->append(STRING_WITH_LEN(" /*!90300 EXTERNAL_FORMAT "));
+            append_unescaped(packet, format->value().data(), format->size());
+            packet->append(STRING_WITH_LEN(" */"));
+          } else {
+            engine_attribute_error = true;
+          }
+        }
+      } else {
+        engine_attribute_error = true;
+      }
+      if (engine_attribute_error ||
+          DBUG_EVALUATE_IF("print_engine_attribute", true, false)) {
+        packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
+        append_unescaped(packet, field->m_engine_attribute.str,
+                         field->m_engine_attribute.length);
+        packet->append(STRING_WITH_LEN(" */"));
+      }
     }
     if (field->m_secondary_engine_attribute.length) {
       packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE "));
@@ -2385,11 +2754,24 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
 
   /**
-    Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
-    This is done only while binlogging CREATE TABLE AS SELECT.
+    Append START TRANSACTION clause for:
+    a. CREATE TABLE AS SELECT if the SE supports atomic DDL.
+    b. CREATE TABLE ... START TRANSACTION
+      - HA_CREATE_INFO::m_transactional_ddl indicates if the table should be
+        created and not committed at the end of the statement. This flag is
+        set for CREATE TABLE ... START TRANSACTION statement only.
+
+    These checks also ensure we do not append 'START TRANSACTION' clause for
+    'SHOW CREATE TABLE' query or the normal 'CREATE TABLE' query without the
+    'START TRANSACTION' clause where the query needs to be rewritten (for eg:
+    adding GIPK information on a table without primary key when
+    sql_generate_invisible_primary_key is enabled).
   */
-  if (!thd->lex->query_block->field_list_is_empty() &&
-      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+  if ((!thd->lex->query_block->field_list_is_empty()  // contains SELECT clause
+       &&
+       (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))  // case a
+      || (create_info_arg && create_info_arg->m_transactional_ddl)    // case b
+  ) {
     packet->append(STRING_WITH_LEN(" START TRANSACTION"));
   }
 
@@ -2617,37 +2999,83 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
                        share->connect_string.length);
     }
     if (share->has_secondary_engine() &&
-        !thd->variables.show_create_table_skip_secondary_engine) {
+        !thd->variables.show_create_table_skip_secondary_engine &&
+        share->tmp_table == NO_TMP_TABLE) {
       packet->append(" SECONDARY_ENGINE=");
       packet->append(share->secondary_engine.str,
                      share->secondary_engine.length);
     }
 
-    if (share->engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE="));
+    if (share->engine_attribute.length > 0) {
+      // Set to true if we need to hide parts of the par url
+      bool redact_par = false;
+      // If only parts of the engine attribute was converted to SQL syntax,
+      // this object will contain what remains to be printed
+      Json_object *engine_attr_obj = nullptr;
+      // Declared here to avoid that the result of the parsing is
+      // deallocated too early.
+      Json_dom_ptr parsed_engine_attr;
 
-      if (for_show_create_stmt &&
-          check_table_access(thd, CREATE_ACL, table_list, false, 1, true) &&
-          check_table_access(thd, ALTER_ACL, table_list, false, 1, true)) {
-        String rlb;
-        String original_query_str(share->engine_attribute.str,
-                                  share->engine_attribute.length,
-                                  system_charset_info);
-        redact_par_url(original_query_str, rlb);
+      if (for_show_create_stmt) {
+        redact_par =
+            check_table_access(thd, CREATE_ACL, table_list, false, 1, true) &&
+            check_table_access(thd, ALTER_ACL, table_list, false, 1, true);
 
-        append_unescaped(packet, rlb.ptr(), rlb.length());
-        // inform users without privileges that the result of SHOW CREATE
-        // TABLE is redacted. Useful for the case of redacted mysqldump
-        // result.
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_WARN_REDACTED_PRIVILEGES,
-            ER_THD(thd, ER_WARN_REDACTED_PRIVILEGES), share->table_name.str);
-
-      } else {
-        append_unescaped(packet, share->engine_attribute.str,
-                         share->engine_attribute.length);
+        parsed_engine_attr = Json_dom::parse(
+            share->engine_attribute.str, share->engine_attribute.length,
+            [](const char *, size_t) {}, JsonDepthErrorHandler);
+        if (parsed_engine_attr != nullptr &&
+            parsed_engine_attr->json_type() == enum_json_type::J_OBJECT) {
+          engine_attr_obj = down_cast<Json_object *>(parsed_engine_attr.get());
+          // We have verified above that engine attribute is a json object
+          assert(engine_attr_obj != nullptr);
+          if (generate_sql_from_engine_attribute(thd, packet, engine_attr_obj,
+                                                 share->table_name,
+                                                 redact_par)) {
+            return true;
+          }
+        }
       }
-      packet->append(STRING_WITH_LEN(" */"));
+      String original_engine_attribute(share->engine_attribute.str,
+                                       share->engine_attribute.length,
+                                       system_charset_info);
+      String *engine_attribute = &original_engine_attribute;
+      String json_buffer;
+      // If we have a JSON object from above, use that instead
+      if (engine_attr_obj != nullptr) {
+        if (engine_attr_obj->cardinality() > 0) {
+          Json_wrapper remaining_attributes(engine_attr_obj, true);
+          if (remaining_attributes.to_string(&json_buffer, true,
+                                             "store_create_info()",
+                                             JsonDepthErrorHandler)) {
+            return true;
+          }
+          engine_attribute = &json_buffer;
+        } else {
+          engine_attribute = nullptr;
+        }
+      }
+      if (engine_attribute != nullptr) {
+        packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE="));
+
+        if (redact_par) {
+          String rlb;
+          redact_par_url(*engine_attribute, rlb);
+
+          append_unescaped(packet, rlb.ptr(), rlb.length());
+          // inform users without privileges that the result of SHOW CREATE
+          // TABLE is redacted. Useful for the case of redacted mysqldump
+          // result.
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING, ER_WARN_REDACTED_PRIVILEGES,
+              ER_THD(thd, ER_WARN_REDACTED_PRIVILEGES), share->table_name.str);
+
+        } else {
+          append_unescaped(packet, engine_attribute->ptr(),
+                           engine_attribute->length());
+        }
+        packet->append(STRING_WITH_LEN(" */"));
+      }
     }
     if (share->secondary_engine_attribute.length) {
       packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE="));
@@ -2808,13 +3236,18 @@ static void view_store_create_info(const THD *thd, Table_ref *table,
   if (!foreign_db_mode) {
     view_store_options(thd, table, buff);
   }
+  if (table->is_json_duality_view()) {
+    buff->append("JSON RELATIONAL DUALITY ");
+  }
   buff->append(STRING_WITH_LEN("VIEW "));
   if (!compact_view_name) {
     append_identifier(thd, buff, table->db, table->db_length);
     buff->append('.');
   }
   append_identifier(thd, buff, table->table_name, table->table_name_length);
-  print_derived_column_names(thd, buff, table->derived_column_names());
+
+  if (!table->is_json_duality_view())
+    print_derived_column_names(thd, buff, table->derived_column_names());
 
   buff->append(STRING_WITH_LEN(" AS "));
 

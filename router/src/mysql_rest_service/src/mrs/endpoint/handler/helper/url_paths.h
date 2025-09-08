@@ -31,34 +31,22 @@
 
 #include "helper/string/contains.h"
 #include "http/base/uri.h"
+#include "http/base/uri_path_matcher.h"
 
 namespace mrs {
 namespace endpoint {
 namespace handler {
 
+const std::string k_openapi_catalog = "/open-api-catalog";
 const std::string k_path_metadata_catalog = "metadata-catalog";
-const std::string k_path_id_or_query =
-    "(/([0-9]|[a-z]|[A-Z]|[-._~!$&'()*+,;=:@%]| )*/?)?";
 const std::string k_metadata = "_metadata";
 const std::string k_debug = "_debug";
 
-inline std::string regex_path_schema_catalog(
-    const std::string &service_schema_path) {
+inline auto path_schema_catalog(const std::string &service_schema_path) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + "/"s + k_path_metadata_catalog + "/?$"s;
-}
 
-inline std::string url_obj_metadata_catalog(const ::http::base::Uri &uri,
-                                            std::string obj_name) {
-  using namespace std::string_literals;
-  auto result = uri;
-
-  result.get_path_elements().push_back(k_path_metadata_catalog);
-  if (!obj_name.empty()) {
-    if (obj_name[0] == '/') obj_name.erase(obj_name.begin());
-  }
-  result.get_path_elements().push_back(obj_name);
-  return result.join();
+  return ::http::base::UriPathMatcher{
+      service_schema_path + "/"s + k_path_metadata_catalog, false, true};
 }
 
 inline std::string url_sch_metadata_catalog(const ::http::base::Uri &uri) {
@@ -67,102 +55,97 @@ inline std::string url_sch_metadata_catalog(const ::http::base::Uri &uri) {
   return u.join();
 }
 
-inline std::string regex_path_obj_metadata_catalog(
-    const std::string &service_schema_path, const std::string &obj_name) {
-  const std::string k_metadata_catalog = "/metadata-catalog";
+inline auto path_service_debug(const std::string &service_path) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + k_metadata_catalog + obj_name + "/?$"s;
+
+  return ::http::base::UriPathMatcher{service_path + "/"s + k_debug, false,
+                                      true};
 }
 
-inline std::string regex_path_service_debug(const std::string &service_path) {
+inline auto path_service_metadata(const std::string &service_path) {
   using namespace std::string_literals;
-  return "^"s + service_path + "/"s + k_debug + "/?$"s;
+
+  return ::http::base::UriPathMatcher{service_path + "/"s + k_metadata, false,
+                                      true};
 }
 
-inline std::string regex_path_service_metadata(
-    const std::string &service_path) {
+inline auto path_schema_metadata(const std::string &service_schema_path) {
   using namespace std::string_literals;
-  return "^"s + service_path + "/"s + k_metadata + "/?$"s;
+
+  return ::http::base::UriPathMatcher{service_schema_path + "/"s + k_metadata,
+                                      false, true};
 }
 
-inline std::string regex_path_schema_metadata(
+inline auto path_object_metadata(const std::string &service_schema_path,
+                                 const std::string &obj_name) {
+  using namespace std::string_literals;
+
+  return ::http::base::UriPathMatcher{
+      service_schema_path + obj_name + "/"s + k_metadata, false, true};
+}
+
+inline auto path_obj_openapi_swagger(const std::string &service_schema_path,
+                                     const std::string &obj_name) {
+  using namespace std::string_literals;
+
+  return ::http::base::UriPathMatcher{
+      service_schema_path + k_openapi_catalog + obj_name, false, true};
+}
+
+inline auto path_schema_openapi_swagger(
     const std::string &service_schema_path) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + "/"s + k_metadata + "/?$"s;
+
+  return ::http::base::UriPathMatcher{service_schema_path + k_openapi_catalog,
+                                      false, true};
 }
 
-inline std::string regex_path_object_metadata(
-    const std::string &service_schema_path, const std::string &obj_name) {
+inline auto path_schema_openapi_swagger_alias(const std::string &service_name,
+                                              const std::string &schema_name) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + obj_name + "/"s + k_metadata + "/?$"s;
+
+  return ::http::base::UriPathMatcher{
+      "/"s + service_name + k_openapi_catalog + "/" + schema_name, false, true};
 }
 
-inline std::string regex_path_obj_openapi_swagger(
-    const std::string &service_schema_path, const std::string &obj_name) {
-  const std::string k_openapi_catalog = "/open-api-catalog";
+inline auto path_service_openapi_swagger(const std::string &service_path) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + k_openapi_catalog + obj_name + "/?$"s;
+
+  return ::http::base::UriPathMatcher{service_path + k_openapi_catalog, false,
+                                      true};
 }
 
-inline std::string regex_path_schema_openapi_swagger(
-    const std::string &service_schema_path) {
-  const std::string k_openapi_catalog = "/open-api-catalog";
+inline auto path_db_object_with_index(const std::string &object_path,
+                                      const std::string &service_schema_path,
+                                      const bool is_index) {
   using namespace std::string_literals;
-  return "^"s + service_schema_path + k_openapi_catalog + "/?$"s;
-}
-
-inline std::string regex_path_schema_openapi_swagger_alias(
-    const std::string &service_name, const std::string &schema_name) {
-  const std::string k_openapi_catalog = "/open-api-catalog";
-  using namespace std::string_literals;
-  return "^/"s + service_name + k_openapi_catalog + "/" + schema_name + "/?$"s;
-}
-
-inline std::string regex_path_service_openapi_swagger(
-    const std::string &service_path) {
-  const std::string k_openapi_catalog = "/open-api-catalog";
-  using namespace std::string_literals;
-  return "^"s + service_path + k_openapi_catalog + "/?$"s;
-}
-
-inline std::string regex_path_db_object(const std::string &object_path) {
-  using namespace std::string_literals;
-  return "^"s + object_path + k_path_id_or_query + "$"s;
-}
-
-inline std::vector<std::string> regex_path_db_object_with_index(
-    const std::string &object_path, const std::string &service_schema_path,
-    const bool is_index) {
-  using namespace std::string_literals;
-  std::vector<std::string> result{"^"s + object_path + k_path_id_or_query +
-                                  "$"s};
+  std::vector<::http::base::UriPathMatcher> result{{object_path, true, false}};
 
   if (is_index) {
     // When the url path is empty, its root path, which
     // http plugin processes as "", instead "/".
     if (service_schema_path.empty())
-      result.push_back("^"s + service_schema_path + "$"s);
+      result.emplace_back(service_schema_path, false, false);
     else
-      result.push_back("^"s + service_schema_path + "/$"s);
+      result.emplace_back(service_schema_path + "/", false, false);
   }
 
   return result;
 }
 
-inline std::vector<std::string> regex_path_file(std::string service_schema_path,
-                                                const std::string &object_path,
-                                                bool is_index) {
+inline auto path_file(std::string service_schema_path,
+                      const std::string &object_path, bool is_index) {
   using namespace std::string_literals;
-  std::vector<std::string> result{
-      {"^"s + service_schema_path + object_path + "$"s}};
+  std::vector<::http::base::UriPathMatcher> result{
+      {service_schema_path + object_path, false, false}};
 
   if (is_index) {
-    // When the url path is empty, its root path, which
+    // When the url path is empty, it's root path, which
     // http plugin processes as "", instead "/".
     if (service_schema_path.empty())
-      result.push_back("^"s + service_schema_path + "$"s);
+      result.emplace_back(service_schema_path, false, false);
     else
-      result.push_back("^"s + service_schema_path + "/$"s);
+      result.emplace_back(service_schema_path + "/", false, false);
   }
 
   return result;
@@ -174,10 +157,9 @@ inline std::string remove_leading_slash_from_path(const std::string &path) {
   return {};
 }
 
-inline std::vector<std::string> regex_path_content_file(
-    const std::string &service_schema_path) {
-  return regex_path_file(service_schema_path, "",
-                         helper::ends_with(service_schema_path, "/index.html"));
+inline auto path_content_file(const std::string &service_schema_path) {
+  return path_file(service_schema_path, "",
+                   helper::ends_with(service_schema_path, "/index.html"));
 }
 
 }  // namespace handler

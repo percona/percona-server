@@ -70,6 +70,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/json_duality_view/dml.h"
 #include "sql/key.h"
 #include "sql/lock.h"  // mysql_unlock_tables
 #include "sql/locked_tables_list.h"
@@ -503,6 +504,18 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
   Query_block *const query_block = lex->query_block;
 
   Table_ref *const table_list = lex->insert_table;
+
+  if (table_list->is_json_duality_view()) {
+    if (lex->is_explain()) {
+      auto plan = Modification_plan(thd, MT_INSERT,
+                                    jdv_root_base_table(table_list)->table,
+                                    nullptr, false, 0);
+      return explain_single_table_modification(thd, thd, &plan, query_block);
+    }
+
+    return jdv::jdv_insert(thd, table_list, insert_many_values);
+  }
+
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
   if (duplicates == DUP_UPDATE || duplicates == DUP_REPLACE)
@@ -1100,6 +1113,13 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (!select->first_execution && table_list->is_merged() &&
         fix_join_cond_for_insert(thd, table_list))
       return true; /* purecov: inspected */
+
+    if (table_list->is_json_duality_view()) {
+      // Skipping other checks for JSON duality view top level INSERT operation.
+      if (jdv::jdv_prepare_insert(thd, table_list, this)) {
+        return true;
+      }
+    }
   }
 
   /*
@@ -1119,7 +1139,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     return true;
   }
 
-  if (insert_into_view && column_count == 0) {
+  if (insert_into_view && column_count == 0 &&
+      !table_list->is_json_duality_view()) {
     if (table_list->is_multiple_tables()) {
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0), table_list->db,
                table_list->table_name);
@@ -1153,17 +1174,21 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
           select->having_cond() == nullptr && !select->has_limit()));
 
   // Prepare the lists of columns and values in the statement.
+  TABLE *insert_table = nullptr;
+  table_map map = 0;
+  uint field_count = 1;
+  if (!table_list->is_json_duality_view()) {
+    if (check_insert_fields(thd, table_list, &insert_field_list)) return true;
 
-  if (check_insert_fields(thd, table_list, &insert_field_list)) return true;
+    lex->insert_table_leaf->set_inserted();
+    if (duplicates == DUP_REPLACE) lex->insert_table_leaf->set_deleted();
+    if (duplicates == DUP_UPDATE) lex->insert_table_leaf->set_updated();
 
-  lex->insert_table_leaf->set_inserted();
-  if (duplicates == DUP_REPLACE) lex->insert_table_leaf->set_deleted();
-  if (duplicates == DUP_UPDATE) lex->insert_table_leaf->set_updated();
+    insert_table = lex->insert_table_leaf->table;
 
-  TABLE *const insert_table = lex->insert_table_leaf->table;
-
-  uint field_count = insert_field_list.size();
-  const table_map map = lex->insert_table_leaf->map();
+    field_count = insert_field_list.size();
+    map = lex->insert_table_leaf->map();
+  }
 
   uint value_list_counter = 0;
   for (const List_item *values : insert_many_values) {
@@ -1204,6 +1229,9 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     for (Item *item : *values) {
       if (!item->const_for_execution()) values_need_privilege_check = true;
     }
+    if (table_list->is_json_duality_view()) {
+      continue;
+    }
 
     if (check_valid_table_refs(table_list, *values, map))
       return true; /* purecov: inspected */
@@ -1212,6 +1240,10 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
          insert_table->gen_def_fields_ptr != nullptr) &&
         validate_gc_assignment(insert_field_list, *values, insert_table))
       return true;
+  }
+  if (table_list->is_json_duality_view()) {
+    unit->set_prepared();
+    return false;
   }
 
   /*

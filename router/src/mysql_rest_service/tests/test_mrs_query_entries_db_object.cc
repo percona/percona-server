@@ -26,10 +26,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "helper/make_shared_ptr.h"
-
 #include "mrs/database/entry/db_object.h"
 #include "mrs/database/query_entries_db_object.h"
+#include "mysql/harness/make_shared_ptr.h"
 
 #include "mock/mock_query_entry_fields.h"
 #include "mock/mock_query_entry_group_row_security.h"
@@ -38,6 +37,7 @@
 #include "mock/mock_session.h"
 
 using mrs::database::QueryEntriesDbObject;
+using mysql_harness::MakeSharedPtr;
 using testing::_;
 using testing::InSequence;
 using testing::Invoke;
@@ -80,13 +80,11 @@ class QueryEntriesDbObjectTests : public Test {
         .RetiresOnSaturation();
   }
 
-  helper::MakeSharedPtr<StrictMock<MockQueryEntryObject>>
-      mock_query_entry_object;
-  helper::MakeSharedPtr<StrictMock<MockQueryEntryFields>>
-      mock_query_entry_fields;
-  helper::MakeSharedPtr<StrictMock<MockQueryEntryGroupRowSecurity>>
+  MakeSharedPtr<StrictMock<MockQueryEntryObject>> mock_query_entry_object;
+  MakeSharedPtr<StrictMock<MockQueryEntryFields>> mock_query_entry_fields;
+  MakeSharedPtr<StrictMock<MockQueryEntryGroupRowSecurity>>
       mock_query_group_sec;
-  helper::MakeSharedPtr<StrictMock<MockQueryEntryFields>> mock_query_fields;
+  MakeSharedPtr<StrictMock<MockQueryEntryFields>> mock_query_fields;
   StrictMock<MockQueryFactory> mock_query_factory;
   StrictMock<MockMySQLSession> mock_session;
   QueryEntriesDbObject sut_{mrs::interface::kSupportedMrsMetadataVersion_2,

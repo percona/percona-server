@@ -1337,6 +1337,12 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
     memset(&comment, 0, sizeof(comment));
   }
 
+  if (field_type == MYSQL_TYPE_TIME || field_type == MYSQL_TYPE_DATETIME ||
+      field_type == MYSQL_TYPE_TIMESTAMP) {
+    /* The old temporal types are no longer supported in FRM file. */
+    return 10;
+  }
+
   if (interval_nr && charset->mbminlen > 1) {
     /* Unescape UCS2 intervals from HEX notation */
     TYPELIB *interval = share->intervals + interval_nr - 1;
@@ -2696,6 +2702,8 @@ bool unpack_value_generator(THD *thd, TABLE *table,
 
   const CHARSET_INFO *save_character_set_client =
       thd->variables.character_set_client;
+  thd->variables.character_set_client = system_charset_info;
+  thd->update_charset();
   // Subquery is not allowed in generated expression
   const bool save_allows_subquery = thd->lex->expr_allows_subquery;
   thd->lex->expr_allows_subquery = false;
@@ -2732,6 +2740,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
     thd->stmt_arena = save_stmt_arena_ptr;
     thd->swap_query_arena(save_arena, &val_generator_arena);
     thd->variables.character_set_client = save_character_set_client;
+    thd->update_charset();
     thd->want_privilege = save_old_privilege;
     thd->lex->expr_allows_subquery = save_allows_subquery;
   };
@@ -2918,8 +2927,15 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
          key_part < key_part_end; key_part++) {
       Field *field = key_part->field = table->field[key_part->fieldnr - 1];
 
+      /*
+        For spatial indexes, the key parts are assigned the length (4 *
+        sizeof(double)) in prepare_key_column() and the field->key_length() is
+        set to 0. This makes it appear like a prefixed index. However, prefixed
+        indexes are not allowed on Geometric columns. Hence skipping new field
+        creation for Geometric columns.
+      */
       if (field->key_length() != key_part->length &&
-          !field->is_flag_set(BLOB_FLAG)) {
+          field->type() != MYSQL_TYPE_GEOMETRY) {
         /*
           We are using only a prefix of the column as a key:
           Create a new field for the key part that matches the index
@@ -2961,6 +2977,7 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
   @retval 4    Error (see open_table_error)
   @retval 7    Table definition has changed in engine
   @retval 8    Table row format has changed in engine
+  @retval 10   Error (see open_table_error)
 */
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
@@ -3439,6 +3456,34 @@ int closefrm(TABLE *table, bool free_share) {
   if (table->db_stat) error = table->file->ha_close();
   my_free(const_cast<char *>(table->alias));
   table->alias = nullptr;
+
+  /*
+    Iterate through the Table's Key_info and free its key_part->field if the
+    field is of BLOB type.
+
+    When a prefixed key is present, a new Field object is created in
+    create_key_part_field_with_prefix_length(). These field objects get
+    destroyed when the Table's mem_root is cleared here later. In case of
+    Field_blob objects, Field_blob::value is allocated on the heap. Thus
+    Field_blob objects are freed here in order to destruct the Field_blob::value
+    object.
+  */
+  KEY *key_info = table->key_info;
+  if (key_info) {
+    KEY_PART_INFO *key_part = key_info->key_part;
+    for (KEY *key_info_end = key_info + table->s->keys; key_info < key_info_end;
+         key_info++) {
+      for (KEY_PART_INFO *key_part_end = key_part + key_info->actual_key_parts;
+           key_part < key_part_end; key_part++) {
+        if (key_part->field && key_part->field->is_flag_set(BLOB_FLAG) &&
+            key_part->field->type() != MYSQL_TYPE_GEOMETRY) {
+          ::destroy_at(key_part->field);
+          key_part->field = nullptr;
+        }
+      }
+    }
+  }
+
   if (table->field) {
     for (Field **ptr = table->field; *ptr; ptr++) {
       if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);
@@ -3566,6 +3611,12 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
       ::destroy_at(file);
       break;
     }
+    case 10:
+      /*
+       * Old unsupported temporal types used. Let calling NDB code do error and
+       * logging.
+       */
+      break;
     default: /* Better wrong error than none */
     case 4:
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
@@ -4308,10 +4359,9 @@ void TABLE::reset() {
   memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
   insert_values = nullptr;
   autoinc_field_has_explicit_non_null_value = false;
-
   file->ft_handler = nullptr;
-
   pos_in_table_list = nullptr;
+  m_bytes_per_row = nullptr;
 }
 
 /**
@@ -8268,7 +8318,7 @@ const histograms::Histogram *TABLE::find_histogram(uint field_index) const {
   @retval  false  Success
 
   @retval  0      Sucess
-  @retval  -1     Error
+  @retval  >0,-1  Error
   @retval  -2     Less severe error, file can safely be ignored (used for
                   ndbinfo tables when ndbinfo storage engine is not enabled)
 */
@@ -8279,6 +8329,7 @@ static int read_frm_file(THD *thd, TABLE_SHARE *share, FRM_context *frm_context,
   uchar head[64];
   char path[FN_REFLEN + 1];
   MEM_ROOT **root_ptr, *old_root;
+  int error = -1;
 
   strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
   const LEX_STRING pathstr = {path, strlen(path)};
@@ -8309,7 +8360,6 @@ static int read_frm_file(THD *thd, TABLE_SHARE *share, FRM_context *frm_context,
         mysql_file_close(file, MYF(MY_WME));
         return 0;
       }
-      int error;
       root_ptr = THR_MALLOC;
       old_root = *root_ptr;
       *root_ptr = &share->mem_root;
@@ -8319,6 +8369,10 @@ static int read_frm_file(THD *thd, TABLE_SHARE *share, FRM_context *frm_context,
       *root_ptr = old_root;
       if (error == 9) {
         goto ignore_file;
+      }
+      if (error == 10) {
+        // Let caller do error and logging
+        goto err;
       }
       if (error) {
         LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
@@ -8359,7 +8413,7 @@ static int read_frm_file(THD *thd, TABLE_SHARE *share, FRM_context *frm_context,
 
 err:
   mysql_file_close(file, MYF(MY_WME));
-  return -1;
+  return error;
 
 ignore_file:
   mysql_file_close(file, MYF(MY_WME));
@@ -8478,5 +8532,17 @@ bool assert_invalid_stats_is_locked(const TABLE *table) {
   return true;
 }
 #endif
+
+/**
+  Returns the Table_ref of the root (outermost) base table of the JDV.
+
+  @param view to get base table for
+  @return Table_ref of base table
+ */
+const Table_ref *jdv_root_base_table(const Table_ref *view) {
+  assert(view != nullptr && view->is_json_duality_view() &&
+         view->jdv_content_tree != nullptr);
+  return view->jdv_content_tree->table_ref();
+}
 
 //////////////////////////////////////////////////////////////////////////

@@ -102,19 +102,17 @@ set @basic2_t3_id=@db_object_id;
 
 --source ../include/mrs/end_object_definition.inc
 
---echo no links
+--echo # no links
 --let $mrs_client_arg_path='/svc/basic2/t1/1'
 --source ../include/mrs/mrs_client.inc
 
---echo no links
+--echo # no links
 --let $mrs_client_arg_path='/svc/basic2/t2/1'
 --source ../include/mrs/mrs_client.inc
 
---echo with links
+--echo # with links
 --let $mrs_client_arg_path='/svc/basic2/t3/1'
 --source ../include/mrs/mrs_client.inc
-
---source ../include/mrs/changes/fetch_object.inc
 
 --echo ### change schema and object options
 --let $mrs_sql_id_variable=@basic2_id
@@ -124,24 +122,24 @@ set @basic2_t3_id=@db_object_id;
 --let $mrs_sql_id_variable=@basic2_t3_id
 --let $mrs_modify_options='{"result": {"includeLinks": false}}'
 --source ../include/mrs/db_object/modify_options.inc
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
 
---echo with links
+--echo # with links schema-true
 --let $mrs_client_arg_path='/svc/basic2/t1/1'
 --source ../include/mrs/mrs_client.inc
 
---echo with links
+--echo # with links schema-true
 --let $mrs_client_arg_path='/svc/basic2/t2/1'
 --source ../include/mrs/mrs_client.inc
 
---echo with links
+--echo # with links object-false
 --let $mrs_client_arg_path='/svc/basic2/t3/1'
 --source ../include/mrs/mrs_client.inc
 
 # drop objects so that 500 responses are triggered
 drop schema basic_schema;
 
---echo 500 with error
+--echo # 500 with error
 --let $mrs_client_arg_path='/svc/basic/t1'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -158,7 +156,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo 500 with error
+--echo # 500 with error
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -175,7 +173,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo no error
+--echo # no error
 --let $mrs_client_arg_path='/svc/basic/t3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -194,16 +192,15 @@ drop schema basic_schema;
 
 ## check propagation after changes
 
---source ../include/mrs/changes/fetch_object.inc
 
 --echo ### change schema options
 --let $mrs_modify_options='{}'
 --let $mrs_sql_id_variable=@basic_id
 --source ../include/mrs/db_schema/modify_options.inc
 
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
 
---echo 500 with error
+--echo # 500 with error
 --let $mrs_client_arg_path='/svc/basic/t1'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -220,7 +217,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo 500 with error
+--echo # 500 with error
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -237,7 +234,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo with no error
+--echo # with no error
 --let $mrs_client_arg_path='/svc/basic/t3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -253,17 +250,14 @@ drop schema basic_schema;
 --let $mrs_client_arg_path='/svc/basic/func3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
-
-
---source ../include/mrs/changes/fetch_object.inc
 
 --echo ### change service options
 --let $mrs_modify_options='{"returnInternalErrorDetails": false}'
 --source ../include/mrs/service/modify_options.inc
 
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
 
---echo 500 with no error
+--echo # 500 with no error
 --let $mrs_client_arg_path='/svc/basic/t1'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -280,7 +274,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo 500 with no error
+--echo # 500 with no error
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -297,7 +291,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo with no error
+--echo # with no error
 --let $mrs_client_arg_path='/svc/basic/t3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -313,9 +307,6 @@ drop schema basic_schema;
 --let $mrs_client_arg_path='/svc/basic/func3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
-
-
---source ../include/mrs/changes/fetch_object.inc
 
 --echo ### change object options
 --let $mrs_sql_id_variable=@basic_t3_id
@@ -330,9 +321,9 @@ drop schema basic_schema;
 --let $mrs_modify_options='{"returnInternalErrorDetails": true}'
 --source ../include/mrs/db_object/modify_options.inc
 
---source ../include/mrs/changes/wait_object.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
 
---echo 500 with no error
+--echo # 500 with no error
 --let $mrs_client_arg_path='/svc/basic/t1'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -349,7 +340,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo 500 with no error
+--echo # 500 with no error
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
@@ -366,7 +357,7 @@ drop schema basic_schema;
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc
 
---echo with error
+--echo # with error
 --let $mrs_client_arg_path='/svc/basic/t3'
 --let $mrs_client_arg_expected_status=InternalError
 --source ../include/mrs/mrs_client.inc

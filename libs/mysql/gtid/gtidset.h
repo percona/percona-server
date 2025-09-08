@@ -33,7 +33,6 @@
 #include "mysql/gtid/gtid.h"
 #include "mysql/gtid/tag.h"
 #include "mysql/gtid/tsid.h"
-#include "mysql/utils/nodiscard.h"
 
 /// @addtogroup GroupLibsMysqlGtid
 /// @{
@@ -249,9 +248,9 @@ class Gtid_set {
   using Tsid = mysql::gtid::Tsid;
 
  protected:
-  [[NODISCARD]] virtual bool do_add(const Tsid &tsid,
+  [[nodiscard]] virtual bool do_add(const Tsid &tsid,
                                     const Gno_interval &interval);
-  [[NODISCARD]] virtual bool do_add(const Uuid &uuid, const Tag &tag,
+  [[nodiscard]] virtual bool do_add(const Uuid &uuid, const Tag &tag,
                                     const Gno_interval &interval);
 
  public:
@@ -310,7 +309,7 @@ class Gtid_set {
    * @return true if the there was an error adding the interval, false
    * otherwise.
    */
-  [[NODISCARD]] virtual bool add(const Tsid &tsid,
+  [[nodiscard]] virtual bool add(const Tsid &tsid,
                                  const Gno_interval &interval);
 
   /**

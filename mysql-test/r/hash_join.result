@@ -2529,7 +2529,7 @@ ANALYZE TABLE build, probe;
 Table	Op	Msg_type	Msg_text
 test.build	analyze	status	OK
 test.probe	analyze	status	OK
-SET optimizer_switch = "materialization=off";
+SET optimizer_switch = "materialization=off,loosescan=off";
 SET join_buffer_size = 1024;
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
 EXPLAIN

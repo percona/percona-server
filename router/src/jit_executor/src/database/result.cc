@@ -26,6 +26,7 @@
 #include "database/result.h"
 
 #include <cstdlib>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -124,7 +125,7 @@ static const char *fieldtype2str(enum enum_field_types type) {
 
 // MYSQL-SERVER-CODE (slightly modified) mysql.c:3402
 static std::string fieldflags2str(unsigned int f) {
-  std::stringstream s;
+  std::ostringstream s;
 
 #define ff2s_check_flag(X) \
   if (f & X##_FLAG) {      \

@@ -39,13 +39,16 @@ using Authorization = mrs::rest::Handler::Authorization;
 
 namespace {
 
-auto get_regex_path_schema_metadata(std::weak_ptr<DbSchemaEndpoint> endpoint) {
+auto get_path_schema_metadata(std::weak_ptr<DbSchemaEndpoint> endpoint) {
   using namespace std::string_literals;
+  std::vector<::http::base::UriPathMatcher> result;
 
   auto endpoint_sch = lock(endpoint);
-  if (!endpoint_sch) return ""s;
+  if (!endpoint_sch) return result;
 
-  return regex_path_schema_metadata(endpoint_sch->get_url_path());
+  result.push_back(path_schema_metadata(endpoint_sch->get_url_path()));
+
+  return result;
 }
 
 }  // namespace
@@ -54,8 +57,8 @@ HandlerDbSchemaMetadata::HandlerDbSchemaMetadata(
     std::weak_ptr<DbSchemaEndpoint> endpoint,
     mrs::interface::AuthorizeManager *auth_manager)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              /*regex-path: ^/service/schema/_metadata$*/
-              {get_regex_path_schema_metadata(endpoint)},
+              /* path: /service/schema/_metadata */
+              get_path_schema_metadata(endpoint),
               get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint} {
   auto ep = lock(endpoint_);

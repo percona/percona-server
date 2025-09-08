@@ -183,6 +183,7 @@ void *parser_service_start_routine(void *arg) {
     (tt->m_fun)(tt->m_arg);
 
     trans_commit_stmt(thd);
+    trans_commit(thd);
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
     close_mysql_tables(thd);

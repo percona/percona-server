@@ -32,6 +32,7 @@
 
 #include <rapidjson/document.h>
 
+#include <optional>
 #include <string_view>
 
 #include "mrs/database/entry/db_object.h"
@@ -60,13 +61,15 @@ constexpr std::string_view k_openapi_version{"3.1.0"};
  * @param[in] privileges User privileges
  * @param[in] entry DBobject entry
  * @param[in] url path used by DBobject entry
+ * @param[in] is_async BDobject supports async operations
  * @param[in] allocator JSON allocator that is used to create OpenAPI swagger.
  *
  * @return OpenAPI paths JSON.
  */
 rapidjson::Value get_route_openapi_schema_path(
     const std::optional<uint32_t> privileges, DbObjectPtr entry,
-    const std::string &url, rapidjson::Document::AllocatorType &allocator);
+    const std::string &url, const bool is_async,
+    rapidjson::Document::AllocatorType &allocator);
 
 /**
  * Create OpenAPI components section containing security schemes and schemas
@@ -152,6 +155,29 @@ std::vector<R *> sort_children_by_request_path(
 
   return result;
 }
+
+/**
+ * Check if asynchronous tasks are enabled in options.
+ *
+ * @param[in] options Options configured for the endpoint
+ *
+ * @return information if async operations are enabled
+ */
+bool async_enabled(const std::optional<std::string> &options);
+
+/**
+ * Add specification related to endpoint responsible for async operations
+ * (located at /service/schema/object/{taskId}).
+ *
+ * @param[in] privileges User privileges
+ * @param[in] entry DBobject entry
+ * @param[in] allocator JSON allocator that is used to create OpenAPI swagger.
+ *
+ * @return OpenAPI paths JSON.
+ */
+rapidjson::Value add_task_id_endpoint(
+    const std::optional<uint32_t> privileges, DbObjectPtr entry,
+    rapidjson::Document::AllocatorType &allocator);
 
 }  // namespace rest
 }  // namespace mrs

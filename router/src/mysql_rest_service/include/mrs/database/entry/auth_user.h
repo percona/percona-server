@@ -36,7 +36,6 @@
 #include "mrs/database/entry/auth_privilege.h"
 #include "mrs/database/entry/universal_id.h"
 #include "mysql/harness/logging/logging.h"
-#include "secure_string.h"  // NOLINT(build/include_subdir)
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -119,9 +118,6 @@ struct AuthUser {
   std::vector<AuthPrivilege> privileges;
   std::set<UniversalId> groups;
   std::string options;
-
-  bool is_mysql_auth{false};
-  mysql_harness::SecureString mysql_password;
 };
 
 inline std::string to_string(const AuthUser &ud) {

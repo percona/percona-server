@@ -75,7 +75,6 @@ dict_index_t *dict_ind_redundant;
 extern uint ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-#include <algorithm>
 #include <vector>
 
 #include "btr0btr.h"
@@ -95,7 +94,6 @@ extern uint ibuf_debug;
 #endif /* !UNIV_HOTBACKUP */
 #include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
-#include "fts0fts.h"
 #include "fts0types.h"
 #include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -1258,10 +1256,6 @@ void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
 
   dict_sys->size +=
       mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
-  DBUG_EXECUTE_IF(
-      "dd_upgrade", if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
-        ib::info(ER_IB_MSG_176) << "Adding table to cache: " << table->name;
-      });
 }
 
 /** Test whether a table can be evicted from the LRU cache.
@@ -2411,9 +2405,9 @@ static void dict_index_try_cache_rec_offsets(dict_index_t *index) {
   This is not an assert crucial for correctness. It's just to show that there's
   no obvious regression w.r.t intrinsic tables. */
   if (index->table->is_intrinsic() && index->n_uniq != n_unique_in_tree) {
-    ut_a(index->n_uniq == n_unique_in_tree - 1);
+    ut_a(index->n_uniq == n_unique_in_tree - 1U);
     ut_a(!index->is_clustered());
-    ut_a(index->get_field(n_unique_in_tree - 1)->fixed_len);
+    ut_a(index->get_field(n_unique_in_tree - 1U)->fixed_len);
   }
 #endif
   for (size_t i = 0; i < n_unique_in_tree; i++) {
@@ -2678,7 +2672,7 @@ static void dict_index_remove_from_cache_low(
       !index->table->discard_after_ddl) {
     index_id_t id(index->space, index->id);
     mutex_enter(&page_zip_stat_per_index_mutex);
-    page_zip_stat_per_index.erase(id);
+    page_zip_stat_per_index[id].dropped = true;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
 

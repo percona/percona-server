@@ -70,7 +70,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0lob.h"
 #include "lock0lock.h"
 #include "mtr0log.h"
-#include "row0upd.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 #include "page0zip.h"

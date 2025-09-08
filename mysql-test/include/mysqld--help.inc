@@ -23,7 +23,8 @@ perl;
                pid-file slow-query-log-file
                language lc-messages-dir
                datadir replica-load-tmpdir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
-               tls-version admin-tls-version secure-file-priv temptable-max-ram/;
+               tls-version admin-tls-version secure-file-priv temptable-max-ram
+               external-table-storage-engine external-table-secondary-storage-engine/;
 
   # Variables which we don't want to display in result file since
   # they depend on type of build

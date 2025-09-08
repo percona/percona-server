@@ -188,7 +188,7 @@ class Item_func_md5 final : public Item_str_ascii_func {
   String tmp_value;
 
  public:
-  Item_func_md5(const POS &pos, Item *a) : Item_str_ascii_func(pos, a) {}
+  Item_func_md5(const POS &pos, Item *a);
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "md5"; }
@@ -196,7 +196,7 @@ class Item_func_md5 final : public Item_str_ascii_func {
 
 class Item_func_sha : public Item_str_ascii_func {
  public:
-  Item_func_sha(const POS &pos, Item *a) : Item_str_ascii_func(pos, a) {}
+  Item_func_sha(const POS &pos, Item *a);
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "sha"; }
@@ -216,6 +216,7 @@ class Item_func_to_base64 final : public Item_str_ascii_func {
 
  public:
   Item_func_to_base64(const POS &pos, Item *a) : Item_str_ascii_func(pos, a) {}
+  explicit Item_func_to_base64(Item *a) : Item_str_ascii_func(a) {}
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "to_base64"; }
@@ -269,7 +270,7 @@ class Item_func_statement_digest_text final : public Item_str_func {
   uchar *m_token_buffer{nullptr};
 };
 
-class Item_func_from_base64 final : public Item_str_func {
+class Item_func_from_base64 : public Item_str_func {
   String tmp_value;
 
  public:
@@ -407,6 +408,31 @@ class Item_func_concat_ws : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "concat_ws"; }
+};
+
+/**
+  This class represents the function ETAG which is used to traverse the input
+  arguments and compute a 128 bits hash value.
+ */
+class Item_func_etag : public Item_str_func {
+  String m_tmp_value{"", 0, collation.collation};
+
+ public:
+  Item_func_etag(const POS &pos, PT_item_list *opt_list)
+      : Item_str_func(pos, opt_list) {}
+  Item_func_etag(Item *a, Item *b) : Item_str_func(a, b) {}
+
+  String *val_str(String *) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "etag"; }
+  bool check_function_as_value_generator(uchar *checker_args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
+    func_arg->banned_function_name = func_name();
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
+  }
 };
 
 class Item_func_reverse : public Item_str_func {
@@ -1156,7 +1182,7 @@ class Item_func_set_collation final : public Item_str_func {
   bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
-  bool eq_specific(const Item *item) const override;
+  bool eq(const Item *item) const override;
   const char *func_name() const override { return "collate"; }
   enum Functype functype() const override { return COLLATE_FUNC; }
   void print(const THD *thd, String *str,
@@ -1285,19 +1311,19 @@ class Item_func_to_vector final : public Item_str_func {
   String *val_str(String *str) override;
 };
 
-class Item_func_from_vector final : public Item_str_func {
+class Item_func_from_vector final : public Item_str_ascii_func {
   static const uint32 per_value_chars = 16;
   static const uint32 max_output_bytes =
       (Field_vector::max_dimensions * Item_func_from_vector::per_value_chars);
   String buffer;
 
  public:
-  Item_func_from_vector(const POS &pos, Item *a) : Item_str_func(pos, a) {
-    collation.set(&my_charset_utf8mb4_0900_bin);
-  }
+  explicit Item_func_from_vector(Item *a) : Item_str_ascii_func(a) {}
+  Item_func_from_vector(const POS &pos, Item *a)
+      : Item_str_ascii_func(pos, a) {}
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "from_vector"; }
-  String *val_str(String *str) override;
+  String *val_str_ascii(String *str) override;
 };
 
 class Item_func_uncompress final : public Item_str_func {
@@ -1717,6 +1743,28 @@ class Item_func_get_dd_property_key_value final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_get_jdv_property_key_value final : public Item_str_func {
+ public:
+  Item_func_get_jdv_property_key_value(const POS &pos, Item *a, Item *b,
+                                       Item *c, Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
+    set_nullable(true);
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override {
+    return "get_jdv_property_key_value";
+  }
+
+  String *val_str(String *) override;
+};
+
 class Item_func_remove_dd_property_key final : public Item_str_func {
  public:
   Item_func_remove_dd_property_key(const POS &pos, Item *a, Item *b)
@@ -1861,5 +1909,13 @@ class Item_func_internal_get_dd_column_extra final : public Item_str_func {
 
   String *val_str(String *) override;
 };
+
+inline void tohex(char *to, uint64_t from, uint len) {
+  to += len;
+  while (len--) {
+    *--to = dig_vec_lower[from & 15];
+    from >>= 4;
+  }
+}
 
 #endif /* ITEM_STRFUNC_INCLUDED */

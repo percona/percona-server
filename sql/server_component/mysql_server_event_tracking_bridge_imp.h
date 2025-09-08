@@ -45,6 +45,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/reference_caching_setup.h"
 #include "sql/sql_event_tracking_to_audit_event_mapping.h"
 
+extern SERVICE_TYPE(event_tracking_authentication) *
+    srv_event_tracking_authentication;
+extern SERVICE_TYPE(event_tracking_command) * srv_event_tracking_command;
+extern SERVICE_TYPE(event_tracking_connection) * srv_event_tracking_connection;
+extern SERVICE_TYPE(event_tracking_general) * srv_event_tracking_general;
+extern SERVICE_TYPE(event_tracking_global_variable) *
+    srv_event_tracking_global_variable;
+extern SERVICE_TYPE(event_tracking_lifecycle) * srv_event_tracking_lifecycle;
+extern SERVICE_TYPE(event_tracking_message) * srv_event_tracking_message;
+extern SERVICE_TYPE(event_tracking_parse) * srv_event_tracking_parse;
+extern SERVICE_TYPE(event_tracking_query) * srv_event_tracking_query;
+extern SERVICE_TYPE(event_tracking_stored_program) *
+    srv_event_tracking_stored_program;
+extern SERVICE_TYPE(event_tracking_table_access) *
+    srv_event_tracking_table_access;
+
 class Event_general_bridge_implementation final {
  public:
   /**

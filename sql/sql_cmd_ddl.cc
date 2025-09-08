@@ -58,17 +58,16 @@ bool check_supported_languages(
 }
 }  // namespace
 
-Sql_cmd_create_library::Sql_cmd_create_library(THD *thd, bool if_not_exists,
-                                               sp_name *name,
-                                               LEX_CSTRING comment,
-                                               LEX_CSTRING language,
-                                               LEX_STRING source_code)
+Sql_cmd_create_library::Sql_cmd_create_library(
+    THD *thd, bool if_not_exists, sp_name *name, LEX_CSTRING comment,
+    LEX_CSTRING language, LEX_STRING source_code, bool is_binary)
     : m_if_not_exists{if_not_exists},
       m_name{name},
       m_language{language},
       m_source{thd->strmake(source_code.str, source_code.length),
                source_code.length},
-      m_comment{thd->strmake(comment.str, comment.length), comment.length} {}
+      m_comment{thd->strmake(comment.str, comment.length), comment.length},
+      m_is_binary{is_binary} {}
 
 bool Sql_cmd_create_library::execute(THD *thd) {
   // check DB access
@@ -94,15 +93,18 @@ bool Sql_cmd_create_library::execute(THD *thd) {
 
   my_service<SERVICE_TYPE(external_library)> library_service("external_library",
                                                              srv_registry);
-  if (!library_service.is_valid()) {
+  my_service<SERVICE_TYPE(external_library_ext)> library_service_ext(
+      "external_library_ext", srv_registry);
+  if (!library_service.is_valid() || !library_service_ext.is_valid()) {
     push_warning(thd, ER_LANGUAGE_COMPONENT_NOT_AVAILABLE);
-  } else {
-    if (::check_supported_languages(&library_service, m_language)) return true;
+  } else if (::check_supported_languages(&library_service, m_language)) {
+    return true;
   }
 
   st_sp_chistics sp_chistics;
   sp_chistics.language = m_language;
   sp_chistics.comment = m_comment;
+  sp_chistics.is_binary = m_is_binary;
 
   // A new MEM_ROOT is needed and consumed by the sp_head constructor.
   MEM_ROOT own_root(key_memory_sp_head_main_root, MEM_ROOT_BLOCK_SIZE);
@@ -110,23 +112,40 @@ bool Sql_cmd_create_library::execute(THD *thd) {
   sp.init_sp_name(thd, m_name);
   sp.m_chistics = &sp_chistics;
 
-  LEX_STRING body;
-  thd->convert_string(&body, &my_charset_utf8mb4_general_ci, m_source.str,
-                      m_source.length, thd->charset());
-  sp.m_body = to_lex_cstring(body);
-  LEX_STRING body_utf8;
-  thd->convert_string(&body_utf8, &my_charset_utf8mb3_general_ci, body.str,
-                      body.length, &my_charset_utf8mb4_general_ci);
-  sp.m_body_utf8 = to_lex_cstring(body_utf8);
+  mysql_cstring_with_length src_to_parse;
 
-  // parsing has to be on null-terminated sp body, not the source coming from
-  // the parser
-  mysql_cstring_with_length src{sp.m_body_utf8.str, sp.m_body_utf8.length};
-  if (library_service.is_valid() &&
-      library_service->parse({m_name->m_name.str, m_name->m_name.length},
-                             {m_language.str, m_language.length}, src)) {
-    // parsing failed
-    return true;
+  if (m_is_binary) {
+    // Store the binary literal as provided.
+    sp.m_body = m_source;
+    sp.m_body_utf8 = EMPTY_CSTR;
+    src_to_parse = mysql_cstring_with_length{sp.m_body.str, sp.m_body.length};
+  } else {
+    LEX_STRING body;
+    thd->convert_string(&body, &my_charset_utf8mb4_general_ci, m_source.str,
+                        m_source.length, thd->charset());
+    sp.m_body = to_lex_cstring(body);
+    LEX_STRING body_utf8;
+    thd->convert_string(&body_utf8, &my_charset_utf8mb3_general_ci, body.str,
+                        body.length, &my_charset_utf8mb4_general_ci);
+    sp.m_body_utf8 = to_lex_cstring(body_utf8);
+
+    // parsing has to be on null-terminated sp body, not the source coming
+    // from the parser
+    src_to_parse =
+        mysql_cstring_with_length{sp.m_body_utf8.str, sp.m_body_utf8.length};
+  }
+
+  if (library_service_ext.is_valid()) {
+    auto correct_syntax = false;
+    if (library_service_ext->parse({m_name->m_name.str, m_name->m_name.length},
+                                   {m_language.str, m_language.length},
+                                   src_to_parse, m_is_binary,
+                                   &correct_syntax)) {
+      // parsing failed
+      assert(!correct_syntax);
+      return true;
+    }
+    assert(correct_syntax);
   }
 
   /*

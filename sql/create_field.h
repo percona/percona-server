@@ -191,6 +191,8 @@ class Create_field {
 
   LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
   LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
+  /// Will be converted to m_engine_attribute for persistence
+  LEX_CSTRING m_external_format = EMPTY_CSTR;
 
   Create_field()
       : after(nullptr),

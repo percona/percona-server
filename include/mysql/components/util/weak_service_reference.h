@@ -92,12 +92,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   And @ref weak_service_reference::deinit() is called during the component
   deinitialization.
 
-
-  @warning Please pass the _no_lock registry variants to the deinit() call! It's
-  because component deinit function is called while the registry lock is held.
-  So trying to take the lock again (which is what the normal registry functions
-  do) is going to lead to a deadlock!
-
   One can expect that the function argument is called either at init() time or
   asyncronously, possibly from anoher thread, when an implementation of a
   service is registered.
@@ -111,9 +105,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   ...
 
   REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-  REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
-  REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                mysql_service_registration_no_lock);
 
   const std::string c_name(component_foo), s_name("foo");
   typedef weak_service_reference<SERVICE_TYPE(foo), c_name, s_name>
@@ -123,11 +114,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   BEGIN_COMPONENT_REQUIRES(component_foo)
   ...
     REQUIRES_SERVICE(registry_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
   ...
   END_COMPONENT_REQUIRES();
 
@@ -144,8 +130,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   bool component_deinit() {
     ...
-    if (weak_option::deinit(
-      mysql_service_registry_no_lock, mysql_service_registration_no_lock,
+    if (weak_option::deinit(SERVICE_PLACEHOLDER(registry),
+    SERVICE_PLACEHOLDER(registry_registration),
       [&](SERVICE_TYPE(foo) * foo_svc) {
         return 0 != foo_svc->undefine(12);
       }))

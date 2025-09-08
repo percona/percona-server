@@ -43,6 +43,12 @@ ENDIF()
 
 IF(EXISTS "/etc/fedora-release")
   SET(LINUX_FEDORA 1)
+  IF(IS_SYMLINK "/usr/sbin")
+    FILE(READ_SYMLINK "/usr/sbin" USR_SBIN)
+    IF(USR_SBIN STREQUAL "bin")
+      SET(LINUX_FEDORA_SBIN_MERGE 1)
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
@@ -60,7 +66,7 @@ ENDIF()
 # We require at least GCC 10 Clang 14
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
-    # gcc9 is known to fail
+    # gcc10 is known to fail
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
       MESSAGE(FATAL_ERROR "GCC 11 or newer is required")
     ENDIF()

@@ -638,3 +638,94 @@ select count(1) as ops from ndbinfo.cluster_operations;
 drop table test.t1;
 drop table test.t2;
 
+
+
+# Cause reduced API timeout
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_reduced_api_protocol_timeout";
+
+--echo Determine our NdbApi connection id
+--source suite/ndb/include/get_ndb_connection_id.inc
+#--echo My cluster connection is $ndb_connection_id;
+
+--echo Determine row ids used to control data nodes involved
+
+# Put 100 rows into a table
+--disable_query_log
+--disable_result_log
+--let $rows = 100
+create table test.t1 (a int primary key, nodeid int) engine=ndb comment="NDB_TABLE=READ_BACKUP=0";
+
+while ($rows)
+{
+  --eval insert into test.t1 values ($rows, 0)
+  --dec $rows
+}
+
+# Iterate over all rows, determining which data node holds
+# the primary replica + storing that in the row's nodeid column
+#
+--let $rows = query_get_value('select count(1) as c from test.t1', c, 1)
+while ($rows)
+{
+  begin;
+  --eval select * from test.t1 where a = $rows lock in share mode;
+  
+  let $nodeid = query_get_value(select node_id from ndbinfo.cluster_operations where tableid = (select id from ndbinfo.dict_obj_info where fq_name like '%t1%') limit 1, node_id, 1);
+  --eval update test.t1 set nodeid = $nodeid where a=$rows;
+  commit;
+  --dec $rows
+}
+--enable_result_log
+--enable_query_log
+
+# Choose two semi-arbitrary key values, one on each data node
+
+let $node1_row_key = query_get_value('select a from test.t1 where nodeid=1 limit 1', a, 1);
+let $node2_row_key = query_get_value('select a from test.t1 where nodeid=2 limit 1', a, 1);
+
+#--echo Node1 row : $node1_row_key
+#--echo Node2 row : $node2_row_key
+
+--echo Drop down to just the row on node 1
+--disable_query_log
+--eval delete from test.t1 where a != $node1_row_key
+--enable_query_log
+
+--echo Block send from node 1 to our API
+
+--exec $NDB_MGM -e "1 DUMP 9988 $ndb_connection_id" > /dev/null
+
+--echo Hint transaction to node 2
+--disable_query_log
+begin;
+--eval select * from test.t1 where a = $node2_row_key;
+
+--echo Send select of all - will hang
+--send select * from test.t1;
+
+--echo Now cause restart of node 1
+
+--exec $NDB_MGM -e "1 RESTART -a -f"
+
+--echo Wait for data node to restart
+--exec $NDB_WAITER > /dev/null
+
+--echo Reap query - will get timeout error
+--error 1296
+--reap
+--enable_query_log
+
+--echo Issue more queries to check all is well
+--disable_result_log
+select * from test.t1;
+select * from test.t1;
+select * from test.t1;
+--enable_result_log
+
+--echo Cleanup
+
+drop table test.t1;
+
+SET SESSION debug=@save_debug;
+

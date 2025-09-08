@@ -65,6 +65,8 @@ class WwwAuthenticationHandler : public interface::AuthorizeHandler {
   virtual bool verify_credential(const Credentials &credentials,
                                  SqlSessionCached *out_cache,
                                  AuthUser *out_user) = 0;
+  virtual void init_session(const SessionPtr &session,
+                            const Credentials &credentials) = 0;
 
   void throw_add_www_authenticate(const char *schema);
 

@@ -30,6 +30,7 @@ BULK Data Load. Currently treated like DDL */
 
 #pragma once
 
+#include <list>
 #include "btr0mtib.h"
 #include "row0mysql.h"
 #include "sql/handler.h"
@@ -102,6 +103,26 @@ class Loader {
     @return the client error code. */
     int get_error_code() const { return m_errcode; }
 
+    /** Add given subtree to the list of subtrees.
+    @param[in]  subtree  the subtree to be added. */
+    void add_subtree(Btree_multi::Btree_load *subtree) {
+      m_list_subtrees.push_back(subtree);
+    }
+
+    /** Get the last subtree created by this thread. */
+    Btree_multi::Btree_load *get_subtree() { return m_list_subtrees.back(); }
+
+    /** Flush queue size used by the Bulk_flusher */
+    size_t m_queue_size;
+
+    /** Each subtree needs to have a disjoint set of keys.  In the case of
+    generated DB_ROW_ID as PK, each thread can build one subtree for one range
+    of row ids. */
+    std::list<Btree_multi::Btree_load *> m_list_subtrees;
+
+    /** The last DB_ROW_ID used by this thread. */
+    uint64_t m_last_rowid{0};
+
    private:
     /** Fill system columns for index entry to be loaded.
     @param[in]  prebuilt  prebuilt structures from innodb table handler */
@@ -142,6 +163,9 @@ class Loader {
 
     /** Column data for system column Roll pointer. */
     unsigned char m_rollptr_data[DATA_ROLL_PTR_LEN];
+
+    /** Column data for system column DATA_ROW_ID. */
+    unsigned char m_rowid_data[DATA_ROW_ID_LEN];
 
     /** Error code at thread level. */
     dberr_t m_err{DB_SUCCESS};
@@ -232,6 +256,11 @@ class Loader {
   const char *get_index_name() const { return m_index->name(); }
 
  private:
+  /** Ensure that dict_sys->row_id is greater than max rowid used in bulk
+  load of this table.
+  @param[in]  max_rowid  max rowid used in this table. */
+  void set_sys_max_rowid(uint64_t max_rowid);
+
   /** Merge the sub-trees to build the cluster index.
   @return innodb error code. */
   dberr_t merge_subtrees();
@@ -266,6 +295,9 @@ class Loader {
   Btree_multi::Bulk_extent_allocator m_extent_allocator;
 
   const trx_t *const m_trx{};
+
+  /** Flush queue size used by the Bulk_flusher */
+  size_t m_queue_size;
 };
 
 inline std::string Loader::get_error_string() const {

@@ -19,5 +19,5 @@ wait_for_metadata_schema_access=320
 
 mysql_user=root
 mysql_user_data_access=root
-metadata_refresh_interval=1
+metadata_refresh_interval=0.5
 developer=my_user

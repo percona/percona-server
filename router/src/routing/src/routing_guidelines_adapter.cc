@@ -240,6 +240,11 @@ Guidelines_from_conf_adapter::get_route_match(
           addr_str += "'" + addr.endpoint().address().to_string() + "'";
         }
 
+        if (!addr_str.empty()) {
+          addr_str += ", ";
+        }
+        addr_str += "'" + bind_address + "'";
+
         match += "$.session.targetIP IN (" + addr_str + ") AND ";
       } else {
         match += "$.session.targetIP IN ('" + bind_address + "') AND ";

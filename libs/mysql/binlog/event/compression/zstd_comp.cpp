@@ -191,7 +191,7 @@ void Zstd_comp::move_position(
   managed_buffer_sequence.increase_position(delta);
 }
 
-[[NODISCARD]] Compress_status Zstd_comp::get_obuf(
+[[nodiscard]] Compress_status Zstd_comp::get_obuf(
     Managed_buffer_sequence_t &managed_buffer_sequence, ZSTD_outBuffer &obuf) {
   BAPI_TRACE;
   auto &write_part = managed_buffer_sequence.write_part();

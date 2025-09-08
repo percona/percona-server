@@ -49,7 +49,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0event.h"
 #include "ut0counter.h"
 #endif /* !UNIV_HOTBACKUP */
-#include <atomic>
 #include "ut0mutex.h"
 
 struct rw_lock_t;

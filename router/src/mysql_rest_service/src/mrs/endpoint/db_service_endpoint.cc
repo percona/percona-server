@@ -34,6 +34,7 @@
 #include "mrs/endpoint/handler/helper/utils_proto.h"
 #include "mrs/endpoint/url_host_endpoint.h"
 #include "mrs/router_observation_entities.h"
+#include "mysql/harness/scoped_callback.h"
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
 #include "mrs/file_system/db_service_file_system.h"
 #include "mysqlrouter/jit_executor_component.h"
@@ -52,7 +53,19 @@ DbServiceEndpoint::DbServiceEndpoint(const DbService &entry,
                                      EndpointConfigurationPtr configuration,
                                      HandlerFactoryPtr factory)
     : OptionEndpoint(entry.id, configuration, factory),
-      entry_{std::make_shared<DbService>(entry)} {}
+      entry_{std::make_shared<DbService>(entry)} {
+#ifdef HAVE_JIT_EXECUTOR_PLUGIN
+  jit_executor_config_.fs =
+      std::make_shared<file_system::DbServiceFileSystem>(this);
+#endif
+}
+
+DbServiceEndpoint::~DbServiceEndpoint() {
+#ifdef HAVE_JIT_EXECUTOR_PLUGIN
+  auto &instance = jit_executor::JitExecutorComponent::get_instance();
+  instance.delete_context(get()->id.to_string());
+#endif
+}
 
 UniversalId DbServiceEndpoint::get_id() const { return entry_->id; }
 
@@ -86,23 +99,16 @@ void DbServiceEndpoint::set(const DbService &entry, EndpointBasePtr parent) {
 
 void DbServiceEndpoint::on_updated_content_set() {
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
-  content_set_scripts_.reset();
-  content_set_paths_.clear();
+  update_content_set_data();
 #endif
 }
 
 #ifdef HAVE_JIT_EXECUTOR_PLUGIN
-std::shared_ptr<file_system::DbServiceFileSystem>
-DbServiceEndpoint::get_file_system() {
-  if (!file_system_) {
-    file_system_ = std::make_shared<file_system::DbServiceFileSystem>(this);
-  }
-
-  return file_system_;
-}
 
 std::string DbServiceEndpoint::get_content_set_path(
     const std::string &module_class_name) {
+  std::shared_lock lock(content_set_path_mutex_);
+
   if (content_set_paths_.find(module_class_name) != content_set_paths_.end()) {
     return content_set_paths_.at(module_class_name);
   }
@@ -110,37 +116,39 @@ std::string DbServiceEndpoint::get_content_set_path(
   return "";
 }
 
-bool DbServiceEndpoint::get_content_set_data() {
-  bool updated = false;
-  if (!content_set_scripts_.has_value()) {
-    updated = true;
-    std::vector<std::string> scripts;
+void DbServiceEndpoint::update_content_set_data() {
+  std::scoped_lock lock(content_set_path_mutex_);
 
-    for (const auto &child : get_children()) {
-      auto content_set_ep =
-          std::dynamic_pointer_cast<ContentSetEndpoint>(child);
+  std::vector<std::string> scripts;
+  content_set_paths_.clear();
 
-      // We only care about content set childs
-      if (!content_set_ep || !content_set_ep->get_options().has_value()) {
-        continue;
-      }
+  for (const auto &child : get_children()) {
+    auto content_set_ep = std::dynamic_pointer_cast<ContentSetEndpoint>(child);
 
-      std::vector<std::string> module_classes;
-      content_set_ep->get_content_set_data(&scripts, &module_classes);
-
-      for (const auto &name : module_classes) {
-        content_set_paths_[name] = content_set_ep->get_url().join();
-      }
+    // We only care about content set childs
+    if (!content_set_ep || !content_set_ep->get_options().has_value()) {
+      continue;
     }
 
-    content_set_scripts_ = std::move(scripts);
+    std::vector<std::string> module_classes;
+    content_set_ep->get_content_set_data(&scripts, &module_classes);
+    if (!module_classes.empty()) {
+      auto cset_url = content_set_ep->get_url().join();
+
+      for (const auto &name : module_classes) {
+        content_set_paths_[name] = cset_url;
+      }
+    }
   }
 
-  return updated;
+  if (jit_executor_config_.module_files != scripts) {
+    jit_executor_config_.module_files = scripts;
+    updated_jit_executor_config_ = true;
+  }
 }
 
 namespace {
-std::optional<uint64_t> get_pool_size(const std::string &options) {
+std::optional<uint64_t> get_memory_units(const std::string &options) {
   if (!options.empty()) {
     rapidjson::Document doc;
     doc.Parse(options.data(), options.size());
@@ -148,8 +156,8 @@ std::optional<uint64_t> get_pool_size(const std::string &options) {
     if (doc.IsObject() && doc.HasMember("jitExecutor")) {
       const auto &node = doc["jitExecutor"];
 
-      if (node.HasMember("poolSize")) {
-        return node["poolSize"].GetUint();
+      if (node.HasMember("memoryUnits") && node.IsUint()) {
+        return node["memoryUnits"].GetUint();
       }
     }
   }
@@ -164,24 +172,22 @@ DbServiceEndpoint::get_scripting_context() {
   auto &instance = jit_executor::JitExecutorComponent::get_instance();
   const auto id = get()->id.to_string();
 
-  auto reset_context = get_content_set_data();
-
-  jit_executor::ServiceHandlerConfig config = {
-      get_file_system(),
-      *content_set_scripts_,
-      shcore::make_dict(),
-      get_pool_size(get_options().value_or("")),
-      jit_executor::k_default_pool_size,
-      {}};
+  mysql_harness::ScopedCallback callback(
+      [this]() { updated_jit_executor_config_ = false; });
 
   return instance.get_context(
-      id, config, debug_enabled_ ? get_configuration()->get_debug_port() : "",
-      reset_context);
+      id, jit_executor_config_,
+      debug_enabled_ ? get_configuration()->get_debug_port() : "",
+      updated_jit_executor_config_);
 }
 #endif
 
 void DbServiceEndpoint::update() {
   Parent::update();
+#ifdef HAVE_JIT_EXECUTOR_PLUGIN
+  jit_executor_config_.memory_units =
+      get_memory_units(get_options().value_or(""));
+#endif
   observability::EntityCounter<kEntityCounterUpdatesServices>::increment();
 }
 

@@ -25,7 +25,6 @@
 #define MYSQL_BINLOG_EVENT_COMPRESSION_NONE_DEC_H
 
 #include "mysql/binlog/event/compression/decompressor.h"
-#include "mysql/utils/nodiscard.h"
 
 namespace mysql::binlog::event::compression {
 
@@ -56,7 +55,7 @@ class None_dec : public Decompressor {
   void do_feed(const Char_t *input_data, Size_t input_size) override;
 
   /// @copydoc Decompressor::do_decompress
-  [[NODISCARD]] std::pair<Decompress_status, Size_t> do_decompress(
+  [[nodiscard]] std::pair<Decompress_status, Size_t> do_decompress(
       Char_t *out, Size_t output_size) override;
 
   /// Input data

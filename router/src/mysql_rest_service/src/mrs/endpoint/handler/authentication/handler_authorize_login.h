@@ -31,9 +31,9 @@
 #include <vector>
 
 #include "helper/media_type.h"
-#include "http/server/matcher_interface.h"
 #include "mrs/endpoint/handler/authentication/handler_authorize_base.h"
 #include "mrs/interface/authorize_manager.h"
+#include "mysql/harness/matcher_interface.h"
 
 namespace mrs {
 namespace endpoint {
@@ -43,13 +43,13 @@ class HandlerAuthorizeLogin : public HandlerAuthorizeBase {
  public:
   using Session = http::SessionManager::Session;
   using SessionPtr = http::SessionManager::SessionPtr;
-  using Matcher = ::http::server::MatcherInterface;
+  using Matcher = ::mysql_harness::MatcherInterface;
 
  public:
   HandlerAuthorizeLogin(const Protocol protocol, const std::string &url_host,
                         const UniversalId service_id,
                         const std::string &service_path,
-                        const std::string &rest_path_matcher,
+                        const UriPathMatcher &rest_path_matcher,
                         const std::string &options,
                         const std::string &redirection,
                         const std::optional<std::string> &redirection_validator,

@@ -412,30 +412,13 @@ void trx_sys_print_mysql_binlog_offset(void) {
 }
 #endif
 
-/** Find the page number in the TRX_SYS page for a given slot/rseg_id
-@param[in]      rseg_id         slot number in the TRX_SYS page rseg array
-@return page number from the TRX_SYS page rseg array */
-page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id) {
-  page_no_t page_no;
-  mtr_t mtr;
-  mtr.start();
-
-  trx_sysf_t *sys_header = trx_sysf_get(&mtr);
-
-  page_no = trx_sysf_rseg_get_page_no(sys_header, rseg_id, &mtr);
-
-  mtr.commit();
-
-  return (page_no);
-}
-
 /** Look for a free slot for a rollback segment in the trx system file copy.
 @param[in,out]  mtr             mtr
 @return slot index or ULINT_UNDEFINED if not found */
 ulint trx_sysf_rseg_find_free(mtr_t *mtr) {
   trx_sysf_t *sys_header = trx_sysf_get(mtr);
 
-  for (ulint slot_no = 0; slot_no < TRX_SYS_N_RSEGS; slot_no++) {
+  for (ulint slot_no = 0; slot_no < FSP_MAX_ROLLBACK_SEGMENTS; slot_no++) {
     page_no_t page_no = trx_sysf_rseg_get_page_no(sys_header, slot_no, mtr);
 
     if (page_no == FIL_NULL) {
@@ -447,17 +430,9 @@ ulint trx_sysf_rseg_find_free(mtr_t *mtr) {
 }
 
 /** Creates the file page for the transaction system. This function is called
- only at the database creation, before trx_sys_init. */
-static void trx_sysf_create(mtr_t *mtr) /*!< in: mtr */
-{
-  trx_sysf_t *sys_header;
-  ulint slot_no;
-  buf_block_t *block;
-  page_t *page;
-  ulint page_no;
-  byte *ptr;
-  ulint len;
-
+only at the database creation, before trx_sys_init.
+@param[in]  mtr   mini transaction */
+static void trx_sysf_create(mtr_t *mtr) {
   ut_ad(mtr);
 
   /* Note that below we first reserve the file space x-latch, and
@@ -467,12 +442,13 @@ static void trx_sysf_create(mtr_t *mtr) /*!< in: mtr */
   mtr_x_lock_space(fil_space_get_sys_space(), mtr);
 
   /* Create the trx sys file block in a new allocated file segment */
-  block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER, mtr);
+  buf_block_t *block =
+      fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER, mtr);
   buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
-  ut_a(block->page.id.page_no() == TRX_SYS_PAGE_NO);
+  ut_a_eq(block->get_page_no(), TRX_SYS_PAGE_NO);
 
-  page = buf_block_get_frame(block);
+  page_t *page = buf_block_get_frame(block);
 
   mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS, MLOG_2BYTES,
                    mtr);
@@ -484,50 +460,64 @@ static void trx_sysf_create(mtr_t *mtr) /*!< in: mtr */
   mlog_write_ulint(page + TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_MAGIC, 0,
                    MLOG_4BYTES, mtr);
 
-  sys_header = trx_sysf_get(mtr);
+  trx_sysf_t *sys_header = trx_sysf_get(mtr);
 
   /* Start counting transaction ids from number 1 up */
   mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE, 1);
 
-  /* Reset the rollback segment slots.  Old versions of InnoDB
-  define TRX_SYS_N_RSEGS as 256 (TRX_SYS_OLD_N_RSEGS) and expect
-  that the whole array is initialized. */
-  ptr = TRX_SYS_RSEGS + sys_header;
-  len = std::max(TRX_SYS_OLD_N_RSEGS, TRX_SYS_N_RSEGS) * TRX_SYS_RSEG_SLOT_SIZE;
-  memset(ptr, 0xff, len);
-  ptr += len;
-  ut_a(ptr <= page + (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END));
+  byte *ptr = nullptr;
+  /* There is no need to initialize following as system tablespace will not be
+  used for any rollback segment. But keeping it to make sure DICT_HDR_PAGE_NO
+  is created properly. See further comments below */
+  {
+    /* Old versions of InnoDB, defined TRX_SYS_N_RSEGS as 256 but created only
+    one rollback segment. It initialized some arrays with this number of
+    entries. We must remember this limit in order to keep file compatibility. It
+    also expects that the whole array is initialized with slot values which
+    looked like space_id==FIL_NULL and page_no==FIL_NULL. As FIL_NULL is
+    0xFFFFFFFF, we can simply fill the whole region with 0xFF.".*/
+    constexpr size_t TRX_SYS_OLD_N_RSEGS = 256;
 
+    /* Reset the rollback segment slots.  */
+    ptr = TRX_SYS_RSEGS + sys_header;
+    const auto len = TRX_SYS_OLD_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE;
+    memset(ptr, 0xff, len);
+    ptr += len;
+    ut_a(ptr <= page + (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END));
+  }
+
+  ut_ad(ptr != nullptr);
   /* Initialize all of the page.  This part used to be uninitialized. */
   memset(ptr, 0, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page - ptr);
 
   mlog_log_string(sys_header,
                   UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page - sys_header, mtr);
 
-  /* Create the first rollback segment in the SYSTEM tablespace */
-  slot_no = trx_sysf_rseg_find_free(mtr);
-  page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size, PAGE_NO_MAX,
-                                   slot_no, mtr);
+  /* Following rollback segment is not being used anywhere.
+  But if the following code is removed, page number 6 in system table space will
+  not be allocated (FSP_FIRST_RSEG_PAGE_NO). Therefore, when dictionary header
+  page is allocated, it will get page number 6. And then, we have an assert that
+  this page number should be 7 (DICT_HDR_PAGE_NO). Therefore, keeping following
+  code to be on safer side. */
+  {
+    /* Create the first rollback segment in the SYSTEM tablespace */
+    ulint slot_no = trx_sysf_rseg_find_free(mtr);
+    ulint page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
+                                           PAGE_NO_MAX, slot_no, mtr);
 
-  ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
-  ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
+    ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
+    ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
+  }
 }
 
 const uint32_t max_rseg_init_threads = 4;
 
-/** Creates and initializes the central memory structures for the transaction
- system. This is called when the database is started.
- @return min binary heap of rsegs to purge */
 purge_pq_t *trx_sys_init_at_db_start(void) {
-  purge_pq_t *purge_queue;
-  trx_sysf_t *sys_header;
-  uint64_t rows_to_undo = 0;
-  const char *unit = "";
-
   /* We create the min binary heap here and pass ownership to
   purge when we init the purge sub-system. Purge is responsible
   for freeing the binary heap. */
-  purge_queue = ut::new_withkey<purge_pq_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  purge_pq_t *purge_queue =
+      ut::new_withkey<purge_pq_t>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(purge_queue != nullptr);
 
   if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
@@ -536,8 +526,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
     RSEG_ARRAY page. */
     srv_rseg_init_threads = std::min(my_num_vcpus(), max_rseg_init_threads);
 
-    /* Test hook to initialize the rollback segments using a single
-    thread. */
+    /* Test hook to initialize the rollback segments using a single thread. */
     DBUG_EXECUTE_IF("rseg_init_single_thread", srv_rseg_init_threads = 1;);
 
     using Clock = std::chrono::high_resolution_clock;
@@ -559,7 +548,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   mtr_t mtr;
   mtr.start();
 
-  sys_header = trx_sysf_get(&mtr);
+  trx_sysf_t *sys_header = trx_sysf_get(&mtr);
 
   const trx_id_t max_trx_id =
       mach_read_from_8(sys_header + TRX_SYS_TRX_ID_STORE);
@@ -608,6 +597,8 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   trx_sys_mutex_enter();
 
   if (UT_LIST_GET_LEN(trx_sys->rw_trx_list) > 0) {
+    uint64_t rows_to_undo = 0;
+
     for (auto trx : trx_sys->rw_trx_list) {
       ut_ad(trx->is_recovered);
       assert_trx_in_rw_list(trx);
@@ -617,6 +608,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
       }
     }
 
+    const char *unit = "";
     if (rows_to_undo > 1000000000) {
       unit = "M";
       rows_to_undo = rows_to_undo / 1000000;
@@ -666,9 +658,6 @@ void trx_sys_create(void) {
     new (&shard) Trx_shard{};
   }
 
-  new (&trx_sys->rsegs) Rsegs();
-  trx_sys->rsegs.set_empty();
-
   new (&trx_sys->tmp_rsegs) Rsegs();
   trx_sys->tmp_rsegs.set_empty();
 }
@@ -717,9 +706,6 @@ void trx_sys_close(void) {
   while (auto trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) {
     trx_free_prepared_or_active_recovered(trx);
   }
-
-  /* There can't be any active transactions. */
-  trx_sys->rsegs.~Rsegs();
 
   trx_sys->tmp_rsegs.~Rsegs();
 
@@ -841,27 +827,3 @@ bool trx_sys_validate_trx_list() {
 #endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_HOTBACKUP */
-
-/** A list of undo tablespace IDs found in the TRX_SYS page. These are the
-old type of undo tablespaces that do not have space_IDs in the reserved
-range nor contain an RSEG_ARRAY page. This cannot be part of the trx_sys_t
-object because it must be built before that is initialized. */
-Space_Ids *trx_sys_undo_spaces;
-
-/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
-void trx_sys_undo_spaces_init() {
-  trx_sys_undo_spaces =
-      ut::new_withkey<Space_Ids>(ut::make_psi_memory_key(mem_key_undo_spaces));
-
-  trx_sys_undo_spaces->reserve(TRX_SYS_N_RSEGS);
-}
-
-/** Free the resources occupied by trx_sys_undo_spaces,
-called once during thread de-initialization. */
-void trx_sys_undo_spaces_deinit() {
-  if (trx_sys_undo_spaces != nullptr) {
-    trx_sys_undo_spaces->clear();
-    ut::delete_(trx_sys_undo_spaces);
-    trx_sys_undo_spaces = nullptr;
-  }
-}

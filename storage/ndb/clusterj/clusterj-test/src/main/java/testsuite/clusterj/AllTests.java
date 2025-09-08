@@ -61,6 +61,7 @@ public class AllTests {
         System.out.println("     --gc=<n>             : Run <n> GC iterations after tests");
         System.out.println("     --hprof              : Create heap dump at exit");
         System.out.println("     -n TestName [...]    : Run named tests");
+        System.out.println("     --stop-on-error      : Stop after first failure");
         System.exit(2);
     }
 
@@ -158,16 +159,19 @@ public class AllTests {
 
     public static void printCases() throws IOException, ClassNotFoundException {
         List<Class<?>> classes = getClasses(new File(jarFile));
+        int n = 0;
         for (Class<?> cls : classes) {
             if (isTestClass(cls)) {
+                n++;
                 String note = "";
                 for(Annotation a : cls.getDeclaredAnnotations())
                     note = note.concat(a.toString()).concat(" ");
                 String name = cls.getName();
                 String shortName = name.substring(name.lastIndexOf(".") + 1);
-                System.out.printf("  %-36s  %s\n", shortName, note);
+                System.out.printf("  %-36s %s\n", shortName, note);
             }
         }
+        System.out.println("Found " + n + " test classes.");
     }
 
     private static void tryGc(int n) throws InterruptedException {

@@ -56,6 +56,7 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
   using VectorOfBuffers = std::vector<net::mutable_buffer>;
   using VectorOfConstBuffers = std::vector<net::const_buffer>;
 
+ public:
   TraceStream(TraceStream &&other)
       : recv_buffer_{other.recv_buffer_},
         send_buffer_{other.send_buffer_},
@@ -115,6 +116,11 @@ class TraceStream : Mutex_static_holder<Trace_stream_static_holder> {
   auto cancel() {
     print("cancel");
     return lower_layer_.cancel();
+  }
+
+  void shutdown(net::socket_base::shutdown_type s) {
+    print("shutdown");
+    lower_layer_.shutdown(s);
   }
 
   auto close() {

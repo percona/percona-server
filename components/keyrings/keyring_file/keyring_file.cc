@@ -35,8 +35,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/keyrings/common/component_helpers/include/keyring_load_service_definition.h>
 /* Keyring_keys_metadata_iterator_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_keys_metadata_iterator_service_definition.h>
-/* Log_builtins_keyring */
-#include <components/keyrings/common/component_helpers/include/keyring_log_builtins_definition.h>
 /* Keyring_metadata_query_service_impl */
 #include <components/keyrings/common/component_helpers/include/keyring_metadata_query_service_definition.h>
 /* Keyring_reader_service_impl */
@@ -137,9 +135,6 @@ using keyring_file::config::g_instance_path;
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(registry_registration);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry, mysql_service_registry_no_lock);
-REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
-                                mysql_service_registration_no_lock);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 SERVICE_TYPE(log_builtins) * log_bi;
@@ -311,9 +306,6 @@ KEYRING_COMPONENT_STATUS_IMPLEMENTOR(component_keyring_file);
 KEYRING_COMPONENT_METADATA_QUERY_IMPLEMENTOR(component_keyring_file);
 KEYRING_READER_IMPLEMENTOR(component_keyring_file);
 KEYRING_WRITER_IMPLEMENTOR(component_keyring_file);
-/* Used if log_builtins is not available */
-KEYRING_LOG_BUILTINS_IMPLEMENTOR(component_keyring_file);
-KEYRING_LOG_BUILTINS_STRING_IMPLEMENTOR(component_keyring_file);
 
 /** Component provides */
 BEGIN_COMPONENT_PROVIDES(component_keyring_file)
@@ -325,8 +317,6 @@ PROVIDES_SERVICE(component_keyring_file, keyring_aes),
     PROVIDES_SERVICE(component_keyring_file, keyring_component_metadata_query),
     PROVIDES_SERVICE(component_keyring_file, keyring_reader_with_status),
     PROVIDES_SERVICE(component_keyring_file, keyring_writer),
-    PROVIDES_SERVICE(component_keyring_file, log_builtins),
-    PROVIDES_SERVICE(component_keyring_file, log_builtins_string),
     END_COMPONENT_PROVIDES();
 
 REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
@@ -336,11 +326,6 @@ BEGIN_COMPONENT_REQUIRES(component_keyring_file)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(registry_registration),
     REQUIRES_SERVICE(status_variable_registration),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry_registration,
-                                       mysql_minimal_chassis_no_lock,
-                                       mysql_service_registration_no_lock),
-    REQUIRES_SERVICE_IMPLEMENTATION_AS(registry, mysql_minimal_chassis_no_lock,
-                                       mysql_service_registry_no_lock),
     REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
 

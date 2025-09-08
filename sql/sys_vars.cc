@@ -61,6 +61,7 @@
 #include "mysql/my_loglevel.h"
 #include "mysql_com.h"
 #include "sql/auth/authentication_policy.h"
+#include "sql/handler.h"
 #include "sql/protocol.h"
 #include "sql/rpl_trx_tracking.h"
 #ifdef HAVE_SYS_TIME_H
@@ -1131,7 +1132,7 @@ static Sys_var_ulong Sys_back_log(
     "MySQL can have. This comes into play when the main MySQL thread "
     "gets very many connection requests in a very short time",
     READ_ONLY GLOBAL_VAR(back_log), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
+    VALID_RANGE(0, 65535), DEFAULT(10000), BLOCK_SIZE(1));
 
 static Sys_var_charptr Sys_basedir(
     "basedir",
@@ -1198,6 +1199,13 @@ static Sys_var_bool Sys_use_separate_thread_for_admin(
     " interface",
     READ_ONLY NON_PERSIST GLOBAL_VAR(listen_admin_interface_in_separate_thread),
     CMD_LINE(OPT_ARG), DEFAULT(false));
+
+static Sys_var_ulonglong Sys_server_memory(
+    "server_memory",
+    "Memory (in bytes) used by the MySQL Server when auto-tuning the default "
+    "values of the configuration parameters which depend on memory",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(server_memory), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_password_require_current(
     "password_require_current",
@@ -1902,13 +1910,6 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool update_deprecated_with_removal_message(sys_var *self, THD *thd,
-                                                   enum_var_type) {
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                      self->name.str);
-  return false;
-}
 static bool update_deprecated(sys_var *self, THD *thd, enum_var_type) {
   push_warning_printf(
       thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
@@ -5491,7 +5492,7 @@ static Sys_var_ulong Sys_net_wait_timeout(
 static Sys_var_plugin Sys_default_storage_engine(
     "default_storage_engine", "The default storage engine for new tables",
     SESSION_VAR(table_plugin), NO_CMD_LINE, MYSQL_STORAGE_ENGINE_PLUGIN,
-    DEFAULT(&default_storage_engine), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    DEFAULT(&default_storage_engine), false, NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_storage_engine));
 
 const char *internal_tmp_mem_storage_engine_names[] = {"MEMORY", "TempTable",
@@ -5516,6 +5517,25 @@ static Sys_var_ulonglong Sys_temptable_max_ram(
                        1ULL << 30 /* 1 GiB */, 1ULL << 32 /* 4 GiB */)),
     BLOCK_SIZE(1));
 
+void update_temptable_max_ram_default() {
+  mysql_mutex_lock(&LOCK_global_system_variables);
+
+  assert(server_memory > 0);
+
+  /* Auto tune default value based on "server_memory" */
+  const ulonglong new_default =
+      std::clamp(ulonglong{3 * (my_physical_memory() / 100)},
+                 1ULL << 30 /* 1 GiB */, 1ULL << 32 /* 4 GiB */);
+  Sys_temptable_max_ram.update_default(new_default);
+
+  /* If "temptable_max_ram" is not set explicitly, update the default value */
+  if (Sys_temptable_max_ram.get_source() == COMPILED) {
+    temptable_max_ram = new_default;
+  }
+
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+}
+
 static Sys_var_ulonglong Sys_temptable_max_mmap(
     "temptable_max_mmap",
     "Maximum amount of memory (in bytes) the TempTable storage engine is "
@@ -5524,21 +5544,63 @@ static Sys_var_ulonglong Sys_temptable_max_mmap(
     GLOBAL_VAR(temptable_max_mmap), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULLONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-static Sys_var_bool Sys_temptable_use_mmap(
-    "temptable_use_mmap",
-    "Use mmap files for temptables. "
-    "This variable is deprecated and will be removed in a future release.",
-    GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_deprecated_with_removal_message), nullptr,
-    sys_var::PARSE_NORMAL);
-
 static Sys_var_plugin Sys_default_tmp_storage_engine(
     "default_tmp_storage_engine",
     "The default storage engine for new explicit temporary tables",
     HINT_UPDATEABLE SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
-    MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
+    MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine), true,
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
+
+static bool check_external_table_storage_engine(sys_var *self [[maybe_unused]],
+                                                THD *thd [[maybe_unused]],
+                                                set_var *var) {
+  if (var->value == nullptr) {
+    return false;  // Setting to DEFAULT
+  }
+  if (var->value->is_null()) {
+    return false;  // Allow NULL values
+  }
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String str(buff, sizeof(buff), system_charset_info);
+  LEX_CSTRING engine_name;
+  String *res = var->value->val_str(&str);
+  lex_cstring_set(&engine_name, res->ptr());
+
+  if ((DEFAULT_EXTERNAL_TABLE_ENGINE) != nullptr &&
+      my_strcasecmp(system_charset_info, engine_name.str,
+                    DEFAULT_EXTERNAL_TABLE_ENGINE) == 0)
+    return false;
+
+  plugin_ref plugin = ha_resolve_by_name(nullptr, &engine_name, false);
+  if (plugin == nullptr) {
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
+    return true;
+  }
+
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if ((hton->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) == 0) {
+    my_error(ER_EXTERNAL_TABLE_ENGINE_NOT_SUPPORTED, MYF(0), engine_name.str);
+    plugin_unlock(nullptr, plugin);
+    return true;
+  }
+  plugin_unlock(nullptr, plugin);
+  return false;
+}
+
+static Sys_var_charptr Sys_external_table_storage_engine(
+    "external_table_storage_engine",
+    "Default storage engine for external tables",
+    SESSION_VAR(external_table_storage_engine), CMD_LINE(REQUIRED_ARG),
+    IN_SYSTEM_CHARSET, DEFAULT(DEFAULT_EXTERNAL_TABLE_ENGINE), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_external_table_storage_engine));
+
+static Sys_var_charptr Sys_external_table_secondary_storage_engine(
+    "external_table_secondary_storage_engine",
+    "Default secondary storage engine for external tables",
+    SESSION_VAR(external_table_secondary_storage_engine),
+    CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+    DEFAULT(DEFAULT_EXTERNAL_TABLE_SECONDARY_ENGINE));
 
 static Sys_var_charptr Sys_enforce_storage_engine(
     "enforce_storage_engine",
@@ -8235,7 +8297,7 @@ static Sys_var_ulonglong Sys_set_operations_buffer_size(
     "The maximum size of the buffer used for hash based set operations ",
     HINT_UPDATEABLE SESSION_VAR(set_operations_buffer_size),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(16384 /* 16*1024 */, max_mem_sz),
-    DEFAULT(256ULL * 1024), BLOCK_SIZE(128));
+    DEFAULT(256ULL * 1024), BLOCK_SIZE(1024));
 
 #ifndef NDEBUG
 // If this variable is set, it will inject a secondary overflow in spill to
@@ -8286,6 +8348,24 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
 }  // namespace
+
+#ifndef NDEBUG
+namespace {
+ulonglong debug_a_global_flagset;
+constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F1{1ULL << 0};
+constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_F2{1ULL << 1};
+// constexpr const uint64_t DEBUG_A_GLOBAL_FLAGSET_LAST{1ULL << 2};
+constexpr uint64_t DEBUG_A_GLOBAL_FLAGSET_DEFAULT{DEBUG_A_GLOBAL_FLAGSET_F1 |
+                                                  DEBUG_A_GLOBAL_FLAGSET_F2};
+const char *debug_a_global_flagset_names[] = {"f1", "f2", "default", NullS};
+Sys_var_flagset Sys_debug_a_global_flagset(
+    "debug_a_global_flagset",
+    "Debug variable to test a global persistable flagset variable.",
+    GLOBAL_VAR(debug_a_global_flagset), CMD_LINE(REQUIRED_ARG),
+    debug_a_global_flagset_names, DEFAULT(DEBUG_A_GLOBAL_FLAGSET_DEFAULT),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+}  // namespace
+#endif /* NDEBUG */
 
 static const char *default_table_encryption_type_names[] = {"OFF", "ON",
                                                             nullptr};

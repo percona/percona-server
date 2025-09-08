@@ -49,6 +49,7 @@ enum class AuthenticationType {
 };
 enum class ResponseType { kJson, kBinary, kRaw };
 enum class WriteFileFormat { kRaw, kMTR };
+enum class WireProtocol { kHttp_1_1, kHttp_2 };
 
 struct ApplicationDisplay {
   bool request{true};
@@ -84,6 +85,7 @@ struct ApplicationConfiguration {
   std::string accept;
   std::string host;
   std::string authorization;
+  WireProtocol wire_protocol{WireProtocol::kHttp_1_1};
 
   std::string write_to_file;
   WriteFileFormat write_format{WriteFileFormat::kRaw};
@@ -96,6 +98,9 @@ struct ApplicationConfiguration {
   HttpStatusCode::key_type expected_status{HttpStatusCode::Ok};
   std::map<std::string, std::string> expected_headers;
   std::optional<Seconds> wait_until_status;
+  std::optional<std::string> expect_fatal_error;
+  std::optional<std::string> header_upgrade;
+  std::optional<std::string> header_http2_settings;
 };
 
 }  // namespace http_client

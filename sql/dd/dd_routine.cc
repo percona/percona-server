@@ -539,6 +539,11 @@ static bool fill_dd_library_info(sp_head *sp, const LEX_USER *definer,
   // Set comment.
   library->set_comment(sp->m_chistics->comment.str ? sp->m_chistics->comment.str
                                                    : "");
+  // Set the binary character set.
+  if (sp->m_chistics->is_binary)
+    library->set_client_collation_id(my_charset_bin.number);
+  else
+    library->set_client_collation_id(my_charset_utf8mb4_0900_ai_ci.number);
 
   return false;
 }

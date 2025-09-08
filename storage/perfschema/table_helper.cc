@@ -369,14 +369,14 @@ char *get_field_time(Field *f, char *val, uint *len) {
 /* DATETIME TYPE */
 void set_field_datetime(Field *f, const char *value, uint len) {
   assert(f->real_type() == MYSQL_TYPE_DATETIME2);
-  auto *f2 = (Field_datetimef *)f;
+  auto *f2 = (Field_datetime *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_datetime(Field *f, char *val, uint *len) {
   assert(f->real_type() == MYSQL_TYPE_DATETIME2);
   String temp;
-  const auto *f2 = (Field_datetimef *)f;
+  const auto *f2 = (Field_datetime *)f;
   f2->val_str(&temp, nullptr);
   *len = temp.length();
   strncpy(val, temp.ptr(), *len);
@@ -386,14 +386,14 @@ char *get_field_datetime(Field *f, char *val, uint *len) {
 /* TIMESTAMP TYPE */
 void set_field_timestamp(Field *f, const char *value, uint len) {
   assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
-  auto *f2 = (Field_timestampf *)f;
+  auto *f2 = (Field_timestamp *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_timestamp(Field *f, char *val, uint *len) {
   assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   String temp;
-  const auto *f2 = (Field_timestampf *)f;
+  const auto *f2 = (Field_timestamp *)f;
   f2->val_str(&temp, nullptr);
   *len = temp.length();
   strncpy(val, temp.ptr(), *len);
@@ -404,7 +404,7 @@ void set_field_timestamp(Field *f, ulonglong value) {
   const my_timeval tm = {static_cast<int64_t>(value / 1000000),
                          static_cast<int64_t>(value % 1000000)};
   assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
-  auto *f2 = (Field_timestampf *)f;
+  auto *f2 = (Field_timestamp *)f;
   f2->store_timestamp(&tm);
 }
 

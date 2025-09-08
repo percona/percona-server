@@ -35,9 +35,15 @@
 #include <NdbRestarts.hpp>
 #include <TestNdbEventOperation.hpp>
 #include <UtilTransactions.hpp>
+#include <cstdio>
 #include <signaldata/DumpStateOrd.hpp>
 #include "../src/kernel/ndbd.hpp"
+#include "NDBT_Output.hpp"
+#include "NdbDictionary.hpp"
 #include "NdbMgmd.hpp"
+#include "NdbOut.hpp"
+#include "my_inttypes.h"
+#include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "util/require.h"
 
 #define CHK(b, e)                                                         \
@@ -353,15 +359,36 @@ struct receivedEvent {
 };
 
 static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
-                          void *pstats, int records) {
+                          void *pstats, int records, void *params = nullptr) {
   const char function[] = "HugoTransactions::eventOperation: ";
+  const EventOperationConfig *config = (EventOperationConfig *)params;
+  EventOperationStats &stats = *(EventOperationStats *)pstats;
+
+  uint32 slice_count = 1;
+  uint32 slice_id = 0;
+  uint32 expected_slice_ev_lo = 0;
+  uint32 expected_slice_ev_hi = 0;
+  if (config != nullptr) {
+    if (config->slice_count > 1) {
+      slice_count = config->slice_count;
+      slice_id = config->slice_id;
+    }
+    if (config->slice_records > 0) {
+      records = config->slice_records;
+      g_info << function << "using " << records << " records" << endl;
+    }
+    // leeway of 1%, used to get out of pollEvents loop
+    expected_slice_ev_lo = (records * 99) / 100;
+    expected_slice_ev_hi = (records * 101) / 100;
+    g_info << function << " expecting events in range (" << expected_slice_ev_lo
+           << ", " << expected_slice_ev_hi << ")" << endl;
+  }
+
   struct receivedEvent *recInsertEvent;
   NdbAutoObjArrayPtr<struct receivedEvent> p00(
       recInsertEvent = new struct receivedEvent[3 * records]);
   struct receivedEvent *recUpdateEvent = &recInsertEvent[records];
   struct receivedEvent *recDeleteEvent = &recInsertEvent[2 * records];
-
-  EventOperationStats &stats = *(EventOperationStats *)pstats;
 
   stats.n_inserts = 0;
   stats.n_deletes = 0;
@@ -405,6 +432,12 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
     return NDBT_FAILED;
   }
 
+  if (slice_count > 1) {
+    pOp->setFilterRowSlice(config->slice_count, config->slice_id);
+    g_info << function << "filtering events " << config->slice_id << "/"
+           << config->slice_count << "\n";
+  }
+
   g_info << function << "get values\n";
   NdbRecAttr *recAttr[1024];
   NdbRecAttr *recAttrPre[1024];
@@ -430,7 +463,8 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
   int count = 0;
   Uint64 last_inconsitant_gci = (Uint64)-1;
 
-  while (r < records) {
+  bool done = r >= records;
+  while (!done) {
     // printf("now waiting for event...\n");
     int res = pNdb->pollEvents(1000);  // wait for event or 1000 ms
 
@@ -514,7 +548,22 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
         g_info << endl;
       }
     } else {
+      g_info << " timed out" << endl;
+      g_info << " status = { inserts = " << stats.n_inserts
+             << ", updates = " << stats.n_updates
+             << ", deletes = " << stats.n_deletes << "}" << endl;
       ;  // printf("timed out\n");
+    }
+
+    if (slice_count > 1) {
+      // If using slices, it may have no more events to process at
+      // all, therefore we compare if we've reached all operations expected.
+      bool slice_done =
+          (uint32)r > expected_slice_ev_lo && (uint32)r < expected_slice_ev_hi;
+      done = slice_done && (stats.n_inserts == stats.n_updates &&
+                            stats.n_updates == stats.n_deletes);
+    } else {
+      done = r >= records;
     }
   }
 
@@ -540,7 +589,9 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
   for (int i = 0; i < (int)records / 3; i++) {
     if (recInsertEvent[i].pk != Uint32(i)) {
       stats.n_consecutive++;
-      ndbout << "missing insert pk " << i << endl;
+      if (slice_count < 2) {
+        ndbout << "missing insert pk " << i << endl;
+      }
     } else if (recInsertEvent[i].count > 1) {
       ndbout << "duplicates insert pk " << i << " count "
              << recInsertEvent[i].count << endl;
@@ -548,7 +599,9 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
     }
     if (recUpdateEvent[i].pk != Uint32(i)) {
       stats.n_consecutive++;
-      ndbout << "missing update pk " << i << endl;
+      if (slice_count < 2) {
+        ndbout << "missing update pk " << i << endl;
+      }
     } else if (recUpdateEvent[i].count > 1) {
       ndbout << "duplicates update pk " << i << " count "
              << recUpdateEvent[i].count << endl;
@@ -556,7 +609,9 @@ static int eventOperation(Ndb *pNdb, const NdbDictionary::Table &tab,
     }
     if (recDeleteEvent[i].pk != Uint32(i)) {
       stats.n_consecutive++;
-      ndbout << "missing delete pk " << i << endl;
+      if (slice_count < 2) {
+        ndbout << "missing delete pk " << i << endl;
+      }
     } else if (recDeleteEvent[i].count > 1) {
       ndbout << "duplicates delete pk " << i << " count "
              << recDeleteEvent[i].count << endl;
@@ -791,6 +846,219 @@ int runEventOperation(NDBT_Context *ctx, NDBT_Step *step) {
   }
 
   return ret;
+}
+
+int runFilteredEventOperation(NDBT_Context *ctx, NDBT_Step *step) {
+  uint records =
+      static_cast<uint>(ctx->getNumRecords() / step->getStepTypeCount());
+
+  ndbout_c("step %u", step->getStepTypeNo());
+  uint8 slice_id = step->getStepTypeNo();
+  /* 3 set of records are needed for I/U/D respectively. Number of
+   * records is first divided into 2, then each slice is attributed to
+   * each (two) subscriber op. */
+  EventOperationConfig config{
+      .slice_count = 2, .slice_id = slice_id, .slice_records = 3 * records};
+  EventOperationStats stats;
+
+  if (eventOperation(GETNDB(step), *ctx->getTab(), (void *)&stats,
+                     0 /* unused */, &config) != 0) {
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("n_inserts =           %d (%d)", stats.n_inserts, records);
+  ndbout_c("n_deletes =           %d (%d)", stats.n_deletes, records);
+  ndbout_c("n_updates =           %d (%d)", stats.n_updates, records);
+  ndbout_c("n_duplicates =        %d (%d)", stats.n_duplicates, 0);
+  ndbout_c("n_inconsistent_gcis = %d (%d)", stats.n_inconsistent_gcis, 0);
+
+  if (!(stats.n_inserts == stats.n_updates &&
+        stats.n_updates == stats.n_deletes)) {
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runFilteredEventOperationNF(NDBT_Context *ctx, NDBT_Step *step) {
+  Ndb *pNdb = GETNDB(step);
+  int records = ctx->getNumRecords();
+  const NdbDictionary::Table *tab = ctx->getTab();
+  // stop first NDB node
+  NdbRestarter restarter;
+  int node_id = restarter.getDbNodeId(0);
+  int nodes[] = {node_id};
+  uint8 slice_id = step->getStepTypeNo();
+  uint16 slice_count = step->getStepTypeCount();
+
+  // temp
+  ndbout_c("step %u", step->getStepTypeNo());
+
+  typedef struct {
+    Uint32 pk;
+    Uint32 inserts;
+    Uint32 deletes;
+    Uint32 updates;
+  } event;
+  event *recEvents;
+  NdbAutoObjArrayPtr<event> arr(recEvents = new event[records]);
+  for (int i = 0; i < records; i++) {
+    recEvents[i].pk = 0xFFFFFFFF;
+    recEvents[i].inserts = 0;
+    recEvents[i].updates = 0;
+    recEvents[i].deletes = 0;
+  }
+
+  EventOperationStats stats;
+  NdbEventOperation *op;
+  char eventName[64];
+  generateEventName(eventName, ctx->getTableName(0), 0);
+
+  op = pNdb->createEventOperation(eventName);
+  if (op->setFilterRowSlice(slice_count, slice_id)) {
+    g_err << "Invalid row slice parameters: count=" << slice_count
+          << " id=" << slice_id << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbRecAttr *recAttr[1024];
+  NdbRecAttr *recAttrPre[1024];
+  const int noEventColumnName = tab->getNoOfColumns();
+  for (int i = 0; i < noEventColumnName; i++) {
+    recAttr[i] = op->getValue(tab->getColumn(i)->getName());
+    recAttrPre[i] = op->getPreValue(tab->getColumn(i)->getName());
+  }
+
+  // insert error
+  restarter.insertErrorInNode(node_id, 13063);
+
+  // Wait for error insertion to take effect
+  NdbSleep_SecSleep(2);
+
+  if (op->execute()) {
+    g_err << " operation execution failed: \n";
+    g_err << op->getNdbError().code << " " << op->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  int expected = 3 * ((records / step->getStepTypeCount()) * 99 / 100);
+  g_info << " expect at least " << expected << " records" << endl;
+  char substr[24];
+  if (sprintf(substr, "subscriber %d ", slice_id) < 0) {
+    g_err << "failed allocating subscriber id string" << endl;
+    return NDBT_FAILED;
+  }
+
+  int r = 0;
+  int stops = 0;
+  bool restart = false;
+  bool done = false;
+  while (!done) {
+    {
+      // restarting block
+      if (step->getStepNo() == 1) {
+        if (restart) {
+          restart = false;
+          if (restarter.waitNodesNoStart(nodes, 1) == NDBT_OK) {
+            if (restarter.startNodes(nodes, 1) != NDBT_OK) {
+              return NDBT_FAILED;
+            }
+            restarter.insertErrorInNode(node_id, 13063);
+          } else {
+            return NDBT_FAILED;
+          }
+        }
+
+        if (r > (expected * (1 + stops)) / 3.0) {
+          stops++;
+          restart = true;
+          int res = restarter.restartOneDbNode(node_id,
+                                               /** initial */ false,
+                                               /** nostart */ true,
+                                               /** abort */ true);
+          if (res != NDBT_OK) {
+            return NDBT_FAILED;
+          }
+        }
+      }
+    }
+
+    int res = pNdb->pollEvents2(1000);
+
+    if (res > 0) {
+      NdbEventOperation *tmp;
+      while ((tmp = pNdb->nextEvent2())) {
+        r++;
+        Uint64 gci = op->getGCI();
+        Uint32 pk = recAttr[0]->u_32_value();
+        g_debug << substr << " gci: " << gci << ", pk: " << pk << endl;
+        recEvents[pk].pk = pk;
+        switch (op->getEventType()) {
+          case NdbDictionary::Event::TE_INSERT:
+            g_debug << substr << " INSERT: ";
+            stats.n_inserts++;
+            recEvents[pk].inserts++;
+            break;
+          case NdbDictionary::Event::TE_UPDATE:
+            g_debug << substr << " UPDATE: ";
+            stats.n_updates++;
+            recEvents[pk].updates++;
+            break;
+          case NdbDictionary::Event::TE_DELETE:
+            g_debug << substr << " DELETE: ";
+            stats.n_deletes++;
+            recEvents[pk].deletes++;
+            break;
+          default:
+            g_info << substr << " IGN: " << pk << endl;
+            continue;
+        }
+      }
+    } else {
+      g_info << " timed out. " << r << "/" << expected << endl;
+    }
+    g_info << r << endl;
+    done = r > expected || stops >= 2;
+  }
+
+  if (step->getStepNo() == 1) {
+    ctx->stopTest();
+  }
+
+  restarter.insertErrorInNode(node_id, 0);
+  restarter.startNodes(nodes, 1);
+  restarter.waitNodesStarted(nodes, 1);
+
+  {
+    g_info << "dropping event operation " << op << endl;
+    int res = pNdb->dropEventOperation(op);
+    if (res != 0) {
+      g_err << "operation execution failed\n";
+      return NDBT_FAILED;
+    }
+  }
+
+  int filtered = 0;
+  for (int i = 0; i < records; i++) {
+    if (recEvents[i].pk != 0xFFFFFFFF) {
+      g_info << "row(" << recEvents[i].pk << "): i=" << recEvents[i].inserts
+             << ", u=" << recEvents[i].updates << ", d=" << recEvents[i].deletes
+             << endl;
+    } else {
+      filtered++;
+    }
+  }
+
+  ndbout_c("subscriber =          %d (%d)", slice_id, slice_count);
+  ndbout_c("n_inserts =           %d (%d)", stats.n_inserts, expected);
+  ndbout_c("n_deletes =           %d (%d)", stats.n_deletes, expected);
+  ndbout_c("n_updates =           %d (%d)", stats.n_updates, expected);
+  ndbout_c("filtered =            %d (%d)", filtered, records);
+
+  if (abs(filtered - expected) > expected) {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
 }
 
 int runEventLoad(NDBT_Context *ctx, NDBT_Step *step) {
@@ -7275,6 +7543,24 @@ TESTCASE("SubscribeEventsNRAF",
   STEP(runRestartRandomNodeStartWithError)
   STEP(runSubscriptionCheckerSameConn);
   STEPS(runSubscriptionCheckerOtherConn, 2);
+  FINALIZER(runDropEvent);
+}
+TESTCASE(
+    "SubscriberRowFilter",
+    "Check that subscribers configured for different row slices, receive a "
+    "disjoint set of events") {
+  INITIALIZER(runCreateEvent);
+  STEPS(runFilteredEventOperation, 2);
+  STEP(runEventLoad);
+  FINALIZER(runDropEvent);
+}
+TESTCASE(
+    "SubscriberRowFilterNF",
+    "Check that on node failure, with SUMA takeover, subscribers configured "
+    "for different row slices will conjointly receive the all data events") {
+  INITIALIZER(runCreateEvent);
+  STEPS(runFilteredEventOperationNF, 2);
+  STEP(runEventLoadTilStopped);
   FINALIZER(runDropEvent);
 }
 TESTCASE("DelayedEventDrop",

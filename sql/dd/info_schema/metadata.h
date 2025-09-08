@@ -286,9 +286,14 @@ namespace info_schema {
   Changes:
   - WL#16737: Library improvements.
   I_S.LIBRARIES view has the COMMENT field now.
+
+  90400:
+  ----------------------------------------------------------------------------
+  - WL#16620: JSON duality views
+  Four new information schema views were added to support JDV.
 */
 
-static const uint IS_DD_VERSION = 90300;
+static const uint IS_DD_VERSION = 90400;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

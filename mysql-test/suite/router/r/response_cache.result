@@ -552,7 +552,7 @@ select max(TIMER_END) into @initial_time from performance_schema.events_statemen
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 stats
-{"files": 1, "items": 6, "fileHits": 1.0, "itemHits": 9.0, "endpoints": 11, "fileLoads": 2.0, "itemLoads": 9.0, "fileEjects": 1.0, "fileMisses": 2.0, "itemEjects": 2.0, "itemMisses": 11.0}
+{"files": 1, "items": 6, "fileHits": 1.0, "itemHits": 10.0, "endpoints": 11, "fileLoads": 2.0, "itemLoads": 9.0, "fileEjects": 1.0, "fileMisses": 2.0, "itemEjects": 2.0, "itemMisses": 10.0}
 update performance_schema.setup_consumers set enabled="YES" where name='events_statements_history_long';
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;

@@ -33,22 +33,36 @@
 #define JAM_FILE_ID 503
 
 TransientPagePool::TransientPagePool()
-    : m_mem_manager(nullptr), m_root_page(nullptr), m_top(RNIL), m_type_id(0) {}
+    : m_mem_manager(nullptr),
+      m_root_page(nullptr),
+      m_top(RNIL),
+      m_type_id(0),
+      m_max_page_id(MapPage::MAX_PAGE_ID_2L) {}
 
 TransientPagePool::TransientPagePool(Uint32 type_id,
-                                     Ndbd_mem_manager *mem_manager)
-    : m_mem_manager(nullptr), m_root_page(nullptr), m_top(RNIL), m_type_id(0) {
-  init(type_id, mem_manager);
+                                     Ndbd_mem_manager *mem_manager,
+                                     Uint32 max_page_id)
+    : m_mem_manager(nullptr),
+      m_root_page(nullptr),
+      m_top(RNIL),
+      m_type_id(0),
+      m_max_page_id(MapPage::MAX_PAGE_ID_2L) {
+  init(type_id, mem_manager, max_page_id);
 }
 
-void TransientPagePool::init(Uint32 type_id, Ndbd_mem_manager *mem_manager) {
+void TransientPagePool::init(Uint32 type_id, Ndbd_mem_manager *mem_manager,
+                             Uint32 max_page_id) {
   assert(m_mem_manager == NULL);
   assert(m_root_page == NULL);
   assert(m_top == RNIL);
   assert(m_type_id == 0);
+  require(max_page_id < RNIL);
+  if (max_page_id > MapPage::MAX_PAGE_ID_2L)
+    max_page_id = MapPage::MAX_PAGE_ID_2L;
 
   m_type_id = type_id;
   m_mem_manager = mem_manager;
+  m_max_page_id = max_page_id;
 
   /**
    * Try allocate one root page, one second level map page.
@@ -75,7 +89,7 @@ void TransientPagePool::init(Uint32 type_id, Ndbd_mem_manager *mem_manager) {
 
 bool TransientPagePool::seize(Ptr<Page> &p) {
   Uint32 index = get_next_index(m_top);
-  if (unlikely(index == RNIL)) {
+  if (unlikely(index > m_max_page_id)) {
     return false;
   }
   Uint32 page_number;
@@ -115,11 +129,11 @@ bool TransientPagePool::getPtr(Ptr<Page> &p) const {
   }
   if (unlikely(p.p == nullptr || !Magic::match(p.p->m_magic, m_type_id))) {
     g_eventLogger->info(
-        "Magic::match failed in %s: "
+        "Magic::match failed in TransientPagePool::getPtr: "
         "type_id %08x rg %u tid %u: "
         "slot_size -: ptr.i %u: ptr.p %p: "
         "magic %08x expected %08x",
-        __func__, m_type_id, GET_RG(m_type_id), GET_TID(m_type_id), p.i, p.p,
+        m_type_id, GET_RG(m_type_id), GET_TID(m_type_id), p.i, p.p,
         p.p->m_magic, Magic::make(m_type_id));
     require(p.p != nullptr && Magic::match(p.p->m_magic, m_type_id));
   }
@@ -204,7 +218,10 @@ inline bool TransientPagePool::set(Uint32 index, Uint32 value) {
   require(value != MapPage::NO_VALUE);
   assert(value < RNIL);
   assert(index <= get_next_index(m_top));
+  assert(index <= m_max_page_id);
   require(m_root_page != nullptr);
+
+  if (unlikely(index > m_max_page_id)) return false;
 
   Uint32 high =
       (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
@@ -314,6 +331,7 @@ inline bool TransientPagePool::shrink() {
 
   Uint32 index = m_top;
   Uint32 new_top = get_prev_index(index);
+  require(new_top == RNIL || new_top < m_top);
 
   Uint32 high =
       (index >> MapPage::VALUE_INDEX_BITS) & MapPage::VALUE_INDEX_MASK;
@@ -394,7 +412,7 @@ Test::Test() {
       (8182 + 8183 * 8192));
 }
 
-int main(int argc, char *argv[]) {
+int main() {
   plan(11);
 
   Test dummy;

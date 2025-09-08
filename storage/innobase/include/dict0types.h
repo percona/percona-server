@@ -81,12 +81,6 @@ constexpr char SUB_PART_SEPARATOR[] = "#sp#";
 /** Sub-Partition separator length excluding terminating NULL */
 constexpr size_t SUB_PART_SEPARATOR_LEN = sizeof(SUB_PART_SEPARATOR) - 1;
 
-/** Alternative partition separator from 8.0.17 and older versions. */
-constexpr char ALT_PART_SEPARATOR[] = "#P#";
-
-/** Alternative sub-partition separator from 8.0.17 and older versions. */
-constexpr char ALT_SUB_PART_SEPARATOR[] = "#SP#";
-
 /** Schema separator is forward slash irrespective of platform. */
 constexpr char SCHEMA_SEPARATOR[] = "/";
 constexpr size_t SCHEMA_SEPARATOR_LEN = sizeof(SCHEMA_SEPARATOR) - 1;
@@ -191,11 +185,6 @@ void build_table(const std::string &schema, const std::string &table,
 @param[in]      dd_part         partition object from DD
 @param[out]     partition       partition string for dictionary table name */
 void build_partition(const dd::Partition *dd_part, std::string &partition);
-
-/** Build 5.7 style partition string from dd object.
-@param[in]      dd_part         partition object from DD
-@param[out]     partition       partition string for dictionary table name */
-void build_57_partition(const dd::Partition *dd_part, std::string &partition);
 
 /** Check if dd partition matches with innodb dictionary table name.
 @param[in]      dict_name       table name in innodb dictionary

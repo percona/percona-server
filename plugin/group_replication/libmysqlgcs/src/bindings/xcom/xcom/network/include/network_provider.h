@@ -209,7 +209,7 @@ struct Network_connection {
         has_error(false) {
   }
 
-  Network_connection(int parameter_fd, void *parameter_ssl_fd)
+  Network_connection(int parameter_fd, void *parameter_ssl_fd [[maybe_unused]])
       : fd(parameter_fd),
 #ifndef XCOM_WITHOUT_OPENSSL
         ssl_fd(static_cast<SSL *>(parameter_ssl_fd)),

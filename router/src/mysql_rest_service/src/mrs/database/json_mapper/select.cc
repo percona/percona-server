@@ -81,7 +81,7 @@ mysqlrouter::sqlstring format_key_names(const Table &table) {
       col = mysqlrouter::sqlstring("ST_AsGeoJSON(!.!)");
     else if (c->type == entry::ColumnType::VECTOR)
       col = mysqlrouter::sqlstring(
-          "CAST(CONVERT(VECTOR_TO_STRING(!.!) using utf8) AS JSON)");
+          "CAST(CONVERT(VECTOR_TO_STRING(!.!) using utf8mb4) AS JSON)");
     else
       col = mysqlrouter::sqlstring("!.!");
     col << table.table_alias << c->column_name;
@@ -106,7 +106,7 @@ mysqlrouter::sqlstring format_key(const Table &table,
     else if (column->type == entry::ColumnType::VECTOR)
       s.append_preformatted_sep(
           ",", mysqlrouter::sqlstring(
-                   "CAST(CONVERT(VECTOR_TO_STRING(?) using utf8) AS JSON)")
+                   "CAST(CONVERT(VECTOR_TO_STRING(?) using utf8mb4) AS JSON)")
                    << c.second);
     else
       s.append_preformatted_sep(",", c.second);
@@ -240,9 +240,10 @@ static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
   else if (type == entry::ColumnType::GEOMETRY)
     return {value_only ? "ST_AsGeoJSON(!.!)" : "?, ST_AsGeoJSON(!.!)"};
   else if (type == entry::ColumnType::VECTOR)
-    return {value_only
-                ? "CAST(CONVERT(VECTOR_TO_STRING(!.!) using utf8)AS JSON)"
-                : "?, CAST(CONVERT(VECTOR_TO_STRING(!.!)  using utf8)AS JSON)"};
+    return {
+        value_only
+            ? "CAST(CONVERT(VECTOR_TO_STRING(!.!) using utf8mb4)AS JSON)"
+            : "?, CAST(CONVERT(VECTOR_TO_STRING(!.!)  using utf8mb4)AS JSON)"};
   return {value_only ? "!.!" : "?, !.!"};
 }
 

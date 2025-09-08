@@ -88,7 +88,6 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
 
     @Override
     public void localSetUp() {
-        logger.info("PLEASE IGNORE THE FOLLOWING EXPECTED SEVERE ERRORS.");
         createSessionFactory();
         session = sessionFactory.getSession();
         executeSQL(dropTableStatement);

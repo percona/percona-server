@@ -37,6 +37,7 @@
 #include "mysql/harness/destination_socket.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/poll.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
@@ -262,6 +263,8 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
                 ec.category().name(), ec.message().c_str());
 
       destination_ec_ = ec;
+
+      connection()->destination_manager()->connect_status(destination_ec_);
 
       // resolve(...) failed, move host:port to the quarantine to monitor the
       // solve to come back.
@@ -979,8 +982,7 @@ ConnectProcessor::next_destination() {
     stage(Stage::Resolve);
     return Result::Again;
   } else if (destination_ec_ != make_error_condition(std::errc::timed_out) &&
-             destination_ec_ !=
-                 make_error_condition(std::errc::no_such_file_or_directory) &&
+             destination_ec_.category() != net::ip::resolver_category() &&
              destination_manager->refresh_destinations(session_info)) {
     // On member failure (connection refused, ...) wait for failover and use
     // the new primary.

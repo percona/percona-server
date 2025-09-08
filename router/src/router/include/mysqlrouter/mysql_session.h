@@ -249,9 +249,10 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
 
     Transaction(MySQLSession *session, const bool consisten_snapshot = false)
         : session_(session) {
-      session_->execute(consisten_snapshot
-                            ? "START TRANSACTION WITH CONSISTENT SNAPSHOT"
-                            : "START TRANSACTION");
+      if (session_)
+        session_->execute(consisten_snapshot
+                              ? "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                              : "START TRANSACTION");
     }
 
     ~Transaction() {
@@ -514,6 +515,9 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
 
   MYSQL *get_handle() { return connection_; }
 
+  void log_queries(bool log) { log_queries_ = log; }
+  bool log_queries() const { return log_queries_; }
+
  private:
   // stores selected parameters that were passed to the last successful call to
   // connect()
@@ -529,7 +533,6 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
   MYSQL *connection_;
   bool connected_;
   std::string connection_address_;
-  SQLLogFilter log_filter_;
   unsigned long extra_client_flags_{0};
   uint64_t connection_id_{0};
 
@@ -541,9 +544,11 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
   using mysql_result_type = std::unique_ptr<MYSQL_RES, MYSQL_RES_Deleter>;
 
   enum class AsyncQueryState {
-    kNone,        // no async query active
-    kQuery,       // waiting query to finish
-    kStoreResult  // waiting store result to finish
+    kNone,             // no async query active
+    kQuery,            // waiting query to finish
+    kStoreResult,      // waiting store_result to finish
+    kNextResult,       // waiting next_result to finish
+    kStoreNextResult,  // waiting store_result after next_result to finish
   };
   AsyncQueryState async_state_ = AsyncQueryState::kNone;
   bool async_query_logged_ = false;
@@ -567,6 +572,8 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
   stdx::expected<mysql_result_type, MysqlError> real_query_nb(
       const std::string &q);
 
+  stdx::expected<mysql_result_type, MysqlError> next_result_nb();
+
   /**
    * log query after running it.
    */
@@ -579,6 +586,10 @@ class ROUTER_MYSQL_EXPORT MySQLSession {
   void throw_mysqlerror(MYSQL_STMT *stmt, uint64_t ps_id);
   // if query be timed and sent to the sql-log.
   mysql_harness::logging::DomainLogger logger_{"sql"};
+
+  static SQLLogFilter &get_log_filter();
+
+  bool log_queries_{true};
 };
 
 }  // namespace mysqlrouter

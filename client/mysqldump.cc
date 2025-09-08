@@ -2967,7 +2967,8 @@ static void print_blob_as_hex(FILE *output_file, const char *str, ulong len) {
     false All the libraries imported by the routine exists.
     true  The routine has missing imports.
 */
-static bool has_missing_import(const char *schema, const char *name) {
+static bool has_missing_import(const char *schema, const char *name,
+                               FILE *sql_file) {
   MYSQL_RES *routine_list_res;
   std::string query{
       std::string{
@@ -2980,12 +2981,134 @@ static bool has_missing_import(const char *schema, const char *name) {
           "rl.LIBRARY_NAME = lib.LIBRARY_NAME "
           "WHERE lib.LIBRARY_NAME IS NULL AND rl.ROUTINE_SCHEMA = '"} +
       schema + "' AND rl.ROUTINE_NAME = '" + name + '\''};
-  if (mysql_query_with_error_report(mysql, &routine_list_res, query.c_str()))
-    return true;
+
+  if (mysql_query(mysql, query.c_str())) {
+    // Unable to query the INFORMATION_SCHEMA.ROUTINE_LIBRARIES view, it is
+    // probably missing in old servers.
+    fprintf(sql_file,
+            "--\n"
+            "-- WARNING: can't read the INFORMATION_SCHEMA.libraries table. "
+            "It's most probably an old server %s.\n"
+            "--\n",
+            mysql_get_server_info(mysql));
+    return false;  // No missing libraries found.
+  }
+  routine_list_res = mysql_store_result(mysql);
+  if (!routine_list_res) {
+    maybe_die(EX_MYSQLERR,
+              "Can't read the INFORMATION_SCHEMA.libraries table. "
+              "It's most probably an old server.");
+    return true;  // Error executing the query.
+  }
+
+  bool result = false;
   if (mysql_num_rows(routine_list_res))
-    return true;  // There are imported libraries that do NOT exist.
+    result = true;  // There are imported libraries that do NOT exist.
   mysql_free_result(routine_list_res);
-  return false;  // All the libraries that this routine imports, are present.
+  return result;  // All the libraries that this routine imports, are present.
+}
+
+/*
+  dump_libraries_for_db
+  -- retrieves list of libraries for a given db, and prints out
+  the CREATE LIBRARY definition into the output (the dump).
+
+  RETURN
+    0  Success
+    1  Error
+*/
+
+static uint dump_libraries_for_db(char *db_name_buff) {
+  MYSQL_RES *library_res, *libraries_list_res;
+  MYSQL_ROW row, libraries_list_row;
+  char *routine_name;
+  char name_buff[NAME_LEN * 2 + 3];
+  char query_buff[QUERY_LENGTH];
+  FILE *sql_file = md_result_file;
+
+  /* First dump the libraries. They may be used by the routines. */
+  std::string const query{
+      std::string{"SELECT LIBRARY_NAME FROM INFORMATION_SCHEMA.LIBRARIES WHERE "
+                  "LIBRARY_SCHEMA = '"} +
+      db_name_buff + "' ORDER BY LIBRARY_NAME"};
+
+  if (mysql_query(mysql, query.c_str())) {
+    // Unable to query the table, it is probably missing in old servers.
+    fprintf(sql_file,
+            "--\n"
+            "-- WARNING: can't read the INFORMATION_SCHEMA.libraries table. "
+            "It's most probably an old server %s.\n"
+            "--\n",
+            mysql_get_server_info(mysql));
+    return 0;
+  }
+  libraries_list_res = mysql_store_result(mysql);
+  if (!libraries_list_res) {
+    maybe_die(EX_MYSQLERR, "Couldn't execute '%s': %s (%d)", query.c_str(),
+              mysql_error(mysql), mysql_errno(mysql));
+    return 1;
+  }
+
+  if (mysql_num_rows(libraries_list_res)) {
+    while ((libraries_list_row = mysql_fetch_row(libraries_list_res))) {
+      routine_name = quote_name(libraries_list_row[0], name_buff, false);
+      DBUG_PRINT("info", ("retrieving CREATE LIBRARY for %s", name_buff));
+      std::string const show_create_query{std::string{"SHOW CREATE LIBRARY "} +
+                                          routine_name};
+      if (mysql_query_with_error_report(mysql, &library_res,
+                                        show_create_query.c_str()))
+        return 1;
+
+      while ((row = mysql_fetch_row(library_res))) {
+        /*
+          if the user has EXECUTE privilege he see library names, but NOT the
+          library body of other routines that are not the creator of!
+        */
+        DBUG_PRINT("info",
+                   ("length of body for %s row[2] '%s' is %zu", routine_name,
+                    row[2] ? row[2] : "(null)", row[2] ? strlen(row[2]) : 0));
+        if (row[2] == nullptr) {
+          print_comment(sql_file, true, "\n-- insufficient privileges to %s\n",
+                        query_buff);
+
+          bool freemem = false;
+          char const *text =
+              fix_identifier_with_newline(current_user, &freemem);
+          print_comment(sql_file, true,
+                        "-- does %s have permissions on "
+                        "INFORMATION_SCHEMA.LIBRARIES?\n\n",
+                        text);
+          if (freemem) my_free(const_cast<char *>(text));
+
+          maybe_die(EX_MYSQLERR, "%s has insufficient privileges to %s!",
+                    current_user, query_buff);
+        } else if (strlen(row[2])) {
+          if (opt_xml) {
+            print_xml_row(sql_file, "library", library_res, &row,
+                          "Create Library");
+            continue;
+          }
+          if (opt_drop)
+            fprintf(sql_file, "DROP LIBRARY IF EXISTS %s;\n", routine_name);
+
+          switch_sql_mode(sql_file, ";", row[1]);
+
+          fprintf(sql_file,
+                  "DELIMITER ;;\n"
+                  "%s ;;\n"
+                  "DELIMITER ;\n",
+                  (const char *)row[2]);
+
+          restore_sql_mode(sql_file, ";");
+        }
+      } /* end of library printing */
+      mysql_free_result(library_res);
+
+    } /* end of list of libraries */
+  }
+  mysql_free_result(libraries_list_res);
+
+  return 0;  // success.
 }
 
 /*
@@ -3044,76 +3167,7 @@ static uint dump_routines_for_db(char *db) {
 
   if (opt_xml) fputs("\t<routines>\n", sql_file);
 
-  {
-    /* First dump the libraries. They may be used by the routines. */
-    std::string const query{
-        std::string{
-            "SELECT LIBRARY_NAME FROM INFORMATION_SCHEMA.LIBRARIES WHERE "
-            "LIBRARY_SCHEMA = '"} +
-        db_name_buff + "' ORDER BY LIBRARY_NAME"};
-
-    if (mysql_query_with_error_report(mysql, &routine_list_res, query.c_str()))
-      return 1;
-
-    if (mysql_num_rows(routine_list_res)) {
-      while ((routine_list_row = mysql_fetch_row(routine_list_res))) {
-        routine_name = quote_name(routine_list_row[0], name_buff, false);
-        DBUG_PRINT("info", ("retrieving CREATE LIBRARY for %s", name_buff));
-        std::string const show_create_query{
-            std::string{"SHOW CREATE LIBRARY "} + routine_name};
-        if (mysql_query_with_error_report(mysql, &routine_res,
-                                          show_create_query.c_str()))
-          return 1;
-
-        while ((row = mysql_fetch_row(routine_res))) {
-          /*
-            if the user has EXECUTE privilege he see library names, but NOT the
-            library body of other routines that are not the creator of!
-          */
-          DBUG_PRINT("info",
-                     ("length of body for %s row[2] '%s' is %zu", routine_name,
-                      row[2] ? row[2] : "(null)", row[2] ? strlen(row[2]) : 0));
-          if (row[2] == nullptr) {
-            print_comment(sql_file, true,
-                          "\n-- insufficient privileges to %s\n", query_buff);
-
-            bool freemem = false;
-            char const *text =
-                fix_identifier_with_newline(current_user, &freemem);
-            print_comment(sql_file, true,
-                          "-- does %s have permissions on "
-                          "INFORMATION_SCHEMA.LIBRARIES?\n\n",
-                          text);
-            if (freemem) my_free(const_cast<char *>(text));
-
-            maybe_die(EX_MYSQLERR, "%s has insufficient privileges to %s!",
-                      current_user, query_buff);
-          } else if (strlen(row[2])) {
-            if (opt_xml) {
-              print_xml_row(sql_file, "library", routine_res, &row,
-                            "Create Library");
-              continue;
-            }
-            if (opt_drop)
-              fprintf(sql_file, "DROP LIBRARY IF EXISTS %s;\n", routine_name);
-
-            switch_sql_mode(sql_file, ";", row[1]);
-
-            fprintf(sql_file,
-                    "DELIMITER ;;\n"
-                    "%s ;;\n"
-                    "DELIMITER ;\n",
-                    (const char *)row[2]);
-
-            restore_sql_mode(sql_file, ";");
-          }
-        } /* end of library printing */
-        mysql_free_result(routine_res);
-
-      } /* end of list of libraries */
-    }
-    mysql_free_result(routine_list_res);
-  }
+  if (dump_libraries_for_db(db_name_buff)) return 1;
 
   /* 0, retrieve and dump functions, 1, procedures */
   for (i = 0; i <= 1; i++) {
@@ -3129,7 +3183,7 @@ static uint dump_routines_for_db(char *db) {
             mysql, name_buff, routine_list_row[1],
             static_cast<ulong>(strlen(routine_list_row[1])), '\'');
 
-        if (has_missing_import(db_name_buff, name_buff)) {
+        if (has_missing_import(db_name_buff, name_buff, sql_file)) {
           // Any of the imported libraries does NOT exist.
           print_comment(
               sql_file, true,

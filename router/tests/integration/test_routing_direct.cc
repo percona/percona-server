@@ -3719,6 +3719,7 @@ TEST_P(ConnectionTest, classic_protocol_replay_session_trackers) {
                   ::testing::AnyOf(1227,  // super sys-var
                                    1229,  // global sys-var
                                    1238,  // read-only
+                                   1286,  // Unknown storage engine
                                    1621   // is read-only, use SET GLOBAL
                                    ))
           << set_var_res.error();
@@ -3778,7 +3779,8 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
                          "innodb_ft_user_stopword_table",               //
                          "innodb_interpreter_output",                   // debug
                          "session_track_system_variables",
-                         "debug_set_operations_secondary_overflow_at",
+                         "external_table_storage_engine",
+                         "external_table_secondary_storage_engine",
                          "log_query_errors"));
     }
   }

@@ -15,20 +15,52 @@
 
 # Simplify Google V8 usage by defining ext::v8 interface library.
 
+SET(EXPECTED_V8_VERSION "12.9.202.22")
+
+FUNCTION(FIND_V8_VERSION V8_INCLUDE_DIR)
+  FOREACH(version_part
+      V8_MAJOR_VERSION
+      V8_MINOR_VERSION
+      V8_BUILD_NUMBER
+      V8_PATCH_LEVEL
+      )
+    FILE(STRINGS "${V8_INCLUDE_DIR}/v8-version.h" ${version_part}
+      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+    STRING(REGEX REPLACE
+      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+      ${version_part} "${${version_part}}")
+  ENDFOREACH()
+  SET(V8_VERSION
+    "${V8_MAJOR_VERSION}.${V8_MINOR_VERSION}.${V8_BUILD_NUMBER}.${V8_PATCH_LEVEL}")
+  SET(V8_VERSION "${V8_VERSION}" CACHE INTERNAL "V8 major.minor.build.patch")
+  MESSAGE(STATUS "V8_VERSION (${V8_INCLUDE_DIR}/v8-version.h) is ${V8_VERSION}")
+ENDFUNCTION(FIND_V8_VERSION)
+
 MACRO(MYSQL_CHECK_V8)
   IF(NOT DEFINED V8_INCLUDE_DIR OR NOT DEFINED V8_LIB_DIR)
     MESSAGE(FATAL_ERROR "No path to V8 headers and libraries. Please set V8_INCLUDE_DIR and V8_LIB_DIR.")
   ENDIF()
 
   # Check that V8_INCLUDE_DIR contains necessary headers.
+  MESSAGE(STATUS "V8_INCLUDE_DIR ${V8_INCLUDE_DIR}")
   IF(NOT EXISTS ${V8_INCLUDE_DIR}/v8.h)
     MESSAGE(FATAL_ERROR "Bad path to V8 headers. No v8.h in V8_INCLUDE_DIR.")
   ENDIF()
 
   # Also check that V8_LIB_DIR contains necessary libraries.
+  MESSAGE(STATUS "V8_LIB_DIR ${V8_LIB_DIR}")
   FIND_LIBRARY(V8_LIB v8_monolith PATHS ${V8_LIB_DIR} NO_DEFAULT_PATH)
   IF(NOT V8_LIB)
     MESSAGE(FATAL_ERROR "Bad path to V8 libraries. No v8_monolith library in V8_LIB_DIR.")
+  ENDIF()
+
+  # Check that we have correct V8 version.
+  #
+  # We require exact version of V8 at the moment. Other versions might work,
+  # but it is not guaranteed. V8 moves fast and likes to break things.
+  FIND_V8_VERSION(${V8_INCLUDE_DIR})
+  IF(NOT V8_VERSION VERSION_EQUAL EXPECTED_V8_VERSION)
+    MESSAGE(FATAL_ERROR "Expected V8 version is ${EXPECTED_V8_VERSION}, found ${V8_VERSION}.")
   ENDIF()
 
   ADD_LIBRARY(v8_interface INTERFACE)

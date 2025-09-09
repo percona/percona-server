@@ -70,10 +70,8 @@ compatibility of our component with V8 library version built using default
 V8 build process, such as usage of clang compiler (moreover own version of
 it), custom libcxx and so on.
 
-It is good idea to use build steps (taking into account different V8 version
-used and minimal changes to build options) from the `build_v8.sh` script from
-Percona's https://github.com/percona/mysql-shell-packaging/ project to prepare
-version of V8 library which is compatible with this component.
+It is good idea to use build steps from `ps-build/build_v8.sh` script to
+prepare version of V8 library which is compatible with this component.
 
 
 Examples

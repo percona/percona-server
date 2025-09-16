@@ -63,6 +63,7 @@ eval create table u1(
  primary key (c1, c2, c3),
  unique key (c3, c1)
 ) engine=$engine;
+set session gap_lock_raise_error=error;
 begin;
 insert into u1 values (1,1,1,1);
 commit;

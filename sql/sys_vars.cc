@@ -130,6 +130,7 @@
 #include "sql/server_component/log_builtins_imp.h"
 #include "sql/session_tracker.h"
 #include "sql/sp_head.h"  // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql/sql_class.h"  // THD, enum_gap_lock_raise_values
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"  // my_locale_by_number
 #include "sql/sql_parse.h"   // killall_non_super_threads
@@ -5916,6 +5917,19 @@ static Sys_var_ulong Sys_default_week_format(
     "default_week_format", "The default week format used by WEEK() functions",
     HINT_UPDATEABLE SESSION_VAR(default_week_format), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, 7), DEFAULT(0), BLOCK_SIZE(1));
+
+static const char *gap_lock_raise_values[] = {"OFF", "WARNING", "ERROR", 0};
+
+static Sys_var_enum Sys_gap_lock_raise_error(
+    "gap_lock_raise_error",
+    "Controls raising a warning or an error when executing queries that "
+    "rely on Gap Lock. It can take the following values: "
+    "OFF: no error is raised "
+    "WARNING: a warning is raised "
+    "ERROR: an error is raised. "
+    "Default is OFF",
+    SESSION_VAR(gap_lock_raise_error), CMD_LINE(OPT_ARG), gap_lock_raise_values,
+    DEFAULT(THD::GAP_LOCK_RAISE_OFF));
 
 static Sys_var_ulong Sys_group_concat_max_len(
     "group_concat_max_len",

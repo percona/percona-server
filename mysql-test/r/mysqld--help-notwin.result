@@ -423,6 +423,11 @@ The following options may be given as the first argument:
  word symbols for full text search queries
  --ft-stopword-file=name 
  Use stopwords from this file instead of built-in list
+ --gap-lock-raise-error[=name]
+ Controls raising a warning or an error when executing
+ queries that rely on Gap Lock. It can take the following
+ values: OFF: no error is raised WARNING: a warning is
+ raised ERROR: an error is raised. Default is OFF
  --gdb               Set up signals usable for debugging.
  --general-log       Log connections and queries to a table or log file.
  Defaults to logging to a file hostname.log, or if
@@ -1847,6 +1852,7 @@ ft-min-word-len 4
 ft-query-expansion-limit 20
 ft-query-extra-word-chars FALSE
 ft-stopword-file (No default value)
+gap-lock-raise-error OFF
 gdb FALSE
 general-log FALSE
 generated-random-password-length 20

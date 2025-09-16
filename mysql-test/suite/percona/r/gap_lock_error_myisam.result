@@ -1,3 +1,4 @@
+drop table if exists gap1,gap2,gap3;
 CREATE TABLE gap1 (id1 INT, id2 INT, id3 INT, c1 INT, value INT,
 PRIMARY KEY (id1, id2, id3),
 INDEX i (c1)) ENGINE=myisam;
@@ -6,6 +7,16 @@ CREATE TABLE gap3 (id INT, value INT,
 PRIMARY KEY (id),
 UNIQUE KEY ui(value)) ENGINE=myisam;
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
+CREATE TABLE gap5 (
+pk int primary key,
+a int,
+b int,
+key(a)
+) ENGINE=myisam;
+insert into gap5 values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+create table gap6 like gap5;
+insert into gap6 values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+set session gap_lock_raise_error= WARNING;
 select sum(value) from gap1;
 sum(value)
 500500
@@ -13,4 +24,5 @@ update gap1 set gap1.value= (select count(*) from gap2);
 select sum(value) from gap1;
 sum(value)
 1000000
-drop table gap1, gap2, gap3;
+set global gap_lock_raise_error= off;
+drop table gap1, gap2, gap3, gap5, gap6;

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Got error 522 when reading table");
 --source include/have_rocksdb.inc
 --source include/have_debug_sync.inc
 
@@ -16,8 +17,8 @@
 # by the concurrent update will return KEY_NOT_FOUND back to the SQL layer
 # In this case, the user will be returned no row. 
 
-#let $isolation_level = REPEATABLE READ;
-#--source rocksdb_concurrent_point_update_sk.inc
+let $isolation_level = REPEATABLE READ;
+--source rocksdb_concurrent_point_update_sk.inc
 
 let $isolation_level = READ COMMITTED;
 --source rocksdb_concurrent_point_update_sk.inc

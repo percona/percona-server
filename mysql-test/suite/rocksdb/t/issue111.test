@@ -43,11 +43,7 @@ commit;
 
 connection default;
 
-# MyRocks does not support gap locks in REPEATABLE-READ mode
-# Upstream would have granted a ghost lock on the gaps and then encountered
-# a real row deadlock. Percona Server prevents the gap lock entirely
-# --error ER_LOCK_DEADLOCK
---error ER_UNKNOWN_ERROR
+--error ER_LOCK_DEADLOCK
 update t1 set col2=col2+1 where col1 < 10 limit 5;
 
 disconnect con2;

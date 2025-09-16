@@ -698,6 +698,11 @@ struct System_variables {
   Explain_format_type explain_format;
 
   /**
+    @sa Sys_gap_lock_raise_error
+  */
+  ulong gap_lock_raise_error;
+
+  /**
     Used to specify the JSON format version used by EXPLAIN FORMAT=JSON with
     the old (non-hypergraph) join optimizer.
     @sa Sys_explain_json_format_version

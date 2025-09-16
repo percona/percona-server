@@ -42,10 +42,6 @@ connection con1;
 --sorted_result
 SELECT a FROM t1; # Third snapshot
 
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-}
 INSERT INTO t1 (a) SELECT a+100 FROM t1; 
 
 --sorted_result
@@ -67,10 +63,6 @@ SELECT a FROM t1; # Inside the transaction
 # The test will have a 'logical' result for repeatable read, even although
 # we currently don't have an engine which works this way.
 
-if ($trx_isolation == "REPEATABLE READ")
-{
-  --error ER_UNKNOWN_ERROR
-}
 INSERT INTO t1 (a) SELECT a+200 FROM t1; 
 
 --sorted_result

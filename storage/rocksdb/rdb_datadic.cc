@@ -2228,7 +2228,8 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
     Check checksum values if present
   */
   const char *ptr;
-  if (unlikely((ptr = unp_reader.read(1)) && *ptr == RDB_CHECKSUM_DATA_TAG)) {
+  if (unlikely(unp_reader.remaining_bytes() == RDB_CHECKSUM_CHUNK_SIZE &&
+               (ptr = unp_reader.read(1)) && *ptr == RDB_CHECKSUM_DATA_TAG)) {
     if (verify_row_debug_checksums) {
       uint32_t stored_key_chksum = rdb_netbuf_to_uint32(
           (const uchar *)unp_reader.read(RDB_CHECKSUM_SIZE));

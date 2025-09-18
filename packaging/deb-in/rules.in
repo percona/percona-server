@@ -86,7 +86,7 @@ override_dh_auto_install:
 	$(MAKE) install DESTDIR=../debian/tmp
 	@DEB_RULES_DEBUG_EXTRA@
 	# add missing man pages
-	install -g root -o root -m 0644 debian/extra/mysql_embedded.1 debian/tmp/usr/share/man/man1
+	install -m 0644 debian/extra/mysql_embedded.1 debian/tmp/usr/share/man/man1
 	# Add helper functions for maintainer scripts
 	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
 	# add apparmor profile

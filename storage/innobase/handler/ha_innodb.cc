@@ -23457,45 +23457,24 @@ innobase_rename_vc_templ(
 	table->vc_templ->tb_name = t_tbname;
 }
 
-/** Get the updated parent field value from the update vector for the
-given col_no.
-@param[in]	foreign		foreign key information
-@param[in]	update		updated parent vector.
-@param[in]	col_no		base column position of the child table to check
-@return updated field from the parent update vector, else NULL */
-dfield_t*
-innobase_get_field_from_update_vector(
-	dict_foreign_t*	foreign,
+/** Get the updated field value from an update vector for the given column
+number.
+@param[in]	table	the table that is used for creating update vector
+@param[in]	update	the update vector for the table's clustered index
+@param[in]	col_no	the number of the non-virtual column in the table
+@return the field's new value if it's updated, otherwise nullptr */
+static
+const dfield_t *innobase_get_field_from_update_vector(
+	dict_table_t*	table,
 	upd_t*		update,
-	uint32_t	col_no)
+	uint32_t 	col_no)
 {
-	dict_table_t*	parent_table = foreign->referenced_table;
-	dict_index_t*	parent_index = foreign->referenced_index;
-	uint32_t	parent_field_no;
-	uint32_t	parent_col_no;
-	uint32_t	child_col_no;
-
-	for (uint32_t i = 0; i < foreign->n_fields; i++) {
-		child_col_no = dict_index_get_nth_col_no(
-			foreign->foreign_index, i);
-		if (child_col_no != col_no) {
-			continue;
-		}
-		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
-		parent_field_no = dict_table_get_nth_col_pos(
-			parent_table, parent_col_no);
-
-		for (uint32_t j = 0; j < update->n_fields; j++) {
-			upd_field_t*	parent_ufield
-				= &update->fields[j];
-
-			if (parent_ufield->field_no == parent_field_no) {
-				return(&parent_ufield->new_val);
-			}
-		}
-	}
-
-	return (NULL);
+	dict_index_t*	clustered_index = dict_table_get_first_index(table);
+	ulint		index_field_pos = dict_index_get_nth_col_pos(
+	    clustered_index, col_no, NULL);
+	const upd_field_t *upd_field = upd_get_field_by_field_no(
+	    update, index_field_pos, false);
+	return upd_field ? &upd_field->new_val : NULL;
 }
 
 /** Get the computed value by supplying the base column values.
@@ -23509,8 +23488,9 @@ innobase_get_field_from_update_vector(
 @param[in,out]	mysql_table	mysql table object
 @param[in]	old_table	during ALTER TABLE, this is the old table
 				or NULL.
-@param[in]	parent_update	update vector for the parent row
-@param[in]	foreign		foreign key information
+@param[in]	cascade_update	update vector for the current table involved in
+				cascade update
+@param[in]	foreign		foreign key information [unused]
 @param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
                         and compress_heap (used for compression)
 @return the field filled with computed value, or NULL if just want
@@ -23526,7 +23506,7 @@ innobase_get_computed_value(
 	THD*			thd,
 	TABLE*			mysql_table,
 	const dict_table_t*	old_table,
-	upd_t*			parent_update,
+	upd_t*			cascade_update,
 	dict_foreign_t*		foreign,
 	row_prebuilt_t*		prebuilt)
 {
@@ -23545,6 +23525,7 @@ innobase_get_computed_value(
 
 	ut_ad(index->table->vc_templ);
 	ut_ad(thd != NULL);
+	ut_ad(foreign == NULL);
 
 	const mysql_row_templ_t*
 			vctempl =  index->table->vc_templ->vtempl[
@@ -23573,11 +23554,11 @@ innobase_get_computed_value(
 			= index->table->vc_templ->vtempl[col_no];
 		const byte*			data;
 
-		if (parent_update != NULL) {
+		if (cascade_update != NULL) {
 			/** Get the updated field from update vector
-			of the parent table. */
-			row_field = innobase_get_field_from_update_vector(
-					foreign, parent_update, col_no);
+			of the table involved in cascade update */
+			row_field = innobase_get_field_from_update_vector(index->table,
+					cascade_update, col_no);
 		}
 
 		if (row_field == NULL) {

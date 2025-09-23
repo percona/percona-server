@@ -411,13 +411,17 @@ install_deps() {
             yum -y install Percona-Server-shared-56  
         fi
     else
+        export DEBIAN_FRONTEND="noninteractive"
+        export DIST="$(grep '^PRETTY_NAME=' /etc/os-release | cut -d= -f2 | tr -d '"' | sed -E 's/.*\(([^)]+)\).*/\1/')"
+        if [ "x${DIST}" = "xbuster" ]; then
+            sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://deb.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
+            echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-valid-until
+        fi
         apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget curl rsync
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
-        export DEBIAN_FRONTEND="noninteractive"
-        export DIST="$(lsb_release -sc)"
         until apt-get update; do
             sleep 5
             echo "waiting"

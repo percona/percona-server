@@ -3,6 +3,11 @@
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
 
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+
+# remove old rotated log files
+--remove_files_wildcard $audit_filter_log_path audit_filter.????????T??????*.log
+
 SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
 
 SET @old_prune_seconds = @@global.audit_log_filter.prune_seconds;

@@ -37,7 +37,8 @@ perl;
   opendir(my $dh, $ENV{'log_path'}) || die "Can't opendir $ENV{'log_path'}: $!";
 
   while ((my $filename = readdir($dh))) {
-    if ($filename =~ /^$log_base_name/ && $filename =~ /\.(\d{8}T\d{6})\./) {
+    if ($filename =~ /^$log_base_name/ &&
+        $filename =~ /\.(\d{8}T\d{6})(-\d+)?\./) {
       push(@$timestamps, str2time($1));
     }
   }

@@ -39,7 +39,7 @@ INSERT INTO t1 (`id`, `ttl_ts`) VALUES ('helloworld', 1738737225);
 DROP TABLE t1;
 #
 # PS-10075: RocksDB: Checksum mismatch in key of key-value pair for index
-# https://perconadev.atlassian.net/browse/PS-10150
+# https://perconadev.atlassian.net/browse/PS-10075
 #
 CREATE TABLE t1 (lt LONGTEXT, INDEX idx(lt(8)) ) ENGINE=RocksDB;
 INSERT INTO t1 (lt) VALUES (
@@ -52,3 +52,39 @@ SELECT lt, LENGTH(lt) FROM t1;
 lt	LENGTH(lt)
 START-1234567890123456789012345678901234567890.1234567890123456789012345678901234567890.1234567890123456789012345678901234567890.1234567890123456789012345678901234567890.1234567890123456789012345678901234567890.1234567890123456789012345678901234567890..-END	257
 DROP TABLE t1;
+#
+# PS-10067: Consume per-field metadata with `Rdb_convert_to_record_key_decoder::skip`
+# https://perconadev.atlassian.net/browse/PS-10067
+#
+# Test Rdb_key_def::make_unpack_unknown_varlength for MYSQL_TYPE_VARCHAR and MYSQL_TYPE_VARCHAR
+# (uses Rdb_key_def::skip_variable_length_encoding)
+CREATE TABLE t1 (v7 VARCHAR(7), v32 VARCHAR(32), INDEX i(v32(5), v7) ) ENGINE=RocksDB;
+INSERT INTO t1 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1 WHERE v32 LIKE '1234567890%';
+v7	v32
+percona	1234567890.1234567890.1234567890
+DROP TABLE t1;
+# Test Rdb_key_def::make_unpack_unknown_varlength for MYSQL_TYPE_VARCHAR and MYSQL_TYPE_BLOB
+# (uses  Rdb_key_def::skip_variable_length_encoding)
+CREATE TABLE t2 (v7 VARCHAR(7), v32 TEXT, INDEX i(v32(11), v7) ) COLLATE=utf8mb4_0900_ai_ci ENGINE=RocksDB;
+INSERT INTO t2 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 WHERE v32 LIKE '1234567890%';
+v7	v32
+percona	1234567890.1234567890.1234567890
+DROP TABLE t2;
+# Test Rdb_key_def::skip_variable_space_pad
+CREATE TABLE t3 (v7 VARCHAR(7), v32 TEXT, INDEX i(v32(11), v7) ) COLLATE=utf8mb4_bin ENGINE=RocksDB;
+INSERT INTO t3 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+SELECT * FROM t3 WHERE v32 LIKE '1234567890%';
+v7	v32
+percona	1234567890.1234567890.1234567890
+DROP TABLE t3;

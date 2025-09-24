@@ -42,8 +42,9 @@ void AuditLogReader::set_files_to_read_list(
 
   std::vector<std::string> tp_list;
 
-  for (const auto &item : m_first_timestamp_to_file_map) {
-    if (item.first >= reader_context->next_event_bookmark.timestamp) {
+  for (const auto &item : m_timestamp_to_file_map) {
+    if (item.second->first_timestamp >=
+        reader_context->next_event_bookmark.timestamp) {
       auto *file_info = item.second.get();
 
       if (file_info->is_encrypted && file_info->encryption_options == nullptr) {
@@ -108,19 +109,19 @@ bool AuditLogReader::init() noexcept {
     }
   }
 
-  std::copy_if(all_files.cbegin(), all_files.cend(),
+  std::copy_if(std::cbegin(all_files), std::cend(all_files),
                std::back_inserter(new_files), [this](const auto &name) {
-                 return !std::any_of(m_first_timestamp_to_file_map.cbegin(),
-                                     m_first_timestamp_to_file_map.cend(),
+                 return !std::any_of(std::cbegin(m_timestamp_to_file_map),
+                                     std::cend(m_timestamp_to_file_map),
                                      [&name](const auto &entry) {
                                        return entry.second->name == name;
                                      });
                });
 
-  std::for_each(m_first_timestamp_to_file_map.cbegin(),
-                m_first_timestamp_to_file_map.cend(),
+  std::for_each(std::cbegin(m_timestamp_to_file_map),
+                std::cend(m_timestamp_to_file_map),
                 [&all_files, &removed_files](const auto &pair) {
-                  if (!std::any_of(all_files.cbegin(), all_files.cend(),
+                  if (!std::any_of(std::cbegin(all_files), std::cend(all_files),
                                    [&pair](const auto &name) {
                                      return name == pair.second->name;
                                    })) {
@@ -178,19 +179,21 @@ bool AuditLogReader::init() noexcept {
       continue;
     }
 
-    m_first_timestamp_to_file_map.emplace(
-        first_event->GetObject()["timestamp"].GetString(),
-        std::move(file_info));
+    file_info->first_timestamp =
+        first_event->GetObject()["timestamp"].GetString();
+
+    m_timestamp_to_file_map.emplace(LogFileTimestamp(log_name),
+                                    std::move(file_info));
   }
 
   for (const auto &log_name : removed_files) {
     auto it = std::find_if(
-        m_first_timestamp_to_file_map.cbegin(),
-        m_first_timestamp_to_file_map.cend(),
+        std::cbegin(m_timestamp_to_file_map),
+        std::cend(m_timestamp_to_file_map),
         [log_name](const auto &pair) { return pair.second->name == log_name; });
 
-    if (it != m_first_timestamp_to_file_map.cend()) {
-      m_first_timestamp_to_file_map.erase(it);
+    if (it != std::cend(m_timestamp_to_file_map)) {
+      m_timestamp_to_file_map.erase(it);
     }
   }
 

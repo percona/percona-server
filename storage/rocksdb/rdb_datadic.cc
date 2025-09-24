@@ -172,8 +172,8 @@ int Rdb_convert_to_record_key_decoder::decode(
 */
 int Rdb_convert_to_record_key_decoder::skip(
     const Rdb_field_packing *fpi, const Field *field MY_ATTRIBUTE((__unused__)),
-    Rdb_string_reader *reader, Rdb_string_reader *unp_reader,
-    bool covered_bitmap_format_enabled) {
+    bool has_unpack_info, Rdb_string_reader *reader,
+    Rdb_string_reader *unp_reader, bool covered_bitmap_format_enabled) {
   /* It is impossible to unpack the column. Skip it. */
   if (fpi->m_field_is_nullable) {
     const char *nullp;
@@ -191,6 +191,23 @@ int Rdb_convert_to_record_key_decoder::skip(
   }
   if ((fpi->m_skip_func)(fpi, reader)) {
     return HA_ERR_ROCKSDB_CORRUPT_DATA;
+  }
+
+  const uint len_bytes = fpi->m_varlength_bytes;
+  if (fpi->m_unpack_func == &Rdb_key_def::unpack_unknown_varlength &&
+      unp_reader && has_unpack_info && len_bytes > 0) {
+    const uchar *ptr = (uchar *)unp_reader->read(len_bytes);
+    if (!ptr) return HA_ERR_ROCKSDB_CORRUPT_DATA;
+
+    uint len = 0;
+    if (fpi->m_field_real_type == MYSQL_TYPE_VARCHAR) {
+      len = len_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+    } else {
+      len = Field_blob::get_length(ptr, fpi->m_varlength_bytes);
+    }
+
+    ptr = (const uchar *)unp_reader->read(len);
+    if (!ptr) return HA_ERR_ROCKSDB_CORRUPT_DATA;
   }
 
   // If this is a space padded varchar, we need to skip the indicator
@@ -270,7 +287,7 @@ int Rdb_key_field_iterator::next() {
     } else {
       auto field = fpi->get_field_in_table(m_table);
       status = Rdb_convert_to_record_key_decoder::skip(
-          fpi, field, m_reader, m_unp_reader,
+          fpi, field, m_has_unpack_info, m_reader, m_unp_reader,
           this->m_key_def->use_covered_bitmap_format());
       if (status) {
         return status;

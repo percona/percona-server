@@ -56,22 +56,22 @@ perl;
       if ($with_compression && $with_encryption) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.gz\.(\d{8}T\d{6})-\d\.enc$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.gz\.(\d{8}T\d{6})-\d\.enc/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})(-\d+)?$log_extensions\.gz\.(\d{8}T\d{6})-\d\.enc/);
       }
       elsif ($with_compression) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.gz$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.gz/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})(-\d+)?$log_extensions\.gz/);
       }
       elsif ($with_encryption) {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name\.(\d{8}T\d{6})-\d\.enc$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions\.(\d{8}T\d{6})-\d\.enc/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})(-\d+)?$log_extensions\.(\d{8}T\d{6})-\d\.enc/);
       }
       else {
         die "Bad log name format: $filename"
             if ($filename !~ /^$audit_filter_log_name$/ &&
-                $filename !~ /^$log_base_name\.(\d{8}T\d{6})$log_extensions/);
+                $filename !~ /^$log_base_name\.(\d{8}T\d{6})(-\d+)?$log_extensions/);
       }
     }
   }

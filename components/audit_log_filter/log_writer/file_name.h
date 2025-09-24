@@ -18,20 +18,20 @@
 
 #include <filesystem>
 #include <string>
+#include "components/audit_log_filter/log_file_timestamp.h"
 
 namespace audit_log_filter::log_writer {
 
 class FileName {
  private:
-  FileName(bool is_compressed, bool is_encrypted, bool is_rotated,
+  FileName(bool is_compressed, bool is_encrypted,
            std::string base_file_name_str, std::string key_id_str,
-           std::string rotation_time_str)
+           const LogFileTimestamp &rotation_time)
       : m_is_compressed{is_compressed},
         m_is_encrypted{is_encrypted},
-        m_is_rotated{is_rotated},
         m_base_name{std::move(base_file_name_str)},
         m_keyring_key_id{std::move(key_id_str)},
-        m_rotation_time{std::move(rotation_time_str)} {}
+        m_rotation_time{rotation_time} {}
 
  public:
   static FileName from_path(std::filesystem::path filename) noexcept;
@@ -40,16 +40,15 @@ class FileName {
   [[nodiscard]] bool is_encrypted() const noexcept;
   [[nodiscard]] bool is_rotated() const noexcept;
 
-  [[nodiscard]] std::string get_base_name() const noexcept;
-  [[nodiscard]] std::string get_rotation_time() const noexcept;
+  [[nodiscard]] const std::string &get_base_name() const noexcept;
+  [[nodiscard]] const LogFileTimestamp &get_rotation_time() const noexcept;
 
  private:
-  const bool m_is_compressed;
-  const bool m_is_encrypted;
-  const bool m_is_rotated;
-  const std::string m_base_name;
-  const std::string m_keyring_key_id;
-  const std::string m_rotation_time;
+  bool m_is_compressed;
+  bool m_is_encrypted;
+  std::string m_base_name;
+  std::string m_keyring_key_id;
+  LogFileTimestamp m_rotation_time;
 };
 
 }  // namespace audit_log_filter::log_writer

@@ -19,6 +19,7 @@
 #include "components/audit_log_filter/audit_encryption.h"
 #include "components/audit_log_filter/json_reader/audit_json_handler.h"
 #include "components/audit_log_filter/json_reader/audit_json_read_stream.h"
+#include "components/audit_log_filter/log_file_timestamp.h"
 #include "components/audit_log_filter/sys_vars.h"
 
 #include <atomic>
@@ -59,6 +60,7 @@ struct FileInfo {
         is_encrypted{is_encrypted_},
         encryption_options{nullptr} {}
   std::string name;
+  std::string first_timestamp;
   std::string encryption_options_id;
   bool is_compressed;
   bool is_encrypted;
@@ -84,8 +86,7 @@ class AuditLogReader {
   void set_files_to_read_list(AuditLogReaderContext *reader_context) noexcept;
 
  private:
-  std::map<std::string, std::unique_ptr<FileInfo>>
-      m_first_timestamp_to_file_map;
+  std::map<LogFileTimestamp, std::unique_ptr<FileInfo>> m_timestamp_to_file_map;
   std::shared_mutex m_reader_mutex;
   std::atomic<bool> m_reload_requested;
 };

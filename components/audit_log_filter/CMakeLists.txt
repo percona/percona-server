@@ -37,6 +37,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       audit_table/base.cc
       audit_table/audit_log_filter.cc
       audit_table/audit_log_user.cc
+      log_file_timestamp.cc
       log_record_formatter.cc
       log_record_formatter/base.cc
       log_record_formatter/new.cc

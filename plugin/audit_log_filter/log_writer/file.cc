@@ -288,7 +288,7 @@ void LogWriterFile::prune() noexcept {
                                                      SysVars::get_file_name());
 
     for (const auto &entry : log_file_list) {
-      if (entry.age > prune_seconds) {
+      if (entry.age > std::chrono::seconds(prune_seconds)) {
         FileHandle::remove_file(entry.path);
       }
     }

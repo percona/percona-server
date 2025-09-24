@@ -18,6 +18,7 @@
 
 #include "mysql/plugin_audit.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -28,7 +29,7 @@ namespace audit_log_filter::log_writer {
 struct PruneFileInfo {
   std::filesystem::path path;
   ulonglong size;
-  ulonglong age;
+  std::chrono::system_clock::duration age;
 };
 
 struct FileRotationResult {

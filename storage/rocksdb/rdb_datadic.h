@@ -73,7 +73,8 @@ class Rdb_convert_to_record_key_decoder {
                     bool has_unpack_info, Rdb_string_reader *reader,
                     Rdb_string_reader *unpack_reader);
   static int skip(const Rdb_field_packing *fpi, const Field *field,
-                  Rdb_string_reader *reader, Rdb_string_reader *unpack_reader,
+                  bool has_unpack_info, Rdb_string_reader *reader,
+                  Rdb_string_reader *unpack_reader,
                   bool covered_bitmap_format_enabled);
 
  private:

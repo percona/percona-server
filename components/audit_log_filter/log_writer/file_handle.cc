@@ -216,22 +216,35 @@ void FileHandle::rotate(const std::filesystem::path &current_file_path,
     extensions_str = filename_str.substr(first_ext_pos);
   }
 
-  std::stringstream new_file_name;
-  new_file_name << base_file_name_str << "."
-                << std::put_time(std::localtime(&t),
-                                 kRotationTimeFormat.c_str())
-                << extensions_str;
-
-  std::filesystem::path new_file_path{current_file_path};
-  new_file_path.replace_filename(new_file_name.str());
   std::error_code ec;
+  std::filesystem::path new_file_path;
+  std::string new_file_name_str;
+  std::size_t seq = 0;
+
+  do {
+    std::string seq_str;
+    if (seq != 0) {
+      seq_str = "-" + std::to_string(seq);
+    }
+    seq++;
+
+    std::stringstream new_file_name;
+    new_file_name << base_file_name_str << "."
+                  << std::put_time(std::localtime(&t),
+                                   kRotationTimeFormat.c_str())
+                  << seq_str << extensions_str;
+    new_file_name_str = new_file_name.str();
+
+    new_file_path = current_file_path;
+    new_file_path.replace_filename(new_file_name_str);
+  } while (std::filesystem::exists(new_file_path, ec));
 
   std::filesystem::rename(current_file_path, new_file_path, ec);
 
   result->error_code = ec.value();
 
   if (result->error_code == 0) {
-    result->status_string = new_file_name.str();
+    result->status_string = new_file_name_str;
   } else {
     result->status_string = ec.message();
   }
@@ -242,14 +255,13 @@ PruneFilesList FileHandle::get_prune_files(
     const std::string &file_name) noexcept {
   PruneFilesList prune_files;
   const auto base_file_name = FileName::from_path(file_name).get_base_name();
-  auto time_now = std::time(nullptr);
+  auto time_now = std::chrono::system_clock::now();
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
     // This will return the time of the newest rotated log + 1 minute so
     // file age will be calculated properly for files which are subject
     // for age based pruning.
-    time_now = std::chrono::system_clock::to_time_t(
-        SysVars::get_debug_time_point_for_rotation());
+    time_now = SysVars::get_debug_time_point_for_rotation();
   });
 
   for (const auto &entry :
@@ -259,15 +271,9 @@ PruneFilesList FileHandle::get_prune_files(
       auto parsed_file_name = FileName::from_path(entry.path().filename());
 
       if (parsed_file_name.is_rotated()) {
-        std::tm tm{};
-        std::istringstream ss(parsed_file_name.get_rotation_time());
-        ss >> std::get_time(&tm, kRotationTimeFormat.c_str());
-        tm.tm_isdst = -1;
-        auto time_rotated = timelocal(&tm);
-
+        auto timestamp = parsed_file_name.get_rotation_time().timestamp.value();
         prune_files.push_back(
-            {entry.path(), entry.file_size(),
-             static_cast<ulonglong>(time_now - time_rotated)});
+            {entry.path(), entry.file_size(), time_now - timestamp});
       }
     }
   }

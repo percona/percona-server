@@ -22,10 +22,8 @@ namespace audit_log_filter::log_writer {
 FileName FileName::from_path(std::filesystem::path filename) noexcept {
   bool is_compressed{false};
   bool is_encrypted{false};
-  bool is_rotated{false};
 
   std::string key_id_str;
-  std::string rotation_time_str;
 
   if (filename.has_extension() && filename.extension().compare(".enc") == 0) {
     is_encrypted = true;
@@ -39,34 +37,29 @@ FileName FileName::from_path(std::filesystem::path filename) noexcept {
     filename.replace_extension();
   }
 
-  static const std::regex rotation_time_regex(R"(\.(\d{8}T\d{6}))");
-  std::smatch pieces_match;
+  auto timestamp = LogFileTimestamp(filename);
 
   while (filename.has_extension()) {
-    auto extension_str = filename.extension().string();
-
-    if (std::regex_match(extension_str, pieces_match, rotation_time_regex)) {
-      is_rotated = true;
-      rotation_time_str = pieces_match[1].str();
-    }
-
     filename.replace_extension();
   }
 
-  return FileName{
-      is_compressed,     is_encrypted,          is_rotated,
-      filename.string(), std::move(key_id_str), std::move(rotation_time_str)};
+  return FileName{is_compressed, is_encrypted, filename.string(),
+                  std::move(key_id_str), std::move(timestamp)};
 }
 
 bool FileName::is_compressed() const noexcept { return m_is_compressed; }
 
 bool FileName::is_encrypted() const noexcept { return m_is_encrypted; }
 
-bool FileName::is_rotated() const noexcept { return m_is_rotated; }
+bool FileName::is_rotated() const noexcept {
+  return m_rotation_time.timestamp.has_value();
+}
 
-std::string FileName::get_base_name() const noexcept { return m_base_name; }
+const std::string &FileName::get_base_name() const noexcept {
+  return m_base_name;
+}
 
-std::string FileName::get_rotation_time() const noexcept {
+const LogFileTimestamp &FileName::get_rotation_time() const noexcept {
   return m_rotation_time;
 }
 

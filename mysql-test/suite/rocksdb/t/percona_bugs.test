@@ -1,4 +1,3 @@
---source include/have_debug.inc
 --source include/have_rocksdb.inc
 
 --echo #
@@ -76,7 +75,7 @@ DROP TABLE t1;
 
 --echo #
 --echo # PS-10075: RocksDB: Checksum mismatch in key of key-value pair for index
---echo # https://perconadev.atlassian.net/browse/PS-10150
+--echo # https://perconadev.atlassian.net/browse/PS-10075
 --echo #
 
 CREATE TABLE t1 (lt LONGTEXT, INDEX idx(lt(8)) ) ENGINE=RocksDB;
@@ -90,3 +89,33 @@ INSERT INTO t1 (lt) VALUES (
 CHECK TABLE t1;
 SELECT lt, LENGTH(lt) FROM t1;
 DROP TABLE t1;
+
+
+
+--echo #
+--echo # PS-10067: Consume per-field metadata with `Rdb_convert_to_record_key_decoder::skip`
+--echo # https://perconadev.atlassian.net/browse/PS-10067
+--echo #
+
+--echo # Test Rdb_key_def::make_unpack_unknown_varlength for MYSQL_TYPE_VARCHAR and MYSQL_TYPE_VARCHAR
+--echo # (uses Rdb_key_def::skip_variable_length_encoding)
+CREATE TABLE t1 (v7 VARCHAR(7), v32 VARCHAR(32), INDEX i(v32(5), v7) ) ENGINE=RocksDB;
+INSERT INTO t1 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE v32 LIKE '1234567890%';
+DROP TABLE t1;
+
+--echo # Test Rdb_key_def::make_unpack_unknown_varlength for MYSQL_TYPE_VARCHAR and MYSQL_TYPE_BLOB
+--echo # (uses  Rdb_key_def::skip_variable_length_encoding)
+CREATE TABLE t2 (v7 VARCHAR(7), v32 TEXT, INDEX i(v32(11), v7) ) COLLATE=utf8mb4_0900_ai_ci ENGINE=RocksDB;
+INSERT INTO t2 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t2;
+SELECT * FROM t2 WHERE v32 LIKE '1234567890%';
+DROP TABLE t2;
+
+--echo # Test Rdb_key_def::skip_variable_space_pad
+CREATE TABLE t3 (v7 VARCHAR(7), v32 TEXT, INDEX i(v32(11), v7) ) COLLATE=utf8mb4_bin ENGINE=RocksDB;
+INSERT INTO t3 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
+CHECK TABLE t3;
+SELECT * FROM t3 WHERE v32 LIKE '1234567890%';
+DROP TABLE t3;

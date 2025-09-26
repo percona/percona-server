@@ -99,11 +99,11 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
   if (rec_per_key_first < rec_per_key_all) {
     rec_per_key = rec_per_key_all;
   } else {
-    if (key->user_defined_key_parts > 1) {
+    if (key->actual_key_parts > 1) {
       // See formula above
       rec_per_key =
           rec_per_key_first - (rec_per_key_t(used_keyparts - 1) /
-                               (key->user_defined_key_parts - 1)) *
+                               (key->actual_key_parts - 1)) *
                                   (rec_per_key_first - rec_per_key_all);
     } else {
       // Single column index

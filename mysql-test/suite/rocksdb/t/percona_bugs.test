@@ -119,3 +119,23 @@ INSERT INTO t3 (v7, v32) VALUES ('percona', '1234567890.1234567890.1234567890');
 CHECK TABLE t3;
 SELECT * FROM t3 WHERE v32 LIKE '1234567890%';
 DROP TABLE t3;
+
+
+
+--echo #
+--echo # PS-9838: rec_per_key >= rec_per_key_all assertion failure in guess_rec_per_key with MyRocks
+--echo # https://perconadev.atlassian.net/browse/PS-9838
+--echo #
+
+CREATE TABLE t1p (ip_col INT AUTO_INCREMENT, ipkey INT, f1 FLOAT, PRIMARY KEY(ip_col, ipkey), INDEX idx1(ip_col, f1)) ENGINE=RocksDB
+   PARTITION BY RANGE (ip_col)( PARTITION p1 VALUES LESS THAN (55857), PARTITION p2 VALUES LESS THAN (MAXVALUE));
+
+--let $i=1
+--while ($i <= 102) {
+--eval INSERT INTO t1p (ip_col, ipkey, f1) VALUES (NULL, $i * 3, $i * 0.11)
+--inc $i
+--}
+
+ALTER TABLE t1p ADD INDEX idx2(f1);
+SELECT * FROM t1p WHERE ipkey = 10133;
+DROP TABLE t1p;

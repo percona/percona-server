@@ -370,8 +370,8 @@ static bool
 sock_descriptor_to_string(int fd, std::string &out)
 {
   struct sockaddr_storage sa;
-  socklen_t addr_size= sizeof(struct sockaddr_storage);
   char saddr[INET6_ADDRSTRLEN];
+  socklen_t addr_size= static_cast<socklen_t>(sizeof(saddr));
 
   // get the sockaddr struct
   sock_descriptor_to_sockaddr(fd, &sa);

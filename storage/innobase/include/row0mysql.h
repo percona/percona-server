@@ -1041,18 +1041,6 @@ struct SysIndexCallback {
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
 
-/** Get the updated parent field value from the update vector for the
-given col_no.
-@param[in]	foreign		foreign key information
-@param[in]	update		updated parent vector.
-@param[in]	col_no		base column position of the child table to check
-@return updated field from the parent update vector, else NULL */
-dfield_t*
-innobase_get_field_from_update_vector(
-	dict_foreign_t*	foreign,
-	upd_t*		update,
-	uint32_t	col_no);
-
 /** Get the computed value by supplying the base column values.
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
@@ -1064,8 +1052,9 @@ innobase_get_field_from_update_vector(
 @param[in,out]	mysql_table	mysql table object
 @param[in]	old_table	during ALTER TABLE, this is the old table
 				or NULL.
-@param[in]	parent_update	update vector for the parent row
-@param[in]	foreign		foreign key information
+@param[in]	cascade_update	update vector for the current table involved in
+				cascade update
+@param[in]	foreign		foreign key information [unused]
 @param[in]	prebuilt	provides pointer to blob_heap (used for decompression)
                         and compress_heap (used for compression)
 @return the field filled with computed value */
@@ -1080,7 +1069,7 @@ innobase_get_computed_value(
 	THD*			thd,
 	TABLE*			mysql_table,
 	const dict_table_t*	old_table,
-	upd_t*			parent_update,
+	upd_t*			cascade_update,
 	dict_foreign_t*		foreign,
 	row_prebuilt_t*		prebuilt);
 

@@ -1716,7 +1716,7 @@ static MYSQL_SYSVAR_INT(max_file_opening_threads,
                         "DBOptions::max_file_opening_threads for RocksDB",
                         nullptr, nullptr,
                         rocksdb_db_options->max_file_opening_threads,
-                        /* min */ 1, /* max */ INT_MAX, 0);
+                        /* min */ 1, /* max */ 1 << 18, 0);
 
 static MYSQL_SYSVAR_UINT64_T(max_total_wal_size,
                              rocksdb_db_options->max_total_wal_size,
@@ -1840,7 +1840,7 @@ static MYSQL_SYSVAR_ULONG(keep_log_file_num,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "DBOptions::keep_log_file_num for RocksDB", nullptr,
                           nullptr, rocksdb_db_options->keep_log_file_num,
-                          /* min */ 0L, /* max */ LONG_MAX, 0);
+                          /* min */ 1L, /* max */ LONG_MAX, 0);
 
 static MYSQL_SYSVAR_UINT64_T(max_manifest_file_size,
                              rocksdb_db_options->max_manifest_file_size,
@@ -2063,7 +2063,7 @@ static MYSQL_SYSVAR_UINT64_T(block_size, rocksdb_tbl_options->block_size,
                              PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                              "BlockBasedTableOptions::block_size for RocksDB",
                              nullptr, nullptr, rocksdb_tbl_options->block_size,
-                             /* min */ 1024L, /* max */ UINT64_MAX, 0);
+                             /* min */ 1024L, /* max */ std::numeric_limits<uint32_t>::max(), 0);
 
 static MYSQL_SYSVAR_BOOL(charge_memory, rocksdb_charge_memory,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -2214,7 +2214,7 @@ static MYSQL_SYSVAR_UINT(debug_cardinality_multiplier,
                          PLUGIN_VAR_RQCMDARG,
                          "Cardinality multiplier used in tests", nullptr,
                          nullptr, /* default */ 2,
-                         /* min */ 0, /* max */ INT_MAX, 0);
+                         /* min */ 1, /* max */ INT_MAX, 0);
 
 static MYSQL_SYSVAR_STR(compact_cf, rocksdb_compact_cf_name,
                         PLUGIN_VAR_RQCMDARG, "Compact column family",
@@ -6806,7 +6806,7 @@ static int rocksdb_init_internal(void *const p) {
     }
     if (!strlen(rocksdb_persistent_cache_path)) {
       LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Specify rocksdb_persistent_cache_size_path");
+                      "Specify rocksdb_persistent_cache_path");
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
 

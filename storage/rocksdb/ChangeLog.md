@@ -2,6 +2,9 @@
 
 ## MyRocks 9.3.1-3
 **This version was shipped with Percona Server 8.0.44-35 and 8.4.7-7.**
+* PS-9840 – Prevents an assertion failure when a metadata table (DD table) exists but isn’t registered in RocksDB
+· [Jira](https://perconadev.atlassian.net/browse/PS-9840)
+
 * PS-9838 – Fixed an assertion failure in `guess_rec_per_key()` by correcting the record count estimation formula.
 · [Jira](https://perconadev.atlassian.net/browse/PS-9838) · [Changes](https://github.com/percona/percona-server/commit/d4ae78b9f753)
 

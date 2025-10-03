@@ -5034,6 +5034,33 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     i++;
   }
 
+  if (max_dd_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
+    max_dd_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
+  }
+
+  // index ids used by applications should not conflict with
+  // data dictionary index ids
+  if (max_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
+    max_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
+  }
+
+  // TODO: need to revisit the dd table id initialization value after enabling
+  // upgrade/downgrade
+  // data dictionary index id is allocated in system cf
+  // user table index id is allocated in non-system cf
+  m_dd_table_sequence.init(max_dd_index_id_in_dict + 1);
+  m_user_table_sequence.init(max_index_id_in_dict + 1);
+  m_tmp_table_sequence.init(1);
+  if (!it->status().ok()) {
+    rdb_log_status_error(it->status(), "Table_store load error");
+    return true;
+  }
+  delete it;
+  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                  "Table_store: loaded DDL data for %d tables", i);
+
+  initialized = true;
+
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   /*
     If validate_tables is greater than 0 run the validation.  Only fail the
@@ -5061,32 +5088,6 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
         // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
-  if (max_dd_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
-    max_dd_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
-  }
-
-  // index ids used by applications should not conflict with
-  // data dictionary index ids
-  if (max_index_id_in_dict < Rdb_key_def::END_DICT_INDEX_ID) {
-    max_index_id_in_dict = Rdb_key_def::END_DICT_INDEX_ID;
-  }
-
-  // TODO: need to revisit the dd table id initialization value after enabling
-  // upgrade/downgrade
-  // data dictionary index id is allocated in system cf
-  // user table index id is allocated in non-system cf
-  m_dd_table_sequence.init(max_dd_index_id_in_dict + 1);
-  m_user_table_sequence.init(max_index_id_in_dict + 1);
-  m_tmp_table_sequence.init(1);
-  if (!it->status().ok()) {
-    rdb_log_status_error(it->status(), "Table_store load error");
-    return true;
-  }
-  delete it;
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
-                  "Table_store: loaded DDL data for %d tables", i);
-
-  initialized = true;
   return false;
 }
 

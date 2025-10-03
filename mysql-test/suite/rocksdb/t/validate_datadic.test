@@ -13,6 +13,16 @@
 CALL mtr.add_suppression("Schema mismatch - Table test\.t.+ is registered in RocksDB but does not have a corresponding DD table");
 CALL mtr.add_suppression("Schema mismatch - A DD table exists for table test\.t1, but that table is not registered in RocksDB");
 
+# Suppress expected RocksDB plugin errors during validation fail with --rocksdb_validate_tables=1
+CALL mtr.add_suppression("Plugin rocksdb reported: 'RocksDB: Problems validating data dictionary against DD tables, exiting\. Use \"rocksdb_validate_tables=2\" to ignore this error\.'");
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Failed to initialize DDL manager\.'");
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the background thread: \\(errno=22\\)'");
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the index thread: \\(errno=22\\)'");
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the index stats calculation thread: \\(errno=22\\)'");
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the manual compaction thread: \\(errno=22\\)'");
+CALL mtr.add_suppression("Plugin 'ROCKSDB' init function returned error");
+CALL mtr.add_suppression("Plugin 'ROCKSDB' registration as a STORAGE ENGINE failed");
+
 --let $MYSQLD_DATADIR= `select @@datadir`
 
 # Shut down and save MySQL DD without tables
@@ -31,15 +41,26 @@ CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITI
 --copy_file $MYSQLD_DATADIR/mysql.ibd $MYSQL_TMP_DIR/mysql.ibd.t1_t2
 --move_file $MYSQL_TMP_DIR/mysql.ibd.no_tables $MYSQLD_DATADIR/mysql.ibd
 
+# PS-9840: Assertion/crash when a DD table exists for table T that is not registered in RocksDB
+--let $restart_parameters=restart:--rocksdb_validate_tables=1
+--source include/start_mysqld.inc
+--let $assert_text = Check that RocksDB plugin is NOT ACTIVE
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME="rocksdb" AND PLUGIN_STATUS="ACTIVE"] = 0
+--source include/assert.inc
+--source include/shutdown_mysqld.inc
+
 # Restart the server
 --let $restart_parameters=restart:--rocksdb_validate_tables=2
 --source include/start_mysqld.inc
+--let $assert_text = Check that RocksDB plugin is ACTIVE
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME="rocksdb" AND PLUGIN_STATUS="ACTIVE"] = 1
+--source include/assert.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: rocksdb.validate_datadic
---let $assert_count = 2
+--let $assert_count = 4
 --let $assert_select = Schema mismatch - Table test\.t.+ is registered in RocksDB but does not have a corresponding DD table
---let $assert_text = Expect 2 warnings that we are missing two DD tables
+--let $assert_text = Expect 2*2 warnings that we are missing two DD tables
 --source include/assert_grep.inc
 
 # Shut down and replace MySQL DD with t1 and t2 tables

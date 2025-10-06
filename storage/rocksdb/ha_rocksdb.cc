@@ -2214,7 +2214,7 @@ static MYSQL_SYSVAR_UINT(debug_cardinality_multiplier,
                          PLUGIN_VAR_RQCMDARG,
                          "Cardinality multiplier used in tests", nullptr,
                          nullptr, /* default */ 2,
-                         /* min */ 0, /* max */ INT_MAX, 0);
+                         /* min */ 1, /* max */ INT_MAX, 0);
 
 static MYSQL_SYSVAR_STR(compact_cf, rocksdb_compact_cf_name,
                         PLUGIN_VAR_RQCMDARG, "Compact column family",

@@ -588,7 +588,7 @@ Rdb_tbl_prop_coll_factory::CreateTablePropertiesCollector(
   // TODO(laurynas): if needed, possible to shorten the critical section by only
   // copying out the needed non-cost fields
   rwlock_scoped_lock guard(&lock, false, __FILE__, __LINE__);
-  if (m_skip_system_cf) {
+  if (m_skip_system_cf && m_cf_manager.is_initialized()) {
     auto cf_name = m_cf_manager.get_cf(context.column_family_id);
     if (cf_name->GetName() == DEFAULT_SYSTEM_CF_NAME) {
       return nullptr;

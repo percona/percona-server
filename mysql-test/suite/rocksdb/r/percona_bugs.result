@@ -200,3 +200,10 @@ ALTER TABLE t1p ADD INDEX idx2(f1);
 SELECT * FROM t1p WHERE ipkey = 10133;
 ip_col	ipkey	f1
 DROP TABLE t1p;
+#
+# PS-10227: Assertion failure in RocksDB initialization with system CF stats skipped
+# https://perconadev.atlassian.net/browse/PS-10227
+#
+CREATE TABLE t1 (ipkey int NOT NULL AUTO_INCREMENT, i int DEFAULT NULL, PRIMARY KEY (ipkey)) ENGINE=ROCKSDB;
+# Kill and restart: --rocksdb_table_stats_skip_system_cf=true
+DROP TABLE t1;

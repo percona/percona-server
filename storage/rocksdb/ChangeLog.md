@@ -2,27 +2,30 @@
 
 ## MyRocks 9.3.1-3
 **This version was shipped with Percona Server 8.0.44-35 and 8.4.7-7.**
-* PS-9840 – Prevents an assertion failure when a metadata table (DD table) exists but isn’t registered in RocksDB
-· [Jira](https://perconadev.atlassian.net/browse/PS-9840)
+* PS-10227 – Assertion failure in RocksDB initialization with system CF stats skipped
+· [Jira](https://perconadev.atlassian.net/browse/PS-10227)
 
-* PS-9838 – Fixed an assertion failure in `guess_rec_per_key()` by correcting the record count estimation formula.
+* PS-9840 – Prevents an assertion failure when a metadata table (DD table) exists but isn’t registered in RocksDB
+· [Jira](https://perconadev.atlassian.net/browse/PS-9840) · [Changes](https://github.com/percona/percona-server/commit/805737fdaf9e)
+
+* PS-9838 – Fixed an assertion failure in `guess_rec_per_key()` by correcting the record count estimation formula
 · [Jira](https://perconadev.atlassian.net/browse/PS-9838) · [Changes](https://github.com/percona/percona-server/commit/d4ae78b9f753)
 
-* PS-10210 – Prevented misconfigurations by aligning MyRocks variable ranges with internal RocksDB limits.
+* PS-10210 – Prevented misconfigurations by aligning MyRocks variable ranges with internal RocksDB limits
 · [Jira](https://perconadev.atlassian.net/browse/PS-10210) · [Changes](https://github.com/percona/percona-server/commit/48d6a1b1fc20)
 
-* PS-10075 – Resolved checksum mismatch errors in key-value pairs by properly handling per-field metadata during record unpacking.
+* PS-10075 – Resolved checksum mismatch errors in key-value pairs by properly handling per-field metadata during record unpacking
 · [Jira](https://perconadev.atlassian.net/browse/PS-10075) · [Changes](https://github.com/percona/percona-server/commit/7c34db4ef730)
 
-* PS-10067 – Improved handling of per-field metadata in `Rdb_convert_to_record_key_decoder::skip()`.
+* PS-10067 – Improved handling of per-field metadata in `Rdb_convert_to_record_key_decoder::skip()`
 · [Jira](https://perconadev.atlassian.net/browse/PS-10067) · [Changes](https://github.com/percona/percona-server/commit/b2109a4fe1c8)
 
 ## MyRocks 9.3.1-2
 **This version was shipped with Percona Server 8.0.43-34 and 8.4.6-6.**
-* PS-9666 – Fixed a crash when inserting into a TTL-enabled table with `unique_checks=OFF`.
+* PS-9666 – Fixed a crash when inserting into a TTL-enabled table with `unique_checks=OFF`
 · [Jira](https://perconadev.atlassian.net/browse/PS-9666) · [Changes](https://github.com/percona/percona-server/commit/ecc87980002a)
 
-* PS-10067 – Prevented overflow in `unpack_unknown_varlength()` that could cause crashes.
+* PS-10067 – Prevented overflow in `unpack_unknown_varlength()` that could cause crashes
 · [Jira](https://perconadev.atlassian.net/browse/PS-10067) · [Changes](https://github.com/percona/percona-server/commit/37a50cc41d93)
 
 

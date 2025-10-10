@@ -1,0 +1,40 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+let $i= 2;
+let $xx= xx;
+while ($i < 3500)
+{
+let $xx= x$xx;
+inc $i;
+}
+--disable_query_log
+--disable_result_log
+while ($i < 8500)
+{
+eval SELECT '$xx';
+let $xx= x$xx;
+inc $i;
+}
+while ($i < 9000)
+{
+eval SELECT '$xx';
+let $xx= xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx$xx;
+inc $i;
+}
+--enable_query_log
+--enable_result_log
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_long.log
+SET GLOBAL audit_log_flush= ON;
+perl;
+  eval "use XML::Parser; 1" or exit 0;
+  $p = new XML::Parser;
+  $p->parsefile($ENV{'MYSQLD_DATADIR'} . '/test_audit_long.log');
+EOF
+--remove_file $MYSQLD_DATADIR/test_audit.log
+--remove_file $MYSQLD_DATADIR/test_audit_long.log

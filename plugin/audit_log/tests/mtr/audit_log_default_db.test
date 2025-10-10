@@ -1,0 +1,100 @@
+# test correctness of default_db field
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $log_file=$MYSQLD_DATADIR/test_audit.log;
+
+set names utf8;
+
+CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+CREATE USER 'user2'@'%' IDENTIFIED BY '111';
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE `ąžąžąžą`;
+
+CREATE TABLE db1.t (a VARCHAR(100));
+CREATE TABLE db2.t (a VARCHAR(100));
+CREATE TABLE ąžąžąžą.t (a VARCHAR(100)) charset=utf8;
+INSERT INTO db1.t VALUES ('db1');
+INSERT INTO db2.t VALUES ('db2');
+INSERT INTO ąžąžąžą.t VALUES ('ąžąžąžą');
+
+GRANT ALL PRIVILEGES ON db1.* TO 'user1'@'%';
+
+GRANT ALL PRIVILEGES ON db2.* TO 'user1'@'%';
+GRANT ALL PRIVILEGES ON db2.* TO 'user2'@'%';
+
+GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user1'@'%';
+GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
+
+# truncate audit log
+UNINSTALL PLUGIN audit_log;
+--source include/disconnect_connections.inc
+let $wait_condition=
+    SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'audit_log';
+--source include/wait_condition.inc
+--remove_file $log_file
+
+--source include/count_sessions.inc
+connect (root,localhost,root,,,);
+connection root;
+INSTALL PLUGIN audit_log SONAME 'audit_log.so';
+disconnect root;
+connection default;
+--source include/wait_until_count_sessions.inc
+
+connect (test,localhost,user1,111,db2,);
+connection test;
+SELECT * FROM t;
+
+use 	`db1`;
+--error ER_DBACCESS_DENIED_ERROR
+change_user user2,111,db1,do_not_reconnect_on_fail;
+disconnect test;
+connection default;
+--source include/wait_until_count_sessions.inc
+--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
+--error ER_DBACCESS_DENIED_ERROR
+connect (test,localhost,user2,111,db1,);
+connection default;
+--source include/wait_until_count_sessions.inc
+--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
+--error ER_ACCESS_DENIED_ERROR
+connect (test,localhost,user2,112,db2,);
+connection default;
+--source include/wait_until_count_sessions.inc
+--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
+--error ER_ACCESS_DENIED_ERROR
+connect (test,localhost,user3,111,db2,);
+connection default;
+--source include/wait_until_count_sessions.inc
+connect (test,localhost,user2,111,db2,);
+connection test;
+set names utf8;
+SELECT * FROM t;
+--error ER_DBACCESS_DENIED_ERROR
+use    	`db1`;
+SELECT * FROM t;
+change_user user1,111,db1;
+set names utf8;
+SELECT * FROM t;
+use `db2`;
+SELECT * FROM t;
+use ąžąžąžą;
+SELECT * FROM t;
+disconnect test;
+connection default;
+
+--source include/wait_until_count_sessions.inc
+--exec $MYSQL --user=user1 --password=111 test -e "use db1; SELECT * FROM t;"
+--source include/wait_until_count_sessions.inc
+
+--source audit_log_echo.inc
+
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE ąžąžąžą;
+
+DROP USER user1;
+DROP USER user2;
+

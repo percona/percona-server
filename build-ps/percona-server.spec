@@ -1224,6 +1224,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif
 # Percona plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 #%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1235,6 +1236,7 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 #%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so

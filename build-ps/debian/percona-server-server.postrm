@@ -116,12 +116,6 @@ case "$1" in
 			rm -rf ${MYSQLKEYRING}
 		fi
 
-		OVERRIDEFILE="/etc/mysql/mysql.conf.d/default-auth-override.cnf"
-		if [ -e ${OVERRIDEFILE} ];
-		then
-			rm ${OVERRIDEFILE}
-		fi
-
 		if getent passwd mysql >/dev/null;
 		then
 			userdel mysql

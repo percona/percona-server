@@ -1,0 +1,213 @@
+CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'password1';
+CREATE USER 'user22'@'%' IDENTIFIED BY 'password1';
+CREATE USER '22user'@'LOCALHOST' IDENTIFIED BY 'password1';
+CREATE USER 'admin'@'%' IDENTIFIED BY 'password1';
+CREATE USER 'us,er1'@'localhost' IDENTIFIED BY 'password1';
+SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+user1@localhost,, user22@127.0.0.1,admin@%	NULL
+SET GLOBAL audit_log_exclude_accounts= '22useer@localhost';
+ERROR 42000: Variable 'audit_log_exclude_accounts' can't be set to the value of '22useer@localhost'
+SET GLOBAL audit_log_exclude_accounts= NULL;
+ERROR 42000: Variable 'audit_log_exclude_accounts' can't be set to the value of 'NULL'
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+user1@localhost,, user22@127.0.0.1,admin@%	NULL
+SET GLOBAL audit_log_include_accounts= 'user1@localhost, user2@localhost, user3@localhost';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+user1@localhost, user2@localhost, user3@localhost	NULL
+SET GLOBAL audit_log_include_accounts= '';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+	NULL
+SET GLOBAL audit_log_exclude_accounts= '22useer@localhost';
+ERROR 42000: Variable 'audit_log_exclude_accounts' can't be set to the value of '22useer@localhost'
+SET GLOBAL audit_log_include_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	NULL
+SET GLOBAL audit_log_exclude_accounts= "'us,er1'@'localhost',, user22@127.0.0.1,admin@%";
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	'us,er1'@'localhost',, user22@127.0.0.1,admin@%
+SET GLOBAL audit_log_include_accounts= '22useer@localhost';
+ERROR 42000: Variable 'audit_log_include_accounts' can't be set to the value of '22useer@localhost'
+SET GLOBAL audit_log_include_accounts= NULL;
+ERROR 42000: Variable 'audit_log_include_accounts' can't be set to the value of 'NULL'
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	'us,er1'@'localhost',, user22@127.0.0.1,admin@%
+SET GLOBAL audit_log_exclude_accounts= 'user1@localhost, user2@localhost, user3@localhost';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	user1@localhost, user2@localhost, user3@localhost
+SET GLOBAL audit_log_exclude_accounts= '';
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	
+SET GLOBAL audit_log_include_accounts= '22useer@localhost';
+ERROR 42000: Variable 'audit_log_include_accounts' can't be set to the value of '22useer@localhost'
+SET GLOBAL audit_log_exclude_accounts= NULL;
+SELECT @@audit_log_include_accounts, @@audit_log_exclude_accounts;
+@@audit_log_include_accounts	@@audit_log_exclude_accounts
+NULL	NULL
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_include_accounts= '';
+SELECT 'user1';
+user1
+user1
+SELECT 'user22';
+user22
+user22
+SELECT '22user';
+22user
+22user
+SELECT 'user22';
+user22
+user22
+SELECT 'admin';
+admin
+admin
+SELECT 'us,er1';
+us,er1
+us,er1
+SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname';
+SELECT 'user1';
+user1
+user1
+SELECT 'user22';
+user22
+user22
+SELECT '22user';
+22user
+22user
+SELECT 'user22';
+user22
+user22
+SELECT 'admin';
+admin
+admin
+SELECT 'us,er1';
+us,er1
+us,er1
+SET GLOBAL audit_log_include_accounts= NULL;
+SELECT 'user1';
+user1
+user1
+SELECT 'user22';
+user22
+user22
+SELECT '22user';
+22user
+22user
+SELECT 'user22';
+user22
+user22
+SELECT 'admin';
+admin
+admin
+SELECT 'us,er1';
+us,er1
+us,er1
+SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
+SELECT 'user1';
+user1
+user1
+SELECT 'user22';
+user22
+user22
+SELECT '22user';
+22user
+22user
+SELECT 'user22';
+user22
+user22
+SELECT 'admin';
+admin
+admin
+SELECT 'us,er1';
+us,er1
+us,er1
+SET GLOBAL audit_log_exclude_accounts= NULL;
+SET GLOBAL audit_log_include_accounts= '22user@LocalHost,User22@%';
+SELECT 'user1';
+user1
+user1
+SELECT 'user22';
+user22
+user22
+SELECT '22user';
+22user
+22user
+SELECT 'user22';
+user22
+user22
+SELECT 'admin';
+admin
+admin
+SELECT 'us,er1';
+us,er1
+us,er1
+SET GLOBAL audit_log_include_accounts= NULL;
+set global audit_log_flush= ON;
+===================================================================
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= ''","root[root] @ localhost []","localhost","","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname'","root[root] @ localhost []","localhost","","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= NULL","root[root] @ localhost []","localhost","","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"22user","22user","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","","","test"
+"Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","",""
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","","","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%'","root[root] @ localhost []","localhost","","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"22user","22user","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","","","test"
+"Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","",""
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","","","test"
+"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= NULL","root[root] @ localhost []","localhost","","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= '22user@LocalHost,User22@%'","root[root] @ localhost []","localhost","","","test"
+"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"22user","22user","","","localhost","","test"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","","","test"
+*************************************************************
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= NULL","root[root] @ localhost []","localhost","","","test"
+===================================================================
+DROP USER 'user1'@'127.0.0.1';
+DROP USER 'user22'@'%';
+DROP USER '22user'@'localhost';
+DROP USER 'admin'@'%';
+DROP USER 'us,er1'@'localhost';

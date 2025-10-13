@@ -18,13 +18,14 @@
 
 #include <algorithm>
 #include "audit_log.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_hostname.h"
 #include "my_sys.h"
 #include "my_user.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
+#include "sql/mysqld_cs.h"
 
 static std::string make_account_string(const char *user, size_t user_length,
                                        const char *host, size_t host_length) {

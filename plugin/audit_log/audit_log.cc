@@ -21,17 +21,18 @@
 #include <time.h>
 #include <atomic>
 
-#include "m_ctype.h"
 #include "my_sys.h"
 #include "mysql/components/services/component_sys_var_service.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_security_context.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "sql/mysqld.h"
+#include "sql/mysqld_cs.h"
 #include "sql/sql_plugin_var.h"
 #include "typelib.h"
 
@@ -804,6 +805,11 @@ static int audit_log_plugin_init(MYSQL_PLUGIN plugin_info) {
 
   audit_log_filter_init();
 
+  my_plugin_log_message(&plugin_ptr, MY_WARNING_LEVEL,
+                        "'audit_log' is deprecated and will be removed in "
+                        "a future release. Please use 'audit_log_filter' "
+                        "instead.");
+
   if (audit_log_exclude_accounts != nullptr &&
       audit_log_include_accounts != nullptr) {
     my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
@@ -1232,9 +1238,10 @@ static MYSQL_SYSVAR_ULONGLONG(
     "if FILE handler is used.",
     NULL, NULL, 1048576UL, 4096UL, ULLONG_MAX, 4096UL);
 
-static void audit_log_rotate_on_size_update(
-    MYSQL_THD thd [[maybe_unused]], SYS_VAR *var [[maybe_unused]],
-    void *var_ptr [[maybe_unused]], const void *save) noexcept {
+static void audit_log_rotate_on_size_update(MYSQL_THD thd [[maybe_unused]],
+                                            SYS_VAR *var [[maybe_unused]],
+                                            void *var_ptr [[maybe_unused]],
+                                            const void *save) noexcept {
   ulonglong new_val = *(const ulonglong *)(save);
 
   audit_handler_set_option(log_handler, audit_handler_option_t::ROTATE_ON_SIZE,

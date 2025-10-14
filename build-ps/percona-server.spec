@@ -56,6 +56,7 @@
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
 
+# By default a build will be done including the JS stored routines language support
 # Pass path to v8 lib
 %{?with_js_lang: %global js_lang_option -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=%{with_js_lang}/include -DV8_LIB_DIR=%{with_js_lang}/out.gn/static/obj}
 %{?with_js_lang: %global js_lang 1}
@@ -462,6 +463,20 @@ Conflicts:      percona-server-rocksdb-pro
 
 %description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
+%endif
+
+%if 0%{?js_lang}
+# ----------------------------------------------------------------------------
+%package -n percona-server-js
+Summary:        Percona Server - JS stored routines language support package
+Group:          Applications/Databases
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
+Conflicts:      percona-server-js-pro
+
+%description -n percona-server-js
+This package contains JS language component for Percona Server %{version}-%{release}
 %endif
 
 %package  -n   percona-mysql-router
@@ -1218,8 +1233,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif
 # Percona plugins
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_js_lang.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/component_js_lang.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
 #%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1584,6 +1599,13 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so
 %attr(755, root, root) %{_bindir}/ldb
 %attr(755, root, root) %{_bindir}/sst_dump
+%endif
+
+%if 0%{?js_lang}
+%files -n percona-server-js
+%attr(-, root, root)
+%{_libdir}/mysql/plugin/component_js_lang.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
 %endif
 
 %files -n percona-mysql-router

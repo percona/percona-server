@@ -372,9 +372,9 @@ get_v8(){
     DIST="$(lsb_release -sc)"
     cd ${WORKDIR}
     if [ x"$ARCH" = "xx86_64" ]; then
-        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22.tar.gz
-        tar -xzf v8_12.9.202.22.tar.gz
-        rm -rf v8_12.9.202.22.tar.gz
+        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-glibc2.31.tar.gz
+        tar -xzf v8_12.9.202.22-glibc2.31.tar.gz
+        rm -rf v8_12.9.202.22-glibc2.31.tar.gz
     else
         wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-arm64.tar.gz
         tar -xzf v8_12.9.202.22-arm64.tar.gz

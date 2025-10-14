@@ -17,6 +17,7 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
+WITH_V8=''
 WITH_MECAB_OPTION=''
 DEBUG_EXTRA=''
 WITH_SSL='/usr'
@@ -251,6 +252,18 @@ then
     JEMALLOCDIR="$(cd "$WITH_JEMALLOC"; pwd)"
 fi
 
+# Test V8 directory
+if test "x$WITH_V8" != "x"
+then
+    if ! test -d "$WITH_V8"
+    then
+        echo >&2 "V8 dir $WITH_V8 does not exist"
+        exit 1
+    fi
+
+    V8DIR="$(cd "$WITH_V8"; pwd)"
+fi
+
 # Build
 (
     rm -rf "$WORKDIR_ABS/bld"
@@ -303,6 +316,14 @@ fi
 
         # Copy COPYING file
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
+    )
+    fi
+
+    if test "x$WITH_V8" != x
+    then
+    (
+        mv "$V8DIR"/LICENSE "$V8DIR"/LICENSE.v8.libraries
+        cp "$V8DIR"/LICENSE* "$INSTALLDIR/usr/local/$PRODUCT_FULL/"
     )
     fi
 )

@@ -15,6 +15,7 @@ COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA)
 COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
 TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 
+V8PWD=
 TMP=$(CURDIR)/debian/tmp/
 TMPD=$(CURDIR)/debian/tmp-debug/
 prefix=/usr
@@ -106,6 +107,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_PERCONA_TELEMETRY=ON \
+		-DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=$(V8PWD)/include -DV8_LIB_DIR=$(V8PWD)/out.gn/static/obj \
 		$(LTO_FLAG) \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
 endif
@@ -156,6 +158,7 @@ endif
 		-DWITH_NUMA=ON \
 		-DWITH_LDAP=system \
 		-DWITH_PERCONA_TELEMETRY=ON \
+		-DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=$(V8PWD)/include -DV8_LIB_DIR=$(V8PWD)/out.gn/static/obj \
 		$(LTO_FLAG) \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
@@ -305,6 +308,10 @@ override_dh_strip:
 
 override_dh_shlibdeps:
 	dh_shlibdeps -Lpercona-server-server -l/usr/lib/mysql/private --dpkg-shlibdeps-params=--ignore-missing-info
+
+override_dh_install:
+	dh_install
+	cp js/LICENSE* debian/percona-server-js/usr/share/doc/percona-server-js/
 
 override_dh_installinit:
 	@echo "RULES.$@"

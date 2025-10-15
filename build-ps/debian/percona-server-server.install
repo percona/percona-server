@@ -244,7 +244,8 @@ usr/lib/mysql/plugin/component_masking_functions.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
 usr/lib/mysql/plugin/component_percona_udf.so
 usr/lib/mysql/plugin/debug/component_percona_udf.so
-
+usr/lib/mysql/plugin/audit_log.so
+usr/lib/mysql/plugin/debug/audit_log.so
 
 # support files
 usr/share/mysql/dictionary.txt

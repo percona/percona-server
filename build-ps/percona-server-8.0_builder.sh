@@ -307,6 +307,8 @@ get_sources(){
         sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     fi
 
+    sed -i "s:V8PWD=:V8PWD=${WORKDIR}/v8:g" build-ps/debian/rules
+
     sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/debian/rules
     sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" build-ps/debian/rules
@@ -319,6 +321,11 @@ get_sources(){
         sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
     fi
     cd ${WORKDIR}/percona-server
+#
+    mv "${WORKDIR}"/v8/LICENSE "${WORKDIR}"/v8/LICENSE.v8.libraries
+    mkdir ${PSDIR}/js
+    cp -v "${WORKDIR}"/v8/LICENSE* ${PSDIR}/js
+#
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
     mkdir $WORKDIR/source_tarball
@@ -365,6 +372,21 @@ EOF
     return
 }
 
+get_v8(){
+    RHEL="$(rpm --eval %rhel)"
+    DIST="$(lsb_release -sc)"
+    cd ${WORKDIR}
+    if [ x"$ARCH" = "xx86_64" ]; then
+        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-glibc2.31.tar.gz
+        tar -xzf v8_12.9.202.22-glibc2.31.tar.gz
+        rm -rf v8_12.9.202.22-glibc2.31.tar.gz
+    else
+        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-arm64.tar.gz
+        tar -xzf v8_12.9.202.22-arm64.tar.gz
+        rm -rf v8_12.9.202.22-arm64.tar.gz
+    fi
+}
+
 install_deps() {
     if [ $INSTALL = 0 ]
     then
@@ -400,6 +422,7 @@ install_deps() {
         else
             yum -y install epel-release
         fi
+        yum -y update
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
@@ -462,6 +485,7 @@ install_deps() {
             yum -y install libtirpc-devel
         fi
         if [ "x$RHEL" = "x9" ]; then
+            yum -y install libtirpc-devel
             yum -y install gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils gcc-toolset-12-annobin-annocheck gcc-toolset-12-annobin-plugin-gcc gcc-toolset-12-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12/plugin/
@@ -502,7 +526,7 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble  -o x"${DIST}" = xtrixie ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -514,16 +538,14 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
-        fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
         fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
-        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie ]; then
+        if [ x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libtirpc-dev gsasl-common
         fi
         if [ x"${DIST}" = xbionic ]; then
@@ -547,6 +569,7 @@ install_deps() {
         ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
         cd ${CURPLACE}
     fi
+    get_v8
     return;
 }
 
@@ -773,9 +796,9 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then
@@ -994,14 +1017,14 @@ build_tarball(){
 
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
-        CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
         if [[ "${DEBUG}" == 1 ]]; then
-            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         else
-            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         fi
     fi

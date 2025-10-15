@@ -1,0 +1,4 @@
+usr/lib/mysql/plugin/component_js_lang.so
+usr/lib/mysql/plugin/debug/component_js_lang.so
+# legal
+js/LICENSE.* usr/share/doc/percona-server-js/

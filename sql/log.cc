@@ -2446,7 +2446,7 @@ bool File_query_log::purge_logs() {
     }
 
     if ((error = (unlink(buff) != 0))) {
-      if (my_errno() == ENOENT) error = false;
+      if (errno == ENOENT) error = false;
       break;
     }
     --iter_log_ext;

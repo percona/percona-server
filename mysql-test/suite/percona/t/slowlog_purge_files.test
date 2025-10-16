@@ -1,0 +1,106 @@
+#
+# Test if the slow log rotation causes an error in purging older slow log files
+# Without the fix, the error messages in the mysqld error log will cause the test failure
+#
+
+/* Save globals to restore at the end of the test */
+SET @old_long_query_time = @@global.long_query_time;
+SET @old_max_slowlog_files = @@global.max_slowlog_files;
+SET @old_max_slowlog_size = @@global.max_slowlog_size;
+SET @old_slow_query_log_file = @@global.slow_query_log_file;
+
+
+SET GLOBAL slow_query_log = ON;
+SET GLOBAL long_query_time = 0;
+SET GLOBAL max_slowlog_files = 3;
+SET GLOBAL max_slowlog_size  = 4096;
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME IN ('max_slowlog_files','max_slowlog_size','slow_query_log','long_query_time');
+
+CREATE TABLE `tab` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `k` int NOT NULL DEFAULT '0',
+  `c` char(120) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `pad` char(60) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `k_1` (`k`)
+);
+
+DELIMITER $$;
+
+CREATE PROCEDURE insert_10k_rows()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+
+  START TRANSACTION;
+  WHILE i <= 10000 DO
+    INSERT INTO tab (k, c, pad)
+    VALUES (
+      i,
+      CONCAT('c_', SUBSTRING(UUID(), 1, 20)),
+      CONCAT('p_', SUBSTRING(UUID(), 1, 10))
+    );
+    SET i = i + 1;
+  END WHILE;
+  COMMIT;
+END$$
+
+DELIMITER ;$$
+
+CALL insert_10k_rows;
+SELECT COUNT(*) FROM tab;
+
+DELIMITER $$;
+
+CREATE PROCEDURE sysbench_like_write(IN duration INT)
+BEGIN
+  DECLARE t_start TIMESTAMP DEFAULT NOW();
+  DECLARE elapsed INT DEFAULT 0;
+  WHILE elapsed < duration DO
+    START TRANSACTION;
+      UPDATE tab SET k = FLOOR(RAND()*10000) WHERE id = FLOOR(RAND()*10000);
+      DELETE FROM tab WHERE id = FLOOR(RAND()*10000);
+      INSERT INTO tab (k, c, pad)
+      VALUES (FLOOR(RAND()*10000),
+              SUBSTRING(UUID(),1,20),
+              SUBSTRING(UUID(),1,10));
+    COMMIT;
+    SET elapsed = TIMESTAMPDIFF(SECOND, t_start, NOW());
+  END WHILE;
+END$$
+
+DELIMITER ;$$
+
+--echo #
+--echo # Running 10 concurrent sysbench_like_write() calls
+--echo #
+
+perl;
+  use strict;
+  use warnings;
+
+  my $threads = 10;
+  my $db   = 'test';
+  my $proc = 'CALL sysbench_like_write(10);';
+
+  for my $i (1 .. $threads) {
+    my $pid = fork();
+    if ($pid == 0) {
+      my $cmd = sprintf('$MYSQL %s -e "%s"', $db, $proc);
+      system($cmd);
+      exit 0;
+    }
+  }
+
+  # Wait for all children
+  while (wait() != -1) {}
+EOF
+
+DROP PROCEDURE insert_10k_rows;
+DROP PROCEDURE sysbench_like_write;
+DROP TABLE tab;
+
+/* Restore globals */
+SET GLOBAL long_query_time = @old_long_query_time;
+SET GLOBAL max_slowlog_files = @old_max_slowlog_files;
+SET GLOBAL max_slowlog_size = @old_max_slowlog_size;
+SET GLOBAL slow_query_log_file = @old_slow_query_log_file;

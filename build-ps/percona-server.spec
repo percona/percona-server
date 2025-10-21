@@ -56,6 +56,11 @@
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
 
+# By default a build will be done including the JS stored routines language support
+# Pass path to v8 lib
+%{?with_js_lang: %global js_lang_option -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=%{with_js_lang}/include -DV8_LIB_DIR=%{with_js_lang}/out.gn/static/obj}
+%{?with_js_lang: %global js_lang 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -144,7 +149,7 @@ Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
 License:        Copyright (c) 2000, %{build_timestamp}, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
-Source0:        http://www.percona.com/downloads/Percona-Server-9.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
+Source0:        http://downloads.percona.com/downloads/Percona-Server-9.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -455,6 +460,20 @@ Requires:       percona-server-client = %{version}-%{release}
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
 %endif
 
+%if 0%{?js_lang}
+# ----------------------------------------------------------------------------
+%package -n percona-server-js
+Summary:        Percona Server - JS stored routines language support package
+Group:          Applications/Databases
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
+Conflicts:      percona-server-js-pro
+
+%description -n percona-server-js
+This package contains JS language component for Percona Server %{version}-%{release}
+%endif
+
 %package  -n   percona-mysql-router
 Summary:       Percona MySQL Router
 Group:         Applications/Databases
@@ -579,8 +598,12 @@ mkdir debug
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8
+           -DWITH_LTO=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?js_lang_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -634,8 +657,12 @@ mkdir release
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8
+           -DWITH_LTO=ON \
+%endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?js_lang_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -851,6 +878,17 @@ fi
 if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
+
+%if 0%{?rhel} >= 9
+if [ -f /usr/lib/systemd/system/mysqld.service ]; then
+  if [ ! -e /etc/systemd/system/mysql.service ] && [ -d /etc/systemd/system ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
+  fi
+  if [ ! -e /etc/systemd/system/multi-user.target.wants/mysqld.service ] && [ -d /etc/systemd/system/multi-user.target.wants ]; then
+    ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/multi-user.target.wants/mysqld.service
+  fi
+fi
+%endif
 
 %post -n percona-server-shared -p /sbin/ldconfig
 
@@ -1590,6 +1628,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so
 %attr(755, root, root) %{_bindir}/ldb
 %attr(755, root, root) %{_bindir}/sst_dump
+%endif
+
+%if 0%{?js_lang}
+%files -n percona-server-js
+%attr(-, root, root)
+%doc %{src_dir}/js/LICENSE.*
+%{_libdir}/mysql/plugin/component_js_lang.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
 %endif
 
 %files -n percona-mysql-router

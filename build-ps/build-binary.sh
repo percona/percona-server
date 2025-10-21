@@ -39,7 +39,7 @@ TAR=${TAR:-tar}
 if ! getopt --test
 then
     go_out="$(getopt --options=iqdvj:m:t: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-ssl:,tag: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-v8:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -82,6 +82,11 @@ do
     -m | --with-mecab )
         shift
         WITH_MECAB_OPTION="-DWITH_MECAB=$1"
+        shift
+        ;;
+    -v8 | --with-v8 )
+        shift
+        WITH_V8="$1"
         shift
         ;;
     --with-ssl )
@@ -214,8 +219,9 @@ if [ -n "$(command -v rpm)" ]; then
   if test "x$CMAKE_BUILD_TYPE" = "xDebug"
   then
     COMMON_FLAGS=`echo " ${COMMON_FLAGS} " | \
-              sed -e 's/ -O[0-9]* / /' \
-                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+              sed -e 's/-Wall/-Wall -Wno-error=stringop-overflow -Wno-error=restrict -Wno-error=maybe-uninitialized -Wno-error=array-bounds -Wno-error=alloc-size-larger-than= -Wno-error=stringop-truncation/' \
+            #  sed -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2//' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
@@ -243,6 +249,18 @@ then
     fi
 
     JEMALLOCDIR="$(cd "$WITH_JEMALLOC"; pwd)"
+fi
+
+# Test V8 directory
+if test "x$WITH_V8" != "x"
+then
+    if ! test -d "$WITH_V8"
+    then
+        echo >&2 "V8 dir $WITH_V8 does not exist"
+        exit 1
+    fi
+
+    V8DIR="$(cd "$WITH_V8"; pwd)"
 fi
 
 # Build
@@ -274,6 +292,7 @@ fi
         -DWITH_LIBEVENT=bundled \
         -DWITH_ZSTD=bundled \
 	-DWITH_PERCONA_TELEMETRY=ON \
+        -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=${WITH_V8}/include -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
@@ -296,6 +315,14 @@ fi
 
         # Copy COPYING file
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
+    )
+    fi
+
+    if test "x$WITH_V8" != x
+    then
+    (
+        mv "$V8DIR"/LICENSE "$V8DIR"/LICENSE.v8.libraries
+        cp "$V8DIR"/LICENSE* "$INSTALLDIR/usr/local/$PRODUCT_FULL/"
     )
     fi
 )

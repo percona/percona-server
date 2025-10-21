@@ -321,6 +321,11 @@ get_sources(){
         sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
     fi
     cd ${WORKDIR}/percona-server
+#
+    mv "${WORKDIR}"/v8/LICENSE "${WORKDIR}"/v8/LICENSE.v8.libraries
+    mkdir ${PSDIR}/js
+    cp -v "${WORKDIR}"/v8/LICENSE* ${PSDIR}/js
+#
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
     mkdir $WORKDIR/source_tarball

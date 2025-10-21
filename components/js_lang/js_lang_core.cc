@@ -301,27 +301,24 @@ Js_isolate *Js_isolate::create() {
     isolated processes, for which "let us crash on reaching the limit"
     behavior doesn't cause problems.
 
-    We do best-effort attempt to respect our memory limits without crashes
-    by employing the following approach:
-    - Set V8 limit MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR times (4x at the moment)
-      higher than our intended limit.
-    - Check if our intended limit is exceeded periodically (at GC time).
+    By default, we try to avoid such aborts and do not set V8 memory limit
+    explicitly, relying on its generous default (typically > 1Gb).
+    We only do best-effort attempt to respect max_mem_size memory limit by
+    checking if it is exceeded periodically (at GC time).
 
-    TODO: Consider changing safety multiplier after getting more feedback
-          from users (PLv8 uses x2, but some of our tests easily crashed with
-          such multiplier, some other V8 embedders seem to use x8).
-
-          Note that if we won't set heap limit explicitly it will be set
-          automatically by V8 to some large value anyway (1Gb).
+    Users can set smaller V8 limit by setting max_mem_size_hard_limit_factor
+    to non-0 value if they are willing to risk server aborts or if such aborts
+    are preferrable to exceeding memory limits.
 
     TODO: Consider having a hardened mode for JS execution in which it will
           be run in separate worker process (like it is done in Chrome).
   */
 
-  constexpr size_t MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR = 4;
-  create_params.constraints.ConfigureDefaultsFromHeapSize(
-      0, result->m_memory_manager.m_max_mem_size *
-             MAX_MEM_SIZE_SAFETY_MARGIN_FACTOR);
+  if (Js_isolate::Memory_manager::s_max_mem_size_hard_limit_factor > 0) {
+    create_params.constraints.ConfigureDefaultsFromHeapSize(
+        0, result->m_memory_manager.m_max_mem_size *
+               Js_isolate::Memory_manager::s_max_mem_size_hard_limit_factor);
+  }
 
   v8::Isolate *isolate = v8::Isolate::New(create_params);
 
@@ -573,18 +570,20 @@ constexpr unsigned int MAX_MEM_SIZE_DEFAULT = 8 * 1024 * 1024;
 constexpr unsigned int MAX_MEM_SIZE_MIN = 3 * 1024 * 1024;
 
 unsigned int Js_isolate::Memory_manager::s_max_mem_size = MAX_MEM_SIZE_DEFAULT;
+unsigned int Js_isolate::Memory_manager::s_max_mem_size_hard_limit_factor = 0;
 
 bool Js_isolate::register_vars() {
   /*
-    Register variable for limiting per Isolate memory consumption.
+    Register variables for limiting of per Isolate memory consumption.
 
-    Note that while minimum value for this setting might seem to be fairly
-    big it was determined by expiriments. V8 tends to overrides/increases
-    smaller values anyway.
+    Note that while minimum value for max_mem_size setting might seem to be
+    fairly big it was determined by expiriments. V8 tends to overrides/
+    increases smaller values anyway.
 
     TODO: Possibly change the default after gathering more feedback from users.
   */
-  INTEGRAL_CHECK_ARG(uint) max_mem_size_check;
+  INTEGRAL_CHECK_ARG(uint) max_mem_size_check, max_mem_size_hl_factor_check;
+
   max_mem_size_check.def_val = MAX_MEM_SIZE_DEFAULT;
   max_mem_size_check.min_val = MAX_MEM_SIZE_MIN;
   max_mem_size_check.max_val = 1024 * 1024 * 1024;
@@ -593,7 +592,7 @@ bool Js_isolate::register_vars() {
   if (mysql_service_component_sys_variable_register->register_variable(
           CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME,
           PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED,
-          "Maximum JS memory size for each user and connection", nullptr,
+          "Soft limit for JS memory size for each user and connection", nullptr,
           nullptr, (void *)&max_mem_size_check,
           (void *)&Memory_manager::s_max_mem_size)) {
     // Registration of system variable is non-trivial, and can fail for
@@ -605,12 +604,42 @@ bool Js_isolate::register_vars() {
     return true;
   }
 
+  /*
+    We do not enable hard JS memory limit by default, as hitting it causes
+    process abort and, in general case, it is fairly easy to do so without
+    triggering the best-effort limit first. We also do not allow turning it on/
+    changing this setting at runtime to reduce misuse.
+  */
+  max_mem_size_hl_factor_check.def_val = 0;
+  max_mem_size_hl_factor_check.min_val = 0;
+  max_mem_size_hl_factor_check.max_val = 1024;
+  max_mem_size_hl_factor_check.blk_sz = 0;
+
+  if (mysql_service_component_sys_variable_register->register_variable(
+          CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_HARD_LIMIT_FACTOR_VAR_NAME,
+          PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_READONLY,
+          "Multiplier defining hard limit for JS memory size for each"
+          "user and connection (0 means that V8 default is used)",
+          nullptr, nullptr, (void *)&max_mem_size_hl_factor_check,
+          (void *)&Memory_manager::s_max_mem_size_hard_limit_factor)) {
+    // See above.
+    my_error(ER_LANGUAGE_COMPONENT, MYF(0),
+             "Can't register " MAX_MEM_SIZE_HARD_LIMIT_FACTOR_VAR_NAME
+             " system variable for " CURRENT_COMPONENT_NAME_STR " component.");
+    // We can't do much if the below call fails.
+    (void)mysql_service_component_sys_variable_unregister->unregister_variable(
+        CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME);
+    return true;
+  }
+
   if (mysql_service_status_variable_registration->register_variable(
           get_status_vars_defs())) {
     // Registration of status variables can't fail unless OOM.
     // In this case error should have been reported already.
     //
-    // We can't do much if we the below call fails.
+    // We can't do much if the below calls fail.
+    (void)mysql_service_component_sys_variable_unregister->unregister_variable(
+        CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_HARD_LIMIT_FACTOR_VAR_NAME);
     (void)mysql_service_component_sys_variable_unregister->unregister_variable(
         CURRENT_COMPONENT_NAME_STR, MAX_MEM_SIZE_VAR_NAME);
     return true;

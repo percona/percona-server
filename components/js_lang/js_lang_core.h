@@ -393,10 +393,20 @@ class Js_isolate {
     bool m_is_max_mem_size_exceeded{false};
 
     /**
-      Global dynamic variable for maximum memory size limit to set for
+      Global dynamic variable for maximum memory size soft limit to set for
       new isolates.
     */
     static unsigned int s_max_mem_size;
+
+    /**
+      Global read-only (i.e. start-up settable) variable for hard memory limit
+      in V8 engine.
+      0 - indicates that no V8 limit is set explicitly and the default V8 limit
+      is used (typically > 1Gb),
+      non-0  - indicates that V8 limit is set explicitly. The value used as a
+      multiplier which we use to produce limit value from m_max_mem_size.
+    */
+    static unsigned int s_max_mem_size_hard_limit_factor;
 
     /**
       Memory usage counter values for this isolate which already have been

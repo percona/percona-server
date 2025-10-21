@@ -41,6 +41,20 @@ Description: MyRocks storage engine plugin for Percona Server
  .
  This package includes the MyRocks/RocksDB plugin library.
 
+Package: percona-server-js
+Section: database
+Architecture: any
+Depends: percona-server-server (= ${binary:Version}), ${misc:Depends}
+Replaces: percona-server-js-pro
+Conflicts: percona-server-js-pro
+Description: Percona Server - JS stored routines language support package
+ .
+ Percona has introduced experimental support for Stored Programs in JavaScript (JS) within
+ Percona Server for MySQL. This initiative aims to provide a free and open-source alternative to
+ Oracle's proprietary implementation of JS stored programs in MySQL Enterprise Edition.
+ .
+ This package contains JS language component for Percona Server.
+
 Package: libperconaserverclient22
 Architecture: any
 Section: libs

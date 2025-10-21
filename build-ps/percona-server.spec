@@ -1614,6 +1614,7 @@ fi
 %if 0%{?js_lang}
 %files -n percona-server-js
 %attr(-, root, root)
+%doc %{src_dir}/js/LICENSE.*
 %{_libdir}/mysql/plugin/component_js_lang.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_js_lang.so
 %endif

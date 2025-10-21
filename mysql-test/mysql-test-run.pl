@@ -301,6 +301,7 @@ our @DEFAULT_SUITES = qw(
   x
   component_keyring_file
 
+  audit_log
   component_audit_log_filter
   percona
   percona_innodb

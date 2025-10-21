@@ -132,6 +132,7 @@ get_sources(){
     git reset --hard
     #
     cd ${WORKDIR}/percona-server
+    #
     ls
     if [ -f VERSION ]; then
         source VERSION
@@ -259,6 +260,7 @@ get_sources(){
     fi
     #
     git submodule update
+    #
     cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled -DWITH_CURL=bundled
     make dist
     #
@@ -302,6 +304,8 @@ get_sources(){
         sed -i "1s/^/SET(TOKUDB_VERSION ${TOKUDB_VERSION})\n/" storage/tokudb/CMakeLists.txt
     fi
 
+    sed -i "s:V8PWD=:V8PWD=${WORKDIR}/v8:g" build-ps/debian/rules
+
     sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/debian/rules
     sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" build-ps/debian/rules
@@ -314,6 +318,11 @@ get_sources(){
         sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
     fi
     cd ${WORKDIR}/percona-server
+#
+    mv "${WORKDIR}"/v8/LICENSE "${WORKDIR}"/v8/LICENSE.v8.libraries
+    mkdir ${PSDIR}/js
+    cp -v "${WORKDIR}"/v8/LICENSE* ${PSDIR}/js
+#
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
     mkdir $WORKDIR/source_tarball
@@ -358,6 +367,19 @@ apply_workaround_bug_304121(){
 EOF
     patch -ruN -d /usr/lib/rpm < /tmp/bugzilla_bug_304121.patch
     return
+}
+
+get_v8(){
+    cd ${WORKDIR}
+    if [ x"$ARCH" = "xx86_64" ]; then
+        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-glibc2.31.tar.gz
+        tar -xzf v8_12.9.202.22-glibc2.31.tar.gz
+        rm -rf v8_12.9.202.22-glibc2.31.tar.gz
+    else
+        wget -q --no-check-certificate https://downloads.percona.com/downloads/packaging/v8_12.9.202.22-arm64.tar.gz
+        tar -xzf v8_12.9.202.22-arm64.tar.gz
+        rm -rf v8_12.9.202.22-arm64.tar.gz
+    fi
 }
 
 install_deps() {
@@ -496,7 +518,7 @@ install_deps() {
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -504,13 +526,23 @@ install_deps() {
         if [ x"${DIST}" = xbionic ]; then
             apt-get -y install gcc-8 g++-8
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 9.0 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+        elif [ x"${DIST}" = xbookworm ]; then
+            apt-get -y install gcc-12 g++-12
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 --slave /usr/bin/g++ g++ /usr/bin/g++-12
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 100
         elif [ x"${DIST}" = xnoble ]; then
             apt-get -y install gcc-13 g++-13
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 100
+        elif [ x"${DIST}" = xtrixie ]; then
+            apt-get -y install gcc-14 g++-14
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 100
         else
             apt-get -y install gcc-11 g++-11 cpp-11
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
+            update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 100
         fi
         apt-get -y install libeatmydata
         apt-get -y install dh-apparmor
@@ -519,16 +551,16 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xnoble -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
         fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
-        if [ x${DIST} = xnoble ]; then
+        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libtirpc-dev gsasl-common
         fi
     fi
@@ -539,6 +571,7 @@ install_deps() {
         ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
         cd ${CURPLACE}
     fi
+    get_v8
     return;
 }
 
@@ -620,7 +653,6 @@ build_srpm(){
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/mysql_config.sh' --strip=3
-    #
     cd ${WORKDIR}/rpmbuild/SPECS
     line_number=$(grep -n SOURCE999 percona-server.spec | awk -F ':' '{print $1}')
     cp ../SOURCES/call-home.sh ./
@@ -765,9 +797,9 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then
@@ -886,7 +918,7 @@ build_deb(){
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -904,7 +936,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" ]; then
+    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" -o ${DEBIAN_VERSION} = "trixie" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
@@ -985,14 +1017,14 @@ build_tarball(){
 
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
-        CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
         if [[ "${DEBUG}" == 1 ]]; then
-            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --debug --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         else
-            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+            CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         fi
     fi

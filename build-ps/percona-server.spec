@@ -1285,6 +1285,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 #
 #%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql

@@ -1,12 +1,17 @@
 # MyRocks Changelog
 
+## MyRocks 9.3.1-4
+**This version was shipped with Percona Server 8.0.45-36 and 8.4.8-8.**
+* PS-10287 – Add automatic table definition recovery after crash on ALTER
+· [Jira](https://perconadev.atlassian.net/browse/PS-10287) · [Changes](https://github.com/percona/percona-server/commit/a30a6c6a7ecd)
+
 ## MyRocks 9.3.1-3
 **This version was shipped with Percona Server 8.0.44-35 and 8.4.7-7.**
 * PS-9680 – Fix potential data corruption in MyRocks after RocksDB 7.10.0 changes
 · [Jira](https://perconadev.atlassian.net/browse/PS-9680) · [Changes](https://github.com/percona/percona-server/commit/247b3ee5a29c)
 
-* PS-10227 – Assertion failure in RocksDB initialization with system CF stats skipped
-· [Jira](https://perconadev.atlassian.net/browse/PS-10227)
+* PS-10227 – Fixed an assertion failure occurring during RocksDB initialization when system column family statistics were skipped
+· [Jira](https://perconadev.atlassian.net/browse/PS-10227) · [Changes](https://github.com/percona/percona-server/commit/04ed7d4f075c)
 
 * PS-9840 – Prevents an assertion failure when a metadata table (DD table) exists but isn’t registered in RocksDB
 · [Jira](https://perconadev.atlassian.net/browse/PS-9840) · [Changes](https://github.com/percona/percona-server/commit/805737fdaf9e)

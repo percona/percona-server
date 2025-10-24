@@ -8046,11 +8046,18 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   uint n_keys = table->s->keys + (has_hidden_pk(*table) ? 1 : 0);
 
   if (m_tbl_def->m_key_count != n_keys) {
+    const char *alter_op;
+    if (m_tbl_def->m_key_count > n_keys)
+      alter_op = "ALTER TABLE ... ADD INDEX";
+    else
+      alter_op = "ALTER TABLE ... DROP INDEX";
+
     LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Table '%s' definition mismatch between MyRocks "
-                    "(m_key_count=%d) and data dictionary (n_keys=%d)",
+                    "Table '%s' definition differs between MyRocks "
+                    "(m_key_count=%d) and the data dictionary (n_keys=%d). "
+                    "This was likely caused by a crash during '%s'.",
                     m_tbl_def->full_tablename().c_str(), m_tbl_def->m_key_count,
-                    n_keys);
+                    n_keys, alter_op);
 
     for (uint i = 0; i < table->s->keys; i++) {
       const char *key_name;
@@ -8058,25 +8065,52 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
       assert((*table).key_info[i].name != nullptr);
       key_name = (*table).key_info[i].name;
 
-      LogPluginErrMsg(
-          ERROR_LEVEL, 0,
-          "ha_rocksdb::open TABLE table_name=%s i=%d/%d key_name=%s",
-          table->s->table_name.str, i, table->s->keys, key_name);
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "TABLE table_name=%s i=%d/%d key_name=%s",
+                      table->s->table_name.str, i, table->s->keys, key_name);
     }
 
     uint pk = table->s->primary_key;
     LogPluginErrMsg(
-        ERROR_LEVEL, 0, "ha_rocksdb::open TABLE PK key_name=%s",
+        INFORMATION_LEVEL, 0, "TABLE PK key_name=%s",
         pk == MAX_INDEXES ? HIDDEN_PK_NAME : (*table).key_info[pk].name);
 
     for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
       const char *rdb_name = m_tbl_def->m_key_descr_arr[i]->m_name.c_str();
-      LogPluginErrMsg(
-          ERROR_LEVEL, 0,
-          "ha_rocksdb::open KEY_descr_arr table_name=%s i=%d/%d key_name=%s",
-          m_tbl_def->full_tablename().c_str(), i, m_tbl_def->m_key_count,
-          rdb_name);
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "KEY_descr_arr table_name=%s i=%d/%d key_name=%s",
+                      m_tbl_def->full_tablename().c_str(), i,
+                      m_tbl_def->m_key_count, rdb_name);
     }
+
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
+    if (m_tbl_def->m_key_count > n_keys && rocksdb_validate_tables > 0) {
+      if (rocksdb_validate_tables == 1) {
+        LogPluginErrMsg(
+            ERROR_LEVEL, 0,
+            "Start the server with \"rocksdb_validate_tables=2\" to attempt to "
+            "fix the problem.");
+      } else {
+        const std::string tbl_name = m_tbl_def->full_tablename();
+        LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                        "Starting reconstruction of the corrupted table %s.",
+                        m_tbl_def->full_tablename().c_str());
+
+        if (rebuild_table_def_from_table(table) != HA_EXIT_SUCCESS) {
+          LogPluginErrMsg(ERROR_LEVEL, 0,
+                          "Failed to rebuild table definition for table '%s'",
+                          tbl_name.c_str());
+          my_error(ER_KEY_CREATE_DURING_ALTER, MYF(0));
+          return HA_EXIT_FAILURE;
+        }
+
+        LogPluginErrMsg(
+            INFORMATION_LEVEL, 0,
+            "Reconstruction of the corrupted table %s has finished.",
+            m_tbl_def->full_tablename().c_str());
+      }
+    }
+#endif
   }
 
   // close() above has already called free_key_buffers(). No need to do it here.
@@ -8662,8 +8696,6 @@ std::unordered_map<std::string, uint> ha_rocksdb::get_old_key_positions(
     const TABLE &old_table_arg, const Rdb_tbl_def &old_tbl_def_arg) const {
   DBUG_ENTER_FUNC();
 
-  std::shared_ptr<Rdb_key_def> *const old_key_descr =
-      old_tbl_def_arg.m_key_descr_arr;
   std::unordered_map<std::string, uint> old_key_pos;
   std::unordered_map<std::string, uint> new_key_pos;
   uint i;
@@ -8674,7 +8706,7 @@ std::unordered_map<std::string, uint> ha_rocksdb::get_old_key_positions(
 
   for (i = 0; i < old_tbl_def_arg.m_key_count; i++) {
     if (is_hidden_pk(i, old_table_arg, old_tbl_def_arg)) {
-      old_key_pos[old_key_descr[i]->m_name] = i;
+      old_key_pos[HIDDEN_PK_NAME] = i;
       continue;
     }
 
@@ -8687,6 +8719,9 @@ std::unordered_map<std::string, uint> ha_rocksdb::get_old_key_positions(
       CREATE TABLE t1 (a INT, b INT, KEY ka(a)) ENGINE=RocksDB;
       ALTER TABLE t1 DROP INDEX ka, ADD INDEX ka(b), ALGORITHM=INPLACE;
     */
+    if (i >= old_table_arg.s->keys) {
+      continue;
+    }
     const KEY *const old_key = &old_table_arg.key_info[i];
     const auto &it = new_key_pos.find(old_key->name);
     if (it == new_key_pos.end()) {
@@ -12995,6 +13030,40 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
+// A simplified version of ha_rocksdb::delete_table
+// that leaves the table's data intact
+int ha_rocksdb::delete_table_def(Rdb_tbl_def *const tbl) {
+  DBUG_ENTER_FUNC();
+
+  assert(tbl != nullptr);
+  assert(m_tbl_def == nullptr || m_tbl_def == tbl);
+  uint table_default_cf_id = tbl->m_key_descr_arr[0]->get_gl_index_id().cf_id;
+  auto local_dict_manager =
+      dict_manager.get_dict_manager_selector_non_const(table_default_cf_id);
+  const std::unique_ptr<rocksdb::WriteBatch> wb = local_dict_manager->begin();
+  rocksdb::WriteBatch *const batch = wb.get();
+
+  {
+    /*
+      Remove the table entry in data dictionary (this will also remove it from
+      the persistent data dictionary).
+    */
+    ddl_manager.remove(tbl, batch, table_default_cf_id, true);
+
+    int err = local_dict_manager->commit(batch);
+    if (err) {
+      DBUG_RETURN(err);
+    }
+  }
+
+  // avoid dangling pointer
+  m_tbl_def = nullptr;
+  m_iterator = nullptr;
+  m_pk_iterator = nullptr;
+  inited = NONE;
+  DBUG_RETURN(HA_EXIT_SUCCESS);
+}
+
 /*
   Note: the following function is called when the table is not open. That is,
   this->table==nullptr, pk_key_descr==nullptr, etc.
@@ -14376,6 +14445,78 @@ bool ha_rocksdb::prepare_inplace_alter_table(
                             new_n_keys, added_indexes, dropped_index_ids,
                             n_added_keys, n_dropped_keys, max_auto_incr);
   DBUG_RETURN(HA_EXIT_SUCCESS);
+}
+
+// Reconstructs a corrupted m_tbl_def (Rdb_tbl_def) by removing the
+// partially added index left after an incomplete "ALTER ... ADD INDEX".
+// Derived from ha_rocksdb::prepare_inplace_alter_table.
+bool ha_rocksdb::rebuild_table_def_from_table(TABLE *altered_table) {
+  DBUG_ENTER_FUNC();
+  assert(altered_table != nullptr);
+
+  std::unique_ptr<Rdb_tbl_def> new_tdef;
+  std::unique_ptr<std::shared_ptr<Rdb_key_def>[]> new_key_descr;
+
+  uint new_n_keys =
+      altered_table->s->keys + (has_hidden_pk(*altered_table) ? 1 : 0);
+  const std::string tbl_name = m_tbl_def->full_tablename();
+
+  try {
+    // Allocate the array and assign to the unique_ptr.
+    new_key_descr.reset(new std::shared_ptr<Rdb_key_def>[new_n_keys]);
+    new_tdef = std::make_unique<Rdb_tbl_def>(tbl_name);
+  } catch (const std::bad_alloc &) {
+    my_error(ER_OUTOFMEMORY, MYF(0));
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
+  new_tdef->m_key_descr_arr = new_key_descr.get();
+  new_tdef->m_key_count = new_n_keys;
+  new_tdef->m_pk_index = altered_table->s->primary_key;
+  new_tdef->m_auto_incr_val =
+      m_tbl_def->m_auto_incr_val.load(std::memory_order_relaxed);
+  new_tdef->m_hidden_pk_val =
+      m_tbl_def->m_hidden_pk_val.load(std::memory_order_relaxed);
+
+  if (create_key_defs(*altered_table, *new_tdef,
+                      "" /* actual_user_table_name */, false /* is_dd_tbl */,
+                      table, m_tbl_def)) {
+    goto error;
+  }
+
+  // delete old table_def but keep data
+  if (delete_table_def(m_tbl_def) != HA_EXIT_SUCCESS) {
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Failure when trying to drop table %s",
+                    tbl_name.c_str());
+    goto error;
+  }
+
+  {
+    auto local_dict_manager =
+        dict_manager.get_dict_manager_selector_non_const(false);
+    const std::unique_ptr<rocksdb::WriteBatch> wb = local_dict_manager->begin();
+    rocksdb::WriteBatch *const batch = wb.get();
+
+    std::lock_guard<Rdb_dict_manager> dm_lock(*local_dict_manager);
+
+    int err = ddl_manager.put_and_write(new_tdef.get(), batch);
+    if (err != HA_EXIT_SUCCESS) goto error;
+
+    err = local_dict_manager->commit(batch);
+    if (err != HA_EXIT_SUCCESS) goto error;
+  }
+
+  m_tbl_def = new_tdef.release();  // transfer ownership
+  new_key_descr.release();         // release ownership as above we used
+                            // new_tdef->m_key_descr_arr = new_key_descr.get();
+  m_key_descr_arr = m_tbl_def->m_key_descr_arr;
+  m_pk_descr = m_key_descr_arr[pk_index(*altered_table, *m_tbl_def)];
+
+  DBUG_RETURN(HA_EXIT_SUCCESS);
+
+error:
+  my_error(ER_KEY_CREATE_DURING_ALTER, MYF(0));
+  DBUG_RETURN(HA_EXIT_FAILURE);
 }
 
 /**

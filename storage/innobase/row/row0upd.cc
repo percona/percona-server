@@ -1216,7 +1216,11 @@ row_upd_index_replace_new_col_vals_index_pos(
 
 		field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(field);
-		if (dict_col_is_virtual(col)) {
+		/* An update vector for a secondary index on virtual column
+		is always created based on the field_no not virtual column
+	        positions. See row_upd_build_sec_rec_difference_binary(). */
+		bool is_virtual = dict_col_is_virtual(col);
+		if (is_virtual && dict_index_is_clust(index)) {
 			const dict_v_col_t*	vcol = reinterpret_cast<
 							const dict_v_col_t*>(
 								col);
@@ -1225,7 +1229,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 				update, vcol->v_pos, true);
 		} else {
 			uf = upd_get_field_by_field_no(
-				update, i, false);
+				update, i, is_virtual);
 		}
 
 		if (uf) {

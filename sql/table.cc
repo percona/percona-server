@@ -3119,13 +3119,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               share->fields);
   outparam->default_column_bitmaps();
 
-<<<<<<< HEAD
   /* Fill record with default values */
   if (outparam->record[0] != outparam->s->default_values)
     restore_record(outparam, s->default_values);
 
-||||||| 2d6d5e10436a
-=======
   // Parse partition expression and create Items
   if (share->partition_info_str_len && outparam->file) {
     auto *old_map = dbug_tmp_use_all_columns(outparam, outparam->write_set);
@@ -3155,7 +3152,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     error_reported = true;
     goto err;
   }
->>>>>>> mysql-8.0.44
   /*
     Process generated columns, if any.
   */

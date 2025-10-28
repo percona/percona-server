@@ -59,31 +59,15 @@ IF(COMPONENT_COMPILE_VISIBILITY)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
-<<<<<<< HEAD
- ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
- ${COMPILE_OPTIONS_ARG}
- ENABLE_EXPORTS
- ADD_TEST merge_component_keyring_common_tests
- LINK_LIBRARIES
- ${KEYRING_COMPONENT_LIBS}
- gunit_large
- server_unittest_library
-||||||| 2d6d5e10436a
-  ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
-  ${COMPILE_OPTIONS_ARG}
-  ENABLE_EXPORTS
-  ADD_TEST merge_component_keyring_common_tests
-  LINK_LIBRARIES
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
-=======
   ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
   ${COMPILE_OPTIONS_ARG}
   ENABLE_EXPORTS
   ADD_TEST merge_component_keyring_common_tests
   EXCLUDE_FROM_GCOV
   LINK_LIBRARIES
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
->>>>>>> mysql-8.0.44
+  ${KEYRING_COMPONENT_LIBS}
+  gunit_large
+  server_unittest_library
  )
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})

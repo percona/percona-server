@@ -19,6 +19,7 @@
 # Run the cluster-test jar in the same timezone as the
 # server (set in the environment variable TZ)
 --let JAVA_JVM_OPTS_3= -Duser.timezone=$TZ
+--let JAVA_JVM_OPTS_4= -XX:ErrorFile=$MYSQLTEST_VARDIR/tmp/clusterj_jvm_error.file
 --let JAVA_CLASS= testsuite.clusterj.AllTests
 --let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 

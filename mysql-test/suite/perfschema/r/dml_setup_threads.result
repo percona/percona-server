@@ -3,7 +3,12 @@ select * from performance_schema.setup_threads
 order by name limit 12;
 NAME	ENABLED	HISTORY	PROPERTIES	VOLATILITY	DOCUMENTATION
 thread/innodb/buf_dump_thread	YES	YES	singleton	0	NULL
+<<<<<<< HEAD
 thread/innodb/buf_lru_manager_thread	YES	YES		0	NULL
+||||||| 2d6d5e10436a
+=======
+thread/innodb/buf_pool_create_thread	YES	YES	singleton	0	NULL
+>>>>>>> mysql-8.0.44
 thread/innodb/buf_resize_thread	YES	YES	singleton	0	NULL
 thread/innodb/clone_ddl_thread	YES	YES	singleton	0	NULL
 thread/innodb/clone_gtid_thread	YES	YES	singleton	0	NULL

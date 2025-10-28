@@ -120,13 +120,14 @@ BuildRequires:  cmake3 >= 3.11.2
 %{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
+BuildRequires:  patchelf
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
 BuildRequires:  krb5-devel
-BuildRequires:  libcurl-devel
 %endif
+BuildRequires:  libcurl-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel

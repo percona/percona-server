@@ -12334,6 +12334,12 @@ ER_IB_MSG_WAITING_ON_LAGGING_REDO_LOG_CONSUMER
 ER_IB_MSG_ABORTING_LOG_ARCHIVER
   eng "The redo log archiver is aborted as it was lagging behind at LSN = %llu and unable to advance for more than 2 seconds. Consider increasing the innodb_redo_log_capacity."
 
+ER_IB_INSTANT_ADD_DROP_COLUMN_NOT_ALLOWED
+  eng "Trying to add or drop column(s) in table '%s' for which the current record size is %zu which is more than the maximum allowed size (%zu) for a record. Therefore ADD or DROP column with ALGORITHM = INSTANT is not allowed."
+
+ER_IB_INSTANT_ADD_NOT_POSSIBLE
+  eng "Cannot add %zu field(s) in table '%s' because after adding it, the record size would be %zu which is more than the maximum allowed size (%zu) for a record."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -50,9 +50,10 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    *
    * they are filtered out if set through cipher_list()
    */
-  static constexpr std::array<const char *, 12> unacceptable_cipher_spec{
+  static constexpr std::array<const char *, 11> unacceptable_cipher_spec{
       "!aNULL", "!eNULL", "!EXPORT", "!LOW", "!MD5", "!DES",
-      "!3DES",  "!RC2",   "!RC4",    "!PSK", "!kDH", "!SSLv3"};
+      "!3DES",  "!RC2",   "!RC4",    "!PSK", "!kDH",
+  };
 
   /**
    * construct a TLS Context for server-side.

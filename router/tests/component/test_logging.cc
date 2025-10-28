@@ -2989,9 +2989,15 @@ class TempRelativeDirectory {
   std::string name_;
 
 #ifndef _WIN32
-  // mysql_harness::get_tmp_dir() returns a relative path on these platforms
   std::string get_tmp_dir_(const std::string &name) {
-    return mysql_harness::get_tmp_dir(name);
+    std::string pattern(name + "-XXXXXX");
+    const char *res = mkdtemp(pattern.data());
+    if (res == nullptr) {
+      throw std::system_error(errno, std::generic_category(),
+                              "mkdtemp(" + pattern + ") failed");
+    }
+
+    return pattern;
   }
 #else
   // mysql_harness::get_tmp_dir() returns an abs path under GetTempPath() on

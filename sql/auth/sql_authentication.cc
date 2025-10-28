@@ -1428,7 +1428,8 @@ std::string get_default_autnetication_plugin_name() {
 }
 
 bool auth_plugin_is_built_in(const char *plugin_name) {
-  LEX_CSTRING plugin = {STRING_WITH_LEN(plugin_name)};
+  assert(plugin_name != nullptr);
+  LEX_CSTRING plugin = {plugin_name, strlen(plugin_name)};
   return g_cached_authentication_plugins->auth_plugin_is_built_in(&plugin);
 }
 
@@ -4276,13 +4277,6 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       thd->get_stmt_da()->disable_status();
     else
       my_ok(thd);
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
-    LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
-    PSI_THREAD_CALL(set_thread_account)
-    (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
-     main_sctx_host_or_ip.length);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     /*
       Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege.
@@ -4296,7 +4290,16 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-  /* Ready to handle queries */
+    /* Ready to handle queries */
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
+  LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();
+  PSI_THREAD_CALL(set_thread_account)
+  (main_sctx_user.str, main_sctx_user.length, main_sctx_host_or_ip.str,
+   main_sctx_host_or_ip.length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   return ret;
 }
 

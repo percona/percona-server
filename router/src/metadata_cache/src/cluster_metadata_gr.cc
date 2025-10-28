@@ -655,10 +655,14 @@ bool backends_compatible(const ClusterType a, const ClusterType b) {
 }
 }  // namespace
 
-void GRClusterMetadata::update_backend(
+stdx::expected<void, std::string> GRClusterMetadata::update_backend(
     const mysqlrouter::MetadataSchemaVersion &version, unsigned int router_id) {
-  const auto cluster_type = mysqlrouter::get_cluster_type(
+  const auto res = mysqlrouter::get_cluster_type(
       version, metadata_connection_.get(), router_id);
+  if (!res) {
+    return stdx::unexpected(res.error());
+  }
+  const auto cluster_type = res.value();
 
   // if the current backend does not fit the metadata version that we just
   // discovered, we need to recreate it
@@ -667,7 +671,7 @@ void GRClusterMetadata::update_backend(
     if (metadata_backend_) {
       if (!backends_compatible(cluster_type,
                                metadata_backend_->get_cluster_type())) {
-        return;
+        return {};
       }
       log_info(
           "Metadata version change was discovered. New metadata version is "
@@ -676,6 +680,8 @@ void GRClusterMetadata::update_backend(
     }
     reset_metadata_backend(cluster_type);
   }
+
+  return {};
 }
 
 std::optional<std::chrono::seconds>
@@ -840,7 +846,11 @@ GRClusterMetadata::fetch_cluster_topology(
         const auto version =
             get_and_check_metadata_schema_version(*metadata_connection_);
 
-        update_backend(version, router_id);
+        if (const auto res = update_backend(version, router_id); !res) {
+          log_warning("Failed determining the type of the cluster: %s.",
+                      res.error().c_str());
+          continue;
+        }
 
         if (!backend_reset) {
           metadata_backend_->reset();

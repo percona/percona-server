@@ -278,8 +278,7 @@ static byte *trx_undo_log_v_idx(page_t *undo_page, const dict_table_t *table,
   for (it = vcol->v_indexes->begin(); it != vcol->v_indexes->end(); ++it) {
     dict_v_idx_t v_index = *it;
 
-    ptr += mach_u64_write_much_compressed(
-        ptr, static_cast<ulint>(v_index.index->id));
+    ptr += mach_u64_write_much_compressed(ptr, v_index.index->id);
 
     ptr += mach_write_compressed(ptr, v_index.nth_field);
   }
@@ -1321,7 +1320,7 @@ static ulint trx_undo_page_report_modify(
 
         /* These columns must not have an index
         on them */
-        if (upd_fld_is_virtual_col(fld) &&
+        if (fld->is_virtual() &&
             dict_table_get_nth_v_col(table, pos)->v_indexes->empty()) {
           n_updated--;
         }
@@ -1333,7 +1332,7 @@ static ulint trx_undo_page_report_modify(
     for (i = 0; i < upd_get_n_fields(update); i++) {
       const upd_field_t *fld = upd_get_nth_field(update, i);
 
-      bool is_virtual = upd_fld_is_virtual_col(fld);
+      bool is_virtual = fld->is_virtual();
       bool is_multi_val = upd_fld_is_multi_value_col(fld);
       ulint max_v_log_len = 0;
 
@@ -1761,8 +1760,11 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
 
   trx_write_trx_id(buf, trx_id);
 
-  upd_field_set_field_no(upd_field, index->get_sys_col_pos(DATA_TRX_ID), index);
+  auto const trx_id_col = index->table->get_sys_col(DATA_TRX_ID);
+  upd_field_set_field_no(upd_field, dict_col_get_clust_pos(trx_id_col, index),
+                         index);
   dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
+  trx_id_col->copy_type(dfield_get_type(&upd_field->new_val));
 
   upd_field = upd_get_nth_field(update, n_fields + 1);
 
@@ -1770,9 +1772,11 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
 
   trx_write_roll_ptr(buf, roll_ptr);
 
-  upd_field_set_field_no(upd_field, index->get_sys_col_pos(DATA_ROLL_PTR),
-                         index);
+  auto const data_roll_ptr_col = index->table->get_sys_col(DATA_ROLL_PTR);
+  upd_field_set_field_no(
+      upd_field, dict_col_get_clust_pos(data_roll_ptr_col, index), index);
   dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
+  data_roll_ptr_col->copy_type(dfield_get_type(&upd_field->new_val));
 
   /* Store then the updated ordinary columns to the update vector */
 

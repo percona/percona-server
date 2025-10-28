@@ -2013,6 +2013,71 @@ int runCheckPrintout(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int restartDataNodes(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+  int res = NDBT_OK;
+  const int loops = ctx->getNumLoops();
+
+  for (int l = 0; l < loops; l++) {
+    const bool initial = (rand() % 2 == 1);
+    const bool abort = (rand() % 2 == 1);
+    const int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+    g_err << "Restarting data node " << nodeId << " initial " << initial
+          << " abort " << abort << endl;
+
+    if (restarter.restartOneDbNode(nodeId, initial, false, abort, false) !=
+        NDBT_OK) {
+      g_err << "Restart request failed." << endl;
+      res = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitClusterStarted() != NDBT_OK) {
+      g_err << "Wait for recovery failed." << endl;
+      res = NDBT_FAILED;
+      break;
+    }
+  }
+
+  ctx->stopTest();
+
+  return res;
+}
+
+int runBackupsUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
+  int res = NDBT_OK;
+  NdbBackup backup;
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+  int consecutiveFailCount = 0;
+
+  while (!ctx->isTestStopped()) {
+    unsigned backup_id = 0;
+    if (backup.start(backup_id) != NDBT_OK) {
+      g_err << "Failed to start backup " << endl;
+      consecutiveFailCount++;
+      if (consecutiveFailCount < 20) {
+        NdbSleep_SecSleep(1);
+        continue;
+      }
+      g_err << "Too many consecutive failures" << endl;
+      res = NDBT_FAILED;
+      ctx->stopTest();
+      break;
+    }
+    consecutiveFailCount = 0;
+    g_err << "Started backup " << backup_id << endl;
+
+    NdbSleep_MilliSleep(100);
+
+    g_err << "Clearing out backups" << endl;
+    clearOldBackups(ctx, step);
+  }
+
+  return res;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne",
          "Test that backup and restore works on one table \n"
@@ -2297,6 +2362,14 @@ TESTCASE("CheckBackupCompletedPrintout",
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   STEP(runCheckPrintout);
+  FINALIZER(runClearTable);
+}
+
+TESTCASE("BackupDuringRestart", "Test that backups succeed during restarts") {
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  STEP(restartDataNodes);
+  STEP(runBackupsUntilStopped);
   FINALIZER(runClearTable);
 }
 

@@ -3047,6 +3047,7 @@ class Item : public Parse_tree_node {
   struct Item_view_ref_replacement : Item_replacement {
     Item *m_target;  ///< The item identifying the view_ref to be replaced
     Field *m_field;  ///< The replacement field
+    Item_field *m_outer_field{nullptr};  ///< replacement field if outer ref
     ///< subquery. Pushed when diving into
     ///< subqueries.
     Item_view_ref_replacement(Item *target, Field *field, Query_block *select)

@@ -79,8 +79,10 @@ IF(WIN32)
   LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
 ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
+  DEPENDENCIES GenError
   ENABLE_EXPORTS
   ADD_TEST merge_innodb_tests-t
+  EXCLUDE_FROM_GCOV
   LINK_LIBRARIES gunit_large server_unittest_library
   )
 
@@ -89,8 +91,6 @@ MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
 #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
 #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
 #INCLUDE_DIRECTORIES(${TBB_INCDIR})
-
-ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
@@ -103,6 +103,7 @@ FOREACH(test ${TESTS})
     SKIP_INSTALL
     LINK_LIBRARIES gunit_large server_unittest_library
     DEPENDENCIES GenError
+    ADD_GCOV_TEST ${test}
     )
 ENDFOREACH()
 

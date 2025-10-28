@@ -262,7 +262,16 @@ stdx::expected<void, std::error_code> delete_dir_recursive(
         std::error_code(errno, std::system_category()));
   }
 
-  return delete_dir(dir);
+  auto del_res = delete_dir(dir);
+
+  if (!del_res &&
+      del_res.error() == make_error_code(std::errc::not_a_directory)) {
+    // if the 'dir' is a symlink-to-a-directory it needs to be removed with
+    // 'delete_file()' instead of 'delete_dir()'
+    return delete_file(dir);
+  }
+
+  return del_res;
 }
 
 std::string get_plugin_dir(const std::string &runtime_dir) {

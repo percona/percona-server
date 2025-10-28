@@ -1631,6 +1631,21 @@ int runEventConsumer(NDBT_Context *ctx, NDBT_Step *step) {
     goto end;
   }
 
+  /**
+   * Let's wait for event's start epoch before signallying changes
+   * to start flowing.
+   * Otherwise the event may not capture all of the injected changes
+   */
+  {
+    Ndb *ndb = GETNDB(step);
+    bool ready = false;
+    while (!ctx->isTestStopped() && !ready) {
+      Uint64 latestEpoch;
+      ndb->pollEvents(100, &latestEpoch);
+      ready = (latestEpoch >= pOp->getStartEpoch());
+    }
+  }
+
   ctx->setProperty("LastGCI_hi", ~(Uint32)0);
   ctx->broadcast();
 

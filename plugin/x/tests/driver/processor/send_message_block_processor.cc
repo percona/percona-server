@@ -159,9 +159,9 @@ std::string Send_message_block_processor::message_serialize(
   std::swap(res[1], res[2]);
 #endif
 
-  res[4] = client_msgs_by_name
-               [client_msgs_by_full_name[message.GetDescriptor()->full_name()]]
-                   .second;
+  res[4] = client_msgs_by_name[client_msgs_by_full_name[std::string(
+                                   message.GetDescriptor()->full_name())]]
+               .second;
   res.append(out);
 
   return res;

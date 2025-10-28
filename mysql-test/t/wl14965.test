@@ -2,8 +2,6 @@
 --file_exists $MYSQL_TMP_DIR/wl14965_dump.zip
 --exec unzip -qo $MYSQL_TMP_DIR/wl14965_dump.zip -d $MYSQL_TMP_DIR
 
-CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
-
 --echo # save mysql tables
 --exec $MYSQL_DUMP --add-drop-table --databases mysql > $MYSQL_TMP_DIR/mysql.sql
 --echo # restore mysql tables from 8.0.27

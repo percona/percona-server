@@ -6777,8 +6777,10 @@ Uint32 Dbspj::scanFrag_parallelism(Ptr<Request> requestPtr,
                                    Uint32 batchSizeRows) {
   jam();
   ndbassert(batchSizeRows > 0);
-  if (unlikely(batchSizeRows == 0)) return 0;  // Should not happen
-
+  if (unlikely(batchSizeRows == 0)) {  // Should not happen
+    jam();
+    return 0;
+  }
   const ScanFragData &data = treeNodePtr.p->m_scanFrag_data;
 
   const Uint32 frags_not_complete = data.m_fragCount - data.m_frags_complete;
@@ -6944,7 +6946,18 @@ void Dbspj::scanFrag_send(Signal *signal, Ptr<Request> requestPtr,
   Uint32 availableBatchRows, availableBatchBytes;
   const Uint32 batchRows = scanFrag_getBatchSize(
       treeNodePtr, availableBatchBytes, availableBatchRows);
+
+  // No batch buffer left
+  if (unlikely(batchRows == 0)) {
+    jam();
+    return;
+  }
   data.m_parallelism = scanFrag_parallelism(requestPtr, treeNodePtr, batchRows);
+
+  if (unlikely(data.m_parallelism == 0)) {
+    jam();
+    return;
+  }
 
   // Cap batchSize-rows to avoid exceeding MAX_PARALLEL_OP_PER_SCAN
   const Uint32 bs_rows =
@@ -7954,6 +7967,12 @@ void Dbspj::scanFrag_execSCAN_NEXTREQ(Signal *signal, Ptr<Request> requestPtr,
     const Uint32 batchRows = scanFrag_getBatchSize(
         treeNodePtr, availableBatchBytes, availableBatchRows);
 
+    // No batch buffer left
+    if (unlikely(batchRows == 0)) {
+      jam();
+      return;
+    }
+
     data.m_parallelism =
         scanFrag_parallelism(requestPtr, treeNodePtr, batchRows);
 
@@ -7963,6 +7982,11 @@ void Dbspj::scanFrag_execSCAN_NEXTREQ(Signal *signal, Ptr<Request> requestPtr,
           << availableBatchRows / data.m_parallelism << " rows and "
           << availableBatchBytes / data.m_parallelism << " bytes.");
 #endif
+  }
+
+  if (unlikely(data.m_parallelism == 0)) {
+    jam();
+    return;
   }
 
   Uint32 bs_rows =

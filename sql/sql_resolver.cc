@@ -6452,9 +6452,18 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     int field_no = 1;
 
     for (auto vr : unique_view_refs) {
-      if (baptize_item(thd, vr, &field_no)) return true;
-      if (new_derived->add_item_to_list(vr)) return true;
-      if (update_context_to_derived(vr, new_derived)) return true;
+      /*
+        Copy is needed to preserve the hidded propery during transformation.
+        add_item_to_list() below resets this property and will be later restored
+        by replace_item_view_ref().
+      */
+      Item_view_ref *vr_copy = new (thd->mem_root)
+          Item_view_ref(vr->context, vr->ref_pointer(), vr->original_db_name(),
+                        vr->original_table_name(), vr->original_table_name(),
+                        vr->item_name.ptr(), vr->cached_table);
+      if (baptize_item(thd, vr_copy, &field_no)) return true;
+      if (new_derived->add_item_to_list(vr_copy)) return true;
+      if (update_context_to_derived(vr_copy, new_derived)) return true;
       vr->depended_from = nullptr;
     }
 

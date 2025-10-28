@@ -185,6 +185,7 @@ IF(FREEBSD)
   ADD_COMPILE_FLAGS(stacktrace.cc COMPILE_FLAGS ${LIBUNWIND_CFLAGS})
 ENDIF()
 
+<<<<<<< HEAD
 IF(WITH_EXT_BACKTRACE)
   SET(BACKTRACE_LIBRARIES ext::backtrace)
 ELSE()
@@ -195,13 +196,21 @@ IF (WITH_COREDUMPER)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/coredumper/include)
 ENDIF()
 
+||||||| 2d6d5e10436a
+IF(WITH_EXT_BACKTRACE)
+  SET(BACKTRACE_LIBRARIES ext::backtrace)
+ELSE()
+  UNSET(BACKTRACE_LIBRARIES)
+ENDIF()
+
+=======
+>>>>>>> mysql-8.0.44
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
   mytime
   strings
   ext::zlib
   ext::zstd
-  ${BACKTRACE_LIBRARIES}
   ${LIBNSL}
   ${LIBM}
   ${LIBRT}
@@ -209,6 +218,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${LIBUNWIND_LDFLAGS}
   ${SSL_LIBRARIES}
   )
+
+IF(WITH_EXT_BACKTRACE)
+  TARGET_LINK_LIBRARIES(mysys ext::backtrace)
+  TARGET_LINK_LIBRARIES(mysys_objlib ext::backtrace)
+ENDIF()
 
 # For targets that link with mysys, and are independent of other targets.
 IF(TARGET copy_openssl_dlls)

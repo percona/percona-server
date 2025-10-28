@@ -2638,6 +2638,11 @@ void Backup::execDUMP_STATE_ORD(Signal *signal) {
       infoEvent("BackupRecord %d: BackupId: %u MasterRef: %x ClientRef: %x",
                 ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
       infoEvent(" State: %d", ptr.p->slaveState.getState());
+      infoEvent("Master sendCounter : %s count : %u",
+                BaseString::getPrettyText(
+                    ptr.p->masterData.sendCounter.getNodeBitmask())
+                    .c_str(),
+                ptr.p->masterData.sendCounter.getCount());
       BackupFilePtr filePtr;
       for (ptr.p->files.first(filePtr); filePtr.i != RNIL;
            ptr.p->files.next(filePtr)) {
@@ -4013,7 +4018,7 @@ void Backup::execBACKUP_REQ(Signal *signal) {
     encrypted_file = true;
   }
 
-  if (getOwnNodeId() != getMasterNodeId()) {
+  if ((!getNodeState().getStarted()) || (getOwnNodeId() != getMasterNodeId())) {
     jam();
     sendBackupRef(senderRef, flags, signal, senderData,
                   BackupRef::IAmNotMaster);
@@ -4088,14 +4093,16 @@ void Backup::execBACKUP_REQ(Signal *signal) {
   if (flags & BackupReq::ENCRYPTED_BACKUP) {
     ndbrequire(ptr.p->m_encryption_password_data.length > 0);
   }
-
+  /* Initialise fragWorker array */
+  for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+    ptr.p->fragWorkers[i].clear();
+  }
   Uint32 node = ptr.p->nodes.find_first();
   Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
   ptr.p->idleFragWorkerCount = 0;
   while (node != NdbNodeBitmask::NotFound) {
     const NodeInfo nodeInfo = getNodeInfo(node);
     // setup fragWorkers[] for master to control BACKUP_FRAGMENT_REQs
-    ptr.p->fragWorkers[node].clear();
     Uint32 ldmCount = nodeInfo.m_lqh_workers;
     ldmCount += (nodeInfo.m_lqh_workers == 0);  // set LDM1 as worker for ndbd
 
@@ -5092,6 +5099,8 @@ void Backup::nextFragment(Signal *signal, BackupRecordPtr ptr) {
 
   if (unscanned_frag_count > 0) {
     jam();
+    /* Must be waiting for something */
+    ndbrequire(!ptr.p->masterData.sendCounter.done());
     return;
   }  // if
 
@@ -7089,6 +7098,8 @@ void Backup::getFragmentInfo(Signal *signal, BackupRecordPtr ptr,
   Uint32 loopCount = 0;
   jam();
 
+  ndbassert(!ptr.p->is_lcp());
+
   for (; tabPtr.i != RNIL; ptr.p->tables.next(tabPtr)) {
     jam();
     const Uint32 fragCount = tabPtr.p->fragments.getSize();
@@ -7111,9 +7122,25 @@ void Backup::getFragmentInfo(Signal *signal, BackupRecordPtr ptr,
                           DiGetNodesReq::SignalLength, 0);
         jamEntry();
         DiGetNodesConf *conf = (DiGetNodesConf *)&signal->theData[0];
-        Uint32 nodeId = conf->nodes[0];
+        Uint32 nodeId = 0;
+        const Uint32 nodeCount = 1 + (conf->reqinfo & 0xffff);
         /* Require successful read of table fragmentation */
         ndbrequire(conf->zero == 0);
+
+        /**
+         * DIH informs us of all nodes holding a fragment replica.
+         * We are only interested in nodes which are included in this
+         * backup, so choose the first replica hosted on one of those
+         * nodes.
+         */
+        for (Uint32 i = 0; i < nodeCount; i++) {
+          if (likely(ptr.p->nodes.get(conf->nodes[i]))) {
+            jam();
+            nodeId = conf->nodes[i];
+            break;
+          }
+        }
+        ndbrequire(ptr.p->nodes.get(nodeId));
         Uint32 instanceKey = conf->instanceKey;
         fragPtr.p->lqhInstanceKey = instanceKey;
         fragPtr.p->node = nodeId;

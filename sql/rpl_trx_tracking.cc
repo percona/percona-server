@@ -195,6 +195,20 @@ void Commit_order_trx_dependency_tracker::update_max_committed(
 }
 
 /**
+  Check if the current statement is a CREATE TABLE ... SELECT (CTAS)
+  or any other transactional DDL that should be treated similarly.
+
+  @param thd Current THD handle.
+  @return true  if the statement is a CTAS or a transactional DDL.
+  @return false otherwise.
+*/
+[[nodiscard]] static bool is_create_table_as_query_block(THD *thd) {
+  return ((thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+           !thd->lex->query_block->field_list_is_empty()) ||
+          thd->m_transactional_ddl.inited());
+}
+
+/**
   Get the writeset dependencies of a transaction.
   This takes the commit_parent that must be previously set using
   Commit_order_trx_dependency_tracker and tries to make the commit_parent as
@@ -236,6 +250,11 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
          they can be executed in parallel.
        */
        is_empty_transaction_in_binlog_cache(thd)) &&
+      /*
+        'CREATE TABLE ... AS SELECT' is considered a DML, though in reality
+        it is DDL + DML, which write-sets do not capture all dependencies.
+      */
+      !is_create_table_as_query_block(thd) &&
       // hashing algorithm for the session must be the same as used by other
       // rows in history
       (global_system_variables.transaction_write_set_extraction ==

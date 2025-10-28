@@ -245,6 +245,12 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
 
     dfield_copy(dfield, dfield2);
 
+    if (!index->is_clustered()) {
+      /* Fields based on virtual columns in secondary indexes are
+      not themselves virtual */
+      dfield->type.prtype &= ~DATA_VIRTUAL;
+    }
+
     if (dfield_is_null(dfield)) {
       continue;
     }
@@ -611,6 +617,7 @@ dtuple_t *row_rec_to_index_entry_low(
   }
 
   ut_ad(dtuple_check_typed(entry));
+  ut_d(entry->validate_for_index(index));
 
   return (entry);
 }

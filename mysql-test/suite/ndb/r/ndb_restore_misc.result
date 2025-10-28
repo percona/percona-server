@@ -734,3 +734,35 @@ Backup file node ID not specified, please provide --nodeid
 Backup ID not specified, please provide --backupid
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+Test backupid ranges
+Test generation backup with max explicit id (2^32 - 2)
+Check ndb_restore can open max id backup
+Test behaviour of generating auto-numbered
+next backup of 2^32-1
+Check ndb_restore can open max id backup
+Test behaviour of generating auto-numbered
+next backup of 0
+Check ndb_restore can open zero id backup
+Test behaviour with start backup + out-of-range backup ids
+MGM client allows 1..4294967294 (not 0 or 4294967295)
+Invalid command: backup 0
+Backup ID out of range [1 - 4294967294]
+Type HELP for help.
+
+Invalid command: backup 4294967295
+Backup ID out of range [1 - 4294967294]
+Type HELP for help.
+
+Invalid command: backup 4294967296
+Backup ID out of range [1 - 4294967294]
+Type HELP for help.
+
+Invalid command: backup 999999999999
+Backup ID out of range [1 - 4294967294]
+Type HELP for help.
+
+Test behaviour of ndb_restore with various backup ids
+Too large are rejected
+Negative are rejected
+No id is rejected
+Nodeid = 1

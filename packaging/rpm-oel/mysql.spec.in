@@ -198,6 +198,7 @@ BuildRequires:  cmake3 >= 3.11.2
 %{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
+BuildRequires:  patchelf
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
 %{?el8:BuildRequires: perl(Env)}
@@ -234,11 +235,9 @@ BuildRequires:  time
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
 BuildRequires:  cyrus-sasl-gssapi
-%{?el7:BuildRequires: cyrus-sasl-scram}
-%{?el8:BuildRequires: cyrus-sasl-scram}
-%{?el9:BuildRequires: cyrus-sasl-scram}
-BuildRequires:  libcurl-devel
+BuildRequires:  cyrus-sasl-scram
 %endif
+BuildRequires:  libcurl-devel
 BuildRequires:  krb5-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel

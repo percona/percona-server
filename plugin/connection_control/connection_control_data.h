@@ -36,6 +36,7 @@ typedef enum opt_connection_control {
   OPT_FAILED_CONNECTIONS_THRESHOLD = 0,
   OPT_MIN_CONNECTION_DELAY,
   OPT_MAX_CONNECTION_DELAY,
+  OPT_EXEMPT_UNKNOWN_USERS,
   OPT_LAST /* Must be last */
 } opt_connection_control;
 
@@ -45,6 +46,7 @@ typedef enum opt_connection_control {
 */
 typedef enum stats_connection_control {
   STAT_CONNECTION_DELAY_TRIGGERED = 0,
+  STAT_CONNECTION_EXEMPTED_USERS = 1,
   STAT_LAST /* Must be last */
 } stats_connection_control;
 
@@ -56,6 +58,7 @@ class Connection_control_variables {
   long long failed_connections_threshold;
   long long min_connection_delay;
   long long max_connection_delay;
+  bool exempt_unknown_users{false};
 };
 
 /** Structure to maintain statistics */

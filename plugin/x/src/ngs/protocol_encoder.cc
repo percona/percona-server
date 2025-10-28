@@ -257,7 +257,7 @@ void Protocol_encoder::log_protobuf(const unsigned id,
   }
 #else
   log_debug("%u: %s, Type: %s", id, direction_name,
-            message->GetTypeName().c_str());
+            std::string(message->GetTypeName()).c_str());
 #endif
 }
 

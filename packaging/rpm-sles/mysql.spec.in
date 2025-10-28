@@ -107,6 +107,7 @@ Source10:       @BOOST_DOWNLOAD_URL@
 BuildRequires:  cmake >= 3.11.2
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
+BuildRequires:  patchelf
 BuildRequires:  perl
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -129,8 +130,8 @@ BuildRequires:  libaio-devel
 %if 0%{?commercial}
 BuildRequires:  cyrus-sasl-gssapi
 BuildRequires:  krb5-devel
-BuildRequires:  libcurl-devel
 %endif
+BuildRequires:  libcurl-devel
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel

@@ -45,7 +45,6 @@ var defaults = {
     "primary_cluster_id": 0,
     "clusters": [
       {
-        "primary_node_id": 0,
         "uuid": "cluster-id-1",
         "name": "cluster-name-1",
         "role": "PRIMARY",
@@ -57,7 +56,6 @@ var defaults = {
         "primary_node_id": 0
       },
       {
-        "primary_node_id": 0,
         "uuid": "cluster-id-2",
         "name": "cluster-name-2",
         "role": "SECONDARY",

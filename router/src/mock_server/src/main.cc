@@ -139,7 +139,7 @@ class MysqlServerMockFrontend {
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
     mysql_harness::logging::create_main_log_handler(
-        registry, "mock_server", config_.logging_folder, true);
+        registry, "mock_server_" + config_.port, config_.logging_folder, true);
 
     registry.set_ready();
 
@@ -160,6 +160,22 @@ class MysqlServerMockFrontend {
     logger_conf.add("timestamp_precision", "ms");
     const std::string logfile_name = "mock_server_" + config_.port + ".log";
     logger_conf.add("filename", logfile_name);
+
+    signal_handler_.add_sig_handler(
+        SIGTERM, [&](int /* sig */, const std::string &signal_info) {
+          mysql_harness::ProcessStateComponent::get_instance()
+              .request_application_shutdown(
+                  mysql_harness::ShutdownPending::Reason::REQUESTED,
+                  signal_info);
+        });
+
+    signal_handler_.add_sig_handler(
+        SIGINT, [&](int /* sig */, const std::string &signal_info) {
+          mysql_harness::ProcessStateComponent::get_instance()
+              .request_application_shutdown(
+                  mysql_harness::ShutdownPending::Reason::REQUESTED,
+                  signal_info);
+        });
 
     // initialize the signal handler
     signal_handler_.register_ignored_signals_handler();
@@ -253,35 +269,12 @@ class MysqlServerMockFrontend {
     log_debug("Starting");
 
 #if !defined(_WIN32)
-    //
-    // reopen the logfile on SIGHUP.
-    //
-
     static const char kSignalHandlerServiceName[]{"signal_handler"};
 
     loader_->waitable_services().emplace_back(kSignalHandlerServiceName);
 
-    // as the LogReopener depends on the loggers being started, it must be
-    // initialized after Loader::start_all() has been called.
-    loader_->after_all_started([&]() {
-      signal_handler_.add_sig_handler(
-          SIGTERM, [&](int /* sig */, const std::string &signal_info) {
-            mysql_harness::ProcessStateComponent::get_instance()
-                .request_application_shutdown(
-                    mysql_harness::ShutdownPending::Reason::REQUESTED,
-                    signal_info);
-          });
-
-      signal_handler_.add_sig_handler(
-          SIGINT, [&](int /* sig */, const std::string &signal_info) {
-            mysql_harness::ProcessStateComponent::get_instance()
-                .request_application_shutdown(
-                    mysql_harness::ShutdownPending::Reason::REQUESTED,
-                    signal_info);
-          });
-
-      mysql_harness::on_service_ready(kSignalHandlerServiceName);
-    });
+    loader_->after_all_started(
+        [&]() { mysql_harness::on_service_ready(kSignalHandlerServiceName); });
 
     // after the first plugin finished, stop the log-reopener
     loader_->after_first_finished([&]() {

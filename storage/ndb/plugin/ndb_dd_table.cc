@@ -264,3 +264,7 @@ bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
 bool ndb_dd_table_has_trigger(const dd::Table *table_def) {
   return table_def->has_trigger();
 }
+
+size_t ndb_dd_table_get_num_indexes(const dd::Table *table_def) {
+  return table_def->indexes().size();
+}

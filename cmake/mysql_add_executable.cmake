@@ -81,11 +81,13 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
                        # command, which is probably not what you want
                        # (except for mysqld.lib which is used by plugins).
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
+    EXCLUDE_FROM_GCOV  # Skip target for ENABLE_GCOV
     EXCLUDE_FROM_PGO   # add target, but do not build for PGO
     SKIP_INSTALL       # do not install it
     SKIP_TCMALLOC      # do not link with tcmalloc
     )
   SET(EXECUTABLE_ONE_VALUE_KW
+    ADD_GCOV_TEST      # add unit test if ENABLE_GCOV, sets SKIP_INSTALL
     ADD_TEST           # add unit test, sets SKIP_INSTALL
     COMPONENT
     DESTINATION        # install destination, defaults to ${INSTALL_BINDIR}
@@ -105,6 +107,10 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     "${EXECUTABLE_MULTI_VALUE_KW}"
     ${ARGN}
     )
+
+  IF(ENABLE_GCOV AND ARG_EXCLUDE_FROM_GCOV)
+    RETURN()
+  ENDIF()
 
   SET(target ${target_arg})
   SET(sources ${ARG_UNPARSED_ARGUMENTS})
@@ -136,6 +142,12 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   ENDIF()
 
   SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
+
+  # Create it anyways if we are running GCOV.
+  IF(ENABLE_GCOV AND ARG_ADD_GCOV_TEST)
+    SET(ARG_ADD_TEST ${ARG_ADD_GCOV_TEST})
+    UNSET(ARG_EXCLUDE_FROM_ALL)
+  ENDIF()
 
   IF(ARG_DEPENDENCIES)
     ADD_DEPENDENCIES(${target} ${ARG_DEPENDENCIES})

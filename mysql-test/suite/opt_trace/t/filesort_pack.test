@@ -3,8 +3,6 @@
 --source include/have_64bit.inc
 --source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
-call mtr.add_suppression("Cannot add field");
-
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

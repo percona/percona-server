@@ -2681,6 +2681,53 @@ INSTANTIATE_TEST_SUITE_P(
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
             false, ""}));
 
+/**
+ * @test Checks that the Router still is operating as expected if the first node
+ * on the metadata servers list is lagging to replicate the metadata from the
+ * primary after the boostrap. (BUG#38132603)
+ */
+TEST_F(ClusterSetTest, FirstMdServerLagsReplicatingMetadata) {
+  const std::string target_cluster = "primary";
+  const auto target_cluster_id = 0;
+
+  /* create a clusterset where the first node (also a first metadata server) is
+   * a SECONDARY node */
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }",
+      /*expected_target_cluster=*/".*", /*simulate_cluster_not_found =*/false,
+      /*use_gr_notifications=*/false,
+      /*simulate_router_options_no_rows*/ false,
+      /*primary_node_id=*/1);
+
+  /* instrument the first metadata server to return no rows when queried for
+   * options from the `routers` table. This emulates a scenario where this
+   * node is lagging in replicating the metadata from the primary node where the
+   * Router was bootstrapped. */
+  const auto http_port = clusterset_data_.clusters[0].nodes[0].http_port;
+  set_mock_metadata(view_id, target_cluster_id, target_cluster_id, http_port,
+                    clusterset_data_,
+                    /* router_options */ "",
+                    /* expected_target_cluster */ "",
+                    /*metadata_version*/ {2, 1, 0},
+                    /* simulate_cluster_not_found */ false,
+                    /*simulate_router_options_no_rows*/ true);
+
+  SCOPED_TRACE("// Launch the Router");
+  auto &router = launch_router();
+
+  const std::string warning =
+      "WARNING .* Failed determining the type of the cluster: No row in "
+      "v2_routers table "
+      "for router with id 1";
+
+  EXPECT_TRUE(wait_log_contains(router, warning, 5s));
+
+  make_new_connection_ok(router_port_rw);
+  make_new_connection_ok(router_port_ro);
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin_path = Path(argv[0]).dirname();

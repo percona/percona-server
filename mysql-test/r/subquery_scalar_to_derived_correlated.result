@@ -686,7 +686,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT SUM(t2.f4),
 (SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
 FROM ( v1 RIGHT OUTER JOIN( t1 AS t2 STRAIGHT_JOIN t1 AS t3 ON 1) ON 1);
-ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.v1.f1'; this is incompatible with sql_mode=only_full_group_by
 set sql_mode="";
 explain SELECT SUM(t2.f4),
 (SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
@@ -761,7 +761,7 @@ MAX(table2.f2) AS field4
 FROM (view_t1 AS table1 RIGHT JOIN
 ((t1 AS table2 JOIN t1 AS table3 ON (table3 .f1 = table2.f2))) ON 1)
 WHERE table1 . f3 != 'x' ;
-ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.table1.f3'; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.view_t1.f3'; this is incompatible with sql_mode=only_full_group_by
 set sql_mode="";
 explain SELECT
 (SELECT SUM(dt2.f2) FROM (t1 AS dt1 STRAIGHT_JOIN t1  AS dt2 ON 1)

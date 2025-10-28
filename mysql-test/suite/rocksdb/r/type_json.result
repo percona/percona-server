@@ -1,5 +1,6 @@
 SET SESSION TRANSACTION_ISOLATION='READ-COMMITTED';
 SET SESSION DEFAULT_STORAGE_ENGINE=ROCKSDB;
+include/rpl/set_gtid_mode_off.inc
 Verify that JSON columns do not support indexes on create table
 CREATE TABLE bad(i INT, j1bad JSON NOT NULL PRIMARY KEY);
 ERROR 42000: JSON column 'j1bad' supports indexing only via generated columns on a specified JSON path.
@@ -89,6 +90,7 @@ CHECKSUM TABLE t EXTENDED;
 Table	Checksum
 test.t	3005741875
 DROP TABLE t;
+include/rpl/set_gtid_mode_on.inc
 # ----------------------------------------------------------------------
 # Test of aggregate function GROUP_CONCAT
 # ----------------------------------------------------------------------
@@ -96,7 +98,7 @@ create table t2(j json);
 insert into t2 values (json_array(ST_GeomFromText('LineString(0 0, 1 1, 2 2)')));
 select group_concat(j order by j) from t2;
 group_concat(j order by j)
-[{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}]
+[{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:MySQL::0"}}, "type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}]
 drop table t2;
 create table t (c varchar(20)) charset utf8mb4;
 insert into t values ('\\');
@@ -243,7 +245,7 @@ i	LENGTH(j)	j
 25	17	"23:24:25.000000"
 26	12	"2015-01-15"
 27	28	"2015-01-15 23:24:25.000000"
-28	44	{"type": "Point", "coordinates": [1.0, 1.0]}
+28	121	{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:MySQL::0"}}, "type": "Point", "coordinates": [1.0, 1.0]}
 29	2	[]
 30	20	"base64:type15:yv4="
 31	24	"base64:type15:yv66vg=="

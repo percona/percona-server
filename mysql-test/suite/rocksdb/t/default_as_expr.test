@@ -166,6 +166,8 @@ CREATE TABLE t3 (a INT PRIMARY KEY,
 --echo #
 --echo # Test SHOW CREATE TABLE, DESCRIBE TABLE and CREATE as SELECT
 --echo #
+# CREATE TABLE .. SELECT for RocksDB tables can't work in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
 CREATE TABLE t1 (id char(36) DEFAULT (uuid()));
 INSERT INTO t1 VALUES (),(),();
 CREATE TABLE t2 as SELECT * from t1;
@@ -180,6 +182,8 @@ DESCRIBE t1;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
 
 
 --echo #

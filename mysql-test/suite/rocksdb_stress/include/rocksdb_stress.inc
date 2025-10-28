@@ -57,5 +57,13 @@ let $slave_sync_timeout = 7200;
 # restarting replication clears the errors.
 --source include/rpl/start_replica.inc
 --source include/rpl/stop_replica.inc
+
+# Ensure that we pass mtr's internal check by restoring replica settings.
+# Ideally, we should be using rpl/deinit.inc for this, but this is complicated
+# to do after source server crash.
+--disable_query_log
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
+--enable_query_log
+
 --connection master
 --source include/rpl/stop_dump_threads.inc

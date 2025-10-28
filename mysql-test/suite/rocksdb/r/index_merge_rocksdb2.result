@@ -752,6 +752,7 @@ ORDER BY a,b;
 SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
 End of 5.0 tests
+include/rpl/set_gtid_mode_off.inc
 set global rocksdb_force_flush_memtable_now=1;
 #---------------- ROR-index_merge tests -----------------------
 # (Start of test file: index_merge_ror.inc)
@@ -1392,6 +1393,7 @@ WHERE col_varchar_key >= 'l' OR
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 col_int_key
 DROP TABLE t1;
+include/rpl/set_gtid_mode_on.inc
 set global rocksdb_force_flush_memtable_now=1;
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
 # (Start of test file: index_merge_2sweeps.inc)

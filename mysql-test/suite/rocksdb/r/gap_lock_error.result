@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 CREATE TABLE gap1 (id1 INT, id2 INT, id3 INT, c1 INT, value INT,
 PRIMARY KEY (id1, id2, id3),
 INDEX i (c1)) ENGINE=rocksdb;
@@ -495,3 +496,4 @@ delete from gap1 where id1=-1 and id2=-1 and id3=-1;
 commit;
 drop table gap1, gap2, gap3;
 drop table gap4;
+include/rpl/set_gtid_mode_on.inc

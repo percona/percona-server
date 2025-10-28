@@ -19,6 +19,7 @@ CREATE TEMPORARY TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 ERROR HY000: Table storage engine 'ROCKSDB' does not support the create option 'TEMPORARY'
 DROP TABLE t2;
 DROP TABLE IF EXISTS t1;
+include/rpl/set_gtid_mode_off.inc
 SET default_storage_engine = ROCKSDB;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 SHOW CREATE TABLE t1;
@@ -41,6 +42,7 @@ a
 2
 FLUSH LOGS;
 DROP TABLE IF EXISTS t1;
+include/rpl/set_gtid_mode_on.inc
 CREATE TABLE t1(c1 INT,c2 INT,c3 INT,c4 INT,c5 INT,c6 INT,c7 INT,c8 INT,c9 INT,
 c10 INT,c11 INT,c12 INT,c13 INT,c14 INT,c15 INT,c16 INT,c17 INT,
 c18 INT,c19 INT,c20 INT,c21 INT,c22 INT,c23 INT,c24 INT,c25 INT,

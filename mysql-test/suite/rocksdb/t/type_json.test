@@ -3,7 +3,16 @@
 # needed by these json .inc tests
 SET SESSION TRANSACTION_ISOLATION='READ-COMMITTED';
 SET SESSION DEFAULT_STORAGE_ENGINE=ROCKSDB;
+
+# json_ddl.inc contains CREATE TABLE ... SELECT which is not
+# compabitble with GTID mode for RocksDB SE.
+--source include/rpl/set_gtid_mode_off.inc
+
 --source suite/json/inc/json_ddl.inc
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
+
 --source suite/json/inc/json_group_concat.inc
 --source suite/json/inc/json_insert.inc
 

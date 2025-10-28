@@ -191,6 +191,7 @@ ERROR HY000: Incorrect usage of DEFAULT and generated column
 #
 # Test SHOW CREATE TABLE, DESCRIBE TABLE and CREATE as SELECT
 #
+include/rpl/set_gtid_mode_off.inc
 CREATE TABLE t1 (id char(36) DEFAULT (uuid()));
 INSERT INTO t1 VALUES (),(),();
 CREATE TABLE t2 as SELECT * from t1;
@@ -224,6 +225,7 @@ id	char(36)	YES		uuid()	DEFAULT_GENERATED
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+include/rpl/set_gtid_mode_on.inc
 #
 # Create table with DEFAULT()
 #

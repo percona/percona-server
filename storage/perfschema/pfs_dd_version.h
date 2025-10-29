@@ -244,7 +244,7 @@
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
-  80043:
+  80044:
    - Percona Server added performance_schema.account_failed_login_lock_stats
      table.
 
@@ -279,7 +279,7 @@
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
-  80406:
+  80407:
    - Percona Server added performance_schema.account_failed_login_lock_stats
      table.
 

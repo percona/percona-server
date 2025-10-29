@@ -244,11 +244,11 @@
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
 
-  80043:
+  80044:
    - Percona Server added performance_schema.account_failed_login_lock_stats
      table.
 */
 
-static const uint PFS_DD_VERSION = 80043;
+static const uint PFS_DD_VERSION = 80044;
 
 #endif /* PFS_DD_VERSION_H */

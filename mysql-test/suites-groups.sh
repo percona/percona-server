@@ -25,7 +25,7 @@
 
 # usage: set_suites <BUILD_TYPE>
 function set_suites() {
-  # Comparing to 8.0 added in 8.4: component_audit_log_filter, percona, percona_innodb, component_js_lang
+  # Comparing to 8.0 added in 8.4: component_audit_log_filter, percona_innodb, component_js_lang
   # Comparing to 8.0 removed from 8.4: data_masking, binlog_57_decryption, audit_log_filter
   if [[ "$1" == "Valgrind" ]]; then
     # Unit tests, KEYRING_VAULT tests, ps_protocol, ci_fs will be executed by worker 1

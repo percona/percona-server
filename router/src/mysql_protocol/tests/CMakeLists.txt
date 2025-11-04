@@ -55,6 +55,13 @@ FOREACH(test_file
     LIB_DEPENDS harness_stdx)
 ENDFOREACH()
 
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64"
+   AND CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
+  ADD_COMPILE_FLAGS(
+    test_microbench.cc
+    COMPILE_FLAGS "-Wno-error=maybe-uninitialized")
+ENDIF()
+
 IF(LIBFUZZER_COMPILE_FLAGS)
   FOREACH(CMD client_greeting
       quit

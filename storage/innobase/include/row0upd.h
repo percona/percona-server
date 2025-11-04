@@ -636,6 +636,13 @@ struct upd_t {
 
   void validate_for_index(const dict_index_t *index) const {
     validate();
+    /* For ROW_FORMAT=REDUNDANT, we don't log the number of fields in a
+    index. See log_index_column_counts(). So during recovery, the number of
+    fields in a index of ROW_FORMAT=REDUNDANT is always set to 1 in
+    parse_index_column_counts(). Hence, disable this assert during recovery
+    and if table format is REDUNDANT */
+    if (recv_recovery_on && !dict_table_is_comp(index->table)) return;
+
     for (ulint i = 0; i < n_fields; ++i) {
       const upd_field_t &field = fields[i];
       ut_a(index->is_clustered() || !field.is_virtual());

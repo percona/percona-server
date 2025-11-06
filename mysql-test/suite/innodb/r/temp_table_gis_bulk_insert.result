@@ -1,0 +1,31 @@
+DROP TEMPORARY TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (
+id INT NOT NULL,
+g GEOMETRY NOT NULL,
+SPATIAL INDEX(g)
+) ENGINE=InnoDB;
+INSERT INTO t1
+SELECT
+seq,
+ST_GeomFromText(
+CONCAT(
+'POLYGON((',
+seq, ' ', seq, ', ',
+seq + 1, ' ', seq, ', ',
+seq + 1, ' ', seq + 1, ', ',
+seq, ' ', seq + 1, ', ',
+seq, ' ', seq,
+'))'
+    )
+)
+FROM (
+SELECT @rownum := @rownum + 1 AS seq
+FROM
+information_schema.COLUMNS,
+(SELECT @rownum := 0) r
+LIMIT 500
+) AS src;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+500
+DROP TEMPORARY TABLE t1;

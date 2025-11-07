@@ -649,6 +649,30 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 }
 
 /**
+Get the oldest (active) view in the system for statistical purposes.
+
+@note This method should be used for statistical purposes only, purge needs
+to use more strict condition (see clone_oldest_view()) when selecting the
+oldest view.
+
+@return oldest view if found or NULL */
+
+const ReadView *MVCC::get_oldest_view_stats() const {
+  const ReadView *view;
+
+  ut_ad(trx_sys_mutex_own());
+
+  for (view = UT_LIST_GET_LAST(m_views); view != nullptr;
+       view = UT_LIST_GET_PREV(m_view_list, view)) {
+    if (!view->is_closed()) {
+      break;
+    }
+  }
+
+  return (view);
+}
+
+/**
 Copy state from another view. Must call copy_complete() to finish.
 @param other            view to copy from */
 
@@ -837,11 +861,11 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
 
 i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
     i_s_xtradb_read_view_t *rv) {
-  ReadView *view;
+  const ReadView *view;
 
   mutex_enter(&trx_sys->mutex);
 
-  view = trx_sys->mvcc->get_oldest_view();
+  view = trx_sys->mvcc->get_oldest_view_stats();
   if (!view) {
     mutex_exit(&trx_sys->mutex);
     return NULL;

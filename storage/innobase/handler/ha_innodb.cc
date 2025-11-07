@@ -24995,7 +24995,8 @@ void build_template_for_field(mysql_row_templ_t *templ,
   }
 }
 
-dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
+dfield_t *innobase_compute_stored_gcol(mem_heap_t **compress_heap,
+                                       const dtuple_t *row,
                                        const dict_s_col_t &stored_gcol,
                                        const dict_table_t *table,
                                        mem_heap_t *heap, THD *thd,
@@ -25047,7 +25048,8 @@ dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
       /* Copy the column data from dtuple to mysql_rec */
       row_sel_field_store_in_mysql_format(
           mysql_rec + templ.mysql_col_offset, &templ, table->first_index(),
-          templ.clust_rec_field_no, (const byte *)data, len, ULINT_UNDEFINED);
+          templ.clust_rec_field_no, (const byte *)data, len, compress_heap,
+          ULINT_UNDEFINED);
 
       if (templ.mysql_null_bit_mask) {
         /* It is a nullable column with a non-NULL value */
@@ -25106,7 +25108,10 @@ dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
     /* Copy column data from mysql_rec to dfield_t */
     row_mysql_store_col_in_innobase_format(
         field, buf, true, mysql_rec + templ.mysql_col_offset,
-        templ.mysql_col_len, dict_table_is_comp(table));
+        templ.mysql_col_len, dict_table_is_comp(table),
+        mysql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
+        reinterpret_cast<const byte *>(mysql_field->zip_dict_data.str),
+        mysql_field->zip_dict_data.length, compress_heap);
   }
 
   /* TODO: Handle prefix index here, when needed. */

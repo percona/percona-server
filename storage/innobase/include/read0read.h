@@ -122,6 +122,17 @@ class MVCC {
   @return a view to use */
   inline ReadView *get_view();
 
+ public:
+  /**
+  Get the oldest view in the system for statistical purposes.
+
+  @note This method should be used for statistical purposes only, purge needs
+  to use more strict condition (see clone_oldest_view()) when selecting the
+  oldest view.
+
+  @return oldest view if found or NULL */
+  const ReadView *get_oldest_view_stats() const;
+
  private:
   // Prevent copying
   MVCC(const MVCC &);

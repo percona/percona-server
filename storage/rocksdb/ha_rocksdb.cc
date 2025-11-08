@@ -8043,6 +8043,42 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   */
   key_used_on_scan = table->s->primary_key;
 
+  uint n_keys = table->s->keys + (has_hidden_pk(*table) ? 1 : 0);
+
+  if (m_tbl_def->m_key_count != n_keys) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Table '%s' definition mismatch between MyRocks "
+                    "(m_key_count=%d) and data dictionary (n_keys=%d)",
+                    m_tbl_def->full_tablename().c_str(), m_tbl_def->m_key_count,
+                    n_keys);
+
+    for (uint i = 0; i < table->s->keys; i++) {
+      const char *key_name;
+      assert((*table).key_info != nullptr);
+      assert((*table).key_info[i].name != nullptr);
+      key_name = (*table).key_info[i].name;
+
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "ha_rocksdb::open TABLE table_name=%s i=%d/%d key_name=%s",
+          table->s->table_name.str, i, table->s->keys, key_name);
+    }
+
+    uint pk = table->s->primary_key;
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0, "ha_rocksdb::open TABLE PK key_name=%s",
+        pk == MAX_INDEXES ? HIDDEN_PK_NAME : (*table).key_info[pk].name);
+
+    for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
+      const char *rdb_name = m_tbl_def->m_key_descr_arr[i]->m_name.c_str();
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "ha_rocksdb::open KEY_descr_arr table_name=%s i=%d/%d key_name=%s",
+          m_tbl_def->full_tablename().c_str(), i, m_tbl_def->m_key_count,
+          rdb_name);
+    }
+  }
+
   // close() above has already called free_key_buffers(). No need to do it here.
   err = alloc_key_buffers(*table, *m_tbl_def);
 

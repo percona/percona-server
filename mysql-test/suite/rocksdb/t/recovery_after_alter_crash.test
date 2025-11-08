@@ -1,0 +1,56 @@
+--echo # Include helper scripts to check if RocksDB and debug sync features are available
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+
+--echo # 1. Disable query logging temporarily to suppress expected warnings during test
+--disable_query_log
+CALL mtr.add_suppression("Plugin rocksdb reported: 'Table '.*' definition differs between MyRocks .* ADD INDEX'");
+--enable_query_log
+
+--echo # 2. Create a test table with MyRocks engine, a primary key, and one secondary index
+CREATE TABLE t (
+  i INT PRIMARY KEY,
+  c1 INT,
+  c2 INT,
+  KEY k1 (c1)
+) ENGINE=ROCKSDB;
+
+--echo # 3. Insert sample data into the table
+INSERT INTO t VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+
+--echo # 4. Set debug sync to simulate crash after RocksDB commits an ALTER operation
+SET SESSION debug='+d,crash_commit_after_prepare';
+
+--echo # 5. Expect the server to crash when committing the ALTER statement
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+ALTER TABLE t ADD INDEX k2 (c2), ALGORITHM=INPLACE;
+
+--echo # 6. Wait until the server is fully disconnected due to the crash
+--source include/wait_until_disconnected.inc
+
+--echo # 7. Restart the MySQL server; MyRocks should automatically rebuild the corrupted table definition
+--source include/start_mysqld.inc
+
+--echo # 8. Verify that the data in the table is intact after reconstruction
+SELECT * FROM t ORDER BY i;
+
+--echo # 9. Verify that the table structure is consistent and not corrupted
+ANALYZE TABLE t;
+
+--echo # 10. Check that the original index (k1) exists and can be used in queries
+EXPLAIN SELECT * FROM t WHERE c1 = 200;
+
+--echo # 11. Assert that RocksDB successfully reconstructed the corrupted table
+--let $assert_text = RocksDB table reconstruction finished
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Reconstruction of the corrupted table .* has finished.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # 12. Attempt to add a new index k2 on column c2 using the INPLACE algorithm.
+--echo # This command causes a server crash when `rocksdb_validate_tables=1`, which is the default setting
+ALTER TABLE t ADD INDEX k2 (c2), ALGORITHM=INPLACE;
+
+--echo # 13. Clean up the test table
+DROP TABLE t;

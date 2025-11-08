@@ -1,0 +1,42 @@
+# Include helper scripts to check if RocksDB and debug sync features are available
+# 1. Disable query logging temporarily to suppress expected warnings during test
+# 2. Create a test table with MyRocks engine, a primary key, and one secondary index
+CREATE TABLE t (
+i INT PRIMARY KEY,
+c1 INT,
+c2 INT,
+KEY k1 (c1)
+) ENGINE=ROCKSDB;
+# 3. Insert sample data into the table
+INSERT INTO t VALUES (1, 10, 100), (2, 20, 200), (3, 30, 300);
+# 4. Set debug sync to simulate crash after RocksDB commits an ALTER operation
+SET SESSION debug='+d,crash_commit_after_prepare';
+# 5. Expect the server to crash when committing the ALTER statement
+ALTER TABLE t ADD INDEX k2 (c2), ALGORITHM=INPLACE;
+ERROR HY000: Lost connection to MySQL server during query
+# 6. Wait until the server is fully disconnected due to the crash
+# 7. Restart the MySQL server; MyRocks should automatically rebuild the corrupted table definition
+# restart
+# 8. Verify that the data in the table is intact after reconstruction
+SELECT * FROM t ORDER BY i;
+i	c1	c2
+1	10	100
+2	20	200
+3	30	300
+# 9. Verify that the table structure is consistent and not corrupted
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# 10. Check that the original index (k1) exists and can be used in queries
+EXPLAIN SELECT * FROM t WHERE c1 = 200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	k1	k1	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`c1` AS `c1`,`test`.`t`.`c2` AS `c2` from `test`.`t` where (`test`.`t`.`c1` = 200)
+# 11. Assert that RocksDB successfully reconstructed the corrupted table
+include/assert_grep.inc [RocksDB table reconstruction finished]
+# 12. Attempt to add a new index k2 on column c2 using the INPLACE algorithm.
+# This command causes a server crash when `rocksdb_validate_tables=1`, which is the default setting
+ALTER TABLE t ADD INDEX k2 (c2), ALGORITHM=INPLACE;
+# 13. Clean up the test table
+DROP TABLE t;

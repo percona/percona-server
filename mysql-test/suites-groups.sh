@@ -28,14 +28,14 @@ function set_suites() {
   if [[ "$1" == "Valgrind" ]]; then
     # Unit tests, KEYRING_VAULT tests, ps_protocol, ci_fs will be executed by worker 1
     echo "Setting WORKER_x_MTR_SUITES for PS 8.0 with Valgrind (a custom suite split)"
-    WORKER_1_MTR_SUITES="group_replication|big,engines/funcs|big,rocksdb|nobig,sysschema|big,sys_vars|big,parts|nobig,binlog_gtid|nobig,collations,innodb_zip|big,opt_trace|nobig,component_encryption_udf|nobig,data_masking,procfs"
-    WORKER_2_MTR_SUITES="innodb|nobig,innodb_gis|nobig,funcs_2|nobig,test_services,interactive_utilities,percona,percona-pam-for-mysql"
-    WORKER_3_MTR_SUITES="innodb|big,engines/funcs|nobig,sys_vars|nobig,rocksdb_rpl|big,funcs_2|big,funcs_1|nobig,jp,gcol|big,audit_null,binlog_57_decryption,rocksdb_stress"
-    WORKER_4_MTR_SUITES="main|nobig,component_keyring_file|big,rpl_nogtid|big,audit_log_filter,binlog|big,innodb_fts|big,binlog_nogtid|nobig,auth_sec|big,gcol|nobig,binlog_gtid|big,federated|nobig,service_udf_registration,opt_trace|big"
-    WORKER_5_MTR_SUITES="main|big,x|big,stress|big,rpl_nogtid|nobig,innodb_fts|nobig,parts|big,innodb_gis|big,rocksdb_rpl|nobig,json,gis|nobig,service_sys_var_registration,connection_control"
-    WORKER_6_MTR_SUITES="rpl|big,rpl|nobig,rocksdb|big,rpl_gtid|nobig,innodb_zip|nobig,auth_sec|nobig,component_encryption_udf|big,encryption|nobig,sysschema|nobig,test_service_sql_api,perfschema|big,service_status_var_registration"
-    WORKER_7_MTR_SUITES="group_replication|nobig,clone|nobig,innodb_undo|nobig,binlog|nobig,federated|big,component_keyring_file|nobig,rpl_encryption,funcs_1|big,query_rewrite_plugins,rocksdb_sys_vars,secondary_engine,information_schema"
-    WORKER_8_MTR_SUITES="rpl_gtid|big,clone|big,perfschema|nobig,innodb_undo|big,x|nobig,engines/iuds|big,binlog_nogtid|big,audit_log,component_masking_functions,engines/iuds|nobig,stress|nobig,encryption|big,gis|big"
+    WORKER_1_MTR_SUITES="rpl_gtid|big,clone|nobig,rocksdb|big,rpl_gtid|nobig,perfschema|big,innodb_zip|nobig,binlog_nogtid|nobig,funcs_1|big,jp,service_sys_var_registration,encryption|big,service_udf_registration"
+    WORKER_2_MTR_SUITES="innodb|nobig,parts|big,innodb_fts|big,funcs_2|big,audit_log,query_rewrite_plugins,engines/iuds|nobig,stress|nobig,service_status_var_registration"
+    WORKER_3_MTR_SUITES="innodb|big,rpl_nogtid|big,innodb_undo|big,sys_vars|nobig,component_keyring_file|nobig,binlog_gtid|nobig,component_masking_functions,sysschema|nobig,test_service_sql_api,connection_control,gis|big"
+    WORKER_4_MTR_SUITES="main|big,rocksdb|nobig,perfschema|nobig,x|nobig,rocksdb_rpl|big,sys_vars|big,gcol|nobig,innodb_gis|nobig,secondary_engine,component_encryption_udf|nobig,procfs,percona-pam-for-mysql"
+    WORKER_5_MTR_SUITES="main|nobig,x|big,binlog|nobig,engines/funcs|nobig,binlog|big,rpl_encryption,binlog_nogtid|big,auth_sec|big,gis|nobig,funcs_2|nobig,data_masking,interactive_utilities"
+    WORKER_6_MTR_SUITES="group_replication|nobig,engines/funcs|big,stress|big,audit_log_filter,innodb_fts|nobig,parts|nobig,innodb_gis|big,encryption|nobig,gcol|big,test_services,federated|nobig,opt_trace|big,rocksdb_stress"
+    WORKER_7_MTR_SUITES="rpl|big,rpl|nobig,innodb_undo|nobig,sysschema|big,federated|big,engines/iuds|big,rocksdb_rpl|nobig,funcs_1|nobig,json,opt_trace|nobig,binlog_57_decryption,information_schema"
+    WORKER_8_MTR_SUITES="group_replication|big,clone|big,component_keyring_file|big,rpl_nogtid|nobig,auth_sec|nobig,component_encryption_udf|big,collations,innodb_zip|big,binlog_gtid|big,rocksdb_sys_vars,audit_null,percona"
   elif [[ "$1" == "RelWithDebInfo" ]]; then
     # Unit tests, KEYRING_VAULT tests, ps_protocol, ci_fs will be executed by worker 1
     echo "Setting WORKER_x_MTR_SUITES for PS 8.0 with BUILD_TYPE=RelWithDebInfo (a custom suite split)"

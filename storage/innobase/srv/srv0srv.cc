@@ -1569,7 +1569,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   fprintf(file, "%lu RW transactions active inside InnoDB\n",
           UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 
-  ReadView *oldest_view = trx_sys->mvcc->get_oldest_view();
+  const ReadView *oldest_view = trx_sys->mvcc->get_oldest_view_stats();
   if (oldest_view) {
     fprintf(file, "---OLDEST VIEW---\n");
     oldest_view->print(file);
@@ -1773,12 +1773,12 @@ void srv_export_innodb_status(void) {
 
   mutex_enter(&trx_sys->mutex);
   auto *const oldest_view_for_low_limit_trx_id =
-      trx_sys->mvcc->get_oldest_view();
-  mutex_exit(&trx_sys->mutex);
+      trx_sys->mvcc->get_oldest_view_stats();
   export_vars.innodb_oldest_view_low_limit_trx_id =
       oldest_view_for_low_limit_trx_id
           ? oldest_view_for_low_limit_trx_id->low_limit_id()
           : 0;
+  mutex_exit(&trx_sys->mutex);
 
   export_vars.innodb_purge_trx_id = purge_sys->limit.trx_no;
   export_vars.innodb_purge_undo_no = purge_sys->limit.undo_no;

@@ -649,6 +649,30 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 }
 
 /**
+Get the oldest (active) view in the system for statistical purposes.
+
+@note This method should be used for statistical purposes only, purge needs
+to use more strict condition (see clone_oldest_view()) when selecting the
+oldest view.
+
+@return oldest view if found or NULL */
+
+const ReadView *MVCC::get_oldest_view_stats() const {
+  const ReadView *view;
+
+  ut_ad(trx_sys_mutex_own());
+
+  for (view = UT_LIST_GET_LAST(m_views); view != nullptr;
+       view = UT_LIST_GET_PREV(m_view_list, view)) {
+    if (!view->is_closed()) {
+      break;
+    }
+  }
+
+  return (view);
+}
+
+/**
 Copy state from another view. Must call copy_complete() to finish.
 @param other            view to copy from */
 
@@ -694,7 +718,6 @@ void ReadView::copy_complete() {
   m_creator_trx_id = 0;
 }
 
-<<<<<<< HEAD
 /**
 Clones a read view object. The resulting read view has identical change
 visibility as the donor read view
@@ -741,24 +764,9 @@ void ReadView::clone(ReadView *&result, trx_t *from_trx) const {
   // If the clone transaction is RO and is later promoted to RW, make
   // sure not to add its own id to its view
   result->m_cloned = true;
-  result->m_closed = false;
+  result->m_closed.store(false);
 }
 
-/** Clones the oldest view and stores it in view. No need to
-call view_close(). The caller owns the view that is passed in.
-It will also move the closed views from the m_views list to the
-m_free list. This function is called by Purge to determine whether it should
-purge the delete marked record or not.
-@param view             Preallocated view, owned by the caller */
-||||||| merged common ancestors
-/** Clones the oldest view and stores it in view. No need to
-call view_close(). The caller owns the view that is passed in.
-It will also move the closed views from the m_views list to the
-m_free list. This function is called by Purge to determine whether it should
-purge the delete marked record or not.
-@param view             Preallocated view, owned by the caller */
-=======
->>>>>>> mysql-9.5.0
 void MVCC::clone_oldest_view(ReadView *view) {
   trx_sys_mutex_enter();
 
@@ -829,21 +837,11 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     /* Sanitise the pointer first. */
     ReadView *ptr = reinterpret_cast<ReadView *>(p & ~1);
 
-<<<<<<< HEAD
-    /* Note this can be called for a read view that
-    was already closed. */
-    ptr->m_closed = true;
-    ptr->m_cloned = false;
-||||||| merged common ancestors
-    /* Note this can be called for a read view that
-    was already closed. */
-    ptr->m_closed = true;
-=======
     /* Note this can be called for a read view that was already closed. */
     if (!ptr->m_closed.load()) {
       ptr->m_closed.store(true);
     }
->>>>>>> mysql-9.5.0
+    ptr->m_cloned = false;
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);
@@ -863,11 +861,11 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
 
 i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
     i_s_xtradb_read_view_t *rv) {
-  ReadView *view;
+  const ReadView *view;
 
   mutex_enter(&trx_sys->mutex);
 
-  view = trx_sys->mvcc->get_oldest_view();
+  view = trx_sys->mvcc->get_oldest_view_stats();
   if (!view) {
     mutex_exit(&trx_sys->mutex);
     return NULL;

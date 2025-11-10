@@ -1117,7 +1117,6 @@ SELECT COUNT(*) FROM v1;
 
 DROP VIEW  v1;
 DROP TABLE t1;
-<<<<<<< HEAD
 
 # Test fully non-locking mysqldump with consistent binlog position (MWL#136).
 
@@ -1201,8 +1200,6 @@ SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
 DROP TABLE t1,t2;
-||||||| merged common ancestors
-=======
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc
->>>>>>> mysql-9.5.0

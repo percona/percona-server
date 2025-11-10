@@ -34,20 +34,10 @@
 
 #include <fcntl.h>
 #include <cerrno>
-<<<<<<< HEAD
-#include <cstddef>
-#include <iostream>
-#include <thread>
+#include <string>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-||||||| merged common ancestors
-#include <cstddef>
-#include <iostream>
-#include <thread>
-=======
-#include <string>
->>>>>>> mysql-9.5.0
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif

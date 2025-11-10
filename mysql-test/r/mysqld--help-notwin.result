@@ -1842,27 +1842,13 @@ div-precision-increment 4
 enable-secondary-engine-statistics TRUE
 encrypt-tmp-files FALSE
 end-markers-in-json FALSE
-<<<<<<< HEAD
-enforce-gtid-consistency FALSE
-enforce-storage-engine (No default value)
-||||||| merged common ancestors
-enforce-gtid-consistency FALSE
-=======
 enforce-gtid-consistency ON
->>>>>>> mysql-9.5.0
+enforce-storage-engine (No default value)
 eq-range-index-dive-limit 200
 event-scheduler ON
-<<<<<<< HEAD
 expand-fast-index-creation FALSE
-explain-format TRADITIONAL
-explain-json-format-version 1
-||||||| merged common ancestors
-explain-format TRADITIONAL
-explain-json-format-version 1
-=======
 explain-format TREE
 explain-json-format-version 2
->>>>>>> mysql-9.5.0
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE

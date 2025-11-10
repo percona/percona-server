@@ -10,12 +10,8 @@ enforce-gtid-consistency=off
 relay-log-recovery=1
 replica-transaction-retries=0
 sync_source_info=1
-<<<<<<< HEAD
-replica-parallel-workers=2
-||||||| merged common ancestors
-=======
 replica_preserve_commit_order=FALSE
->>>>>>> mysql-9.5.0
+replica-parallel-workers=2
 
 [mysqld.3]
 

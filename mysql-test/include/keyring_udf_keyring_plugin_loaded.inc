@@ -273,19 +273,10 @@ let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
 eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user you can access another user's keys
-<<<<<<< HEAD
---replace_result $roots_key_id roots_key_id
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-eval select keyring_key_remove('$roots_key_id');
-||||||| merged common ancestors
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('roots_key');
-=======
-let $is_null= `select isnull(keyring_key_remove('roots_key'))`;
+let $is_null= `select isnull(keyring_key_remove('$roots_key_id'))`;
 if (!$is_null) {
 	die Result should be NULL;
 }
->>>>>>> mysql-9.5.0
 
 --echo #Check that the user is able to access the key via procedure
 --replace_column 1 #
@@ -303,23 +294,11 @@ let key_id = `select CONCAT('Rob_DSA_no_privilege', '$server_uuid')`;
 eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user with larger privileges can access another user's key
-<<<<<<< HEAD
-
 let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
-
---replace_result $key_id key_id
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-eval select keyring_key_remove('$key_id');
-||||||| merged common ancestors
-
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('another_Rob_DSA_no_privilege');
-=======
-let $is_null= `select isnull(keyring_key_remove('another_Rob_DSA_no_privilege'))`;
+let $is_null= `select isnull(keyring_key_remove('$key_id'))`;
 if (!$is_null) {
 	die Result should be NULL;
 }
->>>>>>> mysql-9.5.0
 
 --echo #Cleanup
 

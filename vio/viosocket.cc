@@ -70,15 +70,11 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-<<<<<<< HEAD
-#include "mysql/service_mysql_alloc.h"
-||||||| merged common ancestors
-=======
 #include "my_sys.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_socket.h"
->>>>>>> mysql-9.5.0
+#include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 #include "template_utils.h"
 #include "vio/vio_priv.h"

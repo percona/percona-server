@@ -122,23 +122,17 @@ class MVCC {
   @return a view to use */
   inline ReadView *get_view();
 
-<<<<<<< HEAD
  public:
   /**
-  Get the oldest view in the system. It will also move the delete
-  marked read views from the views list to the freed list.
-  @return oldest view if found or NULL */
-  ReadView *get_oldest_view() const;
+  Get the oldest view in the system for statistical purposes.
 
-||||||| merged common ancestors
-  /**
-  Get the oldest view in the system. It will also move the delete
-  marked read views from the views list to the freed list.
-  @return oldest view if found or NULL */
-  inline ReadView *get_oldest_view() const;
+  @note This method should be used for statistical purposes only, purge needs
+  to use more strict condition (see clone_oldest_view()) when selecting the
+  oldest view.
 
-=======
->>>>>>> mysql-9.5.0
+  @return oldest view if found or NULL */
+  const ReadView *get_oldest_view_stats() const;
+
  private:
   // Prevent copying
   MVCC(const MVCC &);

@@ -3,20 +3,9 @@
 --source include/have_debug.inc
 --source include/have_innodb_default_undo_tablespaces.inc
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-# Don't test under valgrind, undo slots of the previous test might exist still
-# and cause unstable result.
---source include/not_valgrind.inc
-
-=======
-# Don't test under valgrind, undo slots of the previous test might exist still
-# and cause unstable result.
---source include/not_valgrind.inc
 # This test doesn't support GTID
 --source include/rpl/set_gtid_mode_off.inc
 
->>>>>>> mysql-9.5.0
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot find a free slot for an undo log");
 

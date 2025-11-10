@@ -21,13 +21,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-<<<<<<< HEAD
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND DEBUG_EXTNAME)
   ADD_COMPILE_DEFINITIONS(HAVE_DEBUG_EXTNAME)
 ENDIF()
 
-||||||| merged common ancestors
-=======
 
 # Build idc_metadata_schema.h
 ADD_CUSTOM_COMMAND(
@@ -46,7 +43,6 @@ MY_ADD_CUSTOM_TARGET(RouterIdcMetadataSchema
  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/idc_metadata_schema.h
 )
 
->>>>>>> mysql-9.5.0
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file

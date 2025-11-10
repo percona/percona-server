@@ -381,19 +381,13 @@ INSERT INTO dd_published_schema
     '7d7fe9aeb5d869bcea2f286afb24ef1978048d7293f8fd37d38ea457317c6477');
 INSERT INTO dd_published_schema
   VALUES('90200', 1,
-<<<<<<< HEAD
     '704528302f236d42454293fad744a8c94fa23e771e77f3740ab1d4a64dec04dd');
-||||||| merged common ancestors
-    'bab8c1820f40ff7c8a8ff6776962b9e90605918637bd5345789ed703fa911fc3');
-=======
-    'bab8c1820f40ff7c8a8ff6776962b9e90605918637bd5345789ed703fa911fc3');
 INSERT INTO dd_published_schema
   VALUES('90500', 0,
     '1d90fc6269b2b4241a357c6af818e5639021249f7ce213ec8d6445bc6a2000e5');
 INSERT INTO dd_published_schema
   VALUES('90500', 1,
     '74da9e2f339801697f9daef2635d24c6d3bf982365d4b06dd67bd8b578e1ac1c');
->>>>>>> mysql-9.5.0
 --sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

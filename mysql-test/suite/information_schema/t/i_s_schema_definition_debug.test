@@ -351,33 +351,17 @@ INSERT INTO I_S_published_schema
   VALUES ('90300', '90300', 1,
         '94cc97ea64544ac65cb61abbe760c3b5b08254ab7dc01f825cc118d0570db199');
 INSERT INTO I_S_published_schema
-<<<<<<< HEAD
-         VALUES ('90400', '90400', 0,
-                 'e52da18c23a6d0b580978000c63ee9219b97289164876c0baba11d694f816993');
-||||||| merged common ancestors
-         VALUES ('90400', '90400', 0,
-                 'd5c7a6c854f676b1f8e096728c7d178225a745d172a4bcbca6536a7e807ffe26');
-=======
   VALUES ('90400', '90400', 0,
-        'd5c7a6c854f676b1f8e096728c7d178225a745d172a4bcbca6536a7e807ffe26');
->>>>>>> mysql-9.5.0
+        'e52da18c23a6d0b580978000c63ee9219b97289164876c0baba11d694f816993');
 INSERT INTO I_S_published_schema
-<<<<<<< HEAD
-         VALUES ('90400', '90400', 1,
-                 '1bb9338a1c83d40d6dc4dc320f395f27d13f36e56df5ae4797c0cd246f1150b6');
-||||||| merged common ancestors
-         VALUES ('90400', '90400', 1,
-                 '027170b29c123596a675415c0e95542856cdd7bb837da87a74ce3c9bff8103fd');
-=======
   VALUES ('90400', '90400', 1,
-        '027170b29c123596a675415c0e95542856cdd7bb837da87a74ce3c9bff8103fd');
+        '1bb9338a1c83d40d6dc4dc320f395f27d13f36e56df5ae4797c0cd246f1150b6');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 0,
         '7d93c94a2e79e52648902f8cd51988bfe4dc9627b9f477ef82440bbff17c12c8');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 1,
         'e54f1c2000a1cfa10c19c96ff6482620c125acc59a9fd15e8a2acd26a794dfda');
->>>>>>> mysql-9.5.0
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

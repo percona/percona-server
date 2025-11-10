@@ -3813,18 +3813,10 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
                          "character_set_results",                       //
                          "innodb_ft_user_stopword_table",               //
                          "innodb_interpreter_output",                   // debug
-<<<<<<< HEAD
                          "session_track_system_variables",
                          "external_table_storage_engine",
                          "external_table_secondary_storage_engine",
                          "log_query_errors"));
-||||||| merged common ancestors
-                         "session_track_system_variables"));
-=======
-                         "session_track_system_variables",
-                         "external_table_storage_engine",
-                         "external_table_secondary_storage_engine"));
->>>>>>> mysql-9.5.0
     }
   }
 }

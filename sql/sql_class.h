@@ -3538,16 +3538,12 @@ class THD : public MDL_context_owner,
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
 
-<<<<<<< HEAD
-  static inline ulonglong current_utime() noexcept { return my_micro_time(); }
-
-||||||| merged common ancestors
-=======
   bool interpret_utf8_as_utf8mb4() const {
     return (variables.sql_mode & MODE_INTERPRET_UTF8_AS_UTF8MB4);
   }
 
->>>>>>> mysql-9.5.0
+  static inline ulonglong current_utime() noexcept { return my_micro_time(); }
+
   /**
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
@@ -5260,7 +5256,6 @@ class THD : public MDL_context_owner,
     defined behaviour when they aren't.
   */
   size_t m_opened_temptable_count{};
-<<<<<<< HEAD
 
  public:
   /**
@@ -5299,10 +5294,6 @@ class THD : public MDL_context_owner,
   */
   kill_handler_fn m_kill_handler_fn{nullptr};
   void *m_kill_handler_data{nullptr};
-||||||| merged common ancestors
->>>>>>>>> Temporary merge branch 2
-=======
->>>>>>> mysql-9.5.0
 };
 
 /**

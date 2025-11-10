@@ -89,21 +89,15 @@ void Dup::report(const dfield_t *dfield) noexcept {
   }
 }
 
-<<<<<<< HEAD
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset,
-              void *crypt_buf, /*!< in: crypt buf or NULL */
-              space_id_t space_id) noexcept {
-||||||| merged common ancestors
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
-=======
 void Dup::report() noexcept {
   if (m_entry != nullptr) {
     innobase_fields_to_mysql(m_table, m_index, m_entry);
   }
 }
 
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept {
->>>>>>> mysql-9.5.0
+dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset,
+              void *crypt_buf, /*!< in: crypt buf or NULL */
+              space_id_t space_id) noexcept {
   IF_ENABLED("ddl_read_failure", return DB_IO_ERROR;)
 
   IORequest request;

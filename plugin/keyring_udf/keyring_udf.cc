@@ -27,23 +27,6 @@
 #include <new>
 #include <optional>
 
-<<<<<<< HEAD
-#include <stdio.h>
-#include <sys/types.h>
-#include <memory>
-#include <new>
-#include <optional>
-
-#include <mysql/components/my_service.h>
-||||||| merged common ancestors
-#include <stdio.h>
-#include <sys/types.h>
-#include <memory>
-#include <new>
-
-#include <mysql/components/my_service.h>
-=======
->>>>>>> mysql-9.5.0
 #include <mysql/components/services/keyring_generator.h>
 #include <mysql/components/services/keyring_reader_with_status.h>
 #include <mysql/components/services/keyring_writer.h>

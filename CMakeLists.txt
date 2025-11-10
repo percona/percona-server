@@ -1273,14 +1273,6 @@ IF(CMAKE_C_FLAGS MATCHES "-fsanitize" OR CMAKE_CXX_FLAGS MATCHES "-fsanitize")
   SET(CMAKE_COMPILER_FLAG_WITH_SANITIZE 1)
 ENDIF()
 
-<<<<<<< HEAD
-# Older versions of ccache must be disabled: export CCACHE_DISABLE=1
-# See https://gitlab.kitware.com/cmake/community/-/wikis/doc/ctest/Coverage
-||||||| merged common ancestors
-# Older versions of ccache must be disabled: export CCACHE_DISABLE=1
-# See http://www.cmake.org/Wiki/CTest/Coverage
-=======
->>>>>>> mysql-9.5.0
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   SET(GCOV_COMPILER_OPTIONS

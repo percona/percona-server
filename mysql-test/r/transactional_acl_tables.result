@@ -1793,14 +1793,8 @@ call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28")
 
 # Starting mysqld in the regular mode...
 
-<<<<<<< HEAD
 # restart:--loose-percona-telemetry-disable=1
-||||||| merged common ancestors
-# restart
-=======
-# restart
 include/rpl/set_gtid_mode_off.inc
->>>>>>> mysql-9.5.0
 
 # Check that any ACL statement is failed when privilege tables
 # have engine type MyISAM
@@ -1835,14 +1829,8 @@ tables_priv	MyISAM
 user	MyISAM
 
 # mysql_upgrade...
-<<<<<<< HEAD
 # restart:--upgrade=FORCE --loose-percona-telemetry-disable=1
-||||||| merged common ancestors
-# restart:--upgrade=FORCE
-=======
-# restart:--upgrade=FORCE
 include/rpl/set_gtid_mode_off.inc
->>>>>>> mysql-9.5.0
 
 # The ACL tables must have been upgraded.
 SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES

@@ -1012,6 +1012,8 @@ dfield_t *innobase_get_computed_value(
 
 /** This is similar to the function innobase_get_computed_value(), but for
 stored generated columns (gcol).
+@param[in]     compress_heap  memory heap used to compress/decompress
+                              blob column.
 @param[in,out] row    data tuple object.
 @param[in]     col        stored gcol
 @param[in]     table      table on which the stored gcol is defined
@@ -1019,7 +1021,8 @@ stored generated columns (gcol).
 @param[in]     thd    MySQL thread handle
 @param[in]     mysql_table  MySQL table object.
 @return the field filled with computed value or nullptr on failure */
-dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
+dfield_t *innobase_compute_stored_gcol(mem_heap_t **compress_heap,
+                                       const dtuple_t *row,
                                        const dict_s_col_t &col,
                                        const dict_table_t *table,
                                        mem_heap_t *heap, THD *thd,

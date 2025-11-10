@@ -25,13 +25,7 @@ VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-<<<<<<< HEAD
-include/assert.inc [Expect 113 variables in the table.]
-||||||| merged common ancestors
-include/assert.inc [Expect 108 variables in the table.]
-=======
-include/assert.inc [Expect 106 variables in the table.]
->>>>>>> mysql-9.5.0
+include/assert.inc [Expect 111 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -243,32 +237,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-<<<<<<< HEAD
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.]
-||||||| merged common ancestors
 include/assert.inc [Expect 86 persisted variables in persisted_variables table.]
-=======
-include/assert.inc [Expect 84 persisted variables in persisted_variables table.]
->>>>>>> mysql-9.5.0
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-<<<<<<< HEAD
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 88 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 88 persisted variables with matching persisted and global values.]
-||||||| merged common ancestors
 include/assert.inc [Expect 86 persisted variables in persisted_variables table.']
 include/assert.inc [Expect 86 persisted variables shown as PERSISTED in variables_info table.']
 include/assert.inc [Expect 86 persisted variables with matching persisted and global values.]
-=======
-include/assert.inc [Expect 84 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 84 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 84 persisted variables with matching persisted and global values.]
->>>>>>> mysql-9.5.0
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable

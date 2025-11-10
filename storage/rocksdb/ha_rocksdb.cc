@@ -14478,7 +14478,7 @@ int ha_rocksdb::fill_virtual_columns() {
     THD *const thd = my_core::thd_get_current_thd();
     int ret = handler::my_eval_gcolumn_expr(
         thd, const_cast<TABLE *>(table), &column_map,
-        const_cast<uchar *>(table->record[0]), nullptr, nullptr);
+        const_cast<uchar *>(table->record[0]), nullptr, nullptr, false);
 
     return ret;
   }

@@ -13170,7 +13170,120 @@ ER_AUDIT_LOG_OFFLOAD_ERROR
 ER_WARN_SERVER_MEMORY_INIT_FAIL
   eng "Failed to read or validate server_memory, and falling back to total physical memory."
 
-<<<<<<< HEAD
+ER_KEYRING_COMPONENT_KMIP_PATH_EMPTY
+   eng "Keyring kmip path is empty in configuration file."
+
+ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_TYPE
+   eng "Invalid key type: %s used. Should be AES or SECRET."
+
+ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_LENGTH
+   eng "Invalid key length: %d used."
+
+ER_KEYRING_COMPONENT_KMIP_GENERATE_KEY_INVALID_PARAMETER
+   eng "Invalid key generate parameter: %s = %s, must be %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_KEY_UID
+   eng "Could not load keys uids from the KMIP server"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ALLOCATE
+   eng "Could not allocate memory for %s object."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ADD_ATTRIBUTE
+  eng "Could not add attribute, attribute_name=%s attribute value=%s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_FETCH_KEY
+  eng "Could not fetch generated key"
+
+ER_KEYRING_COMPONENT_KMIP_INIT_PRIMARY
+   eng "Could not initialize bio with primary server!"
+
+ER_KEYRING_COMPONENT_KMIP_INIT_STANDBY
+   eng "Could not initialize bio with standby server: %s"
+
+ER_KEYRING_COMPONENT_KMIP_TRYING_STANDBY
+   eng "Could not connect to the primary server %s. Trying the standby servers."
+
+ER_KEYRING_COMPONENT_KMIP_KEY_MISMATCH
+  eng "Private key does not match the certificate public key because of %s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_KEY_FILE
+  eng "Error while setting the private key '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_CERTIFICATE_FILE
+  eng "Error while setting the certificate '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_SSL_TRUST_STORE
+  eng "Error while setting the ca certificate '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_REMOVE_KEY
+  eng "Could not remove the '%s' key."
+
+ER_KEYRING_COMPONENT_KMIP_CONNECTION_TO_SERVER_FAILED
+  eng "Could not connect to the OKV server"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_CLIENT
+  eng "Could not initialize OKV client, failed to allocate memory for client environment settings."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_SSL_LAYER
+  eng "Could not initialize SSL layer, because of the following SSL error: %s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY_SIGNATURE
+  eng "Could not retrieve key signature from custom attributes"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY
+  eng "Could not retrieve key from OKV"
+
+ER_KEYRING_COMPONENT_KMIP_STANDBY_SERVER_COUNT_EXCEEDED
+  eng "Number of STANDBY_SERVER values exceeded maximum limit of 64."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_GENERATE_KEY
+  eng "Could not generate the key."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_KEY
+  eng "Could not store the key."
+
+ER_WARN_COMPONENT_KEYRING_KMIP_DUPLICATE_KEY
+  eng "Duplicate key found in kmip keyring with Name: %s and Owner: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ACTIVATE_KEYS
+  eng "Could not activate the key."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_OR_GENERATE_KEY
+  eng "Could not store/generate the key - failed to set key attribute x-key-ready"
+
+ER_WARN_DEPRECATED_SASL_MECHANISM
+  eng "Value '%s' of variable authentication_ldap_sasl_auth_method_name is deprecated and will be removed in future. Consider using more secure '%s'."
+
+ER_INVALID_SERVER_OPTION_CHARSET
+  eng "Character set 'utf8' rejected as command line option."
+
+ER_INVALID_SERVER_OPTION_COLLATION
+  eng "Collation '%s' rejected as command line option."
+
+ER_FAILED_TO_FIND_CHARSET_NAME
+  eng "Unknown character set: '%-.64s'."
+
+ER_WARN_THREAD_POOL_QUERY_THREADS_INCOMPATIBLE_MTL
+  eng "The default or user configured value thread_pool_query_threads_per_group(%u) exceeds transaction threads limit per group (%u). To ensure correct operation, the server is automatically setting thread_pool_query_threads_per_group to %u. If this is not intended, consider setting thread_pool_max_transactions_limit to a higher value.%s"
+
+ER_WARN_THREAD_POOL_QUERY_THREADS_MISMATCH_INCOMPATIBLE_ALGO
+  eng "The configured value thread_pool_query_threads_per_group(1) is not recommended when used with HIGH_CONCURRENCY_ALGORITHM. Consider setting thread_pool_query_threads_per_group to a higher value for better performance."
+
+ER_WARN_THREAD_POOL_DEDICATED_LISTENERS_INCOMPATIBLE_MTL
+  eng "The thread_pool_dedicated_listeners option can only be set to ON if thread_pool_max_transaction_limit > 0. Since this requirement is not met, the server is automatically disabling thread_pool_dedicated_listeners. To use dedicated listeners, please consider enabling thread_pool_max_transactions_limit."
+
+ER_CONN_CONTROL_STAT_CONN_EXEMPTED_USERS_UPDATE_FAILED
+  eng "Failed to update connection delay user exempt stats"
+
+ER_AUTOPILOT_OLTP_ADVISOR_INFO
+  eng "%s"
+
+ER_AUTOPILOT_OLTP_ADVISOR_WARNING
+  eng "%s"
+
+ER_AUTOPILOT_OLTP_ADVISOR_ERROR
+  eng "%s"
+
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13538,123 +13651,6 @@ ER_SSL_FIPS_MODE_ENABLED
 #
 
 
-||||||| merged common ancestors
-=======
-ER_KEYRING_COMPONENT_KMIP_PATH_EMPTY
-   eng "Keyring kmip path is empty in configuration file."
-
-ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_TYPE
-   eng "Invalid key type: %s used. Should be AES or SECRET."
-
-ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_LENGTH
-   eng "Invalid key length: %d used."
-
-ER_KEYRING_COMPONENT_KMIP_GENERATE_KEY_INVALID_PARAMETER
-   eng "Invalid key generate parameter: %s = %s, must be %s."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_KEY_UID
-   eng "Could not load keys uids from the KMIP server"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ALLOCATE
-   eng "Could not allocate memory for %s object."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ADD_ATTRIBUTE
-  eng "Could not add attribute, attribute_name=%s attribute value=%s"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_FETCH_KEY
-  eng "Could not fetch generated key"
-
-ER_KEYRING_COMPONENT_KMIP_INIT_PRIMARY
-   eng "Could not initialize bio with primary server!"
-
-ER_KEYRING_COMPONENT_KMIP_INIT_STANDBY
-   eng "Could not initialize bio with standby server: %s"
-
-ER_KEYRING_COMPONENT_KMIP_TRYING_STANDBY
-   eng "Could not connect to the primary server %s. Trying the standby servers."
-
-ER_KEYRING_COMPONENT_KMIP_KEY_MISMATCH
-  eng "Private key does not match the certificate public key because of %s"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_KEY_FILE
-  eng "Error while setting the private key '%s' file: %s."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_CERTIFICATE_FILE
-  eng "Error while setting the certificate '%s' file: %s."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_SSL_TRUST_STORE
-  eng "Error while setting the ca certificate '%s' file: %s."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_REMOVE_KEY
-  eng "Could not remove the '%s' key."
-
-ER_KEYRING_COMPONENT_KMIP_CONNECTION_TO_SERVER_FAILED
-  eng "Could not connect to the OKV server"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_CLIENT
-  eng "Could not initialize OKV client, failed to allocate memory for client environment settings."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_SSL_LAYER
-  eng "Could not initialize SSL layer, because of the following SSL error: %s"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY_SIGNATURE
-  eng "Could not retrieve key signature from custom attributes"
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY
-  eng "Could not retrieve key from OKV"
-
-ER_KEYRING_COMPONENT_KMIP_STANDBY_SERVER_COUNT_EXCEEDED
-  eng "Number of STANDBY_SERVER values exceeded maximum limit of 64."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_GENERATE_KEY
-  eng "Could not generate the key."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_KEY
-  eng "Could not store the key."
-
-ER_WARN_COMPONENT_KEYRING_KMIP_DUPLICATE_KEY
-  eng "Duplicate key found in kmip keyring with Name: %s and Owner: %s."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ACTIVATE_KEYS
-  eng "Could not activate the key."
-
-ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_OR_GENERATE_KEY
-  eng "Could not store/generate the key - failed to set key attribute x-key-ready"
-
-ER_WARN_DEPRECATED_SASL_MECHANISM
-  eng "Value '%s' of variable authentication_ldap_sasl_auth_method_name is deprecated and will be removed in future. Consider using more secure '%s'."
-
-ER_INVALID_SERVER_OPTION_CHARSET
-  eng "Character set 'utf8' rejected as command line option."
-
-ER_INVALID_SERVER_OPTION_COLLATION
-  eng "Collation '%s' rejected as command line option."
-
-ER_FAILED_TO_FIND_CHARSET_NAME
-  eng "Unknown character set: '%-.64s'."
-
-ER_WARN_THREAD_POOL_QUERY_THREADS_INCOMPATIBLE_MTL
-  eng "The default or user configured value thread_pool_query_threads_per_group(%u) exceeds transaction threads limit per group (%u). To ensure correct operation, the server is automatically setting thread_pool_query_threads_per_group to %u. If this is not intended, consider setting thread_pool_max_transactions_limit to a higher value.%s"
-
-ER_WARN_THREAD_POOL_QUERY_THREADS_MISMATCH_INCOMPATIBLE_ALGO
-  eng "The configured value thread_pool_query_threads_per_group(1) is not recommended when used with HIGH_CONCURRENCY_ALGORITHM. Consider setting thread_pool_query_threads_per_group to a higher value for better performance."
-
-ER_WARN_THREAD_POOL_DEDICATED_LISTENERS_INCOMPATIBLE_MTL
-  eng "The thread_pool_dedicated_listeners option can only be set to ON if thread_pool_max_transaction_limit > 0. Since this requirement is not met, the server is automatically disabling thread_pool_dedicated_listeners. To use dedicated listeners, please consider enabling thread_pool_max_transactions_limit."
-
-ER_CONN_CONTROL_STAT_CONN_EXEMPTED_USERS_UPDATE_FAILED
-  eng "Failed to update connection delay user exempt stats"
-
-ER_AUTOPILOT_OLTP_ADVISOR_INFO
-  eng "%s"
-
-ER_AUTOPILOT_OLTP_ADVISOR_WARNING
-  eng "%s"
-
-ER_AUTOPILOT_OLTP_ADVISOR_ERROR
-  eng "%s"
-
->>>>>>> mysql-9.5.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

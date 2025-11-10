@@ -74,6 +74,7 @@
 #include "sql/sp_cache.h"   // sp_cache_invalidate
 #include "sql/sql_base.h"   // get_table_def_key
 #include "sql/sql_class.h"  // THD
+#include "sql/sql_cmd_ddl_table.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
@@ -831,6 +832,11 @@ bool is_updatable_view(THD *thd, Table_ref *view) {
   bool updatable_view = false;
   LEX *lex = thd->lex;
 
+  // Storage engine materialized views are not updatable.
+  if (view->is_mv_se_materialized()) {
+    return false;
+  }
+
   // JSON duality views are updatable always.
   if (view->is_json_duality_view()) {
     return true;
@@ -1003,6 +1009,14 @@ bool mysql_register_view(THD *thd, Table_ref *view, enum_view_create_mode mode,
   view->view_suid = lex->create_view_suid;
   view->with_check = lex->create_view_check;
 
+  /* Set storage engine materialization */
+  view->set_mv_se_materialized(lex->create_view_materialization);
+  if (lex->create_view_materialization) {
+    const char *engine_name =
+        ha_resolve_storage_engine_name(get_secondary_engine_handlerton(lex));
+    view->set_mv_se_name(engine_name);
+  }
+
   view->updatable_view = is_updatable_view(thd, view);
 
   /* init timestamp */
@@ -1103,6 +1117,10 @@ bool mysql_register_view(THD *thd, Table_ref *view, enum_view_create_mode mode,
       return true;
 
     assert(new_view != nullptr);
+
+    if (secondary_engine_unload_materialized_view(thd, view, new_view)) {
+      return true;
+    }
 
     return dd::update_view(thd, new_view, view);
   }
@@ -1933,6 +1951,11 @@ bool mysql_drop_view(THD *thd, Table_ref *views) {
 
     const dd::View *vw = dynamic_cast<const dd::View *>(at);
     assert(vw);
+
+    if (secondary_engine_unload_materialized_view(thd, view, vw)) {
+      return true;
+    }
+
     /*
       If definer has the SYSTEM_USER privilege then invoker can drop view
       only if latter also has same privilege.

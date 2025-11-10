@@ -92,5 +92,11 @@ DROP USER 'wl15658_hst'@'backslash\\localhost';
 DROP USER 'wl15658_hst'@'quote\'localhost';
 include/assert_grep.inc [FR4.7: --exclude-user with a non-matched account results in a warning]
 # Test FR3.6: --include-user=nonexistent@nosuchhost must fail
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don't want to restore GTIDs, pass --set-gtid-purged=OFF. To make a complete dump, pass --all-databases --triggers --routines --events. 
+Warning: A dump from a server that has GTIDs enabled will by default include the GTIDs of all transactions, even those that were executed during its extraction and might not be represented in the dumped data. This might result in an inconsistent data dump. 
+In order to ensure a consistent backup of the database, pass --single-transaction or --lock-all-tables or --source-data. 
 mysqldump: Couldn't execute 'SHOW CREATE USER nonexistent@nosuchhost': Operation SHOW CREATE USER failed for 'nonexistent'@'nosuchhost' (1396)
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
 # End if 9.3 tests

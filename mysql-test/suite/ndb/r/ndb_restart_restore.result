@@ -12,7 +12,7 @@ Executing RESTART on all nodes.
 Starting shutdown. This may take a while. Please wait...
 All DB nodes are being restarted.
 
-3 records in table ndb_sql_metadata
+4 records in table ndb_sql_metadata
 # restart
 # restart
 4 records in table ndb_sql_metadata

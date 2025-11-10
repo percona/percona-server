@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdarg.h>
 
 #include "log_builtins_internal.h"
+#include "mysql/attribute.h"
 
 #ifdef IN_DOXYGEN
 #include <mysql/components/services/log_builtins.h>

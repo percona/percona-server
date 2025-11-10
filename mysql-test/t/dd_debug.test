@@ -7,6 +7,9 @@
 
 --source include/count_sessions.inc
 
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
+
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 ###########################################################################
@@ -354,3 +357,5 @@ DROP TABLE t1;
 --source include/wait_until_count_sessions.inc
 
 ###########################################################################
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

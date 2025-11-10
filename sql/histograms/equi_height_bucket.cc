@@ -141,9 +141,24 @@ bool Bucket<longlong>::add_values_json_bucket(const longlong &lower_value,
 }
 
 template <>
-bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
-                                                const MYSQL_TIME &upper_value,
-                                                Json_array *json_array) {
+bool Bucket<Time_val>::add_values_json_bucket(const Time_val &lower_value,
+                                              const Time_val &upper_value,
+                                              Json_array *json_array) {
+  const Json_time json_lower_value(lower_value);
+  if (json_array->append_clone(&json_lower_value)) {
+    return true; /* purecov: inspected */
+  }
+  const Json_time json_upper_value(upper_value);
+  if (json_array->append_clone(&json_upper_value)) {
+    return true; /* purecov: inspected */
+  }
+  return false;
+}
+
+template <>
+bool Bucket<Datetime_val>::add_values_json_bucket(
+    const Datetime_val &lower_value, const Datetime_val &upper_value,
+    Json_array *json_array) {
   assert(lower_value.time_type == upper_value.time_type);
 
   enum_field_types field_type;
@@ -153,9 +168,6 @@ bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
       break;
     case MYSQL_TIMESTAMP_DATETIME:
       field_type = MYSQL_TYPE_DATETIME;
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      field_type = MYSQL_TYPE_TIME;
       break;
     default:
       /* purecov: begin deadcode */
@@ -344,11 +356,40 @@ double Bucket<String>::get_distance_from_lower(const String &value) const {
 }
 
 template <>
-double Bucket<MYSQL_TIME>::get_distance_from_lower(
-    const MYSQL_TIME &value) const {
-  MYSQL_TIME lower_modified = get_lower_inclusive();
-  MYSQL_TIME upper_modified = get_upper_inclusive();
-  MYSQL_TIME value_modified = value;
+double Bucket<Time_val>::get_distance_from_lower(const Time_val &value) const {
+  Time_val lower_modified = get_lower_inclusive();
+  Time_val upper_modified = get_upper_inclusive();
+  Time_val value_modified = value;
+
+  if (Histogram_comparator()(value_modified, lower_modified)) {
+    return 0.0;
+  }
+  if (values_are_equal(lower_modified, upper_modified)) {
+    return 1.0;
+  }
+  /*
+    Calculate the difference in microseconds between the upper inclusive value
+    and the lower inclusive value of the bucket.
+  */
+  longlong upper_lower_diff =
+      upper_modified.to_microseconds() - lower_modified.to_microseconds();
+  /*
+    Calculate the difference in microseconds between the lower inclusive value
+    of the bucket and the provided parameter value.
+  */
+  longlong value_lower_diff =
+      value_modified.to_microseconds() - lower_modified.to_microseconds();
+
+  return static_cast<double>(value_lower_diff) /
+         static_cast<double>(upper_lower_diff);
+}
+
+template <>
+double Bucket<Datetime_val>::get_distance_from_lower(
+    const Datetime_val &value) const {
+  Datetime_val lower_modified = get_lower_inclusive();
+  Datetime_val upper_modified = get_upper_inclusive();
+  Datetime_val value_modified = value;
 
   if (value.time_type == MYSQL_TIMESTAMP_DATE ||
       get_lower_inclusive().time_type == MYSQL_TIMESTAMP_DATE) {
@@ -451,7 +492,8 @@ template class Bucket<double>;
 template class Bucket<String>;
 template class Bucket<ulonglong>;
 template class Bucket<longlong>;
-template class Bucket<MYSQL_TIME>;
+template class Bucket<Time_val>;
+template class Bucket<Datetime_val>;
 template class Bucket<my_decimal>;
 
 }  // namespace histograms::equi_height

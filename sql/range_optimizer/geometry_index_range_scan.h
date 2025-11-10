@@ -32,7 +32,7 @@ class THD;
 struct MEM_ROOT;
 struct TABLE;
 
-class GeometryIndexRangeScanIterator : public IndexRangeScanIterator {
+class GeometryIndexRangeScanIterator final : public IndexRangeScanIterator {
  public:
   GeometryIndexRangeScanIterator(THD *thd, TABLE *table, ha_rows *examined_rows,
                                  double expected_rows, uint index_arg,
@@ -46,9 +46,9 @@ class GeometryIndexRangeScanIterator : public IndexRangeScanIterator {
                                reuse_handler_arg, return_mem_root,
                                mrr_flags_arg, mrr_buf_size_arg, ranges_arg),
         m_examined_rows(examined_rows) {}
-  int Read() override;
 
  private:
+  int DoRead() override;
   ha_rows *m_examined_rows;
 };
 

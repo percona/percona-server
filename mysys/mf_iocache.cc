@@ -60,32 +60,24 @@ TODO:
   write buffer to the read buffer before we start to reuse it.
 */
 
+#include <assert.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <new>  // IWYU pragma: keep
 
-#include "my_byteorder.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/strings/int2str.h"
 #include "mysys/mysys_priv.h"
 #include "mysys/stream_cipher.h"
 #include "thr_mutex.h"
@@ -1557,7 +1549,15 @@ int end_io_cache(IO_CACHE *info) {
 
 #ifdef MAIN
 
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
+#include "my_byteorder.h"
 #include "my_dir.h"
+#include "mysql/attribute.h"
+#include "mysql/strings/int2str.h"
 
 void die(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 

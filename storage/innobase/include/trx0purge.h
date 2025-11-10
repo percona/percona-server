@@ -998,6 +998,13 @@ struct trx_purge_t {
   /** The purge will not remove undo logs which are >= this view (purge view) */
   ReadView view;
 
+  /** This is computed as a lower-bound of minimum of:
+  - the smallest trx->no still needed by the oldest open read view
+  - the smallest trx->no still needed by GTID persistor
+  The purge can remove only the Undo Logs which have TRX_UNDO_TRX_NO strictly
+  smaller than this value. */
+  trx_id_t m_lowest_needed_trx_no;
+
   /** Count of total tasks submitted to the task queue */
   ulint n_submitted;
 

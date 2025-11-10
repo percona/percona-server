@@ -30,12 +30,13 @@
   @file mysys/my_error.cc
 */
 
-#include <cerrno>
+#include <cerrno>  // IWYU pragma: keep errno
 #include <cstdarg>
 #ifdef __linux__
 #include <features.h>
 #endif
 #include <sys/types.h>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 
@@ -43,7 +44,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
+#include "my_thread_local.h"  // IWYU pragma: keep
 #include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"

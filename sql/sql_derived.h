@@ -164,4 +164,23 @@ class Condition_pushdown {
   Opt_trace_context *trace;
 };
 
+/**
+  Given an item and a query block, this function creates a clone of the
+  item (unresolved) by reparsing the item. Used during condition pushdown
+  to derived tables and during inlining of stored functions.
+
+  @param thd            Current thread.
+  @param item           Item to be reparsed to get a clone.
+  @param query_block    query block where expression is being parsed
+  @param derived_table  derived table to which the item belongs to.
+                        "nullptr" either when cloning to make a copy of the
+                        original condition to be pushed down to a derived table
+                        that has SET operations or when the function is used for
+                        stored function inlining.
+
+  @returns A copy of the original item (unresolved) on success else nullptr.
+*/
+Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
+                       Table_ref *derived_table);
+
 #endif /* SQL_DERIVED_INCLUDED */

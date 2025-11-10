@@ -793,12 +793,12 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE e=FLOOR(RAND(0));
 # Make estimate from second field of index. Since 'b' and 'd' are independent,
 # the estimate will be too low.
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d=0;
+EXPLAIN ANALYZE SELECT /*+ SKIP_SCAN(t1) */ 1 FROM t1 WHERE d=0;
 
 # Make estimate from second field of index. Since 'b' in functionally dependent
 # on 'e', the estimate will be too high.
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE e=0;
+EXPLAIN ANALYZE SELECT /*+ SKIP_SCAN(t1) */ 1 FROM t1 WHERE e=0;
 
 # Make estimate from second field of indexes k3 and k4.
 --replace_regex $elide_costs_and_time
@@ -954,7 +954,7 @@ ANALYZE TABLE t1;
 # condition.
 
 --replace_regex $elide_costs_and_rows
-EXPLAIN FORMAT=TREE SELECT b FROM t1 x1
+EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(x1) */ b FROM t1 x1
   WHERE c < 1 AND c = (SELECT MAX(b) FROM t1 x2);
 
 DROP TABLE t1;
@@ -1183,7 +1183,7 @@ SELECT REGEXP_SUBSTR(trace, " - \\{HASH_JOIN[^\n]*keeping",1,1,'n')
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE a=5 AND b=5;
 
-SELECT REGEXP_SUBSTR(trace, " - \\{FILTER[^\n]*keeping",1,1,'n')
+SELECT REGEXP_SUBSTR(trace, " - \\{EQ_REF[^\n]*keeping",1,1,'n')
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SET SESSION OPTIMIZER_TRACE="enabled=off";
@@ -1327,14 +1327,14 @@ ANALYZE TABLE t1;
 # is 1.
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
-  WHERE x1.b=x2.a AND x2.b=x3.a AND (x1.c < 5 OR x3.c=7);
+  WHERE x1.b=x2.a AND x2.b=x3.a AND (x1.c < 5 OR x3.c=7) LIMIT 1;
 
 # Do a lookup on non-unique key k1, where the row estimate should be 2.
 # 'ORDER BY' ensures that we get a nested loop join, where the lookup is
 # present.
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
-  WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d;
+  WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d LIMIT 1;
 
 # Check that we handle two identical conditions correctly.
 --replace_regex $elide_costs
@@ -1503,7 +1503,7 @@ CREATE TABLE t3(id INT PRIMARY KEY);
 CREATE TABLE t4(id INT NULL UNIQUE);
 
 INSERT INTO t1 VALUES (1), (2), (3);
-INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
 INSERT INTO t3 VALUES (1), (2), (3);
 INSERT INTO t4 VALUES (1), (2), (3);
 
@@ -1543,6 +1543,107 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN LATERAL
 ON 1=k;
 
 DROP TABLE t1,t2,t3,t4;
+
+
+--echo #
+--echo # Bug#36955411 Hypergraph optimizer does not use index lookups
+--echo # for <=> predicates
+--echo #
+
+
+CREATE TABLE t1(
+  pk INT NOT NULL PRIMARY KEY,
+  i1 INT,
+  i2 INT,
+  i3 INT,
+  u INT,
+  KEY k1 (i1),
+  KEY k2 (i2, i3),
+  UNIQUE KEY ku(u)
+);
+
+INSERT INTO t1
+WITH RECURSIVE t(n) AS (
+    SELECT 0 AS i UNION ALL
+    SELECT n + 1 FROM t WHERE n + 1 < 50
+)
+SELECT n, n, n, n, n  FROM t;
+
+INSERT INTO t1 VALUES (-1, NULL, NULL, NULL, NULL);
+
+CREATE TABLE t2 (k INT, l INT);
+INSERT INTO t2 VALUES (NULL, NULL), (1, 1);
+
+ANALYZE TABLE t1, t2;
+
+--echo # Impossible WHERE should give ZERO_ROW path.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.u IN  (1,2,3) AND t1.u IS NULL;
+
+--echo # The following queries should map <=> and IS NULL to REF
+--echo # on the k1 index.
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 IS NULL;
+SELECT pk FROM t1 WHERE i1 IS NULL;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> 1;
+SELECT pk FROM t1 WHERE i1 <=> 1;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> NULL;
+SELECT pk FROM t1 WHERE i1 <=> NULL;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.i1;
+SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.i1;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM t1, t2 WHERE t1.i1 <=> t2.k+t2.l;
+SELECT COUNT(*) FROM t1, t2 WHERE t1.i1 <=> t2.k+t2.l;
+
+--echo # Prefer lookup with or without histogram on 'i'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON i;
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE i1 <=> NULL;
+SELECT pk FROM t1 WHERE i1 <=> NULL;
+
+--echo # The following queries should map <=> and ISNULL to EQ_REF access
+--echo # on the ku index.
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u IS NULL;
+SELECT pk FROM t1 WHERE u IS NULL;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u <=> 1;
+SELECT pk FROM t1 WHERE u <=> 1;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT pk FROM t1 WHERE u <=> NULL;
+SELECT pk FROM t1 WHERE u <=> NULL;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.u;
+SELECT COUNT(*) FROM t1, t2 WHERE t2.k <=> t1.u;
+
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT COUNT(*) FROM t1, t2 WHERE t1.u <=> t2.k+t2.l;
+SELECT COUNT(*) FROM t1, t2 WHERE t1.u <=> t2.k+t2.l;
+
+--echo # Row estimate should utilize the k2 index for both <=> and =.
+
+EXPLAIN FORMAT=JSON INTO @plan1 SELECT * FROM t1, t2
+WHERE t2.k <=> t1.i2 AND t2.l<=>t1.i3;
+
+EXPLAIN FORMAT=JSON INTO @plan2 SELECT * FROM t1, t2
+WHERE t2.k = t1.i2 AND t2.l=t1.i3;
+
+SELECT ABS(JSON_EXTRACT(@plan1, '$.query_plan.estimated_rows') -
+JSON_EXTRACT(@plan2, '$.query_plan.estimated_rows')) < 0.05 AS ok;
+
+DROP TABLE t1,t2;
 
 --echo #
 --echo # Bug#36578613: Hypergraph result difference when querying I_S.TABLES
@@ -1673,6 +1774,46 @@ FROM small AS t1,
 ORDER BY t1.a;
 
 DROP TABLE small, big;
+
+--echo #
+--echo # Bug#37746132 Result mismatch seen with Old Optimizer and Hypergraph
+--echo #
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY,
+  a INT,
+  b INT
+);
+
+INSERT INTO t1 VALUES (1,1,1), (2,2,2);
+ANALYZE TABLE t1;
+
+--echo # These two queries should give the same result.
+SELECT COUNT(*) FROM t1 x4 WHERE EXISTS
+(SELECT 1 FROM (SELECT x1.* FROM t1 x1 LEFT JOIN
+ t1 x2 ON x1.a=x2.a AND x2.b > -x4.a) d1 STRAIGHT_JOIN t1 x3 ON d1.b < x3.b);
+
+SELECT COUNT(*) FROM t1 x4 WHERE EXISTS
+(SELECT 1 FROM (SELECT x1.* FROM t1 x1 LEFT JOIN
+ t1 x2 ON x1.a=x2.a AND x2.b > -x4.a) d1 JOIN t1 x3 ON d1.b < x3.b);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#37826935 Assertion `semijoin_group.size() ==
+--echo # CountOrderElements(path->sort().order)' failed.
+--echo #
+
+CREATE TABLE t1 (pk int NOT NULL PRIMARY KEY, i1 int);
+
+--echo # Should not trigger assert.
+SELECT x2.i1 FROM t1 AS x1 , t1 AS x2
+  WHERE ((x2.pk , x2.i1) IN
+    (SELECT y1.i1, y1.pk FROM
+      (t1 AS y1 JOIN t1 AS y2 ON y2.i1 = y1.pk AND y2.pk = y1.i1)))
+  GROUP BY x2.i1;
+
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#36997713: Hypergraph : Result set mismatch (1 row vs empty set)
@@ -1833,5 +1974,51 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug#38021487: Assertion `false && "Inconsistent row counts for
+--echo #               different AccessPath objects."' failed.
+--echo #
+
+CREATE TABLE t (pk INT PRIMARY KEY, f1 INT, f2 INT);
+INSERT INTO t VALUES (1, 1, 1), (2, 2, 2);
+SELECT 1
+FROM t AS t1
+     JOIN t AS t2 ON t1.f1 = t2.f1 AND t2.f1 = t2.f2
+     LEFT JOIN t AS t3 ON FALSE
+WHERE t3.pk = t2.pk OR t2.f1 <> t2.f1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38418831: Hypergraph: Wrong result when sorting hash join
+--echo #               result reading from temptable
+--echo #
+
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (3), (5), (7);
+
+CREATE TABLE t2 (x INT, y LONGTEXT);
+INSERT INTO t2 VALUES
+  (1, REPEAT('This is the first blob.', 4)),
+  (2, REPEAT('This is the second blob.', 4)),
+  (3, REPEAT('This is the third blob.', 4)),
+  (4, REPEAT('This is the fourth blob.', 4)),
+  (5, REPEAT('This is the fifth blob.', 4)),
+  (6, REPEAT('This is the sixth blob.', 4)),
+  (7, REPEAT('This is the seventh blob.', 4)),
+  (8, REPEAT('This is the eighth blob.', 4)),
+  (9, REPEAT('This is the ninth blob.', 4)),
+  (10, REPEAT('This is the tenth blob.', 4));
+
+# The bug is seen when the temporary table is on disk. Reduce
+# tmp_table_size to make it go to disk with a smaller test case.
+SET tmp_table_size = 1024;
+
+# Used to return 1 row instead of 4 rows.
+SELECT /*+ NO_MERGE(t2) */ t1.x, t2.y
+FROM t1 JOIN (SELECT * FROM t2) t2 ON t1.x = t2.x
+ORDER BY t1.x, t2.x;
+
+SET tmp_table_size = DEFAULT;
+DROP TABLE t1, t2;
 
 --source include/disable_hypergraph.inc

@@ -98,7 +98,7 @@ if ($tmp) {
   --echo Until_Condition	#
   --echo Until_Log_File	#
   --echo Until_Log_Pos	#
-  --echo Source_SSL_Allowed	No
+  --echo Source_SSL_Allowed	Yes
   --echo Source_SSL_CA_File	
   --echo Source_SSL_CA_Path	
   --echo Source_SSL_Cert	

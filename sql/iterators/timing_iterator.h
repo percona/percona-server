@@ -162,7 +162,8 @@ class TimingIterator final : public RowIterator {
   TimingIterator(THD *thd, Args &&...args)
       : RowIterator(thd), m_iterator(thd, std::forward<Args>(args)...) {}
 
-  bool Init() override {
+ private:
+  bool DoInit() override {
     const IteratorProfilerImpl::TimeStamp start_time =
         IteratorProfilerImpl::Now();
     bool err = m_iterator.Init();
@@ -170,7 +171,7 @@ class TimingIterator final : public RowIterator {
     return err;
   }
 
-  int Read() override {
+  int DoRead() override {
     const IteratorProfilerImpl::TimeStamp start_time =
         IteratorProfilerImpl::Now();
     int err = m_iterator.Read();
@@ -178,6 +179,7 @@ class TimingIterator final : public RowIterator {
     return err;
   }
 
+ public:
   void SetNullRowFlag(bool is_null_row) override {
     m_iterator.SetNullRowFlag(is_null_row);
   }

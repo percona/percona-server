@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -45,7 +47,7 @@ update mysql_rest_service_metadata.config set data = json_merge_patch(data, '{"r
 --let $mrs_client_arg_json_schema_file=$SCHEMA_DIR/db_object_table_items_non_empty.sch
 --source ../include/mrs/mrs_client.inc
 
-
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 let $mrs_client_arg_payload='
         {
             "id": 2,

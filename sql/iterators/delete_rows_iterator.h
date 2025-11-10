@@ -43,8 +43,6 @@ class DeleteRowsIterator final : public RowIterator {
   DeleteRowsIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                      JOIN *join, table_map tables_to_delete_from,
                      table_map immediate_tables);
-  bool Init() override;
-  int Read() override;
   void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
   void EndPSIBatchModeIfStarted() override {
     m_source->EndPSIBatchModeIfStarted();
@@ -87,6 +85,8 @@ class DeleteRowsIterator final : public RowIterator {
   /// True if any row ID has been stored in one of the m_tempfiles.
   bool m_has_delayed_deletes{false};
 
+  bool DoInit() override;
+  int DoRead() override;
   /// Perform all the immediate deletes for the current row returned by the
   /// join, and buffer row IDs for the non-immediate tables.
   bool DoImmediateDeletesAndBufferRowIds();

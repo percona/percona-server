@@ -1544,7 +1544,7 @@ WindowIterator::WindowIterator(THD *thd,
   assert(!m_window->needs_buffering());
 }
 
-bool WindowIterator::Init() {
+bool WindowIterator::DoInit() {
   if (m_source->Init()) {
     return true;
   }
@@ -1556,7 +1556,7 @@ bool WindowIterator::Init() {
   return false;
 }
 
-int WindowIterator::Read() {
+int WindowIterator::DoRead() {
   SwitchSlice(m_join, m_input_slice);
 
   int err = m_source->Read();
@@ -1591,7 +1591,7 @@ BufferingWindowIterator::BufferingWindowIterator(
   assert(m_window->needs_buffering());
 }
 
-bool BufferingWindowIterator::Init() {
+bool BufferingWindowIterator::DoInit() {
   if (m_source->Init()) {
     return true;
   }
@@ -1607,7 +1607,7 @@ bool BufferingWindowIterator::Init() {
   return false;
 }
 
-int BufferingWindowIterator::Read() {
+int BufferingWindowIterator::DoRead() {
   SwitchSlice(m_join, m_output_slice);
 
   if (m_eof) {

@@ -429,7 +429,9 @@ class Item_func_geomfromgeojson : public Item_geometry_func {
   static const char *CRS_NAME_MEMBER;
   static const char *NAMED_CRS;
   static const char *SHORT_EPSG_PREFIX;
+  static const char *SHORT_MYSQL_PREFIX;
   static const char *LONG_EPSG_PREFIX;
+  static const char *LONG_MYSQL_PREFIX;
   static const char *CRS84_URN;
   static const char *POINT_TYPE;
   static const char *MULTIPOINT_TYPE;
@@ -466,9 +468,6 @@ class Item_func_geomfromgeojson : public Item_geometry_func {
   /// True if we're currently parsing the top-level object.
   bool m_toplevel = true;
 };
-
-/// Max width of long CRS URN supported + max width of SRID + '\0'.
-static const int MAX_CRS_WIDTH = (22 + MAX_INT_WIDTH + 1);
 
 /**
   This class handles the following function:

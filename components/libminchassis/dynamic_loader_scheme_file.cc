@@ -129,10 +129,11 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::load,
 #endif
 
     /* Open library. */
-#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
+#if defined(HAVE_ASAN) || defined(HAVE_LSAN) || defined(HAVE_TSAN)
     // Do not unload the shared object during dlclose().
     // LeakSanitizer needs this in order to provide call stacks,
     // and to match entries in lsan.supp.
+    // Ditto for ThreadSanitizer and tsan.supp.
     void *handle = dlopen(file_name.c_str(), RTLD_NOW | RTLD_NODELETE);
 #else
     void *handle = dlopen(file_name.c_str(), RTLD_NOW);

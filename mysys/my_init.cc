@@ -38,20 +38,20 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#ifdef HAVE_GETRUSAGE
+#include <sys/resource.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <bits/types/struct_rusage.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
-#include <unordered_map>
 
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
@@ -60,19 +60,16 @@
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_file.h"
-#include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysys/my_static.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "nulls.h"
+#include "nulls.h"  // IWYU pragma: keep
 #include "str2int.h"
-#include "strxmov.h"
+#include "strxmov.h"  // IWYU pragma: keep
 #include "template_utils.h"
 
 #ifdef HAVE_SYS_RESOURCE_H

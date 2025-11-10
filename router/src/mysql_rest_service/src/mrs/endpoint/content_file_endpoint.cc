@@ -28,6 +28,7 @@
 #include "mrs/endpoint/content_set_endpoint.h"
 #include "mrs/endpoint/handler/helper/url_paths.h"
 #include "mrs/endpoint/handler/helper/utilities.h"
+#include "mrs/json/parse_file_sharing_options.h"
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
 
@@ -45,6 +46,17 @@ ContentFileEndpoint::ContentFileEndpoint(const ContentFile &entry,
     : Parent(configuration),
       entry_{std::make_shared<ContentFile>(entry)},
       factory_{factory} {}
+
+ContentFileEndpoint::~ContentFileEndpoint() {
+  // Content File is getting deleted, if it affected the Content Set handlers
+  // lets update them so that defaultStaticContent handler is restored
+  if (altered_parent_) {
+    auto parent = mrs::endpoint::handler::lock_parent(this);
+    if (parent) {
+      parent->update();
+    }
+  }
+}
 
 UniversalId ContentFileEndpoint::get_id() const { return entry_->id; }
 
@@ -65,6 +77,10 @@ void ContentFileEndpoint::set(const ContentFile &entry,
 void ContentFileEndpoint::update() {
   Parent::update();
   observability::EntityCounter<kEntityCounterUpdatesFiles>::increment();
+
+  auto parent = mrs::endpoint::handler::lock_parent(this);
+  assert(parent && "parent must be valid");
+  parent->child_updated(shared_from_this(), persistent_data_);
 }
 
 void ContentFileEndpoint::activate_common() {
@@ -98,9 +114,11 @@ void ContentFileEndpoint::activate_public() {
   // .reset() has to be done as a separate step to avoid overwriting the
   // handlers in the map. As a result for a small window there is no handler
   // (can potentially yield 404).
+  // handle_index is set to false as setting directoryIndex handler is relegated
+  // to the parent
   handler_.reset();
-  handler_ =
-      factory_->create_content_file(shared_from_this(), persistent_data_);
+  handler_ = factory_->create_content_file(shared_from_this(), persistent_data_,
+                                           /*handle_index*/ false);
 
   if (is_index_) {
     // see the comment for a handler_ a few lines above
@@ -110,6 +128,23 @@ void ContentFileEndpoint::activate_public() {
         parent->required_authentication(), parent->get_url(),
         parent->get_url_path(), "", parent->get_url_path() + "/",
         k_redirect_pernament);
+  }
+
+  // ContentSet options
+  const auto &options = parent.get()->get_options();
+
+  if (options.has_value()) {
+    auto fs = helper::json::text_to_handler<json::ParseFileSharingOptions>(
+        options.value());
+    for (const auto &[k, _] : fs.default_static_content_) {
+      if (k ==
+          handler::remove_leading_slash_from_path(get_my_url_path_part())) {
+        // ContentSet has a handler for defaultStaticContent option that
+        // collides with this ContentFile, we should disable it
+        parent->disable_handler(get_url_path());
+        altered_parent_ = true;
+      }
+    }
   }
 }
 

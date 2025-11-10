@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #endif
 #include <sys/types.h>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #ifdef HAVE_UNISTD_H
@@ -44,7 +45,6 @@
 #endif
 
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

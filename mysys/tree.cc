@@ -68,14 +68,14 @@
 */
 
 #include <sys/types.h>
-#include <cstdio>
+#include <cstdio>  // IWYU pragma: keep printf
 #include <cstring>
+#include <new>
 
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_tree.h"
 #include "mysql/service_mysql_alloc.h"

@@ -2772,7 +2772,8 @@ static bool validate_secondary_engine_option(THD *thd,
 static bool secondary_engine_load_table(THD *thd, const TABLE &table,
                                         bool *skip_metadata_update) {
   assert(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, table.s->db.str, table.s->table_name.str, MDL_EXCLUSIVE));
+      MDL_key::TABLE, table.s->db.str, table.s->table_name.str,
+      MDL_SHARED_NO_WRITE));
   assert(table.s->has_secondary_engine());
 
   // At least one column must be loaded into the secondary engine.
@@ -2855,6 +2856,22 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   return secondary_engine_unload_table_inner(thd, db_name, table_name,
                                              secondary_engine, is_partitioned,
                                              error_if_not_loaded);
+}
+
+bool secondary_engine_unload_materialized_view(THD *thd, const Table_ref *view,
+                                               const dd::View *view_def) {
+  const dd::Properties &table_options = view_def->options();
+  if (table_options.exists("materialization_engine")) {
+    // If a materialization_engine exists for the view, unload it before the
+    // update.
+    LEX_CSTRING value{};
+    table_options.get("materialization_engine", &value, thd->mem_root);
+    if (secondary_engine_unload_table_inner(thd, view->db, view->table_name,
+                                            value, false, false)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool secondary_engine_unload_table_inner(THD *thd, const char *db_name,
@@ -3552,6 +3569,10 @@ bool mysql_rm_table_no_locks(THD *thd, Table_ref *tables, bool if_exists,
         - No need to log anything.
       */
       assert(drop_ctx.drop_database);
+
+      if (secondary_engine_unload_materialized_view(thd, table, view)) {
+        goto err_with_rollback;
+      }
 
       if (thd->dd_client()->drop(view) ||
           mark_referencing_views_invalid(thd, table, true, false,
@@ -12512,7 +12533,13 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   assert(m_alter_info->requested_algorithm ==
          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT);
 
-  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
+  const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
+  // SECONDARY_LOAD operation requires SNW MDL for its initial phase, which is
+  // downgraded to SU lock (by RAPID SE) and eventually upgraded to X lock (by
+  // SQL-layer) before updating Table Definition Cache.
+  const enum_mdl_type mdl_type = is_load ? MDL_SHARED_NO_WRITE : MDL_EXCLUSIVE;
+
+  table_list->mdl_request.set_type(mdl_type);
 
   // Always use isolation level READ_COMMITTED to ensure consistent view of
   // table data during entire load operation. Higher isolation levels provide no
@@ -12531,6 +12558,35 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     return true;
   auto after_lock_acquire = std::chrono::steady_clock::now();
 
+  // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
+  if (!table_list->table->s->has_secondary_engine()) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
+    return true;
+  }
+  // SECONDARY_LOAD/SECONDARY_UNLOAD cannot be performed on temporary tables.
+  if (table_list->table->s->tmp_table != NO_TMP_TABLE) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "No explicit load/unload possible for temporary tables with "
+             "secondary engine");
+    return true;
+  }
+  if (!is_load && secondary_engine_lock_tables_mode(*thd)) {
+    if (thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
+                                             mdl_type,
+                                             thd->variables.lock_wait_timeout))
+      return true;
+  }
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table_list->db, table_list->table_name, mdl_type));
+  MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
+  auto downgrade_guard = create_scope_guard([mdl_ticket, thd] {
+    // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
+    // operations have completed.
+    if (secondary_engine_lock_tables_mode(*thd)) {
+      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
+  });
+
   // Omit hidden generated columns and columns marked as NOT SECONDARY from
   // read_set. It is the responsibility of the secondary engine handler to load
   // only the columns included in the read_set.
@@ -12546,20 +12602,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
     // Mark column as eligible for loading.
     table_list->table->mark_column_used(*field, MARK_COLUMNS_READ);
-  }
-
-  // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
-  if (!table_list->table->s->has_secondary_engine()) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
-    return true;
-  }
-
-  // SECONDARY_LOAD/SECONDARY_UNLOAD cannot be performed on temporary tables.
-  if (table_list->table->s->tmp_table != NO_TMP_TABLE) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "No explicit load/unload possible for temporary tables with "
-             "secondary engine");
-    return true;
   }
 
   handlerton *hton = table_list->table->s->db_type();
@@ -12579,19 +12621,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   dd::Table *table_def = nullptr;
   if (thd->dd_client()->acquire_for_modification(
           table_list->db, table_list->table_name, &table_def))
-    return true;
-
-  MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
-
-  auto downgrade_guard = create_scope_guard([mdl_ticket, thd] {
-    // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
-    // operations have completed.
-    if (secondary_engine_lock_tables_mode(*thd)) {
-      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
-    }
-  });
-  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
-                                           thd->variables.lock_wait_timeout))
     return true;
 
   // Cleanup that must be done regardless of commit or rollback.
@@ -12616,9 +12645,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
    * not in sync with the actual status of the table in the secondary engine. */
 
   // TODO: undo handling of secondary engine operation
-
-  // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
-  const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
 
   /* If set, secondary_load value will not be updated, and also no bin log
    * entries will be recorded. */
@@ -12727,6 +12753,13 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
         "sec_load_unload",
         ("secondary_load flag update is skipped for table %s", full_tab_name));
   } else {
+    // Upgrade to XMDL in order to update DD
+    DEBUG_SYNC(thd, "secload_upgrade_mdl_x");
+    if (thd->mdl_context.upgrade_shared_lock(
+            mdl_ticket, MDL_EXCLUSIVE, thd->variables.lock_wait_timeout)) {
+      return true;
+    }
+
     // update partitions' secondary load flag
     for (auto &part_obj : *table_def->leaf_partitions()) {
       if (table_list->partition_names == nullptr ||
@@ -12802,7 +12835,11 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   modified_parts.clear();
 
   // Close primary table.
-  close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+  if (skip_metadata_update) {
+    close_thread_tables(thd);
+  } else {
+    close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+  }
   table_list->table = nullptr;
 
   // Commit transaction if no errors.

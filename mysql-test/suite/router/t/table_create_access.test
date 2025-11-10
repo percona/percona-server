@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -80,6 +82,8 @@
 
 --source ../include/mrs/changes/wait_object.inc
 
+# Masking off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/basic/t2/'
 --let $mrs_client_arg_request_type='POST'
 --let $mrs_client_arg_payload='{"id":11,"comments":"something-new","date":"2017-1-1","name":"entry-with-all-fields"}'
@@ -122,6 +126,8 @@ UPDATE mysql_rest_service_metadata.object_field
 --let $mrs_client_arg_json_schema_file=$SCHEMA_DIR/basic_table2_object.sch
 --source ../include/mrs/mrs_client.inc
 
+# Masking off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/basic/t2'
 --let $mrs_client_arg_request_type='POST'
 --let $mrs_client_arg_json_schema_file=$SCHEMA_DIR/basic_table2_object.sch

@@ -832,6 +832,11 @@ ErrConvString::ErrConvString(const MYSQL_TIME *ltime, uint dec) {
       my_TIME_to_str(*ltime, err_buffer, min(dec, uint{DATETIME_MAX_DECIMALS}));
 }
 
+ErrConvString::ErrConvString(const Time_val time, uint dec) {
+  buf_length = time.to_string(err_buffer, dec);
+  err_buffer[buf_length] = 0;
+}
+
 /**
    Convert value for dispatch to error message(see WL#751).
 

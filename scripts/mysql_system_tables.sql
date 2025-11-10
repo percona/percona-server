@@ -32,8 +32,6 @@ set @is_mysql_encrypted = (select ENCRYPTION from information_schema.INNODB_TABL
 
 SET FOREIGN_KEY_CHECKS= 1;
 
-# Added sql_mode elements and making it as SET, instead of ENUM
-
 set default_storage_engine=InnoDB;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS db

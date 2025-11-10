@@ -38,8 +38,10 @@
 #include "config_generator.h"
 #include "dim.h"
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/auto_cleaner.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/signal_handler.h"
+#include "mysqlrouter/accounts_cleaner.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/sys_user_operations.h"
 
@@ -56,7 +58,8 @@ class MySQLRouterConf {
                   std::ostream &err_stream = std::cerr)
       : keyring_info_(keyring_info),
         out_stream_(out_stream),
-        err_stream_(err_stream) {}
+        err_stream_(err_stream),
+        accounts_cleaner_(err_stream) {}
 
   virtual ~MySQLRouterConf() = default;
 
@@ -92,6 +95,15 @@ class MySQLRouterConf {
   );
 
   std::map<std::string, std::string> get_config_cmdln_options() const;
+
+  void commit() {
+    auto_cleaner_.clear();
+    accounts_cleaner_.clear();
+  }
+
+  mysqlrouter::MySQLAccountsCleaner &get_accounts_cleaner() {
+    return accounts_cleaner_;
+  }
 
  protected:
   friend class MySQLRouter;
@@ -154,6 +166,9 @@ class MySQLRouterConf {
   int get_connect_timeout() const;
   int get_read_timeout() const;
   std::string get_bootstrap_socket() const;
+
+  mysql_harness::AutoCleaner auto_cleaner_;
+  mysqlrouter::MySQLAccountsCleaner accounts_cleaner_;
 };
 
 class silent_exception : public std::exception {

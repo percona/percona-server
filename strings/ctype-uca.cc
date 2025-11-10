@@ -36,6 +36,8 @@
    - No combining marks processing is done
 */
 
+#include <stdlib.h>
+
 #include <algorithm>
 #include <array>
 #include <bitset>

@@ -37,6 +37,7 @@
 #include "sql/histograms/histogram.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/iterators/hash_join_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
@@ -314,31 +315,97 @@ static double TempTableAggregationCost(
 // involving one or two rows.
 static constexpr double kTempTableCreationCost = 3;
 
-BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table,
-                                              int64_t max_row_size) {
+/**
+   This class produces an estimate of the size of each field
+   in a table. For fixed-size fields, the estimates should be accurate.
+   But since there is no statistics on the length of variable size fields,
+   we use heuristics to estimate these.
+*/
+class FieldSizeEstimator final {
+ public:
+  /// A size estimate for a field.
+  struct Estimate final {
+    /// This struct refers to table->field[field_no]
+    uint field_no;
+    /// The estimated size in bytes.
+    int64_t size;
+  };
+
+  /// Size estimates for all fields.
+  using EstimateArray = Prealloced_array<Estimate, 32>;
+
+  explicit FieldSizeEstimator(const TABLE *table);
+
+  const EstimateArray &estimates() const { return m_estimates; }
+
+ private:
+  /// Size estimates for all fields.
+  EstimateArray m_estimates{PSI_NOT_INSTRUMENTED};
+};
+
+FieldSizeEstimator::FieldSizeEstimator(const TABLE *table) {
   /*
     We have no statistics on the size of the individual variable-sized fields,
     only on the combined size of all fields. We therefore estimate the field
     sizes as follows:
-    - We order the fields by their maximal size (field->field_length) in
-      ascending order.
+    - We order the fields by their maximal size (field->max_data_length()) in
+    ascending order.
     - We estimate the size of a field to be the smallest of its maximal size
-      and the remaining number of bytes, divided by the remaining number of
-      fields.
+    and the remaining number of bytes, divided by the remaining number of
+    fields.
   */
-
-  // Index of fields, sorted by size in ascending order.
-  Prealloced_array<int16_t, 64> smallest_first(PSI_NOT_INSTRUMENTED);
+  int64_t max_row_size{0};
 
   for (uint i = 0; i < table->s->fields; i++) {
-    smallest_first.push_back(static_cast<int16_t>(i));
+    const int64_t max_length{table->field[i]->max_data_length()};
+    m_estimates.push_back({i, max_length});
+    max_row_size += max_length;
   }
 
-  std::ranges::sort(smallest_first, [&](int16_t a, int16_t b) {
-    return table->field[a]->field_length < table->field[b]->field_length;
-  });
+  std::ranges::sort(m_estimates,
+                    [](Estimate a, Estimate b) { return a.size < b.size; });
 
-  const ha_statistics &stats{table->file->stats};
+  /*
+    If we have no statistics on actual row size, we assume that the row is
+    no longer than this, even if the combined size of the LOBs it contains
+    could be greater.
+  */
+  constexpr int64_t kDefaultLobRowMaxSize{64 * 1024};
+
+  /*
+    On InnoDB mean_rec_length is calculated as file size divided by the number
+    of rows. And the file is by default allocated in 16kiB blocks. So for
+    tables with few rows, this number may be too high, which is why we use
+    max_row_size as an upper limit.
+  */
+  int64_t remaining_bytes{std::min<int64_t>(
+      max_row_size, table->file->stats.records == 0
+                        ? kDefaultLobRowMaxSize
+                        : table->file->stats.mean_rec_length)};
+
+  for (size_t i = 0; i < m_estimates.size(); i++) {
+    Estimate &estimate{m_estimates[i]};
+    estimate.size = std::min<int64_t>(estimate.size,
+                                      remaining_bytes / (table->s->fields - i));
+
+    remaining_bytes -= estimate.size;
+  }
+}
+
+int64_t GetReadSetWidth(const TABLE *table) {
+  int64_t width{0};
+
+  for (const FieldSizeEstimator estimator{table};
+       const FieldSizeEstimator::Estimate &estimate : estimator.estimates()) {
+    if (bitmap_is_set(table->read_set, estimate.field_no)) {
+      width += estimate.size;
+    }
+  }
+
+  return width;
+}
+
+BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table) {
   // The expected size of the b-tree record.
   double record_size{0.0};
   // The expected number of overflow bytes per record.
@@ -347,24 +414,11 @@ BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table,
   double overflow_probability{0.0};
   // The maximal size of a b-tree record.
   const double max_record_size{ClampedBlockSize(table) / 2.0};
-  /*
-    If we have no statistics on actual row size, we assume that the row is
-    no longer than this, even if the combined size of the LOBs it contains
-    could be greater.
-  */
-  constexpr int64_t kDefaultLobRowMaxSize{64 * 1024};
-  int64_t remaining_bytes{stats.records == 0
-                              ? std::min(max_row_size, kDefaultLobRowMaxSize)
-                              : static_cast<int64_t>(stats.mean_rec_length)};
 
-  for (uint i = 0; i < table->s->fields; i++) {
-    const int16_t field_no{smallest_first[i]};
-    const int64_t expected_size{
-        std::min<int64_t>(table->field[field_no]->field_length,
-                          remaining_bytes / (table->s->fields - i))};
-
+  for (const FieldSizeEstimator estimator{table};
+       const FieldSizeEstimator::Estimate &estimate : estimator.estimates()) {
     const double field_overflow_probability{[&]() {
-      if (record_size + table->field[field_no]->field_length <
+      if (record_size + table->field[estimate.field_no]->max_data_length() <
           max_record_size) {
         return 0.0;
       }
@@ -375,15 +429,14 @@ BytesPerTableRow EstimateBytesPerRowWideTable(const TABLE *table,
         kMaxEstimatedBytesPerRow.
       */
       return std::clamp(
-          2.5 * (expected_size + record_size) / kMaxEstimatedBytesPerRow - 2.0,
+          2.5 * (estimate.size + record_size) / kMaxEstimatedBytesPerRow - 2.0,
           0.0, 1.0);
     }()};
 
-    remaining_bytes -= expected_size;
-    record_size += expected_size * (1 - field_overflow_probability);
+    record_size += estimate.size * (1 - field_overflow_probability);
 
-    if (bitmap_is_set(table->read_set, field_no)) {
-      overflow_size += expected_size * field_overflow_probability;
+    if (bitmap_is_set(table->read_set, estimate.field_no)) {
+      overflow_size += estimate.size * field_overflow_probability;
       overflow_probability = field_overflow_probability;
     }
   }
@@ -1547,6 +1600,23 @@ void EstimateAggregateCost(THD *thd, AccessPath *path,
   path->ordering_state = child->ordering_state;
 }
 
+double EstimateSkipScanCost(TABLE *table, uint key_idx, uint num_subrange_scans,
+                            ha_rows records) {
+  // Multiplier to achieve the same cost/time ratio as for other access paths
+  constexpr double kSkipScanFactor{3.344};
+  return kSkipScanFactor *
+         EstimateIndexRangeScanCost(table, key_idx, RangeScanType::kMultiRange,
+                                    num_subrange_scans, records);
+}
+
+double EstimateGroupSkipScanCost(TABLE *table, uint key_idx, uint num_groups,
+                                 bool has_max) {
+  double lookups_per_key = has_max ? 1.8 : 1;
+  return EstimateIndexRangeScanCost(table, key_idx, RangeScanType::kMultiRange,
+                                    lookups_per_key * num_groups,
+                                    lookups_per_key * num_groups);
+}
+
 void EstimateDeleteRowsCost(AccessPath *path) {
   const auto &param = path->delete_rows();
   const AccessPath *child = param.child;
@@ -1729,4 +1799,124 @@ double EstimateSemijoinFanOut(THD *thd, double right_rows,
       thd, right_rows, {condition_fields.begin(), condition_fields.size()});
 
   return std::min(1.0, distinct_rows * edge.selectivity);
+}
+
+HashJoinCost::HashJoinCost(THD *thd, const HashJoinMetrics &metrics) {
+  // Size of the length field for each hash value.
+  constexpr int kHashValueOverhead{10};
+  // Size of the length field and other overhead for each hash key.
+  constexpr int kHashKeyOverhead{34};
+
+  // The cost of copying a build row into the hash table.
+  constexpr double kCostPerBuildRow{144e-3 / kUnitCostInMicroseconds};
+  // The cost of copying a build row byte into the hash table.
+  constexpr double kCostPerBuildByte{179e-6 / kUnitCostInMicroseconds};
+  // The cost of probing a row against the hash table.
+  constexpr double kCostPerProbeOperation{58.1e-3 / kUnitCostInMicroseconds};
+  // The cost of producing a result row.
+  constexpr double kCostPerResultRow{9.87e-3 / kUnitCostInMicroseconds};
+  // The cost of copying a byte from the hash table into the TABLE row buffer.
+  // We do this with each build row that matches a probe row.
+  constexpr double kCostPerCopyBackByte{23.2e-6 / kUnitCostInMicroseconds};
+  // The cost per byte read from or written to spill files. We assume that
+  // reading a byte has the same cost as writing it.
+  constexpr double kCostPerSpillByte{48.7e-6 / kUnitCostInMicroseconds};
+
+  const ulong join_buff_size{thd->variables.join_buff_size};
+
+  // Do a simplified calculation for small joins.
+  if (metrics.build_rows *
+          (metrics.build_row_size + kHashValueOverhead + kHashKeyOverhead) <
+      std::min<double>(join_buff_size, 64 * 1024)) {
+    m_spill_to_disk_probability = 0.0;
+
+    m_init_cost =
+        metrics.build_rows *
+        (kCostPerBuildRow + metrics.build_row_size * kCostPerBuildByte);
+
+    m_cost =
+        m_init_cost + metrics.probe_rows * kCostPerProbeOperation +
+        metrics.result_rows *
+            (kCostPerResultRow + metrics.build_row_size * kCostPerCopyBackByte);
+    return;
+  }
+
+  // Total hash volume needed.
+  const double hash_table_usage{
+      metrics.build_rows * (metrics.build_row_size + kHashValueOverhead) +
+      /* We estimate the number of unique keys as rows^0.7. Note that
+         EstimateDistinctRows() might have provided a better estimate.
+         We choose this simplified calculation because:
+         - Given that this is a hash join, there is unlikely to be an index
+           prefix that corresponds to the key, and this makes
+           EstimateDistinctRows() less accurate.
+         - This only impacts the volume of the keys - not that of the rows.
+           This means that accuracy matters less here.
+      */
+      std::pow(metrics.build_rows, 0.7) *
+          (kHashKeyOverhead + metrics.key_size)};
+
+  /*
+    If the full data set from right_path fits in the join buffer,
+    we never need to rebuild the hash table. build_cost should
+    then be counted as init_once_cost. Otherwise, build_cost will
+    be incurred for each re-scan. To get a good estimate of
+    init_once_cost we therefore need to estimate the chance of
+    exceeding the join buffer size. We estimate this probability as:
+
+    (hash_table_usage / join_buffer_size)^2
+
+    for hash_table_usage < join_buffer_size and 1.0 otherwise.
+  */
+  m_spill_to_disk_probability =
+      std::min(1.0, std::pow(hash_table_usage / join_buff_size, 2.0));
+
+  const bool spill{hash_table_usage >= join_buff_size};
+
+  // Number of iterations over the probe relation. We split the build relation
+  // in at most 128 chunks. If a build chunks is too big to fit in the join
+  // buffer, we will fill the join buffer from the build chunk,
+  // iterate over the corresponding probe chunk, and repeat until we have
+  // consumed the entire build chunk.
+  const double probe_iterations{std::ceil(
+      hash_table_usage / (join_buff_size * HashJoinIterator::kMaxChunks))};
+
+  // The volume written to (and read from) build spill files.
+  const double build_spill_volume{
+      spill ?
+            // The volume of the build relation, except for the part that fills
+            // the join buffer the first time.
+          metrics.build_rows * metrics.build_row_size *
+              (1 - join_buff_size / hash_table_usage)
+            : 0.0};
+
+  // The volume written to probe spill files.
+  const double probe_spill_write_volume{
+      spill ? metrics.probe_rows * metrics.probe_row_size : 0.0};
+
+  // The volume read from probe spill files.
+  const double probe_spill_read_volume{
+      spill ? metrics.probe_rows * metrics.probe_row_size * probe_iterations
+            : 0.0};
+
+  m_init_cost =
+      metrics.build_rows *
+          (kCostPerBuildRow + metrics.build_row_size * kCostPerBuildByte) +
+      // We assume that we write the build chunks and then start reading
+      // the probe relation before we can output the first row.
+      // Therefore we do not count the cost of reading any chunks here.
+      build_spill_volume * kCostPerSpillByte;
+
+  m_cost =
+      m_init_cost +
+      // The cost of doing the probing.
+      metrics.probe_rows * probe_iterations * kCostPerProbeOperation +
+      // The cost of generating the result row.
+      metrics.result_rows *
+          (kCostPerResultRow + metrics.build_row_size * kCostPerCopyBackByte) +
+      // The cost of reading the build spill files, plus the cost of reading
+      // and writing the probe spill files.
+      (build_spill_volume + probe_spill_write_volume +
+       probe_spill_read_volume) *
+          kCostPerSpillByte;
 }

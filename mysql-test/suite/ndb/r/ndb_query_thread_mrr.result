@@ -11,7 +11,7 @@ explain format=json into @e select * from t1 where
 (c > 60 and c < 65) or
 (c > 70 and c < 73) or
 (c > 200 and c < 210) order by a;
-select json_extract(@e, "$.query_block.ordering_operation.table.using_MRR") as using_MRR;
+select json_extract(@e, "$.query_plan.inputs[0].multi_range_read") as using_MRR;
 using_MRR
 true
 Run a number of iterations to likely get query thread usage

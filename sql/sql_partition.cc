@@ -5832,7 +5832,7 @@ static int get_part_iter_for_interval_via_mapping(
   get_endpoint_func get_endpoint = nullptr;
   bool can_match_multiple_values; /* is not '=' */
   const uint field_len = field->pack_length_in_rec();
-  MYSQL_TIME start_date;
+  Datetime_val start_date;
   bool check_zero_dates = false;
   bool zero_in_start_date = true;
   DBUG_TRACE;
@@ -5925,7 +5925,7 @@ static int get_part_iter_for_interval_via_mapping(
         if (!(flags & NO_MAX_RANGE) && (field->type() == MYSQL_TYPE_DATE ||
                                         field->type() == MYSQL_TYPE_DATETIME)) {
           /* Monotonic, but return NULL for dates with zeros in month/day. */
-          zero_in_start_date = field->get_date(&start_date, 0);
+          zero_in_start_date = field->val_datetime(&start_date, 0);
           DBUG_PRINT("info",
                      ("zero start %u %04d-%02d-%02d", zero_in_start_date,
                       start_date.year, start_date.month, start_date.day));
@@ -5945,8 +5945,8 @@ static int get_part_iter_for_interval_via_mapping(
     part_iter->part_nums.end = get_endpoint(part_info, false, include_endp);
     if (check_zero_dates && !zero_in_start_date &&
         !part_info->part_expr->null_value) {
-      MYSQL_TIME end_date;
-      const bool zero_in_end_date = field->get_date(&end_date, 0);
+      Datetime_val end_date;
+      const bool zero_in_end_date = field->val_datetime(&end_date, 0);
       /*
         This is an optimization for TO_DAYS()/TO_SECONDS() to avoid scanning
         the NULL partition for ranges that cannot include a date with 0 as

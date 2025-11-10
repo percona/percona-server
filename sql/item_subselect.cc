@@ -1285,23 +1285,34 @@ bool Item_singlerow_subselect::val_json(Json_wrapper *result) {
   }
 }
 
-bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,
-                                        my_time_flags_t fuzzydate) {
+bool Item_singlerow_subselect::val_date(Date_val *date, my_time_flags_t flags) {
   assert(fixed);
   if (!m_no_rows && !exec(current_thd) && !m_value->null_value) {
     null_value = false;
-    return m_value->get_date(ltime, fuzzydate);
+    return m_value->val_date(date, flags);
   } else {
     reset();
     return true;
   }
 }
 
-bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime) {
+bool Item_singlerow_subselect::val_time(Time_val *time) {
   assert(fixed);
   if (!m_no_rows && !exec(current_thd) && !m_value->null_value) {
     null_value = false;
-    return m_value->get_time(ltime);
+    return m_value->val_time(time);
+  } else {
+    reset();
+    return true;
+  }
+}
+
+bool Item_singlerow_subselect::val_datetime(Datetime_val *dt,
+                                            my_time_flags_t flags) {
+  assert(fixed);
+  if (!m_no_rows && !exec(current_thd) && !m_value->null_value) {
+    null_value = false;
+    return m_value->val_datetime(dt, flags);
   } else {
     reset();
     return true;

@@ -1336,7 +1336,7 @@ class Dblqh : public SimulatedBlock {
      */
     Uint64 m_redo_written_bytes;
 
-    int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
+    int tick(Uint32 instance, Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
     Uint32 get_lag_cnt() { return m_lag_cnt; }
@@ -1700,6 +1700,11 @@ class Dblqh : public SimulatedBlock {
       P_FILE_CHANGE_PROBLEM = 0x4  // 1220
     };
     Uint32 m_log_problems;
+
+    /**
+     * Log part has logged about buffer full
+     */
+    Uint32 m_logged_buffer_full;
 
     /**
      *       A timer that is set every time a log page is sent to disk.
@@ -3233,7 +3238,7 @@ class Dblqh : public SimulatedBlock {
                        LogFileRecordPtr &logFilePtr,
                        LogPartRecordPtr &logPartPtr);
   void initReqinfoExecSr(Signal *signal, TcConnectionrecPtr);
-  bool insertFragrec(Signal *signal, Uint32 fragId);
+  Uint32 insertFragrec(Signal *signal, Uint32 fragId);
   void linkWaitLog(Signal *, LogPartRecord *logPartPtrP,
                    LogPartRecord::OperationQueue &, TcConnectionrec *);
   void logNextStart(Signal *signal, LogPartRecord *logPartPtrP);
@@ -3364,11 +3369,11 @@ class Dblqh : public SimulatedBlock {
   void abortContinueAfterBlockedLab(Signal *signal, TcConnectionrecPtr);
   void abortCommonLab(Signal *signal, TcConnectionrecPtr);
   void localCommitLab(Signal *signal, TcConnectionrecPtr);
-  void abortErrorLab(Signal *signal, TcConnectionrecPtr);
+  void abortErrorLab(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void continueAfterReceivingAllAiLab(Signal *signal, TcConnectionrecPtr);
   void continueACCKEYCONF(Signal *signal, Uint32 localKey1, Uint32 localKey2,
                           TcConnectionrecPtr);
-  void continueACCKEYREF(Signal *signal, TcConnectionrecPtr);
+  void continueACCKEYREF(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void abortStateHandlerLab(Signal *signal, TcConnectionrecPtr);
   void writeAttrinfoLab(Signal *signal, const TcConnectionrec *,
                         LogPageRecordPtr &logPagePtr,
@@ -3378,7 +3383,6 @@ class Dblqh : public SimulatedBlock {
                        TcConnectionrecPtr);
   void abort_scan(Signal *signal, Uint32 scan_ptr_i, Uint32 errcode,
                   TcConnectionrecPtr);
-  void localAbortStateHandlerLab(Signal *signal, TcConnectionrecPtr);
   void writePrepareLog(Signal *signal, TcConnectionrecPtr);
   void writePrepareLog_problems(Signal *signal, const TcConnectionrecPtr,
                                 LogPartRecord *logPartPtrP,
@@ -3390,7 +3394,7 @@ class Dblqh : public SimulatedBlock {
                                   const class LqhKeyReq *req);
   void earlyKeyReqAbort(Signal *signal, const class LqhKeyReq *lqhKeyReq,
                         Uint32 errorCode, TcConnectionrecPtr);
-  void logLqhkeyrefLab(Signal *signal, TcConnectionrecPtr);
+  void logLqhkeyrefLab(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void closeCopyLab(Signal *signal, TcConnectionrec *);
   void commitReplyLab(Signal *signal, TcConnectionrec *);
   void completeUnusualLab(Signal *signal, TcConnectionrecPtr);
@@ -3410,7 +3414,6 @@ class Dblqh : public SimulatedBlock {
   void initGcpRecLab(Signal *signal);
   void prepareContinueAfterBlockedLab(Signal *signal, TcConnectionrecPtr);
   void commitContinueAfterBlockedLab(Signal *signal, TcConnectionrecPtr);
-  void sendExecFragRefLab(Signal *signal);
   void fragrefLab(Signal *signal, Uint32 errorCode, const LqhFragReq *req);
   void abortAddFragOps(Signal *signal);
   void rwConcludedLab(Signal *signal, TcConnectionrecPtr);
@@ -3451,7 +3454,7 @@ class Dblqh : public SimulatedBlock {
   void perform_fragment_checkpoint(Signal *signal);
   void handleFirstFragment(Signal *signal);
   void startLcpRoundLab(Signal *signal);
-  void startFragRefLab(Signal *signal);
+  void startFragRefLab(Signal *signal, Uint32 errorCode);
   void move_start_gci_forward(Signal *, Uint32);
   void srCompletedLab(Signal *signal);
   void openFileInitLab(Signal *signal, LogFileRecordPtr logFilePtr,
@@ -3524,16 +3527,16 @@ class Dblqh : public SimulatedBlock {
   void readSrFourthZeroLab(Signal *signal, LogPageRecordPtr logPagePtr,
                            LogFileRecordPtr logFilePtr,
                            LogPartRecord *logPartPtrP);
-  void copyLqhKeyRefLab(Signal *signal, TcConnectionrecPtr);
+  void copyLqhKeyRefLab(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void restartOperationsLab(Signal *signal);
   void lqhTransNextLab(Signal *signal, TcNodeFailRecordPtr tcNodeFailPtr);
   void restartOperationsAfterStopLab(Signal *signal);
   void startphase1Lab(Signal *signal, Uint32 config, Uint32 nodeId);
   void tupkeyConfLab(Signal *signal, TcConnectionrecPtr);
-  void copyTupkeyRefLab(Signal *signal, TcConnectionrecPtr);
+  void copyTupkeyRefLab(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void copyTupkeyConfLab(Signal *signal, TcConnectionrecPtr);
   void scanTupkeyConfLab(Signal *signal, TcConnectionrec *);
-  void scanTupkeyRefLab(Signal *signal, TcConnectionrecPtr);
+  void scanTupkeyRefLab(Signal *signal, TcConnectionrecPtr, Uint32 errorCode);
   void accScanConfScanLab(Signal *signal, TcConnectionrecPtr);
   void accScanConfCopyLab(Signal *signal);
   void scanLockReleasedLab(Signal *signal, TcConnectionrec *);
@@ -3824,8 +3827,6 @@ class Dblqh : public SimulatedBlock {
   // MAX_NDB_NODES is the size of this array
   TcNodeFailRecord *tcNodeFailRecord;
   UintR ctcNodeFailrecFileSize;
-
-  Uint16 terrorCode;
 
   Uint32 c_firstInNodeGroup;
 

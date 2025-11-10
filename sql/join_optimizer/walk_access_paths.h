@@ -254,12 +254,13 @@ void ForEachChild(AccessPathPtr path, JoinPtr join,
   func() must have signature func(TABLE *), and return true upon error.
  */
 template <class Func>
-void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
+  requires std::is_invocable_r_v<bool, Func, TABLE *>
+void WalkTablesUnderAccessPath(const AccessPath *root_path, Func &&func,
                                bool include_pruned_tables) {
   WalkAccessPaths(
       root_path, /*join=*/nullptr,
       WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-      [&](AccessPath *path, const JOIN *) {
+      [&](const AccessPath *path, const JOIN *) {
         switch (path->type) {
           case AccessPath::TABLE_SCAN:
             return func(path->table_scan().table);

@@ -21,6 +21,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF (WITH_MYSQL_AI)
+  ADD_COMPILE_DEFINITIONS(MYSQL_AI)
+ENDIF()
+
 SET(MYSQL_SERVER_COMPONENT_SOURCES
   audit_api_message_service_imp.cc
   backup_lock_service.cc

@@ -114,8 +114,8 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     // populate GroupReplicationMember with data from row
     GroupReplicationMember member;
     member.member_id = member_id;
-    member.host = member_host;
-    member.port = static_cast<uint16_t>(std::atoi(member_port));
+    member.dest = mysql_harness::TcpDestination{
+        member_host, static_cast<uint16_t>(std::atoi(member_port))};
     member.version = member_version;
     if (std::strcmp(member_state, "ONLINE") == 0)
       member.state = GroupReplicationMember::State::Online;

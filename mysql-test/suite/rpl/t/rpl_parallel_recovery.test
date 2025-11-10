@@ -9,7 +9,6 @@
 # The test proves that once the stop condition (e.g slave local error) is removed
 # replication restarts, the gaps are filled up, and the eventual slave server state
 # is consistent.
-# The test is MTS Logical_clock specific due to a mechanism of failure injection.
 
 # --let $rpl_topology= 1->2
 # --let $rpl_debug= 1

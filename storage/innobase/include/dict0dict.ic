@@ -217,8 +217,8 @@ static inline uint64_t dict_table_get_n_rows(
 }
 
 /** Increment the number of rows in the table by one.
- Notice that this operation is not protected by any latch, the number is
- approximate. */
+Notice that this operation is not protected by any latch, the number is
+approximate. */
 static inline void dict_table_n_rows_inc(
     dict_table_t *table) /*!< in/out: table */
 {
@@ -231,8 +231,8 @@ static inline void dict_table_n_rows_inc(
 }
 
 /** Decrement the number of rows in the table by one.
- Notice that this operation is not protected by any latch, the number is
- approximate. */
+Notice that this operation is not protected by any latch, the number is
+approximate. */
 static inline void dict_table_n_rows_dec(
     dict_table_t *table) /*!< in/out: table */
 {

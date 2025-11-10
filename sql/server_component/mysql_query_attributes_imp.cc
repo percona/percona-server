@@ -409,3 +409,19 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::string_get,
   *out_string_value = reinterpret_cast<my_h_string>(str);
   return false;
 }
+
+DEFINE_BOOL_METHOD(mysql_query_attributes_imp::get_first_name_data,
+                   (const char **name_buffer, size_t *name_length)) {
+  if (current_thd == nullptr || current_thd->bind_parameter_values_count == 0) {
+    return 1;
+  }
+  auto *bind_parameter_values = current_thd->bind_parameter_values;
+  if (bind_parameter_values == nullptr ||
+      bind_parameter_values->name == nullptr ||
+      bind_parameter_values->name_length == 0) {
+    return 1;
+  }
+  *name_buffer = reinterpret_cast<const char *>(bind_parameter_values->name);
+  *name_length = bind_parameter_values->name_length;
+  return 0;
+}

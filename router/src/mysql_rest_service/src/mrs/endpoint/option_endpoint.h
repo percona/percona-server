@@ -53,6 +53,7 @@ class OptionEndpoint : public mrs::interface::EndpointBase {
 
   UniversalId service_id_;
   std::vector<HandlerPtr> handlers_;
+  HandlerPtr directory_handler_;
   HandlerFactoryPtr factory_;
   std::optional<std::vector<std::string>> directory_indexes_;
 };

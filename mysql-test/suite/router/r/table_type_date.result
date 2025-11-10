@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 CREATE TABLE `test`.`date_values` (
@@ -76,7 +77,8 @@ PUT /svc/test/date/2 (payload-size:26)
         }
     ],
     "_metadata": {
-        "etag": "8808F1BBF24BEA14EF3B51C6E2AA28DA46A1C224B431473AF6976DB3DC66A83E"
+        "etag": "8808F1BBF24BEA14EF3B51C6E2AA28DA46A1C224B431473AF6976DB3DC66A83E",
+        "gtid": "GTID"
     }
 }
 OK
@@ -91,7 +93,8 @@ PUT /svc/test/date/2 (payload-size:26)
         }
     ],
     "_metadata": {
-        "etag": "845FE796F38D88503FDFADB5432177CEB2EE9DEBE0AD8D70056CDBDF925EE66B"
+        "etag": "845FE796F38D88503FDFADB5432177CEB2EE9DEBE0AD8D70056CDBDF925EE66B",
+        "gtid": "GTID"
     }
 }
 OK

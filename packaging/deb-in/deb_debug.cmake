@@ -86,8 +86,6 @@ usr/lib/mysql/plugin/debug/mypluglib.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
-usr/lib/mysql/plugin/debug/semisync_master.so
-usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/validate_password.so
@@ -228,6 +226,7 @@ usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/component_keyring_hashicorp.so
+usr/lib/mysql/plugin/debug/component_keyring_kmip.so
 usr/lib/mysql/plugin/debug/component_keyring_oci.so
 usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 usr/lib/mysql/plugin/debug/component_masking.so
@@ -243,6 +242,7 @@ usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/debug/component_firewall.so
 usr/lib/mysql/plugin/debug/authentication_webauthn.so
 ")
+
   ENDIF()
 
   IF (DEB_AWS_SDK)
@@ -263,9 +263,12 @@ usr/lib/mysql/plugin/debug/component_keyring_aws.so
       MESSAGE(STATUS "Environment variable AWS_VER not set, skip packaging component_keyring_aws.")
     ENDIF()
   ENDIF()
+
   SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
 usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/debug/component_test_page_track_component.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_secret_provider.so
 ")
 
 ENDIF()

@@ -2171,6 +2171,9 @@ class Query_block : public Query_term {
   /// replaced by a field during scalar_to_derived transformation
   uint n_scalar_subqueries{0};
 
+  /// Number of stored function calls in this query block
+  uint n_stored_func_calls{0};
+
   /// Number of materialized derived tables and views in this query block.
   uint materialized_derived_table_count{0};
   /// Number of partitioned tables
@@ -3743,6 +3746,8 @@ class Lex_input_stream {
 
   void reduce_digest_token(uint token_left, uint token_right);
 
+  void adjust_digest_by_numeric_column_token(ulonglong value);
+
   /**
     True if this scanner tokenizes a partial query (partition expression,
     generated column expression etc.)
@@ -4388,6 +4393,10 @@ struct LEX : public Query_tables_list {
   uint8 create_view_algorithm;
   uint8 create_view_check;
   enum_view_type create_view_type;
+  /// This flag indicates that the CREATE VIEW statement contains the
+  /// MATERIALIZED keyword.
+  bool create_view_materialization;
+
   /**
     @todo ensure that correct CONTEXT_ANALYSIS_ONLY is set for all preparation
           code, so we can fully rely on this field.

@@ -30,6 +30,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define LOG_SUBSYSTEM_TAG "Server"
 
+#include <atomic>
+
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"  // internal structs
                                // connection_events_loop_aborted()
@@ -1168,7 +1170,7 @@ void log_line_set_flag(log_line *ll, log_line_flags_mask mask,
 */
 int log_line_submit(log_line *ll) {
   log_item_iter iter_save;
-  static ulonglong previous_microtime = 0;
+  static std::atomic_uint64_t previous_microtime = 0;
 
   DBUG_TRACE;
 

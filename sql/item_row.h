@@ -120,15 +120,18 @@ class Item_row : public Item {
     illegal_method_call("val_decimal");
     return nullptr;
   }
-  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    illegal_method_call("get_date");
+  bool val_date(Date_val *, my_time_flags_t) override {
+    illegal_method_call("val_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *) override {
-    illegal_method_call("get_time");
+  bool val_time(Time_val *) override {
+    illegal_method_call("val_time");
     return true;
   }
-
+  bool val_datetime(Datetime_val *, my_time_flags_t) override {
+    illegal_method_call("val_datetime");
+    return true;
+  }
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;

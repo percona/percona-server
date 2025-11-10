@@ -1,5 +1,8 @@
 -- source include/have_log_bin.inc
 
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
+
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 
 SET @old_log_output=@@global.log_output;
@@ -3703,3 +3706,5 @@ SHOW STATUS LIKE 'Com_stmt_reprepare';
 deallocate prepare ps;
 
 DROP TABLE t1;
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

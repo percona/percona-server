@@ -1812,7 +1812,6 @@ int Plugin_gcs_events_handler::check_group_compatibility(
 
 Compatibility_type
 Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
-  bool override_lower_incompatibility = false;
   Compatibility_type compatibility_type = COMPATIBLE;
   bool read_compatible = false;
 
@@ -1853,23 +1852,8 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
     }
 
     if (compatibility_type == INCOMPATIBLE_LOWER_VERSION) {
-      if (get_allow_local_lower_version_join()) {
-        /*
-          Despite between these two members the compatibility type
-          is INCOMPATIBLE_LOWER_VERSION, when compared with others
-          group members this server may be INCOMPATIBLE, so we need
-          to test with all group members.
-        */
-        override_lower_incompatibility = true;
-        compatibility_type = COMPATIBLE;
-      } else {
-        compatibility_type = INCOMPATIBLE;
-      }
+      compatibility_type = INCOMPATIBLE;
     }
-  }
-
-  if (compatibility_type != INCOMPATIBLE && override_lower_incompatibility) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_VERSION_LOWER_THAN_GRP);
   }
 
   if (read_compatible && compatibility_type != INCOMPATIBLE) {

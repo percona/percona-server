@@ -235,8 +235,6 @@ class JOIN {
   bool streaming_aggregation{false};
   /// If query contains GROUP BY clause
   bool grouped;
-  /// If true, send produced rows using query_result
-  bool do_send_rows{true};
   /// Set of tables contained in query
   table_map all_table_map{0};
   table_map const_table_map;  ///< Set of tables found to be const
@@ -705,17 +703,16 @@ class JOIN {
   /**
     Return whether the caller should send a row even if the join
     produced no rows if:
-     - there is an aggregate function (sum_func_count!=0), and
-     - the query is not grouped, and
+     - the query is implicitly grouped
+     - OR if the query has ROLLUP and
      - a possible HAVING clause evaluates to TRUE.
 
     @note: if there is a having clause, it must be evaluated before
     returning the row.
   */
   bool send_row_on_empty_set() const {
-    return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-            group_list.empty() && !group_optimized_away &&
-            query_block->having_value != Item::COND_FALSE);
+    return (implicit_grouping || rollup_state != JOIN::RollupState::NONE) &&
+           query_block->having_value != Item::COND_FALSE;
   }
 
  public:

@@ -46,14 +46,14 @@ const int64 MAX_DELAY = INT_MAX32;
 /** variables used by connection_delay.cc */
 static mysql_rwlock_t connection_event_delay_lock;
 
-static opt_connection_control opt_enums[] = {OPT_FAILED_CONNECTIONS_THRESHOLD,
-                                             OPT_MIN_CONNECTION_DELAY,
-                                             OPT_MAX_CONNECTION_DELAY};
-static const size_t opt_enums_size = 3;
+static opt_connection_control opt_enums[] = {
+    OPT_FAILED_CONNECTIONS_THRESHOLD, OPT_MIN_CONNECTION_DELAY,
+    OPT_MAX_CONNECTION_DELAY, OPT_EXEMPT_UNKNOWN_USERS};
+static const size_t opt_enums_size = std::size(opt_enums);
 
 static stats_connection_control status_vars_enums[] = {
-    STAT_CONNECTION_DELAY_TRIGGERED};
-static const size_t status_vars_enums_size = 1;
+    STAT_CONNECTION_DELAY_TRIGGERED, STAT_CONNECTION_EXEMPTED_USERS};
+static const size_t status_vars_enums_size = std::size(status_vars_enums);
 
 static Connection_delay_action *g_max_failed_connection_handler = nullptr;
 
@@ -64,6 +64,7 @@ static Connection_delay_action *g_max_failed_connection_handler = nullptr;
   triggered
   @param [in] min_delay         Lower cap on wait
   @param [in] max_delay         Upper cap on wait
+  @param [in] exempt_unknown_users Exempt unauthenticated sessions
   @param [in] sys_vars          System variables
   @param [in] sys_vars_size     Size of sys_vars array
   @param [in] status_vars       Status variables
@@ -73,12 +74,13 @@ static Connection_delay_action *g_max_failed_connection_handler = nullptr;
 
 Connection_delay_action::Connection_delay_action(
     int64 threshold, int64 min_delay, int64 max_delay,
-    opt_connection_control *sys_vars, size_t sys_vars_size,
-    stats_connection_control *status_vars, size_t status_vars_size,
-    mysql_rwlock_t *lock)
+    bool exempt_unknown_users, opt_connection_control *sys_vars,
+    size_t sys_vars_size, stats_connection_control *status_vars,
+    size_t status_vars_size, mysql_rwlock_t *lock)
     : m_threshold(threshold),
       m_min_delay(min_delay),
       m_max_delay(max_delay),
+      m_exempt_unknown_users(exempt_unknown_users),
       m_lock(lock) {
   for (uint i = 0; i < sys_vars_size; ++i) {
     m_sys_vars.push_back(sys_vars[i]);
@@ -207,6 +209,28 @@ void Connection_delay_action::conditional_wait(ulonglong wait_time) {
   mysql_cond_destroy(&connection_delay_wait_condition);
 }
 
+static bool is_unauthenticated_connection(MYSQL_THD thd) {
+  Security_context_wrapper sctx_wrapper(thd);
+
+  const char *proxy_user = sctx_wrapper.get_proxy_user();
+  if (nullptr != proxy_user && *proxy_user != '\0') {
+    return false;
+  }
+
+  const char *priv_user = sctx_wrapper.get_priv_user();
+  if (nullptr != priv_user && *priv_user != '\0') {
+    return false;
+  }
+
+  const char *user = sctx_wrapper.get_user();
+  if (nullptr != user && *user != '\0') {
+    return false;
+  }
+
+  // no user supplied, unauthenticated
+  return true;
+}
+
 /**
   @brief  Handle a connection event and, if required,
   wait for random amount of time before returning.
@@ -241,6 +265,20 @@ bool Connection_delay_action::notify_event(
 
   /* If feature was disabled, return */
   if (threshold <= DISABLE_THRESHOLD) {
+    return error;
+  }
+
+  /* Ignore failed connections from unauthenticated users if exemption was
+   * enabled */
+  if (connection_event->status != 0 && get_exempt_unknown_users() &&
+      is_unauthenticated_connection(thd)) {
+    // increment statistics
+    error = coordinator->notify_status_var(
+        &self, STAT_CONNECTION_EXEMPTED_USERS, ACTION_INC);
+    if (error) {
+      LogComponentErr(ERROR_LEVEL,
+                      ER_CONN_CONTROL_STAT_CONN_EXEMPTED_USERS_UPDATE_FAILED);
+    }
     return error;
   }
 
@@ -345,6 +383,11 @@ bool Connection_delay_action::notify_sys_var(
       }
       break;
     }
+    case OPT_EXEMPT_UNKNOWN_USERS: {
+      const bool new_flag = *(static_cast<bool *>(new_value));
+      set_exempt_unknown_users(new_flag);
+      break;
+    }
     default:
       /* Should never reach here. */
       assert(false);
@@ -400,8 +443,8 @@ void init_connection_delay_event(Connection_event_coordinator *coordinator) {
   g_max_failed_connection_handler = new Connection_delay_action(
       g_variables.failed_connections_threshold,
       g_variables.min_connection_delay, g_variables.max_connection_delay,
-      opt_enums, opt_enums_size, status_vars_enums, status_vars_enums_size,
-      &connection_event_delay_lock);
+      g_variables.exempt_unknown_users, opt_enums, opt_enums_size,
+      status_vars_enums, status_vars_enums_size, &connection_event_delay_lock);
   g_max_failed_connection_handler->init(coordinator);
 }
 /**

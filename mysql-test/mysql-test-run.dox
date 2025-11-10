@@ -4003,7 +4003,10 @@ server_ssl_verify=DISABLED
     <tr>
       <td><tt>MYSQL_TMP_DIR</tt></td>
       <td>
-        Path to temp directory used for temporary files during tests
+        Path to temp directory used for temporary files during tests.
+        Avoid using MYSQL_TMP_DIR for files that need to be imported or exported
+        by the server. When --parallel > 1, MYSQL_TMP_DIR does not fall
+        within secure-file-priv, which will cause access failures.
       </td>
     </tr>
     <tr>
@@ -4035,8 +4038,11 @@ server_ssl_verify=DISABLED
     <tr>
       <td><tt>MYSQLTEST_VARDIR</tt></td>
       <td>
-        Path name to the <b>var</b> directory that is used for logs,
-        temporary files, and so forth
+        Path to the <b>var</b> directory used for logs, temporary files,
+        and other test-related data.
+        For temporary files that need to be imported or exported by the server,
+        strictly use MYSQLTEST_VARDIR/tmp, as secure-file-priv is set
+        to MYSQLTEST_VARDIR by default.
       </td>
     </tr>
     <tr>
@@ -5380,6 +5386,18 @@ server_ssl_verify=DISABLED
       Run all clients started by <b>.test</b> files with
       <b>valgrind</b>. This option requires <b>valgrind 3.9</b> or
       later.
+    </li>
+
+    <li>
+      <tt>`--valgrind--ld-preload`=<b>library</b></tt>
+
+      Set environment variable <b>LD_PRELOAD</b> to <b>library</b> prior
+      running the test.
+
+      Valgrind shows many errors in dload-ed libraries (typically plugins and components)
+      because of missing symbols. Use this option to solve this issue.
+
+      This option is valid only with <b>`--valgrind`</b>.
     </li>
 
     <li>
@@ -7052,7 +7070,8 @@ server_ssl_verify=DISABLED
 
       <tt>let <b>$var_name</b> = query_get_value(<b>query</b>,
                                                  <b>col_name</b>,
-                                                 <b>row_num</b>)</tt>
+                                                 <b>row_num</b>,
+                                                 [<b>result_set_num</b>])</tt>
 
       Assign a value to a variable. The variable name cannot contain
       whitespace or the “<b>=</b>” character. Except for the one-digit
@@ -7252,7 +7271,8 @@ server_ssl_verify=DISABLED
     </li>
 
     <li>
-      <tt>query_get_value(<b>query</b>, <b>col_name</b>, <b>row_num</b>)</tt>
+      <tt>query_get_value(<b>query</b>, <b>col_name</b>, <b>row_num</b>,
+                          [<b>result_set_num</b>])</tt>
 
       The <b>query_get_value()</b> function can be used only on the
       right hand side of a variable assigment in a <b>let</b>
@@ -7264,8 +7284,11 @@ server_ssl_verify=DISABLED
       execute. The second and third arguments indicate the column name
       and row number that specify which value to extract from the
       result set. The column name is case sensitive. Row numbers begin
-      with 1. The arguments can be given literally or supplied using
-      variables.
+      with 1. An optional fourth argument can be used to specify a result
+      set number when a query can return multiple result-sets and a value
+      from a specific result set needs to be retrieved. When this argument
+      is not used, the first result set is considered by default. The
+      arguments can be given literally or supplied using variables.
 
       Suppose that the test file contains this input:
 

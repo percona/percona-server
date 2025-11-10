@@ -36,12 +36,7 @@
 #ifdef HAVE_POSIX_FALLOCATE
 #include <fcntl.h>
 #endif
-#include <sys/types.h>
 #include <cstring>
-#include <limits>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

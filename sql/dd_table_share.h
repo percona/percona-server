@@ -38,6 +38,7 @@ struct TABLE_SHARE;
 
 namespace dd {
 class Table;
+class Abstract_table;
 
 enum class enum_column_types;
 }  // namespace dd
@@ -103,5 +104,27 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id) {
    false - if not.
 */
 bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field);
+
+/**
+  Read the view definition from the data-dictionary.
+
+  @param thd        Thread handler
+  @param share      Fill this with table definition
+  @param abstract_table  A data-dictionary Table-object describing
+                    the view to be used for opening, instead of reading
+                    information from DD.
+
+  @note
+    This function is called when the view definition is not cached in
+    table_def_cache.
+    The data is returned in 'share', which is allocated by
+    alloc_table_share().. The code assumes that share is initialized.
+
+  @returns
+   false   OK
+   true    Error
+*/
+bool open_view_def(THD *thd, TABLE_SHARE *share,
+                   const dd::Abstract_table *abstract_table);
 
 #endif  // DD_TABLE_SHARE_INCLUDED

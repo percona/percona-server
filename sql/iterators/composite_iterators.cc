@@ -93,7 +93,7 @@
 using pack_rows::TableCollection;
 using std::any_of;
 
-int FilterIterator::Read() {
+int FilterIterator::DoRead() {
   for (;;) {
     int err = m_source->Read();
     if (err != 0) return err;
@@ -118,7 +118,7 @@ int FilterIterator::Read() {
   }
 }
 
-bool LimitOffsetIterator::Init() {
+bool LimitOffsetIterator::DoInit() {
   if (m_source->Init()) {
     return true;
   }
@@ -132,7 +132,7 @@ bool LimitOffsetIterator::Init() {
   return false;
 }
 
-int LimitOffsetIterator::Read() {
+int LimitOffsetIterator::DoRead() {
   if (m_seen_rows >= m_limit) {
     // We either have hit our LIMIT, or we need to skip OFFSET rows.
     // Check which one.
@@ -214,7 +214,7 @@ AggregateIterator::AggregateIterator(
   }
 }
 
-bool AggregateIterator::Init() {
+bool AggregateIterator::DoInit() {
   assert(!m_join->tmp_table_param.precomputed_group_by);
 
   // Disable any leftover rollup items used in children.
@@ -258,7 +258,7 @@ bool AggregateIterator::Init() {
   return false;
 }
 
-int AggregateIterator::Read() {
+int AggregateIterator::DoRead() {
   switch (m_state) {
     case READING_FIRST_ROW: {
       // Start the first group, if possible. (If we're not at the first row,
@@ -267,22 +267,9 @@ int AggregateIterator::Read() {
       if (err == -1) {
         m_seen_eof = true;
         m_state = DONE_OUTPUTTING_ROWS;
-        if (m_rollup && m_join->send_group_parts > 0) {
-          // No rows in result set, but we must output one grouping row: we
-          // just want the final totals row, not subtotals rows according
-          // to SQL standard.
-          SetRollupLevel(0);
-          if (m_output_slice != -1) {
-            m_join->set_ref_item_slice(m_output_slice);
-          }
-          return 0;
-        }
-        if (m_join->grouped || m_join->group_optimized_away) {
-          SetRollupLevel(m_join->send_group_parts);
-          return -1;
-        } else {
-          // If there's no GROUP BY, we need to output a row even if there are
-          // no input rows.
+        if (!(m_join->grouped || m_join->group_optimized_away) || m_rollup) {
+          // If there's no GROUP BY or if there is ROLLUP, we need to output
+          // a row even if there are no input rows.
 
           // Calculate aggregate functions for no rows
           for (Item *item : *m_join->get_current_fields()) {
@@ -305,10 +292,17 @@ int AggregateIterator::Read() {
           for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
             (*item)->clear();
           }
+          // No rows in result set, but we must output one grouping row: we
+          // just want the final totals row, not subtotals rows according
+          // to SQL standard.
+          SetRollupLevel(0);
+
           if (m_output_slice != -1) {
             m_join->set_ref_item_slice(m_output_slice);
           }
           return 0;
+        } else {
+          return -1;
         }
       }
       if (err != 0) return err;
@@ -492,7 +486,7 @@ void AggregateIterator::SetRollupLevel(int level) {
   }
 }
 
-bool NestedLoopIterator::Init() {
+bool NestedLoopIterator::DoInit() {
   if (m_source_outer->Init()) {
     return true;
   }
@@ -503,7 +497,7 @@ bool NestedLoopIterator::Init() {
   return false;
 }
 
-int NestedLoopIterator::Read() {
+int NestedLoopIterator::DoRead() {
   if (m_state == END_OF_ROWS) {
     return -1;
   }
@@ -1305,9 +1299,6 @@ class MaterializeIterator final : public TableRowIterator {
                       unique_ptr_destroy_only<RowIterator> table_iterator,
                       JOIN *join);
 
-  bool Init() override;
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
@@ -1329,6 +1320,9 @@ class MaterializeIterator final : public TableRowIterator {
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   Operands m_operands;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
@@ -1533,7 +1527,7 @@ MaterializeIterator<Profiler>::MaterializeIterator(
 }
 
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::Init() {
+bool MaterializeIterator<Profiler>::DoInit() {
   const typename Profiler::TimeStamp start_time = Profiler::Now();
 
   if (!table()->materialized && table()->pos_in_table_list != nullptr &&
@@ -1798,7 +1792,7 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
   ha_rows stored_rows = 0;
 
   // Give each recursive iterator access to the stored number of rows
-  // (see FollowTailIterator::Read() for details).
+  // (see FollowTailIterator::DoRead() for details).
   for (const Operand &operand : m_operands) {
     if (operand.is_recursive_reference) {
       operand.recursive_reader->set_stored_rows_pointer(&stored_rows);
@@ -2970,7 +2964,7 @@ bool MaterializeIterator<Profiler>::MaterializeOperand(const Operand &operand,
 }
 
 template <typename Profiler>
-int MaterializeIterator<Profiler>::Read() {
+int MaterializeIterator<Profiler>::DoRead() {
   const typename Profiler::TimeStamp start_time = Profiler::Now();
   /*
     Enable the items which one should use if one wants to evaluate
@@ -3798,7 +3792,7 @@ StreamingIterator::StreamingIterator(
   }
 }
 
-bool StreamingIterator::Init() {
+bool StreamingIterator::DoInit() {
   if (m_join->query_expression()->clear_correlated_query_blocks()) return true;
 
   if (m_provide_rowid) {
@@ -3821,7 +3815,7 @@ bool StreamingIterator::Init() {
   return m_subquery_iterator->Init();
 }
 
-int StreamingIterator::Read() {
+int StreamingIterator::DoRead() {
   /*
     Enable the items which one should use if one wants to evaluate
     anything (e.g. functions in WHERE, HAVING) involving columns of this
@@ -3867,8 +3861,6 @@ class TemptableAggregateIterator final : public TableRowIterator {
       unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join,
       int ref_slice);
 
-  bool Init() override;
-  int Read() override;
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
@@ -3888,6 +3880,9 @@ class TemptableAggregateIterator final : public TableRowIterator {
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   /// The iterator we are reading rows from.
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
 
@@ -3957,7 +3952,7 @@ TemptableAggregateIterator<Profiler>::TemptableAggregateIterator(
       m_ref_slice(ref_slice) {}
 
 template <typename Profiler>
-bool TemptableAggregateIterator<Profiler>::Init() {
+bool TemptableAggregateIterator<Profiler>::DoInit() {
   // NOTE: We never scan these tables more than once, so we don't need to
   // check whether we have already materialized.
 
@@ -4185,7 +4180,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
 }
 
 template <typename Profiler>
-int TemptableAggregateIterator<Profiler>::Read() {
+int TemptableAggregateIterator<Profiler>::DoRead() {
   const typename Profiler::TimeStamp start_time = Profiler::Now();
 
   /*
@@ -4238,7 +4233,7 @@ MaterializedTableFunctionIterator::MaterializedTableFunctionIterator(
       m_table_iterator(std::move(table_iterator)),
       m_table_function(table_function) {}
 
-bool MaterializedTableFunctionIterator::Init() {
+bool MaterializedTableFunctionIterator::DoInit() {
   if (!table()->materialized) {
     // Create the table if it's the very first time.
     if (table()->pos_in_table_list->create_materialized_table(thd())) {
@@ -4264,7 +4259,7 @@ WeedoutIterator::WeedoutIterator(THD *thd,
   assert(m_sj->tmp_table != nullptr);
 }
 
-bool WeedoutIterator::Init() {
+bool WeedoutIterator::DoInit() {
   if (m_sj->tmp_table->file->ha_delete_all_rows()) {
     return true;
   }
@@ -4281,7 +4276,7 @@ bool WeedoutIterator::Init() {
   return m_source->Init();
 }
 
-int WeedoutIterator::Read() {
+int WeedoutIterator::DoRead() {
   for (;;) {
     int ret = m_source->Read();
     if (ret != 0) {
@@ -4324,12 +4319,12 @@ RemoveDuplicatesIterator::RemoveDuplicatesIterator(
   }
 }
 
-bool RemoveDuplicatesIterator::Init() {
+bool RemoveDuplicatesIterator::DoInit() {
   m_first_row = true;
   return m_source->Init();
 }
 
-int RemoveDuplicatesIterator::Read() {
+int RemoveDuplicatesIterator::DoRead() {
   for (;;) {
     int err = m_source->Read();
     if (err != 0) {
@@ -4366,12 +4361,12 @@ RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
       m_key_buf(new(thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {}
 
-bool RemoveDuplicatesOnIndexIterator::Init() {
+bool RemoveDuplicatesOnIndexIterator::DoInit() {
   m_first_row = true;
   return m_source->Init();
 }
 
-int RemoveDuplicatesOnIndexIterator::Read() {
+int RemoveDuplicatesOnIndexIterator::DoRead() {
   for (;;) {
     int err = m_source->Read();
     if (err != 0) {
@@ -4412,7 +4407,7 @@ NestedLoopSemiJoinWithDuplicateRemovalIterator::
   assert(m_source_inner != nullptr);
 }
 
-bool NestedLoopSemiJoinWithDuplicateRemovalIterator::Init() {
+bool NestedLoopSemiJoinWithDuplicateRemovalIterator::DoInit() {
   if (m_source_outer->Init()) {
     return true;
   }
@@ -4420,7 +4415,7 @@ bool NestedLoopSemiJoinWithDuplicateRemovalIterator::Init() {
   return false;
 }
 
-int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
+int NestedLoopSemiJoinWithDuplicateRemovalIterator::DoRead() {
   m_source_inner->SetNullRowFlag(false);
 
   for (;;) {  // Termination condition within loop.
@@ -4485,7 +4480,7 @@ MaterializeInformationSchemaTableIterator::
       m_table_list(table_list),
       m_condition(condition) {}
 
-bool MaterializeInformationSchemaTableIterator::Init() {
+bool MaterializeInformationSchemaTableIterator::DoInit() {
   if (!m_table_list->schema_table_filled) {
     m_table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
     m_table_list->table->file->ha_delete_all_rows();
@@ -4508,13 +4503,13 @@ AppendIterator::AppendIterator(
   assert(!m_sub_iterators.empty());
 }
 
-bool AppendIterator::Init() {
+bool AppendIterator::DoInit() {
   m_current_iterator_index = 0;
   m_pfs_batch_mode_enabled = false;
   return m_sub_iterators[0]->Init();
 }
 
-int AppendIterator::Read() {
+int AppendIterator::DoRead() {
   if (m_current_iterator_index >= m_sub_iterators.size()) {
     // Already exhausted all iterators.
     return -1;

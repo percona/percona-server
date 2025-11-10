@@ -32,6 +32,7 @@
 */
 
 #include <sys/types.h>
+#include <cassert>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>

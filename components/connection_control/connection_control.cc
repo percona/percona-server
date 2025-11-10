@@ -34,6 +34,7 @@
 #include "connection_control_coordinator.h" /* g_connection_event_coordinator */
 #include "connection_control_memory.h"
 #include "connection_control_pfs_table.h"
+#include "connection_delay.h"
 #include "connection_delay_api.h" /* connection_delay apis */
 #include "failed_attempts_list_imp.h"
 #include "option_usage.h"
@@ -284,6 +285,25 @@ static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
 }
 
 /**
+  Helper function to display value for status variable defined by its index
+  within the array of all status variables.
+
+  @param var_index  Status variable index.
+  @param var  Status variable structure
+  @param buff Value buffer.
+
+  @returns Always returns success.
+*/
+static int show_status_variable(int var_index, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<longlong *>(buff);
+  const int64 current_val = g_statistics.stats_array[var_index].load();
+  *value = static_cast<longlong>(current_val);
+  return 0;
+}
+
+/**
   Function to display value for status variable :
   Connection_control_delay_generated
 
@@ -296,13 +316,33 @@ static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
 
 static int show_delay_generated(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
                                 char *buff) {
-  var->type = SHOW_LONGLONG;
-  var->value = buff;
-  auto *value = reinterpret_cast<longlong *>(buff);
-  const int64 current_val =
-      g_statistics.stats_array[STAT_CONNECTION_DELAY_TRIGGERED].load();
-  *value = static_cast<longlong>(current_val);
-  return 0;
+  return show_status_variable(STAT_CONNECTION_DELAY_TRIGGERED, var, buff);
+}
+
+/**
+  Function to display value for status variable :
+  Component_connection_control_exempted_unknown_users
+
+  @param thd  MYSQL_THD handle. Unused.
+  @param var  Status variable structure
+  @param buff Value buffer.
+
+  @returns Always returns success.
+*/
+
+static int show_exempted_users(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
+                               char *buff) {
+  return show_status_variable(STAT_CONNECTION_EXEMPTED_USERS, var, buff);
+}
+
+static void update_exempt_unknown_users(MYSQL_THD thd [[maybe_unused]],
+                                        SYS_VAR *var [[maybe_unused]],
+                                        void *var_ptr [[maybe_unused]],
+                                        const void *save) {
+  bool new_value = *(reinterpret_cast<const bool *>(save));
+  g_variables.exempt_unknown_users = new_value;
+  g_connection_event_coordinator->notify_sys_var(OPT_EXEMPT_UNKNOWN_USERS,
+                                                 &new_value);
 }
 
 SHOW_VAR static component_connection_control_status_variables[STAT_LAST + 1] = {
@@ -315,6 +355,10 @@ SHOW_VAR static component_connection_control_status_variables[STAT_LAST + 1] = {
          &connection_control::
              opt_option_tracker_usage_connection_control_component),
      .type = SHOW_LONGLONG,
+     .scope = SHOW_SCOPE_GLOBAL},
+    {.name = "Component_connection_control_exempted_unknown_users",
+     .value = reinterpret_cast<char *>(&show_exempted_users),
+     .type = SHOW_FUNC,
      .scope = SHOW_SCOPE_GLOBAL},
     {.name = nullptr,
      .value = nullptr,
@@ -334,6 +378,7 @@ static int register_status_variables() {
 static int register_system_variables() {
   INTEGRAL_CHECK_ARG(longlong)
   threshold, min_delay, max_delay;
+  BOOL_CHECK_ARG(bool) exempt_unknown;
 
   threshold.def_val = 3;
   threshold.min_val = 0;
@@ -383,8 +428,26 @@ static int register_system_variables() {
                     "component_connection_control.max_connection_delay");
     goto reg_max_delay_failed;
   }
+
+  exempt_unknown.def_val = false;
+  if (mysql_service_component_sys_variable_register->register_variable(
+          "component_connection_control", "exempt_unknown_users",
+          PLUGIN_VAR_BOOL | PLUGIN_VAR_RQCMDARG,
+          "Skip delay for unknown users (like load balancer checking service "
+          "availability). Default is OFF.",
+          nullptr, update_exempt_unknown_users, (void *)&exempt_unknown,
+          (void *)&g_variables.exempt_unknown_users) != 0) {
+    LogComponentErr(ERROR_LEVEL,
+                    ER_CONNECTION_CONTROL_VARIABLE_REGISTRATION_FAILED,
+                    "component_connection_control.exempt_unknown_users");
+    goto reg_exempt_unknown_failed;
+  }
+
   return 0;
 
+reg_exempt_unknown_failed:
+  mysql_service_component_sys_variable_unregister->unregister_variable(
+      "component_connection_control", "max_connection_delay");
 reg_max_delay_failed:
   mysql_service_component_sys_variable_unregister->unregister_variable(
       "component_connection_control", "min_connection_delay");
@@ -430,6 +493,15 @@ static int unregister_system_variables() {
                     "component_connection_control.max_connection_delay");
     error = 1;
   }
+
+  if (mysql_service_component_sys_variable_unregister->unregister_variable(
+          "component_connection_control", "exempt_unknown_users") != 0) {
+    LogComponentErr(ERROR_LEVEL,
+                    ER_CONNECTION_CONTROL_VARIABLE_UNREGISTRATION_FAILED,
+                    "component_connection_control.exempt_unknown_users");
+    error = 1;
+  }
+
   return error;
 }
 

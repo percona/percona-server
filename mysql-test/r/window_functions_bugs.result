@@ -283,6 +283,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t(a INT);
 INSERT INTO t values (1),(2),(3),(6),(0);
+SET explain_json_format_version = 1;
 Discard w
 SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
 1
@@ -677,6 +678,7 @@ EXPLAIN
 Warnings:
 Note	3599	Window function 'rank' ignores the frame clause of window 'w1' and aggregates over the whole partition
 Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+SET explain_json_format_version = DEFAULT;
 DROP TABLE t;
 # End of test for Bug#27062031
 #

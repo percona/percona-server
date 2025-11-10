@@ -34,6 +34,7 @@
 #include <cstring>
 #include <deque>
 #include <string>
+#include <string_view>
 
 #include "my_byteorder.h"
 #include "my_sys.h"

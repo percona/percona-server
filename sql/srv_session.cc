@@ -849,7 +849,7 @@ false  on success
 true   on failure
 */
 bool Srv_session::open() {
-  char stack_start;
+  char stack_start = 0;
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, m_thd, &m_da));

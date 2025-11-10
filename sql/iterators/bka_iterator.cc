@@ -97,7 +97,7 @@ BKAIterator::BKAIterator(
             std::max(expected_inner_rows_per_outer_row, 1.0f));
 }
 
-bool BKAIterator::Init() {
+bool BKAIterator::DoInit() {
   if (!m_outer_input_tables.has_blob_column()) {
     size_t upper_row_size =
         pack_rows::ComputeRowSizeUpperBoundSansBlobs(m_outer_input_tables);
@@ -273,7 +273,7 @@ int BKAIterator::MakeNullComplementedRow() {
   return -1;
 }
 
-int BKAIterator::Read() {
+int BKAIterator::DoRead() {
   for (;;) {  // Termination condition within loop.
     switch (m_state) {
       case State::END_OF_ROWS:
@@ -337,7 +337,7 @@ MultiRangeRowIterator::MultiRangeRowIterator(
                            tables_to_get_rowid_for),
       m_join_type(join_type) {}
 
-bool MultiRangeRowIterator::Init() {
+bool MultiRangeRowIterator::DoInit() {
   /*
     Prepare to iterate over keys from the join buffer and to get
     matching candidates obtained with MRR handler functions.
@@ -433,7 +433,7 @@ bool MultiRangeRowIterator::MrrSkipRecord(char *range_info) {
   return RowHasBeenRead(rec_ptr);
 }
 
-int MultiRangeRowIterator::Read() {
+int MultiRangeRowIterator::DoRead() {
   // Read a row from the MRR buffer. rec_ptr tells us which outer row
   // this corresponds to; it corresponds to range->ptr in MrrNextCallback(),
   // and points to the serialized outer row in BKAIterator's m_row array.

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 SET optimizer_trace_max_mem_size=1048576;
 SET end_markers_in_json=on;
 SET optimizer_trace="enabled=on,one_line=off";
@@ -3748,3 +3749,4 @@ SELECT 1 FROM t1 WHERE 1 LIKE
 DROP TABLE t1;
 SET @@optimizer_trace_features=default;
 drop function show_json_object;
+include/rpl/set_gtid_mode_on.inc

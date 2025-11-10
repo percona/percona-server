@@ -30,6 +30,7 @@
 #include <set>
 #include <string>
 
+#include "mysqlrouter/accounts_cleaner.h"
 #include "mysqlrouter/mysql_session.h"
 
 static constexpr unsigned kMaxPasswordRetries = 10000;
@@ -47,7 +48,9 @@ struct UserOptions {
 
 class BootstrapMySQLAccount {
  public:
-  BootstrapMySQLAccount(mysqlrouter::MySQLSession *session) : mysql_{session} {}
+  BootstrapMySQLAccount(mysqlrouter::MySQLSession *session,
+                        mysqlrouter::MySQLAccountsCleaner &accounts_cleaner)
+      : mysql_{session}, accounts_cleaner_{accounts_cleaner} {}
 
   std::string create_router_accounts(const UserOptions &user_options,
                                      const std::set<std::string> &hostnames,
@@ -76,15 +79,8 @@ class BootstrapMySQLAccount {
       const std::string &username, const std::set<std::string> &hostnames,
       bool if_not_exists);
 
-  struct UndoCreateAccountList {
-    enum {
-      kNotSet = 1,  // =1 is not a requirement, just defensive programming
-      kAllAccounts,
-      kNewAccounts
-    } type = kNotSet;
-    std::string accounts;
-  } undo_create_account_list_;
   mysqlrouter::MySQLSession *mysql_;
+  mysqlrouter::MySQLAccountsCleaner &accounts_cleaner_;
 };
 
 #endif  // ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_MYSQL_ACCOUNT_H_

@@ -1006,6 +1006,26 @@ static bool recv_find_max_checkpoint(log_t &log,
   return found;
 }
 
+Log_checkpoint_header_no recv_find_checkpoint_header_no(log_t &log,
+                                                        lsn_t checkpoint_lsn) {
+  Log_checkpoint_location checkpoint;
+  if (recv_find_max_checkpoint(log, checkpoint)) {
+    /* In theory the caller may ask for a checkpoint_lsn from any of 2 headers
+    of any redo log file, but in practice we know it always asks for the
+    maximal one, which we assert here and exploit by reusing
+    `recv_find_max_checkpoint` to make implementation shorter. */
+    ut_ad(checkpoint.m_checkpoint_lsn == checkpoint_lsn);
+    if (checkpoint.m_checkpoint_lsn == checkpoint_lsn) {
+      return checkpoint.m_checkpoint_header_no;
+    }
+  }
+#ifdef UNIV_DEBUG
+  ut_error;
+#else
+  return Log_checkpoint_header_no::HEADER_1;
+#endif
+}
+
 /** Reads in pages which have hashed log records, from an area around a given
 page number.
 @param[in]     requested_page_id
@@ -3893,21 +3913,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   err = log_start(log, checkpoint_lsn, recovered_lsn, false);
   if (err != DB_SUCCESS) {
     return err;
-  }
-
-  /* Make the preservation of max checkpoint info on disk certain by writing
-  the checkpoint also to the other checkpoint header. After that both headers
-  will have the same checkpoint_lsn. This is an extra protection in case next
-  checkpoint write will become corrupted because of crash during the write. */
-
-  if (!srv_read_only_mode) {
-    log.next_checkpoint_header_no =
-        log_next_checkpoint_header(checkpoint.m_checkpoint_header_no);
-
-    err = log_files_next_checkpoint(log, checkpoint_lsn);
-    if (err != DB_SUCCESS) {
-      return err;
-    }
   }
 
   ut_a(recv_sys->spaces->empty());

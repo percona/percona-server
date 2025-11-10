@@ -179,13 +179,12 @@ bool ClusterMetadata::connect_and_setup_session(
       const auto log_level =
           connect_res_changed ? LogLevel::kInfo : LogLevel::kDebug;
 
-      log_custom(log_level, "Connected with metadata server running on %s:%i",
-                 metadata_server.hostname().c_str(), metadata_server.port());
+      log_custom(log_level, "Connected with metadata server running on %s",
+                 metadata_server.str().c_str());
       return true;
     } else {
-      log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
-                  metadata_server.hostname().c_str(), metadata_server.port(),
-                  result.error().c_str());
+      log_warning("Failed setting up the session on Metadata Server %s: %s",
+                  metadata_server.str().c_str(), result.error().c_str());
     }
 
   } else {
@@ -193,10 +192,10 @@ bool ClusterMetadata::connect_and_setup_session(
     const auto log_level =
         connect_res_changed ? LogLevel::kWarning : LogLevel::kDebug;
 
-    log_custom(
-        log_level, "Failed connecting with Metadata Server %s:%d: %s (%i)",
-        metadata_server.hostname().c_str(), metadata_server.port(),
-        metadata_connection_->last_error(), metadata_connection_->last_errno());
+    log_custom(log_level, "Failed connecting with Metadata Server %s: %s (%i)",
+               metadata_server.str().c_str(),
+               metadata_connection_->last_error(),
+               metadata_connection_->last_errno());
   }
 
   metadata_connection_.reset();

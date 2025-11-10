@@ -7,6 +7,9 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
+
 select * from (select 2 from DUAL) AS b;
 -- error ER_BAD_FIELD_ERROR
 SELECT 1 as a FROM (SELECT 1 UNION SELECT a) AS b;
@@ -3506,6 +3509,7 @@ SELECT _latin1 'Ã¥' AS a UNION SELECT c FROM t;
 SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
 
 DROP TABLE t;
+<<<<<<< HEAD
 
 
 --echo #
@@ -3521,3 +3525,8 @@ EXECUTE stmt1;
 EXECUTE stmt1;
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch= @optimizer_switch_saved;
+||||||| merged common ancestors
+=======
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
+>>>>>>> mysql-9.5.0

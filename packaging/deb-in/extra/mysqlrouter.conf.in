@@ -25,7 +25,7 @@
 # MySQL Router configuration file for Debian/Ubuntu
 #
 # Documentation is available at
-#    http://dev.mysql.com/doc/mysql-router/en/
+#    https://dev.mysql.com/doc/mysql-router/en/
 
 [DEFAULT]
 logging_folder = /var/log/mysqlrouter/

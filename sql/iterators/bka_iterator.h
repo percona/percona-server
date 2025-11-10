@@ -124,10 +124,6 @@ class BKAIterator final : public RowIterator {
               std::span<AccessPath *> single_row_index_lookups,
               JoinType join_type);
 
-  bool Init() override;
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_outer_input->SetNullRowFlag(is_null_row);
     m_inner_input->SetNullRowFlag(is_null_row);
@@ -148,6 +144,9 @@ class BKAIterator final : public RowIterator {
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   /// Clear out the MEM_ROOT and prepare for reading rows anew.
   void BeginNewBatch();
 
@@ -351,19 +350,19 @@ class MultiRangeRowIterator final : public TableRowIterator {
     return m_match_flag_buffer[row_number / 8] & (1 << (row_number % 8));
   }
 
+ private:
   /**
     Do the actual multi-range read with the rows given by set_rows() and using
     the temporary buffer given in set_mrr_buffer().
    */
-  bool Init() override;
+  bool DoInit() override;
 
   /**
     Read another inner row (if any) and load the appropriate outer row(s)
     into the associated table buffers.
    */
-  int Read() override;
+  int DoRead() override;
 
- private:
   // Thunks from function pointers to the actual callbacks.
   static range_seq_t MrrInitCallbackThunk(void *init_params, uint n_ranges,
                                           uint flags) {

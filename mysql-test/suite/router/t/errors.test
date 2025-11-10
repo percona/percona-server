@@ -4,6 +4,9 @@
 # other tests because they contain valid configuration, and invalid is required.
 #
 #
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -55,3 +58,5 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 --source ../include/mrs/cleanup.inc
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

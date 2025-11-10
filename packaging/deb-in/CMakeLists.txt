@@ -99,6 +99,11 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
   SET (DEB_LICENSENAME "Commercial")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
+# Commercial only client
+  SET (DEB_INSTALL_CLIENT_EXTRA
+"
+usr/bin/mysqldm
+")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INSTALL_SERVER_PLUGINS
@@ -112,6 +117,7 @@ usr/lib/mysql/plugin/authentication_webauthn.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/component_keyring_hashicorp.so
+usr/lib/mysql/plugin/component_keyring_kmip.so
 usr/lib/mysql/plugin/component_keyring_oci.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/keyring_okv.so
@@ -140,6 +146,8 @@ usr/lib/mysql/private/libpolyglot.so
 usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
 usr/bin/mysql_test_jwt_generator
+usr/lib/mysql/plugin/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/component_test_telemetry_secret_provider.so
 ")
 
   SET (DEB_INSTALL_CLIENT_PLUGINS

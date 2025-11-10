@@ -25,6 +25,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "keyring_operations_helper.h"
 
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/keyring_reader_with_status.h"
+#include "mysql/service_mysql_alloc.h"
+#include "scope_guard.h"
+
 namespace keyring_operations_helper {
 
 int read_secret(SERVICE_TYPE(keyring_reader_with_status) * keyring_reader,

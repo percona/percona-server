@@ -1058,12 +1058,13 @@ static void pars_process_assign_list(upd_node_t *node) /*!< in: update node */
 
     col_sym = assign_node->col;
 
-    upd_field_set_field_no(upd_field, clust_index->get_col_pos(col_sym->col_no),
+    const dict_col_t *const col = node->table->get_col(col_sym->col_no);
+    upd_field_set_field_no(upd_field, dict_col_get_clust_pos(col, clust_index),
                            clust_index);
     upd_field->exp = assign_node->val;
+    col->copy_type(dfield_get_type(&upd_field->new_val));
 
-    if (!clust_index->get_col(upd_field->field_no)
-             ->get_fixed_size(dict_table_is_comp(node->table))) {
+    if (!col->get_fixed_size(dict_table_is_comp(node->table))) {
       changes_field_size = 0;
     }
 

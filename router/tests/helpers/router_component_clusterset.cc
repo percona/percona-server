@@ -40,7 +40,7 @@ void RouterComponentClusterSetTest::create_clusterset(
        ++cluster_id) {
     ClusterData cluster_data;
     cluster_data.id = cluster_id;
-    cluster_data.primary_node_id = 0;
+    cluster_data.primary_node_id = cs_options.primary_node_id;
     // 0-based -> 1-based
     const std::string id = std::to_string(cluster_id + 1);
 
@@ -72,7 +72,8 @@ void RouterComponentClusterSetTest::create_clusterset(
     }
 
     for (unsigned node_id = 0; node_id < gr_nodes_num; ++node_id) {
-      const std::string role = node_id == 0 ? "PRIMARY" : "SECONDARY";
+      const std::string role =
+          node_id == cs_options.primary_node_id ? "PRIMARY" : "SECONDARY";
       GRNode gr_node{cluster_data.nodes[node_id].classic_port,
                      "00000000-0000-0000-0000-0000000000" +
                          std::to_string(cluster_id + 1) +
@@ -147,8 +148,6 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
     JsonValue cluster_obj(rapidjson::kObjectType);
     const auto &cluster_data = cs_topology.clusters[cluster_id];
 
-    add_json_int_field(cluster_obj, "primary_node_id",
-                       cluster_data.primary_node_id);
     add_json_str_field(cluster_obj, "uuid", cluster_data.uuid);
     add_json_str_field(cluster_obj, "name", cluster_data.name);
     add_json_str_field(cluster_obj, "role", cluster_data.role);
@@ -185,9 +184,6 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
       gr_nodes_array.PushBack(node_obj, json_allocator);
     }
     cluster_obj.AddMember("gr_nodes", gr_nodes_array, json_allocator);
-
-    add_json_int_field(cluster_obj, "primary_node_id",
-                       cluster_data.primary_node_id);
 
     json_array_clusters.PushBack(cluster_obj, json_allocator);
   }
@@ -244,6 +240,8 @@ void RouterComponentClusterSetTest::set_mock_clusterset_metadata(
 
   add_json_int_field(json_doc, "simulate_cluster_not_found",
                      cs_options.simulate_cluster_not_found);
+  add_json_int_field(json_doc, "simulate_router_options_no_rows",
+                     cs_options.simulate_router_options_no_rows);
   add_json_int_field(json_doc, "config_defaults_stored_is_null",
                      cs_options.simulate_config_defaults_stored_is_null);
   add_json_str_field(json_doc, "router_version", MYSQL_ROUTER_VERSION);

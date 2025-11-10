@@ -65,8 +65,8 @@ class ContextPool final {
   void release(IContext *ctx);
   void release_thread();
 
-  void increase_active_items();
-  void decrease_active_items();
+  void increase_active_items(bool created);
+  void decrease_active_items(bool destroyed);
 
   bool can_create();
   IContext *create();
@@ -86,8 +86,10 @@ class ContextPool final {
   std::condition_variable m_item_availability;
   bool m_teardown = false;
   std::deque<IContext *> m_items;
-  size_t m_active_items = 0;
-  size_t m_created_items = 0;
+  size_t m_created_items = 0;               // total created contexts
+  size_t m_active_items = 0;                // alive contexts
+  std::atomic<size_t> m_running_items = 0;  // contexts in use
+  std::atomic<size_t> m_queued_items = 0;   // contexts in the release queue
 
   std::atomic_bool m_forbid_context_creation = false;
 };

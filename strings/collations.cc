@@ -27,8 +27,6 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <new>
-#include <utility>
 
 #include "mysql/strings/m_ctype.h"
 #include "strings/collations_internal.h"

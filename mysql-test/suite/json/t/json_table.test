@@ -168,8 +168,10 @@ let $query= select * from
 
 eval $query;
 eval explain $query;
+SET explain_json_format_version = 1;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
+SET explain_json_format_version = DEFAULT;
 
 let $query= select * from
   json_table(

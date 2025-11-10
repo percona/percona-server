@@ -1074,6 +1074,31 @@ a	int	YES		NULL
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
+CREATE TABLE t1(a int, b varchar(10), c double);
+INSERT INTO t1 VALUES
+(1, "1a", 4.12),
+(2, "2b", 123.321),
+(3, "3c", 0),
+(4, "4d",9999.999);
+CREATE PROCEDURE p1()
+BEGIN
+SELECT * FROM t1;
+SET @a := 3;
+SELECT * FROM t1;
+SELECT * FROM t1;
+END
+//
+Fetched value from column 'a' of row 1 without specifying result set number is: 1
+Fetched value from column 'c' of row 2 without specifying result set number is: 123.321
+Fetched value from column 'a' of row 1 of result set 1 is: 1
+Fetched value from column 'b' of row 2 of result set 2 is: 2b
+Fetched value from column 'c' of row 4 of result set 3 is: 9999.999
+mysqltest: At line 1: Query 'CALL p1()' didn't return result set number '6'
+SELECT 4 as regular_select;
+regular_select
+4
+DROP PROCEDURE p1;
+DROP TABLE t1;
 ERROR 42000: Unknown database 'inexistent'
 ERROR 28000: Access denied for user 'inexistent'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)

@@ -26,29 +26,21 @@
 #ifndef _PROCESS_MANAGER_H_
 #define _PROCESS_MANAGER_H_
 
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/loader.h"
-#include "process_launcher.h"
-#include "process_wrapper.h"
-
-#include <gmock/gmock.h>
 #include <chrono>
 #include <cstring>
-#include <functional>
-#include <iostream>
 #include <list>
 #include <map>
-#include <sstream>
-#include <stdexcept>
-#include <streambuf>
 #include <vector>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/net_ts/win32_named_pipe.h"
 #include "mysql/harness/stdx/expected.h"
+#include "process_launcher.h"
+#include "process_wrapper.h"
 #include "router_test_helpers.h"
 #include "test/temp_directory.h"
 
@@ -142,12 +134,23 @@ class ProcessManager {
         std::string executable, std::string logging_dir,
         std::string logging_file, std::string notify_socket_path,
         std::list<std::tuple<std::unique_ptr<ProcessWrapper>, exit_status_type>>
-            &processes)
+            &processes
+#ifdef _WIN32
+        ,
+        mysql_harness::win32::JobObject &job_object
+#endif
+        )
         : executable_{std::move(executable)},
           logging_dir_{std::move(logging_dir)},
           logging_file_{std::move(logging_file)},
           notify_socket_path_{std::move(notify_socket_path)},
-          processes_(processes) {}
+          processes_(processes)
+#ifdef _WIN32
+          ,
+          job_object_(job_object)
+#endif
+    {
+    }
 
     ProcessWrapper &launch_command(
         const std::string &command, const std::vector<std::string> &params,
@@ -181,6 +184,10 @@ class ProcessManager {
 
     std::list<std::tuple<std::unique_ptr<ProcessWrapper>, exit_status_type>>
         &processes_;
+
+#ifdef _WIN32
+    mysql_harness::win32::JobObject &job_object_;
+#endif
 
     bool with_core_{false};
   };
@@ -784,6 +791,10 @@ class ProcessManager {
   std::list<std::tuple<std::unique_ptr<ProcessWrapper>, exit_status_type>>
       processes_;
   static const OutputResponder kEmptyResponder;
+
+#ifdef _WIN32
+  mysql_harness::win32::JobObject job_object_;
+#endif
 };
 
 #endif  // _PROCESS_MANAGER_H_

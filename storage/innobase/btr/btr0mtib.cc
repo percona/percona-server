@@ -439,6 +439,10 @@ dberr_t Page_extent::flush_one_by_one(fil_node_t *node) {
   const size_t physical_page_size = m_page_loads[0]->get_page_size();
 
   for (auto &page_load : m_page_loads) {
+    if (page_load->get_block() == nullptr) {
+      break;
+    }
+
     ut_ad(page_load->is_memory());
 
     file::Block *compressed_block = nullptr;
@@ -500,13 +504,16 @@ dberr_t Page_extent::flush_one_by_one(fil_node_t *node) {
       file::Block::free(compressed_block);
       const size_t hole_offset = offset + page_size;
       const size_t hole_size = physical_page_size - page_size;
-      ut_ad(hole_size < physical_page_size);
-      dberr_t err =
-          os_file_punch_hole(node->handle.m_file, hole_offset, hole_size);
-      if (err != DB_SUCCESS) {
-        LogErr(WARNING_LEVEL, ER_IB_BULK_FLUSHER_PUNCH_HOLE, index->table_name,
-               index->name(), (size_t)space_id, (size_t)page_no,
-               physical_page_size, hole_size, file_name.c_str(), (size_t)err);
+      if (hole_size > 0) {
+        ut_ad(hole_size < physical_page_size);
+        dberr_t err =
+            os_file_punch_hole(node->handle.m_file, hole_offset, hole_size);
+        if (err != DB_SUCCESS) {
+          LogErr(WARNING_LEVEL, ER_IB_BULK_FLUSHER_PUNCH_HOLE,
+                 index->table_name, index->name(), (size_t)space_id,
+                 (size_t)page_no, physical_page_size, hole_size,
+                 file_name.c_str(), (size_t)err);
+        }
       }
     }
     if (e_block != nullptr) {
@@ -1638,6 +1645,7 @@ Btree_load::Btree_load(dict_index_t *index, trx_t *trx, size_t loader_num,
       m_full_blob_inserter(*this) {
   ut_d(fil_space_inc_redo_skipped_count(m_index->space));
   ut_d(m_index_online = m_index->online_status);
+  ut_ad(!index->is_fts_index());
   m_bulk_flusher.start(m_index->space, m_loader_num, flush_queue_size);
 }
 
@@ -1728,6 +1736,22 @@ void Btree_load::add_to_bulk_flusher(Page_extent *page_extent) {
   ut_ad(page_extent->is_any_used());
 
   m_bulk_flusher.add(page_extent, m_fn_wait_begin, m_fn_wait_end);
+}
+
+void Btree_load::add_blobs_to_bulk_flusher() {
+  const size_t n = m_extents_tracked.size();
+  for (size_t i = 0; i < n; ++i) {
+    auto page_extent = m_extents_tracked.front();
+    m_extents_tracked.pop_front();
+    if (page_extent->is_blob()) {
+      m_bulk_flusher.add(page_extent, m_fn_wait_begin, m_fn_wait_end);
+    } else {
+      m_extents_tracked.push_back(page_extent);
+    }
+  }
+  while (m_bulk_flusher.is_work_available()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
 }
 
 void Btree_load::add_to_bulk_flusher(bool finish) {
@@ -3722,6 +3746,8 @@ dberr_t Blob_inserter::init() {
 }
 
 dberr_t Blob_handle::extend() {
+  ut_ad(m_first_page_load->is_memory());
+
   /* Allocate a data page. */
   m_data_page_load = m_blob_inserter.alloc_data_page();
   m_data_page.init(m_data_page_load);

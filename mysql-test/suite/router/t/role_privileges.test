@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 --source ../include/mrs/is_mrs_schema_v3_or_v4.inc
 
@@ -467,6 +469,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 10}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -481,6 +484,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc/db/tbl/10'
 --let $mrs_client_arg_expected_status=200
@@ -508,6 +512,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 20}'
 --let $mrs_client_arg_path='/svc2/db/tbl'
@@ -522,6 +527,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc2/db/tbl/20'
 --let $mrs_client_arg_expected_status=200
@@ -558,6 +564,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 10}'
 --let $mrs_client_arg_path='/svc2/db/tbl'
@@ -572,6 +579,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc2/db/tbl/10'
 --let $mrs_client_arg_expected_status=200
@@ -649,6 +657,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 50}'
 --let $mrs_client_arg_path='/svc3/db/tbl'
@@ -663,6 +672,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc3/db/tbl/50'
 --let $mrs_client_arg_expected_status=200
@@ -676,6 +686,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{}'
 --let $mrs_client_arg_path='/svc3/db/fn'
@@ -718,6 +729,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=PUT
 --let $mrs_client_arg_payload='{"id": 50}'
 --let $mrs_client_arg_path='/svc2/db/tbl/50'
@@ -742,6 +754,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 10}'
 --let $mrs_client_arg_path='/svc2/db/tbl'
@@ -756,6 +769,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc2/db/tbl/10'
 --let $mrs_client_arg_expected_status=200
@@ -783,6 +797,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 20}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -797,6 +812,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc/db/tbl/20'
 --let $mrs_client_arg_expected_status=200
@@ -925,6 +941,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 10}'
 --let $mrs_client_arg_path='/svc2/db/tbl'
@@ -966,6 +983,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 20}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -1067,6 +1085,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 30}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -1081,6 +1100,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc/db/tbl/30'
 --let $mrs_client_arg_expected_status=200
@@ -1307,6 +1327,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 11}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -1355,6 +1376,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_payload='{"id": 12}'
 --let $mrs_client_arg_path='/svc/db/tbl'
@@ -1369,6 +1391,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/user_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_path='/svc/db/tbl/12'
 --let $mrs_client_arg_expected_status=200

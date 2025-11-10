@@ -1140,9 +1140,6 @@ typedef std::list<random_password_info> Userhostpassword_list;
 bool send_password_result_set(THD *thd,
                               const Userhostpassword_list &generated_passwords);
 bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
-bool mysql_alter_user_comment(THD *thd, const List<LEX_USER> *users,
-                              const std::string &json_blob, bool expect_text);
-
 /* helper method to check if sandbox mode should be turned off or not */
 bool turn_off_sandbox_mode(THD *thd, LEX_USER *user);
 

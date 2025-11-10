@@ -90,7 +90,6 @@ Configuration::Configuration() {
   _backupPath = 0;
   _initialStart = false;
   m_config_retriever = 0;
-  m_logLevel = 0;
 }
 
 Configuration::~Configuration() {
@@ -102,9 +101,6 @@ Configuration::~Configuration() {
     delete m_config_retriever;
   }
 
-  if (m_logLevel) {
-    delete m_logLevel;
-  }
   ndb_mgm_destroy_iterator(m_clusterConfigIter);
 }
 
@@ -295,6 +291,18 @@ void Configuration::setupConfiguration() {
   if (!(iter.get(CFG_TYPE_OF_SECTION, &type) == 0 && type == NODE_TYPE_DB)) {
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
               "I'm wrong type of node");
+  }
+
+  /**
+   * Setup g_eventLogger log levels for logevents.
+   */
+
+  for (unsigned j = 0; j < LogLevel::LOGLEVEL_CATEGORIES; j++) {
+    Uint32 level;
+    LogLevel &logLevel = g_eventLogger->m_logLevel;
+    if (!iter.get(CFG_MIN_LOGLEVEL + j, &level)) {
+      logLevel.setLogLevel((LogLevel::EventCategory)j, level);
+    }
   }
 
   /**
@@ -722,11 +730,6 @@ void Configuration::calcSizeAlt(ConfigValues *ownConfig) {
   unsigned int reservedTransactionBufferBytes = 1048576 / 4;
   unsigned int maxOpsPerTrans = ~(Uint32)0;
 
-  m_logLevel = new LogLevel();
-  if (!m_logLevel) {
-    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "Failed to create LogLevel", "");
-  }
-
   struct AttribStorage {
     int paramId;
     Uint32 *storage;
@@ -798,13 +801,6 @@ void Configuration::calcSizeAlt(ConfigValues *ownConfig) {
   noOfDataPages = (Uint32)(dataMem / 32768);
   noOfIndexPages = (Uint32)(indexMem / 8192);
   noOfIndexPages = DO_DIV(noOfIndexPages, ldmInstances);
-
-  for (unsigned j = 0; j < LogLevel::LOGLEVEL_CATEGORIES; j++) {
-    Uint32 tmp;
-    if (!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL + j, &tmp)) {
-      m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
-    }
-  }
 
   // tmp
   ndb_mgm_configuration_iterator *iter = m_clusterConfigIter;

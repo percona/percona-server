@@ -499,16 +499,15 @@ static bool set_parameter_value(
           tm.minute = (uint)to[6];
           tm.second = (uint)to[7];
           tm.second_part = (len > 8) ? (ulong)sint4korr(to + 8) : 0;
-          if (tm.hour > 838) {
-            /* TODO: add warning 'Data truncated' here */
-            tm.hour = 838;
-            tm.minute = 59;
-            tm.second = 59;
-          }
+          tm.time_type = MYSQL_TIMESTAMP_TIME;
           tm.day = tm.year = tm.month = 0;
         } else {
           set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
         }
+      }
+      if (check_datetime_range(tm)) {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "TIME", "set_parameter_value");
+        return true;
       }
       param->set_time(&tm, MYSQL_TIMESTAMP_TIME);
       break;
@@ -528,9 +527,14 @@ static bool set_parameter_value(
           tm.hour = tm.minute = tm.second = 0;
           tm.second_part = 0;
           tm.neg = false;
+          tm.time_type = MYSQL_TIMESTAMP_DATE;
         } else {
           set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
         }
+      }
+      if (check_datetime_range(tm)) {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "DATE", "set_parameter_value");
+        return true;
       }
       param->set_time(&tm, MYSQL_TIMESTAMP_DATE);
       break;
@@ -543,6 +547,7 @@ static bool set_parameter_value(
       if (pack_type == Prepared_statement::enum_param_pack_type::UNPACKED) {
         assert(len == sizeof(MYSQL_TIME));
         tm = *(*(const MYSQL_TIME **)pos);
+        type = tm.time_type;
       } else {
         assert(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
         const uchar *to = *pos;
@@ -568,6 +573,12 @@ static bool set_parameter_value(
           tm.time_zone_displacement = sint2korr(to + 11) * SECS_PER_MIN;
           type = MYSQL_TIMESTAMP_DATETIME_TZ;
         }
+      }
+      tm.time_type = type;
+      if (check_datetime_range(tm)) {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "DATETIME",
+                 "set_parameter_value");
+        return true;
       }
       param->set_time(&tm, type);
       break;
@@ -737,7 +748,7 @@ bool Prepared_statement::insert_parameters(
                param->value.integer < 0) ||
               (!param->unsigned_flag && param->is_unsigned_actual() &&
                param->value.integer < 0)) {
-            my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "signed integer",
+            my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SIGNED INTEGER",
                      "mysqld_stmt_execute");
             return true;
           }

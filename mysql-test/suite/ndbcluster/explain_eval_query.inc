@@ -2,7 +2,9 @@
 echo ## Query ##;
 echo $query;
 echo ## Plan ##;
+SET explain_json_format_version = 1;
 eval explain format=json into @plan $query;
+SET explain_json_format_version = DEFAULT;
 --vertical_results
 
 if(`SELECT JSON_CONTAINS_PATH(@plan, 'one', '$.query_block.insert_from.nested_loop')`){

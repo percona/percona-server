@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "dim.h"
+#include "mysql/harness/destination.h"
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/section_config_exposer.h"
@@ -131,8 +132,10 @@ MetadataCachePluginConfig::get_metadata_servers(uint16_t default_port) const {
     mysqlrouter::URI u(address);
     if (u.port == 0) u.port = default_port;
 
-    log_debug("Adding metadata server '%s:%d'", u.host.c_str(), u.port);
-    address_vector.emplace_back(u.host, u.port);
+    mysql_harness::TcpDestination dest(u.host, u.port);
+
+    log_debug("Adding metadata server '%s'", dest.str().c_str());
+    address_vector.emplace_back(dest);
   };
 
   if (metadata_cache_dynamic_state) {

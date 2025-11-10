@@ -157,9 +157,12 @@ enum class ClusterType {
   RS_V2  /* ReplicaSet (metadata 2.x) */
 };
 
-ClusterType ROUTER_CLUSTER_EXPORT
+ClusterType ROUTER_CLUSTER_EXPORT get_cluster_type(
+    const MetadataSchemaVersion &schema_version, MySQLSession *mysql);
+
+stdx::expected<ClusterType, std::string> ROUTER_CLUSTER_EXPORT
 get_cluster_type(const MetadataSchemaVersion &schema_version,
-                 MySQLSession *mysql, unsigned int router_id = 0);
+                 MySQLSession *mysql, unsigned int router_id);
 
 std::string ROUTER_CLUSTER_EXPORT to_string(const ClusterType cluster_type);
 

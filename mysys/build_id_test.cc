@@ -23,8 +23,6 @@
 
 #include <cstdio>
 
-#include "my_config.h"
-
 #include "build_id.h"
 
 char server_build_id[42];

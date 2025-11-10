@@ -1897,7 +1897,7 @@ void srv_export_innodb_status(void) {
   below the low limit. */
   ReadView oldest_view;
   trx_sys->mvcc->clone_oldest_view(&oldest_view);
-  trx_id_t low_limit_no = oldest_view.view_low_limit_no();
+  trx_id_t low_limit_no = oldest_view.low_limit_no();
 
   rw_lock_s_unlock(&purge_sys->latch);
 

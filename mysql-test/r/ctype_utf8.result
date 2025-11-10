@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t1,t2;
 set names utf8mb3;
 Warnings:
@@ -6817,3 +6818,4 @@ INSERT INTO t2 (c2) VALUES(REPEAT(_utf8mb4 0xE0B295, 128));
 ERROR HY000: Incorrect string value: '\xE0\xB2\x95\xE0\xB2\x95...' for column 'c2' at row 1
 DROP TABLE t1;
 DROP TABLE t2;
+include/rpl/set_gtid_mode_on.inc

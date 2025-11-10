@@ -112,6 +112,27 @@ class sp_instr : public sp_printable {
 
   ~sp_instr() override { m_arena.free_items(); }
 
+  enum Instr_type {
+    INSTR_UNKNOWN = 0,
+    INSTR_COPEN,
+    INSTR_CCLOSE,
+    INSTR_CFETCH,
+    INSTR_CPOP,
+    INSTR_HPOP,
+    INSTR_ERROR,
+    INSTR_JUMP,
+    INSTR_COND_HANDLER_PUSH_JUMP,
+    INSTR_COND_HANDLER_RETURN,
+    INSTR_LEX_CPUSH,
+    INSTR_LEX_FRETURN,
+    INSTR_LEX_SET,
+    INSTR_LEX_SET_TRIGGER_FIELD,
+    INSTR_LEX_STMT,
+    INSTR_LEX_BRANCH_CASE_WHEN,
+    INSTR_LEX_BRANCH_IF_NOT,
+    INSTR_LEX_BRANCH_SET_CASE_EXPR
+  };
+
   /**
     Execute this instruction
 
@@ -125,6 +146,13 @@ class sp_instr : public sp_printable {
     @return Error status.
   */
   virtual bool execute(THD *thd, uint *nextp) = 0;
+
+  /**
+    Get the instruction type of this instruction.
+    @return the instruction type
+  */
+  virtual enum Instr_type type() = 0;
+
 #ifdef HAVE_PSI_INTERFACE
   virtual PSI_statement_info *get_psi_info() = 0;
 #endif
@@ -339,6 +367,22 @@ class sp_lex_instr : public sp_instr {
     return validate_lex_and_execute_core(thd, nextp, true);
   }
 
+  enum Instr_type type() override = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_instr  methods.
+  /////////////////////////////////////////////////////////////////////////
+
+  /**
+    Return the query string, which can be passed to the parser. I.e. the
+    operation should return a valid SQL-statement query string.
+
+    @param[out] sql_query SQL-statement query string.
+  */
+  virtual void get_query(String *sql_query) const;
+
+  const LEX *get_lex() { return m_lex; }
+
  protected:
   /////////////////////////////////////////////////////////////////////////
   // Interface (virtual) methods.
@@ -369,14 +413,6 @@ class sp_lex_instr : public sp_instr {
     Invalidate the object.
   */
   virtual void invalidate() = 0;
-
-  /**
-    Return the query string, which can be passed to the parser. I.e. the
-    operation should return a valid SQL-statement query string.
-
-    @param[out] sql_query SQL-statement query string.
-  */
-  virtual void get_query(String *sql_query) const;
 
   /**
     Some expressions may be re-parsed as SELECT statements, but need to be
@@ -488,6 +524,8 @@ class sp_instr_stmt : public sp_lex_instr {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override { return Instr_type::INSTR_LEX_STMT; }
+
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
@@ -549,6 +587,12 @@ class sp_instr_set : public sp_lex_instr {
   void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
+  // sp_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum Instr_type type() override { return Instr_type::INSTR_LEX_SET; }
+
+  /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
@@ -571,6 +615,14 @@ class sp_instr_set : public sp_lex_instr {
     assert(lex->sql_command == SQLCOM_SELECT);
     lex->sql_command = SQLCOM_SET_OPTION;
   }
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_instr_set methods.
+  /////////////////////////////////////////////////////////////////////////
+
+  Item *get_value_item() { return m_value_item; }
+
+  uint get_offset() { return m_offset; }
 
  private:
   /// Frame offset.
@@ -611,6 +663,14 @@ class sp_instr_set_trigger_field : public sp_lex_instr {
   /////////////////////////////////////////////////////////////////////////
 
   void print(const THD *thd, String *str) override;
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum Instr_type type() override {
+    return Instr_type::INSTR_LEX_SET_TRIGGER_FIELD;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
@@ -678,6 +738,8 @@ class sp_instr_freturn : public sp_lex_instr {
     return UINT_MAX;
   }
 
+  enum Instr_type type() override { return Instr_type::INSTR_LEX_FRETURN; }
+
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
@@ -703,6 +765,12 @@ class sp_instr_freturn : public sp_lex_instr {
     assert(lex->sql_command == SQLCOM_SELECT);
     lex->sql_command = SQLCOM_END;
   }
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_instr_freturn methods.
+  /////////////////////////////////////////////////////////////////////////
+
+  Item *get_expr_item() const { return m_expr_item; }
 
  private:
   /// RETURN-expression item.
@@ -756,6 +824,8 @@ class sp_instr_jump : public sp_instr, public sp_branch_instr {
     *nextp = m_dest;
     return false;
   }
+
+  enum Instr_type type() override { return Instr_type::INSTR_JUMP; }
 
   uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
@@ -833,6 +903,8 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
 
   uint get_cont_dest() const override { return m_cont_dest; }
 
+  enum Instr_type type() override = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
@@ -909,6 +981,14 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
   void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
+  // sp_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum Instr_type type() override {
+    return Instr_type::INSTR_LEX_BRANCH_IF_NOT;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
@@ -957,6 +1037,10 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
   void opt_move(uint dst, List<sp_branch_instr> *ibp) override;
+
+  enum Instr_type type() override {
+    return Instr_type::INSTR_LEX_BRANCH_SET_CASE_EXPR;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
@@ -1027,6 +1111,14 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
   /////////////////////////////////////////////////////////////////////////
 
   void print(const THD *thd, String *str) override;
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum Instr_type type() override {
+    return Instr_type::INSTR_LEX_BRANCH_CASE_WHEN;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
@@ -1111,6 +1203,10 @@ class sp_instr_hpush_jump : public sp_instr_jump {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override {
+    return Instr_type::INSTR_COND_HANDLER_PUSH_JUMP;
+  }
+
   uint opt_mark(sp_head *sp, List<sp_instr> *leads) override;
 
   /** Override sp_instr_jump's shortcut; we stop here. */
@@ -1167,6 +1263,8 @@ class sp_instr_hpop : public sp_instr {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override { return Instr_type::INSTR_HPOP; }
+
 #ifdef HAVE_PSI_INTERFACE
  public:
   PSI_statement_info *get_psi_info() override { return &psi_info; }
@@ -1192,6 +1290,10 @@ class sp_instr_hreturn : public sp_instr_jump {
   /////////////////////////////////////////////////////////////////////////
 
   bool execute(THD *thd, uint *nextp) override;
+
+  enum Instr_type type() override {
+    return Instr_type::INSTR_COND_HANDLER_RETURN;
+  }
 
   /** Override sp_instr_jump's shortcut; we stop here. */
   uint opt_shortcut_jump(sp_head *, sp_instr *) override { return get_ip(); }
@@ -1259,6 +1361,8 @@ class sp_instr_cpush : public sp_lex_instr {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override { return Instr_type::INSTR_LEX_CPUSH; }
+
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
@@ -1320,6 +1424,8 @@ class sp_instr_cpop : public sp_instr {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override { return Instr_type::INSTR_CPOP; }
+
  private:
   uint m_count;
 
@@ -1353,6 +1459,8 @@ class sp_instr_copen : public sp_instr {
   /////////////////////////////////////////////////////////////////////////
 
   bool execute(THD *thd, uint *nextp) override;
+
+  enum Instr_type type() override { return Instr_type::INSTR_COPEN; }
 
  private:
   /// Used to identify the cursor in the sp_rcontext.
@@ -1390,6 +1498,8 @@ class sp_instr_cclose : public sp_instr {
 
   bool execute(THD *thd, uint *nextp) override;
 
+  enum Instr_type type() override { return Instr_type::INSTR_CCLOSE; }
+
  private:
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
@@ -1425,6 +1535,8 @@ class sp_instr_cfetch : public sp_instr {
   /////////////////////////////////////////////////////////////////////////
 
   bool execute(THD *thd, uint *nextp) override;
+
+  enum Instr_type type() override { return Instr_type::INSTR_CFETCH; }
 
   void add_to_varlist(sp_variable *var) { m_varlist.push_back(var); }
 
@@ -1471,6 +1583,8 @@ class sp_instr_error : public sp_instr {
     *nextp = get_ip() + 1;
     return true;
   }
+
+  enum Instr_type type() override { return Instr_type::INSTR_ERROR; }
 
   uint opt_mark(sp_head *, List<sp_instr> *) override {
     m_marked = true;

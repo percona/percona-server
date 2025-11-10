@@ -518,8 +518,10 @@ FROM t1
      LEFT JOIN t2 ON t1.a=t2.a AND t2.a < @var1
      LEFT JOIN t3 ON t1.a=t3.a AND t3.a < @var1;
 
+SET explain_json_format_version = 1;
 --skip_if_hypergraph  # Depends on the query plan.
 eval explain format=json $query;
+SET explain_json_format_version = DEFAULT;
 
 --sorted_result
 eval $query;

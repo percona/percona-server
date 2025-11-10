@@ -25,6 +25,6 @@
 # The MySQL @PRODUCTNAMEC@ Client configuration file.
 #
 # For explanations see
-# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+# https://dev.mysql.com/doc/mysql/en/server-system-variables.html
 
 [mysql]

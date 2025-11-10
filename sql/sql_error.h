@@ -34,6 +34,8 @@
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
+#include "my_temporal.h"
+
 #include "mysql/components/services/bits/my_err_bits.h"
 #include "mysql/components/services/bits/sql_bits.h"
 #include "mysql/strings/int2str.h"
@@ -254,6 +256,7 @@ class ErrConvString {
   ErrConvString(double nr);
   ErrConvString(const my_decimal *nr);
   ErrConvString(const MYSQL_TIME *ltime, uint dec);
+  ErrConvString(Time_val time, uint dec);
 
   const char *ptr() const { return err_buffer; }
   size_t length() const { return buf_length; }

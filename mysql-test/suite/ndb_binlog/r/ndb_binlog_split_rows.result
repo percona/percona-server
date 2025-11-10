@@ -1,10 +1,3 @@
-call mtr.add_suppression("Failed to setup binlogging");
-call mtr.add_suppression("Failed to setup binlogging");
-call mtr.add_suppression("Distribution of CREATE TABLE");
-call mtr.add_suppression("Failed to setup binlogging");
-call mtr.add_suppression("Distribution of CREATE TABLE");
-call mtr.add_suppression("Failed to setup binlogging");
-call mtr.add_suppression("Distribution of CREATE TABLE");
 ######################################################
 # WL#15413 Subscriber row hash filter
 ######################################################
@@ -50,7 +43,7 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 12/2
 SET @data_volume = 12/2;
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t1;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t1;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -98,13 +91,13 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 12/3
 SET @data_volume = 12/3;
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t2;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 2*(12/3)
 SET @data_volume = 2*(12/3);
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t2;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -153,19 +146,19 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 12/4
 SET @data_volume = 12/4;
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -2 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 2*(12/4)
 SET @data_volume = 2*(12/4);
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 3*(12/4)
 SET @data_volume = 3*(12/4);
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +2, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -215,13 +208,13 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 12/3
 SET @data_volume = 12/3;
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t4;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t4;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 2*(12/3)
 SET @data_volume = 2*(12/3);
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t4;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t4;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -264,12 +257,64 @@ Warnings:
 Warning	1296	Node 12: 'Distribution of CREATE TABLE 't5' failed'
 Warning	1296	Node 13: 'Distribution of CREATE TABLE 't5' failed'
 Warning	1296	Node 14: 'Distribution of CREATE TABLE 't5' failed'
+# #######################################################################
+# Sixth scenario:
+#
+# This tests uses the same configuration as before, but the created table
+# contains a FK/UK relationship. The table is created but there are warnings
+# that the applying of splitted rows will invalidate the constraints
+# enforced on the relation.
+
+# Using mysqld.2 it must log the warning
+CREATE TABLE t6_p (k INT PRIMARY KEY, v VARCHAR(8)) ENGINE = NDB;
+CREATE TABLE t6_c (j INT PRIMARY KEY,
+p_id INT NOT NULL,
+CONSTRAINT p_id_fk FOREIGN KEY(p_id) REFERENCES t6_p(k)) ENGINE = NDB;
+Warnings:
+Warning	1296	Logging row slice for table with Foreign Key or Unique Key. May not contain all modifications to uphold constraints on apply.
+include/assert.inc [Warns that table with Foreign Key will log row slice]
+# Using mysqld.1, a warning is logged only on binlog servers configured for row-slices (e.g. mysqld.2)
+# [connection mysqld.1]
+CREATE TABLE t6_p1 (k INT PRIMARY KEY, v VARCHAR(8)) ENGINE = NDB;
+CREATE TABLE t6_c1 (j INT PRIMARY KEY,
+p_id INT NOT NULL,
+CONSTRAINT p1_id_fk FOREIGN KEY(p_id) REFERENCES t6_p1(k)) ENGINE = NDB;
+include/assert.inc [Does NOT warn that table with Foreign Key will log row slice]
+# [connection mysqld.2]
+include/assert.inc [Warns that table with Foreign Key will log row slice]
+# Restarting binlog on mysqld.2 must log warning for parent tables as well
+# restart:--ndb-log-row-slice-count=3 --ndb-log-row-slice-id=0
+include/assert.inc [Warns that parent and child tables with Foreign Key relation will log row slice]
+# #######################################################################
+# Seventh scenario:
+#
+# This tests uses a table with a Unique Key, so the table is created but
+# there are warnings that the applying of splitted rows will invalidate
+# the constraints.
+
+# Using mysqld.2 it must log the warning
+CREATE TABLE t7 (k INT PRIMARY KEY, j INT NOT NULL, UNIQUE KEY(j)) ENGINE = NDB;
+Warnings:
+Warning	1296	Logging row slice for table with Foreign Key or Unique Key. May not contain all modifications to uphold constraints on apply.
+include/assert.inc [Warns that table with Unique Key will log row slice]
+# Using mysqld.1, a warning is logged only on binlog servers configured for row-slices (e.g. mysqld.2)
+# [connection mysqld.1]
+CREATE TABLE t7_1 (k INT PRIMARY KEY, j INT NOT NULL, UNIQUE KEY(j)) ENGINE = NDB;
+include/assert.inc [Does NOT warn that table with Unique Key will log row slice]
+# [connection mysqld.2]
+include/assert.inc [Warns that table with Unique Key will log row slice]
 # Cleanup
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
+DROP TABLE t6_c;
+DROP TABLE t6_p;
+DROP TABLE t6_c1;
+DROP TABLE t6_p1;
+DROP TABLE t7;
+DROP TABLE t7_1;
 # restart:
 # restart:
 # restart:

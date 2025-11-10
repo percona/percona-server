@@ -33,7 +33,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
+#include <cctype>
+#include <cstddef>
 #include <string>
 
 /* Clone-related macros to parse version strings and determine if clone

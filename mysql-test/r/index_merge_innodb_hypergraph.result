@@ -830,14 +830,13 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Inner hash join (LooseScan) (t1.a = t2.a)  (rows=0.283)
-    -> Sort with duplicate removal: t2.a  (rows=1.41)
+-> Hash semijoin (FirstMatch) (t1.a = t2.a)  (rows=0.283)
+    -> Table scan on t1  (rows=2)
+    -> Hash
         -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
             -> Table scan on t3  (rows=1002)
             -> Hash
                 -> Table scan on t2  (rows=2)
-    -> Hash
-        -> Table scan on t1  (rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1883,7 +1882,7 @@ WHERE col_varchar_key >= 'l' OR
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 EXPLAIN
 -> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (rows=2)
-    -> Table scan on t1  (rows=2)
+    -> Covering index scan on t1 using col_varchar_key  (rows=2)
 
 SELECT col_int_key
 FROM t1

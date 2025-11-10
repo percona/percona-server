@@ -88,11 +88,13 @@ int test_dbug_utils() {
    */
   BaseString tmp("d,somename:o,");
   const char *tmpd = getenv("TMPDIR");
+  if (tmpd == nullptr) tmpd = getenv("TEMP");
   if (tmpd)
     tmp.append(tmpd);
   else
     tmp.append("/tmp");
-  tmp.append("/somepath");
+  tmp.append(DIR_SEPARATOR);
+  tmp.append("somepath");
   const char *const s2 = tmp.c_str();
   dbugPush(s2);
   s = dbugExplain(buffer, DBUG_BUF_SIZE);

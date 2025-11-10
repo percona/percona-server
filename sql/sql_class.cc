@@ -959,7 +959,6 @@ void THD::set_eligible_secondary_engine_handlerton(handlerton *hton) {
 
 void THD::cleanup_after_statement_execution() {
   set_secondary_engine_statement_context(nullptr);
-  m_eligible_secondary_engine_handlerton = nullptr;
 }
 
 bool THD::set_db(const LEX_CSTRING &new_db) {
@@ -2072,6 +2071,8 @@ void THD::cleanup_after_query() {
   // Cleanup and free items that were created during this execution
   cleanup_items(item_list());
   free_items();
+  m_eligible_secondary_engine_handlerton = nullptr;
+
   /* Reset where. */
   where = THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
@@ -2081,7 +2082,9 @@ void THD::cleanup_after_query() {
   if (lex) {
     lex->mi.repl_ignore_server_ids.clear();
   }
-  if (rli_slave) rli_slave->cleanup_after_query();
+  if (rli_slave) {
+    rli_slave->cleanup_after_query();
+  }
   // Set the default "cute" mode for the execution environment:
   check_for_truncated_fields = CHECK_FIELD_IGNORE;
 }

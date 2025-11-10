@@ -814,7 +814,8 @@ template class Equi_height<double>;
 template class Equi_height<String>;
 template class Equi_height<ulonglong>;
 template class Equi_height<longlong>;
-template class Equi_height<MYSQL_TIME>;
+template class Equi_height<Time_val>;
+template class Equi_height<Datetime_val>;
 template class Equi_height<my_decimal>;
 
 }  // namespace histograms

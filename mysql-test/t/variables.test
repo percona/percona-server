@@ -3,6 +3,8 @@
 #
 --source include/have_log_bin.inc
 --source include/have_myisam.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -1560,7 +1562,7 @@ set session collation_database=2048;
 # the statement below will succeed.
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@sql_mode= 8589934592;
+SET @@sql_mode= cast(pow(2,34) as unsigned);
 
 --echo #
 --echo # Bug #59860: log-slow-admin-statements and log-slow-replica-statements not displayed
@@ -1911,3 +1913,5 @@ SET GLOBAL innodb_strict_mode = '0';
 SET GLOBAL innodb_strict_mode = 'true';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_strict_mode = 'false';
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

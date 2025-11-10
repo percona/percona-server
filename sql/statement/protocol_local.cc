@@ -206,8 +206,9 @@ bool Protocol_local::store_date(const MYSQL_TIME &time) {
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_time(const MYSQL_TIME &time, uint) {
-  return store_column(&time, sizeof(MYSQL_TIME));
+bool Protocol_local::store_time(const Time_val &time, uint) {
+  MYSQL_TIME tm = MYSQL_TIME(time);
+  return store_column(&tm, sizeof(MYSQL_TIME));
 }
 
 /* Store a floating point number, as is. */

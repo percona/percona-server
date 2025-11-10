@@ -74,7 +74,7 @@
 # - INSTALL_PARTIAL_REVOKES (--partial-revokes)
 #
 # When changing this page,  _please_ do not forget to update public Wiki
-# https://dev.mysql.com/doc/refman/8.0/en/source-configuration-options.html#option_cmake_install_layout
+# https://dev.mysql.com/doc/refman/en/source-configuration-options.html#option_cmake_install_layout
 
 IF(NOT INSTALL_LAYOUT)
   SET(DEFAULT_INSTALL_LAYOUT "STANDALONE")

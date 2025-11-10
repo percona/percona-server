@@ -1127,6 +1127,13 @@ class BackupIdTable : public VirtualTable {
                           &fragment, &row_id))
       return NdbInfo::ERR_ClusterFailure;
 
+    /* Backup_id is stored in SYSTAB_0 as a 64 bit value,
+     * but only the low 32 bits are used for ids.
+     * Avoid user confusion by returning only the
+     * low 32 bits via NdbInfo.
+     */
+    backup_id &= 0xffffffff;
+
     w.write_number64(backup_id);  // id
     w.write_number(fragment);     // fragment
     w.write_number64(row_id);     // row_id

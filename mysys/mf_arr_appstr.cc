@@ -46,8 +46,6 @@
 #include <cassert>
 #include <cstring>
 
-#include "my_inttypes.h"
-
 bool array_append_string_unique(const char *str, const char **array,
                                 size_t size) {
   const char **p;

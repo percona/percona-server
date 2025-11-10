@@ -742,7 +742,7 @@ class NdbDictInterface {
   int createEvent(NdbEventImpl &, int getFlag);
   int dropEvent(const NdbEventImpl &);
 
-  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int executeSubscribeEvent(NdbEventOperationImpl &, Uint64 &setup_epoch);
   int stopSubscribeEvent(NdbEventOperationImpl &, Uint64 &stop_gci);
 
   int listObjects(NdbDictionary::Dictionary::List &list, ListTablesReq &ltreq,
@@ -947,7 +947,7 @@ class NdbDictionaryImpl : public NdbDictionary::Dictionary {
   int dropBlobEvents(const NdbEventImpl &);
   int listEvents(List &list);
 
-  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int executeSubscribeEvent(NdbEventOperationImpl &, Uint64 &setup_epoch);
   int stopSubscribeEvent(NdbEventOperationImpl &, Uint64 &stop_gci);
 
   int forceGCPWait(int type);

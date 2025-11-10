@@ -519,10 +519,7 @@ void ReplicaInitializer::start_threads() {
        * members */
       mi->rli->opt_replica_parallel_workers = opt_mts_replica_parallel_workers;
       mi->rli->checkpoint_group = opt_mta_checkpoint_group;
-      if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
-        mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
-      else
-        mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+      mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
 
       if (mi->is_source_connection_auto_failover())
         m_thread_mask |= SLAVE_MONITOR;
@@ -1229,9 +1226,7 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
   rli->set_until_option(until_mg);
   rli->until_condition = Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
   until_mg->init();
-  rli->channel_mts_submode = (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
-                                 ? MTS_PARALLEL_TYPE_DB_NAME
-                                 : MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+  rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   LogErr(INFORMATION_LEVEL, ER_RPL_MTA_RECOVERY_STARTING_COORDINATOR);
   recovery_error = start_slave_thread(
       key_thread_replica_sql, handle_slave_sql, &rli->run_lock, &rli->run_lock,
@@ -4565,8 +4560,6 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
 
         // Reset mts in-group state
         if (rli->mts_group_status == Relay_log_info::MTS_END_GROUP) {
-          // CGAP cleanup
-          rli->curr_group_assigned_parts.clear();
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin = rli->curr_group_seen_gtid = false;
           rli->last_assigned_worker = nullptr;
@@ -6520,11 +6513,10 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
 #endif
 
   do {
-    if (!is_mts_db_partitioned(rli)) mysql_mutex_lock(&rli->mts_gaq_LOCK);
-
-    cnt = rli->gaq->move_queue_head(&rli->workers);
-
-    if (!is_mts_db_partitioned(rli)) mysql_mutex_unlock(&rli->mts_gaq_LOCK);
+    {
+      MUTEX_LOCK(gaq_lock_guard, &rli->mts_gaq_LOCK);
+      cnt = rli->gaq->move_queue_head(&rli->workers);
+    }
 #ifndef NDEBUG
     if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
         cnt != opt_mta_checkpoint_period)
@@ -6545,7 +6537,7 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
      The workers have completed  cnt jobs from the gaq. This means that we
      should increment C->jobs_done by cnt.
    */
-  if (!is_mts_worker(rli->info_thd) && !is_mts_db_partitioned(rli)) {
+  if (!is_mts_worker(rli->info_thd)) {
     DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
     static_cast<Mts_submode_logical_clock *>(rli->current_mts_submode)
         ->jobs_done += cnt;
@@ -6749,13 +6741,6 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
   clear_gtid_monitoring_info = true;
 
-  if (init_hash_workers(rli))  // MTS: mapping_db_to_worker
-  {
-    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_FAILED_TO_INIT_PARTITIONS_HASH);
-    error = 1;
-    goto err;
-  }
-
   for (uint i = 0; i < n; i++) {
     if ((error = slave_start_single_worker(rli, i))) goto err;
     rli->replica_parallel_workers++;
@@ -6913,7 +6898,6 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
 
 end:
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
-  destroy_hash_workers(rli);
   delete rli->gaq;
 
   // Destroy buffered events of the current group prior to exit.
@@ -6921,7 +6905,6 @@ end:
     delete rli->curr_group_da[i].data;
   rli->curr_group_da.clear();  // GCDA
 
-  rli->curr_group_assigned_parts.clear();  // GCAP
   rli->deinit_workers();
   rli->workers_array_initialized = false;
   rli->replica_parallel_workers = 0;
@@ -7052,10 +7035,7 @@ extern "C" void *handle_slave_sql(void *arg) {
 #endif
       mysql_thread_set_psi_THD(thd);
 
-      if (rli->channel_mts_submode != MTS_PARALLEL_TYPE_DB_NAME)
-        rli->current_mts_submode = new Mts_submode_logical_clock();
-      else
-        rli->current_mts_submode = new Mts_submode_database();
+      rli->current_mts_submode = new Mts_submode_logical_clock();
 
       // Only use replica preserve commit order if more than 1 worker exists
       if (opt_replica_preserve_commit_order && !rli->is_parallel_exec() &&
@@ -8991,10 +8971,7 @@ bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
               opt_mts_replica_parallel_workers == 0) {
             mi->rli->opt_replica_parallel_workers = 1;
           }
-          if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
-            mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
-          else
-            mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+          mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
 
 #ifndef NDEBUG
           if (!DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))
@@ -11197,39 +11174,35 @@ err:
   @return 0 is returned if there is no conflict, otherwise 1 is returned.
  */
 static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
-  int channel_mts_submode, replica_parallel_workers;
+#ifndef NDEBUG
+  int channel_mts_submode;
+#endif
+  int replica_parallel_workers;
 
   if (rli) {
+#ifndef NDEBUG
     channel_mts_submode = rli->channel_mts_submode;
+#endif
     replica_parallel_workers = rli->opt_replica_parallel_workers;
   } else {
     /*
       When the slave is first initialized, we collect the values from the
       command line options
     */
-    channel_mts_submode = mts_parallel_option;
+#ifndef NDEBUG
+    channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+#endif
     replica_parallel_workers = opt_mts_replica_parallel_workers;
-  }
-
-  if (opt_replica_preserve_commit_order && replica_parallel_workers > 0) {
-    if (channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME) {
-      my_error(ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER, MYF(0),
-               "when replica_parallel_type is DATABASE");
-      return ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER;
-    }
   }
 
   if (rli) {
     const char *channel = const_cast<Relay_log_info *>(rli)->get_channel();
-    if (replica_parallel_workers > 0 &&
-        (channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
-         (channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
-          !opt_replica_preserve_commit_order)) &&
+    assert(channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
+    if (replica_parallel_workers > 0 && !opt_replica_preserve_commit_order &&
         channel_map.is_group_replication_applier_channel_name(channel)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 "
-               "and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK "
-               "or REPLICA_PRESERVE_COMMIT_ORDER != ON",
+               "and REPLICA_PRESERVE_COMMIT_ORDER != ON",
                channel);
       return ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED;
     }

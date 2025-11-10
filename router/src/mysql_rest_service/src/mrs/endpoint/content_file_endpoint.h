@@ -54,6 +54,8 @@ class ContentFileEndpoint : public mrs::interface::EndpointBase {
                       EndpointConfigurationPtr configuration,
                       HandlerFactoryPtr factory);
 
+  virtual ~ContentFileEndpoint() override;
+
   OptionalIndexNames get_index_files() override { return {}; }
   UniversalId get_id() const override;
   UniversalId get_parent_id() const override;
@@ -89,6 +91,7 @@ class ContentFileEndpoint : public mrs::interface::EndpointBase {
   HandlerFactoryPtr factory_;
   HandlerPtr handler_;
   HandlerPtr handler_redirection_;
+  bool altered_parent_{false};
 };
 
 }  // namespace endpoint

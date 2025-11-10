@@ -3552,6 +3552,13 @@ static int update_table_stats(dict_table_t *table, bool is_analyze) {
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object.
 @param[in]      flag            Flags for what to update and return.
+                                HA_STATUS_NO_LOCK is supported only for:
+                                ha_statistics::delete_length
+                                it is not supported for others like:
+                                ha_statistics::records
+                                But it will not lock for the duration of stats
+                                calculation. Only during copy to make sure
+                                stats are consistent.
 @param[in]      is_analyze      True if called from "::analyze()".
 @return HA_ERR_* error code or 0. */
 int ha_innopart::info_low(uint flag, bool is_analyze) {
@@ -3632,24 +3639,19 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
     for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
          i = m_part_info->get_next_used_partition(i)) {
       ib_table = m_part_share->get_table_part(i);
-      if ((flag & HA_STATUS_NO_LOCK) == 0) {
-        dict_table_stats_lock(ib_table, RW_S_LATCH);
-      }
+      uint64_t stat_n_rows{0};
 
-      ut_ad(ib_table->stat_initialized);
+      dict_table_stats_lock(ib_table, RW_S_LATCH);
 
-      n_rows += ib_table->stat_n_rows;
-      if (ib_table->stat_n_rows > max_rows) {
-        max_rows = ib_table->stat_n_rows;
+      info_low_table_stats(ib_table, stat_clustered_index_size,
+                           stat_sum_of_other_index_sizes, stat_n_rows);
+
+      dict_table_stats_unlock(ib_table, RW_S_LATCH);
+
+      n_rows += stat_n_rows;
+      if (stat_n_rows > max_rows) {
+        max_rows = stat_n_rows;
         biggest_partition = i;
-      }
-
-      stat_clustered_index_size += ib_table->stat_clustered_index_size;
-
-      stat_sum_of_other_index_sizes += ib_table->stat_sum_of_other_index_sizes;
-
-      if ((flag & HA_STATUS_NO_LOCK) == 0) {
-        dict_table_stats_unlock(ib_table, RW_S_LATCH);
       }
 
       if ((flag & HA_STATUS_VARIABLE_EXTRA) != 0 &&
@@ -3799,72 +3801,11 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
           << table->s->keys << " defined in the MySQL";
     }
 
-    if ((flag & HA_STATUS_NO_LOCK) == 0) {
-      dict_table_stats_lock(ib_table, RW_S_LATCH);
-    }
+    dict_table_stats_lock(ib_table, RW_S_LATCH);
 
-    ut_ad(ib_table->stat_initialized);
+    info_low_rec_per_key(ib_table, max_rows, biggest_partition);
 
-    for (ulong i = 0; i < table->s->keys; i++) {
-      ulong j;
-      /* We could get index quickly through internal
-      index mapping with the index translation table.
-      The identity of index (match up index name with
-      that of table->key_info[i]) is already verified in
-      innopart_get_index(). */
-      dict_index_t *index = innopart_get_index(biggest_partition, i);
-
-      if (index == nullptr) {
-        ib::error(ER_IB_MSG_596)
-            << "Table " << ib_table->name
-            << " contains fewer indexes than expected." << TROUBLESHOOTING_MSG;
-        break;
-      }
-
-      KEY *key = &table->key_info[i];
-      for (j = 0; j < key->actual_key_parts; j++) {
-        if ((key->flags & HA_FULLTEXT) != 0) {
-          /* The whole concept has no validity
-          for FTS indexes. */
-          key->set_records_per_key(j, 1.0f);
-          continue;
-        }
-
-        if ((j + 1) > index->n_uniq) {
-          ib::error(ER_IB_MSG_597)
-              << "Index " << index->name << " of " << ib_table->name << " has "
-              << index->n_uniq
-              << " columns unique inside"
-                 " InnoDB, but MySQL is"
-                 " asking statistics for "
-              << j + 1 << " columns." << TROUBLESHOOTING_MSG;
-          break;
-        }
-
-        /* innodb_rec_per_key() will use
-        index->stat_n_diff_key_vals[] and the value we
-        pass index->table->stat_n_rows. Both are
-        calculated by ANALYZE and by the background
-        stats gathering thread (which kicks in when too
-        much of the table has been changed). In
-        addition table->stat_n_rows is adjusted with
-        each DML (e.g. ++ on row insert). Those
-        adjustments are not MVCC'ed and not even
-        reversed on rollback. So,
-        index->stat_n_diff_key_vals[] and
-        index->table->stat_n_rows could have been
-        calculated at different time. This is
-        acceptable. */
-        const rec_per_key_t rec_per_key =
-            innodb_rec_per_key(index, j, max_rows);
-
-        key->set_records_per_key(j, rec_per_key);
-      }
-    }
-
-    if ((flag & HA_STATUS_NO_LOCK) == 0) {
-      dict_table_stats_unlock(ib_table, RW_S_LATCH);
-    }
+    dict_table_stats_unlock(ib_table, RW_S_LATCH);
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3916,6 +3857,67 @@ func_exit:
   m_prebuilt->trx->op_info = (char *)"";
 
   return error;
+}
+
+void ha_innopart::info_low_rec_per_key(const dict_table_t *ib_table,
+                                       uint64_t max_rows,
+                                       uint biggest_partition) {
+  ut_ad(ib_table->stat_initialized);
+
+  for (ulong i = 0; i < table->s->keys; i++) {
+    /* We could get index quickly through internal index mapping with the index
+    translation table. The identity of index (match up index name with that of
+    table->key_info[i]) is already verified in innopart_get_index(). */
+    dict_index_t *index = innopart_get_index(biggest_partition, i);
+
+    if (index == nullptr) {
+      ib::error(ER_IB_MSG_596)
+          << "Table " << ib_table->name
+          << " contains fewer indexes than expected." << TROUBLESHOOTING_MSG;
+      break;
+    }
+
+    KEY *key = &table->key_info[i];
+    for (ulong j = 0; j < key->actual_key_parts; j++) {
+      if ((key->flags & HA_FULLTEXT) != 0) {
+        /* The whole concept has no validity for FTS indexes. */
+        key->set_records_per_key(j, 1.0f);
+        continue;
+      }
+
+      if ((j + 1) > index->n_uniq) {
+        ib::error(ER_IB_MSG_597) << "Index " << index->name << " of "
+                                 << ib_table->name << " has " << index->n_uniq
+                                 << " columns unique inside"
+                                    " InnoDB, but MySQL is"
+                                    " asking statistics for "
+                                 << j + 1 << " columns." << TROUBLESHOOTING_MSG;
+        break;
+      }
+
+      /* innodb_rec_per_key() will use index->stat_n_diff_key_vals[] and the
+      value we pass index->table->stat_n_rows. Both are calculated by ANALYZE
+      and by the background stats gathering thread (which kicks in when too
+      much of the table has been changed). In addition, table->stat_n_rows is
+      adjusted with each DML (e.g. ++ on row insert). Those adjustments are not
+      MVCC'ed and not even reversed on rollback. So,
+      index->stat_n_diff_key_vals[] and index->table->stat_n_rows could have
+      been calculated at different time. This is acceptable. */
+      const rec_per_key_t rec_per_key = innodb_rec_per_key(index, j, max_rows);
+      key->set_records_per_key(j, rec_per_key);
+    }
+  }
+}
+
+void ha_innopart::info_low_table_stats(const dict_table_t *ib_table,
+                                       ulint &stat_clustered_index_size,
+                                       ulint &stat_sum_of_other_index_sizes,
+                                       uint64_t &stat_n_rows) const {
+  ut_ad(ib_table->stat_initialized);
+
+  stat_n_rows = ib_table->stat_n_rows;
+  stat_clustered_index_size += ib_table->stat_clustered_index_size;
+  stat_sum_of_other_index_sizes += ib_table->stat_sum_of_other_index_sizes;
 }
 
 int ha_innopart::optimize(THD *, HA_CHECK_OPT *) {

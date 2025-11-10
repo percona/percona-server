@@ -30,7 +30,7 @@
   @file mysys/my_chmod.cc
 */
 
-#include <fcntl.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cerrno>

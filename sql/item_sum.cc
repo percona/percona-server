@@ -67,6 +67,8 @@
 #include "sql/gis/geometry_extraction.h"
 #include "sql/gis/relops.h"
 #include "sql/handler.h"
+#include "sql/hash.h"
+#include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
@@ -492,6 +494,17 @@ void Item_sum::print(const THD *thd, String *str,
     str->append(" OVER ");
     m_window->print(thd, str, query_type, false);
   }
+}
+
+uint64_t Item_sum::hash() {
+  auto hash = HashCString(func_name());
+  if (has_with_distinct()) {
+    hash = CombineNonCommutativeSigs(hash, HashString("func_distinct"));
+  }
+  for (uint i = 0; i < arg_count; i++) {
+    hash = CombineNonCommutativeSigs(hash, args[i]->hash());
+  }
+  return hash;
 }
 
 bool Item_sum::resolve_type(THD *thd) {
@@ -3033,18 +3046,6 @@ longlong Item_sum_hybrid::val_int() {
   return retval;
 }
 
-longlong Item_sum_hybrid::val_time_temporal() {
-  assert(fixed);
-  if (m_is_window_function) {
-    if (wf_common_init()) return 0;
-    if (m_optimize ? compute() : add()) return 0;
-  }
-  if (null_value) return 0;
-  longlong retval = value->val_time_temporal();
-  if ((null_value = value->null_value)) assert(retval == 0);
-  return retval;
-}
-
 longlong Item_sum_hybrid::val_date_temporal() {
   assert(fixed);
   if (m_is_window_function) {
@@ -3074,24 +3075,34 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val) {
   return retval;
 }
 
-bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
+bool Item_sum_hybrid::val_date(Date_val *date, my_time_flags_t flags) {
   assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return true;
     if (m_optimize ? compute() : add()) return true;
   }
   if (null_value) return true;
-  return (null_value = value->get_date(ltime, fuzzydate));
+  return (null_value = value->val_date(date, flags));
 }
 
-bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime) {
+bool Item_sum_hybrid::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return true;
     if (m_optimize ? compute() : add()) return true;
   }
   if (null_value) return true;
-  return (null_value = value->get_time(ltime));
+  return (null_value = value->val_datetime(dt, flags));
+}
+
+bool Item_sum_hybrid::val_time(Time_val *time) {
+  assert(fixed);
+  if (m_is_window_function) {
+    if (wf_common_init()) return true;
+    if (m_optimize ? compute() : add()) return true;
+  }
+  if (null_value) return true;
+  return (null_value = value->val_time(time));
 }
 
 String *Item_sum_hybrid::val_str(String *str) {
@@ -3233,18 +3244,25 @@ String *Item_sum_bit::val_str(String *str) {
   return str;
 }
 
-bool Item_sum_bit::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
+bool Item_sum_bit::val_date(Date_val *date, my_time_flags_t flags) {
   if (hybrid_type == INT_RESULT)
-    return get_date_from_int(ltime, fuzzydate);
+    return get_date_from_int(date, flags);
   else
-    return get_date_from_string(ltime, fuzzydate);
+    return get_date_from_string(date, flags);
 }
 
-bool Item_sum_bit::get_time(MYSQL_TIME *ltime) {
+bool Item_sum_bit::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   if (hybrid_type == INT_RESULT)
-    return get_time_from_int(ltime);
+    return get_datetime_from_int(dt, flags);
   else
-    return get_time_from_string(ltime);
+    return get_datetime_from_string(dt, flags);
+}
+
+bool Item_sum_bit::val_time(Time_val *time) {
+  if (hybrid_type == INT_RESULT)
+    return get_time_from_int(time);
+  else
+    return get_time_from_string(time);
 }
 
 my_decimal *Item_sum_bit::val_decimal(my_decimal *dec_buf) {
@@ -3367,32 +3385,58 @@ void Item_sum_num::reset_field() {
   float8store(result_field->field_ptr(), nr);
 }
 
+/**
+  Reset field before aggregation.
+
+  Note: Even though the initial value might be NULL, a zero (or empty)
+        value may be required for the aggregation algorithm in add().
+*/
 void Item_sum_hybrid::reset_field() {
+  assert(is_nullable());
   switch (hybrid_type) {
     case STRING_RESULT: {
-      if (args[0]->is_temporal()) {
-        longlong nr = args[0]->val_temporal_by_field_type();
-        if (is_nullable()) {
+      switch (data_type()) {
+        case MYSQL_TYPE_TIME: {
+          Time_val time;
+          (void)args[0]->val_time(&time);
           if (args[0]->null_value) {
-            nr = 0;
             result_field->set_null();
-          } else
+            time.set_zero();
+          } else {
             result_field->set_notnull();
+          }
+          result_field->store_time(time, decimals);
+          break;
         }
-        result_field->store_packed(nr);
-        break;
-      }
+        case MYSQL_TYPE_DATE:
+        case MYSQL_TYPE_DATETIME:
+        case MYSQL_TYPE_TIMESTAMP: {
+          longlong nr = args[0]->val_date_temporal();
+          if (is_nullable()) {
+            if (args[0]->null_value) {
+              nr = 0;
+              result_field->set_null();
+            } else {
+              result_field->set_notnull();
+            }
+          }
+          result_field->store_packed(nr);
+          break;
+        }
+        default: {
+          char buff[MAX_FIELD_WIDTH];
+          String tmp(buff, sizeof(buff), result_field->charset()), *res;
 
-      char buff[MAX_FIELD_WIDTH];
-      String tmp(buff, sizeof(buff), result_field->charset()), *res;
-
-      res = args[0]->val_str(&tmp);
-      if (args[0]->null_value) {
-        result_field->set_null();
-        result_field->reset();
-      } else {
-        result_field->set_notnull();
-        result_field->store(res->ptr(), res->length(), tmp.charset());
+          res = args[0]->val_str(&tmp);
+          if (args[0]->null_value) {
+            result_field->set_null();
+            result_field->reset();
+          } else {
+            result_field->set_notnull();
+            result_field->store(res->ptr(), res->length(), tmp.charset());
+          }
+          break;
+        }
       }
       break;
     }
@@ -3403,8 +3447,9 @@ void Item_sum_hybrid::reset_field() {
         if (args[0]->null_value) {
           nr = 0;
           result_field->set_null();
-        } else
+        } else {
           result_field->set_notnull();
+        }
       }
       result_field->store(nr, unsigned_flag);
       break;
@@ -3416,8 +3461,9 @@ void Item_sum_hybrid::reset_field() {
         if (args[0]->null_value) {
           nr = 0.0;
           result_field->set_null();
-        } else
+        } else {
           result_field->set_notnull();
+        }
       }
       result_field->store(nr);
       break;
@@ -3427,15 +3473,12 @@ void Item_sum_hybrid::reset_field() {
       my_decimal *arg_dec = args[0]->val_decimal(&value_buff);
 
       if (is_nullable()) {
-        if (args[0]->null_value)
+        if (args[0]->null_value) {
           result_field->set_null();
-        else
+        } else {
           result_field->set_notnull();
+        }
       }
-      /*
-        We must store zero in the field as we will use the field value in
-        add()
-      */
       if (arg_dec == nullptr) {  // Null
         value_buff.init();
         arg_dec = &value_buff;
@@ -3619,12 +3662,22 @@ void Item_sum_avg::update_field() {
 void Item_sum_hybrid::update_field() {
   switch (hybrid_type) {
     case STRING_RESULT:
-      if (args[0]->is_temporal())
-        min_max_update_temporal_field();
-      else if (data_type() == MYSQL_TYPE_JSON)
-        min_max_update_json_field();
-      else
-        min_max_update_str_field();
+      switch (data_type()) {
+        case MYSQL_TYPE_TIME:
+          min_max_update_time_field();
+          break;
+        case MYSQL_TYPE_DATE:
+        case MYSQL_TYPE_DATETIME:
+        case MYSQL_TYPE_TIMESTAMP:
+          min_max_update_temporal_field();
+          break;
+        case MYSQL_TYPE_JSON:
+          min_max_update_json_field();
+          break;
+        default:
+          min_max_update_str_field();
+          break;
+      }
       break;
     case INT_RESULT:
       min_max_update_int_field();
@@ -3637,14 +3690,34 @@ void Item_sum_hybrid::update_field() {
   }
 }
 
+void Item_sum_hybrid::min_max_update_time_field() {
+  Time_val time;
+  if (args[0]->val_time(&time)) {
+    return;
+  }
+  if (result_field->is_null()) {
+    result_field->set_notnull();
+  } else {
+    Time_val old_time;
+    (void)result_field->val_time(&old_time);
+    if (!min_max_best_so_far(
+            compare_numbers(time.for_comparison(), old_time.for_comparison()),
+            m_is_min)) {
+      return;
+    }
+  }
+  result_field->store_time(time, decimals);
+}
+
 void Item_sum_hybrid::min_max_update_temporal_field() {
-  const longlong nr = args[0]->val_temporal_by_field_type();
+  assert(data_type() != MYSQL_TYPE_TIME);
+  const longlong nr = args[0]->val_date_temporal();
   if (args[0]->null_value) return;
 
   if (result_field->is_null()) {
     result_field->set_notnull();
   } else {
-    const longlong old_nr = result_field->val_temporal_by_field_type();
+    const longlong old_nr = result_field->val_date_temporal();
     if (!min_max_best_so_far(
             unsigned_flag ? compare_numbers(ulonglong(nr), ulonglong(old_nr))
                           : compare_numbers(nr, old_nr),
@@ -3861,18 +3934,26 @@ String *Item_aggr_bit_field::val_str(String *str) {
   }
 }
 
-bool Item_aggr_bit_field::get_date(MYSQL_TIME *ltime,
-                                   my_time_flags_t fuzzydate) {
+bool Item_aggr_bit_field::val_date(Date_val *date, my_time_flags_t flags) {
   if (m_result_type == INT_RESULT)
-    return get_date_from_decimal(ltime, fuzzydate);
+    return get_date_from_decimal(date, flags);
   else
-    return get_date_from_string(ltime, fuzzydate);
+    return get_date_from_string(date, flags);
 }
-bool Item_aggr_bit_field::get_time(MYSQL_TIME *ltime) {
+
+bool Item_aggr_bit_field::val_datetime(Datetime_val *dt,
+                                       my_time_flags_t flags) {
   if (m_result_type == INT_RESULT)
-    return get_time_from_numeric(ltime);
+    return get_datetime_from_decimal(dt, flags);
   else
-    return get_time_from_string(ltime);
+    return get_datetime_from_string(dt, flags);
+}
+
+bool Item_aggr_bit_field::val_time(Time_val *time) {
+  if (m_result_type == INT_RESULT)
+    return get_time_from_numeric(time);
+  else
+    return get_time_from_string(time);
 }
 
 Item_aggr_std_field::Item_aggr_std_field(Item_sum_std *item)
@@ -3971,6 +4052,14 @@ void Item_udf_sum::print(const THD *thd, String *str,
     args[i]->print(thd, str, query_type);
   }
   str->append(')');
+}
+
+uint64_t Item_udf_sum::hash() {
+  auto hash = HashCString(func_name());
+  for (uint i = 0; i < arg_count; i++) {
+    hash = CombineNonCommutativeSigs(hash, args[i]->hash());
+  }
+  return hash;
 }
 
 Item *Item_sum_udf_float::copy_or_same(THD *thd) {
@@ -4771,6 +4860,25 @@ void Item_func_group_concat::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN("\')"));
 }
 
+uint64_t Item_func_group_concat::hash() {
+  auto hash = HashString("func_group_concat");
+  if (distinct) {
+    hash = CombineNonCommutativeSigs(hash, HashString("func_concat_distinct"));
+  }
+
+  for (uint i = 0; i < m_field_arg_count; i++) {
+    hash = CombineNonCommutativeSigs(hash, args[i]->hash());
+  }
+  if (m_order_arg_count > 0) {
+    hash = CombineNonCommutativeSigs(hash, HashString("func_concat_order_by "));
+    for (uint i = 0; i < m_order_arg_count; i++) {
+      hash =
+          CombineNonCommutativeSigs(hash, args[i + m_field_arg_count]->hash());
+    }
+  }
+  return hash;
+}
+
 bool Item_non_framing_wf::fix_fields(THD *thd, Item **items) {
   if (super::fix_fields(thd, items)) return true;
 
@@ -5270,23 +5378,33 @@ double Item_first_last_value::val_real() {
   return retval;
 }
 
-bool Item_first_last_value::get_date(MYSQL_TIME *ltime,
-                                     my_time_flags_t fuzzydate) {
+bool Item_first_last_value::val_date(Date_val *date, my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  bool retval = m_value->get_date(ltime, fuzzydate);
+  bool retval = m_value->val_date(date, flags);
   null_value = m_value->null_value;
   return retval;
 }
 
-bool Item_first_last_value::get_time(MYSQL_TIME *ltime) {
+bool Item_first_last_value::val_datetime(Datetime_val *dt,
+                                         my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  bool retval = m_value->get_time(ltime);
+  bool retval = m_value->val_datetime(dt, flags);
+  null_value = m_value->null_value;
+  return retval;
+}
+
+bool Item_first_last_value::val_time(Time_val *time) {
+  if (wf_common_init()) return true;
+
+  if (compute()) return true;
+
+  bool retval = m_value->val_time(time);
   null_value = m_value->null_value;
   return retval;
 }
@@ -5508,22 +5626,32 @@ String *Item_nth_value::val_str(String *str) {
   return retval;
 }
 
-bool Item_nth_value::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
+bool Item_nth_value::val_date(Date_val *date, my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  bool retval = m_value->get_date(ltime, fuzzydate);
+  bool retval = m_value->val_date(date, flags);
   null_value = m_value->null_value;
   return retval;
 }
 
-bool Item_nth_value::get_time(MYSQL_TIME *ltime) {
+bool Item_nth_value::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  bool retval = m_value->get_time(ltime);
+  bool retval = m_value->val_datetime(dt, flags);
+  null_value = m_value->null_value;
+  return retval;
+}
+
+bool Item_nth_value::val_time(Time_val *time) {
+  if (wf_common_init()) return true;
+
+  if (compute()) return true;
+
+  bool retval = m_value->val_time(time);
   null_value = m_value->null_value;
   return retval;
 }
@@ -5741,21 +5869,30 @@ String *Item_lead_lag::val_str(String *str) {
   return res;
 }
 
-bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
+bool Item_lead_lag::val_date(Date_val *date, my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  return m_use_default ? m_default->get_date(ltime, fuzzydate)
-                       : m_value->get_date(ltime, fuzzydate);
+  return m_use_default ? m_default->val_date(date, flags)
+                       : m_value->val_date(date, flags);
 }
 
-bool Item_lead_lag::get_time(MYSQL_TIME *ltime) {
+bool Item_lead_lag::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   if (wf_common_init()) return true;
 
   if (compute()) return true;
 
-  return m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime);
+  return m_use_default ? m_default->val_datetime(dt, flags)
+                       : m_value->val_datetime(dt, flags);
+}
+
+bool Item_lead_lag::val_time(Time_val *time) {
+  if (wf_common_init()) return true;
+
+  if (compute()) return true;
+
+  return m_use_default ? m_default->val_time(time) : m_value->val_time(time);
 }
 
 bool Item_lead_lag::val_json(Json_wrapper *jw) {
@@ -6001,19 +6138,23 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
                                    decimal_value);
 }
 
-bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
-  if (null_value || m_wrapper->empty()) return true;
-
-  return m_wrapper->coerce_date(JsonCoercionWarnHandler{func_name()},
-                                JsonCoercionDeprecatedDefaultHandler{}, ltime,
-                                DatetimeConversionFlags(current_thd));
+bool Item_sum_json::val_date(Date_val *date, my_time_flags_t flags) {
+  return val_datetime(date, flags);
 }
 
-bool Item_sum_json::get_time(MYSQL_TIME *ltime) {
+bool Item_sum_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+  if (null_value || m_wrapper->empty()) return true;
+
+  return m_wrapper->coerce_datetime(JsonCoercionWarnHandler{func_name()},
+                                    JsonCoercionDeprecatedDefaultHandler{}, dt,
+                                    DatetimeConversionFlags(current_thd));
+}
+
+bool Item_sum_json::val_time(Time_val *time) {
   if (null_value || m_wrapper->empty()) return true;
 
   return m_wrapper->coerce_time(JsonCoercionWarnHandler{func_name()},
-                                JsonCoercionDeprecatedDefaultHandler{}, ltime);
+                                JsonCoercionDeprecatedDefaultHandler{}, time);
 }
 
 void Item_sum_json::reset_field() {
@@ -6459,15 +6600,20 @@ inline Item *Item_rollup_sum_switcher::current_arg() const {
   return args[m_current_rollup_level];
 }
 
-bool Item_rollup_sum_switcher::get_date(MYSQL_TIME *ltime,
-                                        my_time_flags_t fuzzydate) {
+bool Item_rollup_sum_switcher::val_date(Date_val *date, my_time_flags_t flags) {
   assert(fixed);
-  return (null_value = current_arg()->get_date(ltime, fuzzydate));
+  return (null_value = current_arg()->val_date(date, flags));
 }
 
-bool Item_rollup_sum_switcher::get_time(MYSQL_TIME *ltime) {
+bool Item_rollup_sum_switcher::val_datetime(Datetime_val *dt,
+                                            my_time_flags_t flags) {
   assert(fixed);
-  return (null_value = current_arg()->get_time(ltime));
+  return (null_value = current_arg()->val_datetime(dt, flags));
+}
+
+bool Item_rollup_sum_switcher::val_time(Time_val *time) {
+  assert(fixed);
+  return (null_value = current_arg()->val_time(time));
 }
 
 double Item_rollup_sum_switcher::val_real() {

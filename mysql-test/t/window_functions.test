@@ -3,6 +3,7 @@
 --source include/have_innodb_16k.inc
 --source include/elide_costs.inc
 SET NAMES utf8mb3;
+SET explain_json_format_version = 1;
 
 --echo
 --echo Flag unsupported aggregates as window functions

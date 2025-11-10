@@ -58,6 +58,7 @@
 #include "sql/protocol.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sp_head.h"  // sp_head
+#include "sql/sp_instr_inline.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"  // THD
@@ -385,6 +386,12 @@ void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right) {
   }
 }
 
+void Lex_input_stream::adjust_digest_by_numeric_column_token(ulonglong value) {
+  if (m_digest != nullptr) {
+    m_digest = digest_adjust_by_numeric_column_token(m_digest, value);
+  }
+}
+
 void LEX::assert_ok_set_current_query_block() {
   // (2) Only owning thread could change m_current_query_block
   // (1) bypass for bootstrap and "new THD"
@@ -413,6 +420,7 @@ void LEX::reset() {
   create_view_mode = enum_view_create_mode::VIEW_CREATE_NEW;
   create_view_type = enum_view_type::UNDEFINED;
   create_view_algorithm = VIEW_ALGORITHM_UNDEFINED;
+  create_view_materialization = false;
   create_view_suid = true;
 
   context_stack.clear();
@@ -867,6 +875,10 @@ Yacc_state::~Yacc_state() {
 }
 
 static bool consume_optimizer_hints(Lex_input_stream *lip) {
+  // Just return OK if there is nothing to scan/parse.
+  if (lip->eof()) {
+    return false;
+  }
   const my_lex_states *state_map = lip->query_charset->state_maps->main_map;
   int whitespace = 0;
   uchar c = lip->yyPeek();
@@ -2615,7 +2627,10 @@ bool Query_block::setup_base_ref_items(THD *thd) {
   uint n_elems = n_sum_items + n_child_sum_items + fields.size() +
                  select_n_having_items + select_n_where_fields +
                  order_group_num + n_scalar_subqueries;
-
+  if (sp_inl::needs_stored_function_inlining(thd)) {
+    // if inlined, stored function calls can become projection items
+    n_elems += n_stored_func_calls;
+  }
   /*
     If it is possible that we transform IN(subquery) to a join to a derived
     table, we will be adding DISTINCT, and we will also be adding one
@@ -2650,10 +2665,11 @@ bool Query_block::setup_base_ref_items(THD *thd) {
 
   DBUG_PRINT(
       "info",
-      ("setup_ref_array this %p %4u : %4u %4u %4zu %4u %4u %4u %4u", this,
+      ("setup_ref_array this %p %4u : %4u %4u %4zu %4u %4u %4u %4u %4u", this,
        n_elems,  // :
        n_sum_items, n_child_sum_items, fields.size(), select_n_having_items,
-       select_n_where_fields, order_group_num, n_scalar_subqueries));
+       select_n_where_fields, order_group_num, n_scalar_subqueries,
+       n_stored_func_calls));
   if (!base_ref_items.is_null()) {
     /*
       This should not happen, as it's the sign of preparing an already-prepared

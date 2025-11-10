@@ -329,6 +329,20 @@ static void dict_table_stats_latch_alloc(void *table_void) {
                  LATCH_ID_DICT_TABLE_STATS);
 }
 
+/** Allocate and init a dict_table_t's stats compute mutex.
+This function must not be called concurrently on the same table object.
+@param[in,out]  table_void      table whose stats compute mutex to create */
+static void dict_table_stats_compute_mutex_alloc(void *table_void) {
+  dict_table_t *table = static_cast<dict_table_t *>(table_void);
+
+  table->stats_compute_mutex =
+      ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
+
+  ut_a(table->stats_compute_mutex != nullptr);
+
+  mutex_create(LATCH_ID_DICT_TABLE_STATS_COMPUTE, table->stats_compute_mutex);
+}
+
 /** Deinit and free a dict_table_t's stats latch.
 This function must not be called concurrently on the same table object.
 @param[in,out]  table   table whose stats latch to free */
@@ -337,13 +351,21 @@ static void dict_table_stats_latch_free(dict_table_t *table) {
   ut::free(table->stats_latch);
 }
 
+/** Deinit and free a dict_table_t's stats compute mutex.
+This function must not be called concurrently on the same table object.
+@param[in,out]  table   table whose stats compute mutex to free */
+static void dict_table_stats_compute_mutex_free(dict_table_t *table) {
+  mutex_free(table->stats_compute_mutex);
+  ut::delete_(table->stats_compute_mutex);
+}
+
 /** Create a dict_table_t's stats latch or delay for lazy creation.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]  table   table whose stats latch to create
 @param[in]      enabled if false then the latch is disabled
 and dict_table_stats_lock()/unlock() become noop on this table. */
-void dict_table_stats_latch_create(dict_table_t *table, bool enabled) {
+void dict_table_stats_latch_create_lazy(dict_table_t *table, bool enabled) {
   if (!enabled) {
     table->stats_latch = nullptr;
     table->stats_latch_created = os_once::DONE;
@@ -355,6 +377,25 @@ void dict_table_stats_latch_create(dict_table_t *table, bool enabled) {
   table->stats_latch_created = os_once::NEVER_DONE;
 }
 
+/** Create a dict_table_t's stats compute mutex or delay for lazy creation.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]  table   table whose stats compute mutex to create
+@param[in]      enabled if false then the latch is disabled
+and dict_table_stats_compute_lock()/unlock() become noop on this table. */
+void dict_table_stats_compute_mutex_create_lazy(dict_table_t *table,
+                                                bool enabled) {
+  if (!enabled) {
+    table->stats_compute_mutex = nullptr;
+    table->stats_compute_mutex_created = os_once::DONE;
+    return;
+  }
+
+  /* We create this lazily the first time it is used. */
+  table->stats_compute_mutex = nullptr;
+  table->stats_compute_mutex_created = os_once::NEVER_DONE;
+}
+
 /** Destroy a dict_table_t's stats latch.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
@@ -363,6 +404,17 @@ void dict_table_stats_latch_destroy(dict_table_t *table) {
   if (table->stats_latch_created == os_once::DONE &&
       table->stats_latch != nullptr) {
     dict_table_stats_latch_free(table);
+  }
+}
+
+/** Destroy a dict_table_t's stats compute mutex.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]  table   table whose stats compute mutex to destroy */
+void dict_table_stats_compute_mutex_destroy(dict_table_t *table) {
+  if (table->stats_compute_mutex_created == os_once::DONE &&
+      table->stats_compute_mutex != nullptr) {
+    dict_table_stats_compute_mutex_free(table);
   }
 }
 
@@ -423,6 +475,37 @@ void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode) {
     default:
       ut_error;
   }
+}
+
+void dict_table_stats_compute_lock(dict_table_t *table) {
+  ut_ad(table != nullptr);
+  ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+  os_once::do_or_wait_for_done(&table->stats_compute_mutex_created,
+                               dict_table_stats_compute_mutex_alloc, table);
+
+  if (table->stats_compute_mutex == nullptr) {
+    /* This is a dummy table object that is private in the current
+    thread and is not shared between multiple threads, thus we
+    skip any locking. */
+    return;
+  }
+
+  mutex_enter(table->stats_compute_mutex);
+}
+
+void dict_table_stats_compute_unlock(dict_table_t *table) {
+  ut_ad(table != nullptr);
+  ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+  if (table->stats_compute_mutex == nullptr) {
+    /* This is a dummy table object that is private in the current
+    thread and is not shared between multiple threads, thus we
+    skip any locking. */
+    return;
+  }
+
+  mutex_exit(table->stats_compute_mutex);
 }
 
 /** Try to drop any indexes after an aborted index creation.
@@ -2229,12 +2312,9 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
 out if this is violated for records of maximum possible length of this index.
 @param[in]   table         table
 @param[in]   new_index     index
-@param[in]   strict        true=report error if records could be too big to fit
-                           in a B-tree page
 @return true if the index record could become too big */
 static bool dict_index_too_big_for_tree(const dict_table_t *table,
-                                        const dict_index_t *new_index,
-                                        bool strict) {
+                                        const dict_index_t *new_index) {
   /* FTS index consists of auxiliary tables, they shall be excluded from index
   row size check */
   if (new_index->type & DICT_FTS) {
@@ -2250,14 +2330,13 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
   get_permissible_max_size(table, new_index, page_rec_max, page_ptr_max);
 
   size_t rec_max_size;
-  bool res = dict_index_validate_max_rec_size(
-      table, new_index, strict, page_rec_max, page_ptr_max, rec_max_size);
-  ut_a(res || rec_max_size < page_rec_max);
+  bool res = dict_index_validate_max_rec_size(table, new_index, page_rec_max,
+                                              page_ptr_max, rec_max_size);
   return (res);
 }
 
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
-                                      const dict_index_t *index, bool strict,
+                                      const dict_index_t *index,
                                       const size_t page_rec_max,
                                       const size_t page_ptr_max,
                                       size_t &rec_max_size) {
@@ -2297,14 +2376,7 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
 
     /* Check the size limit on leaf pages. */
     if (rec_max_size >= page_rec_max) {
-      ib::error_or_warn(strict)
-          << "Cannot add field " << field->name << " in table " << table->name
-          << " because after adding it, the row size is " << rec_max_size
-          << " which is greater than maximum allowed"
-             " size ("
-          << page_rec_max << ") for a record on index leaf page.";
-
-      return (true);
+      return true;
     }
 
     /* Check the size limit on non-leaf pages. Records stored in non-leaf
@@ -2502,7 +2574,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   if (index->rtr_srs.get() != nullptr)
     new_index->rtr_srs.reset(index->rtr_srs->clone());
 
-  if (dict_index_too_big_for_tree(table, new_index, strict)) {
+  if (dict_index_too_big_for_tree(table, new_index)) {
     if (strict) {
       dict_mem_index_free(new_index);
       dict_mem_index_free(index);
@@ -2903,7 +2975,10 @@ void dict_index_copy_types(dtuple_t *tuple, const dict_index_t *index,
 
     ifield = index->get_field(i);
     dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
+    ut_ad(!ifield->col->is_virtual() || !index->is_clustered());
     ifield->col->copy_type(dfield_type);
+    /* Field for materialized virtual column is not itself virtual. */
+    dfield_type->prtype &= ~DATA_VIRTUAL;
     if (dict_index_is_spatial(index) &&
         DATA_GEOMETRY_MTYPE(dfield_type->mtype)) {
       dfield_type->prtype |= DATA_GIS_MBR;
@@ -5340,7 +5415,7 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
   dfield_copy(&upd_field->new_val, metadata_dfield);
   upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index);
 
-  ut_ad(update->validate());
+  ut_d(update->validate());
 
   return (update);
 }

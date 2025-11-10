@@ -31,16 +31,16 @@
 */
 #include "my_compress.h"
 
+#include <assert.h>
 #include <sys/types.h>
+#include <zconf.h>
 #include <zlib.h>
 #include <zstd.h>
-#include <algorithm>
+
 #include <cstddef>
 #include <cstring>
+#include <utility>
 
-#include <mysql_com.h>
-
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"

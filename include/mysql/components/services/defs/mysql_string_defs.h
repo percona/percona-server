@@ -24,6 +24,8 @@
 #ifndef COMPONENTS_SERVICES_DEFS_MYSQL_STRING_DEFS_H
 #define COMPONENTS_SERVICES_DEFS_MYSQL_STRING_DEFS_H
 
+#include <cstddef>
+
 /**
   @file mysql/components/services/defs/mysql_string_defs.h
   String related data structures

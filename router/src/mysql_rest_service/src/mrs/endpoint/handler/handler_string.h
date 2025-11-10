@@ -65,6 +65,7 @@ class HandlerString : public mrs::rest::Handler {
   std::string service_path_;
   bool requires_authentication_;
   std::string path_;
+  std::string schema_path_;
   std::string file_name_;
   std::string file_content_;
 };

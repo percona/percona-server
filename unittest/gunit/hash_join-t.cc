@@ -383,36 +383,41 @@ class HashJoinTestHelper {
   unique_ptr_destroy_only<Field> m_right_table_field;
 };
 
-static vector<optional<int>> CollectIntResults(HashJoinIterator *iterator,
-                                               Field *field) {
-  vector<optional<int>> results;
+// Collect all the results from an iterator and return them in a vector.
+template <class GetValue>
+static auto CollectResults(RowIterator *iterator, GetValue get_value) {
+  const uint64_t num_init_calls_before = iterator->num_init_calls();
+  const uint64_t num_rows_before = iterator->num_rows();
+  const uint64_t num_full_reads_before = iterator->num_full_reads();
+  vector<decltype(get_value())> results;
   int error;
   while ((error = iterator->Read()) == 0) {
-    if (field->is_null()) {
-      results.emplace_back(nullopt);
-    } else {
-      results.emplace_back(field->val_int());
-    }
+    results.emplace_back(get_value());
+    EXPECT_EQ(iterator->num_init_calls(), num_init_calls_before);
+    EXPECT_EQ(iterator->num_rows(), num_rows_before + results.size());
+    EXPECT_EQ(iterator->num_full_reads(), num_full_reads_before);
   }
   EXPECT_EQ(-1, error);  // EOF
+  EXPECT_EQ(iterator->num_init_calls(), num_init_calls_before);
+  EXPECT_EQ(iterator->num_rows(), num_rows_before + results.size());
+  EXPECT_EQ(iterator->num_full_reads(), num_full_reads_before + 1);
   return results;
+}
+
+static vector<optional<int>> CollectIntResults(HashJoinIterator *iterator,
+                                               Field *field) {
+  return CollectResults(iterator, [field]() {
+    return field->is_null() ? nullopt : optional<int>{field->val_int()};
+  });
 }
 
 static vector<optional<string>> CollectStringResults(HashJoinIterator *iterator,
                                                      Field *field) {
-  vector<optional<string>> results;
   String buffer;
-  int error;
-  while ((error = iterator->Read()) == 0) {
-    if (field->is_null()) {
-      results.emplace_back(nullopt);
-    } else {
-      const String *res = field->val_str(&buffer);
-      results.emplace_back(to_string(*res));
-    }
-  }
-  EXPECT_EQ(-1, error);  // EOF
-  return results;
+  return CollectResults(iterator, [field, &buffer]() {
+    return field->is_null() ? nullopt
+                            : optional{to_string(*field->val_str(&buffer))};
+  });
 }
 
 TEST(HashJoinTest, InnerJoinIntOneToOneMatch) {
@@ -515,8 +520,7 @@ TEST(HashJoinTest, HashTableCaching) {
   initializer.SetUp();
 
   HashJoinTestHelper test_helper(initializer, {2, 3}, {1, 2, 3});
-  FakeIntegerIterator *build_iterator =
-      down_cast<FakeIntegerIterator *>(test_helper.left_iterator.get());
+  const RowIterator &build_iterator = *test_helper.left_iterator;
 
   uint64_t hash_table_generation = 0;
   HashJoinIterator hash_join_iterator(
@@ -532,24 +536,48 @@ TEST(HashJoinTest, HashTableCaching) {
 
   Field *const probe_field = test_helper.left_qep_tab->table()->field[0];
 
+  EXPECT_EQ(0, build_iterator.num_init_calls());
+  EXPECT_EQ(0, build_iterator.num_rows());
+  EXPECT_EQ(0, build_iterator.num_full_reads());
   ASSERT_FALSE(hash_join_iterator.Init());
-  EXPECT_EQ(3, build_iterator->num_read_calls());
+
+  // The build table is read fully during Init().
+  EXPECT_EQ(1, build_iterator.num_init_calls());
+  EXPECT_EQ(2, build_iterator.num_rows());
+  EXPECT_EQ(1, build_iterator.num_full_reads());
 
   EXPECT_THAT(CollectIntResults(&hash_join_iterator, probe_field),
               ElementsAre(2, 3));
 
+  EXPECT_EQ(1, build_iterator.num_init_calls());
+  EXPECT_EQ(2, build_iterator.num_rows());
+  EXPECT_EQ(1, build_iterator.num_full_reads());
   ASSERT_FALSE(hash_join_iterator.Init());
-  EXPECT_EQ(3, build_iterator->num_read_calls());  // Unchanged due to caching.
+  // Unchanged due to lazy initialization.
+  EXPECT_EQ(1, build_iterator.num_init_calls());
+  EXPECT_EQ(2, build_iterator.num_rows());
+  EXPECT_EQ(1, build_iterator.num_full_reads());
 
   EXPECT_THAT(CollectIntResults(&hash_join_iterator, probe_field),
               ElementsAre(2, 3));
+  // Unchanged due to caching.
+  EXPECT_EQ(1, build_iterator.num_init_calls());
+  EXPECT_EQ(2, build_iterator.num_rows());
+  EXPECT_EQ(1, build_iterator.num_full_reads());
 
   hash_table_generation = 1;
   ASSERT_FALSE(hash_join_iterator.Init());
-  EXPECT_EQ(6, build_iterator->num_read_calls());
+  // The change in hash table generation led to the hash table being rebuilt, so
+  // expect one more full read of the build iterator.
+  EXPECT_EQ(2, build_iterator.num_init_calls());
+  EXPECT_EQ(4, build_iterator.num_rows());
+  EXPECT_EQ(2, build_iterator.num_full_reads());
 
   EXPECT_THAT(CollectIntResults(&hash_join_iterator, probe_field),
               ElementsAre(2, 3));
+  EXPECT_EQ(2, build_iterator.num_init_calls());
+  EXPECT_EQ(4, build_iterator.num_rows());
+  EXPECT_EQ(2, build_iterator.num_full_reads());
 }
 
 // Do a benchmark of HashJoinIterator::Init(). This function is responsible for
@@ -842,13 +870,13 @@ TEST(HashJoinTest, AntiJoinIntSpillToDisk) {
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
-  EXPECT_GT(hash_join_iterator.ChunkCount(), 0)
-      << "The hash table didn't spill to disk.";
-
   EXPECT_THAT(CollectIntResults(&hash_join_iterator,
                                 test_helper.right_qep_tab->table()->field[0]),
               UnorderedElementsAre(nullopt, nullopt, -1, -2, 1, 3, 3, 1999,
                                    2000, 2001));
+
+  EXPECT_GT(hash_join_iterator.ChunkCount(), 0)
+      << "The hash table didn't spill to disk.";
 }
 
 TEST(HashJoinTest, LeftHashJoinInt) {
@@ -942,6 +970,7 @@ TEST(HashJoinTest, HashJoinChunkFiles) {
       /*probe_input_batch_mode=*/false, nullptr);
 
   ASSERT_FALSE(hash_join_iterator.Init());
+  ASSERT_FALSE(hash_join_iterator.Read());
 
   // We hash 1000 rows (64-bit arch) or 2000 rows (32-bit arch). The hash
   // table can normally hold about 410 rows on 64-bit machines and 820 rows on

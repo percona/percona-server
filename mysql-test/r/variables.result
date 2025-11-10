@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t1,t2;
 SET @default_table_open_cache = @@table_open_cache;
 set @my_log_error_verbosity       =@@global.log_error_verbosity;
@@ -1762,8 +1763,8 @@ End of 5.5 tests
 # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
 #           compiler warning
 #
-SET @@sql_mode= 8589934592;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
+SET @@sql_mode= cast(pow(2,34) as unsigned);
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '17179869184'
 #
 # Bug #59860: log-slow-admin-statements and log-slow-replica-statements not displayed
 #
@@ -2100,3 +2101,4 @@ SET GLOBAL innodb_strict_mode = 'true';
 ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'true'
 SET GLOBAL innodb_strict_mode = 'false';
 ERROR 42000: Variable 'innodb_strict_mode' can't be set to the value of 'false'
+include/rpl/set_gtid_mode_on.inc

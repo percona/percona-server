@@ -1985,7 +1985,7 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   return rc;
 }
 
-void conditional_sync_point(std::string name) {
+void conditional_sync_point(std::string name, unsigned short timeout) {
   if (current_thd == nullptr) return;
   const std::string debug_symbol = "syncpoint_" + name;
   DBUG_EXECUTE_IF(debug_symbol.c_str(), {
@@ -1996,6 +1996,9 @@ void conditional_sync_point(std::string name) {
                         name.c_str()));
     std::string act =
         "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
+    if (timeout) {
+      act += " TIMEOUT " + std::to_string(timeout);
+    }
     bool ret = debug_sync_set_action(current_thd, act.c_str(), act.length());
     assert(!ret);
   });

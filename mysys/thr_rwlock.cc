@@ -33,6 +33,10 @@
 
 #include "thr_rwlock.h"
 
+#include "my_thread.h"  // IWYU pragma: keep null_thread_initializer
+#include "thr_cond.h"
+#include "thr_mutex.h"
+
 int rw_pr_init(rw_pr_lock_t *rwlock) {
   native_mutex_init(&rwlock->lock, nullptr);
   native_cond_init(&rwlock->no_active_readers);

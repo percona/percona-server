@@ -955,12 +955,12 @@ EXPLAIN
 -> Table scan on <temporary>  (rows=2.57)
     -> Temporary table with deduplication  (rows=2.57)
         -> Inner hash join (no condition)  (rows=6.61)
-            -> Table scan on alias1  (rows=6)
+            -> Covering index scan on alias1 using idx_CC_col_varchar_key  (rows=6)
             -> Hash
                 -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (rows=1.1)
                     -> Table scan on t1  (rows=6)
                     -> Hash
-                        -> Table scan on alias2  (rows=6)
+                        -> Covering index scan on alias2 using idx_CC_col_varchar_key  (rows=6)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -1048,12 +1048,12 @@ EXPLAIN
     -> Inner hash join (no condition), extra conditions: ((table2.pk = table1.pk) or (table1.col_varchar < 'D'))  (rows=2)
         -> Table scan on table1  (rows=4)
         -> Hash
-            -> Table scan on table2  (rows=1)
+            -> Covering index scan on table2 using varchar_key  (rows=1)
     -> Hash
         -> Inner hash join (alias4.col_varchar = alias3.col_varchar_key)  (rows=1)
             -> Table scan on alias4  (rows=1)
             -> Hash
-                -> Table scan on alias3  (rows=4)
+                -> Covering index scan on alias3 using varchar_key  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
@@ -1310,14 +1310,15 @@ EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Inner hash join (no condition)  (rows=2.94)
         -> Inner hash join (no condition)  (rows=2.94)
-            -> Nested loop semijoin (FirstMatch)  (rows=2.94)
-                -> Table scan on ta3  (rows=6)
-                -> Covering index lookup on t2 using f2 (f2 = ta3.f2)  (rows=1.2)
+            -> Hash semijoin (FirstMatch) (ta3.f2 = t2.f2)  (rows=2.94)
+                -> Covering index scan on ta3 using f2  (rows=6)
+                -> Hash
+                    -> Covering index scan on t2 using f2  (rows=6)
             -> Hash
                 -> Table scan on t1  (rows=1)
         -> Hash
             -> Hash semijoin (FirstMatch) (ta4.f1 = t4.f1)  (rows=1)
-                -> Table scan on ta4  (rows=6)
+                -> Covering index scan on ta4 using f2  (rows=6)
                 -> Hash
                     -> Table scan on t4  (rows=1)
 
@@ -1431,7 +1432,7 @@ AND sq2_alias1.col_int > alias2.pk
 EXPLAIN
 -> Hash semijoin (FirstMatch) (alias1.col_varchar_key = sq2_alias1.col_varchar), extra conditions: (sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk)  (rows=0.0635)
     -> Inner hash join (no condition)  (rows=0.2)
-        -> Table scan on alias1  (rows=20)
+        -> Covering index scan on alias1 using idx  (rows=20)
         -> Hash
             -> Nested loop inner join  (rows=0.01)
                 -> Table scan on alias2  (rows=1)
@@ -1724,9 +1725,10 @@ EXPLAIN
                             -> Table scan on alias1  (rows=26.7)
                                 -> Materialize  (rows=26.7)
                                     -> Limit: 100 row(s)  (rows=26.7)
-                                        -> Nested loop left join  (rows=26.7)
+                                        -> Left hash join (sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key)  (rows=26.7)
                                             -> Table scan on sq1_alias2  (rows=20)
-                                            -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key = sq1_alias2.col_varchar_key)  (rows=1.33)
+                                            -> Hash
+                                                -> Covering index scan on sq1_alias1 using col_varchar_key  (rows=20)
                         -> Inner hash join (no condition)  (rows=26.7)
                             -> Covering index lookup on sq2_alias1 using col_varchar_key (col_varchar_key = alias1.col_varchar_key)  (rows=1.33)
                             -> Hash
@@ -2173,17 +2175,15 @@ WHERE t1.col1 <> t2.col1
 EXPLAIN
 -> Hash antijoin (no condition), extra conditions: (t1_2.col1 <> t2.col1)  (rows=3.4)
     -> Inner hash join (no condition)  (rows=34)
-        -> Filter: (t2.col1 < 49)  (rows=17)
-            -> Table scan on t2  (rows=17)
+        -> Covering index range scan on t2 using idx over (NULL < col1 < 49)  (rows=17)
         -> Hash
             -> Table scan on const_table  (rows=2)
                 -> Materialize  (rows=2)
                     -> Rows fetched before execution  (rows=2)
     -> Hash
-        -> Inner hash join (t1_2.col1 = t1.col1)  (rows=1)
-            -> Table scan on t1  (rows=1)
-            -> Hash
-                -> Table scan on t1_2  (rows=1)
+        -> Nested loop inner join  (rows=1)
+            -> Covering index scan on t1_2 using idx  (rows=1)
+            -> Covering index lookup on t1 using idx (col1 = t1_2.col1)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
@@ -2494,11 +2494,10 @@ SET optimizer_switch="materialization=off";
 EXPLAIN FORMAT=tree SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Inner hash join (LooseScan) (probe.col1 = build.col1)  (rows=256)
-        -> Sort with duplicate removal: build.col1  (rows=27.7)
-            -> Table scan on build  (rows=768)
+    -> Hash semijoin (FirstMatch) (probe.col1 = build.col1)  (rows=256)
+        -> Table scan on probe  (rows=256)
         -> Hash
-            -> Table scan on probe  (rows=256)
+            -> Table scan on build  (rows=768)
 
 SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
 COUNT(*)
@@ -3813,7 +3812,7 @@ EXPLAIN
     -> Select #3 (subquery in extra conditions; dependent)
         -> Limit: 1 row(s)  (rows=1)
             -> Filter: ((inner_t3.pk >= 1) or (table1.f1 = 'G'))  (rows=4)
-                -> Table scan on t1  (rows=4)
+                -> Covering index scan on t1 using i1  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1
@@ -4000,7 +3999,7 @@ FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
 EXPLAIN
 -> Filter: <in_optimizer>((t1.str_col,t1.str_col),<exists>(select #2) is false)  (rows=2)
     -> Left hash join (t2.str_col = t1.str_col)  (rows=2)
-        -> Table scan on t2  (rows=2)
+        -> Covering index scan on t2 using idx  (rows=2)
         -> Hash
             -> Table scan on t1  (rows=2)
     -> Select #2 (subquery in condition; dependent)
@@ -4010,9 +4009,9 @@ EXPLAIN
                     -> Table scan on t3  (rows=1)
                     -> Hash
                         -> Inner hash join (no condition)  (rows=4)
-                            -> Table scan on c1_1  (rows=2)
+                            -> Covering index scan on c1_1 using idx  (rows=2)
                             -> Hash
-                                -> Table scan on c1_2  (rows=2)
+                                -> Covering index scan on c1_2 using idx  (rows=2)
 
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
 WHERE (t1.str_col, t1.str_col) NOT IN (

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 select * from (select 2 from DUAL) AS b;
 2
 2
@@ -4824,6 +4825,7 @@ ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 SELECT * FROM (SELECT _latin1 'Ã¥' AS a) AS dt UNION SELECT c FROM t;
 ERROR HY000: Cannot convert string '\xC3\x83\xC2\xA5' from latin1 to latin2
 DROP TABLE t;
+<<<<<<< HEAD
 #
 # PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
 # Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
@@ -4841,3 +4843,7 @@ column_0
 3
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch= @optimizer_switch_saved;
+||||||| merged common ancestors
+=======
+include/rpl/set_gtid_mode_on.inc
+>>>>>>> mysql-9.5.0

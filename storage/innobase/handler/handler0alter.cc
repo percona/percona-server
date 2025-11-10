@@ -106,6 +106,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innopart.h"
 #include "partition_info.h"
 
+#ifdef WLOG
+#undef WLOG
+#endif
+
+#define WLOG(x)                                                           \
+  {                                                                       \
+    std::cout << "[WL17016] thread=" << std::this_thread::get_id() << ":" \
+              << __func__ << ":" << strrchr(__FILE__, '/') + 1 << ":"     \
+              << __LINE__ << ": " << x << std::endl;                      \
+  }
 /** Function to convert the Instant_Type to a comparable int */
 inline uint16_t instant_type_to_int(Instant_Type type) {
   return (static_cast<typename std::underlying_type<Log_Type>::type>(type));
@@ -4944,6 +4954,12 @@ template <typename Table>
     if (!ctx->add_index[a]) {
       error = ctx->trx->error_state;
       assert(error != DB_SUCCESS);
+      if (error == DB_TOO_BIG_RECORD) {
+        ib::error() << "Cannot alter the table " << user_table->name
+                    << " because the record size will exceed the maximum "
+                       "allowed size for a record on the index '"
+                    << index_defs[a].m_name << "'.";
+      }
       goto error_handling;
     }
 
@@ -11195,6 +11211,12 @@ bool ha_innobase::bulk_load_check(THD *) const {
     return false;
   }
 
+  if (dict_table_has_fts_index(table) || table->fts_doc_id_index != nullptr) {
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Full-Text Index",
+             "LOAD DATA ALGORITHM = BULK");
+    return false;
+  }
+
   if (dict_table_in_shared_tablespace(table)) {
     my_error(ER_TABLE_IN_SHARED_TABLESPACE, MYF(0), table->name.m_name);
     return false;
@@ -11238,10 +11260,12 @@ void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
 
   dict_table_t *table = m_prebuilt->table;
   auto trx = m_prebuilt->trx;
+  m_prebuilt->m_thd = thd;
 
   /* Build the template to convert between the two database formats */
   if (m_prebuilt->mysql_template == nullptr ||
       m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+    WLOG("BUILDING TEMPLATE");
     build_template(true);
   }
 
@@ -11288,6 +11312,8 @@ int ha_innobase::bulk_load_execute(THD *thd, void *load_ctx, size_t thread_idx,
 
   /* Use with bulk_loader.concurrency = 1 to avoid getting hit concurrently. */
   DEBUG_SYNC(thd, "innodb_bulk_load_exec");
+
+  current_thd = thd;
 
   auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
 

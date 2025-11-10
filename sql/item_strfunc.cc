@@ -189,7 +189,7 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   char buff[64];
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
-  if (!res) return nullptr;
+  if (res == nullptr) return nullptr;
   (void)str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                        res->charset(), decimal_value);
   return decimal_value;

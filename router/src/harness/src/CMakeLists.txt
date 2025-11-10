@@ -296,6 +296,7 @@ SET(harness_source
   destination_socket.cc
   secure_string.cc
   regex_matcher.cc
+  auto_cleaner.cc
   )
 
 IF(NOT SOLARIS)

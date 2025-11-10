@@ -30,25 +30,23 @@
   @file mysys/crypt_genhash_impl.cc
 */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
+#include "my_config.h"  // IWYU pragma: keep HAVE_STRLCAT
 
 #include <memory>
 
 #include <sys/types.h>
 
-#include <openssl/evp.h>
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 
 #include "crypt_genhash_impl.h"
-#include "m_string.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "my_ssl_algo_cache.h"
 
 #include <cerrno>

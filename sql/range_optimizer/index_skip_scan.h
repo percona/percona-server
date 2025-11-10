@@ -63,7 +63,7 @@ struct TABLE;
   index, this class produces only index keys, and not complete records.
 */
 
-class IndexSkipScanIterator : public TableRowIterator {
+class IndexSkipScanIterator final : public TableRowIterator {
  private:
   uint index;              /* Index this quick select uses */
   KEY *index_info;         /* Index for skip scan */
@@ -116,8 +116,10 @@ class IndexSkipScanIterator : public TableRowIterator {
                         uchar *min_search_key, uchar *max_search_key,
                         uint range_cond_flag, uint range_key_len);
   ~IndexSkipScanIterator() override;
-  bool Init() override;
-  int Read() override;
+
+ private:
+  bool DoInit() override;
+  int DoRead() override;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_H_

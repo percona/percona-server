@@ -1359,6 +1359,9 @@ TAPTEST(thr_config) {
   /**
    * BASIC test
    */
+
+  const char errmsg_missing[] = "MISSING ERROR MESSAGE, ADD ONE!";
+
   {
     const char *ok[] = {
         "main", "ldm", "recv", "rep", "main,rep,recv,ldm,ldm",
@@ -1442,8 +1445,12 @@ TAPTEST(thr_config) {
     for (Uint32 i = 0; ok[i]; i++) {
       THRConfig tmp;
       int res = tmp.do_parse(ok[i], 0, 0);
+      const char *errmsg = (res == 0 ? "" : tmp.getErrorMessage());
       printf("do_parse(%s) => %s - %s\n", ok[i], res == 0 ? "OK" : "FAIL",
-             res == 0 ? tmp.getConfigString() : tmp.getErrorMessage());
+             res == 0 ? tmp.getConfigString()
+             : errmsg ? errmsg
+                      : errmsg_missing);
+      OK(errmsg != nullptr);
       OK(res == 0);
       {
         BaseString out(tmp.getConfigString());
@@ -1456,8 +1463,10 @@ TAPTEST(thr_config) {
     for (Uint32 i = 0; fail[i]; i++) {
       THRConfig tmp;
       int res = tmp.do_parse(fail[i], 0, 0);
+      const char *errmsg = (res == 0 ? "" : tmp.getErrorMessage());
       printf("do_parse(%s) => %s - %s\n", fail[i], res == 0 ? "OK" : "FAIL",
-             res == 0 ? "" : tmp.getErrorMessage());
+             errmsg ? errmsg : errmsg_missing);
+      OK(errmsg != nullptr);
       OK(res != 0);
     }
   }
@@ -1590,13 +1599,15 @@ TAPTEST(thr_config) {
       tmp.setLockExecuteThreadToCPU(t[i + 0]);
       const int _res = tmp.do_parse(t[i + 1], 0, 0);
       const int expect_res = strcmp(t[i + 2], "OK") == 0 ? 0 : -1;
-      const int res = _res == expect_res ? 0 : -1;
+      const int res = (_res == expect_res ? 0 : -1);
       int ok = expect_res == 0 ? strcmp(tmp.getConfigString(), t[i + 3]) == 0
                                : strcmp(tmp.getErrorMessage(), t[i + 3]) == 0;
+      const char *errmsg = (_res == 0 ? "" : tmp.getErrorMessage());
       printf("mask: %s conf: %s => %s(%s) - %s - %s\n", t[i + 0], t[i + 1],
-             _res == 0 ? "OK" : "FAIL", _res == 0 ? "" : tmp.getErrorMessage(),
+             _res == 0 ? "OK" : "FAIL", errmsg ? errmsg : errmsg_missing,
              tmp.getConfigString(), ok == 1 ? "CORRECT" : "INCORRECT");
 
+      OK(errmsg != nullptr);
       OK(res == 0);
       OK(ok == 1);
     }

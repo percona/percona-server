@@ -25,20 +25,32 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys/my_aes_openssl.cc
 */
 
+<<<<<<< HEAD
 #include <cassert>
 #include <cstddef>
 #include <memory>
 #include <utility>
 
 #include <openssl/aes.h>
+||||||| merged common ancestors
+#include <openssl/aes.h>
+=======
+>>>>>>> mysql-9.5.0
 #include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
-#include <cassert>
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
+#include <openssl/opensslv.h>
+#include <sys/types.h>
 
-#include "m_string.h"
+#include <cassert>
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "my_aes.h"
 #include "my_aes_impl.h"
+#include "my_inttypes.h"
 #include "my_ssl_algo_cache.h"
 #include "mysys/my_kdf.h"
 

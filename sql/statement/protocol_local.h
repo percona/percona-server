@@ -165,7 +165,7 @@ class Protocol_local final : public Protocol {
                     const CHARSET_INFO *cs) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  bool store_time(const Time_val &time, uint precision) override;
   bool store_float(float value, uint32 decimals, uint32 zerofill) override;
   bool store_double(double value, uint32 decimals, uint32 zerofill) override;
   bool store_field(const Field *field) override;

@@ -97,11 +97,11 @@ struct st_mysql_client_plugin_TRACE test_trace_plugin = {
     "A plugin for testing protocol tracing infrastructure",
     {0, 1, 0},
     "GPL",
-    NULL,
+    nullptr,
     test_trace::plugin_init,
     test_trace::plugin_deinit,
-    NULL,  // option handling
-    NULL,
+    nullptr,  // option handling
+    nullptr,
     test_trace::trace_start,
     test_trace::trace_stop,
     test_trace::trace_event};
@@ -199,7 +199,7 @@ size_t Logger::header() {
   end = buffer + len;
 
   if (connection_id) {
-    len += snprintf(end, sizeof(buffer) - len, "%03zu: ", connection_id);
+    len += snprintf(end, sizeof(buffer) - len, "%03lu: ", connection_id);
     end = buffer + len;
   }
 
@@ -221,7 +221,7 @@ void Logger::dump(const char *key, const void *data, size_t data_len) {
   const size_t len = header();
   const unsigned char *ptr = static_cast<const unsigned char *>(data);
 
-  end += snprintf(end, sizeof(buffer) - len, "%s: %lu bytes", key, data_len);
+  end += snprintf(end, sizeof(buffer) - len, "%s: %zu bytes", key, data_len);
 
   /*
     Dump max 2 rows with 16 bytes each. The dump format is like this:

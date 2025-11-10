@@ -30,10 +30,9 @@
   @file mysys/my_fstream.cc
 */
 
-#include "my_config.h"
-
-#include <sys/types.h>
+#include <cassert>
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 
 #include "my_dbug.h"

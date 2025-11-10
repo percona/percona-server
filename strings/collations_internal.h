@@ -24,6 +24,7 @@
 #ifndef STRINGS_COLLATIONS_INTERNAL_H_
 #define STRINGS_COLLATIONS_INTERNAL_H_
 
+#include <cstddef>
 #include <functional>
 #include <mutex>
 #include <string>

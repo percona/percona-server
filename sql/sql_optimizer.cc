@@ -9031,7 +9031,11 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
   if (can_evaluate) {
     assert(evaluate_during_optimization(right_item,
                                         thd->lex->current_query_block()));
-    right_is_null = right_item->is_nullable() && right_item->is_null();
+    if (thd->lex->using_hypergraph_optimizer()) {
+      right_is_null = right_item->has_subquery();
+    } else {
+      right_is_null = right_item->is_nullable() && right_item->is_null();
+    }
     if (thd->is_error()) return true;
   }
   if (!right_is_null) {

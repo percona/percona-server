@@ -95,8 +95,6 @@ replica_max_allowed_packet
 replica_max_allowed_packet
 replica_net_timeout
 replica_net_timeout
-replica_parallel_type
-replica_parallel_type
 replica_parallel_workers
 replica_parallel_workers
 replica_pending_jobs_size_max
@@ -148,8 +146,6 @@ slave_max_allowed_packet
 slave_max_allowed_packet
 slave_net_timeout
 slave_net_timeout
-slave_parallel_type
-slave_parallel_type
 slave_parallel_workers
 slave_parallel_workers
 slave_pending_jobs_size_max

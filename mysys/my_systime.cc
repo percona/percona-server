@@ -42,7 +42,7 @@
 #include <chrono>
 #include <cstdio>  // std::sprintf()
 #include <ctime>
-#include <limits>  // std::numeric_limits
+#include <limits>  // IWYU pragma: keep std::numeric_limits
 #include <thread>  // std::this_thread::sleep_for
 
 void my_sleep(int64_t micro_seconds) {

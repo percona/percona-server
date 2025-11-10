@@ -21,10 +21,15 @@
 --echo #
 --echo ## V. Verify how directory-index works
 --echo #
---echo # 1. Two content files exist, first one is used (DISABLED)
+--echo # 1. Two content files exist, first one is used
 --echo # 2. First content file does not exist, use second one
 --echo # 3. No content files could be reached
 --echo # 4. Default static content is used as directory index.
+--echo # 5. Directory index defined in reverse order to which Content Files are defined.
+--echo # 6. Last of the Content Files defined as directory index.
+--echo # 7. Not existing Content Files in the middle of directory index list.
+--echo # 8. Not existing Content Files in the end of directory index list.
+--echo # 9. Check redirection with path lacking a '/' at the end
 --echo #
 --echo
 
@@ -88,6 +93,10 @@ SET @my_content_file=@content_file_id;
 --let $mrs_add_content_file_path=/second.html
 --source ../include/mrs/content_file/add.inc
 
+--let $mrs_add_content="third file"
+--let $mrs_add_content_file_path=/third.html
+--source ../include/mrs/content_file/add.inc
+
 # Workaround: the end_object_definition, needs at least one db_object
 # to sync to its refresh.
 --let $mrs_add_schema=basic_schema
@@ -133,17 +142,17 @@ exec $MRS_CLIENT_ARGS
   --response-type RAW
   --expected-status Ok;
 
-#--echo #
-#--echo # V.1 (DISABLED)
-#--let $mrs_sql_id_variable=@my_content_set
-#--let $mrs_modify_options='{"directoryIndexDirective":["first.html","second.html"]}'
-#--source ../include/mrs/content_set/modify_options.inc
-#--source ../include/mrs/wait_mrs_read_metadata.inc
+--echo #
+--echo # V.1
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["first.html","second.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
 
-#exec $MRS_CLIENT_ARGS
-#  --path /svc3/sch/
-#  --response-type RAW
-#  --expected-status Ok;
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch/
+  --response-type RAW
+  --expected-status Ok;
 
 --echo #
 --echo # V.2
@@ -180,6 +189,66 @@ exec $MRS_CLIENT_ARGS
   --path /svc3/sch/
   --response-type RAW
   --expected-status Ok;
+
+--echo #
+--echo # V.5
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["second.html","first.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch/
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # V.6
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["third.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch/
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # V.7
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["third.html", "not_existing.html", "first.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch/
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # V.8
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["third.html", "first.html", "not_existing.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch/
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # V.9
+--let $mrs_sql_id_variable=@my_content_set
+--let $mrs_modify_options='{"directoryIndexDirective":["third.html"]}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+exec $MRS_CLIENT_ARGS
+  --path /svc3/sch
+  --response-type RAW
+  --expected-status 308;
 
 
 # Cleanup

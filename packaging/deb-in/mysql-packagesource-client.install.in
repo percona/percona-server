@@ -30,6 +30,9 @@ usr/bin/mysqldumpslow
 usr/bin/mysqlimport
 usr/bin/mysqlshow
 usr/bin/mysqlslap
+
+@DEB_INSTALL_CLIENT_EXTRA@
+
 # charsets
 usr/share/mysql-@MYSQL_BASE_VERSION@/charsets/*.xml
 usr/share/mysql-@MYSQL_BASE_VERSION@/charsets/README

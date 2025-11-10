@@ -848,9 +848,9 @@ static bool log_should_checkpoint(log_t &log) {
   checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
 
   /* Update checkpoint_lsn stored in header of log files if:
-          a) periodical checkpoints are enabled and either more than 1s
-             elapsed since the last checkpoint or checkpoint could be
-             written in the next redo log file,
+
+          a) periodical checkpoints are enabled and more than 1s
+             elapsed since the last checkpoint,
           b) or checkpoint age is greater than aggressive_checkpoint_min_age,
           c) or it was requested to have greater checkpoint_lsn,
              and oldest_lsn allows to satisfy the request. */
@@ -868,19 +868,7 @@ static bool log_should_checkpoint(log_t &log) {
     return false;
   }
 
-  /* Below is the check if a periodical checkpoint should be written. */
-  IB_mutex_guard files_lock{&log.m_files_mutex, UT_LOCATION_HERE};
-
-  const auto checkpoint_file = log.m_files.find(last_checkpoint_lsn);
-  ut_a(checkpoint_file != log.m_files.end());
-  ut_a(!checkpoint_file->m_consumed);
-
-  const auto checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
-
-  ut_a(last_checkpoint_lsn < checkpoint_file->m_end_lsn);
-
-  return checkpoint_time_elapsed >= get_srv_log_checkpoint_every() ||
-         checkpoint_file->m_end_lsn < oldest_lsn;
+  return get_srv_log_checkpoint_every() <= log_checkpoint_time_elapsed(log);
 }
 
 static void log_consider_checkpoint(log_t &log) {

@@ -636,7 +636,6 @@ class Gtid_mode {
       anonymous; replicated GTID-transactions generate an error.
     */
     OFF = 0,
-    DEFAULT = OFF,
     /**
       New transactions are anonyomus. Replicated transactions can be
       either anonymous or GTID-transactions.
@@ -652,7 +651,8 @@ class Gtid_mode {
       must be GTID-transactions; replicated anonymous transactions
       generate an error.
     */
-    ON = 3
+    ON = 3,
+    DEFAULT = ON,
   };
 
   /**

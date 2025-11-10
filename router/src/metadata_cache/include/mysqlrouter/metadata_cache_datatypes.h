@@ -48,7 +48,8 @@ enum class metadata_errc {
   cluster_not_found,
   invalid_cluster_type,
   outdated_view_id,
-  schema_version_too_low
+  schema_version_too_low,
+  gr_status_update_fail
 };
 }  // namespace metadata_cache
 
@@ -81,6 +82,8 @@ inline const std::error_category &metadata_cache_category() noexcept {
           return "higher view_id seen";
         case metadata_errc::schema_version_too_low:
           return "metadata schema version not supported";
+        case metadata_errc::gr_status_update_fail:
+          return "failed updating Replication Group status";
         default:
           return "unknown";
       }
@@ -160,6 +163,12 @@ class METADATA_CACHE_EXPORT ManagedInstance {
 
     return result;
   }
+
+  mysql_harness::TcpDestination classic_destination() const {
+    return {host, port};
+  }
+
+  mysql_harness::TcpDestination x_destination() const { return {host, xport}; }
 };
 
 using cluster_nodes_list_t = std::vector<ManagedInstance>;

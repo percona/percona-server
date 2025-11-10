@@ -217,7 +217,6 @@ extern bool opt_replica_preserve_commit_order;
 #ifndef NDEBUG
 extern uint replica_rows_last_search_algorithm_used;
 #endif
-extern ulong mts_parallel_option;
 #ifdef _WIN32
 extern bool opt_enable_named_pipe;
 extern char *named_pipe_full_access_group;
@@ -504,7 +503,6 @@ extern PSI_mutex_key key_LOCK_delegate_connection_mutex;
 extern PSI_mutex_key key_LOCK_group_replication_connection_mutex;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
-extern PSI_mutex_key key_mutex_replica_worker_hash;
 
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
@@ -537,7 +535,6 @@ extern PSI_cond_key key_cond_mta_gaq;
 extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
-extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
 extern PSI_cond_key key_COND_group_replication_connection_cond_var;
 extern PSI_thread_key key_thread_bootstrap;
@@ -884,6 +881,7 @@ bool update_named_pipe_full_access_group(const char *new_group_name);
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;
 extern bool opt_always_activate_granted_roles;
+extern bool opt_activate_mandatory_roles;
 
 /* coredumper */
 extern bool opt_libcoredumper;

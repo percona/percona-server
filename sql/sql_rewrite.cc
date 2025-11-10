@@ -348,6 +348,37 @@ bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
 
   return rewrite;
 }
+
+void redact_pattern(String orig, String &output,
+                    char const *pattern_start_c_str,
+                    char const *pattern_end_c_str, char const *redacted_str) {
+  String pattern_start{pattern_start_c_str, system_charset_info};
+  String pattern_end{pattern_end_c_str, system_charset_info};
+
+  size_t search_offset = 0;
+  while (search_offset <= orig.length()) {
+    auto first_index = orig.strstr(pattern_start, search_offset);
+    if (first_index == -1) {
+      // we could not find any other pattern_start
+      break;
+    }
+
+    // search for the pattern_end after the pattern_start location
+    auto second_index = orig.strstr(pattern_end, first_index);
+    if (second_index == -1) {
+      // we could not find any other pattern_end
+      break;
+    }
+
+    // Copy from the original string from the search_offset till first_index
+    output.append(orig.c_ptr() + search_offset, first_index - search_offset);
+    output.append(redacted_str, std::strlen(redacted_str));
+    search_offset = second_index;
+  }
+
+  // Copy the remaining string
+  output.append(orig.c_ptr() + search_offset, orig.length() - search_offset);
+}
 }  // anonymous namespace
 
 /**
@@ -1868,35 +1899,13 @@ bool Rewriter_start_group_replication::rewrite(String &rlb) const {
   return true;
 }
 
-void redact_par_url(String original_query_str, String &rlb) {
-  String pattern_start("/p/", system_charset_info);
-  String pattern_end("/n/", system_charset_info);
+void redact_external_metadata(String original_query_str, String &rlb) {
+  String intermediate;
 
-  size_t search_offset = 0;
-  while (search_offset <= original_query_str.length()) {
-    auto first_index = original_query_str.strstr(pattern_start, search_offset);
-    if (first_index == -1) {
-      // we could not find any other "/p/"
-      break;
-    }
-
-    // search for the "/n/" after the "/p/" location
-    auto second_index = original_query_str.strstr(pattern_end, first_index);
-    if (second_index == -1) {
-      // we could not find any other "/n/"
-      break;
-    }
-
-    // Copy from the original string from the search_offset till first_index
-    rlb.append(original_query_str.c_ptr() + search_offset,
-               first_index - search_offset);
-    rlb.append(STRING_WITH_LEN("/p/<redacted>"));
-    search_offset = second_index;
-  }
-
-  // Copy the remaining string
-  rlb.append(original_query_str.c_ptr() + search_offset,
-             original_query_str.length() - search_offset);
+  redact_pattern(std::move(original_query_str), intermediate, "/p/", "/n/",
+                 "/p/<redacted>");
+  redact_pattern(intermediate, rlb, "ocid1.stream.", "\"",
+                 "ocid1.stream.<redacted>");
 }
 
 Rewriter_select_query::Rewriter_select_query(THD *thd, Consumer_type type)
@@ -1916,7 +1925,7 @@ bool Rewriter_select_query::rewrite(String &rlb) const {
   assert(m_thd->query().length);
   String original_query_str(m_thd->query().str, m_thd->query().length,
                             system_charset_info);
-  redact_par_url(original_query_str, rlb);
+  redact_external_metadata(original_query_str, rlb);
   return true;
 }
 
@@ -1934,7 +1943,7 @@ Rewriter_create_procedure::Rewriter_create_procedure(THD *thd,
 bool Rewriter_create_procedure::rewrite(String &rlb) const {
   String original_query_str(m_thd->query().str, m_thd->query().length,
                             system_charset_info);
-  redact_par_url(original_query_str, rlb);
+  redact_external_metadata(original_query_str, rlb);
   return true;
 }
 
@@ -1951,7 +1960,7 @@ Rewriter_create_table::Rewriter_create_table(THD *thd, Consumer_type type)
 bool Rewriter_create_table::rewrite(String &rlb) const {
   String original_query_str(m_thd->query().str, m_thd->query().length,
                             system_charset_info);
-  redact_par_url(original_query_str, rlb);
+  redact_external_metadata(original_query_str, rlb);
   return true;
 }
 
@@ -2083,6 +2092,6 @@ Rewriter_alter_table::Rewriter_alter_table(THD *thd, Consumer_type type)
 bool Rewriter_alter_table::rewrite(String &rlb) const {
   String original_query_str(m_thd->query().str, m_thd->query().length,
                             system_charset_info);
-  redact_par_url(original_query_str, rlb);
+  redact_external_metadata(original_query_str, rlb);
   return true;
 }

@@ -25,11 +25,14 @@
 
 #include "mrs/endpoint/content_set_endpoint.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "mrs/endpoint/db_service_endpoint.h"
+#include "mrs/endpoint/handler/helper/url_paths.h"  //remove_leading_slash_from_path
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 
 namespace mrs {
 namespace endpoint {
@@ -60,6 +63,38 @@ void ContentSetEndpoint::set(const ContentSet &entry, EndpointBasePtr parent) {
   changed();
 }
 
+void ContentSetEndpoint::disable_handler(std::string_view handler_path) {
+  std::erase_if(handlers_, [&handler_path](const auto &h) {
+    return h->get_db_object_path() == handler_path;
+  });
+}
+
+void ContentSetEndpoint::child_updated(
+    std::shared_ptr<mrs::interface::EndpointBase> content_file_endpoint,
+    std::shared_ptr<handler::PersistentDataContentFile> file_contents) {
+  const auto indexes = get_index_files();
+
+  if (!indexes) return;
+
+  for (auto [pos, index] : stdx::views::enumerate(*indexes)) {
+    const auto current_content_file_name =
+        handler::remove_leading_slash_from_path(
+            content_file_endpoint->get_my_url_path_part());
+
+    if (current_content_file_name == index &&
+        (!directory_pos_ || pos <= directory_pos_)) {
+      directory_handler_ = factory_->create_content_file(content_file_endpoint,
+                                                         file_contents, true);
+
+      // Keep track of the current directoryIndex position so that handler is
+      // not overriden in case when content files are in different order that
+      // directoryIndex
+      directory_pos_ = pos;
+      break;
+    }
+  }
+}
+
 void ContentSetEndpoint::update() {
   auto service_ep =
       std::dynamic_pointer_cast<DbServiceEndpoint>(get_parent_ptr());
@@ -67,6 +102,8 @@ void ContentSetEndpoint::update() {
     service_ep->on_updated_content_set();
   }
 
+  directory_pos_ = std::nullopt;
+  directory_handler_.reset();
   Parent::update();
   observability::EntityCounter<kEntityCounterUpdatesContentSets>::increment();
 }

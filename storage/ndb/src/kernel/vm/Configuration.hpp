@@ -160,7 +160,6 @@ class Configuration {
   ConfigRetriever *get_config_retriever() { return m_config_retriever; }
   NdbMgmHandle *get_mgm_handle_ptr();
 
-  class LogLevel *m_logLevel;
   ndb_mgm_configuration_iterator *getClusterConfigIterator() const;
 
   ndb_mgm_configuration *getClusterConfig() const {

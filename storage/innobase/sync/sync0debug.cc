@@ -525,6 +525,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
   LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
   LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
+  LEVEL_MAP_INSERT(SYNC_TABLE_STATS_COMPUTE);
   LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
   LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
   LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
@@ -770,6 +771,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_AHI_ENABLED:
     case SYNC_ALTER_STAGE:
     case SYNC_PAGE_ZIP_STAT:
+    case SYNC_TABLE_STATS_COMPUTE:
 
       /* This is the most typical case, in which we expect requested<held. */
       assert_requested_is_lower_than_held(level, latches);
@@ -1466,6 +1468,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_RWLOCK(INDEX_TREE, SYNC_INDEX_TREE, index_tree_rw_lock_key);
 
   LATCH_ADD_RWLOCK(DICT_TABLE_STATS, SYNC_INDEX_TREE, dict_table_stats_key);
+
+  LATCH_ADD_MUTEX(DICT_TABLE_STATS_COMPUTE, SYNC_TABLE_STATS_COMPUTE,
+                  dict_table_stats_compute_mutex_key);
 
   LATCH_ADD_RWLOCK(HASH_TABLE_RW_LOCK, SYNC_BUF_PAGE_HASH,
                    hash_table_locks_key);

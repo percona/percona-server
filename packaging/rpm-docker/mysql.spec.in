@@ -49,7 +49,7 @@
 %{!?runselftest:%global runselftest 0}
 
 %{?el7:%global __strip /opt/rh/devtoolset-11/root/usr/bin/strip}
-%{?el8:%global __strip /opt/rh/gcc-toolset-13/root/usr/bin/strip}
+%{?el8:%global __strip /opt/rh/gcc-toolset-14/root/usr/bin/strip}
 %{?el9:%global __strip /opt/rh/gcc-toolset-14/root/usr/bin/strip}
 %global __brp_strip_static_archive %{nil}
 
@@ -78,7 +78,7 @@ Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
 Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. Under %{?license_type} license as shown in the Description field.
-URL:            http://www.mysql.com/
+URL:            https://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
@@ -93,12 +93,12 @@ BuildRequires:  cmake3 >= 3.14.6
 %{?el7:BuildRequires:  devtoolset-11-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-11-binutils}
 %{?el7:BuildRequires:  devtoolset-11-dwz}
-%{?el8:BuildRequires:  gcc-toolset-13-annobin-annocheck}
-%{?el8:BuildRequires:  gcc-toolset-13-annobin-plugin-gcc}
-%{?el8:BuildRequires:  gcc-toolset-13-binutils}
-%{?el8:BuildRequires:  gcc-toolset-13-dwz}
-%{?el8:BuildRequires:  gcc-toolset-13-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-13-gcc}
+%{?el8:BuildRequires:  gcc-toolset-14-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-14-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-14-binutils}
+%{?el8:BuildRequires:  gcc-toolset-14-dwz}
+%{?el8:BuildRequires:  gcc-toolset-14-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-14-gcc}
 %{?el9:BuildRequires:  gcc-toolset-14-annobin-annocheck}
 %{?el9:BuildRequires:  gcc-toolset-14-annobin-plugin-gcc}
 %{?el9:BuildRequires:  gcc-toolset-14-binutils}
@@ -107,13 +107,14 @@ BuildRequires:  cmake3 >= 3.14.6
 %{?el9:BuildRequires:  gcc-toolset-14-gcc}
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
+BuildRequires:  patchelf
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
 BuildRequires:  krb5-devel
-BuildRequires:  libcurl-devel
 %endif
+BuildRequires:  libcurl-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
@@ -122,7 +123,7 @@ BuildRequires:  zlib-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libabsl_.*|libprotobuf.*|libfido2.*|libpolyglot.*
+%global _privatelibs libabsl_.*|libicu.*|libprotobuf.*|libfido2.*|libpolyglot.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*)$
@@ -147,7 +148,7 @@ licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
 the GPL. See the chapter "Licensing and Support" in the manual for
 further info.
 
-The MySQL web site (http://www.mysql.com/) provides the latest
+The MySQL web site (https://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
@@ -174,7 +175,7 @@ licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
 the GPL. See the chapter "Licensing and Support" in the manual for
 further info.
 
-The MySQL web site (http://www.mysql.com/) provides the latest news and
+The MySQL web site (https://www.mysql.com/) provides the latest news and
 information about the MySQL software.  Also please see the documentation
 and the manual for more information.
 
@@ -365,6 +366,8 @@ for p in \
          component_test_sys_var_service_str.so \
          component_test_session_var_service.so \
          component_test_table_access.so \
+         component_test_telemetry_resource_provider.so \
+         component_test_telemetry_secret_provider.so \
          component_test_udf_aggregate.so \
          component_test_udf_registration.so \
          component_test_udf_services.so \
@@ -484,8 +487,14 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_migrate_keyring
+%if 0%{?commercial}
+%attr(755, root, root) %{_bindir}/mysqldm
+%endif # commercial
 
 %dir %{_libdir}/mysql/private
+%attr(755, root, root) %{_libdir}/mysql/private/libicui18n.so.77.1
+%attr(755, root, root) %{_libdir}/mysql/private/libicustubdata.so.77.1
+%attr(755, root, root) %{_libdir}/mysql/private/libicuuc.so.77.1
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.24.4.0
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
@@ -614,8 +623,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
@@ -683,6 +690,7 @@ rm -r $(readlink var) var
 %endif # add_component_keyring_aws
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_kmip.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
@@ -718,6 +726,13 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Fri Aug  1 2025 Marc Alff <marc.alff@oracle.com> - 9.5.0-1
+- Added component_test_telemetry_resource_provider
+- Added component_test_telemetry_secret_provider
+
+* Fri Jun 27 2025 Murthy Sidagam <venkata.sidagam@oracle.com> - 9.5.0-1
+- Added component_keyring_kmip.so component
+
 * Wed Jun 11 2025 Krzysztof Horszczaruk <krzysztof.horszczaruk@oracle.com> - 9.5.0-1
 - Added component_test_component_init_fail
 

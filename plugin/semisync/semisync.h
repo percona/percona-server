@@ -78,7 +78,7 @@ class Trace {
 };
 
 /**
-   Base class for semi-sync master and slave classes
+   Base class for semi-sync source and replica classes
 */
 class ReplSemiSyncBase : public Trace {
  public:
@@ -89,7 +89,7 @@ class ReplSemiSyncBase : public Trace {
   static const unsigned char kPacketFlagSync;
 };
 
-/* The layout of a semisync slave reply packet:
+/* The layout of a semisync replica reply packet:
    1 byte for the magic num
    8 bytes for the binlog position
    n bytes for the binlog filename, terminated with a '\0'

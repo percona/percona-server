@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 #
 # Bug #28380961: CONTRIBUTION BY FACEBOOK: ADD MY_APPEND_EXT FLAG
 #  WHEN DETERMINING FILE NAME ...
@@ -282,3 +283,4 @@ INSERT INTO B37353658.t1 VALUES (1),(2),(3),(4);
 INSERT IGNORE INTO `t1` VALUES (1),(2),(3),(4);
 DROP DATABASE B37353658;
 #End of 9.3 tests
+include/rpl/set_gtid_mode_on.inc

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 # Bug#37938 Test "mysqldump" lacks various insert statements
 # Turn off concurrent inserts to avoid random errors
 # NOTE:  We reset the variable back to saved value at the end of test
@@ -5736,7 +5737,7 @@ DROP DATABASE dump_generated;
 #
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
-48
+49
 DROP DATABASE sys;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
@@ -5746,7 +5747,7 @@ COUNT(*)
 0
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
-48
+49
 #
 # WL#8697: Invisible Indexes
 # Test of mysqldump.
@@ -6719,3 +6720,4 @@ lib3		CREATE LIBRARY `lib3`
     LANGUAGE JAVASCRIPT
 AS $$ export function f3() {  return 3 } $$
 drop database mysqldump_test_db;
+include/rpl/set_gtid_mode_on.inc

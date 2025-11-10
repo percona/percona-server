@@ -30,7 +30,7 @@ let $q=  select * from t1 where
 
 --echo Show use of MRR
 --eval explain format=json into @e $q
-select json_extract(@e, "$.query_block.ordering_operation.table.using_MRR") as using_MRR;
+select json_extract(@e, "$.query_plan.inputs[0].multi_range_read") as using_MRR;
 
 
 --echo Run a number of iterations to likely get query thread usage

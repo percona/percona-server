@@ -268,7 +268,10 @@ void JavaScript::run() {
   });
 
   while (*m_processing_state != ProcessingState::Finished) {
-    set_processing_state(ProcessingState::Idle);
+    // The processing thread should not do anything until it is back to idle
+    // state, including the consumption of the results produced in the last
+    // processing round.
+    wait_for_idle();
 
     auto entry = m_code.pop();
 
@@ -325,6 +328,9 @@ namespace {
     case ProcessingState::Finished:
       st = "finished";
       break;
+    case ProcessingState::HoldingResult:
+      st = "holding_result";
+      break;
   }
 
   if (!other.empty()) {
@@ -338,36 +344,51 @@ namespace {
 void JavaScript::set_processing_state(ProcessingState state) {
   {
     std::scoped_lock lock{m_processing_state_mutex};
+
     m_processing_state = state;
 
     // log_state(m_id, state);
   }
+
   m_processing_state_condition.notify_one();
 }
 
 bool JavaScript::wait_for_idle() {
-  std::unique_lock lock{m_processing_state_mutex};
-
-  // log_state(m_id, m_processing_state, "wait start");
-
   bool idle = false;
-  if (m_processing_state_condition.wait_for(
-          lock, std::chrono::seconds(5), [this]() {
-            return *m_processing_state != ProcessingState::Processing;
-          })) {
-    idle = *m_processing_state == ProcessingState::Idle;
-    if (idle) {
-      Result to_discard;
-      while (m_result.try_pop(to_discard)) {
-        log_error("Releasing stalled result... %s",
-                  to_discard.data.value_or("-").c_str());
-      };
+  bool holding_results = false;
+  {
+    std::unique_lock lock{m_processing_state_mutex};
+
+    // log_state(m_id, m_processing_state, "wait start");
+
+    if (m_processing_state_condition.wait_for(
+            lock, std::chrono::seconds(5), [this]() {
+              return *m_processing_state != ProcessingState::Processing;
+            })) {
+      idle = *m_processing_state == ProcessingState::Idle;
+      holding_results = *m_processing_state == ProcessingState::HoldingResult;
+      if (m_processing_state == ProcessingState::HoldingResult) {
+        Result to_discard;
+        while (m_result.try_pop(to_discard)) {
+          log_error("Releasing stalled result... %s",
+                    to_discard.data.value_or("-").c_str());
+        };
+      }
     }
+  }
+
+  if (holding_results) {
+    idle = true;
+    set_processing_state(ProcessingState::Idle);
   }
 
   // log_state(m_id, m_processing_state, "wait end");
 
   return idle;
+}
+
+bool JavaScript::is_idle() {
+  return *m_processing_state == ProcessingState::Idle;
 }
 
 Value JavaScript::native_array(poly_value object) {
@@ -513,6 +534,10 @@ std::string JavaScript::get_parameter_string(
 std::string JavaScript::execute(const std::string &code, int timeout,
                                 ResultType result_type,
                                 const GlobalCallbacks &global_callbacks) {
+  ProcessingState next_state = ProcessingState::Idle;
+  mysql_harness::ScopedCallback set_state(
+      [this, &next_state]() { set_processing_state(next_state); });
+
   clear_is_terminating();
 
   auto ms_timeout = std::chrono::milliseconds{timeout};
@@ -546,6 +571,10 @@ std::string JavaScript::execute(const std::string &code, int timeout,
         throw MemoryError(*result.data);
     }
   }
+
+  // At this point, the expected result was not consumed and will arrive to the
+  // queue, so we should handle it
+  next_state = ProcessingState::HoldingResult;
 
   // This logic is reached if a Timeout occurred, the time out handling
   // includes:

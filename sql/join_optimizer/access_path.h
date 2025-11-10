@@ -94,12 +94,12 @@ struct JoinPredicate {
   // or {a, c} → b.
   //
   // Used in the processing of interesting orders.
-  FunctionalDependencySet functional_dependencies;
+  FunctionalDependencySet functional_dependencies{};
 
   // A less compact form of functional_dependencies, used during building
   // (FunctionalDependencySet bitmaps are only available after all functional
   // indexes have been collected and Build() has been called).
-  Mem_root_array<int> functional_dependencies_idx;
+  Mem_root_array<int> functional_dependencies_idx{};
 
   // A semijoin on the following format:
   //
@@ -439,6 +439,9 @@ struct AccessPath {
   /// in the code.
   double rescan_cost() const { return cost() - init_once_cost(); }
 
+  /// Return true if costs and row counts are consistent.
+  bool HasConsistentCostsAndRows(const JoinHypergraph &graph) const;
+
   /// If no filter, identical to num_output_rows.
   double num_output_rows_before_filter{kUnknownRowCount};
 
@@ -536,6 +539,10 @@ struct AccessPath {
   /// secondary engine to manage the memory and make sure it is properly
   /// destroyed.
   void *secondary_engine_data{nullptr};
+
+  /// Signature used to uniquely identify the access path.
+  /// 0 meaning non-initialized.
+  size_t signature{0};
 
   // Accessors for the union below.
   auto &table_scan() {
@@ -1345,10 +1352,10 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 144,
+static_assert(sizeof(AccessPath) <= 152,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(96 bytes for the base, 48 bytes for the variant.)");
+              "(104 bytes for the base, 52 bytes for the variant.)");
 
 inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->set_num_output_rows(from.num_output_rows());
@@ -1359,7 +1366,11 @@ inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->safe_for_rowid = from.safe_for_rowid;
   to->ordering_state = from.ordering_state;
   to->has_group_skip_scan = from.has_group_skip_scan;
+  to->signature = from.signature;
 }
+
+/// Return the name of an AccessPath::Type enumerator.
+std::string_view AccessPathTypeName(AccessPath::Type type);
 
 // Trivial factory functions for all of the types of access paths above.
 
@@ -1913,6 +1924,42 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
 TABLE *GetBasicTable(const AccessPath *path);
 
 /**
+  Applies the secondary storage engine nrows modification function, if any.
+
+  @param params input params for the callback function.
+   Refer to typedef for the actual input parameters explainations.
+
+  @return true if secondary engine has proposed modification to ap's nrows.
+*/
+bool ApplySecondaryEngineNrowsHook(
+    const SecondaryEngineNrowsParameters &params);
+
+/**
+  Returns whether SecondaryNrows is applicable given the parameters.
+
+  @param path access path to be verified.
+  @param thd current query thd.
+  @param graph current query block hypergraph.
+
+  @return true if nrows hook is applicable.
+*/
+bool IsSecondaryEngineNrowsHookApplicable(AccessPath *path, THD *thd,
+                                          const JoinHypergraph *graph);
+
+/**
+  Returns whether SecondaryNrows hook enabled and is applicable given the
+  parameters.
+
+  @param path access path to be verified.
+  @param thd current query thd.
+  @param graph current query block hypergraph.
+
+  @return true if nrows hook enabled and is applicable.
+*/
+bool IsSecondaryNrowsHookEnabledAndApplicable(AccessPath *path, THD *thd,
+                                              const JoinHypergraph *graph);
+
+/**
   Returns a map of all tables read when `path` or any of its children are
   executed. Only iterators that are part of the same query block as `path`
   are considered.
@@ -1947,9 +1994,8 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
 
   “join” is the join that “path” is part of.
  */
-void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
-                             const Mem_root_array<Predicate> &predicates,
-                             unsigned num_where_predicates);
+void ExpandFilterAccessPaths(THD *thd, const JoinHypergraph &graph,
+                             AccessPath *path, const JOIN *join);
 
 /**
   Extracts the Item expression from the given “filter_predicates” corresponding
@@ -1961,9 +2007,8 @@ Item *ConditionFromFilterPredicates(const Mem_root_array<Predicate> &predicates,
 
 /// Like ExpandFilterAccessPaths(), but expands only the single access path
 /// at “path”.
-void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
-                                  const Mem_root_array<Predicate> &predicates,
-                                  unsigned num_where_predicates);
+void ExpandSingleFilterAccessPath(THD *thd, const JoinHypergraph &graph,
+                                  AccessPath *path, const JOIN *join);
 
 /**
   Clear all the bits representing filter predicates in a bitset, and keep only

@@ -37,7 +37,10 @@
 
 #include <sys/types.h>
 #include <cstring>
+#include <memory>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "keycache.h"
 #include "map_helpers.h"
@@ -46,7 +49,6 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/strings/m_ctype.h"
 #include "mysys/mysys_priv.h"
 #include "template_utils.h"
 

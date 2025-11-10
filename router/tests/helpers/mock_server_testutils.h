@@ -126,6 +126,8 @@ class MockGrMetadata {
 
   JsonValue as_json() const;
 
+  void send(uint16_t http_port, std::string http_host = "127.0.0.1");
+
  private:
   std::optional<std::string> gr_id_;
   std::optional<std::string> cluster_name_;

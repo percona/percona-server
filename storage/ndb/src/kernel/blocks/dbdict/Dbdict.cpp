@@ -17258,6 +17258,14 @@ void Dbdict::execSUB_START_REQ(Signal *signal) {
   jamEntry();
   D("execSUB_START_REQ");
 
+  if (ERROR_INSERTED(6228)) {
+    jam();
+    /* Simulate upgrade, with shorter signal + junk in 'requestInfo' part */
+    SubStartReq *req = (SubStartReq *)signal->getDataPtr();
+    req->requestInfo = 0xffffffff;
+    signal->setLength(SubStartReq::SignalLengthWithoutRequestInfo);
+  }
+
   Uint32 origSenderRef = signal->senderBlockRef();
 
   if (refToBlock(origSenderRef) != DBDICT && getOwnNodeId() != c_masterNodeId) {
@@ -17351,6 +17359,7 @@ void Dbdict::execSUB_START_REQ(Signal *signal) {
 
     req->senderRef = reference();
     req->senderData = subbPtr.i;
+    req->requestInfo = subbPtr.p->m_requestInfo;
 
 #ifdef EVENT_PH3_DEBUG
     g_eventLogger->info(
@@ -17385,6 +17394,7 @@ void Dbdict::execSUB_START_REQ(Signal *signal) {
 
     req->senderRef = reference();
     req->senderData = subbPtr.i;
+    req->requestInfo = subbPtr.p->m_requestInfo;
 
 #ifdef EVENT_PH3_DEBUG
     g_eventLogger->info(
@@ -17562,6 +17572,19 @@ void Dbdict::completeSubStartReq(Signal *signal, Uint32 ptrI,
   g_eventLogger->info("SUB_START_CONF");
 #endif
 
+  /* Determine latest epoch, every epoch after this will be consistently
+   * delivered by this subscription.
+   */
+  Uint32 gciHi = 0;
+  Uint32 gciLo = 0;
+
+  signal->theData[0] = 0;  // user ptr
+  signal->theData[1] = 0;  // Execute direct
+  signal->theData[2] = 2;  // Latest
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+  gciHi = signal->theData[1];
+  gciLo = signal->theData[2];
+
   ndbrequire(c_outstanding_sub_startstop);
   c_outstanding_sub_startstop--;
   SubStartConf *conf = (SubStartConf *)signal->getDataPtrSend();
@@ -17571,6 +17594,10 @@ void Dbdict::completeSubStartReq(Signal *signal, Uint32 ptrI,
   for (Uint32 i = 0; i < ARRAY_SIZE(subbPtr.p->m_buckets_per_ng); i++)
     cnt += subbPtr.p->m_buckets_per_ng[i];
   conf->bucketCount = cnt;
+
+  /* Ignore SUMA's firstGCI, send latest current GCI obtained above to API */
+  conf->firstGCIhi = gciHi;
+  conf->firstGCIlo = gciLo;
 
   sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_CONF, signal,
              SubStartConf::SignalLength, JBB);

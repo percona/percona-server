@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_ssl_algo_cache.h"
 #include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/opensslv.h>
 #include <cassert>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/provider.h>

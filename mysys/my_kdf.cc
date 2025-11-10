@@ -29,12 +29,14 @@
 #include "mysys/my_kdf.h"
 #include "my_ssl_algo_cache.h"
 
-#include <openssl/evp.h>
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #include <openssl/kdf.h>
 #endif
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 

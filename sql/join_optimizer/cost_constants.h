@@ -149,11 +149,6 @@ constexpr double kSortOneRowCost = 0.15 / kUnitCostInMicroseconds;
 /// is clear that it would be worth taking this into account in the cost model.
 constexpr double kSortComparisonCost = 0.014 / kUnitCostInMicroseconds;
 
-/// Hash join constants.
-constexpr double kHashBuildOneRowCost = 0.65 / kUnitCostInMicroseconds;
-constexpr double kHashProbeOneRowCost = 0.09 / kUnitCostInMicroseconds;
-constexpr double kHashReturnOneRowCost = 0.06 / kUnitCostInMicroseconds;
-
 /// In need of calibration.
 constexpr double kDedupOneRowCost = 0.1 / kUnitCostInMicroseconds;
 constexpr double kWindowOneRowCost = 0.1 / kUnitCostInMicroseconds;

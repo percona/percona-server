@@ -170,7 +170,9 @@ inline constexpr sql_mode_t MODE_PAD_CHAR_TO_FULL_LENGTH = 1ULL << 31;
 */
 inline constexpr sql_mode_t MODE_TIME_TRUNCATE_FRACTIONAL = 1ULL << 32;
 
-inline constexpr sql_mode_t MODE_LAST = 1ULL << 33;
+inline constexpr sql_mode_t MODE_INTERPRET_UTF8_AS_UTF8MB4 = 1ULL << 33;
+
+inline constexpr sql_mode_t MODE_LAST = 1ULL << 34;
 
 inline constexpr sql_mode_t MODE_ALLOWED_MASK =
     (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
@@ -180,7 +182,8 @@ inline constexpr sql_mode_t MODE_ALLOWED_MASK =
      MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES | MODE_NO_ZERO_IN_DATE |
      MODE_NO_ZERO_DATE | MODE_INVALID_DATES | MODE_ERROR_FOR_DIVISION_BY_ZERO |
      MODE_TRADITIONAL | MODE_HIGH_NOT_PRECEDENCE | MODE_NO_ENGINE_SUBSTITUTION |
-     MODE_PAD_CHAR_TO_FULL_LENGTH | MODE_TIME_TRUNCATE_FRACTIONAL);
+     MODE_PAD_CHAR_TO_FULL_LENGTH | MODE_TIME_TRUNCATE_FRACTIONAL |
+     MODE_INTERPRET_UTF8_AS_UTF8MB4);
 
 /*
   We can safely ignore and reset these obsolete mode bits while replicating:
@@ -206,8 +209,7 @@ inline constexpr sql_mode_t MODE_ALLOWED_MASK =
   updated (to store more bytes on disk).
 
   NOTE: When adding new SQL_MODE types, make sure to also add them to
-  the scripts used for creating the MySQL system tables
-  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+  sql_mode_names[] in sys_vars.cc
 */
 
 /** Page fragmentation statistics */

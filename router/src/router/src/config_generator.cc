@@ -146,6 +146,7 @@ static constexpr unsigned kMaxPasswordRetries = 10000;
 
 static const std::string kDefaultMetadataCacheSectionKey = "bootstrap";
 
+using mysql_harness::AutoCleaner;
 using mysql_harness::get_from_map;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
@@ -190,7 +191,9 @@ inline std::string get_opt(const std::map<std::string, std::string> &map,
   return iter->second;
 }
 
-ConfigGenerator::ConfigGenerator(std::ostream &out_stream,
+ConfigGenerator::ConfigGenerator(AutoCleaner &auto_cleaner,
+                                 AccountsCleaner &accounts_cleaner,
+                                 std::ostream &out_stream,
                                  std::ostream &err_stream
 #ifndef _WIN32
                                  ,
@@ -200,7 +203,9 @@ ConfigGenerator::ConfigGenerator(std::ostream &out_stream,
     : connect_timeout_(MySQLSession::kDefaultConnectTimeout),
       read_timeout_(MySQLSession::kDefaultReadTimeout),
       out_stream_(out_stream),
-      err_stream_(err_stream)
+      err_stream_(err_stream),
+      auto_cleaner_(auto_cleaner),
+      accounts_cleaner_(accounts_cleaner)
 #ifndef _WIN32
       ,
       sys_user_operations_(sys_user_operations)
@@ -508,7 +513,6 @@ void ConfigGenerator::bootstrap_system_deployment(
     const std::map<std::string, std::string> &default_paths) {
   auto options(user_options);
   mysql_harness::Path _config_file_path(config_file_path);
-  AutoCleaner auto_clean;
 
   std::string router_name;
   if (user_options.find("name") != user_options.end()) {
@@ -539,18 +543,15 @@ void ConfigGenerator::bootstrap_system_deployment(
           open_res.error(),
           "Could not open " + tmp_file_name + " for writing: ");
     }
-    auto_clean.add_file_delete(tmp_file_name);
+    auto_cleaner_.add_file_delete(tmp_file_name);
 
     config_files.push_back(std::move(open_res.value()));
   }
 
-  // on bootstrap failure, DROP USER for all created accounts
-  Scope_guard create_user_undo([&]() { undo_create_user_for_new_accounts(); });
-
   const std::string bootstrap_report_text = bootstrap_deployment(
       program_name, config_files[0], config_files[1], config_file_path,
       state_file_path, router_name, options, multivalue_options,
-      config_cmdline_options, default_paths, false, auto_clean);
+      config_cmdline_options, default_paths, false);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
     config_files[i].close();
@@ -559,15 +560,14 @@ void ConfigGenerator::bootstrap_system_deployment(
     const std::string file_desc =
         is_static_conf ? "configuration" : "dynamic state";
 
-    if (backup_config_file_if_different(path, path + ".tmp", options,
-                                        &auto_clean)) {
+    if (backup_config_file_if_different(path, path + ".tmp", options, true)) {
       std::cout << "\nExisting " << file_desc << " backed up to '" << path
                 << ".bak'" << std::endl;
-      auto_clean.add_file_delete(path);
+      auto_cleaner_.add_file_delete(path);
     }
 
     // rename the .tmp file to the final file
-    auto rename_res = mysqlrouter::rename_file((path + ".tmp"), path);
+    auto rename_res = mysql_harness::rename_file((path + ".tmp"), path);
 
     if (!rename_res) {
       auto ec = rename_res.error();
@@ -588,8 +588,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
     set_file_owner(options, path);
   }
-  auto_clean.clear();
-  create_user_undo.release();
+
   out_stream_ << bootstrap_report_text;
 }
 
@@ -619,7 +618,6 @@ void ConfigGenerator::bootstrap_directory_deployment(
   bool force = user_options.find("force") != user_options.end();
   mysql_harness::Path path(directory);
   std::string router_name;
-  AutoCleaner auto_clean;
 
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
@@ -634,7 +632,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
                                std::to_string(kMaxRouterNameLength) + ").");
   }
 
-  if (!path.exists()) {
+  const bool new_directory = !path.exists();
+  if (new_directory) {
     int err = mysql_harness::mkdir(directory, kStrictDirectoryPerm);
     if (err != 0) {
       auto ec = std::error_code{err, std::generic_category()};
@@ -645,7 +644,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 #endif
       throw std::system_error(ec, "Could not create deployment directory");
     }
-    auto_clean.add_directory_delete(directory, true);
+    auto_cleaner_.add_directory_delete(directory, true);
   }
 
   if (!Path(directory).is_directory()) {
@@ -684,7 +683,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
   std::map<std::string, std::string> options(user_options);
 
   const std::vector<std::tuple<std::string, std::string, bool>> directories{
-      //              option name   dir_name      mkdir
+      //              option name, dir_name, mkdir
       std::make_tuple("logdir", "log", true),
       std::make_tuple("rundir", "run", true),
       std::make_tuple("datadir", "data", true),
@@ -717,7 +716,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
                                       " directory: " + options[option_name]);
         }
       } else {
-        auto_clean.add_directory_delete(options[option_name]);
+        auto_cleaner_.add_directory_delete(options[option_name], new_directory);
       }
     }
 
@@ -744,34 +743,31 @@ void ConfigGenerator::bootstrap_directory_deployment(
       throw std::system_error(
           ec, "Could not open " + tmp_file_name + " for writing");
     }
-    auto_clean.add_file_delete(tmp_file_name);
+    auto_cleaner_.add_file_delete(tmp_file_name);
 
     config_files.push_back(std::move(open_res.value()));
   }
 
   set_keyring_info_real_paths(options, path);
 
-  // on bootstrap failure, DROP USER for all created accounts
-  Scope_guard create_user_undo([&]() { undo_create_user_for_new_accounts(); });
-
   const std::string bootstrap_report_text = bootstrap_deployment(
       program_name, config_files[0], config_files[1], config_files_names[0],
       config_files_names[1], router_name, options, multivalue_options,
-      config_cmdline_options, default_paths, true,
-      auto_clean);  // throws std::runtime_error, ?
+      config_cmdline_options, default_paths,
+      true);  // throws std::runtime_error, ?
 
   for (size_t i = 0; i < config_files_names.size(); ++i) {
     auto &config_file = config_files[i];
     const auto &config_file_name = config_files_names[i];
     const bool is_static_conf = (i == 0);
     config_file.close();
-    if (backup_config_file_if_different(config_file_name,
-                                        config_file_name + ".tmp", options)) {
+    if (backup_config_file_if_different(
+            config_file_name, config_file_name + ".tmp", options, false)) {
       std::cout << "\nExisting configurations backed up to '"
                 << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
-    auto rename_res = mysqlrouter::rename_file(
+    auto rename_res = mysql_harness::rename_file(
         (config_file_name + ".tmp").c_str(), config_file_name.c_str());
 
     if (!rename_res) {
@@ -836,8 +832,6 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 #endif
 
-  auto_clean.clear();
-  create_user_undo.release();
   out_stream_ << bootstrap_report_text;
 }
 
@@ -1129,8 +1123,7 @@ void ConfigGenerator::set_log_file_permissions(
 // create certificates in default locations if key and cert don't exist.
 void ConfigGenerator::prepare_ssl_certificate_files(
     const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::string> &default_paths,
-    AutoCleaner *auto_cleaner) const {
+    const std::map<std::string, std::string> &default_paths) const {
   mysql_harness::Path datadir_path;
   if (user_options.find("datadir") != std::end(user_options))
     datadir_path = mysql_harness::Path(user_options.at("datadir"));
@@ -1150,10 +1143,10 @@ void ConfigGenerator::prepare_ssl_certificate_files(
                                   router_cert_path};
 
   if (cert_handler.no_cert_files_exists()) {
-    auto_cleaner->add_file_delete(ca_key_path.str());
-    auto_cleaner->add_file_delete(ca_cert_path.str());
-    auto_cleaner->add_file_delete(router_key_path.str());
-    auto_cleaner->add_file_delete(router_cert_path.str());
+    auto_cleaner_.add_file_delete(ca_key_path.str());
+    auto_cleaner_.add_file_delete(ca_cert_path.str());
+    auto_cleaner_.add_file_delete(router_key_path.str());
+    auto_cleaner_.add_file_delete(router_cert_path.str());
 
     auto res = cert_handler.create();
     if (!res) {
@@ -1183,6 +1176,29 @@ void ConfigGenerator::prepare_ssl_certificate_files(
   }
 }
 
+namespace {
+
+void ensure_options_supported(
+    const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::vector<std::string>> &multivalue_options,
+    bool is_standalone) {
+  if (!is_standalone) return;
+
+  constexpr std::array innodb_cluster_specific_options{
+      "account", "account-create", "account-host"};
+
+  for (const auto &option : innodb_cluster_specific_options) {
+    if (user_options.contains(option) || multivalue_options.contains(option)) {
+      throw std::runtime_error(
+          "Option '--"s + option +
+          "' only allowed when the target is InnoDB Cluster. The "
+          "actual target is standalone server.");
+    }
+  }
+}
+
+}  // namespace
+
 std::string ConfigGenerator::bootstrap_deployment(
     const std::string &program_name, std::ofstream &config_file,
     std::ofstream &state_file, const mysql_harness::Path &config_file_path,
@@ -1191,10 +1207,12 @@ std::string ConfigGenerator::bootstrap_deployment(
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &config_cmdline_options,
     const std::map<std::string, std::string> &default_paths,
-    bool directory_deployment, AutoCleaner &auto_clean) {
+    bool directory_deployment) {
   bool force = user_options.find("force") != user_options.end();
 
   const bool standalone_target = is_standalone_target();
+
+  ensure_options_supported(user_options, multivalue_options, standalone_target);
 
   auto cluster_info =
       standalone_target ? ClusterInfo{} : metadata_->fetch_metadata_servers();
@@ -1250,7 +1268,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     create_config(conf_stream, state_stream, conf_options.router_id,
                   router_name, system_username, cluster_info, username, options,
                   default_paths, config_cmdline_options, state_file_path.str(),
-                  full, auto_clean);
+                  full);
 
     mysql_harness::LoaderConfig config{mysql_harness::Config::allow_keys};
     config.read(conf_stream);
@@ -1304,7 +1322,7 @@ std::string ConfigGenerator::bootstrap_deployment(
                         (options.client_ssl_mode != "DISABLED") &&
                         (get_opt(user_options, "client_ssl_cert", "") == "") &&
                         (get_opt(user_options, "client_ssl_key", "") == ""))) {
-    prepare_ssl_certificate_files(user_options, default_paths, &auto_clean);
+    prepare_ssl_certificate_files(user_options, default_paths);
   }
 
   // test out the connection that Router would use
@@ -1313,7 +1331,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     verify_router_account(conf_options.username, password, strict);
   }
 
-  store_credentials_in_keyring(auto_clean, user_options, conf_options.router_id,
+  store_credentials_in_keyring(user_options, conf_options.router_id,
                                conf_options.username, password, options);
   set_log_file_permissions(default_paths, user_options, options);
 
@@ -1325,7 +1343,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     create_config(config_file, state_file, conf_options.router_id, router_name,
                   system_username, cluster_info, conf_options.username, options,
                   default_paths, config_cmdline_options, state_file_path.str(),
-                  false, auto_clean);
+                  false);
   }
 
   // return bootstrap report (several lines of human-readable text)
@@ -1770,12 +1788,11 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.
 }
 
 void ConfigGenerator::store_credentials_in_keyring(
-    AutoCleaner &auto_clean,
     const std::map<std::string, std::string> &user_options, uint32_t router_id,
     const std::string &username, const std::string &password,
     Options &options) {
   out_stream_ << "- Storing account in keyring" << std::endl;
-  init_keyring_and_master_key(auto_clean, user_options, router_id);
+  init_keyring_and_master_key(user_options, router_id);
 
   mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
 
@@ -1793,12 +1810,11 @@ void ConfigGenerator::store_credentials_in_keyring(
 }
 
 void ConfigGenerator::init_keyring_and_master_key(
-    AutoCleaner &auto_clean,
     const std::map<std::string, std::string> &user_options,
     uint32_t router_id) {
   // buffer original master key file, it will be restored when bootstrap fails
   if (!keyring_info_.get_master_key_file().empty())
-    auto_clean.add_file_revert(keyring_info_.get_master_key_file());
+    auto_cleaner_.add_file_revert(keyring_info_.get_master_key_file());
 
   // buffer original master key from external facility, it will be restored when
   // bootstrap fails
@@ -1811,7 +1827,7 @@ void ConfigGenerator::init_keyring_and_master_key(
     keyring_info_copy.set_master_key_writer(
         keyring_info_.get_master_key_writer());
     if (keyring_info_copy.read_master_key()) {
-      auto_clean.add_cleanup_callback(
+      auto_cleaner_.add_cleanup_callback(
           [keyring_info_copy] { return keyring_info_copy.write_master_key(); });
     }
   }
@@ -2209,8 +2225,7 @@ void ConfigGenerator::create_config(
     const Options &options,
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &config_cmdln_options,
-    const std::string &state_file_name, const bool full,
-    AutoCleaner &auto_clean) {
+    const std::string &state_file_name, const bool full) {
   config_file << "# File automatically generated during MySQL Router bootstrap"
               << "\n";
 
@@ -2449,7 +2464,7 @@ void ConfigGenerator::create_config(
   if (!options.disable_rest || full) {
     add_rest_section(config_file, options, default_paths, config_cmdln_options,
                      tls_filenames_.router_cert, tls_filenames_.router_key,
-                     schema_version_, auto_clean);
+                     schema_version_, auto_cleaner_);
   }
 
   ConfigSectionPrinter::add_remaining_sections(config_file,
@@ -2961,18 +2976,6 @@ void ConfigGenerator::give_grants_to_users(const std::string &new_accounts) {
   }
 }
 
-std::string ConfigGenerator::make_account_list(
-    const std::string username, const std::set<std::string> &hostnames) {
-  std::string account_list;
-  for (const std::string &h : hostnames) {
-    if (!account_list.empty()) {
-      account_list += ",";
-    }
-    account_list += mysql_->quote(username) + "@" + mysql_->quote(h);
-  }
-  return account_list;
-}
-
 /*
   Create MySQL account for this instance of the router in the target cluster.
 
@@ -2986,8 +2989,6 @@ void ConfigGenerator::create_accounts(const std::string &username,
                                       const std::string &password,
                                       bool if_not_exists /*=false*/) {
   harness_assert(hostnames.size());
-  harness_assert(undo_create_account_list_.type ==
-                 UndoCreateAccountList::kNotSet);
 
   out_stream_ << "- Creating account(s) "
               << (if_not_exists ? "(only those that are needed, if any)" : "")
@@ -3010,107 +3011,28 @@ void ConfigGenerator::create_accounts(const std::string &username,
   // NEW accounts would be better (and we do that later), but in the meantime if
   // determining new accounts fails, at least we'll have a list of all accounts
   // that went into CREATE USER [IF NOT EXISTS] statement
-  undo_create_account_list_ = {UndoCreateAccountList::kAllAccounts,
-                               make_account_list(username, hostnames)};
+  accounts_cleaner_.register_tmp_undo_account_list(
+      {mysqlrouter::MySQLAccountsCleaner::UndoCreateAccountList::kAllAccounts,
+       accounts_cleaner_.make_account_list(username, hostnames)});
 
   // determine which of the accounts we ran in CREATE USER... statement did not
   // exist before
   const std::set<std::string> new_hostnames =
       get_hostnames_of_created_accounts(username, hostnames, if_not_exists);
   const std::string new_accounts =
-      new_hostnames.empty() ? "" : make_account_list(username, new_hostnames);
+      new_hostnames.empty()
+          ? ""
+          : accounts_cleaner_.make_account_list(username, new_hostnames);
 
   // if we made it here, we managed to get a list of JUST NEW accounts that got
   // created.  This is more useful than the previous list of ALL accounts, so
   // let's replace it with this new better list.
-  undo_create_account_list_ = {UndoCreateAccountList::kNewAccounts,
-                               new_accounts};
+  accounts_cleaner_.register_undo_account_list(
+      {mysqlrouter::MySQLAccountsCleaner::UndoCreateAccountList::kNewAccounts,
+       new_accounts});
 
   // proceed to giving grants
   give_grants_to_users(new_accounts);
-}
-
-void ConfigGenerator::undo_create_user_for_new_accounts() noexcept {
-  try {  // need to guarantee noexcept
-
-    switch (undo_create_account_list_.type) {
-      case UndoCreateAccountList::kNotSet:
-        // we didn't get around to creating accounts yet -> nothing to do
-        return;
-      case UndoCreateAccountList::kAllAccounts:
-        // fallthrough
-      case UndoCreateAccountList::kNewAccounts:
-        if (undo_create_account_list_.accounts.empty()) {
-          // even if we created some accounts, none of them were new -> nothing
-          // to do
-          return;
-        }
-    };
-
-    err_stream_ << "FATAL ERROR ENCOUNTERED, attempting to undo new accounts "
-                   "that were created"
-                << std::endl;
-
-    // shorter name
-    const std::string &account_list = undo_create_account_list_.accounts;
-
-    if (undo_create_account_list_.type == UndoCreateAccountList::kAllAccounts) {
-      // we successfully ran CREATE USER [IF NOT EXISTS] on requested
-      // accounts, but determining which of them were new (via SHOW WARNINGS)
-      // failed.
-
-      err_stream_
-          << "\n"
-          << Vt100::foreground(Vt100::Color::Red)
-          << "ERROR: " << Vt100::render(Vt100::Render::ForegroundDefault)
-          << R"(We created account(s), of which at least one already existed.
-A fatal error occurred while we tried to determine which account(s) were new,
-therefore to be safe, we did not erase any accounts while cleaning-up before
-exiting.
-You may want to clean those up yourself, if you deem it appropriate.
-Here's a full list of accounts that bootstrap tried to create (some of which
-might have already existed before bootstrapping):
-
-  )"s << account_list
-          << std::endl;
-    } else {
-      harness_assert(undo_create_account_list_.type ==
-                     UndoCreateAccountList::kNewAccounts);
-      // we successfully ran CREATES USER [IF NOT EXISTS] on requested
-      // accounts, and we have the (undo) list of which ones were new
-
-      // build DROP USER statement to erase all existing accounts
-      std::string query = "DROP USER IF EXISTS " + account_list;
-
-      auto handle_error = [this, &account_list](const std::exception &e) {
-        err_stream_ << "\n"
-                    << Vt100::foreground(Vt100::Color::Red) << "ERROR: "
-                    << Vt100::render(Vt100::Render::ForegroundDefault) <<
-            R"(As part of cleanup after bootstrap failure, we tried to erase account(s)
-that we created.  Unfortunately the cleanup failed with error:
-
-  )"s << e.what() << R"(
-You may want to clean up the accounts yourself, here is the full list of
-accounts that were created:
-  )"s << account_list
-                    << std::endl;
-
-        log_error("Undoing creating new users failed: %s", e.what());
-      };
-
-      // since we're running this code as result of prior errors, we can't
-      // really do anything about new exceptions, except to advise user.
-      try {
-        mysql_->execute(query);
-        err_stream_ << "- New accounts cleaned up successfully" << std::endl;
-      } catch (const MySQLSession::Error &e) {
-        handle_error(e);
-      } catch (const std::logic_error &e) {
-        handle_error(e);
-      }
-    }
-  } catch (...) {
-  }
 }
 
 uint16_t get_x_protocol_port(const mysql_harness::Config &conf,
@@ -3489,17 +3411,16 @@ static bool files_equal(const std::string &f1, const std::string &f2) {
 
 bool ConfigGenerator::backup_config_file_if_different(
     const mysql_harness::Path &config_path, const std::string &new_file_path,
-    const std::map<std::string, std::string> &options,
-    AutoCleaner *auto_cleaner) {
+    const std::map<std::string, std::string> &options, bool clean) {
   if (config_path.exists() && config_path.is_regular()) {
     // if the old and new config files are the same, don't bother with a
     // backup
     if (!files_equal(config_path.str(), new_file_path)) {
       std::string backup_file_name = config_path.str() + ".bak";
-      if (auto_cleaner) {
-        auto_cleaner->add_file_revert(config_path.str(), backup_file_name);
+      if (clean) {
+        auto_cleaner_.add_file_revert(config_path.str(), backup_file_name);
       } else {
-        copy_file(config_path.str(), backup_file_name);
+        mysql_harness::copy_file(config_path.str(), backup_file_name);
       }
       try {
         mysql_harness::make_file_private(backup_file_name);

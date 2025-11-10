@@ -503,8 +503,8 @@ SELECT ETAG(location) FROM spatial_data;
 ERROR HY000: ETAG is not supported with Vector/ Geometry types.
 SELECT ETAG(CAST(location as JSON)) FROM spatial_data;
 ETAG(CAST(location as JSON))
-a1c5c1a3588266911962ef49767f0e3d
-a4ee54a2c438d3eed0f365aae668aabb
+cd3d161230f11d59d6318d8ba496a55f
+da878719c0f5fc604bea194aee6eb0ef
 DROP TABLE spatial_data;
 CREATE TABLE departments (
 department_code VARCHAR(30),

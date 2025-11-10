@@ -1188,6 +1188,9 @@ class Btree_load : private ut::Non_copyable {
                       irrespective of whether it is fully used or not. */
   void add_to_bulk_flusher(bool finish = false);
 
+  /** Add blob extents to the bulk flusher and wait till they are flushed. */
+  void add_blobs_to_bulk_flusher();
+
   /** Add the given page extent object to the bulk flusher.
   @param[in]  page_extent the extent to be flushed. */
   void add_to_bulk_flusher(Page_extent *page_extent);

@@ -169,6 +169,7 @@ static char *srv_monitor_file_name;
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t log_archiver_thread_key;
 mysql_pfs_key_t page_archiver_thread_key;
+mysql_pfs_key_t buf_pool_create_thread_key;
 mysql_pfs_key_t buf_dump_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
 mysql_pfs_key_t clone_ddl_thread_key;

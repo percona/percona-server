@@ -56,7 +56,6 @@
 #11. Clean up.
 ################################################################################
 
---source include/have_replica_parallel_type_logical_clock.inc
 --let $option_name = replica_parallel_workers
 --let $option_operator = >
 --let $option_value = 1

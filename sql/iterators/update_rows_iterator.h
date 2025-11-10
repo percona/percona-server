@@ -55,8 +55,6 @@ class UpdateRowsIterator final : public RowIterator {
                      mem_root_deque<Item *> **values_for_table,
                      table_map tables_with_rowid_in_buffer);
   ~UpdateRowsIterator() override;
-  bool Init() override;
-  int Read() override;
   void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
   void EndPSIBatchModeIfStarted() override {
     m_source->EndPSIBatchModeIfStarted();
@@ -107,6 +105,9 @@ class UpdateRowsIterator final : public RowIterator {
   /// handler::position() must be called to get the current row ID from the
   /// underlying scan.
   table_map m_hash_join_tables;
+
+  bool DoInit() override;
+  int DoRead() override;
 
   /// Perform all the immediate updates for the current row returned by the
   /// join, and buffer row IDs for the non-immediate tables.

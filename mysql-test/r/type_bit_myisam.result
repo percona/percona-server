@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 select 0 + b'1';
 0 + b'1'
 1
@@ -952,3 +953,4 @@ HEX(b)	COUNT(a) OVER (PARTITION BY b)
 2	2
 3	1
 DROP TABLE t1, t2;
+include/rpl/set_gtid_mode_on.inc

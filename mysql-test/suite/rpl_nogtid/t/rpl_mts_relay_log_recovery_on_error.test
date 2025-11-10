@@ -70,6 +70,7 @@ START REPLICA;
 # Remove the affending rows from slave.
 --exec echo "Eliminate the cause of MTS error"
 DELETE FROM d2.t WHERE a=2;
+DELETE FROM d2.t WHERE a=3;
 DELETE FROM d1.t WHERE a=3;
 
 --let $table=d2.t

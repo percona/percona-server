@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --source ../include/mrs/is_mrs_schema_v3_or_v4.inc
@@ -307,13 +309,16 @@ do sleep(3);
 --let $mrs_check_statements_history_delta=1
 --source ../include/check_statements_history.inc
 
-
 # make random changes to cached object, which is not expected to affect the cache (but if it refreshes, even better)
+# Masking off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/basic/t1auth/50'
 --let $mrs_client_arg_request_type=DELETE
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/rolet1_session.dat
 --source ../include/mrs/mrs_client.inc
 
+# Masking off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/basic/t1auth/50'
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/rolet1b_session.dat
 --source ../include/mrs/mrs_client.inc

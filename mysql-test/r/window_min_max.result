@@ -95,6 +95,7 @@ i	j	min
 1	4	2
 1	2	2
 1	4	2
+SET explain_json_format_version = 1;
 EXPLAIN FORMAT=JSON SELECT i, j, MIN(i+j) OVER (ROWS UNBOUNDED PRECEDING) min FROM t ORDER BY NULL DESC;
 EXPLAIN
 {
@@ -137,6 +138,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`j` AS `j`,min((`test`.`t`.`i` + `test`.`t`.`j`)) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `min` from `test`.`t` order by NULL desc
+SET explain_json_format_version = DEFAULT;
 With LIMIT
 SELECT i, j, MIN(i+j) OVER (ROWS UNBOUNDED PRECEDING) min FROM t ORDER BY j DESC LIMIT 3;
 i	j	min

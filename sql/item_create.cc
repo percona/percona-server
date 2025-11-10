@@ -2179,7 +2179,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
                               const CHARSET_INFO *cs, enum_field_types type,
                               bool send_error) {
   MYSQL_TIME_STATUS status;
-  MYSQL_TIME ltime;
+  Datetime_val dt;
   Item *item = nullptr;
   my_time_flags_t flags = TIME_FUZZY_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
@@ -2193,39 +2193,40 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
     case MYSQL_TYPE_NEWDATE:
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
-              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings) {
+              str_to_datetime(cs, str, length, &dt, flags, &status)) &&
+          dt.time_type == MYSQL_TIMESTAMP_DATE && status.warnings == 0) {
         check_deprecated_datetime_format(thd, cs, status);
-        item = new (thd->mem_root) Item_date_literal(&ltime);
+        item = new (thd->mem_root) Item_date_literal(&dt);
       }
       break;
     case MYSQL_TYPE_DATETIME:
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
-              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
-           ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
+              str_to_datetime(cs, str, length, &dt, flags, &status)) &&
+          (dt.time_type == MYSQL_TIMESTAMP_DATETIME ||
+           dt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
           !status.warnings) {
         check_deprecated_datetime_format(thd, cs, status);
-        if (convert_time_zone_displacement(thd->time_zone(), &ltime))
+        if (convert_time_zone_displacement(thd->time_zone(), &dt))
           return nullptr;
         item = new (thd->mem_root) Item_datetime_literal(
-            &ltime, status.fractional_digits, thd->time_zone());
+            &dt, status.fractional_digits, thd->time_zone());
       }
       break;
     case MYSQL_TYPE_TIME:
-      if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
-          ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings) {
+      if (!str_to_time(cs, str, length, &dt, 0, &status) &&
+          dt.time_type == MYSQL_TIMESTAMP_TIME && status.warnings == 0) {
         check_deprecated_datetime_format(thd, cs, status);
+        Time_val time = Time_val(dt);
         item = new (thd->mem_root)
-            Item_time_literal(&ltime, status.fractional_digits);
+            Item_time_literal(&time, status.fractional_digits);
       }
       break;
     default:
       assert(0);
   }
 
-  if (item) return item;
+  if (item != nullptr) return item;
 
   if (send_error) {
     const char *typestr = (type == MYSQL_TYPE_DATE)   ? "DATE"

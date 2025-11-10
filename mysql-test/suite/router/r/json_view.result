@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 # DB `sakila` - created 
@@ -1421,6 +1422,7 @@ POST /svc/sakila/city (payload-size:195)
     "last_update": "2006-02-15 04:45:25.000000",
     "_metadata": {
         "etag":ETAG
+        "gtid":GTID
     }
 }
 OK
@@ -1463,6 +1465,7 @@ POST /svc/sakila/city (payload-size:181)
     "last_update": "2006-02-15 04:45:25.000000",
     "_metadata": {
         "etag":ETAG
+        "gtid":GTID
     }
 }
 OK
@@ -1500,6 +1503,7 @@ PUT /svc/sakila/city/1000 (payload-size:197)
     "last_update": "2006-02-15 04:45:25.000000",
     "_metadata": {
         "etag":ETAG
+        "gtid":GTID
     }
 }
 OK
@@ -1534,6 +1538,7 @@ PUT /svc/sakila/city/45 (payload-size:200)
     "last_update": "2006-02-15 04:45:25.000000",
     "_metadata": {
         "etag":ETAG
+        "gtid":GTID
     }
 }
 OK
@@ -1563,6 +1568,7 @@ PUT /svc/sakila/citynocheck/45 (payload-size:53)
     "last_update":TIMESTAMP
     "_metadata": {
         "etag":ETAG
+        "gtid":GTID
     }
 }
 OK
@@ -1593,7 +1599,10 @@ insert into sakila.city (city_id, city, country_id) values (3000, 'Capital City'
 # DR1 - On a DELETE request with a filterObject, rows corresponding to matching items must be deleted from the target table. The response must be a JSON object and include the number of items deleted and gtid, if appropriate.
 DELETE /svc/sakila/city?q=%7B%22city%22:%7B%22%24eq%22:%22Deleted%20City%22%7D%7D
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid":GTID
+    }
 }
 OK
 DELETE /svc/sakila/city?q=%7B%22city%22:%7B%22=%22:%22Deleted%20City%22%7D%7D
@@ -1618,7 +1627,10 @@ DELETE /svc/sakila/notAutoInc?q=%7B%22id%22:%7B%22%24eq%22:9999999%7D%7D
 OK
 DELETE /svc/sakila/notAutoInc?q=%7B%22id%22:%7B%22%24ne%22:9999999%7D%7D
 {
-    "itemsDeleted": 6
+    "itemsDeleted": 6,
+    "_metadata": {
+        "gtid":GTID
+    }
 }
 OK
 DROP SCHEMA sakila;

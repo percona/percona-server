@@ -1457,6 +1457,12 @@ void Dbdih::execGETGCIREQ(Signal *signal) {
       gci_hi = Uint32(m_micro_gcp.m_current_gci >> 32);
       gci_lo = Uint32(m_micro_gcp.m_current_gci);
       break;
+    case 2:
+      jam();
+      /* Latest gci that could be accepting commits anywhere in the cluster */
+      ndbassert(m_micro_gcp.m_new_gci >= m_micro_gcp.m_current_gci);
+      gci_hi = Uint32(m_micro_gcp.m_new_gci >> 32);
+      gci_lo = Uint32(m_micro_gcp.m_new_gci);
   }
 
   signal->theData[0] = userPtr;
@@ -21977,9 +21983,6 @@ void Dbdih::crashSystemAtGcpStop(Signal *signal, bool local) {
         warningEvent("Detected GCP stop(%d)...sending kill to %s",
                      m_gcp_save.m_master.m_state,
                      c_GCP_SAVEREQ_Counter.getText());
-        g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
-                            m_gcp_save.m_master.m_state,
-                            c_GCP_SAVEREQ_Counter.getText());
         ndbrequire(!c_GCP_SAVEREQ_Counter.done());
         return;
       }
@@ -21991,10 +21994,6 @@ void Dbdih::crashSystemAtGcpStop(Signal *signal, bool local) {
         warningEvent("Detected GCP stop(%d)...sending kill to %s",
                      m_gcp_save.m_master.m_state,
                      c_COPY_GCIREQ_Counter.getText());
-        g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
-                            m_gcp_save.m_master.m_state,
-                            c_COPY_GCIREQ_Counter.getText());
-
         {
           NodeReceiverGroup rg(DBDIH, c_COPY_GCIREQ_Counter);
           signal->theData[0] = 7022;
@@ -22052,10 +22051,6 @@ void Dbdih::crashSystemAtGcpStop(Signal *signal, bool local) {
         jam();
         warningEvent("Detected GCP stop(%d)...sending kill to %s",
                      m_micro_gcp.m_state, c_GCP_PREPARE_Counter.getText());
-        g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
-                            m_micro_gcp.m_state,
-                            c_GCP_PREPARE_Counter.getText());
-
         {
           NodeReceiverGroup rg(DBDIH, c_GCP_PREPARE_Counter);
           signal->theData[0] = 7022;
@@ -22084,10 +22079,6 @@ void Dbdih::crashSystemAtGcpStop(Signal *signal, bool local) {
         jam();
         warningEvent("Detected GCP stop(%d)...sending kill to %s",
                      m_micro_gcp.m_state, c_GCP_COMMIT_Counter.getText());
-        g_eventLogger->info("Detected GCP stop(%d)...sending kill to %s",
-                            m_micro_gcp.m_state,
-                            c_GCP_COMMIT_Counter.getText());
-
         {
           NodeReceiverGroup rg(DBDIH, c_GCP_COMMIT_Counter);
           signal->theData[0] = 7022;
@@ -25500,10 +25491,6 @@ void Dbdih::execDUMP_STATE_ORD(Signal *signal) {
     }
     warningEvent("gsn: %d block: %s, length: %d theData: %s", gsn,
                  getBlockName(block, "UNKNOWN"), length, buf);
-
-    g_eventLogger->warning("-- SENDING CUSTOM SIGNAL --");
-    g_eventLogger->warning("gsn: %d block: %s, length: %d theData: %s", gsn,
-                           getBlockName(block, "UNKNOWN"), length, buf);
   }
 
   if (arg == DumpStateOrd::DihDumpLCPState) {

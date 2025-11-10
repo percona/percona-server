@@ -60,6 +60,8 @@ class CacheManager {
     }
 
     CachedObject &operator=(CachedObject &&other) {
+      if (parent_ && object_) parent_->return_instance(*this);
+
       parent_ = other.parent_;
       wait_ = other.wait_;
       object_ = other.object_;

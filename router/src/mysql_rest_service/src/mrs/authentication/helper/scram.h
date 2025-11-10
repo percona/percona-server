@@ -26,6 +26,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_SCRAM_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_SCRAM_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>

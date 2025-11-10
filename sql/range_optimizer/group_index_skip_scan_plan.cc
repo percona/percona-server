@@ -44,6 +44,7 @@
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/cost_model.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/opt_costmodel.h"
@@ -961,6 +962,12 @@ Mem_root_array<AccessPath *> get_all_group_skip_scans(
       // Adjust num_output_rows for hypergraph to match aggregate path rowcounts
       cur_path->set_num_output_rows(rows > 1 ? rows - 1 : rows);
       cur_path->num_output_rows_before_filter = cur_path->num_output_rows();
+
+      // Calculate cost for hypergraph
+      const uint cur_index = param->real_keynr[gskip_scan->param_idx];
+      cur_path->set_cost(
+          EstimateGroupSkipScanCost(param->table, cur_index, rows, have_max));
+
       group_skip_scan_paths.push_back(cur_path);
     }
   }
@@ -1704,7 +1711,7 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
      - When both min and max are present, LIS will make two reads per group
        instead of one. Similarly when min and max functions are not present,
        rows retrieved are different. Cost model should reflect what happens
-       in GroupIndexSkipScanIterator::Read()
+       in GroupIndexSkipScanIterator::DoRead()
 
   RETURN
     None

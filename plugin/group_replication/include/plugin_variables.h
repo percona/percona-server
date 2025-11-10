@@ -177,8 +177,6 @@ struct plugin_options_variables {
 
   ulong components_stop_timeout_var;
 
-  bool allow_local_lower_version_join_var;
-
   /*
     The default value for auto_increment_increment is chosen taking into
     account the maximum usable values for each possible auto_increment_increment

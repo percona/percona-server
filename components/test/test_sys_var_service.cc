@@ -81,6 +81,7 @@ static ulong ulong_variable_value;
 static longlong longlong_variable_value;
 static ulonglong ulonglong_variable_value;
 static bool bool_variable_value;
+static int hidden_int_variable_value;
 
 /**
   Initialization entry method for test component. It executes the tests of
@@ -96,6 +97,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
   longlong_variable_value = 0;
   ulonglong_variable_value = 0;
   bool_variable_value = false;
+  hidden_int_variable_value = 0;
 
   char *var_value;
   size_t len;
@@ -106,6 +108,22 @@ static mysql_service_status_t test_component_sys_var_service_init() {
   WRITE_LOG("%s\n", "test_component_sys_var init:");
 
   var_value = new char[VARIABLE_BUFFER_SIZE + 1];
+
+  {
+    INTEGRAL_CHECK_ARG(int) hidden_int_arg;
+    hidden_int_arg.def_val = 8;
+    hidden_int_arg.min_val = 0;
+    hidden_int_arg.max_val = 1024;
+    hidden_int_arg.blk_sz = 0;
+    if (mysql_service_component_sys_variable_register->register_variable(
+            "test_component", "hidden_int_sys_var",
+            PLUGIN_VAR_INT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
+            "Registering hidden int system variable", nullptr, nullptr,
+            (void *)&hidden_int_arg, (void *)&hidden_int_variable_value)) {
+      WRITE_LOG("%s\n", "hidden int register_variable failed.");
+    }
+    WRITE_LOG("hidden_int_variable_value=%d\n", hidden_int_variable_value);
+  }
 
   INTEGRAL_CHECK_ARG(int) int_arg;
   int_arg.def_val = 8;
@@ -338,6 +356,8 @@ static mysql_service_status_t test_component_sys_var_service_deinit() {
   outfile = fopen(filename, "a+");
 
   WRITE_LOG("%s\n", "test_component_sys_var deinit:");
+
+  // no need to call unregister for PLUGIN_VAR_NOSYSVAR variables
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
           "test_component", "int_sys_var")) {

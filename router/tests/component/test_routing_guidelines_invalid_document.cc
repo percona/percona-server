@@ -1169,6 +1169,8 @@ TEST_F(InvalidGuidelinesTest, multiple_destinations_one_invalid) {
 }
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();  // WSAStartup
+
   ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

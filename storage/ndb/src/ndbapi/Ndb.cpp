@@ -437,18 +437,11 @@ int Ndb::computeHash(Uint32 *retval, const NdbDictionary::Table *table,
     sumlen += len;
   }
 
-  while (true) {
-    if (buf == nullptr) {
-      bufLen = sumlen;
-      buf = malloc(bufLen);
-      if (unlikely(buf == nullptr)) return 4000;
-      malloced_buf = buf; /* Remember to free */
-    }
-    assert(bufLen != 0);
-
-    if (likely(sumlen <= bufLen)) break;
-    require(malloced_buf == nullptr);
-    buf = nullptr;
+  if (unlikely(buf == nullptr || sumlen > bufLen)) {
+    bufLen = sumlen;
+    buf = malloc(bufLen);
+    if (unlikely(buf == nullptr)) return 4000;
+    malloced_buf = buf; /* Remember to free */
   }
 
   pos = (unsigned char *)buf;
@@ -486,6 +479,8 @@ int Ndb::computeHash(Uint32 *retval, const NdbDictionary::Table *table,
   require(len <= bufLen);
 
   Uint32 values[4];
+  // Avoid maybe-uninitialized warning for md5_hash call
+  if (unlikely(len == 0)) buf = nullptr;
   md5_hash(values, (const char *)buf, len);
 
   if (retval) {

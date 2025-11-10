@@ -247,7 +247,7 @@ class METADATA_CACHE_EXPORT MetadataCache
    */
   virtual bool refresh(bool needs_writable_node) = 0;
 
-  void on_refresh_failed(bool terminated, bool md_servers_reachable = false);
+  void on_refresh_failed(bool md_servers_reachable = false);
   void on_refresh_succeeded(
       const metadata_cache::metadata_server_t &metadata_server);
 

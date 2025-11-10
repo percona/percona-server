@@ -291,9 +291,15 @@ namespace info_schema {
   ----------------------------------------------------------------------------
   - WL#16620: JSON duality views
   Four new information schema views were added to support JDV.
+
+  90500:
+  ----------------------------------------------------------------------------
+  Changes:
+  - WL#16779 User controlled aliasing for 'utf8'
+  A new sql_mode INTERPRET_UTF8_AS_UTF8MB4
 */
 
-static const uint IS_DD_VERSION = 90400;
+static const uint IS_DD_VERSION = 90500;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

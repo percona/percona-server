@@ -335,13 +335,14 @@ HandlerFactory::create_persistent_content_file(
 
 HandlerPtr HandlerFactory::create_content_file(
     EndpointBasePtr endpoint,
-    std::shared_ptr<handler::PersistentDataContentFile> persistent_data) {
+    std::shared_ptr<handler::PersistentDataContentFile> persistent_data,
+    const bool handle_index) {
   auto content_file_endpoint =
       std::dynamic_pointer_cast<ContentFileEndpoint>(endpoint);
   assert(content_file_endpoint && "Object must be castable.");
 
   auto result = std::make_shared<HandlerContentFile>(
-      content_file_endpoint, auth_manager_, persistent_data);
+      content_file_endpoint, auth_manager_, persistent_data, handle_index);
 
   result->initialize(HandlerConfiguration{configuration_});
 

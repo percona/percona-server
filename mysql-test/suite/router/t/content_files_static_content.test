@@ -17,6 +17,10 @@
 --echo #
 --echo ## III. Check feching of static content file which cannot be Base64 decoded.
 --echo #
+--echo ## IV. Check feching of static content file with existing content file.
+--echo #
+--echo ## V. Check feching of static content file when colliding content file is removed.
+--echo #
 
 --source ../include/mrs/start_object_definition.inc
 
@@ -95,6 +99,39 @@ exec $MRS_CLIENT_ARGS
 exec $MRS_CLIENT_ARGS
   --path /svc1/set/index.html
   --display HEADER,BODY
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # IV
+
+--let $mrs_sql_id_variable=@my_set
+--let $mrs_modify_options='{"defaultStaticContent":{"first.html":"should not be used"}}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--replace_regex /^Date.*/Date -> %DATE%/
+exec $MRS_CLIENT_ARGS
+  --path /svc1/set/first.html
+  --response-type RAW
+  --expected-status Ok;
+
+--echo #
+--echo # V
+
+--let $mrs_sql_id_variable=@my_set
+--let $mrs_modify_options='{"defaultStaticContent":{"first.html":"static file in use"}}'
+--source ../include/mrs/content_set/modify_options.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--let $mrs_add_content_file_path=/first.html
+--let $mrs_content_set_id_sql_variable=@my_set
+--source ../include/mrs/content_file/delete.inc
+--source ../include/mrs/wait_mrs_read_metadata.inc
+
+--replace_regex /^Date.*/Date -> %DATE%/
+exec $MRS_CLIENT_ARGS
+  --path /svc1/set/first.html
   --response-type RAW
   --expected-status Ok;
 

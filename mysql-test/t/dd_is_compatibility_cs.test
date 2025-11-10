@@ -4,6 +4,12 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
+let $messages =
+Failed to compress the gtid_executed table
+Failed to save the set of Global Transaction Identifiers
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
 #
 
 --echo #########################################################
@@ -262,12 +268,17 @@ DROP TABLE t1;
 --echo #########################################################
 
 CREATE DATABASE test1;
+--let $my_gtid_set= `SELECT @@GLOBAL.GTID_EXECUTED`
+--replace_result "$my_gtid_set" GTID_SET
 --error 1
 --exec $MYSQL_DUMP --compact --opt -d INFORMATION_SCHEMA TABLES
+--replace_result "$my_gtid_set" GTID_SET
 --error 1
 --exec $MYSQL_DUMP --compact --opt -d INFORMATION_SCHEMA
+--replace_result "$my_gtid_set" GTID_SET
 --error 1
 --exec $MYSQL_DUMP --compact --opt -d --databases INFORMATION_SCHEMA test1
+--replace_result "$my_gtid_set" GTID_SET
 --error 1
 --exec $MYSQL_DUMP --compact --opt -d --databases INFORMATION_SCHEMA
 

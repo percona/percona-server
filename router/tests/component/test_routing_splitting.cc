@@ -218,15 +218,13 @@ class RoutingSplittingTestBase : public RouterComponentTest {
       SCOPED_TRACE(
           "// Make our metadata server to return single node as a cluster "
           "member (meaning single metadata server)");
-      set_mock_metadata(node.http_port,
-                        cluster_id,     // gr-id
-                        gr_nodes,       // gr-nodes
-                        ndx,            // gr-pos
-                        cluster_nodes,  // cluster-nodes
-                        0,              // view-id
-                        false,          // error-on-md-query
-                        "localhost"     // gr-node-host
-      );
+      MockGrMetadata()
+          .gr_node_host("127.0.0.1")
+          .gr_id(cluster_id)
+          .gr_nodes(gr_nodes)
+          .gr_pos(ndx)
+          .cluster_nodes(cluster_nodes)
+          .send(node.http_port);
     }
   }
 
@@ -1510,10 +1508,10 @@ TEST_F(RoutingSplittingNoSslTest,
       auto connections_res = from_string((*query_res)[0][0]);
       ASSERT_NO_ERROR(connections_res);
 
-      // one node may get more than 4 connections (metadata-cache)
+      // one node may get more than 3 connections (metadata-cache)
       // all others should get one from:
       // - this query
-      EXPECT_THAT(*connections_res, AnyOf(1, testing::Ge(4)));
+      EXPECT_THAT(*connections_res, AnyOf(1, testing::Ge(3)));
     }
   }
 }

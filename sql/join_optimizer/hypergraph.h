@@ -85,6 +85,8 @@ struct Hyperedge {
   // left and right may not overlap, and both must have at least one bit set.
   NodeMap left;
   NodeMap right;
+
+  friend bool operator==(Hyperedge, Hyperedge) = default;
 };
 
 struct Hypergraph {

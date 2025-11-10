@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 SET @saved_sql_log_bin = @@SESSION.sql_log_bin;
 #
 # CREATE TABLE AS SELECT (CTAS) and foreign key (FK).
@@ -133,3 +134,4 @@ pk	fk
 DROP TABLE self_referencing_table;
 SET sql_log_bin = @saved_sql_log_bin;
 DROP TABLE t0;
+include/rpl/set_gtid_mode_on.inc

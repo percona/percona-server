@@ -57,6 +57,11 @@ int hrt_rtnow(hrt_rtstamp *x) {
       x->time = r;
     }
   }
+#elif (HRT_REALTIME_METHOD == HRT_USE_WINDOWS)
+  {
+    QueryPerformanceCounter(&(x->time));
+    return 0;
+  }
 #elif (HRT_REALTIME_METHOD == HRT_USE_ANSI_TIME)
   {
     time_t r = time(NULL);
@@ -94,6 +99,19 @@ int hrt_ctnow(hrt_ctstamp *x) {
       x->time = r;
     }
   }
+#elif (HRT_CPUTIME_METHOD == HRT_USE_WINDOWS)
+  FILETIME createTime, exitTime, kernelTime, userTime;
+  LARGE_INTEGER usrCpu, sysCpu, result;
+  GetProcessTimes(GetCurrentProcess(), &createTime, &exitTime, &kernelTime,
+                  &userTime);
+  usrCpu.LowPart = userTime.dwLowDateTime;
+  usrCpu.HighPart = userTime.dwHighDateTime;
+  sysCpu.LowPart = kernelTime.dwLowDateTime;
+  sysCpu.HighPart = kernelTime.dwHighDateTime;
+  result.QuadPart = usrCpu.QuadPart + sysCpu.QuadPart;
+  /* GetProcessTimes() reports CPU time in units of 100 nanoseconds.
+     Divide by ten to get microseconds, and return this in an int. */
+  ret = (int)(result.QuadPart / 10);
 #endif
 
   return ret;
@@ -150,6 +168,11 @@ double hrt_rtmicros(const hrt_rtstamp *y, const hrt_rtstamp *x) {
   return ((clock_t_diff(y->time, x->time) * 1000000.0) / clock_ticks);
 #elif (HRT_REALTIME_METHOD == HRT_USE_ANSI_TIME)
   return (difftime(y->time, x->time) * 1000000.0);
+#elif (HRT_REALTIME_METHOD == HRT_USE_WINDOWS)
+  LARGE_INTEGER freq, elapsed;
+  QueryPerformanceFrequency(&freq);  // ticks per second
+  elapsed.QuadPart = (y->time.QuadPart - x->time.QuadPart) * 1000000;
+  return elapsed.QuadPart / freq.QuadPart;
 #endif
 }
 
@@ -174,6 +197,9 @@ double hrt_ctmicros(const hrt_ctstamp *y, const hrt_ctstamp *x) {
           clock_ticks);
 #elif (HRT_CPUTIME_METHOD == HRT_USE_ANSI_CLOCK)
   return ((clock_t_diff(y->time, x->time) * 1000000.0) / CLOCKS_PER_SEC);
+
+#elif (HRT_CPUTIME_METHOD == HRT_USE_WINDOWS)
+  return y->time.QuadPart - x->time.QuadPart;
 #endif
 }
 
@@ -188,6 +214,8 @@ void hrt_rtnull(hrt_rtstamp *x) {
   x->time = 0;
 #elif (HRT_REALTIME_METHOD == HRT_USE_ANSI_TIME)
   x->time = 0;
+#elif (HRT_REALTIME_METHOD == HRT_USE_WINDOWS)
+  x->time.QuadPart = 0;
 #endif
 }
 
@@ -205,6 +233,8 @@ void hrt_ctnull(hrt_ctstamp *x) {
   x->time.tms_stime = 0;
 #elif (HRT_CPUTIME_METHOD == HRT_USE_ANSI_CLOCK)
   x->time = 0;
+#elif (HRT_CPUTIME_METHOD == HRT_USE_WINDOWS)
+  x->time.QuadPart = 0;
 #endif
 }
 

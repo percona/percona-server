@@ -1733,7 +1733,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
     NULL    in case of error.
 */
 
-sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
+sp_head *sp_find_routine(THD *thd, enum_sp_type type, const sp_name *name,
                          sp_cache **cp, bool cache_only) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d  cache only %d",

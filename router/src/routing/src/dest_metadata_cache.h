@@ -237,7 +237,7 @@ class DestMetadataCacheManager final
    *
    * @return list of destination candidates
    */
-  virtual std::vector<routing_guidelines::Server_info> get_nodes_from_topology(
+  std::vector<routing_guidelines::Server_info> get_nodes_from_topology(
       const metadata_cache::ClusterTopology &cluster_topology,
       const bool drop_all_hidden) const;
 

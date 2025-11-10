@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 --let $extra_mrs_router_id=1
 

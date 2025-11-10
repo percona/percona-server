@@ -63,7 +63,8 @@ HandlerString::HandlerString(
       service_id_{service_id},
       service_path_{service_path},
       requires_authentication_{requires_authentication},
-      path_{path},
+      path_{path + mysql_harness::Path::directory_separator + file_name},
+      schema_path_{path},
       file_name_{file_name},
       file_content_{file_content} {
   mysql_harness::Path p{mysql_harness::Path::directory_separator + file_name_};
@@ -92,12 +93,10 @@ const std::string &HandlerString::get_service_path() const {
 }
 
 const std::string &HandlerString::get_schema_path() const {
-  return empty_path();
+  return schema_path_;
 }
 
-const std::string &HandlerString::get_db_object_path() const {
-  return empty_path();
-}
+const std::string &HandlerString::get_db_object_path() const { return path_; }
 
 HandlerString::Authorization HandlerString::requires_authentication() const {
   return requires_authentication_ ? Authorization::kCheck

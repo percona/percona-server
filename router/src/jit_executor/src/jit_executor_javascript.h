@@ -58,7 +58,7 @@ using shcore::polyglot::Object_bridge_t;
 enum class ResultState { Ok, Error, ResourceExhausted };
 
 // To be used to determine the processing state
-enum class ProcessingState { Idle, Processing, Finished };
+enum class ProcessingState { Idle, Processing, HoldingResult, Finished };
 
 struct Result {
   std::optional<ResultState> state;
@@ -112,6 +112,7 @@ class JavaScript : public shcore::polyglot::Java_script_interface {
   poly_value create_source(const std::string &source,
                            const std::string &code_str) const;
 
+  bool is_idle();
   bool wait_for_idle();
 
   size_t id() { return m_id; }

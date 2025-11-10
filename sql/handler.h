@@ -71,6 +71,7 @@
 #include "sql/dd/types/init_mode.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
 #include "sql/discrete_interval.h"      // Discrete_interval
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/key.h"
 #include "sql/sql_const.h"       // SHOW_COMP_OPTION
 #include "sql/sql_list.h"        // SQL_I_List
@@ -97,6 +98,7 @@ class THD;
 class handler;
 class partition_info;
 struct System_status_var;
+class MDL_ticket;
 
 namespace dd {
 class Properties;
@@ -2512,6 +2514,46 @@ using secondary_engine_modify_view_ap_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
 /**
+  Type for signature generation and for retrieving nrows estimate
+  from secondary engine for current AccessPath.
+*/
+struct SecondaryEngineNrowsParameters {
+  /** The thread context */
+  THD *thd;
+  /** The AccessPath to retrieve Nrows for. */
+  AccessPath *access_path;
+  /** Hypergraph for current query block. */
+  const JoinHypergraph *graph;
+  /** Predicates actually applied for AccessPath::REF and other parameterized
+   * types. */
+  OverflowBitset applied_predicates{};
+  /** if ap->nrows should be acually updated. */
+  bool to_update_rows{true};
+  /** if ap->signature generation should be forced. Default behavior is to
+   * generate if ap->signature != 0. */
+  bool to_force_resign{false};
+  /** if nonnull, an additional signature should be combined with current AP. */
+  size_t *extra_sig{nullptr};
+
+  SecondaryEngineNrowsParameters(THD *thd, AccessPath *access_path,
+                                 const JoinHypergraph *graph)
+      : thd(thd), access_path(access_path), graph(graph) {}
+
+  explicit SecondaryEngineNrowsParameters(THD *thd)
+      : thd(thd), access_path(nullptr), graph(nullptr) {}
+};
+
+/**
+  Type for signature generation and for retrieving nrows estimate
+  from secondary engine for current AccessPath.
+  @param params for this function. Refer to typedef for detailed description.
+  @retval true if an updated nrow estimate is available.
+  @retval false if no nrow estimate is available.
+  */
+using secondary_engine_nrows_t =
+    bool (*)(const SecondaryEngineNrowsParameters &params);
+
+/**
   Checks whether the tables used in an explain query are loaded in the secondary
   engine.
   @param thd thread context.
@@ -2647,6 +2689,11 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd);
 const handlerton *EligibleSecondaryEngineHandlerton(
     THD *thd, const LEX_CSTRING *secondary_engine_in_name);
 
+// Returns the secondary_engine_nrows hook from plugin, if plugin is install and
+// the hook is installed.
+std::optional<secondary_engine_nrows_t> RetrieveSecondaryEngineNrowsHook(
+    THD *thd);
+
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 using se_before_commit_t = void (*)(void *arg);
@@ -2675,6 +2722,26 @@ using notify_after_select_t = void (*)(THD *thd, SelectExecutedIn executed_in);
  */
 using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
                                        const char *db, const char *table_name);
+
+/**
+ * Notify plugins when a materialized view is referenced in a query.
+ * The plugin is expected to check if the materialized view is available.
+ * @param[in]     thd         current thd.
+ * @param[in]     db_name     view database
+ * @param[in]     table_name  view name
+ * @param[in]     view_def    view definition query
+ * @param[in]     mdl_ticket  the mdl ticket on the view to upgrade shared
+ *                            lock to exclusive lock in case of
+ *                            re-materialization.
+ * @return :
+ *  @retval true The materialized view is found and can be used.
+ *  @retval false The materialzied view is not available and cannot be used.
+ */
+using notify_materialized_view_usage_t = bool (*)(THD *thd,
+                                                  std::string_view db_name,
+                                                  std::string_view table_name,
+                                                  std::string_view view_def,
+                                                  MDL_ticket *mdl_ticket);
 
 /**
   Secondary engine hook called after PRIMARY_TENTATIVELY optimization is
@@ -3052,6 +3119,12 @@ struct handlerton {
   /// @see secondary_engine_modify_view_ap_cost_t for function signature.
   secondary_engine_modify_view_ap_cost_t secondary_engine_modify_view_ap_cost;
 
+  /// Pointer to a function that provides nrow estimates for access paths
+  /// from secondary storage engine
+  ///
+  /// @see secondary_engine_nrows_t for function signature.
+  secondary_engine_nrows_t secondary_engine_nrows;
+
   /// Pointer to a function that returns the query offload or exec failure
   /// reason as a string given a thread context (representing the query) when
   /// the offloaded query failed in a secondary storage engine.
@@ -3102,6 +3175,8 @@ struct handlerton {
 
   notify_create_table_t notify_create_table;
   notify_drop_table_t notify_drop_table;
+
+  notify_materialized_view_usage_t notify_materialized_view_usage;
 
   /** Page tracking interface */
   Page_track_t page_track;
@@ -7565,13 +7640,16 @@ class handler {
                           needs to be calculated is a typed array field, it
                           will contain pointer to field's calculated value.
     @param[out]           mv_length Length of the data above
+    @param[in] include_stored_gcols  if true, evaluate both stored and virtual
+                          gcols.  if false, evaluate only virtual gcol.
 
     @retval true in case of error
     @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
                                    const MY_BITMAP *const fields, uchar *record,
-                                   const char **mv_data_ptr, ulong *mv_length);
+                                   const char **mv_data_ptr, ulong *mv_length,
+                                   bool include_stored_gcols);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler() { return nullptr; }

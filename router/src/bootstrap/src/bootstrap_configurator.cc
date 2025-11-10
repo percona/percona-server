@@ -298,6 +298,8 @@ void BootstrapConfigurator::run() {
     configure_mrs(bootstrapper_.session(), config_path,
                   bootstrapper_.get_config_cmdln_options());
   }
+
+  bootstrapper_.commit();
 }
 
 void BootstrapConfigurator::configure_mrs(
@@ -617,7 +619,7 @@ void BootstrapConfigurator::create_mrs_users(mysqlrouter::MySQLSession *session,
       }
     }
 
-    BootstrapMySQLAccount buser{session};
+    BootstrapMySQLAccount buser{session, bootstrapper_.get_accounts_cleaner()};
 
     UserOptions user_options;
 

@@ -33,7 +33,6 @@
 #include "my_config.h"
 
 #include <cerrno>
-#include <climits>
 #include <cstdlib>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -47,6 +46,7 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "nulls.h"
 #include "strmake.h"

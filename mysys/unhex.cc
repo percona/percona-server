@@ -27,7 +27,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstddef>
-#include <cstdint>
 
 namespace {
 constexpr const int lookup_unhex_high[256] = {

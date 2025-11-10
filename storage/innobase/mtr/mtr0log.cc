@@ -856,12 +856,12 @@ static const byte *read_2_bytes(const byte *ptr, const byte *end_ptr,
   return ptr;
 }
 
-/** Read 1 bytes from log buffer.
+/** Read 1 byte from log buffer.
 @param[in]   ptr      pointer to buffer
 @param[in]   end_ptr  pointer to end of buffer
-@param[out]  val      read 2 bytes value */
-static const byte *read_1_bytes(const byte *ptr, const byte *end_ptr,
-                                uint8_t &val) {
+@param[out]  val      read 1 byte value */
+static const byte *read_1_byte(const byte *ptr, const byte *end_ptr,
+                               uint8_t &val) {
   if (end_ptr < ptr + 1) {
     return (nullptr);
   }
@@ -1019,8 +1019,10 @@ static const byte *parse_index_versioned_fields(const byte *ptr,
 
       uint8_t version{0};
       /* Read v_added */
-      ptr = read_1_bytes(ptr, end_ptr, version);
-      if (ptr == nullptr) return (nullptr);
+      ptr = read_1_byte(ptr, end_ptr, version);
+      if (ptr == nullptr) {
+        return nullptr;
+      }
 
       info.v_added = static_cast<row_version_t>(version);
       crv = std::max(crv, info.v_added);
@@ -1031,8 +1033,10 @@ static const byte *parse_index_versioned_fields(const byte *ptr,
 
       uint8_t version{0};
       /* Read v_dropped */
-      ptr = read_1_bytes(ptr, end_ptr, version);
-      if (ptr == nullptr) return (nullptr);
+      ptr = read_1_byte(ptr, end_ptr, version);
+      if (ptr == nullptr) {
+        return nullptr;
+      }
 
       info.v_dropped = static_cast<row_version_t>(version);
       crv = std::max(crv, info.v_dropped);
@@ -1115,18 +1119,12 @@ static void populate_dummy_fields(dict_index_t *index, dict_table_t *table,
 
 static const byte *parse_index_log_version(const byte *ptr, const byte *end_ptr,
                                            uint8_t &version) {
-  ptr = read_1_bytes(ptr, end_ptr, version);
-  if (ptr == nullptr) return nullptr;
-
-  return ptr;
+  return read_1_byte(ptr, end_ptr, version);
 }
 
 static const byte *parse_index_flag(const byte *ptr, const byte *end_ptr,
                                     uint8_t &flag) {
-  ptr = read_1_bytes(ptr, end_ptr, flag);
-  if (ptr == nullptr) return nullptr;
-
-  return ptr;
+  return read_1_byte(ptr, end_ptr, flag);
 }
 
 const byte *mlog_parse_index(const byte *ptr, const byte *end_ptr,

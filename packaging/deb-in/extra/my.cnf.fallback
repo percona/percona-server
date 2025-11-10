@@ -25,7 +25,7 @@
 # The MySQL @DEB_PRODUCTNAMEC@ Server configuration file.
 #
 # For explanations see
-# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+# https://dev.mysql.com/doc/mysql/en/server-system-variables.html
 
 # * IMPORTANT: Additional settings that can override those from this file!
 #   The files must end with '.cnf', otherwise they'll be ignored.

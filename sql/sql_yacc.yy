@@ -532,10 +532,10 @@ void warn_about_deprecated_binary(THD *thd)
   "a CHARACTER SET clause with _bin collation");
 }
 
-void warn_on_deprecated_user_defined_collation(
+CHARSET_INFO *warn_on_deprecated_user_defined_collation(
     THD *thd, const LEX_STRING collation_name) {
   if (collation_name.length == 0)
-    return;
+    return nullptr;
   CHARSET_INFO *collation = mysqld_collation_get_by_name(collation_name.str);
   if (collation && !(collation->state & MY_CS_COMPILED)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -543,6 +543,7 @@ void warn_on_deprecated_user_defined_collation(
                         ER_THD(thd, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS),
                         collation->m_coll_name);
   }
+  return collation;
 }
 
 // ODR violation here as well, so rename yysymbol_kind_t
@@ -1481,6 +1482,9 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> EXTERNAL_FORMAT_SYM  1234     /* MySQL */
 
 %token<lexer.keyword> EXTERNAL_SYM    1235     /* MYSQL */
+%token<lexer.keyword> MATERIALIZED_SYM      1236     /* MYSQL */
+
+%token<lexer.keyword> GUIDED_SYM      1237     /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -2269,7 +2273,7 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <role_or_privilege_list> role_or_privilege_list
 
-%type <with_validation> with_validation opt_with_validation
+%type <with_validation> with_validation opt_with_validation opt_guided
 /*%type <ts_access_mode> ts_access_mode*/
 
 %type <alter_table_action> alter_list_item alter_table_partition_options
@@ -8368,7 +8372,7 @@ alter_library_stmt:
         ;
 
 alter_view_stmt:
-          ALTER view_algorithm definer_opt
+          ALTER view_algorithm_or_materialization definer_opt
           {
             LEX *lex= Lex;
 
@@ -9073,9 +9077,9 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_import_partition_tablespace(@$, $3);
           }
-        | SECONDARY_LOAD_SYM opt_use_partition
+        | SECONDARY_LOAD_SYM opt_use_partition opt_guided
           {
-            $$= NEW_PTN PT_alter_table_secondary_load(@$, $2);
+            $$= NEW_PTN PT_alter_table_secondary_load(@$, $3, $2);
           }
         | SECONDARY_UNLOAD_SYM opt_use_partition
           {
@@ -9102,6 +9106,18 @@ with_validation:
 all_or_alt_part_name_list:
           ALL                   { $$= nullptr; }
         | ident_string_list
+        ;
+
+opt_guided:
+          %empty { $$= Alter_info::ALTER_VALIDATION_DEFAULT; }
+        | GUIDED_SYM ON_SYM
+          {
+            $$= Alter_info::ALTER_WITH_VALIDATION;
+          }
+        | GUIDED_SYM OFF_SYM
+          {
+            $$= Alter_info::ALTER_WITHOUT_VALIDATION;
+          }
         ;
 
 /*
@@ -10694,8 +10710,14 @@ simple_expr:
         | function_call_conflict
         | simple_expr COLLATE_SYM ident_or_text %prec NEG
           {
-            warn_on_deprecated_user_defined_collation(YYTHD, $3);
-            $$= NEW_PTN Item_func_set_collation(@$, $1, $3);
+            CHARSET_INFO *collation=
+              warn_on_deprecated_user_defined_collation(YYTHD, $3);
+            if (collation != nullptr)
+              $$= NEW_PTN
+                Item_func_set_collation(@$, $1,
+                                        to_lex_cstring(collation->m_coll_name));
+            else
+              $$= NEW_PTN Item_func_set_collation(@$, $1, to_lex_cstring($3));
           }
         | literal_or_null
         | param_marker { $$= $1; }
@@ -10880,11 +10902,17 @@ function_call_keyword:
               definition, global attributes are listed at the beginning for
               JSON_DUALITY_OBJECT(). This distinction is necessary to accommodate
               attributes such as table annotations for a duality view.
+
+              While pushing a condition down to a materialized JSON duality view,
+              expressions involving JSON duality objects will be re-parsed.
+              So, we allow creation of a new duality object even for this case.
             */
             THD *thd = YYTHD;
-            if (!((thd->lex->create_view_type ==
-                   enum_view_type::JSON_DUALITY_VIEW) || 
-                   thd->parsing_json_duality_view)) {
+            LEX *lex = thd->lex;
+            if (!((lex->create_view_type ==
+                   enum_view_type::JSON_DUALITY_VIEW) ||
+                   thd->parsing_json_duality_view ||
+                   lex->reparse_derived_table_condition)) {
               my_error(ER_JDV_INVALID_JSON_DUALITY_OBJECT_USAGE, MYF(0));
               MYSQL_YYABORT;
             }
@@ -13178,15 +13206,16 @@ outfile_file_info_list:
         ;
 
 outfile_file_info_elem:
-          FORMAT_SYM ident
+          FORMAT_SYM ident_or_text
           {
             $$= NEW_PTN File_information();
             $$->filetype_str= $2.str;
           }
-        | COMPRESSION_SYM text_string
+        | COMPRESSION_SYM ident_or_text
           {
             $$= NEW_PTN File_information();
-            $$->compression= $2;
+            $$->compression= NEW_PTN String($2.str, $2.length,
+	                                    YYTHD->charset());
           }
         | HEADER_SYM ON_SYM
           {
@@ -15517,6 +15546,23 @@ table_wild:
 order_expr:
           expr opt_ordering_direction
           {
+            Item_int *item_int = Item_int::narrow($1);
+            if (item_int != nullptr) {
+              /*
+                The expression is a numeric literal.
+                This literal has already been reduced to TOK_GENERIC_VALUE
+                in the digest computation,
+                but this is incorrect in an ORDER BY expression,
+                because `ORDER BY N` means order by the Nth column in SQL.
+                N is not a literal value, it is a column (numeric) name.
+                UNDO THE REDUCE:
+                  TOK_GENERIC_VALUE := NUM
+                REDUCE:
+                  TOK_BY_NUMERIC_COLUMN := NUM
+              */
+              Lex_input_stream *lip= YYLIP;
+              lip->adjust_digest_by_numeric_column_token(item_int->val_int());
+            }
             $$= NEW_PTN PT_order_expr(@$, $1, $2);
           }
         ;
@@ -15524,6 +15570,23 @@ order_expr:
 grouping_expr:
           expr
           {
+            Item_int *item_int = Item_int::narrow($1);
+            if (item_int != nullptr) {
+              /*
+                The expression is a numeric literal.
+                This literal has already been reduced to TOK_GENERIC_VALUE
+                in the digest computation,
+                but this is incorrect in a GROUP BY expression,
+                because `GROUP BY N` means group by the Nth column in SQL.
+                N is not a literal value, it is a column (numeric) name.
+                UNDO THE REDUCE:
+                  TOK_GENERIC_VALUE := NUM
+                REDUCE:
+                  TOK_BY_NUMERIC_COLUMN := NUM
+              */
+              Lex_input_stream *lip= YYLIP;
+              lip->adjust_digest_by_numeric_column_token(item_int->val_int());
+            }
             $$= NEW_PTN PT_order_expr(@$, $1, ORDER_NOT_RELEVANT);
           }
         ;
@@ -16088,6 +16151,7 @@ ident_keywords_unambiguous:
         | GROUP_REPLICATION
         | GTIDS_SYM
         | GTID_ONLY_SYM
+        | GUIDED_SYM
         | HASH_SYM
         | HEADER_SYM
         | HISTOGRAM_SYM
@@ -16128,6 +16192,7 @@ ident_keywords_unambiguous:
         | LOG_SYM
         | NETWORK_NAMESPACE_SYM
         | MASTER_SYM
+        | MATERIALIZED_SYM
         | MAX_CONNECTIONS_PER_HOUR
         | MAX_QUERIES_PER_HOUR
         | MAX_ROWS
@@ -18073,7 +18138,7 @@ view_or_trigger_or_sp_or_event:
           {}
         | no_definer init_lex_create_info no_definer_tail
           {}
-        | view_replace_or_algorithm definer_opt init_lex_create_info view_tail
+        | view_prefix definer_opt init_lex_create_info view_tail
           {}
         ;
 
@@ -18132,12 +18197,34 @@ definer:
 
 **************************************************************************/
 
+view_prefix:
+          view_replace_or_algorithm
+          {}
+        |
+          view_replace_or_algorithm view_materialization
+          {}
+        |
+          view_materialization
+          {}
+        ;
+
 view_replace_or_algorithm:
           view_replace
           {}
         | view_replace view_algorithm
           {}
         | view_algorithm
+          {}
+        ;
+
+view_algorithm_or_materialization:
+          view_algorithm
+          {}
+        |
+          view_algorithm view_materialization
+          {}
+        |
+          view_materialization
           {}
         ;
 
@@ -18153,6 +18240,11 @@ view_algorithm:
           { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
         | ALGORITHM_SYM EQ TEMPTABLE_SYM
           { Lex->create_view_algorithm= VIEW_ALGORITHM_TEMPTABLE; }
+        ;
+
+view_materialization:
+        MATERIALIZED_SYM
+          { Lex->create_view_materialization=true; }
         ;
 
 view_suid:

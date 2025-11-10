@@ -3,6 +3,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+include/rpl/stop_replica.inc
+SET GLOBAL replica_preserve_commit_order = FALSE;
+include/rpl/start_replica.inc
+[connection master]
 ########################################################################
 #                               SET UP
 ########################################################################
@@ -5862,4 +5867,9 @@ DROP FUNCTION fc_i_nt_5_suc;
 DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_3 ----
 ==== end rpl_mta_crash_safe.inc:clean ====
+[connection slave]
+include/rpl/stop_replica.inc
+SET GLOBAL replica_preserve_commit_order = SAVE_REPLICA_PRESERVE_COMMIT_ORDER;
+include/rpl/start_replica.inc
+[connection master]
 include/rpl/deinit.inc

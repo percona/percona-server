@@ -6,6 +6,8 @@
 call mtr.add_suppression(" In RENAME TABLE table `test`.`parent` is referenced in foreign key constraints which are not compatible with the new table definition.");
 --enable_query_log
 SET @saved_binlog_format= @@SESSION.binlog_format;
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 #
 # Bug#34455 (Ambiguous foreign keys syntax is accepted)
@@ -497,6 +499,9 @@ SELECT * FROM t2;
 --echo # covered by original fix for the bug.
 
 --source include/restart_mysqld.inc
+# gtid_mode default is ON, so after restart we should again set it to OFF
+--source include/rpl/set_gtid_mode_off.inc
+
 UPDATE t1 SET fld1= 3;
 
 SELECT * FROM t1;
@@ -5485,3 +5490,5 @@ SET sql_generate_invisible_primary_key=DEFAULT;
 
 --echo # End:WL#16131 Check implicit references for foreign key
 SET FOREIGN_KEY_CHECKS = DEFAULT;
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

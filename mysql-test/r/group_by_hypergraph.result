@@ -282,7 +282,8 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a;
 EXPLAIN
--> Covering index skip scan for deduplication on t1 using ix1  (rows=385) (actual rows=385 loops=1)
+-> Group (no aggregates)  (rows=385) (actual rows=385 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a,c WITH ROLLUP;
 EXPLAIN
@@ -396,7 +397,7 @@ EXPLAIN
         -> Inner hash join (no condition)  (rows=10000) (actual rows=10000 loops=1)
             -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
             -> Hash
-                -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
+                -> Covering index scan on t2 using PRIMARY  (rows=10) (actual rows=10 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
 EXPLAIN

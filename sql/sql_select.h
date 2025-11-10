@@ -1077,6 +1077,8 @@ bool set_secondary_engine_fail_reason(const LEX *lex, std::string_view reason);
 
 void set_fail_reason_and_raise_error(const LEX *lex, std::string_view reason);
 
+bool equal_engines(const LEX_CSTRING &engine1, const LEX_CSTRING &engine2);
+
 const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(const LEX *lex);
 
 std::string_view find_secondary_engine_fail_reason(const LEX *lex);

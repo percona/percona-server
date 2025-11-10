@@ -42,8 +42,6 @@ TARGET_INCLUDE_DIRECTORIES(mysqlrouter_bootstrap
   ${CMAKE_CURRENT_SOURCE_DIR}/../../router/src
   )
 
-ADD_INSTALL_RPATH(mysqlrouter_bootstrap "${ROUTER_INSTALL_RPATH}")
-
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(mysqlrouter_bootstrap -lnsl -lsocket)
 ENDIF()

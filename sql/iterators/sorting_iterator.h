@@ -73,6 +73,7 @@ class SortingIterator final : public RowIterator {
                   ha_rows *examined_rows);
   ~SortingIterator() override;
 
+ private:
   // Calls Init() on the source iterator, then does the actual sort.
   // NOTE: If you call Init() again, SortingIterator will actually
   // do a _new sort_, not just rewind the iterator. This is because a
@@ -86,10 +87,11 @@ class SortingIterator final : public RowIterator {
   // that needs ORDER BY with LIMIT, so for correctness, we really need
   // the re-sort. Longer-term we should test whether the Index_lookup is
   // unchanged, and if so, just re-init the result iterator.
-  bool Init() override;
+  bool DoInit() override;
 
-  int Read() override { return m_result_iterator->Read(); }
+  int DoRead() override { return m_result_iterator->Read(); }
 
+ public:
   void SetNullRowFlag(bool is_null_row) override;
 
   void UnlockRow() override { m_result_iterator->UnlockRow(); }

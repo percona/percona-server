@@ -54,10 +54,12 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 # Check that new JSON explain format is also handled:
+SET explain_json_format_version = 1;
 explain format=JSON
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+SET explain_json_format_version = DEFAULT;
 
 # Check that we do not push an operation if this prevents us from using
 # 'join buffer'.

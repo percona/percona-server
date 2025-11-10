@@ -306,8 +306,7 @@ bool has_secondary_engine_defined(const LEX *lex, const Table_ref **tref) {
 }  // namespace
 
 // Compare two engine names using the system collation.
-static bool equal_engines(const LEX_CSTRING &engine1,
-                          const LEX_CSTRING &engine2) {
+bool equal_engines(const LEX_CSTRING &engine1, const LEX_CSTRING &engine2) {
   return system_charset_info->coll->strnncollsp(
              system_charset_info,
              pointer_cast<const unsigned char *>(engine1.str), engine1.length,
@@ -319,9 +318,6 @@ static bool equal_engines(const LEX_CSTRING &engine1,
 // and if that's true returns the name of that eligible secondary storage
 // engine.
 const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(const LEX *lex) {
-  // Don't use secondary storage engines for statements that call stored
-  // functions.
-  if (lex->has_stored_functions) return nullptr;
   // Now check if the opened tables are available in a secondary
   // storage engine. Only use the secondary tables if all the tables
   // have a secondary tables, and they are all in the same secondary
@@ -364,9 +360,13 @@ const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(const LEX *lex) {
 }
 
 const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
-  if (const handlerton *hton = lex->m_sql_cmd->secondary_engine();
-      hton != nullptr) {
-    return hton;
+  /* m_sql_cmd could be nullptr when we call this from mysql_register_view to
+   * get the materialization engine for the particular materialized view. */
+  if (lex->m_sql_cmd != nullptr) {
+    if (const handlerton *hton = lex->m_sql_cmd->secondary_engine();
+        hton != nullptr) {
+      return hton;
+    }
   }
   const LEX_CSTRING *storage_engine = get_eligible_secondary_engine_from(lex);
   if (storage_engine != nullptr) {
@@ -437,16 +437,9 @@ void find_and_set_offload_fail_reason(const LEX *lex) {
   // check known unsupported features and raise a specific offload error.
   std::string err_msg{};
   const Table_ref *tref = nullptr;
-  if (lex->has_stored_functions) {
-    // We don't support secondary storage engine execution,
-    // if the query has statements that call stored functions.
-    err_msg =
-        "Statements that reference stored functions are not supported in "
-        "secondary engines.";
-  } else if ((lex->thd->get_transaction() != nullptr &&
-              lex->thd->get_transaction()->is_active(
-                  Transaction_ctx::SESSION)) ||
-             lex->thd->in_active_multi_stmt_transaction()) {
+  if ((lex->thd->get_transaction() != nullptr &&
+       lex->thd->get_transaction()->is_active(Transaction_ctx::SESSION)) ||
+      lex->thd->in_active_multi_stmt_transaction()) {
     // We don't support secondary storage engine execution,
     // if the query is part of a multi-statement transaction
     err_msg =
@@ -676,8 +669,9 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     // Unlock the table as soon as possible, so don't set SELECT_NO_UNLOCK.
     select->make_active_options(0, 0);
 
-    if (select->prepare(thd, nullptr)) return true;
-
+    if (select->prepare(thd, nullptr)) {
+      return true;
+    }
     unit->set_prepared();
   } else {
     // If we have multiple query blocks, don't unlock and re-lock
@@ -1068,6 +1062,21 @@ bool optimize_secondary_engine(THD *thd) {
 }
 
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
+  auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
+                         ? SelectExecutedIn::kSecondaryEngine
+                         : SelectExecutedIn::kPrimaryEngine;
+
+  /* If a cached plugin has been found, and query is non-trivial as defined by
+   * m_current_query_cost > 10, invoke the plugin callback directly. */
+  if (thd->m_current_query_cost >= 10 &&
+      thd->eligible_secondary_engine_handlerton() != nullptr &&
+      thd->eligible_secondary_engine_handlerton()->notify_after_select !=
+          nullptr) {
+    thd->eligible_secondary_engine_handlerton()->notify_after_select(
+        thd, executed_in);
+    return;
+  }
+
   /* Return if secondary engine is not forced and one of the 2 conditions is
    * true:
    * 1. when secondary engine statement context is not present, query cost is
@@ -1076,6 +1085,7 @@ void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
    * is the better execution engine for this query.
    * This prevents calling plugin_foreach for short queries, reducing the
    * overhead. */
+
   bool is_secondary_engine_not_forced =
       thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED;
   if (is_secondary_engine_not_forced && !thd->lex->has_external_tables() &&
@@ -1085,18 +1095,6 @@ void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
        (thd->secondary_engine_statement_context() != nullptr &&
         thd->secondary_engine_statement_context()
             ->is_primary_engine_optimal()))) {
-    return;
-  }
-
-  auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
-                         ? SelectExecutedIn::kSecondaryEngine
-                         : SelectExecutedIn::kPrimaryEngine;
-  /* if secondary engine has been cached */
-  if (thd->eligible_secondary_engine_handlerton() != nullptr &&
-      thd->eligible_secondary_engine_handlerton()->notify_after_select !=
-          nullptr) {
-    thd->eligible_secondary_engine_handlerton()->notify_after_select(
-        thd, executed_in);
     return;
   }
 
@@ -1375,8 +1373,8 @@ bool types_allow_materialization(Item *outer, Item *inner) {
     Materialization uses index lookup which implicitly converts the type of
     res_outer into that of res_inner.
     However, this can be done only if it respects rules in:
-    https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html
-    https://dev.mysql.com/doc/refman/8.0/en/date-and-time-type-conversion.html
+    https://dev.mysql.com/doc/refman/en/type-conversion.html
+    https://dev.mysql.com/doc/refman/en/date-and-time-type-conversion.html
     Those rules say that, generally, if types differ, we convert them to
     REAL.
     So, looking up into a number is ok: outer will be converted to

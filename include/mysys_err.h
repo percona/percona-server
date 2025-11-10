@@ -136,9 +136,16 @@ extern const char *globerrs[]; /* my_error_messages is here */
 #define EE_FAILED_TO_RESET_BEFORE_SECONDARY_IGNORABLE_CHAR 91
 #define EE_FAILED_PROCESSING_DIRECTIVE 92
 #define EE_PTHREAD_KILL_FAILED 93
+<<<<<<< HEAD
 #define EE_SOCKET 94
 #define EE_TOOLONGFILENAME 95
 #define EE_ERROR_LAST 95 /* Copy last error nr */
+||||||| merged common ancestors
+#define EE_ERROR_LAST 93 /* Copy last error nr */
+=======
+#define EE_COLLATION_ALIAS_ERROR 94
+#define EE_ERROR_LAST 94 /* Copy last error nr */
+>>>>>>> mysql-9.5.0
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
 /* Exit codes for option processing. When exiting from server use the

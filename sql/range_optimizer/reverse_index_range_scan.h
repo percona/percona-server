@@ -39,7 +39,7 @@
   a common base class with separate _ASC and _DESC classes, but they don't
   actually duplicate that much code.
  */
-class ReverseIndexRangeScanIterator : public TableRowIterator {
+class ReverseIndexRangeScanIterator final : public TableRowIterator {
  public:
   ReverseIndexRangeScanIterator(THD *thd, TABLE *table, ha_rows *examined_rows,
                                 double expected_rows, uint index,
@@ -47,10 +47,11 @@ class ReverseIndexRangeScanIterator : public TableRowIterator {
                                 Bounds_checked_array<QUICK_RANGE *> ranges,
                                 bool using_extended_key_parts);
   ~ReverseIndexRangeScanIterator() override;
-  int Read() override;
-  bool Init() override;
 
  private:
+  int DoRead() override;
+  bool DoInit() override;
+
   static range_seq_t quick_range_rev_seq_init(void *init_param, uint, uint);
 
   const uint m_index; /* Index this quick select uses */

@@ -39,9 +39,9 @@ void free_passwords();
 
 #define PARSE_COMMAND_LINE_PASSWORD_OPTION             \
   case 'p':                                            \
-    parse_command_line_password_option(opt, argument); \
-    break;                                             \
-  case MYSQL_OPT_USER_PASSWORD:                        \
+  case OPT_MFA_PASSWORD1:                              \
+  case OPT_MFA_PASSWORD2:                              \
+  case OPT_MFA_PASSWORD3:                              \
     parse_command_line_password_option(opt, argument); \
     break;
 

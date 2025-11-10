@@ -23,15 +23,20 @@ INSERT INTO t3 VALUES
 (12, 2, 'uiop'), (13, 2, 'poiu'), (14, 2, 'lkjh');
 INSERT INTO t3 SELECT f1 + 20, f2, f3 FROM t3;
 INSERT INTO t3 SELECT f1 + 40, f2, f3 FROM t3;
-ANALYZE TABLE t1;
+CREATE TABLE t4 (f1 INT NOT NULL, f2 INT, f3 INT,
+PRIMARY KEY(f1), KEY f2_idx(f1), KEY f3_idx(f3));
+INSERT INTO t4
+WITH RECURSIVE t(n) AS (
+SELECT 0 AS i UNION ALL
+SELECT n + 1 FROM t WHERE n + 1 < 100
+)
+SELECT n, n, 0  FROM t;
+ANALYZE TABLE t1, t2, t3, t4;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-ANALYZE TABLE t2;
-Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-ANALYZE TABLE t3;
-Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 # NO_RANGE_OPTIMIZATION hint testing
 set optimizer_switch=default;
 # Check statistics with no hint
@@ -78,10 +83,10 @@ EXPLAIN
 
 # Turn off range access for PRIMARY & f2_idx keys
 # Should use skip scan for f3_idx index
-EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t4 PRIMARY, f2_idx) */ f1 FROM t4 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
--> Filter: ((t3.f1 > 30) and (t3.f1 < 33))  (rows=6)
-    -> Covering index skip scan on t3 using f3_idx over 30 < f1 < 33  (rows=6)
+-> Filter: ((t4.f1 > 30) and (t4.f1 < 33))  (rows=11)
+    -> Covering index skip scan on t4 using f3_idx over 30 < f1 < 33  (rows=11)
 
 # Turn off range access for all keys
 # Should use index access
@@ -92,10 +97,10 @@ EXPLAIN
 
 # Turn off range access for PRIMARY & f2_idx keys
 # Should use index access
-EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) NO_RANGE_OPTIMIZATION(t3 f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t4 PRIMARY) NO_RANGE_OPTIMIZATION(t4 f2_idx) */ f1 FROM t4 WHERE f1 > 30 AND f1 < 33;
 EXPLAIN
--> Filter: ((t3.f1 > 30) and (t3.f1 < 33))  (rows=6)
-    -> Covering index skip scan on t3 using f3_idx over 30 < f1 < 33  (rows=6)
+-> Filter: ((t4.f1 > 30) and (t4.f1 < 33))  (rows=11)
+    -> Covering index skip scan on t4 using f3_idx over 30 < f1 < 33  (rows=11)
 
 # NO_ICP hint testing
 set optimizer_switch='index_condition_pushdown=on';
@@ -2745,5 +2750,5 @@ EXPLAIN
 Warnings:
 Warning	3127	Query block name `qb2` is not found for INDEX hint
 DROP view v1;
-DROP TABLE t1,t3;
+DROP TABLE t1,t3,t4;
 #

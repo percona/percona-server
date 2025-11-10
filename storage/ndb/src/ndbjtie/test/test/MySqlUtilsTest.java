@@ -43,6 +43,8 @@ import com.mysql.ndbjtie.mysql.CharsetMapConst;
  */
 public class MySqlUtilsTest extends JTieTestBase {
 
+    private final String tmpdir = System.getProperty("java.io.tmpdir");
+
     public void testDbugUtils() {
         out.println("--> MySqlUtilsTest.testDbugUtils()");
 
@@ -88,7 +90,7 @@ public class MySqlUtilsTest extends JTieTestBase {
         s = Utils.dbugExplain(bb, len);
         assert (s == null || s.equals(s1));
 
-        final String s2 = "d,somename:o,/tmp/somepath";
+        final String s2 = "d,somename:o," + tmpdir + "somepath";
         Utils.dbugPush(s2);
         s = Utils.dbugExplain(bb, len);
         assert (s == null || s.equals(s2));

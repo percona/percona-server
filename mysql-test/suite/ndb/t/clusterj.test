@@ -36,6 +36,7 @@ exec
   -Duser.timezone=$TZ
   -Djava.io.tmpdir=$MYSQLTEST_VARDIR/tmp
   -Djava.util.logging.config.class=testsuite.clusterj.LogAtWarning
+  -XX:ErrorFile=$MYSQLTEST_VARDIR/tmp/clusterj_jvm_error.file
   -classpath $CLUSTERJ_TEST_JAR$SEP$CLUSTERJ_JAR$SEP$MTR_CLASSPATH
   testsuite.clusterj.AllTests
   $CLUSTERJ_TEST_JAR $ENABLE_DEBUG_TESTS

@@ -104,6 +104,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // build_bitmap_for_nested_joins
+#include "sql/sql_parse.h"
 #include "sql/sql_select.h"
 #include "sql/sql_test.h"   // print_where
 #include "sql/sql_union.h"  // Query_result_union
@@ -3391,10 +3392,17 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
     const bool merge_heuristic =
         (derived_table->is_view() || allow_merge_derived) &&
         derived_query_expression->merge_heuristic(thd->lex);
-    if (!hint_table_state(
-            thd, derived_table, DERIVED_MERGE_HINT_ENUM,
-            merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0) &&
-        !derived_table->is_json_duality_view())
+
+    /*
+      Merging a JSON duality view is not allowed when query is modifying
+      the data.
+    */
+    const bool updating_jdv = (derived_table->is_json_duality_view() &&
+                               thd->lex->sql_command != SQLCOM_SELECT);
+
+    if (!updating_jdv &&
+        !hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
+                          merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
       return false;
   }
 
@@ -3436,9 +3444,10 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
     A view is updatable if any underlying table is updatable.
     A view is insertable-into if all underlying tables are insertable.
     A view is not updatable nor insertable if it contains an outer join
+    A view is not updatable nor insertable if it is a materialized view
     @see mysql_register_view()
   */
-  if (derived_table->is_view()) {
+  if (derived_table->is_view() && !derived_table->is_mv_se_materialized()) {
     bool updatable = false;
     bool insertable = true;
     bool outer_joined = false;
@@ -4217,7 +4226,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   Item *order_item = *order->item; /* The item from the GROUP/ORDER clause. */
   Item::Type order_item_type;
   Item **select_item; /* The corresponding item from the SELECT clause. */
-  Field *from_field;  /* The corresponding field from the FROM clause. */
+  Field *from_field =
+      nullptr; /* The corresponding field from the FROM clause. */
   uint counter;
   enum_resolution_type resolution;
 
@@ -6964,9 +6974,18 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     int field_no = 1;
 
     for (auto vr : unique_view_refs) {
-      if (baptize_item(thd, vr, &field_no)) return true;
-      if (new_derived->add_item_to_list(vr)) return true;
-      if (update_context_to_derived(vr, new_derived)) return true;
+      /*
+        Copy is needed to preserve the hidded propery during transformation.
+        add_item_to_list() below resets this property and will be later restored
+        by replace_item_view_ref().
+      */
+      Item_view_ref *vr_copy = new (thd->mem_root)
+          Item_view_ref(vr->context, vr->ref_pointer(), vr->original_db_name(),
+                        vr->original_table_name(), vr->original_table_name(),
+                        vr->item_name.ptr(), vr->m_table_ref);
+      if (baptize_item(thd, vr_copy, &field_no)) return true;
+      if (new_derived->add_item_to_list(vr_copy)) return true;
+      if (update_context_to_derived(vr_copy, new_derived)) return true;
       vr->depended_from = nullptr;
     }
 
@@ -7250,9 +7269,9 @@ static bool query_block_contains_subquery(Query_block *select,
   return false;
 }
 
-static bool walk_join_conditions(mem_root_deque<Table_ref *> &list,
-                                 std::function<bool(Item **expr_p)> action,
-                                 Item::Collect_scalar_subquery_info *info) {
+bool walk_join_conditions(mem_root_deque<Table_ref *> &list,
+                          std::function<bool(Item **expr_p)> action,
+                          Item::Collect_scalar_subquery_info *info) {
   for (Table_ref *tl : list) {
     if (tl->join_cond() != nullptr) {
       info->m_join_condition_context = tl->join_cond();

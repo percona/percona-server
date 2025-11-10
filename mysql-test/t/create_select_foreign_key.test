@@ -60,6 +60,8 @@
 # allowed to be run with ps protocol.
 --source include/no_ps_protocol.inc
 --source include/have_log_bin.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 SET @saved_sql_log_bin = @@SESSION.sql_log_bin;
 
@@ -178,3 +180,5 @@ SELECT pk, fk FROM self_referencing_table ORDER BY pk;
 DROP TABLE self_referencing_table;
 SET sql_log_bin = @saved_sql_log_bin;
 DROP TABLE t0;
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

@@ -3308,7 +3308,8 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
     ut_ad(!m_table->is_temporary() ||
           !dict_table_page_size(m_table).is_compressed());
     if (!m_table->is_temporary()) {
-      dict_table_stats_latch_create(m_table, true);
+      dict_table_stats_latch_create_lazy(m_table, true);
+      dict_table_stats_compute_mutex_create_lazy(m_table, true);
     }
   } else {
   dd_error:

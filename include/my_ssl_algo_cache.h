@@ -28,7 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef INCLUDE_MY_SSL_ALGO_CACHE_H_
 #define INCLUDE_MY_SSL_ALGO_CACHE_H_
 
-#include <openssl/evp.h>
+#include <openssl/evp.h>  // IWYU pragma: export
+// IWYU pragma: no_include <openssl/types.h>
 
 // cache algorithm pointers to improve OpenSSL 3.x performance
 // (only cached for server code, passthrough to method call on client)

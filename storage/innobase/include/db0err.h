@@ -206,6 +206,8 @@ enum dberr_t {
   DB_DATA_NOT_SORTED,
   /** The record size is too big for LOAD BULK DATA operation. */
   DB_BULK_TOO_BIG_RECORD,
+  /** The data in CSV file for gcol is invalid */
+  DB_BULK_GCOL_INVALID_DATA,
 
   /* The following are partial failure codes */
 

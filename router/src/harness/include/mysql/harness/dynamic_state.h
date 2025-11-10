@@ -153,6 +153,7 @@ class HARNESS_EXPORT DynamicState {
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
   std::string file_name_;
+  std::string tmp_file_name_;
 };
 
 }  // namespace mysql_harness

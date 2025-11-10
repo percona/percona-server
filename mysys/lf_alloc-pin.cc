@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <atomic>
 #include <cassert>
-#include <cstddef>
 
 static_assert(sizeof(std::atomic<void *>) == sizeof(void *),
               "We happily cast to and from std::atomic<void *>, so they need "

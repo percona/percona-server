@@ -325,16 +325,11 @@ void Restore::execDUMP_STATE_ORD(Signal *signal) {
       thread_type = "Recover";
     }
 
-    g_eventLogger->info(
-        "%s instance %u: Restored LCP : %u fragments,"
-        " %llu rows, "
+    infoEvent(
+        "%s instance %u: Restored LCP : %u fragments, %llu rows, "
         "%llu millis, %llu rows/s",
         thread_type, instance(), m_frags_restored, m_rows_restored,
         m_millis_spent, rate);
-    infoEvent(
-        "LDM instance %u: Restored LCP : %u fragments, %llu rows, "
-        "%llu millis, %llu rows/s",
-        instance(), m_frags_restored, m_rows_restored, m_millis_spent, rate);
   }
 }
 

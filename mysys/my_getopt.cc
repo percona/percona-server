@@ -34,20 +34,23 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <cassert>
 #include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_macros.h"
+#include "my_sys.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/dtoa.h"

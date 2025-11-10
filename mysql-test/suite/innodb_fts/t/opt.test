@@ -1029,8 +1029,10 @@ DROP TABLE t1;
 CREATE TABLE t1(f1 CHAR(1) CHARSET latin1, FULLTEXT(f1)) ENGINE=INNODB;
 EXPLAIN SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
 
+SET explain_json_format_version = 1;
 --skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT = JSON SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
+SET explain_json_format_version = DEFAULT;
 
 DROP TABLE t1;
 

@@ -1600,6 +1600,7 @@ create table parent(a int primary key, b int, c int, d int) engine=innodb;
 create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=innodb;
 insert into parent values (1,1,1,1);
 insert into eq_child select * from parent;
+SET explain_json_format_version = 1;
 explain format=json select straight_join count(*) from parent
 join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
 join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
@@ -1770,6 +1771,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`parent` join `test`.`eq_child` `c1` join `test`.`eq_child` `c2` join `test`.`eq_child` `c3` join `test`.`eq_child` `c4` where ((`test`.`c1`.`a` = `test`.`parent`.`b`) and (`test`.`c1`.`b` = `test`.`parent`.`b`) and (`test`.`c2`.`a` = `test`.`parent`.`b`) and (`test`.`c2`.`b` = `test`.`parent`.`b`) and (`test`.`c3`.`a` = `test`.`parent`.`b`) and (`test`.`c3`.`b` = `test`.`parent`.`b`) and (`test`.`c4`.`a` = `test`.`parent`.`b`) and (`test`.`c4`.`b` = `test`.`parent`.`b`))
+SET explain_json_format_version = DEFAULT;
 drop table parent, eq_child;
 #
 # Bug #29954680: BACKWARDS REF SCAN DOES NOT PERFORM LATE NULLS FILTERING

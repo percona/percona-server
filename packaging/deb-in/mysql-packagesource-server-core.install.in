@@ -52,6 +52,9 @@ usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
 usr/share/man/man8/mysqld.8
 # private shared libraries
+usr/lib/mysql/private/libicui18n.so.77.1
+usr/lib/mysql/private/libicustubdata.so.77.1
+usr/lib/mysql/private/libicuuc.so.77.1
 usr/lib/mysql/private/libprotobuf-lite.so.24.4.0
 usr/lib/mysql/private/libprotobuf.so.24.4.0
 usr/lib/mysql/private/libabsl_bad_any_cast_impl.so
@@ -165,8 +168,6 @@ usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/auth_socket.so
 usr/lib/mysql/plugin/validate_password.so
-usr/lib/mysql/plugin/semisync_master.so
-usr/lib/mysql/plugin/semisync_slave.so
 usr/lib/mysql/plugin/semisync_source.so
 usr/lib/mysql/plugin/semisync_replica.so
 usr/lib/mysql/plugin/libpluginmecab.so

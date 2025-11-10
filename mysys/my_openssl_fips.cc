@@ -28,6 +28,8 @@
 
 #include "my_openssl_fips.h"
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
+
 #include <cassert>
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
@@ -37,6 +39,7 @@
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
 #include <openssl/provider.h>
+// IWYU pragma: no_include <openssl/types.h>
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 /**
   Get fips mode from openssl library,

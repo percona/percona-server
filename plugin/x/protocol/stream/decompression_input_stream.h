@@ -93,9 +93,7 @@ class Decompression_input_stream
     return Skip(count - left);
   }
 
-  google::protobuf::int64 ByteCount() const override {
-    return m_all + m_output_buffer_offset;
-  }
+  int64_t ByteCount() const override { return m_all + m_output_buffer_offset; }
 
  private:
   bool ReadCompressed() {

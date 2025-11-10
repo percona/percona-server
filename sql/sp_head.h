@@ -875,6 +875,13 @@ class sp_head {
   }
 
   /**
+    @return instructions for this stored program.
+  */
+  const Mem_root_array<sp_instr *> &get_instructions() const {
+    return m_instructions;
+  }
+
+  /**
     @return SP-persistent mem-root. Instructions and expressions are stored in
     its memory between executions.
   */

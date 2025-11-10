@@ -103,13 +103,13 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 
   // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_update_time, prepare_null_list(8));
-  MYSQL_TIME ldate;
-  item->get_date(&ldate, 0);
+  Datetime_val ldate;
+  item->val_datetime(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_check_time, prepare_null_list(8));
-  item->get_date(&ldate, 0);
+  item->val_datetime(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
   // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)

@@ -26,10 +26,8 @@
 #ifndef NDB_BINLOG_THREAD_H
 #define NDB_BINLOG_THREAD_H
 
-#include <mutex>
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ndb_binlog_index_rows.h"

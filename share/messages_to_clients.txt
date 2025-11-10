@@ -7250,7 +7250,7 @@ ER_AGGREGATE_ORDER_NON_AGG_QUERY
 ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
   eng "Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the replica after fixing any failed threads, you should fix this worker as well."
 
-ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
+OBSOLETE_ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
   eng "replica_preserve_commit_order is not supported %s."
 
 ER_SERVER_OFFLINE_MODE
@@ -10197,7 +10197,7 @@ ER_LH_AWS_AUTH_ERR
   eng "AWS authentication error."
 
 ER_LH_CSV_PARSING_ERR
-  eng "%s:%lu: Parsing error found. %s."
+  eng "%s at byte offset %lu: Parsing error. %s"
 
 ER_LH_COLUMN_MISMATCH_ERR
   eng "%s: Mismatch in the number of columns. Expected %u, found %u."
@@ -10278,7 +10278,7 @@ ER_LH_PARQUET_NON_UTF8_FILE_ENC
   eng "Column %d in %s: String with non-utf8 file encoding."
 
 ER_LH_PARQUET_SCHEMA_MISMATCH
-  eng "Difference in schema among Parquet files."
+  eng "Column %d in %s: Difference in column type among Parquet files."
 
 ER_LH_PARQUET_ROW_GROUP_SIZE_EXCEEDS_MAX
   eng "File %s: Size of row group %ld is larger than maximum allowed size (%d)."
@@ -10287,13 +10287,13 @@ ER_LH_PARQUET_CANNOT_LOCATE_OFFSET
   eng "File %s: Cannot locate offset of row group %ld in metadata."
 
 ER_LH_PARQUET_TYPE_CANNOT_CONVERT
-  eng "Column %d in parquet table cannot be converted to mysql format."
+  eng "Column %d in %s: Parquet type cannot be converted to mysql %s."
 
 ER_LH_PARQUET_CANNOT_LOCATE_SCHEMA
   eng "Cannot locate schema in %s."
 
-ER_LH_INFER_SCHEMA_MISMATCH
-  eng "Found files with mismatched schemas."
+ER_LH_INFER_NUM_COL_MISMATCH
+  eng "Column count mismatch between files: '%s' has %d columns, but '%s' has %d columns."
 
 ER_LH_OOM
   eng "Insufficient memory."
@@ -10314,7 +10314,7 @@ ER_LH_INFER_NO_FILES
   eng "No valid files found for processing."
 
 ER_LH_WARN_INFER_USE_DEFAULT_COL_NAMES
-  eng "Used default column names for column index(s) %s as they are %s."
+  eng "Used default column names for column index(es) %s as they are %s."
 
 ER_LH_PARQUET_CANNOT_READ_HEADER
   eng "File %s: Unable to read Parquet header."
@@ -10359,7 +10359,7 @@ ER_LANGUAGE_COMPONENT_TIMEZONE
   eng "%s> Time zone %s is not supported."
 
 ER_LANGUAGE_COMPONENT_KEYWORD
-  eng "%s> The identifier '%s' is a reserved word."
+  eng "%s> The identifier '%s' is not valid."
 
 ER_LANGUAGE_COMPONENT_SET_SYSTEM_VARIABLE
   eng "Language component: System variable '%s' cannot be configured when component is active."
@@ -10465,7 +10465,7 @@ ER_LH_UNSTRUCTURED_NO_DATA_FOUND
   eng "No data was extracted from provided files."
 
 ER_LH_UNSTRUCTURED_FILE_PARSE_ERR
-  eng "File: %.*s Could not be parsed."
+  eng "File: %.*s Could not be parsed. %s"
 
 ER_LH_UNSTRUCTURED_ENCODING_ERR
   eng "Segments %d to %d in file: %.*s Could not be encoded."
@@ -10774,7 +10774,7 @@ ER_JDV_CANNOT_BE_USED_WITH
 ER_JDV_DML_INFO
   eng "Rows affected: %ld  Warnings: %ld."
 
-ER_JDV_MISSING_VALUE_FOR_AG_COLUMN
+OBSOLETE_ER_JDV_MISSING_VALUE_FOR_AG_COLUMN
   eng "A value must be provided explicitly for auto-generated column %s.%s, referenced by path '%s', key '%s'"
 
 ER_JDV_INVALID_BINARY_TYPE_HEADER
@@ -10799,6 +10799,33 @@ ER_EXTERNAL_TABLE_ENGINE_NOT_SPECIFIED
   eng "External storage engine is not specified"
 ER_LH_NO_FILES_FOUND_NO_SECURE_FILE_PRIV
   eng "No files found or files provided not under secure-file-priv."
+
+ER_LH_COL_NAME_MISSING
+  eng "Column %d of %s: Column name is not present in the file header or metadata."
+
+ER_LH_COL_NAME_DUPLICATE
+  eng "File %s: Duplicate column name in the file header or metadata."
+
+ER_LH_UNSTRUCTURED_OCI_GENAI_FAILURE
+  eng "Error when using OCI GenAI Service: %s"
+
+ER_LH_UNSTRUCTURED_PARTIAL_FILE_PARSE_ERR
+  eng "File: %.*s – Part of the document was parsed. %s."
+
+ER_JDV_EXPLICIT_AUTO_INCREMENT_NOT_ALLOWED
+  eng "Using 0 to request the next value of an AUTO_INCREMENT column is not allowed in JDVs, column %s.%s, referenced by path '%s', key '%s'."
+
+ER_LH_INFER_COL_NAME_MISMATCH
+  eng "Column '%s' found in file '%s', but not in file '%s' during column name matching."
+
+ER_LH_DELTA_SCHEMA_MISMATCH
+  eng "Detected schema mismatch for delta table: %s"
+
+ER_LH_DELTA_METADATA_READ_ERROR
+  eng "Error while reading metadata for delta table: %s"
+
+ER_LH_DELTA_UNSUPPORTED_ERROR
+  eng "Feature %s of delta tables is unsupported"
 
 #
 #  End of 9.x error messages (server-to-client).

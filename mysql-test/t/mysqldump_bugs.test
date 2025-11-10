@@ -1,4 +1,6 @@
 --source include/no_valgrind_without_big.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -203,3 +205,6 @@ INSERT INTO B37353658.t1 VALUES (1),(2),(3),(4);
 DROP DATABASE B37353658;
 
 --echo #End of 9.3 tests
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

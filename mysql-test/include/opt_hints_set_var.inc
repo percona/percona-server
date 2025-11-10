@@ -20,22 +20,30 @@ SELECT /*+ SET_VAR(foo = 900010050018247362846826482468000) */ 1;
 # Testing various warning issued due to incorrect hint arguments/non-updateble sys variables
 
 # Check duplicated hints, second hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on') SET_VAR(optimizer_switch = 'batched_key_access=off')*/ * FROM t1;
 # Check duplicated hints, second hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(max_join_size=1) SET_VAR(max_join_size=1) */ * FROM t1;
 # Check duplicated hints, last hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on')
                    SET_VAR(big_tables=on)
                    SET_VAR(big_tables=off) */ * FROM t1;
 # Check incorrect variable name, hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switc = 'batched_key_access=off') */ * FROM t1;
 # Check incorrect value of the system variable, hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=yes') */ * FROM t1;
 # Check incorrect value of the system variable, hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') */ * FROM t1;
 # Check hint behavior with non-updateable system variable, hint is ignored with warning
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 # Testing warning messages for the variables with incorrect values
+--replace_regex $elide_costs
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 # Testing warning message for the variables with truncated value
 --disable_warnings
@@ -178,6 +186,7 @@ CALL test_hint("SET_VAR(lock_wait_timeout=1)", "lock_wait_timeout");
 
 # Testing max_error_count variable, no warning should be issued.
 CREATE TABLE t1(f1 INT);
+--replace_regex $elide_costs
 EXPLAIN SELECT /*+ SET_VAR(max_error_count=0) SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(max_error_count=0)", "max_error_count");
@@ -249,12 +258,15 @@ INSERT INTO t2 VALUES (2), (3), (4), (5);
 INSERT INTO t3 VALUES (10,3), (20,4), (30,5);
 ANALYZE TABLE t1, t2, t3;
 
+--replace_regex $elide_costs_and_rows
 EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 
+--replace_regex $elide_costs_and_rows
 EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 
+--replace_regex $elide_costs_and_rows
 EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 
@@ -295,7 +307,6 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
---skip_if_hypergraph
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Should use non-MRR index scan.
@@ -305,7 +316,6 @@ EXPLAIN FORMAT=TREE SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 
 set optimizer_switch=default;
 DROP TABLE t1;
 
---replace_regex /hypergraph_optimizer=on/hypergraph_optimizer=VAL/ /hypergraph_optimizer=off/hypergraph_optimizer=VAL/
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
 
 # Testing range_alloc_block_size variable, no functional test.
@@ -449,11 +459,9 @@ INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
                                   (11.0, 11, NULL);
 ANALYZE TABLE t1;
 
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT
 id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=JSON SELECT /*+ SET_VAR(windowing_use_high_precision=OFF)*/
 d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt
 FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);

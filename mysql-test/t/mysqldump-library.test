@@ -1,5 +1,7 @@
 
 --source include/no_valgrind_without_big.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 # Binlog is required
 --source include/have_log_bin.inc
@@ -114,3 +116,5 @@ DROP LIBRARY `library_in_ansi_quotes_!@#$%^&*(){}[];<>/?'``_end`;
 SELECT * FROM INFORMATION_SCHEMA.ROUTINE_LIBRARIES
 ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SCHEMA, LIBRARY_NAME, LIBRARY_VERSION;
 
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

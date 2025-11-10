@@ -256,6 +256,7 @@ SET(mysql_rest_service_impl_SRC
   mrs/endpoint_manager.cc
   mrs/router_observation_entities.cc
   mrs/rest/handler.cc
+  mrs/rest/rest_request_handler.cc
   mrs/rest/response_cache.cc
   mrs/rest/openapi_object_creator.cc
   mrs/monitored/gtid_functions.cc

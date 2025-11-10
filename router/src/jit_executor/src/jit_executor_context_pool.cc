@@ -67,12 +67,21 @@ std::shared_ptr<PooledContextHandle> ContextPool::get_context() {
   return {};
 }
 
-void ContextPool::release(IContext *ctx) { m_release_queue.push(ctx); }
+void ContextPool::release(IContext *ctx) {
+  m_running_items--;
+  if (ctx != nullptr && ctx->is_idle()) {
+    do_release(ctx);
+  } else {
+    m_queued_items++;
+    m_release_queue.push(ctx);
+  }
+}
 
 void ContextPool::release_thread() {
   my_thread_self_setname("Jit-CtxDispose");
   while (true) {
     auto ctx = m_release_queue.pop();
+    m_queued_items--;
     if (ctx) {
       if (ctx->wait_for_idle()) {
         do_release(ctx);
@@ -101,26 +110,51 @@ IContext *ContextPool::create(size_t id) {
   return context.release();
 }
 
-void ContextPool::destroy(IContext *ctx) { delete ctx; }
-
-void ContextPool::increase_active_items() {
-  {
-    std::scoped_lock lock(m_mutex);
-    m_active_items++;
-    m_created_items++;
+void ContextPool::destroy(IContext *ctx) {
+  try {
+    delete ctx;
+  } catch (const std::exception &e) {
+    log_error("%s", e.what());
   }
 }
 
-void ContextPool::decrease_active_items() {
+void ContextPool::increase_active_items(bool created) {
   {
     std::scoped_lock lock(m_mutex);
-    m_active_items--;
+    m_running_items++;
+    if (created) {
+      m_active_items++;
+      m_created_items++;
+    }
+    // NOTE: The following commented code is for debugging purposes
+    // std::cout << "===> C/A/R/TR: " << m_created_items << "/" <<
+    // m_active_items << "/" << m_running_items << "/" << m_queued_items <<
+    // std::endl;
+  }
+}
+
+void ContextPool::decrease_active_items(bool destroyed) {
+  {
+    std::scoped_lock lock(m_mutex);
+    if (destroyed) {
+      m_active_items--;
+    }
+    // NOTE: The following commented code is for debugging purposes
+    // std::cout << "===> C/A/R/TR: " << m_created_items << "/" <<
+    // m_active_items << "/" << m_running_items << "/" << m_queued_items <<
+    // std::endl;
   }
   m_item_availability.notify_all();
 }
 
 IContext *ContextPool::get() {
   IContext *item = nullptr;
+  std::optional<bool> got_item;
+  mysql_harness::ScopedCallback increase([this, &got_item]() {
+    if (got_item.has_value()) {
+      increase_active_items(*got_item);
+    }
+  });
   {
     std::unique_lock lock(m_mutex);
 
@@ -143,13 +177,14 @@ IContext *ContextPool::get() {
       // Pop a resource from the pool
       item = m_items.front();
       m_items.pop_front();
+      got_item = false;  // Got but no created
       return item;
     }
   }
 
   try {
     item = create(m_created_items);
-    increase_active_items();
+    got_item = true;  // Got and created
     return item;
   } catch (...) {
     // An initialization failure would raise this exception, not seen in Linux
@@ -163,6 +198,9 @@ IContext *ContextPool::get() {
 }
 
 void ContextPool::do_release(IContext *ctx) {
+  bool destroyed = false;
+  mysql_harness::ScopedCallback decrease(
+      [this, &destroyed]() { decrease_active_items(destroyed); });
   {
     std::scoped_lock lock(m_mutex);
 
@@ -173,17 +211,13 @@ void ContextPool::do_release(IContext *ctx) {
     }
   }
 
-  discard(ctx);
+  destroyed = true;
+  destroy(ctx);
 }
 
 void ContextPool::discard(IContext *ctx) {
-  mysql_harness::ScopedCallback decrease([this]() { decrease_active_items(); });
-
-  try {
-    destroy(ctx);
-  } catch (const std::exception &e) {
-    log_error("%s", e.what());
-  }
+  destroy(ctx);
+  decrease_active_items(true);
 }
 
 void ContextPool::do_teardown() {

@@ -600,14 +600,14 @@ static bool auth_verify_password_history(
 
   /* iterate over the password history rows for the user */
   while (!error) {
-    MYSQL_TIME ts_val;
+    Date_val ts_val;
     char outbuf[MAX_FIELD_WIDTH] = {0};
     long ts_day, date_diff;
     String cred_val(&outbuf[0], sizeof(outbuf), &my_charset_bin);
     int is_error = 0;
 
     /* fetch the recorded time */
-    if (ts_field->get_date(&ts_val, 0)) goto get_next_row;
+    if (ts_field->val_date(&ts_val, 0)) goto get_next_row;
 
     /* convert to a day number */
     ts_day = calc_daynr(ts_val.year, ts_val.month, ts_val.day);

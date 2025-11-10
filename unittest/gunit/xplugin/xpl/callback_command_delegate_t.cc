@@ -52,8 +52,7 @@ const longlong EXPECTED_IS_LONGLONG_UNSIGNED = true;
 const longlong EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
 const decimal_t EXPECTED_VALUE_DECIMAL = {0, 1, 2, false, nullptr};
 const double EXPECTED_VALUE_DOUBLE = 20.0;
-const MysqlTime EXPECTED_VALUE_DATATIME(2017, 12, 20, 20, 30, 00, 0, false,
-                                        MYSQL_TIMESTAMP_DATETIME);
+const MysqlTime EXPECTED_VALUE_DATATIME(2017, 12, 20, 20, 30, 00, 0);
 const char *EXPECTED_VALUE_STRING = "TEST STRING";
 
 }  // namespace

@@ -8,6 +8,9 @@
 
 --source include/dd_pfs_init.inc
 
+# This test doesn't support GTID as it uses MyISAM
+--source include/rpl/set_gtid_mode_off.inc
+
 ###############################################################################
 # Make sure we have the DD objects representing the DD tables in the DD cache
 # to avoid complications due to having a cache miss while accessing the DD
@@ -549,3 +552,5 @@ let $operation= DROP SCHEMA s4;
 # Cleanup.
 
 --source include/dd_pfs_cleanup.inc
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

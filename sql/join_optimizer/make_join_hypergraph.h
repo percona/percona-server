@@ -30,6 +30,7 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -45,7 +46,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
 
-class CompanionSet;
 class Field;
 class JOIN;
 class Query_block;
@@ -74,6 +74,15 @@ struct SargablePredicate {
   /// be constant during execution. Also, it should not contain subqueries or
   /// stored procedures, which we do not want to execute during optimization.
   bool can_evaluate;
+};
+
+/// Information about a join condition that can potentially be pushed down as a
+/// sargable predicate for a Node.
+struct PushableJoinCondition {
+  /// The condition that may be pushed as a sargable predicate.
+  Item *cond;
+  /// The relational expression from which this condition is pushable.
+  const RelationalExpression *from;
 };
 
 /**
@@ -111,9 +120,8 @@ struct JoinHypergraph {
 
   class Node final {
    public:
-    Node(MEM_ROOT *mem_root, TABLE *table, const CompanionSet *companion_set)
+    Node(MEM_ROOT *mem_root, TABLE *table)
         : m_table{table},
-          m_companion_set{companion_set},
           m_sargable_predicates{mem_root},
           m_pushable_conditions(mem_root) {
       assert(mem_root != nullptr);
@@ -121,7 +129,6 @@ struct JoinHypergraph {
     }
 
     TABLE *table() const { return m_table; }
-    const CompanionSet *companion_set() const { return m_companion_set; }
 
     void AddSargable(const SargablePredicate &predicate) {
       assert(predicate.predicate_index >= 0);
@@ -134,18 +141,27 @@ struct JoinHypergraph {
       return m_sargable_predicates;
     }
 
-    void AddPushable(Item *cond) {
+    /**
+      Add a join condition that is potentially pushable as a sargable predicate
+      for this node.
+
+      @param cond   The condition to be considered for pushdown.
+      @param from   The relational expression from which this condition
+                    originates.
+    */
+    void AddPushable(Item *cond, const RelationalExpression *from) {
       // Don't add duplicate conditions, as this causes their selectivity to
       // be applied multiple times, giving poor row estimates (cf.
       // bug#36135001).
-      if (std::none_of(
-              m_pushable_conditions.cbegin(), m_pushable_conditions.cend(),
-              [&](const Item *other) { return ItemsAreEqual(cond, other); })) {
-        m_pushable_conditions.push_back(cond);
+      if (std::ranges::none_of(m_pushable_conditions,
+                               [&](const PushableJoinCondition &other) {
+                                 return ItemsAreEqual(cond, other.cond);
+                               })) {
+        m_pushable_conditions.push_back({.cond = cond, .from = from});
       }
     }
 
-    const Mem_root_array<Item *> &pushable_conditions() const {
+    const Mem_root_array<PushableJoinCondition> &pushable_conditions() const {
       return m_pushable_conditions;
     }
 
@@ -162,7 +178,6 @@ struct JoinHypergraph {
 
    private:
     TABLE *m_table;
-    const CompanionSet *m_companion_set;
     // List of all sargable predicates (see SargablePredicate) where
     // the field is part of this table. When we see the node for
     // the first time, we will evaluate all of these and consider
@@ -179,7 +194,7 @@ struct JoinHypergraph {
     // ourselves when determining sargable conditions, but there would be
     // a fair amount of duplicated code in determining pushability,
     // which is why regular join pushdown does the computation.)
-    Mem_root_array<Item *> m_pushable_conditions;
+    Mem_root_array<PushableJoinCondition> m_pushable_conditions;
 
     // The lateral dependencies of this table. That is, the set of tables that
     // must be available on the outer side of a nested loop join in which this
@@ -233,6 +248,18 @@ struct JoinHypergraph {
   // of them are sargable join predicates.
   unsigned num_where_predicates = 0;
 
+  /// Returns an immutable view of the filter predicates portion of the
+  /// predicates array.
+  std::span<const Predicate> filter_predicates() const {
+    return {predicates.data(), num_where_predicates};
+  }
+
+  /// Returns a mutable view of the filter predicates portion of the predicates
+  /// array.
+  std::span<Predicate> filter_predicates() {
+    return {predicates.data(), num_where_predicates};
+  }
+
   // A bitmap over predicates that are, or contain, at least one
   // materializable subquery.
   OverflowBitset materializable_predicates{0};
@@ -255,6 +282,11 @@ struct JoinHypergraph {
   /// assert-fail on inconsistent row counts if this (known) issue could be
   /// the root cause.
   bool has_reordered_left_joins = false;
+
+  // True if estimates for one or more Nodes in the graph have been provided
+  // by the secondary engine (i.e. at least one Node has the field `cardinality`
+  // set).
+  bool has_estimates_from_secondary_engine = false;
 
   /// The set of nodes that are on the inner side of some outer join.
   hypergraph::NodeMap nodes_inner_to_outer_join = 0;

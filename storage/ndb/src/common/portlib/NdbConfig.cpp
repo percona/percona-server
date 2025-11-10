@@ -62,19 +62,6 @@ static char *NdbConfig_AllocHomePath(int _len) {
 
 void NdbConfig_SetPath(const char *path) { datadir_path = path; }
 
-char *NdbConfig_NdbCfgName(int with_ndb_home) {
-  char *buf;
-  int len = 0;
-
-  if (with_ndb_home) {
-    buf = NdbConfig_AllocHomePath(PATH_MAX);
-    len = (int)strlen(buf);
-  } else
-    buf = (char *)malloc(PATH_MAX);
-  snprintf(buf + len, PATH_MAX - len, "Ndb.cfg");
-  return buf;
-}
-
 static char *get_prefix_buf(int len, int node_id) {
   char tmp_buf[sizeof("ndb_pid#############") + 1];
   char *buf;

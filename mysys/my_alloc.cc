@@ -34,12 +34,13 @@
 
 #include <sys/types.h>
 #include <algorithm>
+#include <cassert>
 #include <cstdarg>
 #include <cstring>
 #include <iterator>
 
+#include "memory_debugging.h"
 #include "my_alloc.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"

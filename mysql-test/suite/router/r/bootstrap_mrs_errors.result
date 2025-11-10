@@ -8,8 +8,9 @@ Error: option '--mrs' does not expect a value, but got a value
 Error: option '--mrs-global-secret' expects a value, got nothing
 Error: option '--mrs-mysql-metadata-account' expects a value, got nothing
 Error: option '--mrs-mysql-data-account' expects a value, got nothing
+Error: Option '--account' only allowed when the target is InnoDB Cluster. The actual target is standalone server.
+Error: Option '--account-host' only allowed when the target is InnoDB Cluster. The actual target is standalone server.
 DROP USER 'admin'@'%';
-# Removed bootstraped users: 0
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

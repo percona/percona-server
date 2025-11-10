@@ -10,6 +10,8 @@ Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future re
 CREATE OR REPLACE SQL SECURITY INVOKER VIEW
 mysql_rest_service_metadata.schema_version (major, minor, patch)
 AS SELECT 1,0,12;
+FATAL ERROR ENCOUNTERED, attempting to undo new accounts that were created
+- New accounts cleaned up successfully
 # Bootstrapping MySQL Router instance at 'DIRECTORY'
 
 - Creating account(s) (only those that are needed, if any)
@@ -41,11 +43,11 @@ Error: Unsupported MRS metadata version (1.0.12)
 CREATE OR REPLACE SQL SECURITY INVOKER VIEW
 mysql_rest_service_metadata.schema_version (major, minor, patch)
 AS SELECT 1,0,50;
-# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+FATAL ERROR ENCOUNTERED, attempting to undo new accounts that were created
+- New accounts cleaned up successfully
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
 
-- Fetching password for current account (mysql_router1_RANDOM) from keyring
 - Creating account(s) (only those that are needed, if any)
--Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
 - Creating configuration .../mysqlrouter.conf
@@ -74,11 +76,11 @@ Error: Unsupported MRS metadata version (1.0.50)
 CREATE OR REPLACE SQL SECURITY INVOKER VIEW
 mysql_rest_service_metadata.schema_version (major, minor, patch)
 AS SELECT 1,1,0;
-# Reconfiguring MySQL Router instance at 'DIRECTORY'...
+FATAL ERROR ENCOUNTERED, attempting to undo new accounts that were created
+- New accounts cleaned up successfully
+# Bootstrapping MySQL Router instance at 'DIRECTORY'
 
-- Fetching password for current account (mysql_router1_RANDOM) from keyring
 - Creating account(s) (only those that are needed, if any)
--Using existing certificates from the 'TEMP_DIRECTORY' directory
 - Verifying account (using it to run SQL queries that would be run by Router)
 - Storing account in keyring
 - Creating configuration .../mysqlrouter.conf
@@ -104,7 +106,6 @@ InnoDB ReplicaSet 'my_cluster' can be reached by connecting to:
 
 Error: Unsupported MRS metadata version (1.1.0)
 DROP USER 'admin'@'%';
-# Removed bootstraped users: 1
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;
 DROP ROLE mysql_rest_service_schema_admin;

@@ -36,6 +36,8 @@ BULK Data Load. Currently treated like DDL */
 #include "field_types.h"
 #include "lob0lob.h"
 #include "mach0data.h"
+#include "scope_guard.h"
+#include "sql/current_thd.h"
 #include "sql/field.h"
 #include "trx0roll.h"
 #include "trx0sys.h"
@@ -47,12 +49,15 @@ void Loader::Thread_data::init(const row_prebuilt_t *prebuilt) {
   dict_table_t *table = prebuilt->table;
   dict_index_t *index = prebuilt->index;
 
+  current_thd = prebuilt->m_thd;
+
   /* Create tuple heap and the empty tuple. */
   m_heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   if (index->is_clustered()) {
     auto n_table_cols = table->get_n_cols();
-    m_row = dtuple_create(m_heap, n_table_cols);
+    const ulint n_v_cols = dict_table_get_n_v_cols(table);
+    m_row = dtuple_create_with_vcol(m_heap, n_table_cols, n_v_cols);
     dict_table_copy_types(m_row, index->table);
   } else {
     auto n_index_cols = dict_index_get_n_fields(index);
@@ -146,6 +151,12 @@ dberr_t Loader::load(const row_prebuilt_t *prebuilt, size_t thread_index,
   auto &ctx = m_ctxs[thread_index];
   auto sub_tree = ctx.get_subtree();
 
+  // Take a mutex so that only one thread can evaluate gcol.
+  std::unique_lock<std::mutex> lock(m_gcol_mutex, std::defer_lock);
+  if (prebuilt->has_gcol()) {
+    lock.lock();
+  }
+
   return ctx.load(prebuilt, sub_tree, rows, wait_cbk);
 }
 
@@ -183,8 +194,16 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
   m_err = DB_SUCCESS;
   size_t row_index = 0;
 
+  /* memory heap for generated columns */
+  mem_heap_t *gcol_heap = mem_heap_create(128, UT_LOCATION_HERE);
+  auto guard = create_scope_guard([gcol_heap]() { mem_heap_free(gcol_heap); });
+
+  /* Blobs must be flushed before gcol evaluation is done. */
+  bool gcol_blobs_flushed = false;
+
   for (row_index = 0; row_index < rows.get_num_rows(); ++row_index) {
-    m_err = fill_tuple(prebuilt, rows, row_index);
+    m_err =
+        fill_tuple(prebuilt, rows, row_index, gcol_heap, gcol_blobs_flushed);
     if (m_err != DB_SUCCESS) {
       break;
     }
@@ -205,6 +224,7 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
     if (m_err != DB_SUCCESS) {
       break;
     }
+    mem_heap_empty(gcol_heap);
   }
 
   if (m_err == DB_SUCCESS) {
@@ -250,6 +270,11 @@ dberr_t Loader::Thread_data::load(const row_prebuilt_t *prebuilt,
       auto rec_size = rec_get_converted_size(index, m_entry);
       m_sout << "Innodb: Record size: " << rec_size
              << " too big to fit a Page.";
+      break;
+    }
+    case DB_BULK_GCOL_INVALID_DATA: {
+      m_errcode = ER_LOAD_BULK_DATA_FAILED;
+      m_sout << "Innodb: data for generated column is invalid";
       break;
     }
     default:
@@ -439,13 +464,113 @@ void Loader::Thread_data::fill_index_entry(const row_prebuilt_t *prebuilt) {
   }
 }
 
+dberr_t Loader::Thread_data::setup_dfield(const row_prebuilt_t *prebuilt,
+                                          Field *field,
+                                          const Column_mysql &sql_col,
+                                          dfield_t *src_dfield,
+                                          dfield_t *dst_dfield) {
+  const space_id_t space_id = prebuilt->space_id();
+  auto dtype = dfield_get_type(src_dfield);
+  auto data_ptr = (byte *)sql_col.get_data();
+  size_t data_len = sql_col.m_data_len;
+
+  dst_dfield->type = src_dfield->type;
+
+  /* For integer data, the column is passed as integer and not in mysql
+  format. We use empty column buffer to store column in innobase format. */
+  if (dtype->mtype == DATA_INT) {
+    const bool is_stored_gcol = field->is_gcol() && !field->is_virtual_gcol();
+    if (!is_stored_gcol) {
+      /* In the case of stored gcol sql_col is already converted to innodb
+      format. Don't do it again. */
+      if (!store_int_col(sql_col, data_ptr, data_len)) {
+        ib::info(ER_BULK_LOADER_INFO, "Innodb wrong integer data length");
+        return DB_ERROR;
+      }
+      if (!(dtype->prtype & DATA_UNSIGNED)) {
+        *data_ptr ^= 128;
+      }
+    }
+    dfield_set_data(dst_dfield, data_ptr, data_len);
+  } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
+    auto field_str = (const Field_str *)field;
+    const CHARSET_INFO *field_charset = field_str->charset();
+    size_t length_size{0};
+    switch (sql_col.m_type) {
+      case MYSQL_TYPE_TINY_BLOB:
+        length_size = 1;
+        break;
+      case MYSQL_TYPE_BLOB:
+        length_size = 2;
+        break;
+      case MYSQL_TYPE_MEDIUM_BLOB:
+        length_size = 3;
+        break;
+      case MYSQL_TYPE_GEOMETRY:
+        [[fallthrough]];
+      case MYSQL_TYPE_JSON:
+        [[fallthrough]];
+      case MYSQL_TYPE_VECTOR:
+        [[fallthrough]];
+      case MYSQL_TYPE_LONG_BLOB:
+        length_size = 4;
+        break;
+      default:
+        assert(0);
+        break;
+    }
+    byte *field_data = data_ptr + length_size;
+    dfield_set_data(dst_dfield, field_data, data_len);
+    if (data_len == lob::ref_t::SIZE) {
+      lob::ref_t ref(field_data);
+      if (ref.space_id() == space_id) {
+        dfield_set_ext(dst_dfield);
+      } else {
+        /* Not an externally stored field.  So, validate the string. */
+        size_t valid_length{0};
+        bool length_error;
+
+        char *tmp = reinterpret_cast<char *>(field_data);
+
+        const bool failure = validate_string(field_charset, tmp, data_len,
+                                             &valid_length, &length_error);
+        if (failure) {
+          my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
+                   field_data);
+          return DB_ERROR;
+        }
+      }
+    }
+  } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
+             data_len == lob::ref_t::SIZE) {
+    byte *field_data = data_ptr;
+    dfield_set_data(dst_dfield, field_data, data_len);
+    lob::ref_t ref(field_data);
+    if (ref.space_id() == space_id) {
+      dfield_set_ext(dst_dfield);
+    } else {
+      /* Not an externally stored field. */
+    }
+  } else if (dtype->mtype == DATA_SYS) {
+    ut_ad(0);
+  } else {
+    assert(data_len <= dtype->len);
+    dfield_set_data(dst_dfield, data_ptr, data_len);
+  }
+
+  return DB_SUCCESS;
+}
+
 dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
                                         const Rows_mysql &rows,
-                                        size_t row_index) {
+                                        size_t row_index, mem_heap_t *gcol_heap,
+                                        bool &gcol_blobs_flushed) {
   ut_ad(prebuilt->mysql_template);
   const space_id_t space_id = prebuilt->space_id();
   TABLE *mysql_table = prebuilt->m_mysql_table;
+  THD *thd = prebuilt->m_thd;
   auto share = mysql_table->s;
+  dict_table_t *table = prebuilt->table;
 
   /* This function is a miniature of row_mysql_convert_row_to_innobase(). */
 
@@ -455,9 +580,11 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
   auto row_offset = rows.get_row_offset(row_index);
   auto row_size = rows.get_num_cols();
   auto n_cols = row_size;
+  size_t start_column_number = 0;
 
   if (prebuilt->clust_index_was_generated) {
     if (prebuilt->index->is_clustered()) {
+      start_column_number = 1;
       auto &sql_col = rows.read_column(row_offset, column_number);
       if (m_last_rowid > 0 && sql_col.m_int_data - m_last_rowid > 1) {
         auto *tmp = get_subtree();
@@ -465,11 +592,12 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
             ut::make_psi_memory_key(mem_key_ddl), prebuilt->index,
             prebuilt->trx, 0, m_queue_size, tmp->get_extent_allocator());
         sub_tree_load->init();
+        gcol_blobs_flushed = false;
         m_list_subtrees.push_back(sub_tree_load);
       }
       mach_write_to_6(m_rowid_data, sql_col.m_int_data);
       m_last_rowid = sql_col.m_int_data;
-      auto col = prebuilt->table->get_sys_col(DATA_ROW_ID);
+      auto col = table->get_sys_col(DATA_ROW_ID);
       auto dfield = dtuple_get_nth_field(m_row, col->ind);
       dfield_set_data(dfield, m_rowid_data, DATA_ROW_ID_LEN);
       column_number++;
@@ -479,11 +607,21 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
     }
   }
 
+  /* Used to access fields of m_row tuple. */
+  size_t tuple_index = 0;
+
   for (size_t index = 0; index < n_cols; index++, ++column_number) {
     // Note: For the generated rowid there is no associated field.
     auto *field = share->field[index];
-    auto dfield = dtuple_get_nth_field(m_row, index);
+
+    if (field->is_virtual_gcol()) {
+      continue;
+    }
+
+    auto dfield = dtuple_get_nth_field(m_row, tuple_index);
     ut_ad(column_number < row_size);
+
+    ++tuple_index;
 
     if (column_number >= row_size) {
       ib::info(ER_BULK_LOADER_INFO, "Innodb row has more columns than CSV");
@@ -573,6 +711,7 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
         /* Not an externally stored field. */
       }
     } else if (dtype->mtype == DATA_SYS) {
+      ut_ad(!prebuilt->index->is_clustered());
       mach_write_to_6(m_rowid_data, sql_col.m_int_data);
       dfield_set_data(dfield, m_rowid_data, DATA_ROW_ID_LEN);
     } else {
@@ -580,6 +719,116 @@ dberr_t Loader::Thread_data::fill_tuple(const row_prebuilt_t *prebuilt,
       dfield_set_data(dfield, data_ptr, data_len);
     }
   }
+
+  /* Validation of gcol is done only for clustered index. */
+  if (prebuilt->index->is_clustered()) {
+    size_t nth_v_col = 0;
+    column_number = start_column_number;
+
+    for (size_t index = 0; index < n_cols; index++, ++column_number) {
+      auto *field = share->field[index];
+
+      if (field->is_virtual_gcol()) {
+        dict_v_col_t *const col = dict_table_get_nth_v_col(table, nth_v_col++);
+        dfield_t *fld1 = innobase_get_computed_value(
+            m_row, col, table, &gcol_heap, gcol_heap, thd, mysql_table, nullptr,
+            nullptr, nullptr);
+
+        if (fld1 == nullptr) {
+          return DB_BULK_GCOL_INVALID_DATA;
+        }
+
+        auto &sql_col = rows.read_column(row_offset, column_number);
+        dfield_t fld2;
+        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+
+        if (err != DB_SUCCESS) {
+          return err;
+        }
+
+        byte *data2 = static_cast<byte *>(fld2.data);
+        size_t data2_len = dfield_get_len(&fld2);
+
+        if (fld2.is_ext()) {
+          if (!gcol_blobs_flushed) {
+            auto *sub_tree = get_subtree();
+            sub_tree->add_blobs_to_bulk_flusher();
+            gcol_blobs_flushed = true;
+          }
+          const page_size_t page_size(dict_table_page_size(prebuilt->table));
+          data2 = lob::btr_copy_externally_stored_field(
+              prebuilt->trx, prebuilt->table->first_index(), &data2_len,
+              nullptr, reinterpret_cast<const byte *>(fld2.data), page_size,
+              dfield_get_len(&fld2), false, gcol_heap);
+        }
+
+        if (cmp_data_data(fld1->type.mtype, fld1->type.prtype, true,
+                          static_cast<const byte *>(fld1->data),
+                          dfield_get_len(fld1), data2, data2_len) != 0) {
+          return DB_BULK_GCOL_INVALID_DATA;
+        }
+      }
+    }
+
+    /* Validate the data for the stored gcols. */
+    if (table->s_cols != nullptr) {
+      for (auto &col : *table->s_cols) {
+        auto column_number = col.s_pos + start_column_number;
+        auto *field = share->field[col.s_pos];
+
+        dfield_t *fld1 = innobase_compute_stored_gcol(
+            m_row, col, table, gcol_heap, thd, mysql_table);
+
+        if (fld1 == nullptr) {
+          return DB_BULK_GCOL_INVALID_DATA;
+        }
+
+        auto &sql_col = rows.read_column(row_offset, column_number);
+        dfield_t fld2;
+        auto err = setup_dfield(prebuilt, field, sql_col, fld1, &fld2);
+
+        if (err != DB_SUCCESS) {
+          return err;
+        }
+
+        byte *data2 = static_cast<byte *>(fld2.data);
+        size_t data2_len = dfield_get_len(&fld2);
+
+        if (fld2.is_ext()) {
+          if (!gcol_blobs_flushed) {
+            auto *sub_tree = get_subtree();
+            sub_tree->add_blobs_to_bulk_flusher();
+            gcol_blobs_flushed = true;
+          }
+          const page_size_t page_size(dict_table_page_size(prebuilt->table));
+          data2 = lob::btr_copy_externally_stored_field(
+              prebuilt->trx, prebuilt->table->first_index(), &data2_len,
+              nullptr, reinterpret_cast<const byte *>(fld2.data), page_size,
+              dfield_get_len(&fld2), false, gcol_heap);
+        }
+
+        const byte *data1 = static_cast<const byte *>(fld1->data);
+
+        if (cmp_data_data(fld1->type.mtype, fld1->type.prtype, true, data1,
+                          dfield_get_len(fld1), data2, data2_len) != 0) {
+          if (fld1->type.mtype == DATA_FLOAT) {
+            /* In the case of FLOAT data type, the value in the CSV file
+            could be rounded up/down and might not match with re-calculated
+            value.  So, check approximately.*/
+            const float f_1 = mach_float_read(data1);
+            const float f_2 = mach_float_read(data2);
+            const float epsilon = 0.0001f;
+            const float diff = std::abs(f_1 - f_2);
+            if (diff <= epsilon) {
+              continue;
+            }
+          }
+          return DB_BULK_GCOL_INVALID_DATA;
+        }
+      }
+    }
+  }
+
   return DB_SUCCESS;
 }
 

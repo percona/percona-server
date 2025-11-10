@@ -24,6 +24,9 @@ ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SC
 
 --echo # Try to dump the routines - will produce an error.
 
+--let $executed_gtid_set= `SELECT @@GLOBAL.GTID_EXECUTED`
+--replace_result "$executed_gtid_set" GTID_SET
+
 --error 2
 --exec $MYSQL_DUMP --skip-comments --routines --databases mysqldump_test_db 2>&1
 

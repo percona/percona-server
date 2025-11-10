@@ -31,12 +31,13 @@
   Wrapper functions for OpenSSL implementations.
 */
 
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
+#include <cstddef>
+
 #include "my_inttypes.h"
 #include "my_ssl_algo_cache.h"
 #include "sha1.h"
-
-#include <openssl/evp.h>
-#include <openssl/sha.h>
 
 /**
   Wrapper function to compute SHA1 message digest.

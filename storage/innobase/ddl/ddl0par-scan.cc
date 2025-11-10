@@ -382,8 +382,6 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
           << "Resource not available to create threads for parallel scan."
           << " Falling back to single thread mode.";
 
-      reader.release_threads(n_threads);
-
       /* No need to for the extra thread states, release them. */
       for (auto builder : builders) {
         builder->fallback_to_single_thread();

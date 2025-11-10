@@ -3,6 +3,7 @@ select @@explain_format, @@global.explain_format;
 @@explain_format	@@global.explain_format
 TRADITIONAL_STRICT	TRADITIONAL_STRICT
 explain select 1;
+ERROR 42000: The hypergraph optimizer does not yet support 'EXPLAIN with TRADITIONAL format'
 set explain_format=traditional;
 # With hypergraph and TRADITIONAL, EXPLAIN should use TREE format.
 explain select 1;
@@ -30,19 +31,19 @@ JSON	JSON
 set global explain_format=default;
 select @@explain_format, @@global.explain_format;
 @@explain_format	@@global.explain_format
-JSON	TRADITIONAL
+JSON	TREE
 set persist explain_format=default;
 select @@explain_format, @@global.explain_format;
 @@explain_format	@@global.explain_format
-JSON	TRADITIONAL
+JSON	TREE
 set explain_format=default;
 select @@explain_format, @@global.explain_format;
 @@explain_format	@@global.explain_format
-TRADITIONAL	TRADITIONAL
+TREE	TREE
 reset persist explain_format;
 select @@explain_format, @@global.explain_format;
 @@explain_format	@@global.explain_format
-TRADITIONAL	TRADITIONAL
+TREE	TREE
 explain select 1;
 EXPLAIN
 -> Rows fetched before execution  (cost=0..0 rows=1)

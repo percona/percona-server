@@ -538,6 +538,15 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj, Table_ref *view) {
   // Set updatable.
   view_obj->set_updatable(view->updatable_view);
 
+  // Set materialization_engine.
+  dd::Properties *options = &view_obj->options();
+  if (view->is_mv_se_materialized()) {
+    options->set("materialization_engine",
+                 make_string_type(view->get_mv_se_name()));
+  } else {
+    options->remove("materialization_engine");
+  }
+
   // Set check option.
   view_obj->set_check_option(dd_get_new_view_check_type(view->with_check));
 
@@ -675,6 +684,15 @@ bool read_view(Table_ref *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
 
   // Get updatable.
   view->updatable_view = view_obj.is_updatable();
+
+  // Get is_materialized.
+  const dd::Properties *options = &view_obj.options();
+  view->set_mv_se_materialized(options->exists("materialization_engine"));
+  if (view->is_mv_se_materialized()) {
+    LEX_CSTRING engine_name{};
+    options->get("materialization_engine", &engine_name, mem_root);
+    view->set_mv_se_name(engine_name);
+  }
 
   // Get check option.
   view->with_check = dd_get_old_view_check_type(view_obj.check_option());

@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -94,11 +96,13 @@ INSERT INTO test.geo4326(g)
 --echo
 --echo #
 --echo # I.3
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/geo0/2'
 --let $mrs_client_arg_payload='{"id":2,"g":{"type":"LineString","coordinates":[[100,0],[0,0]]}}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/geo0/2'
 --let $mrs_client_arg_payload='{"id":2,"g":{"type":"Point", "coordinates":[100,0]}}'
 --let $mrs_client_arg_request_type='PUT'
@@ -153,11 +157,14 @@ INSERT INTO test.geo4326(g)
 --echo
 --echo #
 --echo # II.3
+
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
 --let $mrs_client_arg_payload='{"id":2,"g":{"type":"LineString","coordinates":[[80,0],[0,0]]}}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/geo4326/2'
 --let $mrs_client_arg_request_type='PUT'
 --let $mrs_client_arg_payload='{"id":2,"g":{"type":"Point", "coordinates":[80,0]}}'

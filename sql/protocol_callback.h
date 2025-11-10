@@ -214,7 +214,7 @@ class Protocol_callback final : public Protocol {
     @retval false  success
     @retval true   failure
   */
-  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  bool store_time(const Time_val &time, uint precision) override;
 
   /**
     Sends Field

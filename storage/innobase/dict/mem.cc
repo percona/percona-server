@@ -113,6 +113,8 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 
   dict_table_stats_latch_destroy(table);
 
+  dict_table_stats_compute_mutex_destroy(table);
+
   table->foreign_set.~dict_foreign_set();
   table->referenced_set.~dict_foreign_set();
 #endif /* !UNIV_LIBRARY */
@@ -231,7 +233,10 @@ dict_table_t *dict_mem_table_create(const char *name, space_id_t space,
 
   /* true means that the stats latch will be enabled -
   dict_table_stats_lock() will not be noop. */
-  dict_table_stats_latch_create(table, true);
+  dict_table_stats_latch_create_lazy(table, true);
+
+  /* mutex is enabled */
+  dict_table_stats_compute_mutex_create_lazy(table, true);
 
   table->autoinc_lock = lock_alloc_from_heap(heap);
 

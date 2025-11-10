@@ -229,8 +229,8 @@ class Prepared_statement final {
   bool prepare_query(THD *thd);
 
  public:
-  Prepared_statement(THD *thd_arg);
-  virtual ~Prepared_statement();
+  explicit Prepared_statement(THD *thd_arg);
+  ~Prepared_statement();
 
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }

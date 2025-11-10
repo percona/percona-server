@@ -231,6 +231,10 @@ static ulonglong ndb_latest_applied_binlog_epoch = 0;
 static ulonglong ndb_latest_handled_binlog_epoch = 0;
 static ulonglong ndb_latest_received_binlog_epoch = 0;
 
+#ifndef NDEBUG
+static std::unordered_map<std::string, bool> dbg_table_map_tables;
+#endif
+
 /*
   @brief Wait until the last committed epoch from the session enters the
          binlog. Wait a maximum of 30 seconds. This wait is necessary in
@@ -2339,6 +2343,13 @@ class Ndb_schema_event_handler {
       return false;
     }
     dd_client.commit();
+
+    /**
+     * table_share may cache old schema, clear it out with atomicity
+     * wrt DD changes via MDL Exclusive lock
+     */
+    ndb_tdc_close_cached_table(m_thd, schema_name, table_name);
+
     return true;
   }
 
@@ -5325,7 +5336,7 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
       if (opt_server_id_bits != 32 || opt_ndb_log_apply_status ||
           opt_ndb_log_orig) {
         // Conditions for enabling filter of replica updates in NDB are not met
-        ndb_log_warning("Binlog: not filtering replica updates in NDB");
+        ndb_log_info("Binlog: Not filtering replica updates in NDB");
       } else {
         ndb_log_info("Binlog: filter replica updates in NDB");
         op->setFilterAnyvalueMySQLNoReplicaUpdates();
@@ -5354,6 +5365,14 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
           op->setCustomData(nullptr);
           ndb->dropEventOperation(op);
           return nullptr;
+        }
+
+        if (event_data->have_fk || event_data->have_uk) {
+          log_warning(
+              ER_GET_ERRMSG,
+              "Logging row slice for table with Foreign Key or Unique "
+              "Key. May not contain all modifications to uphold constraints on "
+              "apply.");
         }
 
         // all good
@@ -6285,8 +6304,9 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       read_op = true;
       anyValue = 0;
     } else {
-      log_warning("unknown value for binlog signalling 0x%X, event not logged",
-                  anyValue);
+      log_warning(
+          "unknown value for binlog signalling 0x%X (%u), event not logged",
+          anyValue, anyValue);
       return 0;
     }
   }
@@ -6498,6 +6518,14 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
           log_error("Could not log write row, error: %d", error);
           return -1;
         }
+
+        DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+          // Mark table in table maps as having a row, crash if table not found
+          // as this indicates row without table map
+          std::string fullname(std::string(table->s->db.str) + "." +
+                               table->s->table_name.str);
+          dbg_table_map_tables.at(fullname) = true;
+        });
       }
       break;
     case NDBEVENT::TE_DELETE:
@@ -6543,6 +6571,14 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
           log_error("Could not log delete row, error: %d", error);
           return -1;
         }
+
+        DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+          // Mark table in table maps as having a row, crash if table not
+          // found as this indicates row without table map
+          std::string fullname(std::string(table->s->db.str) + "." +
+                               table->s->table_name.str);
+          dbg_table_map_tables.at(fullname) = true;
+        });
       }
       break;
     case NDBEVENT::TE_UPDATE:
@@ -6620,6 +6656,14 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
             return -1;
           }
         }
+
+        DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+          // Mark table in table maps as having a row, crash if table not
+          // found as this indicates row without table map
+          std::string fullname(std::string(table->s->db.str) + "." +
+                               table->s->table_name.str);
+          dbg_table_map_tables.at(fullname) = true;
+        });
       }
       break;
     default:
@@ -6848,6 +6892,17 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     i_pOp = i_ndb->nextEvent2();
   } while (i_pOp && i_pOp->getEpoch() == current_epoch);
 
+  DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+    // Make sure that all tables in table maps have got rows
+    for (const auto &el : dbg_table_map_tables) {
+      if (el.second == false) {
+        ndb_log_error("Found table in table_maps without row data!, name: %s ",
+                      el.first.c_str());
+        ndbcluster::ndbrequire(el.second == true);
+      }
+    }
+  });
+
   /*
     NOTE: i_pOp is now referring to an event in the next epoch
     or is == NULL
@@ -7028,6 +7083,13 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
 
   assert(ret == 0);
 
+  DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+    // Directly mark table in table maps and having a row
+    const std::string fullname(std::string(apply_status_table->s->db.str) +
+                               "." + apply_status_table->s->table_name.str);
+    dbg_table_map_tables[fullname] = true;
+  });
+
   memcpy(apply_status_table->record[0], sav_buf, sav_len);
   return true;
 }
@@ -7195,6 +7257,10 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
 void Ndb_binlog_thread::inject_table_map(injector_transaction &trans,
                                          Ndb *ndb) const {
   DBUG_TRACE;
+
+  DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps",
+                  { dbg_table_map_tables.clear(); });
+
   Uint32 iter = 0;
   const NdbEventOperation *gci_op = nullptr;
   Uint32 event_types = 0;
@@ -7255,6 +7321,13 @@ void Ndb_binlog_thread::inject_table_map(injector_transaction &trans,
     injector::transaction::table tbl(table, true);
     int ret = trans.use_table(::server_id, tbl);
     ndbcluster::ndbrequire(ret == 0);
+
+    DBUG_EXECUTE_IF("ndb_binlog_verify_table_maps", {
+      // Mark table as being in table map, haven't seen any row(s) yet
+      const std::string name(std::string(table->s->db.str) + "." +
+                             table->s->table_name.str);
+      dbg_table_map_tables[name] = false;
+    });
   }
 }
 

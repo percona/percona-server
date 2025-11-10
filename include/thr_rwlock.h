@@ -42,19 +42,19 @@
   are mysql_prlock_*() - see include/mysql/psi/mysql_thread.h
 */
 
+#ifdef SAFE_MUTEX
 #include <assert.h>
-#include <stddef.h>
-#include <sys/types.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <pthread.h>  // IWYU pragma: export
 #endif
 
-#include "my_inttypes.h"
-#include "my_macros.h"
+#ifdef SAFE_MUTEX
 #include "my_thread.h"
-#include "mysql/components/services/bits/thr_rwlock_bits.h"
-#include "thr_cond.h"
-#include "thr_mutex.h"
+#endif
+#include "mysql/components/services/bits/thr_rwlock_bits.h"  // IWYU pragma: export
 
 static inline int native_rw_init(native_rw_lock_t *rwp) {
 #ifdef _WIN32

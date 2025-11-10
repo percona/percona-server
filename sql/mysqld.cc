@@ -45,7 +45,7 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  For the user manual, see http://dev.mysql.com/doc/en/
+  For the user manual, see https://dev.mysql.com/doc/en/
 
   This documentation is published for each release, starting with MySQL 8.0.
 
@@ -69,7 +69,7 @@
 
   @section start_source Build from source
 
-  See https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
+  See https://dev.mysql.com/doc/refman/en/source-installation.html
 
   @section start_debug Debugging
 
@@ -192,11 +192,13 @@
   The MySQL protocol is used between MySQL Clients and a MySQL Server.
   It is implemented by:
     - Connectors (Connector/C, Connector/J, and so forth)
-    - MySQL Proxy
-    - Communication between master and slave replication servers
+    - MySQL Router
+    - Communication between source and replica replication servers
+    - MySQL Group Replication
+    - The Clone Plugin for cloning servers
 
   The protocol supports these features:
-    - Transparent encryption using SSL
+    - Transparent encryption using TLS
     - Transparent compression
     - A @ref page_protocol_connection_phase where capabilities and
       authentication data are exchanged
@@ -235,6 +237,10 @@ MySQL clients support the protocol:
 -  MySQL Connector/Net 7.0.2 or higher
 
 -  MySQL Connector/Node.js
+
+-  MySQL Connector/C++
+
+-  MySQL Shell
 */
 
 
@@ -700,6 +706,7 @@ MySQL clients support the protocol:
 #endif
 #include "keycache.h"  // KEY_CACHE
 #include "m_string.h"
+#include "manifest_file_option_parser_helper.h"
 #include "migrate_keyring.h"  // Migrate_keyring
 #include "my_alloc.h"
 #include "my_base.h"
@@ -762,6 +769,7 @@ MySQL clients support the protocol:
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
+#include "mysql_server_suffix.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -1217,6 +1225,7 @@ LEX_STRING opt_init_connect, opt_init_replica;
 LEX_STRING opt_mandatory_roles;
 bool opt_mandatory_roles_cache = false;
 bool opt_always_activate_granted_roles = false;
+bool opt_activate_mandatory_roles = true;
 bool opt_bin_log;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong slow_query_log_always_write_time = 10000000;
@@ -1397,7 +1406,6 @@ bool opt_replica_preserve_commit_order;
 #ifndef NDEBUG
 uint replica_rows_last_search_algorithm_used;
 #endif
-ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
 ulonglong max_binlog_cache_size = 0;
 ulong net_buffer_shrink_interval = 0;
@@ -7186,29 +7194,18 @@ int init_common_variables() {
   item_init();
   range_optimizer_init();
   my_string_stack_guard = check_enough_stack_size;
-  /*
-    Process a comma-separated character set list and choose
-    the first available character set. This is mostly for
-    test purposes, to be able to start "mysqld" even if
-    the requested character set is not available (see bug#18743).
-  */
-  for (;;) {
-    char *next_character_set_name =
-        strchr(const_cast<char *>(default_character_set_name), ',');
-    if (next_character_set_name) *next_character_set_name++ = '\0';
-    if (!(default_charset_info = get_charset_by_csname(
-              default_character_set_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
-      if (next_character_set_name) {
-        default_character_set_name = next_character_set_name;
-        default_collation_name = nullptr;  // Ignore collation
-      } else
-        return 1;  // Eof of the list
-    } else {
-      warn_on_deprecated_charset(nullptr, default_charset_info,
-                                 default_character_set_name,
-                                 "--character-set-server");
-      break;
+
+  if (default_character_set_name != nullptr) {
+    default_charset_info = get_charset_by_csname(default_character_set_name,
+                                                 MY_CS_PRIMARY, MYF(MY_WME));
+    if (default_charset_info == nullptr) {
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_CHARSET_NAME,
+             default_character_set_name);
+      return 1;
     }
+    warn_on_deprecated_charset(nullptr, default_charset_info,
+                               default_character_set_name,
+                               "--character-set-server");
   }
 
   if (default_collation_name) {
@@ -7247,12 +7244,14 @@ int init_common_variables() {
   }
 
   if (!(character_set_filesystem = get_charset_by_csname(
-            character_set_filesystem_name, MY_CS_PRIMARY, MYF(MY_WME))))
+            character_set_filesystem_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_CHARSET_NAME,
+           character_set_filesystem_name);
     return 1;
-  else
-    warn_on_deprecated_charset(nullptr, character_set_filesystem,
-                               character_set_filesystem_name,
-                               "--character-set-filesystem");
+  }
+  warn_on_deprecated_charset(nullptr, character_set_filesystem,
+                             character_set_filesystem_name,
+                             "--character-set-filesystem");
   global_system_variables.character_set_filesystem = character_set_filesystem;
 
 #ifdef WORDS_BIGENDIAN
@@ -9433,140 +9432,123 @@ static void calculate_mysql_home_from_my_progname() {
   mysql_home_ptr = mysql_home;
 }
 
-/**
-  Helper class for loading keyring component
-  Keyring component is loaded after minimal chassis initialization.
-  At this time, home dir and plugin dir may not be initialized.
+Manifest_file_option_parser_helper::Manifest_file_option_parser_helper(
+    int argc, char **argv)
+    : datadir_(nullptr),
+      plugindir_(nullptr),
+      save_homedir_{0},
+      save_plugindir_{0},
+      valid_(false) {
+  char *ptr, **res, *datadir = nullptr, *plugindir = nullptr,
+                    *basedir = nullptr;
+  char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0},
+       local_plugindir_buffer[FN_REFLEN] = {0},
+       local_basedir_buffer[FN_REFLEN] = {0};
+  const char *dirs = nullptr;
 
-  This helper class sets them temporarily by reading configurations
-  and resets them in destructor.
-*/
-class Manifest_file_option_parser_helper final {
- public:
-  Manifest_file_option_parser_helper(int argc, char **argv)
-      : datadir_(nullptr),
-        plugindir_(nullptr),
-        save_homedir_{0},
-        save_plugindir_{0},
-        valid_(false) {
-    char *ptr, **res, *datadir = nullptr, *plugindir = nullptr,
-                      *basedir = nullptr;
-    char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0},
-         local_plugindir_buffer[FN_REFLEN] = {0},
-         local_basedir_buffer[FN_REFLEN] = {0};
-    const char *dirs = nullptr;
+  my_option datadir_options[] = {
+      {"datadir", 0, "", &datadir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0,
+       nullptr, 0, nullptr},
+      {"plugin_dir", 0, "", &plugindir, nullptr, nullptr, GET_STR, OPT_ARG, 0,
+       0, 0, nullptr, 0, nullptr},
+      {"basedir", 0, "", &basedir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0,
+       nullptr, 0, nullptr},
+      {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+       0, nullptr, 0, nullptr}};
 
-    my_option datadir_options[] = {
-        {"datadir", 0, "", &datadir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0,
-         0, nullptr, 0, nullptr},
-        {"plugin_dir", 0, "", &plugindir, nullptr, nullptr, GET_STR, OPT_ARG, 0,
-         0, 0, nullptr, 0, nullptr},
-        {"basedir", 0, "", &basedir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0,
-         0, nullptr, 0, nullptr},
-        {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0,
-         0, 0, nullptr, 0, nullptr}};
+  /*
+    create temporary args list and pass it to handle_options.
+    We do this because we don't want to mess with the actual
+    argument list. handle_options() trims the processed parts.
+  */
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  if (!(ptr = (char *)alloc.Alloc(sizeof(alloc) + (argc + 1) * sizeof(char *))))
+    return;
+  memset(ptr, 0, (sizeof(char *) * (argc + 1)));
+  res = (char **)(ptr);
+  memcpy((uchar *)res, (char *)(argv), (argc) * sizeof(char *));
 
-    /*
-      create temporary args list and pass it to handle_options.
-      We do this because we don't want to mess with the actual
-      argument list. handle_options() trims the processed parts.
-    */
-    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-    if (!(ptr =
-              (char *)alloc.Alloc(sizeof(alloc) + (argc + 1) * sizeof(char *))))
-      return;
-    memset(ptr, 0, (sizeof(char *) * (argc + 1)));
-    res = (char **)(ptr);
-    memcpy((uchar *)res, (char *)(argv), (argc) * sizeof(char *));
-
-    my_getopt_skip_unknown = true;
-    if (my_handle_options(&argc, &res, datadir_options, nullptr, nullptr,
-                          true)) {
-      my_getopt_skip_unknown = false;
-      return;
-    }
+  my_getopt_skip_unknown = true;
+  if (my_handle_options(&argc, &res, datadir_options, nullptr, nullptr, true)) {
     my_getopt_skip_unknown = false;
+    return;
+  }
+  my_getopt_skip_unknown = false;
 
-    if (basedir) convert_dirname(local_basedir_buffer, basedir, NullS);
+  if (basedir) convert_dirname(local_basedir_buffer, basedir, NullS);
 
-    if (!datadir) {
-      /* mysql_real_data_home must be initialized at this point */
-      assert(mysql_real_data_home[0]);
-      /*
-        mysql_home_ptr should also be initialized at this point.
-        See calculate_mysql_home_from_my_progname() for details
-      */
-      assert(mysql_home_ptr && mysql_home_ptr[0]);
-      if (basedir)
-        convert_dirname(
-            local_datadir_buffer,
-            (std::string{local_basedir_buffer} + mysql_real_data_home).c_str(),
-            NullS);
-      else
-        convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
-      (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
-                         mysql_home_ptr);
-      datadir = local_datadir_buffer;
-    }
-    dirs = datadir;
-    unpack_dirname(dir, dirs);
-    datadir_ = my_strdup(PSI_INSTRUMENT_ME, dir, MYF(0));
-    memset(dir, 0, FN_REFLEN);
-
-    if (plugindir)
-      convert_dirname(local_plugindir_buffer, plugindir, NullS);
-    else if (basedir)
+  if (!datadir) {
+    /* mysql_real_data_home must be initialized at this point */
+    assert(mysql_real_data_home[0]);
+    /*
+      mysql_home_ptr should also be initialized at this point.
+      See calculate_mysql_home_from_my_progname() for details
+    */
+    assert(mysql_home_ptr && mysql_home_ptr[0]);
+    if (basedir)
       convert_dirname(
-          local_plugindir_buffer,
-          (std::string{local_basedir_buffer} + get_relative_path(PLUGINDIR))
-              .c_str(),
+          local_datadir_buffer,
+          (std::string{local_basedir_buffer} + mysql_real_data_home).c_str(),
           NullS);
     else
-      convert_dirname(local_plugindir_buffer, get_relative_path(PLUGINDIR),
-                      NullS);
-    (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
-                       mysql_home);
-    plugindir_ = my_strdup(PSI_INSTRUMENT_ME, local_plugindir_buffer, MYF(0));
+      convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+    (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
+                       mysql_home_ptr);
+    datadir = local_datadir_buffer;
+  }
+  dirs = datadir;
+  unpack_dirname(dir, dirs);
+  datadir_ = my_strdup(PSI_INSTRUMENT_ME, dir, MYF(0));
+  memset(dir, 0, FN_REFLEN);
 
+  if (plugindir)
+    convert_dirname(local_plugindir_buffer, plugindir, NullS);
+  else if (basedir)
+    convert_dirname(
+        local_plugindir_buffer,
+        (std::string{local_basedir_buffer} + get_relative_path(PLUGINDIR))
+            .c_str(),
+        NullS);
+  else
+    convert_dirname(local_plugindir_buffer, get_relative_path(PLUGINDIR),
+                    NullS);
+  (void)my_load_path(local_plugindir_buffer, local_plugindir_buffer,
+                     mysql_home);
+  plugindir_ = my_strdup(PSI_INSTRUMENT_ME, local_plugindir_buffer, MYF(0));
+
+  if (datadir_ != nullptr && datadir_[0] != 0) {
     /* Backup mysql_real_data_home */
-    if (mysql_real_data_home[0])
-      memcpy(save_homedir_, mysql_real_data_home, strlen(mysql_real_data_home));
-    if (datadir_ != nullptr)
-      memcpy(mysql_real_data_home, datadir_, strlen(datadir_));
-
+    memcpy(save_homedir_, mysql_real_data_home, mysql_real_data_home_size);
+    /* Copy the string ensuring it is always 0 terminated */
+    strncpy(mysql_real_data_home, datadir_, mysql_real_data_home_size - 1);
+    mysql_real_data_home[mysql_real_data_home_size - 1] = 0;
+  }
+  if (plugindir_ != nullptr && plugindir_[0] != 0) {
     /* Backup opt_plugin_dir */
-    if (opt_plugin_dir[0])
-      memcpy(save_plugindir_, opt_plugin_dir,
-             std::min(static_cast<size_t>(FN_REFLEN), strlen(opt_plugin_dir)));
-    if (plugindir_ != nullptr)
-      memcpy(opt_plugin_dir, plugindir_, strlen(plugindir_));
-
-    valid_ = true;
+    memcpy(save_plugindir_, opt_plugin_dir, opt_plugin_dir_size);
+    /* Copy the string ensuring it is always 0 terminated */
+    strncpy(opt_plugin_dir, plugindir_, opt_plugin_dir_size - 1);
+    opt_plugin_dir[opt_plugin_dir_size - 1] = 0;
   }
 
-  ~Manifest_file_option_parser_helper() {
-    valid_ = false;
-    if (datadir_ != nullptr) {
-      memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
-      memcpy(mysql_real_data_home, save_homedir_, strlen(save_homedir_));
-      my_free(datadir_);
+  valid_ = true;
+}
+
+Manifest_file_option_parser_helper ::~Manifest_file_option_parser_helper() {
+  valid_ = false;
+  if (datadir_ != nullptr) {
+    if (datadir_[0] != 0) {
+      memcpy(mysql_real_data_home, save_homedir_, mysql_real_data_home_size);
     }
-    if (plugindir_ != nullptr) {
-      memset(opt_plugin_dir, 0, sizeof(opt_plugin_dir));
-      memcpy(opt_plugin_dir, save_plugindir_, strlen(save_plugindir_));
-      my_free(plugindir_);
-    }
+    my_free(datadir_);
   }
-
-  bool valid() const { return valid_; }
-
- private:
-  char *datadir_;
-  char *plugindir_;
-  char save_homedir_[FN_REFLEN + 1];
-  char save_plugindir_[FN_REFLEN + 1];
-  bool valid_;
-};
+  if (plugindir_ != nullptr) {
+    if (plugindir_[0] != 0) {
+      memcpy(opt_plugin_dir, save_plugindir_, opt_plugin_dir_size);
+    }
+    my_free(plugindir_);
+  }
+}
 
 #ifdef _WIN32
 int win_main(int argc, char **argv)
@@ -13759,9 +13741,6 @@ bool mysqld_get_one_option(int optid,
       }
 #endif  // _WIN32
       break;
-    case OPT_REPLICA_PARALLEL_TYPE:
-      push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");
-      break;
 #ifndef DBUG_OFF
     case OPT_REPLICA_PARALLEL_WORKERS:
       assert(opt_mts_replica_parallel_workers != 0);
@@ -14673,7 +14652,6 @@ PSI_mutex_key key_mta_temp_table_LOCK;
 PSI_mutex_key key_mta_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
-PSI_mutex_key key_mutex_replica_worker_hash;
 PSI_mutex_key key_monitor_info_run_lock;
 PSI_mutex_key key_LOCK_delegate_connection_mutex;
 PSI_mutex_key key_LOCK_group_replication_connection_mutex;
@@ -14766,7 +14744,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mta_gaq_LOCK, "key_mta_gaq_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0, PSI_DOCUMENT_ME},
-  { &key_mutex_replica_worker_hash, "Relay_log_info::replica_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -14849,7 +14826,6 @@ PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_thr_lock;
 PSI_cond_key key_commit_order_manager_cond;
-PSI_cond_key key_cond_slave_worker_hash;
 PSI_cond_key key_monitor_info_run_cond;
 PSI_cond_key key_COND_delegate_connection_cond_var;
 PSI_cond_key key_COND_group_replication_connection_cond_var;
@@ -14894,7 +14870,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_rpl_opt_tracker, "COND_rpl_opt_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_slave_worker_hash, "Relay_log_info::replica_worker_hash_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_delegate_connection_cond_var, "THD::COND_delegate_connection_cond_var", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_group_replication_connection_cond_var, "THD::COND_group_replication_connection_cond_var", 0, 0, PSI_DOCUMENT_ME}

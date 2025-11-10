@@ -33,14 +33,25 @@
   the file descriptor.
 */
 
-#include <sys/types.h>
-#include <new>
+#include "my_config.h"
 
-#include "my_compiler.h"
+#include <assert.h>  // for assert
+#include <limits.h>  // for INT_MAX
+#include <signal.h>  // for sigemptyset
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>  // for sockaddr_storage
+#endif
+#include <sys/types.h>
+
+#include <atomic>  // for atomic_flag
+#include <new>
+#include <optional>  // for optional
+#include <utility>   // for move
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep

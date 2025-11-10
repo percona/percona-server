@@ -77,7 +77,8 @@ class HandlerFactory {
       EndpointBasePtr db_object_endpoint) = 0;
   virtual std::shared_ptr<Handler> create_content_file(
       EndpointBasePtr db_object_endpoint,
-      std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>) = 0;
+      std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>,
+      const bool handle_index) = 0;
   virtual std::shared_ptr<Handler> create_authentication_login(
       EndpointBasePtr db_service_endpoint) = 0;
   virtual std::shared_ptr<Handler> create_authentication_logout(

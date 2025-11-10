@@ -142,6 +142,7 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
           child_block->n_sum_items += this_block->n_sum_items;
           child_block->n_child_sum_items += this_block->n_child_sum_items;
           child_block->n_scalar_subqueries += this_block->n_scalar_subqueries;
+          child_block->n_stored_func_calls += this_block->n_stored_func_calls;
 
           if (this_block->order_list.size() > 0) {
             // Change context of any items in ORDER BY to child block

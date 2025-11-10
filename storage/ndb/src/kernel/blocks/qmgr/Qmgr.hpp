@@ -313,6 +313,8 @@ class Qmgr : public SimulatedBlock {
     Uint16 president;
   };
 
+  enum ApiFailureCause { AFC_Heartbeat, AFC_Disconnect, AFC_Notification };
+
  public:
   Qmgr(Block_context &);
   ~Qmgr() override;
@@ -428,7 +430,8 @@ class Qmgr : public SimulatedBlock {
   void check_readnodes_reply(Signal *signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal *signal);
 
-  void api_failed(Signal *signal, Uint32 aFailedNode);
+  void api_failed(Signal *signal, Uint32 aFailedNode, ApiFailureCause afc,
+                  Uint32 senderRef);
   void node_failed(Signal *signal, Uint16 aFailedNode);
   void checkStartInterface(Signal *signal, NDB_TICKS now);
   void failReport(Signal *signal, Uint16 aFailedNode, UintR aSendFailRep,

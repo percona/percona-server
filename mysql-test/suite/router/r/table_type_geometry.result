@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 CREATE TABLE test.geo0(
@@ -153,7 +154,8 @@ PUT /svc/test/geo0/2 (payload-size:64)
         }
     ],
     "_metadata": {
-        "etag": "B626F8C5CBB9AB350279476B117713BF72A14A2317DCA8464DF5124DF7A2A4C8"
+        "etag": "B626F8C5CBB9AB350279476B117713BF72A14A2317DCA8464DF5124DF7A2A4C8",
+        "gtid": "GTID"
     }
 }
 OK
@@ -174,7 +176,8 @@ PUT /svc/test/geo0/2 (payload-size:52)
         }
     ],
     "_metadata": {
-        "etag": "4AF52208C224CE7E8C328D079F6EADF83781797BD300CB289B08EF0CBFD14AF0"
+        "etag": "4AF52208C224CE7E8C328D079F6EADF83781797BD300CB289B08EF0CBFD14AF0",
+        "gtid": "GTID"
     }
 }
 OK
@@ -412,7 +415,8 @@ PUT /svc/test/geo4326/2 (payload-size:63)
         }
     ],
     "_metadata": {
-        "etag": "BEB4B6B9F7A5BD7FEBACF892236A10C63F7FDA826F9500EC704C1823C3550D9B"
+        "etag": "BEB4B6B9F7A5BD7FEBACF892236A10C63F7FDA826F9500EC704C1823C3550D9B",
+        "gtid": "GTID"
     }
 }
 OK
@@ -433,7 +437,8 @@ PUT /svc/test/geo4326/2 (payload-size:51)
         }
     ],
     "_metadata": {
-        "etag": "E8802D17B3FA6FA57240D0B76F7586D24E041D9999AA4C48061EA9A0F05854AC"
+        "etag": "E8802D17B3FA6FA57240D0B76F7586D24E041D9999AA4C48061EA9A0F05854AC",
+        "gtid": "GTID"
     }
 }
 OK

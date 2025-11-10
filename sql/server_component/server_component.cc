@@ -449,6 +449,9 @@ mysql_query_attributes_imp::string_get END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_query_attribute_isnull)
 mysql_query_attributes_imp::isnull_get END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_first_query_attribute)
+mysql_query_attributes_imp::get_first_name_data END_SERVICE_IMPLEMENTATION();
+
 using namespace keyring_lockable::keyring_common::service_definition;
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_aes)
@@ -1055,6 +1058,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_query_attributes_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_string),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_isnull),
+    PROVIDES_SERVICE(mysql_server, mysql_first_query_attribute),
 
     PROVIDES_SERVICE(mysql_server, keyring_aes),
     PROVIDES_SERVICE(mysql_server, keyring_generator),

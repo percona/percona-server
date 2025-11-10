@@ -30,9 +30,9 @@
   @file mysys/my_aes.cc
 */
 
+#include <string.h>
 #include <sys/types.h>
 
-#include "m_string.h"
 #include "my_aes.h"
 #include "my_inttypes.h"
 #include "mysys/my_aes_impl.h"

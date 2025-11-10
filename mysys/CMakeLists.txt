@@ -23,7 +23,7 @@
 
 ADD_WSHADOW_WARNING()
 
-SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
+SET(MY_TIME_SOURCES my_time.cc my_systime.cc my_temporal.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 

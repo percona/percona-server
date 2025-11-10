@@ -22,7 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys/stream_cipher.h"
-#include <algorithm>
+#include <cassert>
+#include <utility>
 #include "my_byteorder.h"
 #include "my_dbug.h"
 

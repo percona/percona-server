@@ -29,7 +29,6 @@
 #endif
 
 #include "my_inttypes.h"
-#include "my_macros.h"
 
 typedef enum {
   TRUNCATE = 0,

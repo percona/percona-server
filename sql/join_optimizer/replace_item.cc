@@ -28,7 +28,8 @@
 #include "sql/sql_resolver.h"
 #include "sql/temp_table_param.h"
 
-static Item *possibly_outerize_replacement(Item *sub_item, Item *replacement) {
+static Item *possibly_outerize_replacement(THD *thd, Item *sub_item,
+                                           Item *replacement) {
   Query_block *dep_from = nullptr;
   switch (sub_item->type()) {
     case Item::FIELD_ITEM:
@@ -43,8 +44,26 @@ static Item *possibly_outerize_replacement(Item *sub_item, Item *replacement) {
           down_cast<Item_field *>(replacement->real_item());
       Item_field *res = new Item_field(current_thd, real_field);
       res->depended_from = dep_from;
-      res->m_table_ref =
-          down_cast<Item_field *>(sub_item->real_item())->m_table_ref;
+      if (sub_item->real_item()->type() == Item::FIELD_ITEM) {
+        res->m_table_ref =
+            down_cast<Item_field *>(sub_item->real_item())->m_table_ref;
+      } else if (sub_item->type() == Item::REF_ITEM &&
+                 down_cast<Item_ref *>(sub_item)->ref_type() ==
+                     Item_ref::VIEW_REF) {
+        // If a merged derived expression (view reference) which is also an
+        // outer reference and also is not a column in the base table is
+        // being replaced, we need to make sure that the replacement is
+        // treated as an outer reference. So we create a reference to the
+        // original replacement and mark it as an outer reference. See
+        // used_tables() for Item_ref and Item_field.
+        Item **ref_replacement = new (thd->mem_root)(Item *);
+        *ref_replacement = res;
+        Item_ref *view_ref =
+            new Item_ref(down_cast<Item_ref *>(sub_item)->context,
+                         ref_replacement, res->field_name);
+        view_ref->depended_from = res->depended_from;
+        return view_ref;
+      }
       replacement = res;
     }
   }
@@ -167,7 +186,7 @@ void ReplaceMaterializedItems(THD *thd, Item *item,
                                             items_to_copy, need_exact_match);
     if (replacement != nullptr) {
       if (window_frame_buffer) {
-        replacement = possibly_outerize_replacement(sub_item, replacement);
+        replacement = possibly_outerize_replacement(thd, sub_item, replacement);
       }
       modified = true;
       // We want to avoid losing the was_null information for items having

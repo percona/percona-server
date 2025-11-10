@@ -245,6 +245,10 @@ class ProcessWrapper {
     return wait_for_sync_point_result_;
   }
 
+#ifdef _WIN32
+  HANDLE process_handle() const { return launcher_.get_process_handle(); }
+#endif
+
  private:
   ProcessWrapper(
       const std::string &app_cmd, const std::vector<std::string> &args,

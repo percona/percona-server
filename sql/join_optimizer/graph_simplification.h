@@ -82,6 +82,16 @@
 class THD;
 struct JoinHypergraph;
 
+/**
+   An estimate of the output from table access or join.
+*/
+struct RelationMetrics final {
+  /// The number of outpur rows.
+  double rows;
+  /// The average row size.
+  double row_size;
+};
+
 // Exposed for unit testing.
 class GraphSimplifier {
  public:
@@ -211,20 +221,20 @@ class GraphSimplifier {
   // step if needed (and then move it to the end of done_steps again).
   Mem_root_array<SimplificationStep> m_undone_steps;
 
-  // Cache the cardinalities of (a join of) the nodes on each side of each
+  // Cache the metrics of (a join of) the nodes on each side of each
   // hyperedge, corresponding 1:1 index-wise to m_graph->edges. So if
   // e.g. m_graph->graph.edges[0].left contains {t1,t2,t4}, then
-  // m_edge_cardinalities[0].left will contain the cardinality of joining
+  // m_edge_metrics[0].left will contain the metrics of joining
   // t1, t2 and t4 together.
   //
   // This cache is so that we don't need to make repeated calls to
-  // GetCardinality(), which is fairly expensive. It is updated when we
+  // GetMetrics(), which is fairly expensive. It is updated when we
   // apply simplification steps (which change the hyperedges).
-  struct EdgeCardinalities {
-    double left;
-    double right;
+  struct EdgeMetrics {
+    RelationMetrics left;
+    RelationMetrics right;
   };
-  Bounds_checked_array<EdgeCardinalities> m_edge_cardinalities;
+  Bounds_checked_array<EdgeMetrics> m_edge_metrics;
 
   // The graph we are simplifying.
   JoinHypergraph *m_graph;

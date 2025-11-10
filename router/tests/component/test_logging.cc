@@ -39,10 +39,10 @@
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/filesystem.h"  // rename_file
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/utils.h"  // rename_file
 #include "process_wrapper.h"
 #include "random_generator.h"
 #include "router_component_test.h"
@@ -2289,7 +2289,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   // move the log_file appending '.1' to its name
   auto log_file_1 = Path(logging_dir).join("mysqlrouter.log.1");
 
-  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+  mysql_harness::rename_file(log_file.str(), log_file_1.str());
   ::kill(router.get_pid(), SIGHUP);
 
   // let's wait until something new gets logged (metadata cache TTL has
@@ -2369,7 +2369,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   // move the log_file appending '.1' to its name
   auto log_file_1 = get_logging_dir();
   log_file_1.append("mysqlrouter.log.1");
-  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+  mysql_harness::rename_file(log_file.str(), log_file_1.str());
 
   // make the new file read-only
   chmod(log_file_1.c_str(), S_IRUSR);
@@ -2404,7 +2404,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
 
   SCOPED_TRACE("// move the log_file appending '.1' to its name");
   auto log_file_1 = Path(logging_dir).join("mysqlrouter.log.1");
-  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+  mysql_harness::rename_file(log_file.str(), log_file_1.str());
 
   SCOPED_TRACE("// 'manually' recreate the log file and make it read only");
   {
@@ -3021,9 +3021,15 @@ class TempRelativeDirectory {
   std::string name_;
 
 #ifndef _WIN32
-  // mysql_harness::get_tmp_dir() returns a relative path on these platforms
   std::string get_tmp_dir_(const std::string &name) {
-    return mysql_harness::get_tmp_dir(name);
+    std::string pattern(name + "-XXXXXX");
+    const char *res = mkdtemp(pattern.data());
+    if (res == nullptr) {
+      throw std::system_error(errno, std::generic_category(),
+                              "mkdtemp(" + pattern + ") failed");
+    }
+
+    return pattern;
   }
 #else
   // mysql_harness::get_tmp_dir() returns an abs path under GetTempPath() on

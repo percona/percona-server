@@ -232,7 +232,7 @@ class Protocol_text : public Protocol_classic {
   bool store_double(double from, uint32 decimals, uint32 zerofill) override;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  bool store_time(const Time_val &time, uint precision) override;
   void start_row() override;
   bool send_parameters(List<Item_param> *parameters, bool) override;
 
@@ -257,7 +257,7 @@ class Protocol_binary final : public Protocol_text {
   using Protocol_text::store_decimal;
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
   bool store_date(const MYSQL_TIME &time) override;
-  bool store_time(const MYSQL_TIME &time, uint precision) override;
+  bool store_time(const Time_val &time, uint precision) override;
   bool store_float(float nr, uint32 decimals, uint32 zerofill) override;
   bool store_double(double from, uint32 decimals, uint32 zerofill) override;
 

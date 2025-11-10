@@ -117,11 +117,12 @@ class Item_str_func : public Item_func {
   longlong val_int() override { return val_int_from_string(); }
   double val_real() override { return val_real_from_string(); }
   my_decimal *val_decimal(my_decimal *) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    return get_date_from_string(ltime, fuzzydate);
+  bool val_date(Date_val *date, my_time_flags_t flags) override {
+    return get_date_from_string(date, flags);
   }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return get_time_from_string(ltime);
+  bool val_time(Time_val *time) override { return get_time_from_string(time); }
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override {
+    return get_datetime_from_string(dt, flags);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
   void left_right_max_length(THD *thd);
@@ -1172,11 +1173,11 @@ class Item_func_conv_charset final : public Item_charset_conversion {
 class Item_func_set_collation final : public Item_str_func {
   typedef Item_str_func super;
 
-  LEX_STRING collation_string;
+  LEX_CSTRING collation_string;
 
  public:
   Item_func_set_collation(const POS &pos, Item *a,
-                          const LEX_STRING &collation_string_arg)
+                          const LEX_CSTRING &collation_string_arg)
       : super(pos, a, nullptr), collation_string(collation_string_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;

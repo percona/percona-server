@@ -8876,7 +8876,12 @@ bool handler::is_using_prohibited_gap_locks(TABLE *table,
                         After calling this function, it will be used to return
                         the value of generated column.
   @param in_purge   whether the function is called by purge thread
-
+  @param[out]    mv_data_ptr When given (not null) and the field
+                          needs to be calculated is a typed array field, it
+                          will contain pointer to field's calculated value.
+  @param[out]    mv_length Length of the data above
+  @param[in]   include_stored_gcols  if true, evaluate both stored and virtual
+                          gcols.  if false, evaluate only virtual gcol.
   @return true in case of error, false otherwise.
 */
 
@@ -8884,7 +8889,8 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
                                         const MY_BITMAP *const fields,
                                         uchar *record, bool in_purge,
                                         const char **mv_data_ptr,
-                                        ulong *mv_length) {
+                                        ulong *mv_length,
+                                        bool include_stored_gcols) {
   DBUG_TRACE;
   assert(table && table->vfield);
   assert(!thd->is_error());
@@ -8949,28 +8955,28 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   dbug_tmp_use_all_columns(table, old_maps, table->read_set, table->write_set);
 
   for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
-    Field *field = *vfield_ptr;
+    Field *const field = *vfield_ptr;
+    assert(field->is_gcol());
 
-    // Check if we should evaluate this field
-    if (bitmap_is_set(&fields_to_evaluate, field->field_index()) &&
-        field->is_virtual_gcol()) {
-      assert(field->gcol_info && field->gcol_info->expr_item->fixed);
+    // Skip if not marked
+    if (!bitmap_is_set(&fields_to_evaluate, field->field_index())) continue;
 
-      const type_conversion_status save_in_field_status =
-          field->gcol_info->expr_item->save_in_field(field, false);
-      assert(!thd->is_error() || save_in_field_status != TYPE_OK);
+    // Skip if stored generated column is not asked to be evaluated
+    if (!field->is_virtual_gcol() && !include_stored_gcols) continue;
 
-      /*
-        save_in_field() may return non-zero even if there was no
-        error. This happens if a warning is raised, such as an
-        out-of-range warning when converting the result to the target
-        type of the virtual column. We should stop only if the
-        non-zero return value was caused by an actual error.
-      */
-      if (save_in_field_status != TYPE_OK && thd->is_error()) {
-        res = true;
-        break;
-      }
+    const type_conversion_status save_in_field_status =
+        field->gcol_info->expr_item->save_in_field(field, false);
+    assert(!thd->is_error() || save_in_field_status != TYPE_OK);
+
+    /*
+      save_in_field() may return non-zero if a warning is raised
+      (i.e. out-of-range warning when converting the result to the target
+      type of the virtual column). We should stop only if the
+      non-zero return value was caused by an actual error.
+    */
+    if (save_in_field_status != TYPE_OK && thd->is_error()) {
+      res = true;
+      break;
     }
   }
 
@@ -9070,7 +9076,7 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
 
   if (table) {
     retval = my_eval_gcolumn_expr_helper(thd, table, fields, record, true,
-                                         mv_data_ptr, mv_length);
+                                         mv_data_ptr, mv_length, false);
   }
 
   return retval;
@@ -9078,11 +9084,13 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
 
 bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
                                    const MY_BITMAP *const fields, uchar *record,
-                                   const char **mv_data_ptr, ulong *mv_length) {
+                                   const char **mv_data_ptr, ulong *mv_length,
+                                   bool include_stored_gcols) {
   DBUG_TRACE;
 
-  const bool res = my_eval_gcolumn_expr_helper(thd, table, fields, record,
-                                               false, mv_data_ptr, mv_length);
+  const bool res =
+      my_eval_gcolumn_expr_helper(thd, table, fields, record, false,
+                                  mv_data_ptr, mv_length, include_stored_gcols);
   return res;
 }
 
@@ -9419,6 +9427,22 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd) {
 }
 
 std::atomic<const char *> default_secondary_engine_name;
+
+std::optional<secondary_engine_nrows_t> RetrieveSecondaryEngineNrowsHook(
+    THD *thd) {
+  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+  if (secondary_engine == nullptr) {
+    secondary_engine = EligibleSecondaryEngineHandlerton(thd, nullptr);
+  }
+  if (secondary_engine == nullptr) {
+    return {};
+  }
+  if (secondary_engine->secondary_engine_nrows == nullptr) {
+    return {};
+  }
+
+  return secondary_engine->secondary_engine_nrows;
+}
 
 /**
   Retrieves the secondary engine handlerton if possible.

@@ -39,7 +39,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 
 #include "my_sharedlib.h"
-#include "mysql/components/services/bits/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"  // IWYU pragma: export
 
 /**
   @def PSI_SOCKET_VERSION_1

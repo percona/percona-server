@@ -35,8 +35,9 @@
 #include <string>
 #include <vector>
 
-#include "auto_cleaner.h"
+#include "mysql/harness/auto_cleaner.h"
 #include "mysql/harness/filesystem.h"
+#include "mysqlrouter/accounts_cleaner.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
@@ -61,7 +62,11 @@ class ConfigGenerator {
  public:
   enum class TargetType { InnoDBCluster, Standalone };
 
+  using AutoCleaner = mysql_harness::AutoCleaner;
+  using AccountsCleaner = mysqlrouter::MySQLAccountsCleaner;
+
   ConfigGenerator(
+      AutoCleaner &auto_cleaner, AccountsCleaner &accounts_cleaner,
       std::ostream &out_stream = std::cout, std::ostream &err_stream = std::cerr
 #ifndef _WIN32
       ,
@@ -265,7 +270,7 @@ class ConfigGenerator {
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &config_cmdline_options,
       const std::map<std::string, std::string> &default_paths,
-      bool directory_deployment, AutoCleaner &auto_clean);
+      bool directory_deployment);
 
   std::tuple<std::string> try_bootstrap_deployment(
       uint32_t &router_id, std::string &username, std::string &password,
@@ -281,8 +286,7 @@ class ConfigGenerator {
       const Options &options,
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &config_overwrites,
-      const std::string &state_file_name, const bool full,
-      AutoCleaner &auto_clean);
+      const std::string &state_file_name, const bool full);
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
@@ -297,18 +301,6 @@ class ConfigGenerator {
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &user_options,
       const Options &options);
-
-  /** @brief Deletes Router accounts just created
-   *
-   * This method runs as a cleanup after something goes wrong.  Its purpose is
-   * to undo CREATE USER [IF NOT EXISTS] for accounts that got created during
-   * bootstrap.  Note that it will drop only those accounts which did not exist
-   * prior to bootstrap (it may be a subset of account names passed to
-   * CREATE USER [IF NOT EXISTS]).  If it is not able to determine what this
-   * (sub)set is, it will not drop anything - instead it will advise user on
-   * how to clean those up manually.
-   */
-  void undo_create_user_for_new_accounts() noexcept;
 
   /** @brief Finds all hostnames given on command-line
    *
@@ -415,9 +407,6 @@ class ConfigGenerator {
 
   void give_grants_to_users(const std::string &new_accounts);
 
-  std::string make_account_list(const std::string username,
-                                const std::set<std::string> &hostnames);
-
   ExistingConfigOptions get_options_from_config_if_it_exists(
       const std::string &config_file_path,
       const mysqlrouter::ClusterInfo &cluster_info, bool forcing_overwrite);
@@ -426,14 +415,12 @@ class ConfigGenerator {
 
   bool backup_config_file_if_different(
       const mysql_harness::Path &config_path, const std::string &new_file_path,
-      const std::map<std::string, std::string> &options,
-      AutoCleaner *auto_cleaner = nullptr);
+      const std::map<std::string, std::string> &options, bool clean);
 
   void set_keyring_info_real_paths(std::map<std::string, std::string> &options,
                                    const mysql_harness::Path &path);
 
   void store_credentials_in_keyring(
-      AutoCleaner &auto_clean,
       const std::map<std::string, std::string> &user_options,
       uint32_t router_id, const std::string &username,
       const std::string &password, Options &options);
@@ -442,7 +429,6 @@ class ConfigGenerator {
                                           uint32_t router_id);
 
   void init_keyring_and_master_key(
-      AutoCleaner &auto_clean,
       const std::map<std::string, std::string> &user_options,
       uint32_t router_id);
 
@@ -467,16 +453,13 @@ class ConfigGenerator {
    *
    * @param[in] user_options Key/value map of bootstrap config options.
    * @param[in] default_paths Map of predefined default paths.
-   * @param[in,out] auto_cleaner Automatic file cleanup object that guarantees
-   * file cleanup if bootstrap fails at any point.
    *
    * @throws std::runtime_error Data directory contains some certificate files
    * but Router certificate and/or key is missing.
    */
   void prepare_ssl_certificate_files(
       const std::map<std::string, std::string> &user_options,
-      const std::map<std::string, std::string> &default_paths,
-      AutoCleaner *auto_cleaner) const;
+      const std::map<std::string, std::string> &default_paths) const;
 
   /**
    * @brief Check if datadir directory contains only files that are allowed
@@ -516,21 +499,15 @@ class ConfigGenerator {
   std::ostream &out_stream_;
   std::ostream &err_stream_;
 
-  struct UndoCreateAccountList {
-    enum {
-      kNotSet = 1,  // =1 is not a requirement, just defensive programming
-      kAllAccounts,
-      kNewAccounts
-    } type = kNotSet;
-    std::string accounts;
-  } undo_create_account_list_;
-
   const struct TLS_filenames {
     std::string ca_key{"ca-key.pem"};
     std::string ca_cert{"ca.pem"};
     std::string router_key{"router-key.pem"};
     std::string router_cert{"router-cert.pem"};
   } tls_filenames_;
+
+  AutoCleaner &auto_cleaner_;
+  AccountsCleaner &accounts_cleaner_;
 
 #ifndef _WIN32
   SysUserOperationsBase *sys_user_operations_;

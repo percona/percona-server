@@ -37,7 +37,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"

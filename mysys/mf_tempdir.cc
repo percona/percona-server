@@ -28,6 +28,8 @@
 
 #include "my_config.h"
 
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
 
@@ -37,10 +39,14 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
 #include "prealloced_array.h"
 #include "strmake.h"
 #include "template_utils.h"
+#include "thr_mutex.h"
 
 #if defined(_WIN32)
 #define DELIM ';'

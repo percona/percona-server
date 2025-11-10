@@ -29,6 +29,7 @@
 #ifndef OCI_SSL_H
 #define OCI_SSL_H
 
+#include <cstddef>
 #include <string>
 #include <vector>
 

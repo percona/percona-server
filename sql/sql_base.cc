@@ -866,20 +866,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
         my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str,
                  share->table_name.str);
       else {
-        /*
-          Clone the view reference object and hold it in
-          TABLE_SHARE member view_object.
-        */
-        share->is_view = true;
-        const dd::View *tmp_view =
-            dynamic_cast<const dd::View *>(abstract_table);
-        share->view_object = tmp_view->clone();
-
-        share->table_category =
-            get_table_category(share->db, share->table_name);
-        thd->status_var.opened_shares++;
-        global_aggregated_stats.get_shard(thd->thread_id()).opened_shares++;
-        open_table_err = false;
+        open_table_err = open_view_def(thd, share, abstract_table);
       }
     } else {
       assert(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
@@ -2983,7 +2970,8 @@ bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
   // If a table in a secondary storage engine has been requested,
   // adjust the key to refer to the secondary table.
   std::string secondary_key;
-  if ((flags & MYSQL_OPEN_SECONDARY_ENGINE) != 0) {
+  bool open_secondary_engine = (flags & MYSQL_OPEN_SECONDARY_ENGINE) != 0;
+  if (open_secondary_engine) {
     secondary_key = create_table_def_key_secondary(
         table_list->get_db_name(), table_list->get_table_name());
     key = secondary_key.data();
@@ -3332,9 +3320,9 @@ retry_share : {
 
   mysql_mutex_lock(&LOCK_open);
 
-  if (!(share = get_table_share_with_discover(
-            thd, table_list, key, key_length,
-            flags & MYSQL_OPEN_SECONDARY_ENGINE, &error))) {
+  share = get_table_share_with_discover(thd, table_list, key, key_length,
+                                        open_secondary_engine, &error);
+  if (share == nullptr) {
     mysql_mutex_unlock(&LOCK_open);
     /*
       If thd->is_error() is not set, we either need discover
@@ -3356,7 +3344,7 @@ retry_share : {
     Note that there is no need to call TABLE_SHARE::has_old_version() as we
     do for regular tables, because view shares are always up to date.
   */
-  if (table_list->is_view() || share->is_view) {
+  if (!open_secondary_engine && (table_list->is_view() || share->is_view)) {
     bool view_open_result = true;
     /*
       If parent_l of the table_list is non null then a merge table
@@ -6920,6 +6908,27 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       ((lex->sql_command == SQLCOM_INSERT_SELECT ||
         lex->sql_command == SQLCOM_CREATE_TABLE) &&
        lex->table_count > 1);
+
+  // If we decide to not run on secondary engine, push a warning for any
+  // materialized views.
+  auto mv_warning_scope = create_scope_guard([&]() {
+    if (offload_possible) {
+      for (auto *tr = lex->query_tables;
+           tr != nullptr && (lex->query_tables_own_last == nullptr ||
+                             tr != lex->query_tables_own_last[0]);
+           tr = tr->next_global) {
+        if (tr->is_mv_se_materialized()) {
+          const auto mv_engine = tr->get_mv_se_name();
+          push_warning_printf(
+              thd, Sql_condition::SL_NOTE, ER_UNKNOWN_ERROR,
+              "Materialized view `%s`.`%s` could not be used. "
+              "Query is not running on the view's materialization engine '%s'",
+              tr->get_db_name(), tr->get_table_name(), mv_engine.str);
+        }
+      }
+    }
+  });
+
   /*
     If query can only execute in secondary engine, effectively set it as
     a forced secondary execution.
@@ -7000,9 +7009,18 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
 
   auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
   sql_cmd->use_secondary_storage_engine(hton);
+  // We decide to use the secondary engine, release the warning scope.
+  mv_warning_scope.release();
+
+  if (hton->prepare_secondary_engine != nullptr &&
+      hton->prepare_secondary_engine(thd, lex)) {
+    return true;
+  }
 
   // Replace the TABLE objects in the Table_ref with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
+  Open_table_context ot_ctx_no_new_table(
+      thd, flags | MYSQL_OPEN_SECONDARY_ENGINE | MYSQL_OPEN_NO_NEW_TABLE_IN_SE);
   Table_ref *tr = lex->query_tables;
   // For INSERT INTO SELECT and CTAS statements, the table to insert into does
   // not have to have a secondary engine. This table is always first in the list
@@ -7020,12 +7038,37 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       // Temporary tables are already opened in secondary engine.
       continue;
     }
-    if (tr->is_placeholder()) {
+
+    bool found_materialized_view = false;
+    // Try to find a materialized view in the secondary engine.
+    // If SHARED_MDL is forced, do not attempt to use materialized view, since
+    // we might need to obtain an exclusive lock on it.
+    if (tr->is_mv_se_materialized() && !(flags & MYSQL_OPEN_FORCE_SHARED_MDL)) {
+      const auto mv_engine = tr->get_mv_se_name();
+      found_materialized_view =
+          tr->mdl_request.ticket != nullptr &&
+          equal_engines(*secondary_engine, mv_engine) &&
+          hton->notify_materialized_view_usage != nullptr &&
+          hton->notify_materialized_view_usage(
+              thd, tr->get_db_name(), tr->get_table_name(),
+              {tr->select_stmt.str, tr->select_stmt.length},
+              tr->mdl_request.ticket);
+      if (!found_materialized_view) {
+        thd->clear_error();
+        push_warning_printf(
+            thd, Sql_condition::SL_NOTE, ER_UNKNOWN_ERROR,
+            "Materialized view `%s`.`%s` could not be used. It is "
+            "not available in engine '%s'",
+            tr->get_db_name(), tr->get_table_name(), mv_engine.str);
+      }
+    }
+    if (!found_materialized_view && tr->is_placeholder()) {
       continue;
     }
     TABLE *primary_table = tr->table;
     tr->table = nullptr;
-    if (open_table(thd, tr, &ot_ctx)) {
+    if (open_table(thd, tr,
+                   found_materialized_view ? &ot_ctx_no_new_table : &ot_ctx)) {
       if (!thd->is_error()) {
         /*
           open_table() has not registered any error, implying that we can
@@ -7039,12 +7082,15 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       return true;
     }
     assert(tr->table->s->is_secondary_engine());
-    tr->table->file->ha_set_primary_handler(primary_table->file);
+    if (found_materialized_view) {
+      tr->set_mv_se_available(true);
+    } else {
+      tr->table->file->ha_set_primary_handler(primary_table->file);
+    }
   }
 
   // Prepare the secondary engine for executing the statement.
-  return hton->prepare_secondary_engine != nullptr &&
-         hton->prepare_secondary_engine(thd, lex);
+  return false;
 }
 
 /**

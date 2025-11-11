@@ -1,0 +1,63 @@
+percona-server (8.4.8-8~int00) unstable; urgency=medium
+
+  * Packaging for custom 8.4.8 version
+
+ -- Alexey Bychko <abychko@gmail.com>  Thu, 09 Apr 2026 09:56:00 +0200
+
+percona-server (8.0.44-35~int03) unstable; urgency=medium
+
+  * [INT03] guard against use-after-free in Item_cache::walk()
+  * [INT03] Do not force-flush worker position on every commit when GTID auto-positioning can recover it
+  * PS-10448 [8.0]: An insert prepared statement fails to write across partitions
+  * [INT03] Fix crash in buf_pool_register_chunk() during online buffer pool resize
+  * [INT03] Added march/mtune to CFLAGS/CXXFLAGS
+  * [INT03] hardware CRC32 implementation using Intel PCLMULQDQ
+  * [INT03] Add innodb_large_page_populate to control huge page pre-population
+  * [INT03] Buffer pool partial & lazy initialization groundwork
+  * [INT03] Reduce context switches in TTASEventMutex spin_and_try_lock()
+  * [INT03] Make ut_delay() deterministic
+  * [INT03] Buffer pool initialization speedup
+  * [INT03] CPU binding routines for server
+  * [INT03] CPU Topology moved from innodb to sql directory
+  * [INT03] reduce rw_lock_list contention during buffer pool init
+
+ -- Alexey Bychko <abychko@gmail.com>  Thu, 19 Feb 2026 22:20:00 +0200
+
+percona-server (8.0.44-35~int02) unstable; urgency=medium
+
+  * [INT02] BP: detect the number of physical/logical CPUs
+  * BUG#28590993: MySQL generates GTID gaps because of option replica-skip-errors
+  * PS-10232 [8.0]: Fix performance regression by limiting `rows_in_buffer` to query `LIMIT`
+  * [INT02] make c++ constants related to replication adjustable
+  * [RP012] Small reordering around atomic operations and memory orderings
+  * [RP011] Made the variable std::memory_order parameter of std::atomic methods constant
+  * [RP010] Fix for that likely() and unlikely() might not work depending on compiler
+  * [RP009] crc32_update_uint64() can be inlined
+  * [RP008] Eliminate trx_mutex use from purge worker threads
+  * [RP007] Changes dict_sys->mutex to rw_lock for innodb_purge_threads scaling performance
+  * [RP005] Shards global counters btr_cur_n_non_sea and btr_cur_n_sea to minimize cache coherency cost
+  * [RP004] Optimize InnoDB rw_lock s-lock operation cost on high concurrency
+  * [RP003] Revives my_hash_*() functions and changes to use HASH instead of std::unordered_[map/set]
+  * [RP001] Avoiding to use std::mt19937 for saving CPU data cache
+  * [RP000] Initial adjustment. Still just same as the original MySQL
+
+ -- Alexey Bychko <abychko@gmail.com>  Thu, 29 Jan 2026 09:00:00 +0200
+
+percona-server (8.0.44-35~int01) unstable; urgency=medium
+
+  * PS-10232 [8.0]: Fix performance regression by limiting rows_in_buffer to query LIMIT
+  * 8.0.44-35 with 2 RP patches [RP002]
+
+ -- Alexey Bychko <abychko@gmail.com>  Mon, 08 Dec 2025 15:17:00 +0200
+
+percona-server (8.0.39-30RP) unstable; urgency=medium
+
+  * Packaging for custom RP000 version 
+
+ -- Alexey Bychko <abychko@gmail.com>  Tue, 21 Oct 2025 10:18:17 +0300
+
+percona-server (8.0.12-1) unstable; urgency=low
+
+  * Packaging for 8.0
+
+ -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Mon, 03 Sep 2018 12:50:32 +0300

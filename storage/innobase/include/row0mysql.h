@@ -1021,12 +1021,9 @@ stored generated columns (gcol).
 @param[in]     thd    MySQL thread handle
 @param[in]     mysql_table  MySQL table object.
 @return the field filled with computed value or nullptr on failure */
-dfield_t *innobase_compute_stored_gcol(mem_heap_t **compress_heap,
-                                       const dtuple_t *row,
-                                       const dict_s_col_t &col,
-                                       const dict_table_t *table,
-                                       mem_heap_t *heap, THD *thd,
-                                       TABLE *mysql_table);
+dfield_t *innobase_compute_stored_gcol(
+    mem_heap_t **compress_heap, const dtuple_t *row, const dict_s_col_t &col,
+    const dict_table_t *table, mem_heap_t *heap, THD *thd, TABLE *mysql_table);
 
 /** Parse out multi-values from a MySQL record
 @param[in]      mysql_table     MySQL table structure

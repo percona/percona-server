@@ -1598,7 +1598,8 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
     for (ulint id = i; id < n; ++id) {
       threads.emplace_back(os_thread_create(buf_pool_create_thread_key, 0,
                                             buf_pool_create, &buf_pool_ptr[id],
-                                            size, id, &m, std::ref(errs[id])));
+                                            size, id, &m, std::ref(errs[id]),
+                                            populate));
       threads[id - i].start();
     }
 

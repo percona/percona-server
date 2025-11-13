@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 #
 # Test the --innodb-optimize-keys option.
 #
@@ -1061,3 +1062,4 @@ UNLOCK TABLES;
 
 ######################################
 DROP TABLE t1, t11;
+include/rpl/set_gtid_mode_on.inc

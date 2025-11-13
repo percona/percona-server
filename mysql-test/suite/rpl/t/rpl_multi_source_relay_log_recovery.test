@@ -47,9 +47,6 @@
 --source include/connection.inc
 --let $slave_stop_wait=5
 
-# connection was switched to replica
---source include/have_replica_parallel_type_database.inc
-
 --source include/rpl/stop_all_replicas.inc
 SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000

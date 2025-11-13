@@ -142,6 +142,7 @@ static constexpr unsigned kMaxPasswordRetries = 10000;
 
 static const std::string kDefaultMetadataCacheSectionKey = "bootstrap";
 
+using mysql_harness::AutoCleaner;
 using mysql_harness::get_from_map;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
@@ -584,7 +585,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    auto rename_res = mysqlrouter::rename_file((path + ".tmp"), path);
+    auto rename_res = mysql_harness::rename_file((path + ".tmp"), path);
 
     if (!rename_res) {
       auto ec = rename_res.error();
@@ -787,7 +788,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
                 << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
-    auto rename_res = mysqlrouter::rename_file(
+    auto rename_res = mysql_harness::rename_file(
         (config_file_name + ".tmp").c_str(), config_file_name.c_str());
 
     if (!rename_res) {
@@ -3792,7 +3793,7 @@ bool ConfigGenerator::backup_config_file_if_different(
       if (auto_cleaner) {
         auto_cleaner->add_file_revert(config_path.str(), backup_file_name);
       } else {
-        copy_file(config_path.str(), backup_file_name);
+        mysql_harness::copy_file(config_path.str(), backup_file_name);
       }
       try {
         mysql_harness::make_file_private(backup_file_name);

@@ -651,6 +651,9 @@ int NdbOperation::setAnyValue(Uint32 any_value) {
     return -1;
   }
 
+  /* Save the value to use for subsequent operations derived from this one */
+  m_any_value = any_value;
+
   const NdbColumnImpl *impl =
       &NdbColumnImpl::getImpl(*NdbDictionary::Column::ANY_VALUE);
 

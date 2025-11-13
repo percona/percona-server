@@ -59,8 +59,8 @@ ADD_EXECUTABLE(ndb_ndbapi_simple_dual ndbapi_simple_dual/main.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_simple_index ndbapi_simple_index/main.cpp)
 
 # MgmApi examples
-ADD_EXECUTABLE(ndb_mgmapi_logevent mgmapi_logevent/main.cpp)
-ADD_EXECUTABLE(ndb_mgmapi_logevent2 mgmapi_logevent2/main.cpp)
+ADD_EXECUTABLE(ndb_mgmapi_logevent mgmapi_logevent/main.c)
+ADD_EXECUTABLE(ndb_mgmapi_logevent2 mgmapi_logevent2/main.c)
 
 # Link each example program with both ndbclient and mysql libraries
 SET(EXAMPLES

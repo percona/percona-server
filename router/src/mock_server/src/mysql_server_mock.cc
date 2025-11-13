@@ -112,7 +112,8 @@ class Acceptor {
                                              uint16_t port) {
     net::ip::tcp::resolver resolver(io_ctx_);
 
-    auto resolve_res = resolver.resolve(address, std::to_string(port));
+    auto resolve_res = resolver.resolve(address, std::to_string(port),
+                                        net::ip::resolver_base::passive);
     if (!resolve_res) return stdx::unexpected(resolve_res.error());
 
     for (auto ainfo : resolve_res.value()) {

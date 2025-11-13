@@ -2235,12 +2235,9 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
 out if this is violated for records of maximum possible length of this index.
 @param[in]   table         table
 @param[in]   new_index     index
-@param[in]   strict        true=report error if records could be too big to fit
-                           in a B-tree page
 @return true if the index record could become too big */
 static bool dict_index_too_big_for_tree(const dict_table_t *table,
-                                        const dict_index_t *new_index,
-                                        bool strict) {
+                                        const dict_index_t *new_index) {
   /* FTS index consists of auxiliary tables, they shall be excluded from index
   row size check */
   if (new_index->type & DICT_FTS) {
@@ -2256,14 +2253,13 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
   get_permissible_max_size(table, new_index, page_rec_max, page_ptr_max);
 
   size_t rec_max_size;
-  bool res = dict_index_validate_max_rec_size(
-      table, new_index, strict, page_rec_max, page_ptr_max, rec_max_size);
-  ut_a(res || rec_max_size < page_rec_max);
+  bool res = dict_index_validate_max_rec_size(table, new_index, page_rec_max,
+                                              page_ptr_max, rec_max_size);
   return (res);
 }
 
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
-                                      const dict_index_t *index, bool strict,
+                                      const dict_index_t *index,
                                       const size_t page_rec_max,
                                       const size_t page_ptr_max,
                                       size_t &rec_max_size) {
@@ -2303,14 +2299,7 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
 
     /* Check the size limit on leaf pages. */
     if (rec_max_size >= page_rec_max) {
-      ib::error_or_warn(strict)
-          << "Cannot add field " << field->name << " in table " << table->name
-          << " because after adding it, the row size is " << rec_max_size
-          << " which is greater than maximum allowed"
-             " size ("
-          << page_rec_max << ") for a record on index leaf page.";
-
-      return (true);
+      return true;
     }
 
     /* Check the size limit on non-leaf pages. Records stored in non-leaf
@@ -2508,7 +2497,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   if (index->rtr_srs.get() != nullptr)
     new_index->rtr_srs.reset(index->rtr_srs->clone());
 
-  if (dict_index_too_big_for_tree(table, new_index, strict)) {
+  if (dict_index_too_big_for_tree(table, new_index)) {
     if (strict) {
       dict_mem_index_free(new_index);
       dict_mem_index_free(index);
@@ -2909,7 +2898,10 @@ void dict_index_copy_types(dtuple_t *tuple, const dict_index_t *index,
 
     ifield = index->get_field(i);
     dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
+    ut_ad(!ifield->col->is_virtual() || !index->is_clustered());
     ifield->col->copy_type(dfield_type);
+    /* Field for materialized virtual column is not itself virtual. */
+    dfield_type->prtype &= ~DATA_VIRTUAL;
     if (dict_index_is_spatial(index) &&
         DATA_GEOMETRY_MTYPE(dfield_type->mtype)) {
       dfield_type->prtype |= DATA_GIS_MBR;
@@ -5346,7 +5338,7 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
   dfield_copy(&upd_field->new_val, metadata_dfield);
   upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index);
 
-  ut_ad(update->validate());
+  ut_d(update->validate());
 
   return (update);
 }

@@ -839,6 +839,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(page_archiver_thread, "ib_page_arch", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(buf_pool_create_thread, "ib_buf_create", PSI_FLAG_SINGLETON,
+                   0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_dump_thread, "ib_buf_dump", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(clone_ddl_thread, "ib_clone_ddl", PSI_FLAG_SINGLETON, 0,
@@ -10060,10 +10062,11 @@ static void innobase_get_multi_value_and_diff(
 }
 
 /** Checks which fields have changed in a row and stores information
- of them to an update vector.
+ of them to an update vector for the table's clustered index.
  @return DB_SUCCESS or error code */
 static dberr_t calc_row_difference(
-    upd_t *uvect,             /*!< in/out: update vector */
+    upd_t *uvect,             /*!< in/out: update vector for the
+                              clustered index */
     const uchar *old_row,     /*!< in: old row in MySQL format */
     uchar *new_row,           /*!< in: new row in MySQL format */
     TABLE *table,             /*!< in: table in MySQL data
@@ -10453,7 +10456,7 @@ static dberr_t calc_row_difference(
       if (changes_fts_column && !changes_fts_doc_col) {
         ib::warn(ER_IB_MSG_559) << "A new Doc ID must be supplied"
                                    " while updating FTS indexed columns.";
-        return (DB_FTS_INVALID_DOCID);
+        return DB_FTS_INVALID_DOCID;
       }
 
       /* Doc ID must monotonically increase */
@@ -10463,7 +10466,7 @@ static dberr_t calc_row_difference(
                                 << innodb_table->fts->cache->next_doc_id - 1
                                 << " for table " << innodb_table->name;
 
-        return (DB_FTS_INVALID_DOCID);
+        return DB_FTS_INVALID_DOCID;
       } else if ((doc_id - prebuilt->table->fts->cache->next_doc_id) >=
                  FTS_DOC_ID_MAX_STEP) {
         ib::warn(ER_IB_MSG_561)
@@ -10502,8 +10505,8 @@ static dberr_t calc_row_difference(
 
   ut_a(buf <= (byte *)original_upd_buff + buff_len);
 
-  ut_ad(uvect->validate());
-  return (DB_SUCCESS);
+  ut_d(uvect->validate_for_index(clust_index));
+  return DB_SUCCESS;
 }
 
 /**

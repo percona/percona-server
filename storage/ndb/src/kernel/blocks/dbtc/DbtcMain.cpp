@@ -9252,11 +9252,6 @@ void Dbtc::sendAbortedAfterTimeout(Signal *signal, int Tcheck,
                  __LINE__, apiConnectptr.i, transP->apiConnectstate,
                  apiConnectptr.p->m_apiConTimer_line,
                  transP->tcConnect.getFirst(), getApiConTimer(apiConnectptr));
-    g_eventLogger->info(
-        "TC: %d: %d state=%d abort==IDLE place: %d fop=%d t: %d", __LINE__,
-        apiConnectptr.i, transP->apiConnectstate,
-        apiConnectptr.p->m_apiConTimer_line, transP->tcConnect.getFirst(),
-        getApiConTimer(apiConnectptr));
     ndbabort();
     setApiConTimer(apiConnectptr, 0, __LINE__);
     return;
@@ -9309,7 +9304,6 @@ void Dbtc::sendAbortedAfterTimeout(Signal *signal, int Tcheck,
           BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
         }
         warningEvent("%s", buf);
-        g_eventLogger->info("%s", buf);
         ndbabort();
         releaseAbortResources(signal, apiConnectptr);
         return;
@@ -16767,7 +16761,6 @@ bool Dbtc::match_and_print(Signal *signal, ApiConnectRecordPtr apiPtr) {
       apiPtr.p->m_apiConTimer_line, stateptr,
       BaseString::getPrettyText(apiPtr.p->m_transaction_nodes).c_str());
   infoEvent("%s", buf);
-  g_eventLogger->info("%s", buf);
 
   memcpy(signal->theData, temp, 4 * len);
   return true;

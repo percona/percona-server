@@ -178,4 +178,9 @@ class Ndb_dd_table {
   dd::Table *get_table_def() { return m_table_def; }
 };
 
+/*
+   Return number of indexes in the table definition
+*/
+size_t ndb_dd_table_get_num_indexes(const dd::Table *table_def);
+
 #endif

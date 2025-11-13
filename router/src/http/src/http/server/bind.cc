@@ -24,6 +24,7 @@
 */
 
 #include "http/server/bind.h"
+#include "mysql/harness/net_ts/internet.h"
 
 namespace http {
 namespace server {
@@ -31,7 +32,8 @@ namespace server {
 Bind::Bind(io_context *io_context, const std::string &address,
            const uint16_t port)
     : context_{io_context} {
-  auto resolve_res = resolver_.resolve(address, std::to_string(port));
+  auto resolve_res = resolver_.resolve(address, std::to_string(port),
+                                       net::ip::resolver_base::passive);
   if (!resolve_res) {
     throw std::system_error(resolve_res.error(),
                             "resolving " + address + " failed");

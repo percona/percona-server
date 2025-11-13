@@ -147,8 +147,9 @@ ngs::Error_code Prepare_param_handler::prepare_parameters(
                         "' and of type '%s' is not supported for binding"
                         " to prepared statement",
                         ph.m_id,
-                        arg.has_scalar() ? arg.scalar().GetTypeName().c_str()
-                                         : arg.GetTypeName().c_str());
+                        arg.has_scalar()
+                            ? std::string(arg.scalar().GetTypeName()).c_str()
+                            : std::string(arg.GetTypeName()).c_str());
     }
   }
   return ngs::Success();

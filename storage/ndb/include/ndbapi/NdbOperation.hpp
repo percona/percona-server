@@ -1531,7 +1531,7 @@ class NdbOperation {
   const SetValueSpec *m_extraSetValues;
   Uint32 m_numExtraSetValues;
 
-  Uint32 m_any_value;  // Valid if m_use_any_value!=0
+  Uint32 m_any_value;
 
   // Blobs in this operation
   NdbBlob *theBlobList;

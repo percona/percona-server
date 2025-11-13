@@ -71,10 +71,10 @@ void RouterComponentTest::copy_default_certs_to_datadir(
   mysql_harness::Path to(dst_dir);
   mysql_harness::Path from(SSL_TEST_DATA_DIR);
 
-  mysqlrouter::copy_file(from.join("server-key.pem").str(),
-                         to.join("router-key.pem").str());
-  mysqlrouter::copy_file(from.join("server-cert.pem").str(),
-                         to.join("router-cert.pem").str());
+  mysql_harness::copy_file(from.join("server-key.pem").str(),
+                           to.join("router-key.pem").str());
+  mysql_harness::copy_file(from.join("server-cert.pem").str(),
+                           to.join("router-cert.pem").str());
 }
 
 void RouterComponentTest::sleep_for(std::chrono::milliseconds duration) {

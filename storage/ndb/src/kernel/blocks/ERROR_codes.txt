@@ -27,7 +27,7 @@ Next NDBFS 2002
 Next DBACC 3007
 Next DBTUP 4040
 Next DBLQH 5113
-Next DBDICT 6228
+Next DBDICT 6229
 Next DBDIH 7251
 Next DBTC 8127
 Next TRPMAN 9007
@@ -820,6 +820,7 @@ Dbdict:
 6221 Delay INDEX_STAT_REQ indefinitely
 6222 Delay CREATE_HASH_MAP_REQ indefinitely
 6223 Only send SCHEMA_TRANS_IMPL_REQ to self preparatory to crashing
+6228 Exercise SUB_START_REQ signal handler version compatibility
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

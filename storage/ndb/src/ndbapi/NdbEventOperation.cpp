@@ -45,7 +45,10 @@ NdbEventOperation::State NdbEventOperation::getState() {
   return m_impl.getState();
 }
 
-void NdbEventOperation::mergeEvents(bool flag) { m_impl.m_mergeEvents = flag; }
+void NdbEventOperation::mergeEvents(bool flag) {
+  m_impl.m_mergeEvents = flag;
+  m_impl.m_filterPreStartEpochs = flag;
+}
 
 NdbRecAttr *NdbEventOperation::getValue(const char *colName, char *aValue) {
   return m_impl.getValue(colName, aValue, 0);
@@ -113,6 +116,10 @@ bool NdbEventOperation::isEmptyEpoch() { return m_impl.isEmptyEpoch(); }
 bool NdbEventOperation::isErrorEpoch(
     NdbDictionary::Event::TableEvent *error_type) {
   return m_impl.isErrorEpoch(error_type);
+}
+
+Uint64 NdbEventOperation::getStartEpoch() const {
+  return m_impl.getStartEpoch();
 }
 
 NdbDictionary::Event::TableEvent NdbEventOperation::getEventType() const {
@@ -192,6 +199,10 @@ void NdbEventOperation::setFilterAnyvalueMySQLNoReplicaUpdates() {
 
 void NdbEventOperation::setAnyValueFilter(AnyValueFilterFn fn) {
   m_impl.m_any_value_filter = fn;
+}
+
+void NdbEventOperation::setFilterPreStartEpochs(bool flag) {
+  m_impl.m_filterPreStartEpochs = flag;
 }
 
 int NdbEventOperation::getReqNodeId() const {

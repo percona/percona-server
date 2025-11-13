@@ -73,6 +73,7 @@ NdbOperation::NdbOperation(Ndb *aNdb, NdbOperation::Type aType)
       m_tcReqGSN(GSN_TCKEYREQ),
       m_keyInfoGSN(GSN_KEYINFO),
       m_attrInfoGSN(GSN_ATTRINFO),
+      m_any_value(0),
       theBlobList(nullptr),
       m_abortOption(-1),
       m_noErrorPropagation(false),
@@ -173,6 +174,7 @@ int NdbOperation::init(const NdbTableImpl *tab, NdbTransaction *myConnection) {
   m_extraSetValues = nullptr;
   m_numExtraSetValues = 0;
   m_customData = nullptr;
+  m_any_value = 0;
 
   if (theReceiver.init(NdbReceiver::NDB_OPERATION, this)) {
     // theReceiver sets the error code of its owner

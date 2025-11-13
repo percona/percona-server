@@ -74,6 +74,15 @@ ROUTER_ADD_SHARED_LIBRARY(router_cluster
   router_mysql
   )
 
+IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
+  IF(MY_COMPILER_IS_GNU)
+    TARGET_LINK_OPTIONS(router_cluster PRIVATE
+      -Wno-error=stringop-overflow
+      )
+  ENDIF()
+ENDIF()
+
+
 IF(WIN32)
   SET(router_lib_output_name "mysqlrouter_lib")
 ELSE()
@@ -81,7 +90,6 @@ ELSE()
 ENDIF()
 
 ROUTER_ADD_SHARED_LIBRARY(router_lib
-  auto_cleaner.cc
   certificate_generator.cc
   certificate_handler.cc
   config_files.cc
@@ -163,7 +171,6 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter
   router_frontend_lib
   ${CMAKE_DL_LIBS}
   )
-ADD_INSTALL_RPATH(mysqlrouter "${ROUTER_INSTALL_RPATH}")
 
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(mysqlrouter -lnsl -lsocket)

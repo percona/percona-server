@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm> /* std::min */
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -123,19 +124,17 @@ bool get_tls_status(property_iterator it, TLS_channel_property *property) {
   Ssl_acceptor_context_iterator_data data;
   if (container->get(data) == false) return false;
 
-  size_t copy_size;
-
   /* Copy interface */
-  copy_size = min(data.interface().length(), MAX_CHANNEL_NAME_SIZE);
-  strncpy(property->channel_name, data.interface().c_str(), copy_size);
+  snprintf(property->channel_name, sizeof(property->channel_name), "%s",
+           data.interface().c_str());
 
   /* Copy property name */
-  copy_size = min(data.property().length(), MAX_PROPERTY_NAME_SIZE);
-  strncpy(property->property_name, data.property().c_str(), copy_size);
+  snprintf(property->property_name, sizeof(property->property_name), "%s",
+           data.property().c_str());
 
   /* Copy property value */
-  copy_size = min(data.value().length(), MAX_PROPERTY_VALUE_SIZE);
-  strncpy(property->property_value, data.value().c_str(), copy_size);
+  snprintf(property->property_value, sizeof(property->property_value), "%s",
+           data.value().c_str());
 
   return true;
 }

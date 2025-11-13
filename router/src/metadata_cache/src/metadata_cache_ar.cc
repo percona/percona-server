@@ -45,7 +45,7 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
         res.error() !=
             metadata_cache::metadata_errc::no_metadata_read_successful;
 
-    on_refresh_failed(terminated_, md_servers_reachable);
+    on_refresh_failed(md_servers_reachable);
     return false;
   }
 

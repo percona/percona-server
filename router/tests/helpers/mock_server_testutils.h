@@ -97,6 +97,49 @@ std::vector<GRNode> classic_ports_to_gr_nodes(
 std::vector<ClusterNode> classic_ports_to_cluster_nodes(
     const std::vector<uint16_t> &classic_ports);
 
+class MockGrMetadata {
+ public:
+  MockGrMetadata &gr_id(const std::string &gr_id);
+
+  MockGrMetadata &cluster_name(const std::string &cluster_name);
+
+  MockGrMetadata &gr_node_host(const std::string &gr_node_host);
+
+  MockGrMetadata &router_options(const std::string &router_options);
+
+  MockGrMetadata &router_version(const std::string &router_version);
+
+  MockGrMetadata &gr_nodes(const std::vector<GRNode> &gr_nodes);
+
+  MockGrMetadata &cluster_nodes(const std::vector<ClusterNode> &cluster_nodes);
+
+  MockGrMetadata &gr_pos(unsigned gr_pos);
+
+  MockGrMetadata &view_id(uint64_t id);
+
+  MockGrMetadata &metadata_version(
+      const mysqlrouter::MetadataSchemaVersion &metadata_version);
+
+  MockGrMetadata &error_on_md_query(bool error_on_md_query);
+
+  JsonValue as_json() const;
+
+  void send(uint16_t http_port, std::string http_host = "127.0.0.1");
+
+ private:
+  std::optional<std::string> gr_id_;
+  std::optional<std::string> cluster_name_;
+  std::optional<std::string> gr_node_host_;
+  std::optional<std::string> router_options_;
+  std::optional<std::string> router_version_;
+  std::optional<std::vector<ClusterNode>> cluster_nodes_;
+  std::optional<std::vector<GRNode>> gr_nodes_;
+  std::optional<unsigned> gr_pos_;
+  std::optional<uint64_t> view_id_;
+  std::optional<mysqlrouter::MetadataSchemaVersion> metadata_version_;
+  std::optional<bool> error_on_md_query_{};
+};
+
 /**
  * Converts the GR mock data to the JSON object.
  *

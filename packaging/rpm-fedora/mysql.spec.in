@@ -194,6 +194,15 @@ Obsoletes:      mariadb-server
 Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-server-galera
+%if 0%{?fedora} >= 42
+Obsoletes:      mariadb11.8
+Obsoletes:      mariadb11.8-server
+Obsoletes:      mariadb11.8-backup
+Obsoletes:      mariadb11.8-cracklib-password-check
+Obsoletes:      mariadb11.8-gssapi-server
+Obsoletes:      mariadb11.8-server-utils
+Obsoletes:      mariadb11.8-client-utils
+%endif
 Obsoletes:      community-mysql-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mysql-community-embedded-compat < 8.0.3
@@ -649,9 +658,6 @@ mkdir release
 %endif # 0%{?compatlib}
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
-
-# Ignore absolute RPATH followed by $ORIGIN in mysqld.
-export QA_RPATHS=0x0008
 
 # Ensure that needed directories exists
 install -d -m 0751 %{buildroot}/var/lib/mysql

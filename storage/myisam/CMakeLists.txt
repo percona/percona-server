@@ -94,6 +94,15 @@ IF(MY_COMPILER_IS_GNU)
     COMPILE_FLAGS "-Wno-class-memaccess")
 ENDIF()
 
+# Same thing as above, but for clang, disable warnings for memset().
+MY_CHECK_CXX_COMPILER_WARNING("-Wnontrivial-memcall" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(
+    ${MYISAM_SOURCES}
+    myisamchk.cc
+    COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(

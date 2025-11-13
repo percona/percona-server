@@ -1966,3 +1966,12 @@ AS TABLE t0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0))
 AS TABLE t0' at line 2
 DROP TABLE t0;
+#
+# Bug #35451459 MySQL Server crashes when executing query
+#
+# DEFAULT() is not allowed in partitioning expression
+CREATE TABLE v0 (
+c1 INT
+)
+PARTITION BY HASH (DEFAULT(c1));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed

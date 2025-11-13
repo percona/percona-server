@@ -68,6 +68,14 @@ std::ostream &operator<<(std::ostream &os,
 
 }  // namespace std
 
+namespace {
+// IP of example.org:81 which is known to drop SYN packets
+//
+// we use example.org's IP here to avoid DNS resolution which on PB2
+// often takes too long and causes the test timeout assumption to fail
+constexpr std::string_view kEndpointThatConnectTimesOut = "23.215.0.133:81";
+}  // namespace
+
 namespace mysqlrouter {
 std::ostream &operator<<(std::ostream &os, const MysqlError &e) {
   return os << e.sql_state() << " code: " << e.value() << ": " << e.message();
@@ -305,7 +313,7 @@ TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
       {"routing_strategy", "round-robin"},
       // we use example.org's IP here to avoid DNS resolution which on PB2
       // often takes too long and causes the test timeout assumption to fail
-      {"destinations", "93.184.216.34:81"}};
+      {"destinations", std::string(kEndpointThatConnectTimesOut)}};
 
   if (!GetParam().config_file_timeout.empty()) {
     routing_section_options.emplace_back("connect_timeout",
@@ -382,7 +390,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
       {{"bind_port", std::to_string(router_port)},
        {"routing_strategy", "round-robin"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
-       {"destinations", "93.184.216.34:81"}});
+       {"destinations", std::string(kEndpointThatConnectTimesOut)}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
@@ -488,9 +496,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
        {"routing_strategy", "round-robin"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
        {"protocol", "x"},
-       // we use example.org's IP here to avoid DNS resolution which on PB2
-       // often takes too long and causes the test timeout assumption to fail
-       {"destinations", "93.184.216.34:81"}});
+       {"destinations", std::string(kEndpointThatConnectTimesOut)}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);

@@ -54,6 +54,7 @@ static int _indexinfo = 0;
 static int _nodeinfo = 0;
 static int _autoinc = 0;
 static int _context = 0;
+static int _metadata = 0;
 
 static int _retries = 0;
 
@@ -91,11 +92,15 @@ static struct my_option my_long_options[] = {
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"context", 'x', "Show context information", &_context, nullptr, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"embedded-metadata", 'm', "Show embedded metadata", &_metadata, nullptr,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     NdbStdOpt::end_of_options};
 
 static void print_context_info(Ndb *pNdb, NdbDictionary::Table const *pTab);
 static void print_autoinc_info(Ndb *pNdb, NdbDictionary::Table const *pTab);
 static void print_part_info(Ndb *pNdb, NdbDictionary::Table const *pTab);
+static void print_embedded_metadata(Ndb *myndb,
+                                    NdbDictionary::Table const *pTab);
 
 int main(int argc, char **argv) {
   NDB_INIT(argv[0]);
@@ -334,6 +339,11 @@ int desc_table(Ndb *myndb, char const *name) {
     }
   }
 
+  if (_metadata) {
+    print_embedded_metadata(myndb, pTab);
+    ndbout << endl;
+  }
+
   return 1;
 }
 
@@ -498,4 +508,92 @@ int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char const *name) {
     return 1;
   }
   return 0;
+}
+
+static void print_binary(const void *data, Uint32 len) {
+  const Uint32 digitsPerLine = 8;
+  char readable[digitsPerLine + 1];
+  Uint32 offset = 0;
+  /* Line format
+   * 0x00000000: 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48     ABCDEFGH
+   * Offset      Bytes as hex                                Printable chars
+   */
+
+  ndbout << hex << offset << ":  ";
+  while (offset < len) {
+    const uint8 digit = ((const uint8 *)data)[offset];
+
+    ndbout << hex << digit << " ";
+
+    readable[offset % digitsPerLine] = isprint(digit) ? digit : ' ';
+
+    offset++;
+
+    if ((offset % digitsPerLine) == 0) {
+      /* End of line */
+      readable[digitsPerLine] = 0;
+      ndbout << "    " << readable << endl;
+      if (offset < len) ndbout << hex << offset << ":  ";
+    }
+  }
+
+  Uint32 lastLineDigits = offset % digitsPerLine;
+  if (lastLineDigits > 0) {
+    /* Pad out last line */
+    Uint32 padDigits = digitsPerLine - lastLineDigits;
+    for (; padDigits; padDigits--)
+      //         0xHH_
+      ndbout << "     ";
+
+    readable[lastLineDigits] = 0;
+    ndbout << "    " << readable << endl;
+  }
+
+  ndbout << endl;
+}
+
+static void print_embedded_metadata(Ndb *myndb,
+                                    NdbDictionary::Table const *pTab) {
+  ndbout << "-- Embedded metadata" << endl;
+
+  const Uint32 packed_len = pTab->getFrmLength();
+
+  ndbout << "Packed len : " << packed_len << endl;
+
+  if (packed_len > 0) {
+    Uint32 metadata_version = 0;
+    void *metadata_ptr = nullptr;
+    Uint32 metadata_len = 0;
+
+    const int res =
+        pTab->getExtraMetadata(metadata_version, &metadata_ptr, &metadata_len);
+
+    if (res == 0) {
+      ndbout << "Metadata version : " << metadata_version << endl;
+      ndbout << "Unpacked length : " << metadata_len << endl;
+
+      bool text = true;
+      for (Uint32 i = 0; i < metadata_len; i++) {
+        if (!isprint(((const char *)metadata_ptr)[i])) {
+          text = false;
+          break;
+        }
+      }
+
+      ndbout << "Metadata begin" << endl;
+      if (!text) {
+        print_binary(metadata_ptr, metadata_len);
+      } else {
+        /* All text, direct print, ensuring null termination */
+        BaseString null_terminated_copy(static_cast<char *>(metadata_ptr),
+                                        metadata_len);
+        ndbout << null_terminated_copy.c_str() << endl;
+      }
+      ndbout << "Metadata end" << endl;
+
+      free(metadata_ptr);
+    } else {
+      ndbout << "Problem reading : " << res << endl;
+    }
+  }
 }

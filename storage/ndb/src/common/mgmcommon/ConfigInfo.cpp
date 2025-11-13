@@ -804,11 +804,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
     {CFG_LOGLEVEL_STARTUP, "LogLevelStartup", DB_TOKEN,
      "Node startup info printed on stdout", ConfigInfo::CI_USED, false,
-     ConfigInfo::CI_INT, "1", "0", "15"},
+     ConfigInfo::CI_INT, "8", "0", "15"},
 
     {CFG_LOGLEVEL_SHUTDOWN, "LogLevelShutdown", DB_TOKEN,
      "Node shutdown info printed on stdout", ConfigInfo::CI_USED, false,
-     ConfigInfo::CI_INT, "0", "0", "15"},
+     ConfigInfo::CI_INT, "8", "0", "15"},
 
     {CFG_LOGLEVEL_STATISTICS, "LogLevelStatistic", DB_TOKEN,
      "Transaction, operation, transporter info printed on stdout",
@@ -820,11 +820,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
     {CFG_LOGLEVEL_NODERESTART, "LogLevelNodeRestart", DB_TOKEN,
      "Node restart, node failure info printed on stdout", ConfigInfo::CI_USED,
-     false, ConfigInfo::CI_INT, "0", "0", "15"},
+     false, ConfigInfo::CI_INT, "8", "0", "15"},
 
     {CFG_LOGLEVEL_CONNECTION, "LogLevelConnection", DB_TOKEN,
      "Node connect/disconnect info printed on stdout", ConfigInfo::CI_USED,
-     false, ConfigInfo::CI_INT, "0", "0", "15"},
+     false, ConfigInfo::CI_INT, "8", "0", "15"},
 
     {CFG_LOGLEVEL_CONGESTION, "LogLevelCongestion", DB_TOKEN,
      "Congestion info printed on stdout", ConfigInfo::CI_USED, false,
@@ -832,10 +832,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
     {CFG_LOGLEVEL_ERROR, "LogLevelError", DB_TOKEN,
      "Transporter, heartbeat errors printed on stdout", ConfigInfo::CI_USED,
-     false, ConfigInfo::CI_INT, "0", "0", "15"},
+     false, ConfigInfo::CI_INT, "8", "0", "15"},
 
     {CFG_LOGLEVEL_INFO, "LogLevelInfo", DB_TOKEN,
      "Heartbeat and log info printed on stdout", ConfigInfo::CI_USED, false,
+     ConfigInfo::CI_INT, "0", "0", "15"},
+
+    {CFG_LOGLEVEL_BACKUP, "LogLevelBackup", DB_TOKEN,
+     "Backup info printed on stdout", ConfigInfo::CI_USED, false,
+     ConfigInfo::CI_INT, "0", "0", "15"},
+
+    {CFG_LOGLEVEL_SCHEMA, "LogLevelSchema", DB_TOKEN,
+     "Schema changes info printed on stdout", ConfigInfo::CI_USED, false,
      ConfigInfo::CI_INT, "0", "0", "15"},
 
     /**

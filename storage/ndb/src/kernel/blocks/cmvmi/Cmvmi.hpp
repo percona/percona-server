@@ -84,7 +84,6 @@ class Cmvmi : public SimulatedBlock {
   char theErrorMessage[256];
   void sendSTTORRY(Signal *signal);
 
-  LogLevel clogLevel;
   NdbNodeBitmask c_dbNodes;
 
   /**

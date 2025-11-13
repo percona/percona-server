@@ -1860,6 +1860,34 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
       // the table definition will be correct
       return HA_ERR_TABLE_DEF_CHANGED;
     }
+#ifndef NDEBUG
+    /* Light check of table_def versus Server's table_share schema info */
+    // Num columns
+    {
+      const int table_def_cols = ndb_dd_table_get_num_columns(table_def);
+      const int table_share_cols = table_share->fields;
+      if (table_def_cols != table_share_cols) {
+        ndb_log_error(
+            "Schema mismatch : Table def cols %u Table share cols %u for table "
+            "%s.%s",
+            table_def_cols, table_share_cols, dbname, tabname);
+        ndbcluster::ndbrequire(false);
+      }
+    }
+    // Num indexes
+    {
+      const int table_def_idxs = ndb_dd_table_get_num_indexes(table_def);
+      const int table_share_idxs = table_share->keys;
+      if (table_def_idxs != table_share_idxs) {
+        ndb_log_error(
+            "Schema mismatch : Table def idxs %u Table share idxs %u for table "
+            "%s.%s",
+            table_def_idxs, table_share_idxs, dbname, tabname);
+        ndbcluster::ndbrequire(false);
+      }
+    }
+    // Todo : other attributes
+#endif
   }
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
@@ -9369,7 +9397,12 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   const char *dbname = table_share->db.str;
   const char *tabname = table_share->table_name.str;
 
-  ndb_log_info("Creating table '%s.%s'", dbname, tabname);
+  {
+    const int sql_cmd = thd_sql_command(thd);
+    ndb_log_info("%s table '%s.%s'",
+                 sql_cmd == SQLCOM_TRUNCATE ? "Truncating" : "Creating", dbname,
+                 tabname);
+  }
 
   Ndb_schema_dist_client schema_dist_client(thd);
 
@@ -10367,21 +10400,40 @@ int ha_ndbcluster::truncate(dd::Table *table_def) {
   /* Fill in create_info from the open table */
   HA_CREATE_INFO create_info;
   update_create_info_from_table(&create_info, table);
-
-  // Close the table, will always return 0
-  (void)close();
+#ifndef NDEBUG
+  const NDB_SHARE *old_share_ptr_for_sanity_check = m_share;
+#endif
 
   // Call ha_ndbcluster::create which will detect that this is a
   // truncate and thus drop the table before creating it again.
   const int truncate_error =
       create(table->s->normalized_path.str, table, &create_info, table_def);
 
-  // Open the table again even if the truncate failed, the caller
-  // expect the table to be open. Report any error during open.
-  const int open_error = open(table->s->normalized_path.str, 0, 0, table_def);
+  DBUG_PRINT("debug", ("truncate res: %d", truncate_error));
+#ifndef NDEBUG
+  /**
+   * This sync point is used by tests that want to assess the
+   * concurrency of the truncate, specially the correct state of the
+   * THR_LOCK_DATA (m_lock) to avoid deadlocks.
+   */
+  if (current_thd) DEBUG_SYNC(current_thd, "truncate_stop_after_execute");
+  /**
+   * create() creates a new ndb_share, but it is NOT set as this
+   * handler's m_share, because the currently opened ndb_share is the
+   * old one. This old share will thus be released through the closing
+   * of this handler's usage of the table. Following is a sanity check
+   * that this handler's share pointer does not change despite there
+   * being a new share.
+   */
+  if (unlikely(old_share_ptr_for_sanity_check != m_share)) {
+    ndb_log_error(
+        "Fatal! Truncate table re-create modified "
+        "the handler's currently opened share pointer.");
+    abort();
+  }
+#endif
 
-  if (truncate_error) return truncate_error;
-  return open_error;
+  return truncate_error;
 }
 
 int ha_ndbcluster::prepare_inplace__add_index(THD *thd, KEY *key_info,
@@ -11101,6 +11153,11 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
     return false;
   }
 
+  DBUG_EXECUTE_IF("ndb_fail_drop", {
+    // Simulate failure. A bogus error code will be set on the caller.
+    return false;
+  });
+
   // Drop the table
   if (dict->dropTableGlobal(*table, drop_flags) != 0) {
     const NdbError &ndb_err = dict->getNdbError();
@@ -11213,6 +11270,11 @@ int drop_table_impl(THD *thd, Ndb *ndb,
 
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   const int dict_error_code = dict->getNdbError().code;
+  DBUG_EXECUTE_IF("ndb_fail_drop", {
+    int *ec = const_cast<int *>(&dict_error_code);
+    // backup in progress (e.g.)
+    *ec = 761;
+  });
   // Check if an error has occurred. Note that if the table didn't exist in NDB
   // (denoted by error codes 709 or 723), it's considered a success
   if (dict_error_code && dict_error_code != 709 && dict_error_code != 723) {
@@ -11529,6 +11591,7 @@ int ha_ndbcluster::open(const char *path [[maybe_unused]],
     return HA_ERR_NO_CONNECTION;
   }
 
+  DBUG_EXECUTE("debug", NDB_SHARE::dbg_print_locks(m_share););
   // Init table lock structure
   thr_lock_data_init(&m_share->lock, &m_lock, (void *)nullptr);
 
@@ -11845,6 +11908,23 @@ inline void ha_ndbcluster::release_key_fields() {
   }
 }
 
+static void check_thr_lock_data_unused(const THR_LOCK_DATA *thr_lock_data) {
+  /**
+   * Check that the handler is not involved in any SQL (thr_lock) locking before
+   * ending its lifecycle.
+   */
+  if (unlikely(thr_lock_data->type > TL_UNLOCK)) {
+    ndb_log_error(
+        "Fatal! Closing handler involved in thr_lock: "
+        "thread_id %u "
+        "type %u "
+        "thr_lock %p",
+        thr_lock_data->owner ? thr_lock_data->owner->thread_id : 0,
+        thr_lock_data->type, thr_lock_data->lock);
+    abort();
+  }
+}
+
 /**
   Close an open ha_ndbcluster instance.
 
@@ -11868,6 +11948,8 @@ inline void ha_ndbcluster::release_key_fields() {
 
 int ha_ndbcluster::close(void) {
   DBUG_TRACE;
+
+  check_thr_lock_data_unused(&m_lock);
 
   release_key_fields();
   release_ndb_share();

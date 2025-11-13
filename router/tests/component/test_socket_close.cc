@@ -1797,13 +1797,16 @@ class FirstAvailableDestMetadataCache
 
 TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   const size_t NUM_NODES = 3;
-  SCOPED_TRACE("// launch cluster with 1RW/2RO nodes");
+
+  SCOPED_TRACE("// start cluster [RW, RO, RO]");
+  std::vector<uint16_t> current_cluster_nodes{node_ports};
+
   ASSERT_NO_FATAL_FAILURE(setup_cluster(NUM_NODES, GetParam().tracefile));
 
   router_rw_port = port_pool_.get_next_available();
   router_ro_port = port_pool_.get_next_available();
 
-  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  SCOPED_TRACE("// start router");
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
@@ -1817,13 +1820,19 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_used(*router_ro_port));
 
-  SCOPED_TRACE("// Disable both secondary nodes");
-  set_mock_metadata(
-      node_http_ports[0], "uuid", classic_ports_to_gr_nodes({node_ports[0]}), 0,
-      classic_ports_to_cluster_nodes({node_ports[0]}), 0, false, "localhost");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
+  SCOPED_TRACE("// -all RO [RW, 0, 0]");
 
-  SCOPED_TRACE("// RO socket is not used by the router");
+  const auto primary_http_port = node_http_ports[0];
+
+  current_cluster_nodes = {
+      node_ports[0],
+  };
+
+  set_mock_metadata(node_http_ports[0], "uuid",
+                    classic_ports_to_gr_nodes(current_cluster_nodes), 0,
+                    classic_ports_to_cluster_nodes(current_cluster_nodes), 0,
+                    false, "localhost");
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 4));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(*router_ro_port));
   ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", *router_rw_port,
@@ -1832,50 +1841,70 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
                               custom_password),
                std::runtime_error);
 
-  SCOPED_TRACE("// Bring back first RO node");
-  set_mock_metadata(
-      node_http_ports[0], "uuid",
-      classic_ports_to_gr_nodes({node_ports[0], node_ports[1]}), 0,
-      classic_ports_to_cluster_nodes({node_ports[0], node_ports[1]}), 0, false,
-      "localhost");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
+  SCOPED_TRACE("// +1st RO [RW, RO, 0]");
+  current_cluster_nodes = {
+      node_ports[0],
+      node_ports[1],
+  };
+
+  set_mock_metadata(primary_http_port, "uuid",
+                    classic_ports_to_gr_nodes(current_cluster_nodes), 0,
+                    classic_ports_to_cluster_nodes(current_cluster_nodes), 0,
+                    false, "localhost");
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 4));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_used(*router_ro_port));
 
-  SCOPED_TRACE("// Disable first RO node");
-  set_mock_metadata(
-      node_http_ports[0], "uuid", classic_ports_to_gr_nodes({node_ports[0]}), 0,
-      classic_ports_to_cluster_nodes({node_ports[0]}), 0, false, "localhost");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
+  SCOPED_TRACE("// -1st RO [RW, 0, 0]");
+  current_cluster_nodes = {
+      node_ports[0],
+  };
+  set_mock_metadata(primary_http_port, "uuid",
+                    classic_ports_to_gr_nodes(current_cluster_nodes), 0,
+                    classic_ports_to_cluster_nodes(current_cluster_nodes), 0,
+                    false, "localhost");
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 4));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(*router_ro_port));
 
-  SCOPED_TRACE("// Bring back second RO node");
-  set_mock_metadata(
-      node_http_ports[0], "uuid",
-      classic_ports_to_gr_nodes({node_ports[0], node_ports[2]}), 0,
-      classic_ports_to_cluster_nodes({node_ports[0], node_ports[2]}), 0, false,
-      "localhost");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
+  SCOPED_TRACE("// +2nd RO [RW, 0, RO]");
+  current_cluster_nodes = {
+      node_ports[0],
+      node_ports[2],
+  };
+  set_mock_metadata(primary_http_port, "uuid",
+                    classic_ports_to_gr_nodes(current_cluster_nodes), 0,
+                    classic_ports_to_cluster_nodes(current_cluster_nodes), 0,
+                    false, "localhost");
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 4));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_used(*router_ro_port));
 
-  SCOPED_TRACE("// Disable first RO node");
-  set_mock_metadata(
-      node_http_ports[0], "uuid", classic_ports_to_gr_nodes({node_ports[0]}), 0,
-      classic_ports_to_cluster_nodes({node_ports[0]}), 0, false, "localhost");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
+  SCOPED_TRACE("// -2nd RO [RW, 0, 0]");
+  current_cluster_nodes = {
+      node_ports[0],
+  };
+  set_mock_metadata(primary_http_port, "uuid",
+                    classic_ports_to_gr_nodes(current_cluster_nodes), 0,
+                    classic_ports_to_cluster_nodes(current_cluster_nodes), 0,
+                    false, "localhost");
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 4));
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(*router_ro_port));
 
-  SCOPED_TRACE("// Disable primary node");
-  simulate_cluster_node_down(node_ports, node_http_ports[0]);
+  SCOPED_TRACE("// -RW [0, 0, 0]");
+  simulate_cluster_node_down(current_cluster_nodes, primary_http_port);
   EXPECT_TRUE(wait_for_port_unused(*router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(*router_ro_port));
 
-  SCOPED_TRACE("// Bring back all nodes");
-  simulate_cluster_node_up(GetParam().cluster_type, node_ports,
-                           node_http_ports[0]);
+  SCOPED_TRACE("// +all [RW, RO, RO]");
+  current_cluster_nodes = {
+      node_ports[0],
+      node_ports[1],
+      node_ports[2],
+  };
+  simulate_cluster_node_up(GetParam().cluster_type, current_cluster_nodes,
+                           primary_http_port);
   EXPECT_TRUE(wait_for_port_used(*router_rw_port));
   EXPECT_TRUE(wait_for_port_used(*router_ro_port));
   ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", *router_rw_port,

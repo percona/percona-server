@@ -39,7 +39,6 @@
 #include <signaldata/EventReport.hpp>
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/ResumeReq.hpp>
-#include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/StartOrd.hpp>
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/TestOrd.hpp>

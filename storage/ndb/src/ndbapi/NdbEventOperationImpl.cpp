@@ -95,6 +95,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f, Ndb *ndb,
       m_eventImpl(&event->m_impl),
       m_state(EO_ERROR),
       m_oid(~(Uint32)0),
+      m_filterPreStartEpochs(false),
+      m_start_epoch(0),
       m_stop_gci(),
       m_allow_empty_update(false),
       m_requestInfo{0} {
@@ -109,6 +111,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb, NdbEventImpl *evnt)
       m_eventImpl(evnt),
       m_state(EO_ERROR),
       m_oid(~(Uint32)0),
+      m_filterPreStartEpochs(false),
+      m_start_epoch(0),
       m_stop_gci(),
       m_allow_empty_update(false),
       m_requestInfo{0} {
@@ -155,6 +159,7 @@ void NdbEventOperationImpl::init() {
 
 #ifdef ndb_event_stores_merge_events_flag
   m_mergeEvents = m_eventImpl->m_mergeEvents;
+  m_filterPreStartEpochs = m_mergeEvents;
 #else
   m_mergeEvents = false;
 #endif
@@ -368,6 +373,7 @@ NdbBlob *NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo,
       // pointer to main table op
       tBlobOp->theMainOp = this;
       tBlobOp->m_mergeEvents = m_mergeEvents;
+      tBlobOp->m_filterPreStartEpochs = m_filterPreStartEpochs;  // true!
       tBlobOp->theBlobVersion = tAttrInfo->m_blobVersion;
 
       // to hide blob op it is linked under main op, not under m_ndb
@@ -573,10 +579,10 @@ int NdbEventOperationImpl::readBlobParts(char *buf, NdbBlob *blob, Uint32 part,
       DBUG_EVALUATE_IF("ndb_event_fail_read_blob_parts", true, false)) {
     g_eventLogger->info(
         "NdbEventOperationImpl::readBlobParts() : "
-        "Buffer 0x%x %s : Mismatch in parts received : "
+        "Buffer 0x%x %s : Epoch %ju (%u/%u) Mismatch in parts received : "
         "nparts received : %u expected count: %u nparts outside range : %u",
-        m_ndb->getReference(), m_ndb->getNdbObjectName(), nparts, count,
-        noutside);
+        m_ndb->getReference(), m_ndb->getNdbObjectName(), uintmax_t(getEpoch()),
+        Uint32(getEpoch() >> 32), Uint32(getEpoch()), nparts, count, noutside);
     print_blob_part_bufs(blob, head, hasDist, part, count);
     assert(nparts == count);
     DBUG_RETURN_EVENT(-1);
@@ -587,12 +593,13 @@ int NdbEventOperationImpl::readBlobParts(char *buf, NdbBlob *blob, Uint32 part,
 int NdbEventOperationImpl::execute() {
   DBUG_ENTER("NdbEventOperationImpl::execute");
   m_ndb->theEventBuffer->add_drop_lock();
-  int r = execute_nolock();
+  Uint64 dummy_setup_epoch [[maybe_unused]];
+  int r = execute_nolock(dummy_setup_epoch);
   m_ndb->theEventBuffer->add_drop_unlock();
   DBUG_RETURN(r);
 }
 
-int NdbEventOperationImpl::execute_nolock() {
+int NdbEventOperationImpl::execute_nolock(Uint64 &setup_epoch) {
   DBUG_ENTER("NdbEventOperationImpl::execute_nolock");
   DBUG_PRINT("info", ("this=%p type=%s", this, !theMainOp ? "main" : "blob"));
 
@@ -641,20 +648,26 @@ int NdbEventOperationImpl::execute_nolock() {
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
   m_stop_gci = MAX_EPOCH;
+  setup_epoch = 0;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
-  int r = NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
+  int r = NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(
+      *this, setup_epoch);
   if (r == 0) {
     m_ndb->theEventBuffer->m_prevent_nodegroup_change = false;
     if (schemaTrans) {
       schemaTrans = false;
       myDict->endSchemaTrans(1);
     }
-
+    DBUG_PRINT("info", ("Operation %p setup epoch %u/%u", this,
+                        Uint32(setup_epoch >> 32), Uint32(setup_epoch)));
     if (theMainOp == nullptr) {
       DBUG_PRINT("info", ("execute blob ops"));
       NdbEventOperationImpl *blob_op = theBlobOpList;
       while (blob_op != nullptr) {
-        r = blob_op->execute_nolock();
+        // assert(blob_op->m_filterPreStartEpochs); // User can turn off for
+        // special cases
+        Uint64 blob_op_setup_epoch = 0;
+        r = blob_op->execute_nolock(blob_op_setup_epoch);
         if (r != 0) {
           // since main op is running and possibly some blob ops as well
           // we can't just reset the main op.  Instead return with error,
@@ -663,8 +676,18 @@ int NdbEventOperationImpl::execute_nolock() {
           m_error.code = myDict->getNdbError().code;
           DBUG_RETURN(r);
         }
+        DBUG_PRINT("info", ("Blob part op %p start epoch %u/%u", blob_op,
+                            Uint32(blob_op_setup_epoch >> 32),
+                            Uint32(blob_op_setup_epoch)));
+        setup_epoch = MAX(setup_epoch, blob_op_setup_epoch);
         blob_op = blob_op->m_next;
       }
+
+      /**
+       * Set main [+ blob ops] to the same max start epoch value
+       * which is the [max] setup epoch value plus one
+       */
+      setStartEpoch(setup_epoch + 1);
     }
     if (r == 0) {
       DBUG_RETURN(0);
@@ -829,6 +852,22 @@ Uint64 NdbEventOperationImpl::getTransId() const {
   Uint32 transId1 = m_data_item->sdata->transId1;
   Uint32 transId2 = m_data_item->sdata->transId2;
   return Uint64(transId1) << 32 | transId2;
+}
+
+Uint64 NdbEventOperationImpl::getStartEpoch() const { return m_start_epoch; }
+
+void NdbEventOperationImpl::setStartEpoch(Uint64 startEpoch) {
+  DBUG_PRINT("info", ("setStartEpoch(%u/%u)", Uint32(startEpoch >> 32),
+                      Uint32(startEpoch & 0xffffffff)));
+  assert(theMainOp == nullptr);  // Called on main op if using blob merge
+  m_start_epoch = startEpoch;
+
+  NdbEventOperationImpl *blob_op = theBlobOpList;
+  while (blob_op != nullptr) {
+    blob_op->m_start_epoch = startEpoch;
+
+    blob_op = blob_op->m_next;
+  }
 }
 
 bool NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal *signal,
@@ -1630,6 +1669,38 @@ NdbEventOperation *NdbEventBuffer::nextEvent2() {
       DBUG_RETURN_EVENT(op->m_facade);
     }
 
+    const Uint32 eventOpType =
+        SubTableData::getOperation(data->sdata->requestInfo);
+    const bool isDataEvent =
+        (eventOpType < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT);
+
+    if (unlikely(m_event_queue.m_head->m_error ==
+                 NdbDictionary::Event::_TE_CLUSTER_FAILURE)) {
+      /**
+       * Cluster failed in this epoch, do not return data events to user
+       * as they may not be complete within the epoch
+       */
+      if (isDataEvent) {
+        /* Skip event */
+        DBUG_PRINT_EVENT(
+            "info", ("Skipping data event type %u as cluster failure occurred",
+                     eventOpType));
+        continue;
+      } else {
+        DBUG_PRINT_EVENT(
+            "info",
+            ("Publishing non-data event type %u despite cluster failure",
+             eventOpType));
+      }
+    }
+
+    if (unlikely(op->m_filterPreStartEpochs &&
+                 data->getGCI() < op->m_start_epoch && isDataEvent)) {
+      /* Skip event as the operation does not guarantee epoch completeness */
+      DBUG_PRINT_EVENT("info", ("Skipping data event as operation not ready"));
+      continue;
+    }
+
     DBUG_PRINT_EVENT("info",
                      ("available data=%p op=%p 0x%x %s", data, op,
                       m_ndb->getReference(), m_ndb->getNdbObjectName()));
@@ -1736,12 +1807,14 @@ NdbEventOperationImpl *NdbEventBuffer::getEpochEventOperations(
       event_types = gci_op.event_types;
       cumulative_any_value = gci_op.cumulative_any_value;
       filtered_any_value = gci_op.filtered_any_value;
-      DBUG_PRINT("info", ("gci: %u  op: %p  event_types: 0x%lx "
-                          "cumulative_any_value: 0x%lx "
-                          "reference: '0x%x %s'",
-                          (unsigned)epoch->m_gci.getGCI(), gci_op.op,
-                          (long)event_types, (long)cumulative_any_value,
-                          m_ndb->getReference(), m_ndb->getNdbObjectName()));
+      DBUG_PRINT("info",
+                 ("gci: %u  op: %p  event_types: 0x%lx "
+                  "filtered_any_value: 0x%lx "
+                  "cumulative_any_value: 0x%lx "
+                  "reference: '0x%x %s'",
+                  (unsigned)epoch->m_gci.getGCI(), gci_op.op, (long)event_types,
+                  (long)filtered_any_value, (long)cumulative_any_value,
+                  m_ndb->getReference(), m_ndb->getNdbObjectName()));
       return gci_op.op;
     }
   }
@@ -2244,7 +2317,7 @@ void NdbEventBuffer::complete_bucket(Gci_container *bucket) {
 void NdbEventBuffer::execSUB_START_CONF(const SubStartConf *const rep,
                                         Uint32 len) {
   Uint32 buckets;
-  if (len >= SubStartConf::SignalLength) {
+  if (len >= SubStartConf::SignalLength_v9_4_0) {
     buckets = rep->bucketCount;
   } else {
     /*
@@ -2371,6 +2444,10 @@ void NdbEventBuffer::execSUB_GCP_COMPLETE_REP(
 
   if (rep->flags & SubGcpCompleteRep::MISSING_DATA) {
     bucket->m_state = Gci_container::GC_INCONSISTENT;
+  }
+
+  if (unlikely(complete_cluster_failure)) {
+    bucket->m_state |= Gci_container::GC_CLUSTER_FAILURE;
   }
 
   Uint32 old_cnt = bucket->m_gcp_complete_rep_count;
@@ -3869,6 +3946,11 @@ EpochData *Gci_container::createEpochData(Uint64 gci) {
   const MonotonicEpoch epoch(m_event_buffer->m_epoch_generation, gci);
   EpochData *newEpochData =
       new (memptr) EpochData(epoch, m_gci_op_list, m_gci_op_count, m_head);
+
+  if (unlikely(m_state & GC_CLUSTER_FAILURE)) {
+    /* Indicate that epoch contains cluster failure */
+    newEpochData->m_error = NdbDictionary::Event::_TE_CLUSTER_FAILURE;
+  }
 
   DBUG_PRINT_EVENT("info", ("created EpochData: %p  m_gci_op_list: %p",
                             newEpochData, m_gci_op_list));

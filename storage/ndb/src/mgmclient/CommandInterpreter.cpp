@@ -251,7 +251,6 @@ int Ndb_mgmclient::test_tls() { return m_cmd->test_tls(); }
 #include <portlib/NdbThread.h>
 
 #include <debugger/EventLogger.hpp>
-#include <signaldata/SetLogLevelOrd.hpp>
 
 /*****************************************************************************
  * HELP

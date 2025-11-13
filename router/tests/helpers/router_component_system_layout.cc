@@ -44,7 +44,7 @@ void RouterSystemLayout::init_system_layout_dir(
   mysql_harness::mkdir(tmp_dir_ + "/stage/bin", 0700, true);
   exec_file_ = tmp_dir_ + "/stage/bin/mysqlrouter";
   mysql_harness::mkdir(tmp_dir_ + "/stage/var/lib", 0700, true);
-  mysqlrouter::copy_file(myslrouter_path.str(), exec_file_);
+  mysql_harness::copy_file(myslrouter_path.str(), exec_file_);
 #ifndef _WIN32
   chmod(exec_file_.c_str(), 0700);
 #endif

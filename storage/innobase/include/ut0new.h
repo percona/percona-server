@@ -2214,10 +2214,14 @@ class allocator : public Allocator_base {
                 "ut::allocator does not support over-aligned types. Use "
                 "ut::aligned_* API to handle such types.");
 
-  /** Default constructor.
+  /** Default constructor, use mem_key_std.
+   */
+  allocator() : Allocator_base(mem_key_std) {}
+
+  /** Explicit constructor.
       @param[in] key  performance schema key.
     */
-  explicit allocator(PSI_memory_key key = mem_key_std) : Allocator_base(key) {}
+  explicit allocator(PSI_memory_key key) : Allocator_base(key) {}
 
   /* Rule-of-five */
   allocator(const allocator<T, Allocator_base> &) = default;

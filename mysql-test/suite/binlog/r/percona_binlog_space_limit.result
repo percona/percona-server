@@ -1,3 +1,5 @@
+include/rpl/set_gtid_mode_off.inc
+RESET BINARY LOGS AND GTIDS;
 select @@global.binlog_space_limit;
 @@global.binlog_space_limit
 1024
@@ -91,3 +93,4 @@ Log_name	File_size	Encrypted
 binary.000003	#	#
 binary.000004	#	#
 DROP TABLE t1;
+include/rpl/set_gtid_mode_on.inc

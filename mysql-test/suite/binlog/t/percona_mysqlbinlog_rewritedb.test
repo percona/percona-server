@@ -7,6 +7,12 @@
 
 --disable_query_log
 
+# This test can't work in GTID mode.
+# In it we try to apply the same binlog events (with rewrites) several times.
+# Since events' GTIDs are not changed by rewrite, they will be ignored when
+# applied 2nd and later times.
+--source include/rpl/set_gtid_mode_off.inc
+
 # Because RBR event DB rewrite requires shifting of
 # Table_map_log_event contents around if the DB name length
 # changes, this case is tested for both shorter and longer
@@ -85,3 +91,6 @@ if ($have_binlog_format_statement)
 }
 
 --enable_query_log
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

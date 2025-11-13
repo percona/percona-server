@@ -4,6 +4,9 @@
 --echo # A damaged mysql.user table could cause a server exit.
 --echo #
 
+# This test can't work in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
+
 CALL mtr.add_suppression("\\[Server\\] Storage engine 'MyISAM' does not support system tables. \\[mysql.user\\]");
 CALL mtr.add_suppression("\\[Server\\] Column count of mysql.user is wrong. Expected 51, found 1. The table is probably corrupted");
 
@@ -15,3 +18,6 @@ CREATE USER 'mysqltest1'@'localhost';
 
 DROP TABLE mysql.user;
 RENAME TABLE mysql.user_bak TO mysql.user;
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

@@ -3,6 +3,11 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+# By default, in GTID mode, mysqldump generates dumps which can't be
+# applied to the same server without resetting/adjusting GTID state first.
+# So to keep things simple we turn off the GTID mode for this test.
+--source include/rpl/set_gtid_mode_off.inc
+
 --echo #
 --echo # Test the --innodb-optimize-keys option.
 --echo #
@@ -461,6 +466,8 @@ INSERT INTO t1(id,fk1,fk2) VALUES (0, 0, 1), (1, 1, 2), (2, 2, 0);
 
 DROP TABLE t1, t11;
 
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

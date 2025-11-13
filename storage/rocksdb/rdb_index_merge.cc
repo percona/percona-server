@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This C++ file's header file */
+#include <cinttypes>
 #include "./rdb_index_merge.h"
 
 #include "rdb_utils.h"  // LOG_COMPONENT_TAG for includes below

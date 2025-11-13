@@ -826,25 +826,11 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-<<<<<<< HEAD
 upd_t *row_upd_build_difference_binary(
     dict_index_t *index, const dtuple_t *entry, const rec_t *rec,
     const ulint *offsets, bool no_sys, trx_t *trx, mem_heap_t *heap,
     TABLE *mysql_table, row_prebuilt_t *prebuilt, dberr_t *error) {
-||||||| merged common ancestors
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table, dberr_t *error) {
-=======
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table, dberr_t *error) {
   ut_d(entry->validate_for_index(index));
->>>>>>> mysql-8.4.7
   upd_field_t *upd_field;
   dfield_t *dfield;
   const byte *data;

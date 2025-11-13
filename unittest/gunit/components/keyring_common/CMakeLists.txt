@@ -63,23 +63,13 @@ MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
   ADD_TEST merge_component_keyring_common_tests
   EXCLUDE_FROM_GCOV
   LINK_LIBRARIES
-<<<<<<< HEAD
   ${KEYRING_COMPONENT_LIBS}
   gunit_large
   server_unittest_library
-  )
-DOWNGRADE_STRINGOP_WARNINGS(merge_component_keyring_common_tests-t)
-||||||| merged common ancestors
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
-  )
-DOWNGRADE_STRINGOP_WARNINGS(merge_component_keyring_common_tests-t)
-=======
-  ${KEYRING_COMPONENT_LIBS} ${GTEST_LIBRARIES} gtest_main
 )
 IF(TARGET merge_component_keyring_common_tests-t)
   DOWNGRADE_STRINGOP_WARNINGS(merge_component_keyring_common_tests-t)
 ENDIF()
->>>>>>> mysql-8.4.7
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
   MYSQL_ADD_EXECUTABLE(keyring_common_${test}-t ${test}-t.cc

@@ -33,13 +33,7 @@ namespace temptable {
 
 /** Multiply a number by 1024.
  * @return n * 1024. */
-<<<<<<< HEAD
 inline constexpr unsigned long long operator""_KiB(
-||||||| merged common ancestors
-inline constexpr unsigned long long operator"" _KiB(
-=======
-constexpr unsigned long long operator""_KiB(
->>>>>>> mysql-8.4.7
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 10;
@@ -47,13 +41,7 @@ constexpr unsigned long long operator""_KiB(
 
 /** Multiply a number by 1024 * 1024.
  * @return n * 1024 * 1024. */
-<<<<<<< HEAD
 inline constexpr unsigned long long operator""_MiB(
-||||||| merged common ancestors
-inline constexpr unsigned long long operator"" _MiB(
-=======
-constexpr unsigned long long operator""_MiB(
->>>>>>> mysql-8.4.7
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 20;
@@ -61,13 +49,7 @@ constexpr unsigned long long operator""_MiB(
 
 /** Multiply a number by 1024 * 1024 * 1024.
  * @return n * 1024 * 1024 * 1024. */
-<<<<<<< HEAD
 inline constexpr unsigned long long operator""_GiB(
-||||||| merged common ancestors
-inline constexpr unsigned long long operator"" _GiB(
-=======
-constexpr unsigned long long operator""_GiB(
->>>>>>> mysql-8.4.7
     /** [in] Number to multiply. */
     unsigned long long n) {
   return n << 30;

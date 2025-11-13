@@ -518,16 +518,9 @@ static void test_TZ(int itz) {
   }
   _putenv_s("TZ", tzenv);
 #endif
-<<<<<<< HEAD
   guarded_tzenv.reset(strdup(tzenv));
   putenv(guarded_tzenv.get());
   printf("%s\n", tzenv);
-||||||| merged common ancestors
-  putenv(strdup(tzenv));
-  printf("%s\n", tzenv);
-=======
-  printf("TZ=%s\n", tzenv);
->>>>>>> mysql-8.4.7
   NdbTimestamp_Reset();
 
   std::timespec t = NdbTimestamp_GetCurrentTime();

@@ -1,4 +1,6 @@
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Failed to save the set of Global Transaction Identifiers of the last binary log.*");
+call mtr.add_suppression("Failed to compress the gtid_executed table.");
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);

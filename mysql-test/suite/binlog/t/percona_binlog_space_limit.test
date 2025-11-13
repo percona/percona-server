@@ -1,4 +1,12 @@
 --source include/have_log_bin.inc
+
+# GTID mode affects binlog size so we disable it.
+--source include/rpl/set_gtid_mode_off.inc
+# Turning GTID mode off causes binary log flush a few times.
+# We reset binary log state to avoid these flushes affecting
+# further test.
+RESET BINARY LOGS AND GTIDS;
+
 select @@global.binlog_space_limit;
 
 FLUSH LOGS;
@@ -65,3 +73,6 @@ FLUSH LOGS;
 source include/rpl/deprecated/show_binary_logs.inc;
 
 DROP TABLE t1;
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

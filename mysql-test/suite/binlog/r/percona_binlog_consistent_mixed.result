@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 RESET BINARY LOGS AND GTIDS;
 # Connection default
 CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
@@ -203,3 +204,4 @@ binlog.000001	2706	Query	1	2812	use `test`; INSERT INTO t1 VALUES (3, "")
 binlog.000001	2812	Xid	1	2843	COMMIT /* XID */
 binlog.000001	2843	Rotate	1	2887	binlog.000002;pos=4
 DROP TABLE t1,t2;
+include/rpl/set_gtid_mode_on.inc

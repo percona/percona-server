@@ -201,6 +201,9 @@ eval SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.compressi
 # saving current @default_storage_engine
 SET @saved_default_storage_engine = @@default_storage_engine;
 
+# CREATE TABLE ... SELECT for MyISAM tables doesn't work in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
+
 --echo # check if "CREATE TABLE ... LIKE ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute
 --let $original_table_name  = t1
 --let $original_column_name = a
@@ -328,6 +331,9 @@ eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT id, dummy, CONCAT
 eval DROP TABLE $original_table_name;
 --source ../include/xtradb_compressed_columns_alter_table_post.inc
 --let $storage_engine_changed =
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
 
 # restoring @default_storage_engine
 SET default_storage_engine = @saved_default_storage_engine;

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 CREATE DATABASE compressed_db;
 USE compressed_db;
 SET @dictionary_word = 'abcd';
@@ -162,3 +163,4 @@ DROP DATABASE compressed_db;
 DROP COMPRESSION_DICTIONARY IF EXISTS d1;
 DROP COMPRESSION_DICTIONARY IF EXISTS d2;
 DROP COMPRESSION_DICTIONARY IF EXISTS d3;
+include/rpl/set_gtid_mode_on.inc

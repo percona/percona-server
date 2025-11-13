@@ -1,3 +1,7 @@
+# This test imports several dumps which correspond to the same
+# state of the server which doesn't work as is in GTID mode.
+--source include/rpl/set_gtid_mode_off.inc
+
 --let $current_database= compressed_db
 
 --let $first_dictionary_name= d1
@@ -180,3 +184,6 @@ eval DROP COMPRESSION_DICTIONARY IF EXISTS $third_dictionary_name;
 --remove_file $dump_ccwd_unquoted_file
 --remove_file $dump_ccwd_skipped_create_cd_file
 --force-rmdir $dump_dir
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

@@ -1,3 +1,7 @@
+--disable_query_log
+CALL mtr.add_suppression("Failed to compress the gtid_executed table.");
+--enable_query_log
+
 --echo # Defining compression dictionary content.
 SET @dictionary_data = 'one' 'two' 'three' 'four';
 

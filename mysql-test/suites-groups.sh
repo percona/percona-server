@@ -36,13 +36,13 @@ function set_suites() {
     WORKER_4_MTR_SUITES="group_replication|big,percona_innodb|nobig,binlog|nobig,rpl_nogtid|big,rocksdb_rpl|big,federated,innodb_gis|nobig,collations,test_services,component_js_lang"
     WORKER_5_MTR_SUITES="main|big,innodb_gis|big,rpl_gtid|big,binlog|big,funcs_1,auth_sec|big,binlog_gtid|nobig,opt_trace,secondary_engine,service_status_var_registration"
     WORKER_6_MTR_SUITES="main|nobig,group_replication|nobig,parts|big,innodb_undo|big,innodb_fts|nobig,perfschema|big,engines/iuds,innodb_zip|nobig,rocksdb_sys_vars,component_connection_control,service_udf_registration"
-    WORKER_7_MTR_SUITES="innodb|big,rpl|nobig,engines/funcs,sys_vars,x|nobig,component_keyring_file|nobig,stress,funcs_2,json,interactive_utilities,procfs"
+    WORKER_7_MTR_SUITES="innodb|big,rpl|nobig,engines/funcs,sys_vars,x|nobig,component_keyring_file|nobig,stress,funcs_2,json,interactive_utilities,procfs,router"
     WORKER_8_MTR_SUITES="component_encryption_udf,innodb|nobig,innodb_fts|big,rpl_gtid|nobig,gcol,gis,auth_sec|nobig,binlog_gtid|big,test_service_sql_api,connection_control,percona-pam-for-mysql"
   elif [[ "$1" == "RelWithDebInfo" ]]; then
     # Unit tests, KEYRING_VAULT tests, ps_protocol, ci_fs will be executed by worker 1
     echo "Setting WORKER_x_MTR_SUITES for PS 9.x with BUILD_TYPE=RelWithDebInfo (a custom suite split)"
     WORKER_1_MTR_SUITES="main|nobig,main|big,parts,percona,component_audit_log_filter,engines/iuds,component_connection_control,opt_trace,information_schema"
-    WORKER_2_MTR_SUITES="component_encryption_udf,innodb_zip,gis,json,component_js_lang"
+    WORKER_2_MTR_SUITES="component_encryption_udf,innodb_zip,gis,json,component_js_lang,router"
     WORKER_3_MTR_SUITES="group_replication|big,binlog,test_service_sql_api,component_masking_functions,connection_control,service_sys_var_registration,jdv"
     WORKER_4_MTR_SUITES="rocksdb|big,rpl_gtid,auth_sec,engines/funcs,innodb_undo,interactive_utilities,query_rewrite_plugins,audit_null"
     WORKER_5_MTR_SUITES="rocksdb|nobig,percona_innodb,sys_vars,perfschema,innodb_fts,binlog_gtid,rpl_encryption,service_udf_registration,procfs"
@@ -52,7 +52,7 @@ function set_suites() {
   else # Debug (and everything different from "RelWithDebInfo" and "Valgrind")
     # Unit tests, KEYRING_VAULT tests, ps_protocol, ci_fs will be executed by worker 1
     echo "Setting WORKER_x_MTR_SUITES for PS 9.x with BUILD_TYPE=Debug (a custom suite split)"
-    WORKER_1_MTR_SUITES="rocksdb|nobig,rpl|big,innodb_undo|nobig,percona,sysschema|nobig,x|big,binlog_nogtid|nobig,encryption,service_sys_var_registration,audit_null"
+    WORKER_1_MTR_SUITES="rocksdb|nobig,rpl|big,innodb_undo|nobig,percona,sysschema|nobig,x|big,binlog_nogtid|nobig,encryption,service_sys_var_registration,audit_null,router"
     WORKER_2_MTR_SUITES="clone|big,component_keyring_file|big,perfschema|nobig,rocksdb_rpl|nobig,clone|nobig,innodb_zip|big,rocksdb_stress,binlog_nogtid|big,query_rewrite_plugins,jdv"
     WORKER_3_MTR_SUITES="rocksdb|big,rpl_nogtid|nobig,percona_innodb|big,component_audit_log_filter,sysschema|big,parts|nobig,rpl_encryption,component_masking_functions,jp,information_schema"
     WORKER_4_MTR_SUITES="group_replication|big,percona_innodb|nobig,binlog|nobig,rpl_nogtid|big,rocksdb_rpl|big,federated,innodb_gis|nobig,collations,test_services,component_js_lang"

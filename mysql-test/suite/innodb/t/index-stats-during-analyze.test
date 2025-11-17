@@ -511,3 +511,4 @@ drop table t1;
 call mtr.add_suppression("Detected too long lock waiting around");
 call mtr.add_suppression("debug sync point wait timed out");
 --enable_query_log
+SET DEBUG_SYNC = 'RESET';

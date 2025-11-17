@@ -212,7 +212,7 @@ err:
 const std::string &DataProvider::get_database_instance_id() {
   if (!database_instance_id_cache_.length()) {
     QueryResult result;
-    if (do_query("SELECT @@server_uuid", &result)) {
+    if (do_query("SELECT @@server_uuid", &result) || result.empty()) {
       static std::string empty;
       return empty;
     }
@@ -245,7 +245,8 @@ bool DataProvider::collect_product_version_info(rapidjson::Document *document) {
   // Version doesn't change during the lifetime, so query and cache it
   if (version_cache_.empty()) {
     QueryResult result;
-    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result)) {
+    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result) ||
+        result.empty()) {
       return true;
     }
 
@@ -311,7 +312,7 @@ bool DataProvider::collect_components_info(rapidjson::Document *document) {
 
 bool DataProvider::collect_uptime_info(rapidjson::Document *document) {
   QueryResult result;
-  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result)) {
+  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result) || result.empty()) {
     return true;
   }
 
@@ -327,7 +328,8 @@ bool DataProvider::collect_dbs_number_info(rapidjson::Document *document) {
   if (do_query(
           "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME "
           "NOT IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-          &result)) {
+          &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -347,7 +349,8 @@ bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
   if (do_query("SELECT IFNULL(ROUND(SUM(data_length + index_length), 1), '0') "
                "size_MB FROM information_schema.tables WHERE table_schema NOT "
                "IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-               &result)) {
+               &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -407,7 +410,7 @@ bool DataProvider::collect_group_replication_info(
     return false;
   }
 
-  if (result.size() > 0) {
+  if (!result.empty()) {
     // We've got some rows. Try to collect more details.
     rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
     rapidjson::Document gr_json(rapidjson::Type::kObjectType);
@@ -427,7 +430,8 @@ bool DataProvider::collect_group_replication_info(
     /* replication group size */
     if (!do_query(
             "SELECT COUNT(*) FROM performance_schema.replication_group_members",
-            &result)) {
+            &result) &&
+        !result.empty()) {
       rapidjson::Value group_size;
       group_size.SetString(result[0][0].c_str(), allocator);
       gr_json.AddMember(rapidjson::StringRef(JSONKey::group_size), group_size,
@@ -452,28 +456,30 @@ bool DataProvider::collect_async_replication_info(
   if (do_query("SHOW REPLICAS", &result)) {
     return true;
   }
-  is_source = result.size() > 0;
+  is_source = !result.empty();
 
   // If we are replica
   if (do_query("SHOW REPLICA STATUS", &result)) {
     return true;
   }
-  is_replica = result.size() > 0;
+  is_replica = !result.empty();
 
   // Name of the variable depends on what plugin was installed
   // If we are semisync source
-  if (!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
-                nullptr, true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_source = !result[0][0].compare("1");
     is_semisync_source &= is_source;
   }
   // If we are semisync replica
-  if (!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result, nullptr,
-                true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_replica = !result[0][0].compare("1");
     is_semisync_replica &= is_replica;
   }

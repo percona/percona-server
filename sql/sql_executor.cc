@@ -100,6 +100,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_delete.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"  // Query_block
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_resolver.h"
@@ -738,6 +739,14 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
       // minimum and maximum buffer size range.
       const ha_rows local_max_rows = (MAX_RECORD_BUFFER_SIZE / record_size);
       rows_in_buffer = std::clamp(rows_in_buffer, min_rows, local_max_rows);
+    }
+
+    // Adjust rows_in_buffer based on SELECT ... LIMIT
+    Query_block *q_block = current_thd->lex->current_query_block();
+    if (q_block && q_block->select_limit) {
+      ulonglong select_limit =
+          std::max<ulonglong>(q_block->select_limit->val_uint(), 2);
+      rows_in_buffer = std::min(rows_in_buffer, select_limit);
     }
   }
 

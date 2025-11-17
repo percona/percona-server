@@ -1447,3 +1447,4 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c2`) AS `COUNT(DISTINCT(c2))` from `test`.`t1` where (`test`.`t1`.`pk` in (102,100))
 drop table t1;
+SET DEBUG_SYNC = 'RESET';

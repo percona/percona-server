@@ -163,6 +163,7 @@ override_dh_auto_build:
 	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
 	--exclude=debian . \
 	--transform="s,^\./,percona-server/,"
+	grep -q unistd.h extra/coredumper/src/thread_lister.c || sed -i '1i #include <unistd.h>' extra/coredumper/src/thread_lister.c
 
 ifeq ($(SKIP_DEBUG_BINARY),)
 	#cd $(builddebug) && $(MAKE) -j$(NCPU)

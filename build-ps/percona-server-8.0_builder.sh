@@ -383,13 +383,19 @@ enable_zenfs() {
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
-	GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
-        RHEL=$(rpm --eval %rhel)
-        ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        OS_NAME="el$RHEL"
-        OS="rpm"
+        export GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        export RHEL=$(rpm --eval %rhel)
+        export ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        export OS_NAME="el$RHEL"
+        export OS="rpm"
+    elif [ -f /etc/amazon-linux-release ]; then
+        export GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        export RHEL=$(rpm --eval %amzn)
+        export ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        export OS_NAME="amzn$RHEL"
+        export OS="rpm"
     else
-	GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
+        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
@@ -566,7 +572,7 @@ install_deps() {
         apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         apt-get -y install libatomic1
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -588,10 +594,10 @@ install_deps() {
         else
             apt-get -y install gcc g++
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
@@ -599,10 +605,10 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
-        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]]; then
+        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]] || [[ ${DIST} == 'trixie' ]]; then
             apt-get -y install libgflags-dev
         fi
-        if [ x${DIST} = xnoble ]; then
+        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libtirpc-dev gsasl-common
         fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
@@ -987,7 +993,7 @@ build_deb(){
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7

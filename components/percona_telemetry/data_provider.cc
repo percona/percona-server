@@ -60,6 +60,13 @@ const char *stored_program_call_count = "stored_program_call_count";
 const char *contexts_count = "contexts_count";
 const char *routines_cnt = "routines_cnt";
 const char *js_lang_component_info = "js_lang_component_info";
+const char *se_info = "se_info";
+const char *name = "name";
+const char *size = "size";
+
+// server configuration variables
+const char *server_config_info = "server_config_info";
+const char *thread_handling = "thread_handling";
 }  // namespace JSONKey
 }  // namespace
 
@@ -398,13 +405,19 @@ bool DataProvider::collect_dbs_number_info(rapidjson::Document *document) {
   return false;
 }
 
-/* Note that this metric is update very X, so it may be inacurate.
+/* Note that metrics related to size are updated every 24hrs, so they may be
+   inaccurate.
    We could make it accurate but that would need ANALYZE TABLE for every table
-   which would be overkill.*/
+   which would be overkill. */
+/* Collect the size of all databases. This information is available also via
+   metrics collected in collect_se_info(), but we keep collecting it here
+   as well for backward compatibility. If not needed, we can safely remove this
+   method in the future. */
 bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
+  // total size of databases
   QueryResult result;
   if (do_query("SELECT IFNULL(ROUND(SUM(data_length + index_length), 1), '0') "
-               "size_MB FROM information_schema.tables WHERE table_schema NOT "
+               "bytes FROM information_schema.tables WHERE table_schema NOT "
                "IN('mysql', 'information_schema', 'performance_schema', 'sys')",
                &result) ||
       result.empty()) {
@@ -419,6 +432,10 @@ bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
   return false;
 }
 
+/* Collect the list of SEs in use. This information is available also via
+   metrics collected in collect_se_info(), but we keep collecting it here
+   as well for backward compatibility. If not needed, we can safely remove this
+   method in the future. */
 bool DataProvider::collect_se_usage_info(rapidjson::Document *document) {
   QueryResult result;
   if (do_query("SELECT DISTINCT ENGINE FROM information_schema.tables WHERE "
@@ -438,6 +455,40 @@ bool DataProvider::collect_se_usage_info(rapidjson::Document *document) {
   }
   document->AddMember(rapidjson::StringRef(JSONKey::se_engines_in_use),
                       se_engines, allocator);
+  return false;
+}
+
+/* Collect the SE info (for now only size) */
+bool DataProvider::collect_se_info(rapidjson::Document *document) {
+  QueryResult result;
+  if (do_query("SELECT ENGINE, "
+               "IFNULL(ROUND(SUM(data_length + index_length), 1), '0') bytes "
+               "FROM information_schema.TABLES "
+               "WHERE TABLE_SCHEMA NOT IN ('mysql', 'performance_schema', "
+               "'information_schema', 'sys') "
+               "GROUP BY ENGINE;",
+               &result)) {
+    return true;
+  }
+
+  rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+  rapidjson::Value se_info(rapidjson::Type::kArrayType);
+
+  for (auto &engine_iter : result) {
+    rapidjson::Document engine_obj(rapidjson::Type::kObjectType);
+    rapidjson::Value engine_name;
+    engine_name.SetString(engine_iter[0].c_str(), allocator);
+    engine_obj.AddMember(rapidjson::StringRef(JSONKey::name), engine_name,
+                         allocator);
+    rapidjson::Value engine_size;
+    engine_size.SetString(engine_iter[1].c_str(), allocator);
+    engine_obj.AddMember(rapidjson::StringRef(JSONKey::size), engine_size,
+                         allocator);
+
+    se_info.PushBack(engine_obj, allocator);
+  }
+  document->AddMember(rapidjson::StringRef(JSONKey::se_info), se_info,
+                      allocator);
   return false;
 }
 
@@ -595,6 +646,25 @@ bool DataProvider::collect_db_replication_id(rapidjson::Document *document) {
   return false;
 }
 
+bool DataProvider::collect_server_config(rapidjson::Document *document) {
+  rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+  rapidjson::Document server_config_json(rapidjson::Type::kObjectType);
+
+  /* Collect as much as possible. In case of error, skip and continue. */
+  QueryResult result;
+  if (!do_query("SELECT @@thread_handling", &result) && !result.empty()) {
+    rapidjson::Value thread_handling;
+    thread_handling.SetString(result[0][0].c_str(), allocator);
+    server_config_json.AddMember(rapidjson::StringRef(JSONKey::thread_handling),
+                                 thread_handling, allocator);
+  }
+
+  document->AddMember(rapidjson::StringRef(JSONKey::server_config_info),
+                      server_config_json, allocator);
+
+  return false;
+}
+
 bool DataProvider::collect_metrics(rapidjson::Document *document) {
   /* The configuration of this instance might have changed, so we need to colect
      it every time. */
@@ -618,8 +688,10 @@ bool DataProvider::collect_metrics(rapidjson::Document *document) {
   res |= collect_dbs_number_info(document);
   res |= collect_dbs_size_info(document);
   res |= collect_se_usage_info(document);
+  res |= collect_se_info(document);
   res |= collect_group_replication_info(document);
   res |= collect_async_replication_info(document);
+  res |= collect_server_config(document);
 
   /* The requirement is to have db_replication_id key at the top of JSON
   structure. But it may originate from the different places. The above

@@ -85,8 +85,10 @@ class DataProvider {
   bool collect_dbs_number_info(rapidjson::Document *document);
   bool collect_dbs_size_info(rapidjson::Document *document);
   bool collect_se_usage_info(rapidjson::Document *document);
+  bool collect_se_info(rapidjson::Document *document);
   bool collect_group_replication_info(rapidjson::Document *document);
   bool collect_async_replication_info(rapidjson::Document *document);
+  bool collect_server_config(rapidjson::Document *document);
   bool collect_db_replication_id(rapidjson::Document *document);
   bool collect_metrics(rapidjson::Document *document);
 

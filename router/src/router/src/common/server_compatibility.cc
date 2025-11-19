@@ -34,10 +34,11 @@ void check_version_compatibility(mysqlrouter::MySQLSession *session) {
       "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, "
       "@@version)");
   bool ok = true;
-  // @@version_comment must either start with "MySQL" or contain "Source
-  // distribution"
+  // @@version_comment must either start with "MySQL"/"Percona Server" or
+  // contain "Source distribution"
   if (std::atoi((*row)[0]) < 8 ||
       (strncmp((*row)[1], "MySQL", 5) != 0 &&
+       strncmp((*row)[1], "Percona Server", 14) != 0 &&
        strstr((*row)[1], "Source distribution") == nullptr)) {
     std::cout << "Unsupported MySQL server version: " << (*row)[1] << "\n";
     ok = false;

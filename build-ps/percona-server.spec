@@ -69,7 +69,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}}
 %{!?src_base:                    %global src_base percona-server}
 
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global add_fido_plugins 1
 %else
 %global add_fido_plugins 0
@@ -94,7 +94,7 @@
 %endif
 
 # On rhel 5/6 we still have renamed library to libperconaserverclient
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
   %global shared_lib_pri_name mysqlclient
   %global shared_lib_sec_name perconaserverclient
 %else
@@ -126,7 +126,7 @@
 %global __isa_bits            64
 %endif
 
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global ps_telemetry          /usr/local/percona/telemetry/ps
 %endif
 
@@ -166,6 +166,7 @@ BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
 %{?el8:BuildRequires: perl(Env)}
 %{?el9:BuildRequires: perl(Env)}
+%{?amzn2023:BuildRequires: perl(Env)}
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -211,7 +212,7 @@ BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap-devel
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -224,7 +225,7 @@ BuildRequires:  devtoolset-8-gcc-c++
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
 %global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$

@@ -1,0 +1,46 @@
+#
+# Test that the server fails gracefully if it cannot allocate
+# the buffer pool chunk array.
+#
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Buffer pool 0 : failed to allocate the chunk array.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot allocate memory for the buffer pool");
+call mtr.add_suppression("\\[ERROR\\] Plugin 'InnoDB' init function returned error.");
+call mtr.add_suppression("\\[ERROR\\] Plugin 'InnoDB' registration as a STORAGE ENGINE failed.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Plugin initialization aborted at .*");
+call mtr.add_suppression("\\[ERROR\\] Failed to initialize builtin plugins.");
+call mtr.add_suppression("\\[ERROR\\] Aborting");
+--enable_query_log
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+#
+# Restart the server, server fails gracefully.
+#
+
+--exec echo "restart: --debug=d,buf_pool_chunk_alloc_fail --innodb-buffer-pool-size=256M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+#
+# Assert warning is logged.
+#
+
+# Search the mysqld error log for the expected error message.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: innodb.chunk_alloc_fail
+--let $assert_text= InnoDB: Buffer pool 0 : failed to allocate the chunk array.
+--let $assert_select= $assert_text
+--let $assert_count= 1
+--source include/assert_grep.inc

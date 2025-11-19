@@ -435,8 +435,6 @@ install_deps() {
     CURPLACE=$(pwd)
 
     if [ "x$OS" = "xrpm" ]; then
-        RHEL=$(rpm --eval %rhel)
-        ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
@@ -448,12 +446,16 @@ install_deps() {
                 # percona-release enable tools experimental
             else
                 yum -y install yum-utils
-                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                if [ "x${RHEL}" != "x2023" ]; then
+                    yum-config-manager --enable ol"${RHEL}"_codeready_builder
+		fi
             fi
         else
-            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" -o "x${RHEL}" = "x10" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" -o "x${RHEL}" = "x2023" -o "x${RHEL}" = "x10" ]; then
                 yum -y install yum-utils
-                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                if [ "x${RHEL}" != "x2023" ]; then
+                    yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                fi
             fi
         fi
         yum -y update
@@ -466,9 +468,12 @@ install_deps() {
             switch_to_vault_repo
         fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
-        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
+        if [ "x${RHEL}" != "x2023" ]; then
+            yum -y install libeatmydata
+        fi
         if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do
                 echo "waiting"
@@ -539,10 +544,16 @@ install_deps() {
                 popd
             fi
         else
-            yum -y install MySQL-python
-            yum -y install libtirpc-devel
-            yum -y install gflags-devel
-            yum -y install libatomic
+            if [ "x$RHEL" != "x2023" ]; then
+                yum -y install MySQL-python
+                yum -y install libtirpc-devel
+                yum -y install gflags-devel
+                yum -y install libatomic
+	    else
+		yum -y install libtirpc-devel libatomic annobin-annocheck annobin-plugin-gcc
+		yum -y install pip mariadb105-devel python3-devel
+		pip install mysqlclient
+	    fi
         fi
     else
         until apt-get update; do
@@ -817,8 +828,6 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     cp $SRC_RPM rpmbuild/SRPMS/
 
-    RHEL=$(rpm --eval %rhel)
-    ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     #
     echo "RHEL=${RHEL}" >> percona-server-8.0.properties
     echo "ARCH=${ARCH}" >> percona-server-8.0.properties
@@ -850,22 +859,22 @@ build_rpm(){
     fi
     if [ ${ARCH} = x86_64 ]; then
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
             if [[ ${RHEL} = 8 ]]; then
                 rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     else
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
             if [[ ${RHEL} = 8 ]]; then
                 rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     fi

@@ -55,6 +55,13 @@ const char *is_source = "is_source";
 const char *is_semisync_replica = "is_semisync_replica";
 const char *is_replica = "is_replica";
 const char *replication_info = "replication_info";
+const char *se_info = "se_info";
+const char *name = "name";
+const char *size = "size";
+
+// server configuration variables
+const char *server_config_info = "server_config_info";
+const char *thread_handling = "thread_handling";
 }  // namespace JSONKey
 }  // namespace
 
@@ -212,7 +219,7 @@ err:
 const std::string &DataProvider::get_database_instance_id() {
   if (!database_instance_id_cache_.length()) {
     QueryResult result;
-    if (do_query("SELECT @@server_uuid", &result)) {
+    if (do_query("SELECT @@server_uuid", &result) || result.empty()) {
       static std::string empty;
       return empty;
     }
@@ -245,7 +252,8 @@ bool DataProvider::collect_product_version_info(rapidjson::Document *document) {
   // Version doesn't change during the lifetime, so query and cache it
   if (version_cache_.empty()) {
     QueryResult result;
-    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result)) {
+    if (do_query("SELECT @@VERSION, @@VERSION_COMMENT", &result) ||
+        result.empty()) {
       return true;
     }
 
@@ -311,7 +319,7 @@ bool DataProvider::collect_components_info(rapidjson::Document *document) {
 
 bool DataProvider::collect_uptime_info(rapidjson::Document *document) {
   QueryResult result;
-  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result)) {
+  if (do_query("SHOW GLOBAL STATUS LIKE 'Uptime'", &result) || result.empty()) {
     return true;
   }
 
@@ -327,7 +335,8 @@ bool DataProvider::collect_dbs_number_info(rapidjson::Document *document) {
   if (do_query(
           "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME "
           "NOT IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-          &result)) {
+          &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -339,15 +348,22 @@ bool DataProvider::collect_dbs_number_info(rapidjson::Document *document) {
   return false;
 }
 
-/* Note that this metric is update very X, so it may be inacurate.
+/* Note that metrics related to size are updated every 24hrs, so they may be
+   inaccurate.
    We could make it accurate but that would need ANALYZE TABLE for every table
-   which would be overkill.*/
+   which would be overkill. */
+/* Collect the size of all databases. This information is available also via
+   metrics collected in collect_se_info(), but we keep collecting it here
+   as well for backward compatibility. If not needed, we can safely remove this
+   method in the future. */
 bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
+  // total size of databases
   QueryResult result;
   if (do_query("SELECT IFNULL(ROUND(SUM(data_length + index_length), 1), '0') "
-               "size_MB FROM information_schema.tables WHERE table_schema NOT "
+               "bytes FROM information_schema.tables WHERE table_schema NOT "
                "IN('mysql', 'information_schema', 'performance_schema', 'sys')",
-               &result)) {
+               &result) ||
+      result.empty()) {
     return true;
   }
 
@@ -359,6 +375,10 @@ bool DataProvider::collect_dbs_size_info(rapidjson::Document *document) {
   return false;
 }
 
+/* Collect the list of SEs in use. This information is available also via
+   metrics collected in collect_se_info(), but we keep collecting it here
+   as well for backward compatibility. If not needed, we can safely remove this
+   method in the future. */
 bool DataProvider::collect_se_usage_info(rapidjson::Document *document) {
   QueryResult result;
   if (do_query("SELECT DISTINCT ENGINE FROM information_schema.tables WHERE "
@@ -378,6 +398,40 @@ bool DataProvider::collect_se_usage_info(rapidjson::Document *document) {
   }
   document->AddMember(rapidjson::StringRef(JSONKey::se_engines_in_use),
                       se_engines, allocator);
+  return false;
+}
+
+/* Collect the SE info (for now only size) */
+bool DataProvider::collect_se_info(rapidjson::Document *document) {
+  QueryResult result;
+  if (do_query("SELECT ENGINE, "
+               "IFNULL(ROUND(SUM(data_length + index_length), 1), '0') bytes "
+               "FROM information_schema.TABLES "
+               "WHERE TABLE_SCHEMA NOT IN ('mysql', 'performance_schema', "
+               "'information_schema', 'sys') "
+               "GROUP BY ENGINE;",
+               &result)) {
+    return true;
+  }
+
+  rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+  rapidjson::Value se_info(rapidjson::Type::kArrayType);
+
+  for (auto &engine_iter : result) {
+    rapidjson::Document engine_obj(rapidjson::Type::kObjectType);
+    rapidjson::Value engine_name;
+    engine_name.SetString(engine_iter[0].c_str(), allocator);
+    engine_obj.AddMember(rapidjson::StringRef(JSONKey::name), engine_name,
+                         allocator);
+    rapidjson::Value engine_size;
+    engine_size.SetString(engine_iter[1].c_str(), allocator);
+    engine_obj.AddMember(rapidjson::StringRef(JSONKey::size), engine_size,
+                         allocator);
+
+    se_info.PushBack(engine_obj, allocator);
+  }
+  document->AddMember(rapidjson::StringRef(JSONKey::se_info), se_info,
+                      allocator);
   return false;
 }
 
@@ -407,7 +461,7 @@ bool DataProvider::collect_group_replication_info(
     return false;
   }
 
-  if (result.size() > 0) {
+  if (!result.empty()) {
     // We've got some rows. Try to collect more details.
     rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
     rapidjson::Document gr_json(rapidjson::Type::kObjectType);
@@ -427,7 +481,8 @@ bool DataProvider::collect_group_replication_info(
     /* replication group size */
     if (!do_query(
             "SELECT COUNT(*) FROM performance_schema.replication_group_members",
-            &result)) {
+            &result) &&
+        !result.empty()) {
       rapidjson::Value group_size;
       group_size.SetString(result[0][0].c_str(), allocator);
       gr_json.AddMember(rapidjson::StringRef(JSONKey::group_size), group_size,
@@ -452,28 +507,30 @@ bool DataProvider::collect_async_replication_info(
   if (do_query("SHOW REPLICAS", &result)) {
     return true;
   }
-  is_source = result.size() > 0;
+  is_source = !result.empty();
 
   // If we are replica
   if (do_query("SHOW REPLICA STATUS", &result)) {
     return true;
   }
-  is_replica = result.size() > 0;
+  is_replica = !result.empty();
 
   // Name of the variable depends on what plugin was installed
   // If we are semisync source
-  if (!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
-                nullptr, true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_source_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_master_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_source = !result[0][0].compare("1");
     is_semisync_source &= is_source;
   }
   // If we are semisync replica
-  if (!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
-                nullptr, true) ||
-      !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result, nullptr,
-                true)) {
+  if ((!do_query("SELECT @@global.rpl_semi_sync_replica_enabled", &result,
+                 nullptr, true) ||
+       !do_query("SELECT @@global.rpl_semi_sync_slave_enabled", &result,
+                 nullptr, true)) &&
+      !result.empty()) {
     is_semisync_replica = !result[0][0].compare("1");
     is_semisync_replica &= is_replica;
   }
@@ -532,6 +589,25 @@ bool DataProvider::collect_db_replication_id(rapidjson::Document *document) {
   return false;
 }
 
+bool DataProvider::collect_server_config(rapidjson::Document *document) {
+  rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+  rapidjson::Document server_config_json(rapidjson::Type::kObjectType);
+
+  /* Collect as much as possible. In case of error, skip and continue. */
+  QueryResult result;
+  if (!do_query("SELECT @@thread_handling", &result) && !result.empty()) {
+    rapidjson::Value thread_handling;
+    thread_handling.SetString(result[0][0].c_str(), allocator);
+    server_config_json.AddMember(rapidjson::StringRef(JSONKey::thread_handling),
+                                 thread_handling, allocator);
+  }
+
+  document->AddMember(rapidjson::StringRef(JSONKey::server_config_info),
+                      server_config_json, allocator);
+
+  return false;
+}
+
 bool DataProvider::collect_metrics(rapidjson::Document *document) {
   /* The configuration of this instance might have changed, so we need to colect
      it every time. */
@@ -554,8 +630,10 @@ bool DataProvider::collect_metrics(rapidjson::Document *document) {
   res |= collect_dbs_number_info(document);
   res |= collect_dbs_size_info(document);
   res |= collect_se_usage_info(document);
+  res |= collect_se_info(document);
   res |= collect_group_replication_info(document);
   res |= collect_async_replication_info(document);
+  res |= collect_server_config(document);
 
   /* The requirement is to have db_replication_id key at the top of JSON
   structure. But it may originate from the different places. The above

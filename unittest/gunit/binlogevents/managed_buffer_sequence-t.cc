@@ -74,28 +74,26 @@ using Difference_t = mysqlns::buffer::Rw_buffer_sequence<>::Difference_t;
 
 // Return the current file and line as a string delimited and ended by
 // colons.
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define FILELINE() concat(__FILE__, ":", __LINE__, ": ")
+#define FILELINE() concat(__FILE__,":", __LINE__, ": ")
 
 // Helper macros to make assertions output the debug info we need, and
 // make the program stop with assertion.
 [[maybe_unused]] static int n_assertions = 0;
 static bool _shall_stop_after_assertion = false;
-// NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#define ASSERTION_TAIL                                                   \
-  << debug_output(fileline) << (_shall_stop_after_assertion = true, ""), \
-      assert(!_shall_stop_after_assertion)
-#define AEQ(v1, v2)                   \
-  do {                                \
-    ASSERT_EQ(v1, v2) ASSERTION_TAIL; \
-    ++n_assertions;                   \
-  } while (0)
-#define ANE(v1, v2)                   \
-  do {                                \
-    ASSERT_NE(v1, v2) ASSERTION_TAIL; \
-    ++n_assertions;                   \
-  } while (0)
-// NOLINTEND(cppcoreguidelines-macro-usage)
+#define ASSERTION_TAIL                                                    \
+  << debug_output(fileline) << (_shall_stop_after_assertion = true,""), \
+      assert(!_shall_stop_after_assertion )
+#define AEQ(v1,v2)                   \
+  do {                                 \
+    ASSERT_EQ(v1,v2) ASSERTION_TAIL; \
+    ++n_assertions;                    \
+  } while(0)
+#define ANE(v1,v2)                   \
+  do {                                 \
+    ASSERT_NE(v1,v2) ASSERTION_TAIL; \
+    ++n_assertions;                    \
+  } while(0)
+
 
 // Requirements:
 //

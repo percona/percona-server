@@ -69,6 +69,20 @@ struct mysql_event_tracking_general_data {
   mysql_cstring_with_length host;
   /** Connection IP */
   mysql_cstring_with_length ip;
+
+  /** FIELDS ADDED BY PERCONA */
+  /** External user name. */
+  mysql_cstring_with_length external_user;
+  /** Proxy user used for the connection */
+  mysql_cstring_with_length proxy_user;
+  /** Command text - ASCII */
+  mysql_cstring_with_length command;
+  /** SQL command string */
+  mysql_cstring_with_length sql_command;
+  /** SQL query. */
+  mysql_cstring_with_length query;
+  /** SQL query charset. */
+  const char *query_charset;
 };
 
 #endif  // !COMPONENT_SERVICES_DEFS_EVENT_TRACKING_GENERAL_DEFS_H

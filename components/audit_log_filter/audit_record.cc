@@ -530,11 +530,24 @@ AuditRecordFieldsList get_audit_record_fields(
   const auto *event = record.event;
   return {
       {"general_error_code", std::to_string(event->error_code)},
+      // alias for general_connection_id
+      {"general_thread_id", std::to_string(event->connection_id)},
       {"general_connection_id", std::to_string(event->connection_id)},
       {"general_user.str", mysql_cstring_to_string(&event->user)},
       {"general_user.length", mysql_cstring_len_to_string(&event->user)},
+      {"general_command.str", mysql_cstring_to_string(&event->command)},
+      {"general_command.length", mysql_cstring_len_to_string(&event->command)},
+      {"general_query.str", mysql_cstring_to_string(&event->query)},
+      {"general_query.length", mysql_cstring_len_to_string(&event->query)},
       {"general_host.str", mysql_cstring_to_string(&event->host)},
       {"general_host.length", mysql_cstring_len_to_string(&event->host)},
+      {"general_sql_command.str", mysql_cstring_to_string(&event->sql_command)},
+      {"general_sql_command.length",
+       mysql_cstring_len_to_string(&event->sql_command)},
+      {"general_external_user.str",
+       mysql_cstring_to_string(&event->external_user)},
+      {"general_external_user.length",
+       mysql_cstring_len_to_string(&event->external_user)},
       {"general_ip.str", mysql_cstring_to_string(&event->ip)},
       {"general_ip.length", mysql_cstring_len_to_string(&event->ip)},
   };
@@ -570,6 +583,9 @@ AuditRecordFieldsList get_audit_record_fields(
   const auto *event = record.event;
   return {
       {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(event->sql_command_id)},
+      {"query.str", mysql_cstring_to_string(&event->query)},
+      {"query.length", mysql_cstring_len_to_string(&event->query)},
       {"table_database.str", mysql_cstring_to_string(&event->table_database)},
       {"table_database.length",
        mysql_cstring_len_to_string(&event->table_database)},

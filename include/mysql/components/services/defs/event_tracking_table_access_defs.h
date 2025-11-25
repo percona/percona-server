@@ -24,6 +24,7 @@
 #ifndef COMPONENTS_SERVICES_DEFS_EVENT_TRACKING_TABLE_ACCESS_DEFS_H
 #define COMPONENTS_SERVICES_DEFS_EVENT_TRACKING_TABLE_ACCESS_DEFS_H
 
+#include "include/my_sqlcommand.h"
 #include "mysql/components/services/defs/event_tracking_common_defs.h"
 
 /**
@@ -71,6 +72,24 @@ struct mysql_event_tracking_table_access_data {
     Please use @ref s_mysql_mysql_charset to obtain charset
   */
   mysql_cstring_with_length table_name;
+
+  /** FIELDS ADDED BY PERCONA */
+  /** SQL command enum */
+  enum_sql_command sql_command_id;
+  /** SQL query. */
+  mysql_cstring_with_length query;
+  /** SQL query charset. */
+  const char *query_charset;
+  /** User name of this connection */
+  mysql_cstring_with_length user;
+  /** External user name. */
+  mysql_cstring_with_length external_user;
+  /** Proxy user used for the connection */
+  mysql_cstring_with_length proxy_user;
+  /** Connection host */
+  mysql_cstring_with_length host;
+  /** Connection IP */
+  mysql_cstring_with_length ip;
 };
 
 #endif  // !COMPONENTS_SERVICES_DEFS_EVENT_TRACKING_TABLE_ACCESS_DEFS_H

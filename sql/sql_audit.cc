@@ -979,11 +979,20 @@ int mysql_event_tracking_general_notify(
 
   auto ip = sctx->ip();
   auto host = sctx->host();
+  auto external_user = sctx->external_user();
+  auto proxy_user = sctx->proxy_user();
+  auto sql_command = std::string(get_sql_command_string(thd->lex->sql_command));
+  if (sql_command == "<unknown>") sql_command.clear();
 
   event.user.str = user_buff;
   event.user.length = make_user_name(sctx, user_buff);
+  event.external_user = {external_user.str, external_user.length};
+  event.proxy_user = {proxy_user.str, proxy_user.length};
   event.ip = {ip.str, ip.length};
   event.host = {host.str, host.length};
+  event.sql_command = {sql_command.c_str(), sql_command.length()};
+  event.command = {msg, msg_len};
+  event.query_charset = thd_get_audit_query(thd, &event.query);
 
   Event_tracking_general_information general_information(
       subclass,
@@ -1281,12 +1290,27 @@ static int mysql_event_tracking_table_access_notify(
     return 0;
 
   mysql_event_tracking_table_access_data event;
+  char user_buff[MAX_USER_HOST_SIZE];
 
   event.event_subclass = subclass;
   event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
 
+  Security_context *sctx = thd->security_context();
+  auto ip = sctx->ip();
+  auto host = sctx->host();
+  auto external_user = sctx->external_user();
+  auto proxy_user = sctx->proxy_user();
+
+  event.user.str = user_buff;
+  event.user.length = make_user_name(sctx, user_buff);
+  event.external_user = {external_user.str, external_user.length};
+  event.proxy_user = {proxy_user.str, proxy_user.length};
+  event.ip = {ip.str, ip.length};
+  event.host = {host.str, host.length};
   event.table_database = {table->db, table->db_length};
   event.table_name = {table->table_name, table->table_name_length};
+  event.query_charset = thd_get_audit_query(thd, &event.query);
+  event.sql_command_id = thd->lex->sql_command;
 
   struct st_mysql_event_generic event_generic;
   event_generic.event = &event;

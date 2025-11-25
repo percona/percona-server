@@ -48,7 +48,10 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
          << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
          << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
+         << "    <OS_LOGIN>" << make_escaped_string(&audit_record.event->external_user) << "</OS_LOGIN>\n"
          << "    <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
+         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(&audit_record.event->query)
+                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -95,6 +98,8 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
          << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
+         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(&audit_record.event->query)
+                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "    <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
          << "    <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
          << "  </AUDIT_RECORD>\n";

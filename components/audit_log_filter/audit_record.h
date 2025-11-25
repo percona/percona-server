@@ -45,6 +45,13 @@ constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
 struct ExtendedInfo {
   std::string digest;
+  std::string user;
+  std::string host;
+  std::string ip;
+  std::string proxy_user;
+  std::string command;
+  std::string sql_command;
+  std::string query;
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };
 

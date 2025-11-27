@@ -73,8 +73,7 @@ using Difference_t = mysql::binlog::event::compression::buffer::
 
 // Return the current file and line as a string delimited and ended by
 // colons.
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define FILELINE() concat(__FILE__, ":", __LINE__, ": ")
+#define FILELINE() concat(__FILE__,":", __LINE__, ": ")
 
 // Helper macros to make assertions output the debug info we need, and
 // make the program stop with assertion.
@@ -251,10 +250,8 @@ class Grow_tester {
                  Size_t extra_container_capacity, Size_t position,
                  Size_t capacity, Size_t max_capacity,
                  Size_t requested_capacity, Size_t requested_position) {
-    // NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#define CHECK_SIZES(POSITION, CAPACITY) \
-  check_sizes(FILELINE(), debug_output, mbs, buffer_size, POSITION, CAPACITY)
-    // NOLINTEND(cppcoreguidelines-macro-usage)
+#define CHECK_SIZES(POSITION,CAPACITY) \
+  check_sizes(FILELINE(), debug_output, mbs, buffer_size, POSITION,CAPACITY)
 
     // This does the following:
     //

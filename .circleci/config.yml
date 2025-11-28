@@ -16,6 +16,8 @@ jobs:
           command: |
             set -o xtrace
             UBUNTU_CODE_NAME="noble"
+            BASE_OWNER="percona"
+            BASE_REPO="percona-server"
             BASE_BRANCH="trunk"
             COMPILER_VERSION="19"
 
@@ -26,7 +28,63 @@ jobs:
             cd ~/project
             cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
 
-            git remote add target "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            # Method to fetch JSON from a Github API URL with error handling
+            fetch_json() {
+              local url="$1" tmp http_code curl_exit body
+              tmp=$(mktemp) || return 1
+              # write body to tmp, capture HTTP code on stdout
+              http_code=$(curl -sS --location --connect-timeout 10 --max-time 30 -w "%{http_code}" -o "$tmp" "$url" 2>/dev/null) || true
+              curl_exit=$?
+              body="$(cat "$tmp")"
+              rm -f "$tmp"
+
+              if [ $curl_exit -ne 0 ]; then
+                echo "curl exit $curl_exit for $url" >&2
+                return 2
+              fi
+              if [ -z "$http_code" ] || [ "$http_code" -ge 400 ]; then
+                echo "HTTP $http_code from $url" >&2
+                return 3
+              fi
+              if [ -z "${body:-}" ]; then
+                echo "empty response from $url" >&2
+                return 4
+              fi
+              if ! printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
+                echo "response from $url is not valid JSON" >&2
+                return 5
+              fi
+
+              printf '%s' "$body"
+            }
+
+            PR_DATA=""
+            if [[ "$CIRCLE_BRANCH" =~ ^pull/[0-9]+$ ]]; then
+              # If the circleCI check is run in the context of the official percona repo.
+              PR_API_URL="https://api.github.com/repos/${BASE_OWNER}/${BASE_REPO}/pulls/${CIRCLE_PR_NUMBER}"
+              PR_DATA="$(fetch_json "$PR_API_URL")" || PR_DATA=""
+            else
+              # GitHub API URL to get open PRs matching this fork + branch
+              API_URL="https://api.github.com/repos/${BASE_OWNER}/${BASE_REPO}/pulls?head=${CIRCLE_PROJECT_USERNAME}:${CIRCLE_BRANCH}"
+              echo "Fetching PRs from: $API_URL" >&2
+
+              # Fetch PRs
+              PRS_JSON="$(fetch_json "$API_URL")" || PRS_JSON="[]"
+
+              # Filter PR whose head.sha matches CIRCLE_SHA1
+              PR_DATA="$(printf '%s' "$PRS_JSON" | jq --arg sha "$CIRCLE_SHA1" '.[] | select(.head.sha == $sha)')"
+            fi
+
+            if [[ -z "$PR_DATA" ]]; then
+              echo "Failed to find PR data for commit $CIRCLE_SHA1. $BASE_BRANCH will be used as the base branch."
+            else
+              BASE_BRANCH=$(echo "$PR_DATA" | jq -r '.base.ref')
+              PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number')
+              echo "Found PR: $PR_NUMBER with base branch: $BASE_BRANCH"
+            fi
+
+            echo "$BASE_BRANCH"
+            git remote add target "https://github.com/${BASE_OWNER}/${BASE_REPO}"
             git fetch --no-tags --no-recurse-submodules target $BASE_BRANCH
 
             echo "Checking clang-format results"

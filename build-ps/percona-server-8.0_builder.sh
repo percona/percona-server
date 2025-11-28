@@ -813,9 +813,9 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then

@@ -510,18 +510,12 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
-  if (std::holds_alternative<AuditRecordGeneral>(audit_record)) {
-    auto rec = std::get_if<AuditRecordGeneral>(&audit_record);
-    if (rec != nullptr) {
-      set_extended_info(thd, sctx, const_cast<AuditRecordGeneral &>(*rec));
-    }
+  if (auto rec = std::get_if<AuditRecordGeneral>(&audit_record)) {
+      set_extended_info(thd, sctx, *rec);
   }
 
-  if (std::holds_alternative<AuditRecordTableAccess>(audit_record)) {
-    auto rec = std::get_if<AuditRecordTableAccess>(&audit_record);
-    if (rec != nullptr) {
-      set_extended_info(thd, sctx, const_cast<AuditRecordTableAccess &>(*rec));
-    }
+  if (auto rec = std::get_if<AuditRecordTableAccess>(&audit_record)) {
+    set_extended_info(thd, sctx, *rec);
   }
 
   // Apply filtering rule
@@ -722,7 +716,7 @@ bool AuditLogFilter::get_security_context(
 }
 
 bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
-                                                 std::string name,
+                                                 const std::string &name,
                                                  std::string &value) noexcept {
   MYSQL_LEX_CSTRING val{"", 0};
 
@@ -751,9 +745,14 @@ std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {
 
   // According to mysql_thd_attributes_imp::get, "sql_text" is a String*.
   String *s = reinterpret_cast<String *>(hstr);
-  if (!s || !s->ptr()) return "";
+  if (!s || !s->ptr()) {
+      delete s;
+      return "";
+  }
 
-  return std::string(s->ptr(), s->length());
+  std::string result(s->ptr(), s->length());
+  delete s;  // free the allocated String
+  return result;
 }
 
 bool AuditLogFilter::set_extended_info(MYSQL_THD thd,

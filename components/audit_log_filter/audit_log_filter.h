@@ -152,7 +152,7 @@ class AuditLogFilter {
    * @return true on success, false if the option cannot be retrieved.
    */
   bool get_security_context_option(Security_context_handle &ctx,
-                                   std::string name,
+                                   const std::string &name,
                                    std::string &value) noexcept;
 
   /**

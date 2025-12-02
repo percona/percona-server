@@ -1,0 +1,66 @@
+--echo #
+--echo # PS-10347: AuditJsonHandler used by audit_log_read UDF returns malformed JSON
+--echo # https://perconadev.atlassian.net/browse/PS-10347
+--echo #
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
+SET @start_bookmark := audit_log_read_bookmark();
+
+--echo Turn on audit log
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+INSERT INTO t1 VALUES (1);
+
+--echo Turn off audit log
+SELECT audit_log_filter_remove_filter('log_all');
+
+--echo Rotate to close a log file and get access to it
+--let $audit_filter_rotate_name=`SELECT audit_log_rotate()`
+
+--echo Print audit log filter output
+--replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
+--cat_file $audit_filter_log_path/$audit_filter_rotate_name
+
+--echo Validate audit log filter output
+--let $audit_filter_log_check_one = $audit_filter_rotate_name
+--let $audit_filter_log_format = json
+--source validate_logs_format.inc
+
+--echo Export output of audit_log_read('\$start_bookmark_esc') to a file
+SET @start_bookmark_esc := REPLACE(@start_bookmark, '"', '\\"');
+--let $start_bookmark_esc=`SELECT @start_bookmark_esc`
+--let $out_file=audit_read.out
+--exec $MYSQL --skip-column-names --raw -e "SELECT audit_log_read('$start_bookmark_esc');" > $audit_filter_log_path/$out_file
+# --cat_file $audit_filter_log_path/$out_file
+
+--echo Validate output of audit_log_read('\$start_bookmark_esc')
+--let $audit_filter_log_check_one = $out_file
+--let $audit_filter_log_format = json
+--source validate_logs_format.inc
+--remove_file $audit_filter_log_path/$out_file
+
+--echo Start processing audit log from the beginning. Get 5 events from "audit_log_read"
+--replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
+SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5));
+
+--echo Get 8 events from "INSERT INTO t1 VALUES (1)"
+--echo TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
+--replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
+SELECT audit_log_read('{"max_array_length": 8}');
+
+--echo Get remaining events
+--replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
+SELECT audit_log_read('null');
+
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP TABLE t1;

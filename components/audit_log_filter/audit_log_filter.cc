@@ -511,7 +511,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   }
 
   if (auto rec = std::get_if<AuditRecordGeneral>(&audit_record)) {
-      set_extended_info(thd, sctx, *rec);
+    set_extended_info(thd, sctx, *rec);
   }
 
   if (auto rec = std::get_if<AuditRecordTableAccess>(&audit_record)) {
@@ -746,8 +746,8 @@ std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {
   // According to mysql_thd_attributes_imp::get, "sql_text" is a String*.
   String *s = reinterpret_cast<String *>(hstr);
   if (!s || !s->ptr()) {
-      delete s;
-      return "";
+    delete s;
+    return "";
   }
 
   std::string result(s->ptr(), s->length());
@@ -760,6 +760,13 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
                                        AuditRecordGeneral &record) {
   if (!thd) return false;
 
+  /** The mysql_event_tracking_general_data struct includes error_code,
+      connection_id, user, host, and ip.
+    Note that the user field is formatted as "root[root] @ localhost
+    [127.0.0.1]", which is inconsistent with other event types. Therefore, we
+    rely on user, host, and ip provided by the services. For
+    AuditRecordGeneral we need to retrieve query, sql_command, command, user,
+    host, ip, and proxy_user from the corresponding services. */
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);
@@ -791,6 +798,10 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
                                        AuditRecordTableAccess &record) {
   if (!thd) return false;
 
+  /** The mysql_event_tracking_table_access_data struct contains only
+    connection_id, table_database, and table_name. To obtain the other fields
+    for AuditRecordTableAccess — query, sql_command, user, host, ip, and
+    proxy_user — we need to retrieve them from the corresponding services. */
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);

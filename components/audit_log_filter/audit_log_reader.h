@@ -46,7 +46,7 @@ struct AuditLogReaderContext {
   std::unique_ptr<json_reader::AuditJsonHandler> audit_json_handler;
   std::unique_ptr<json_reader::AuditJsonReadStream> audit_json_read_stream;
   std::deque<FileInfo *> files_to_read;
-  FileInfo *current_file;
+  FileInfo *current_file{nullptr};
   bool is_session_end{false};
   bool is_batch_end{false};
 };

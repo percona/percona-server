@@ -90,6 +90,7 @@ class AuditJsonHandler
   ulong m_used_buff_size;
   ulong m_printed_events_count;
   bool m_reading_start_reached;
+  bool m_is_first_field;
 
   LogBookmark m_current_event_bookmark;
 };

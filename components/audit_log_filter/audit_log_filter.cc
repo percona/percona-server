@@ -64,6 +64,8 @@ REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -736,22 +738,25 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
 }
 
 std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {
-  if (!thd) return "";
+  if (!thd) return std::string();
 
   my_h_string hstr = nullptr;
   int rc = mysql_service_mysql_thd_attributes->get(thd, "sql_text", &hstr);
 
-  if (rc != 0 || hstr == nullptr) return "";
+  if (rc != 0 || hstr == nullptr) return std::string();
 
-  // According to mysql_thd_attributes_imp::get, "sql_text" is a String*.
-  String *s = reinterpret_cast<String *>(hstr);
-  if (!s || !s->ptr()) {
-    delete s;
-    return "";
+  const char *raw_buffer = nullptr;
+  size_t raw_length = 0;
+  CHARSET_INFO_h raw_charset = nullptr;
+
+  if (mysql_service_mysql_string_get_data_in_charset->get_data(
+          hstr, &raw_buffer, &raw_length, &raw_charset)) {
+    mysql_service_mysql_string_factory->destroy(hstr);
+    return std::string();
   }
 
-  std::string result(s->ptr(), s->length());
-  delete s;  // free the allocated String
+  std::string result(raw_buffer, raw_length);
+  mysql_service_mysql_string_factory->destroy(hstr);
   return result;
 }
 
@@ -889,7 +894,9 @@ BEGIN_COMPONENT_REQUIRES(component_audit_log_filter)
 REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(mysql_thd_attributes),
-    REQUIRES_SERVICE(mysql_current_thread_reader), REQUIRES_PSI_MEMORY_SERVICE,
+    REQUIRES_SERVICE(mysql_current_thread_reader),
+    REQUIRES_SERVICE(mysql_string_get_data_in_charset),
+    REQUIRES_SERVICE(mysql_string_factory), REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(component_audit_log_filter)

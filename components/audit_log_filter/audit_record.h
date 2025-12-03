@@ -17,6 +17,7 @@
 #define AUDIT_LOG_FILTER_RECORD_H_INCLUDED
 
 #include "components/audit_log_filter/audit_event_class_internal.h"
+#include "my_sqlcommand.h"  // enum_sql_command
 
 #include <map>
 #include <string>
@@ -51,6 +52,7 @@ struct ExtendedInfo {
   std::string proxy_user;
   std::string command;
   std::string sql_command;
+  enum_sql_command sql_command_id;
   std::string query;
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };

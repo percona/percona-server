@@ -583,7 +583,7 @@ AuditRecordFieldsList get_audit_record_fields(
 
   return {
       {"connection_id", std::to_string(event->connection_id)},
-      {"sql_command_id", extra.sql_command},
+      {"sql_command_id", std::to_string(extra.sql_command_id)},
       {"query.str", extra.query},
       {"query.length", std::to_string(extra.query.length())},
       {"table_database.str", mysql_cstring_to_string(&event->table_database)},

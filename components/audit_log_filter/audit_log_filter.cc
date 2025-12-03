@@ -777,7 +777,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
     extra.sql_command = {sql_command.str, sql_command.length};
   }
 
-  // only for AuditRecordGeneral
+  // required only for AuditRecordGeneral
   mysql_cstring_with_length command;
   if (!mysql_service_mysql_thd_attributes->get(thd, "command", &command)) {
     extra.command = {command.str, command.length};
@@ -810,6 +810,13 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command",
                                                &sql_command)) {
     extra.sql_command = {sql_command.str, sql_command.length};
+  }
+
+  // required only for AuditRecordTableAccess
+  uint32_t sql_command_id = 0;
+  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command_id",
+                                               &sql_command_id)) {
+    extra.sql_command_id = static_cast<enum_sql_command>(sql_command_id);
   }
 
   if (!sctx) return false;

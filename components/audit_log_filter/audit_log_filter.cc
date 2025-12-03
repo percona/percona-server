@@ -719,7 +719,7 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
                                                  const std::string &name,
                                                  std::string &value) noexcept {
   MYSQL_LEX_CSTRING val{"", 0};
-
+  // calls mysql_security_context_imp::get
   if (m_security_context_opts_srv->get(ctx, name.c_str(), &val) != 0) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Can not get %s from security context", name.c_str());
@@ -766,7 +766,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
     [127.0.0.1]", which is inconsistent with other event types. Therefore, we
     rely on user, host, and ip provided by the services. For
     AuditRecordGeneral we need to retrieve query, sql_command, command, user,
-    host, ip, and proxy_user from the corresponding services. */
+    host, ip, external_user, and proxy_user from the corresponding services. */
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);
@@ -788,6 +788,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   get_security_context_option(sctx, "user", extra.user);
   get_security_context_option(sctx, "host", extra.host);
   get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
   get_security_context_option(sctx, "proxy_user", extra.proxy_user);
 
   return true;
@@ -800,8 +801,9 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
 
   /** The mysql_event_tracking_table_access_data struct contains only
     connection_id, table_database, and table_name. To obtain the other fields
-    for AuditRecordTableAccess — query, sql_command, user, host, ip, and
-    proxy_user — we need to retrieve them from the corresponding services. */
+    for AuditRecordTableAccess — query, sql_command, user, host, ip,
+    external_user, and proxy_user — we need to retrieve them from the
+    corresponding services. */
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);
@@ -824,6 +826,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   get_security_context_option(sctx, "user", extra.user);
   get_security_context_option(sctx, "host", extra.host);
   get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
   get_security_context_option(sctx, "proxy_user", extra.proxy_user);
 
   return true;

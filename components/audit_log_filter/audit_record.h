@@ -49,6 +49,7 @@ struct ExtendedInfo {
   std::string user;
   std::string host;
   std::string ip;
+  std::string external_user;
   std::string proxy_user;
   std::string command;
   std::string sql_command;

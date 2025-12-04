@@ -139,6 +139,54 @@ class AuditLogFilter {
                            std::string &user_host) noexcept;
 
   /**
+   * @brief Retrieves a named option from a security context.
+   *
+   * This function queries the security context for a specific option (e.g.,
+   * "user", "host", "ip") and returns its value as a std::string. If the option
+   * is missing or cannot be retrieved, the function returns false.
+   *
+   * @param ctx   Security context handle from which to read the option.
+   * @param name  Name of the option to retrieve (e.g., "user", "host").
+   * @param value Output string that receives the option value on success.
+   *
+   * @return true on success, false if the option cannot be retrieved.
+   */
+  bool get_security_context_option(Security_context_handle &ctx,
+                                   const std::string &name,
+                                   std::string &value) noexcept;
+
+  /**
+   * @brief Retrieves the SQL text associated with a THD.
+   *
+   * This function accesses the "sql_text" THD attribute and returns the query
+   * text as a std::string. If the attribute is missing, null, or cannot be
+   * retrieved, an empty string is returned.
+   *
+   * @param thd Thread handle (THD) from which to extract SQL text.
+   *
+   * @return SQL text string, or an empty string on failure.
+   */
+  std::string get_sql_text(MYSQL_THD thd);
+
+  /**
+   * @brief Populates extended audit information for a record.
+   *
+   * This function extracts relevant information from the thread handle (THD)
+   * and security context and populates the `extended_info` fields of an
+   * audit record. Required attributes include user, host, and IP.
+   *
+   * @param thd    Thread handle associated with the audit event.
+   * @param sctx   Security context associated with the thread.
+   * @param record Audit record to be populated.
+   *
+   * @return true on success, false if required information cannot be retrieved.
+   */
+  bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
+                         AuditRecordTableAccess &record);
+  bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
+                         AuditRecordGeneral &record);
+
+  /**
    * @brief Check if user has AUDIT_ABORT_EXEMPT privilege assigned
    *
    * @param ctx Security context handle

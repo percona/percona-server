@@ -1755,13 +1755,12 @@ void get_permissible_max_size(const dict_table_t *table,
 /** validate that maximum possible size of a row is within permissible limit.
 @param[in]  table        innodb table definition cache
 @param[in]  index        index
-@param[in]  strict       true if error is to be reported
 @param[in]  page_rec_max maximum size of possible record on leaf page
 @param[in]  page_ptr_max maximum size of possible record on non-leaf page
 @param[out] rec_max_size maximum size of record on page
 @return true if max record size is within limit, false otherwise. */
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
-                                      const dict_index_t *index, bool strict,
+                                      const dict_index_t *index,
                                       const size_t page_rec_max,
                                       const size_t page_ptr_max,
                                       size_t &rec_max_size);

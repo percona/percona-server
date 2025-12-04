@@ -776,7 +776,7 @@ struct dict_col_t {
     ut_ad(type);
 
     ut_ad(mtype == type->mtype);
-    ut_ad(prtype == type->prtype);
+    ut_ad((prtype | DATA_VIRTUAL) == (type->prtype | DATA_VIRTUAL));
     // ut_ad(col->len == type->len);
 #ifndef UNIV_HOTBACKUP
     ut_ad(mbminmaxlen == type->mbminmaxlen);

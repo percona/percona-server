@@ -1092,7 +1092,7 @@ ClusterMetadataAR::fetch_cluster_hosts() {
   }
 }
 
-static ClusterType get_cluster_type(MySQLSession *mysql) {
+static ClusterType query_cluster_type(MySQLSession *mysql) {
   std::string q =
       "select cluster_type from "
       "mysql_innodb_cluster_metadata.v2_this_instance";
@@ -1143,8 +1143,8 @@ bool is_part_of_cluster_set(MySQLSession *mysql) {
       "No result returned for is_part_of_cluster_set metadata query");
 }
 
-static bool was_bootstrapped_as_clusterset(MySQLSession *mysql,
-                                           const unsigned router_id) {
+static stdx::expected<bool, std::string> query_was_bootstrapped_as_clusterset(
+    MySQLSession *mysql, const unsigned router_id) {
   // check if we have a target cluster assigned in the metadata
   const std::string query =
       "SELECT JSON_UNQUOTE(JSON_EXTRACT(r.attributes, "
@@ -1154,55 +1154,60 @@ static bool was_bootstrapped_as_clusterset(MySQLSession *mysql,
 
   std::unique_ptr<MySQLSession::ResultRow> row(mysql->query_one(query));
   if (!row) {
-    return false;
+    return stdx::unexpected(
+        std::string("No row in v2_routers table for router with id " +
+                    std::to_string(router_id)));
   }
 
   return as_string((*row)[0]) == kClusterSet;
 }
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql,
-                             unsigned int router_id /*= 0*/) {
-  if (schema_version < kNewMetadataVersion) {
-    return ClusterType::GR_V1;
-  } else {
-    const auto type = get_cluster_type(mysql);
+                             MySQLSession *mysql) {
+  const auto type = query_cluster_type(mysql);
 
-    if (schema_version >= kClusterSetsMetadataVersion &&
-        type == ClusterType::GR_V2) {
-      bool part_of_cluster_set = is_part_of_cluster_set(mysql);
-      if (part_of_cluster_set) {
-        // The type of the cluster that we discovered in the metadata is
-        // ClusterSet. Check if the Router was actually bootstrapped for a
-        // ClusterSet. If not treat it as a standalone cluster and log a
-        // warning.
-        const bool was_bs_for_cs =
-            (router_id == 0) ||
-            was_bootstrapped_as_clusterset(mysql, router_id);
-
-        const bool was_bs_for_cs_changed =
-            EventStateTracker::instance().state_changed(
-                was_bs_for_cs, EventStateTracker::EventId::
-                                   ClusterWasBootstrappedAgainstClusterset);
-
-        if (!was_bs_for_cs) {
-          const auto log_level =
-              was_bs_for_cs_changed ? LogLevel::kWarning : LogLevel::kDebug;
-          log_custom(
-              log_level,
-              "The target Cluster is part of a ClusterSet, but this Router was "
-              "not bootstrapped to use the ClusterSet. Treating the Cluster as "
-              "a standalone Cluster. Please bootstrap the Router again if you "
-              "want to use ClusterSet capabilities.");
-          part_of_cluster_set = false;
-        }
-      }
-
-      return part_of_cluster_set ? ClusterType::GR_CS : ClusterType::GR_V2;
-    }
-
-    return type;
+  if (schema_version >= kClusterSetsMetadataVersion &&
+      type == ClusterType::GR_V2) {
+    bool part_of_cluster_set = is_part_of_cluster_set(mysql);
+    return part_of_cluster_set ? ClusterType::GR_CS : ClusterType::GR_V2;
   }
+
+  return type;
+}
+
+stdx::expected<ClusterType, std::string> get_cluster_type(
+    const MetadataSchemaVersion &schema_version, MySQLSession *mysql,
+    unsigned int router_id) {
+  const auto type = get_cluster_type(schema_version, mysql);
+
+  if (type == ClusterType::GR_CS) {
+    // The type of the cluster that we discovered in the metadata is
+    // ClusterSet. Check if the Router was actually bootstrapped for a
+    // ClusterSet. If not treat it as a standalone cluster and log a
+    // warning.
+    const auto res = query_was_bootstrapped_as_clusterset(mysql, router_id);
+    if (!res) return stdx::unexpected(res.error());
+    bool was_bs_for_cs = res.value();
+
+    const bool was_bs_for_cs_changed =
+        EventStateTracker::instance().state_changed(
+            was_bs_for_cs, EventStateTracker::EventId::
+                               ClusterWasBootstrappedAgainstClusterset);
+
+    if (!was_bs_for_cs) {
+      const auto log_level =
+          was_bs_for_cs_changed ? LogLevel::kWarning : LogLevel::kDebug;
+      log_custom(
+          log_level,
+          "The target Cluster is part of a ClusterSet, but this Router was "
+          "not bootstrapped to use the ClusterSet. Treating the Cluster as "
+          "a standalone Cluster. Please bootstrap the Router again if you "
+          "want to use ClusterSet capabilities.");
+      return ClusterType::GR_V2;
+    }
+  }
+
+  return type;
 }
 
 std::unique_ptr<ClusterMetadata> create_metadata(

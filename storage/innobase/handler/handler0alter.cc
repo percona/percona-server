@@ -4939,6 +4939,12 @@ template <typename Table>
     if (!ctx->add_index[a]) {
       error = ctx->trx->error_state;
       assert(error != DB_SUCCESS);
+      if (error == DB_TOO_BIG_RECORD) {
+        ib::error() << "Cannot alter the table " << user_table->name
+                    << " because the record size will exceed the maximum "
+                       "allowed size for a record on the index '"
+                    << index_defs[a].m_name << "'.";
+      }
       goto error_handling;
     }
 

@@ -383,13 +383,19 @@ enable_zenfs() {
 
 get_system(){
     if [ -f /etc/redhat-release ]; then
-	GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
-        RHEL=$(rpm --eval %rhel)
-        ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        OS_NAME="el$RHEL"
-        OS="rpm"
+        export GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        export RHEL=$(rpm --eval %rhel)
+        export ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        export OS_NAME="el$RHEL"
+        export OS="rpm"
+    elif [ -f /etc/amazon-linux-release ]; then
+        export GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        export RHEL=$(rpm --eval %amzn)
+        export ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        export OS_NAME="amzn$RHEL"
+        export OS="rpm"
     else
-	GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
+        GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
         ARCH=$(uname -m)
         OS_NAME="$(lsb_release -sc)"
         OS="deb"
@@ -430,8 +436,6 @@ install_deps() {
     CURPLACE=$(pwd)
 
     if [ "x$OS" = "xrpm" ]; then
-        RHEL=$(rpm --eval %rhel)
-        ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         if [ "x${RHEL}" = "x8" -o "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
@@ -443,12 +447,16 @@ install_deps() {
                 # percona-release enable tools experimental
             else
                 yum -y install yum-utils
-                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                if [ "x${RHEL}" != "x2023" ]; then
+                    yum-config-manager --enable ol"${RHEL}"_codeready_builder
+		fi
             fi
         else
-            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" -o "x${RHEL}" = "x10" ]; then
+            if [ "x${RHEL}" = "x9" -o "x${RHEL}" = "x8" -o "x${RHEL}" = "x2023" -o "x${RHEL}" = "x10" ]; then
                 yum -y install yum-utils
-                yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                if [ "x${RHEL}" != "x2023" ]; then
+                    yum-config-manager --enable ol"${RHEL}"_codeready_builder
+                fi
             fi
         fi
         yum -y update
@@ -461,9 +469,12 @@ install_deps() {
             switch_to_vault_repo
         fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
-        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
+        if [ "x${RHEL}" != "x2023" ]; then
+            yum -y install libeatmydata
+        fi
         if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do
                 echo "waiting"
@@ -534,10 +545,16 @@ install_deps() {
                 popd
             fi
         else
-            yum -y install MySQL-python
-            yum -y install libtirpc-devel
-            yum -y install gflags-devel
-            yum -y install libatomic
+            if [ "x$RHEL" != "x2023" ]; then
+                yum -y install MySQL-python
+                yum -y install libtirpc-devel
+                yum -y install gflags-devel
+                yum -y install libatomic
+	    else
+		yum -y install libtirpc-devel libatomic annobin-annocheck annobin-plugin-gcc
+		yum -y install pip mariadb105-devel python3-devel
+		pip install mysqlclient
+	    fi
         fi
     else
         until apt-get update; do
@@ -566,7 +583,7 @@ install_deps() {
         apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         apt-get -y install libatomic1
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -588,10 +605,10 @@ install_deps() {
         else
             apt-get -y install gcc g++
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libzstd-dev
         else
             apt-get -y install libzstd1-dev
@@ -599,10 +616,10 @@ install_deps() {
         if [ x${DIST} = xhirsute ]; then
             apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
         fi
-        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]]; then
+        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]] || [[ ${DIST} == 'trixie' ]]; then
             apt-get -y install libgflags-dev
         fi
-        if [ x${DIST} = xnoble ]; then
+        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libtirpc-dev gsasl-common
         fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
@@ -812,8 +829,6 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     cp $SRC_RPM rpmbuild/SRPMS/
 
-    RHEL=$(rpm --eval %rhel)
-    ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
     #
     echo "RHEL=${RHEL}" >> percona-server-8.0.properties
     echo "ARCH=${ARCH}" >> percona-server-8.0.properties
@@ -845,22 +860,22 @@ build_rpm(){
     fi
     if [ ${ARCH} = x86_64 ]; then
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
             if [[ ${RHEL} = 8 ]]; then
                 rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     else
         if [[ ${WITH_ZENFS} == "1" ]]; then
-            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
+            rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_zenfs 1" --rebuild rpmbuild/SRPMS/${SRCRPM}
         else
             if [[ ${RHEL} = 8 ]]; then
                 rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define '_dwz_max_die_limit 0' --rebuild rpmbuild/SRPMS/${SRCRPM}
             else
-                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
+                rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
             fi
         fi
     fi
@@ -987,7 +1002,7 @@ build_deb(){
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7

@@ -320,6 +320,8 @@ struct NDB_SHARE {
 
 #ifndef NDEBUG
   static void dbg_check_shares_update();
+
+  static void dbg_print_locks(const NDB_SHARE *share);
 #endif
 
   static void initialize(CHARSET_INFO *charset);

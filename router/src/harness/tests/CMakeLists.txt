@@ -88,7 +88,18 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/tests/
     LIB_DEPENDS test-helpers;harness_stdx)
+  IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+    ROUTERTEST_GET_TARGET(T ${TEST} "${TEST_MODULE}")
+    TARGET_COMPILE_OPTIONS(${T} PRIVATE "-Wno-error=free-nonheap-object")
+    TARGET_LINK_OPTIONS(${T} PRIVATE "-Wno-error=free-nonheap-object")
+  ENDIF()
 ENDFOREACH()
+
+# Warning at googletest-1.14.0/googletest/include/gtest/gtest.h:1379
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+  ROUTERTEST_GET_TARGET(T "test_config.cc" "${TEST_MODULE}")
+  TARGET_LINK_OPTIONS(${T} PRIVATE "-Wno-error=free-nonheap-object")
+ENDIF()
 
 SET(TESTS
   test_keyring.cc

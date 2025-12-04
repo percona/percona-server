@@ -39,9 +39,9 @@ inline std::string msg_to_string(const ngs::Message &msg) {
   printer.SetSingleLineMode(true);
   std::string output;
   printer.PrintToString(msg, &output);
-  return msg.GetTypeName() + "{ " + output + "}";
+  return std::string(msg.GetTypeName()) + "{ " + output + "}";
 #else
-  return msg.GetTypeName();
+  return std::string(msg.GetTypeName());
 #endif
 }
 

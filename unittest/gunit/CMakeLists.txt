@@ -378,8 +378,9 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
+  EXCLUDE_FROM_GCOV
   LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson
-  )
+)
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -389,8 +390,9 @@ LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ADD_TEST merge_large_tests
   ENABLE_EXPORTS
+  EXCLUDE_FROM_GCOV
   LINK_LIBRARIES gunit_large server_unittest_library
-  )
+)
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
@@ -399,8 +401,20 @@ FOREACH(test ${TESTS})
     EXCLUDE_FROM_ALL
     LINK_LIBRARIES sqlgunitlib gunit_small
     SKIP_INSTALL
-    )
+    ADD_GCOV_TEST ${test}
+  )
 ENDFOREACH()
+
+# Disable by default, since it dumps a stack trace.
+# We don't want ppl to think there was a segfault or something.
+# See also the mtr test main.print_stacktrace
+MYSQL_ADD_EXECUTABLE(mysys_stacktrace-t mysys_stacktrace-t.cc
+  COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
+  ENABLE_EXPORTS
+  EXCLUDE_FROM_ALL
+  LINK_LIBRARIES sqlgunitlib gunit_small
+  SKIP_INSTALL
+)
 
 # See comments about __builtin_memcmp in the source file.
 IF(HAVE_NO_BUILTIN_MEMCMP)
@@ -423,7 +437,8 @@ FOREACH(test ${SERVER_TESTS})
     EXCLUDE_FROM_ALL
     LINK_LIBRARIES gunit_large server_unittest_library
     SKIP_INSTALL
-    )
+    ADD_GCOV_TEST ${test}
+  )
 ENDFOREACH()
 
 ADD_LIBRARY(rpl_channel_credentials_lib STATIC

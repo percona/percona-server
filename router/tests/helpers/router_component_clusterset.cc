@@ -32,7 +32,8 @@ void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,
     const std::string &tracefile, const std::string &router_options,
     const std::string &expected_target_cluster, bool simulate_cluster_not_found,
-    bool use_gr_notifications) {
+    bool use_gr_notifications, bool simulate_router_options_no_rows,
+    unsigned int primary_node_id) {
   const std::string tracefile_path = get_data_dir().str() + "/" + tracefile;
 
   ClusterSetData clusterset_data;
@@ -43,7 +44,7 @@ void RouterComponentClusterSetTest::create_clusterset(
   for (unsigned cluster_id = 0; cluster_id < kClustersNumber; ++cluster_id) {
     ClusterData cluster_data;
     cluster_data.id = cluster_id;
-    cluster_data.primary_node_id = 0;
+    cluster_data.primary_node_id = primary_node_id;
     // 0-based -> 1-based
     const std::string id = std::to_string(cluster_id + 1);
 
@@ -79,10 +80,10 @@ void RouterComponentClusterSetTest::create_clusterset(
           tracefile_path, node.classic_port, EXIT_SUCCESS, false,
           node.http_port, node.x_port);
 
-      set_mock_metadata(view_id, cluster_id, target_cluster_id, node.http_port,
-                        clusterset_data, router_options,
-                        expected_target_cluster, {2, 1, 0},
-                        simulate_cluster_not_found);
+      set_mock_metadata(
+          view_id, cluster_id, target_cluster_id, node.http_port,
+          clusterset_data, router_options, expected_target_cluster, {2, 1, 0},
+          simulate_cluster_not_found, simulate_router_options_no_rows);
     }
   }
 
@@ -128,8 +129,6 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
     JsonValue cluster_obj(rapidjson::kObjectType);
     const auto &cluster_data = clusterset_data.clusters[cluster_id];
 
-    add_json_int_field(cluster_obj, "primary_node_id",
-                       cluster_data.primary_node_id);
     add_json_str_field(cluster_obj, "uuid", cluster_data.uuid);
     add_json_str_field(cluster_obj, "name", cluster_data.name);
     add_json_str_field(cluster_obj, "role", cluster_data.role);
@@ -170,7 +169,8 @@ void RouterComponentClusterSetTest::set_mock_metadata(
     const std::string &router_options /*= ""*/,
     const std::string &expected_target_cluster /*= ""*/,
     const mysqlrouter::MetadataSchemaVersion &metadata_version /*= {2, 1, 0}*/,
-    bool simulate_cluster_not_found /* = false*/) {
+    bool simulate_cluster_not_found /* = false*/,
+    bool simulate_router_options_no_rows /* = false*/) {
   JsonValue json_doc(rapidjson::kObjectType);
 
   add_clusterset_data_field(json_doc, "clusterset_data", clusterset_data,
@@ -189,6 +189,8 @@ void RouterComponentClusterSetTest::set_mock_metadata(
 
   add_json_int_field(json_doc, "simulate_cluster_not_found",
                      simulate_cluster_not_found);
+  add_json_int_field(json_doc, "simulate_router_options_no_rows",
+                     simulate_router_options_no_rows);
 
   const auto json_str = json_to_string(json_doc);
 

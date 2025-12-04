@@ -794,6 +794,11 @@ struct dtuple_t {
     }
     return false;
   }
+
+#ifdef UNIV_DEBUG
+  void validate() const;
+  void validate_for_index(const dict_index_t *index) const;
+#endif /* UNIV_DEBUG */
 };
 
 /** A slot for a field in a big rec vector */

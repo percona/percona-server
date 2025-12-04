@@ -136,7 +136,9 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
                          const std::string &router_options = "",
                          const std::string &expected_target_cluster = ".*",
                          bool simulate_cluster_not_found = false,
-                         bool use_gr_notifications = false);
+                         bool use_gr_notifications = false,
+                         bool simulate_router_options_no_rows = false,
+                         unsigned int primary_node_id = 0);
 
   void change_clusterset_primary(ClusterSetData &clusterset_data,
                                  const unsigned new_primary_id);
@@ -157,7 +159,8 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
       const std::string &router_options = "",
       const std::string &expected_target_cluster = ".*",
       const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 1, 0},
-      bool simulate_cluster_not_found = false);
+      bool simulate_cluster_not_found = false,
+      bool simulate_router_options_no_rows = false);
 
   ClusterSetData clusterset_data_;
   JsonAllocator json_allocator;

@@ -230,7 +230,6 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
   http_auth_backend_lib
   metadata_cache
   )
-ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)

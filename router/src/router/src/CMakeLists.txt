@@ -134,7 +134,6 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter
   router_frontend_lib
   ${CMAKE_DL_LIBS}
   )
-ADD_INSTALL_RPATH(mysqlrouter "${ROUTER_INSTALL_RPATH}")
 
 IF(SOLARIS)
   TARGET_LINK_LIBRARIES(mysqlrouter -lnsl -lsocket)

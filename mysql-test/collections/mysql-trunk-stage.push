@@ -42,3 +42,5 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --mysqld=--loose-group_replication_ssl_mode=REQUIRED
 
+# Connection Control plugin
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=connection_control-big  --vardir=var-connection_control-big --suite=connection_control --no-skip

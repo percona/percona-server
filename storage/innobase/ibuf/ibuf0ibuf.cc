@@ -3514,6 +3514,7 @@ static void ibuf_insert_to_index_page(
   ut_ad(!dict_index_is_online_ddl(index));  // this is an ibuf_dummy index
   ut_ad(ibuf_inside(mtr));
   ut_ad(dtuple_check_typed(entry));
+  ut_d(entry->validate_for_index(index));
   /* A change buffer merge must occur before users are granted
   any access to the page. No adaptive hash index entries may
   point to a freshly read page. */

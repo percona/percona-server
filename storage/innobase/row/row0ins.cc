@@ -253,6 +253,7 @@ void ins_node_set_new_row(
 
   update = row_upd_build_sec_rec_difference_binary(rec, cursor->index, *offsets,
                                                    entry, heap);
+  ut_d(update->validate_for_index(cursor->index));
 
   if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
     /* We should never insert in place of a record that
@@ -300,7 +301,7 @@ void ins_node_set_new_row(
     ut_ad(!dummy_big_rec);
   }
 
-  return (err);
+  return err;
 }
 
 /** Does an insert operation by delete unmarking and updating a delete marked
@@ -347,10 +348,12 @@ void ins_node_set_new_row(
                                            true, thr_get_trx(thr), heap,
                                            mysql_table, thr->prebuilt, &err);
   if (err != DB_SUCCESS) {
-    return (err);
+    return err;
   }
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+    ut_ad(update);
+    ut_d(update->validate_for_index(cursor->index));
 
     /* Try optimistic updating of the record, keeping changes
     within the page */
@@ -367,7 +370,7 @@ void ins_node_set_new_row(
     }
   } else {
     if (buf_LRU_buf_pool_running_out()) {
-      return (DB_LOCK_TABLE_FULL);
+      return DB_LOCK_TABLE_FULL;
     }
 
     big_rec_t *big_rec = nullptr;
@@ -391,7 +394,7 @@ void ins_node_set_new_row(
     }
   }
 
-  return (err);
+  return err;
 }
 
 /** Returns true if in a cascaded update/delete an ancestor node of node

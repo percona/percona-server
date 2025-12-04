@@ -779,6 +779,32 @@ std::ostream &big_rec_t::print(std::ostream &out) const {
   out << "]";
   return (out);
 }
+
+void dtuple_t::validate() const {
+  for (uint16_t i = 0; i < n_fields; i++) {
+    const dfield_t &field = fields[i];
+    /* All fields in the fields vector represent actual fields in the
+    record, so their DATA_VIRTUAL flag is cleared regardless of
+    whether they are defined for virtual columns. */
+    ut_a((field.type.prtype & DATA_VIRTUAL) == 0U);
+  }
+  for (uint16_t i = 0; i < n_v_fields; i++) {
+    const dfield_t &field = v_fields[i];
+    /* All fields in the v_fields vector represent fields not present
+    in the record, and as such have their DATA_VIRTUAL flag set. */
+    ut_a((field.type.prtype & DATA_VIRTUAL) == DATA_VIRTUAL);
+  }
+}
+
+void dtuple_t::validate_for_index(const dict_index_t *index) const {
+  validate();
+  if (!index->is_clustered()) {
+    /* Only tuples for clustered index may have virtual fields.
+    Secondary index fields based on virtual columns are not
+    considered virtual. */
+    ut_a(n_v_fields == 0);
+  }
+}
 #endif /* UNIV_DEBUG */
 
 trx_id_t dtuple_t::get_trx_id() const {

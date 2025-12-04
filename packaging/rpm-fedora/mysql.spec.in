@@ -591,9 +591,6 @@ mkdir release
 %install
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
-# Ignore absolute RPATH followed by $ORIGIN in mysqld.
-export QA_RPATHS=0x0008
-
 # Ensure that needed directories exists
 install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/run/mysqld

@@ -3453,6 +3453,11 @@ dberr_t row_create_index_for_mysql(
     err = dict_index_add_to_cache_w_vcol(table, index, nullptr, FIL_NULL,
                                          trx_is_strict(trx));
 
+    if (err == DB_TOO_BIG_RECORD) {
+      ib::error() << "Cannot create the table " << table->name
+                  << " because the record size will exceed the maximum allowed "
+                     "size for a record.";
+    }
     if (err != DB_SUCCESS) {
       goto error_handling;
     }

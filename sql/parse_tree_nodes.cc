@@ -4937,7 +4937,9 @@ PT_install_component::PT_install_component(
 
 Sql_cmd *PT_install_component::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_INSTALL_COMPONENT;
-
+  thd->lex->expr_allows_subquery = false;
+  auto f =
+      create_scope_guard([thd]() { thd->lex->expr_allows_subquery = true; });
   if (!m_set_elements->is_empty()) {
     Parse_context pc(thd, thd->lex->current_query_block());
     for (auto &elt : *m_set_elements) {

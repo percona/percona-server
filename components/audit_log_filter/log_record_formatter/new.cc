@@ -39,6 +39,9 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
+  // TODO: For AuditRecordGeneral with JSON format, we added "command" and "sql_command" fields.
+  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
+  //       Same as JSON format: user field appears as "root" for upstream.
   result << "  <AUDIT_RECORD>\n"
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
@@ -49,6 +52,8 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
          << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
          << "    <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
+         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
+                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -89,12 +94,17 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
+  // TODO: For AuditRecordTableAccess with JSON format, we added <HOST>, <IP>, <USER>, and <PROXY_USER>.
+  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
+  //       Unlike JSON format, the user field appears as "root[root] @ localhost [127.0.0.1]" for upstream.
   result << "  <AUDIT_RECORD>\n"
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
          << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
+         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
+                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "    <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
          << "    <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
          << "  </AUDIT_RECORD>\n";

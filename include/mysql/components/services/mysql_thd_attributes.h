@@ -131,6 +131,7 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
   - time-zone name variable ("time_zone_name" of the returned
     mysql_cstring_with_length type)
   - Query execution status ("da_status" of the returned uint16 type).
+  - SQL Command Number/Enum ("sql_command_id" of the returned uint32 type).
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.

@@ -528,15 +528,26 @@ void update_connection_type_pseudo_to_numeric(std::string &type) {
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordGeneral &record) {
   const auto *event = record.event;
+  const auto &extra = record.extended_info;
+
   return {
       {"general_error_code", std::to_string(event->error_code)},
+      // alias for general_connection_id
+      {"general_thread_id", std::to_string(event->connection_id)},
       {"general_connection_id", std::to_string(event->connection_id)},
-      {"general_user.str", mysql_cstring_to_string(&event->user)},
-      {"general_user.length", mysql_cstring_len_to_string(&event->user)},
-      {"general_host.str", mysql_cstring_to_string(&event->host)},
-      {"general_host.length", mysql_cstring_len_to_string(&event->host)},
-      {"general_ip.str", mysql_cstring_to_string(&event->ip)},
-      {"general_ip.length", mysql_cstring_len_to_string(&event->ip)},
+      {"general_user.str", extra.user},
+      {"general_user.length", std::to_string(extra.user.length())},
+      {"general_command.str", extra.command},
+      {"general_command.length", std::to_string(extra.command.length())},
+      {"general_query.str", extra.query},
+      {"general_query.length", std::to_string(extra.query.length())},
+      {"general_host.str", extra.host},
+      {"general_host.length", std::to_string(extra.host.length())},
+      {"general_sql_command.str", extra.sql_command},
+      {"general_sql_command.length",
+       std::to_string(extra.sql_command.length())},
+      {"general_ip.str", extra.ip},
+      {"general_ip.length", std::to_string(extra.ip.length())},
   };
 }
 
@@ -568,8 +579,13 @@ AuditRecordFieldsList get_audit_record_fields(
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordTableAccess &record) {
   const auto *event = record.event;
+  const auto &extra = record.extended_info;
+
   return {
       {"connection_id", std::to_string(event->connection_id)},
+      {"sql_command_id", std::to_string(extra.sql_command_id)},
+      {"query.str", extra.query},
+      {"query.length", std::to_string(extra.query.length())},
       {"table_database.str", mysql_cstring_to_string(&event->table_database)},
       {"table_database.length",
        mysql_cstring_len_to_string(&event->table_database)},

@@ -39,6 +39,9 @@ AuditRecordString LogRecordFormatterOld::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
+  // TODO: For AuditRecordGeneral with JSON format, we added "query", "command" and "sql_command" fields.
+  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
+  //       Same as JSON format: user field appears as "root" for upstream.
   result << "  <AUDIT_RECORD\n"
          << "    NAME=\"" << event_subclass_to_string(audit_record.event) << "\"\n"
          << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
@@ -86,6 +89,9 @@ AuditRecordString LogRecordFormatterOld::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
+  // TODO: For AuditRecordTableAccess with JSON format, we added <SQLTEXT>, <HOST>, <IP>, <USER>, and <PROXY_USER>.
+  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
+  //       Unlike JSON format, the user field appears as "root[root] @ localhost [127.0.0.1]" for upstream.
   result << "  <AUDIT_RECORD\n"
          << "    NAME=\"" << event_subclass_to_string(audit_record.event) << "\"\n"
          << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"

@@ -29,6 +29,7 @@
 #include <mysql/components/service_implementation.h>
 
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
+#include <mysql/components/services/mysql_thd_attributes.h>
 
 #include <mysql/components/services/event_tracking_authentication_service.h>
 #include <mysql/components/services/event_tracking_command_service.h>
@@ -62,6 +63,9 @@
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_get_data_in_charset);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -463,7 +467,6 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   }
 
   MYSQL_THD thd = nullptr;
-
   if (mysql_service_mysql_current_thread_reader->get(&thd) == 1 ||
       thd == nullptr) {
     return 0;
@@ -471,12 +474,12 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
   SysVars::inc_events_total();
 
-  Security_context_handle ctx{};
+  Security_context_handle sctx{};
   std::string user_name;
   std::string user_host;
 
-  if (!get_security_context(thd, &ctx) ||
-      !get_connection_user(ctx, user_name, user_host)) {
+  if (!get_security_context(thd, &sctx) ||
+      !get_connection_user(sctx, user_name, user_host)) {
     return 0;
   }
 
@@ -509,6 +512,14 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
+  if (auto rec = std::get_if<AuditRecordGeneral>(&audit_record)) {
+    set_extended_info(thd, sctx, *rec);
+  }
+
+  if (auto rec = std::get_if<AuditRecordTableAccess>(&audit_record)) {
+    set_extended_info(thd, sctx, *rec);
+  }
+
   // Apply filtering rule
   AuditAction filter_result =
       AuditEventFilter::apply(filter_rule.get(), audit_record);
@@ -519,7 +530,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   }
 
   if (filter_result == AuditAction::Block &&
-      !check_abort_exempt_privilege(ctx)) {
+      !check_abort_exempt_privilege(sctx)) {
     auto ev_name = std::visit(
         [](const auto &rec) -> std::string_view {
           return rec.event_class_name;
@@ -706,6 +717,126 @@ bool AuditLogFilter::get_security_context(
   return true;
 }
 
+bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
+                                                 const std::string &name,
+                                                 std::string &value) noexcept {
+  MYSQL_LEX_CSTRING val{"", 0};
+  // calls mysql_security_context_imp::get
+  if (m_security_context_opts_srv->get(ctx, name.c_str(), &val) != 0) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Can not get %s from security context", name.c_str());
+    return false;
+  }
+
+  if (val.length == 0 || val.str == nullptr) {
+    value.clear();
+  } else {
+    value.assign(val.str, val.length);
+  }
+
+  return true;
+}
+
+std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {
+  if (!thd) return std::string();
+
+  my_h_string hstr = nullptr;
+  int rc = mysql_service_mysql_thd_attributes->get(thd, "sql_text", &hstr);
+
+  if (rc != 0 || hstr == nullptr) return std::string();
+
+  const char *raw_buffer = nullptr;
+  size_t raw_length = 0;
+  CHARSET_INFO_h raw_charset = nullptr;
+
+  if (mysql_service_mysql_string_get_data_in_charset->get_data(
+          hstr, &raw_buffer, &raw_length, &raw_charset)) {
+    mysql_service_mysql_string_factory->destroy(hstr);
+    return std::string();
+  }
+
+  std::string result(raw_buffer, raw_length);
+  mysql_service_mysql_string_factory->destroy(hstr);
+  return result;
+}
+
+bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
+                                       Security_context_handle sctx,
+                                       AuditRecordGeneral &record) {
+  if (!thd) return false;
+
+  /** The mysql_event_tracking_general_data struct includes error_code,
+      connection_id, user, host, and ip.
+    Note that the user field is formatted as "root[root] @ localhost
+    [127.0.0.1]", which is inconsistent with other event types. Therefore, we
+    rely on user, host, and ip provided by the services. For
+    AuditRecordGeneral we need to retrieve query, sql_command, command, user,
+    host, ip, external_user, and proxy_user from the corresponding services. */
+  auto &extra = record.extended_info;
+
+  extra.query = get_sql_text(thd);
+
+  mysql_cstring_with_length sql_command;
+  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command",
+                                               &sql_command)) {
+    extra.sql_command = {sql_command.str, sql_command.length};
+  }
+
+  // required only for AuditRecordGeneral
+  mysql_cstring_with_length command;
+  if (!mysql_service_mysql_thd_attributes->get(thd, "command", &command)) {
+    extra.command = {command.str, command.length};
+  }
+
+  if (!sctx) return false;
+
+  get_security_context_option(sctx, "user", extra.user);
+  get_security_context_option(sctx, "host", extra.host);
+  get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
+  get_security_context_option(sctx, "proxy_user", extra.proxy_user);
+
+  return true;
+}
+
+bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
+                                       Security_context_handle sctx,
+                                       AuditRecordTableAccess &record) {
+  if (!thd) return false;
+
+  /** The mysql_event_tracking_table_access_data struct contains only
+    connection_id, table_database, and table_name. To obtain the other fields
+    for AuditRecordTableAccess — query, sql_command, user, host, ip,
+    external_user, and proxy_user — we need to retrieve them from the
+    corresponding services. */
+  auto &extra = record.extended_info;
+
+  extra.query = get_sql_text(thd);
+
+  mysql_cstring_with_length sql_command;
+  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command",
+                                               &sql_command)) {
+    extra.sql_command = {sql_command.str, sql_command.length};
+  }
+
+  // required only for AuditRecordTableAccess
+  uint32_t sql_command_id = 0;
+  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command_id",
+                                               &sql_command_id)) {
+    extra.sql_command_id = static_cast<enum_sql_command>(sql_command_id);
+  }
+
+  if (!sctx) return false;
+
+  get_security_context_option(sctx, "user", extra.user);
+  get_security_context_option(sctx, "host", extra.host);
+  get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
+  get_security_context_option(sctx, "proxy_user", extra.proxy_user);
+
+  return true;
+}
+
 AuditUdf *AuditLogFilter::get_udf() noexcept { return m_audit_udf.get(); }
 
 AuditLogReader *AuditLogFilter::get_log_reader() noexcept {
@@ -762,7 +893,10 @@ PROVIDES_SERVICE(component_audit_log_filter, event_tracking_authentication),
 BEGIN_COMPONENT_REQUIRES(component_audit_log_filter)
 REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(log_builtins_string),
-    REQUIRES_SERVICE(mysql_current_thread_reader), REQUIRES_PSI_MEMORY_SERVICE,
+    REQUIRES_SERVICE(mysql_thd_attributes),
+    REQUIRES_SERVICE(mysql_current_thread_reader),
+    REQUIRES_SERVICE(mysql_string_get_data_in_charset),
+    REQUIRES_SERVICE(mysql_string_factory), REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(component_audit_log_filter)

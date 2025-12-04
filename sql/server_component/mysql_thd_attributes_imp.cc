@@ -128,6 +128,10 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
           *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
                                                           strlen(sql_command)};
         }
+      } else if (!strcmp(name, "sql_command_id")) {
+        enum_sql_command cmd = SQLCOM_END;
+        if (t->lex != nullptr) cmd = t->lex->sql_command;
+        *((uint32_t *)inout_pvalue) = static_cast<uint32_t>(cmd);
       } else if (!strcmp(name, "command")) {
         const char *command = get_server_command_string(t->get_command());
         *((mysql_cstring_with_length *)inout_pvalue) = {command,

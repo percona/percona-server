@@ -554,35 +554,15 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 }
 
 void AuditLogFilter::send_audit_start_event() noexcept {
-  MYSQL_THD thd = nullptr;
-
-  if (mysql_service_mysql_current_thread_reader->get(&thd) == 1) {
-    return;
-  }
-
-  if (thd == nullptr) {
-    return;
-  }
-
   auto event = internal_event_tracking_audit_data{
-      INTERNAL_EVENT_TRACKING_AUDIT_AUDIT, thd->server_id};
+      INTERNAL_EVENT_TRACKING_AUDIT_AUDIT, static_cast<uint32>(::server_id)};
   m_log_writer->write(get_audit_record(
       audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event));
 }
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
-  MYSQL_THD thd = nullptr;
-
-  if (mysql_service_mysql_current_thread_reader->get(&thd) == 1) {
-    return;
-  }
-
-  if (thd == nullptr) {
-    return;
-  }
-
   auto event = internal_event_tracking_audit_data{
-      INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT, thd->server_id};
+      INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT, static_cast<uint32>(::server_id)};
   m_log_writer->write(get_audit_record(
       audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event));
 }

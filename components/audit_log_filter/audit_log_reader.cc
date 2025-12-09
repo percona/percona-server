@@ -225,15 +225,33 @@ bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
               reader_context->current_file)) {
         return false;
       }
+
+      if (reader_context->reader == nullptr) {
+        reader_context->reader = std::make_unique<rapidjson::Reader>();
+      }
+
+      reader_context->reader->IterativeParseInit();
+    } else if (reader_context->reader == nullptr) {
+      /*
+        If the previous call to read() failed to open the file (returned false),
+        current_file would be set but the reader not initialized.
+      */
+      reader_context->reader = std::make_unique<rapidjson::Reader>();
+      reader_context->reader->IterativeParseInit();
     }
 
-    rapidjson::Reader reader;
-    reader.IterativeParseInit();
-
-    while (!reader.IterativeParseComplete()) {
-      reader.IterativeParseNext<rapidjson::kParseDefaultFlags>(
+    while (!reader_context->reader->IterativeParseComplete()) {
+      reader_context->reader->IterativeParseNext<rapidjson::kParseDefaultFlags>(
           *reader_context->audit_json_read_stream,
           *reader_context->audit_json_handler);
+
+      if (reader_context->reader->HasParseError()) {
+        return false;
+      }
+
+      if (reader_context->is_batch_end) {
+        break;
+      }
     }
 
     if (reader_context->audit_json_read_stream->check_eof_reached()) {

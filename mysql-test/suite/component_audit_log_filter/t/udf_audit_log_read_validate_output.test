@@ -10,16 +10,31 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 
 CREATE TABLE t1 (c1 INT);
-SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
-SET @start_bookmark := audit_log_read_bookmark();
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+GRANT ALL ON *.* TO user1@localhost;
+
+SELECT audit_log_filter_set_filter('filter_que_gen_com_tab', '{"filter": { "class": [
+  { "name": "query" },
+  { "name": "general" },
+  { "name": "command" },
+  { "name": "table_access" }
+] } }');
+
 
 --echo Turn on audit log
-SELECT audit_log_filter_set_user('%', 'log_all');
+SELECT audit_log_filter_set_user('user1@localhost', 'filter_que_gen_com_tab');
+# Rotate to get rid of fixed "class": "audit" event at plugin start
+--let $audit_filter_rotate_name=`SELECT audit_log_rotate()`
+SET @start_bookmark := audit_log_read_bookmark();
 
+connect (con1,localhost,user1,pass,,,,);
 INSERT INTO t1 VALUES (1);
 
+connection default;
+disconnect con1;
+
 --echo Turn off audit log
-SELECT audit_log_filter_remove_filter('log_all');
+SELECT audit_log_filter_remove_filter('filter_que_gen_com_tab');
 
 --echo Rotate to close a log file and get access to it
 --let $audit_filter_rotate_name=`SELECT audit_log_rotate()`
@@ -46,21 +61,26 @@ SET @start_bookmark_esc := REPLACE(@start_bookmark, '"', '\\"');
 --source validate_logs_format.inc
 --remove_file $audit_filter_log_path/$out_file
 
+--echo Ignore first event as our bookmark points to the last event in the previous log
+--disable_result_log
+SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 1));
+--enable_result_log
+
 --echo Start processing audit log from the beginning. Get 5 events from "audit_log_read"
 --replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
-SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5));
+SELECT audit_log_read('{"max_array_length": 4}');
 
 --echo Get 8 events from "INSERT INTO t1 VALUES (1)"
---echo TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
 --replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
-SELECT audit_log_read('{"max_array_length": 8}');
+SELECT audit_log_read('{"max_array_length": 7}');
 
 --echo Get remaining events
 --replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
-SELECT audit_log_read('null');
+SELECT audit_log_read();
 
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc
 
 DROP TABLE t1;
+DROP USER user1@localhost;

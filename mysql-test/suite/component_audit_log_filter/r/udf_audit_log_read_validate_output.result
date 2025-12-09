@@ -3,18 +3,30 @@
 # https://perconadev.atlassian.net/browse/PS-10347
 #
 CREATE TABLE t1 (c1 INT);
-SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
-audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }')
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+GRANT ALL ON *.* TO user1@localhost;
+SELECT audit_log_filter_set_filter('filter_que_gen_com_tab', '{"filter": { "class": [
+  { "name": "query" },
+  { "name": "general" },
+  { "name": "command" },
+  { "name": "table_access" }
+] } }');
+audit_log_filter_set_filter('filter_que_gen_com_tab', '{"filter": { "class": [
+  { "name": "query" },
+  { "name": "general" },
+  { "name": "command" },
+  { "name": "table_access" }
+] } }')
+OK
+Turn on audit log
+SELECT audit_log_filter_set_user('user1@localhost', 'filter_que_gen_com_tab');
+audit_log_filter_set_user('user1@localhost', 'filter_que_gen_com_tab')
 OK
 SET @start_bookmark := audit_log_read_bookmark();
-Turn on audit log
-SELECT audit_log_filter_set_user('%', 'log_all');
-audit_log_filter_set_user('%', 'log_all')
-OK
 INSERT INTO t1 VALUES (1);
 Turn off audit log
-SELECT audit_log_filter_remove_filter('log_all');
-audit_log_filter_remove_filter('log_all')
+SELECT audit_log_filter_remove_filter('filter_que_gen_com_tab');
+audit_log_filter_remove_filter('filter_que_gen_com_tab')
 OK
 Rotate to close a log file and get access to it
 Print audit log filter output
@@ -22,65 +34,6 @@ Print audit log filter output
   {
     "timestamp": "<hidden>",
     "id": 0,
-    "class": "audit",
-    "event": "audit",
-    "server_id": 1
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 1,
-    "class": "query",
-    "event": "query_status_end",
-    "connection_id": <id>,
-    "query_data": {
-      "query": "SELECT audit_log_filter_set_user('%', 'log_all')",
-      "status": 0,
-      "sql_command": "select"}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 2,
-    "class": "general",
-    "event": "result",
-    "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
-    "general_data": {
-      "command": "Query",
-      "sql_command": "select",
-      "query": "SELECT audit_log_filter_set_user('%', 'log_all')",
-      "status": 0
-    }
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 3,
-    "class": "general",
-    "event": "status",
-    "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
-    "general_data": {
-      "command": "Query",
-      "sql_command": "select",
-      "query": "SELECT audit_log_filter_set_user('%', 'log_all')",
-      "status": 0
-    }
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 4,
-    "class": "command",
-    "event": "command_end",
-    "connection_id": <id>,
-    "command_data": {
-      "name": "command_end",
-      "status": 0,
-      "command": "Query"}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 5,
     "class": "command",
     "event": "command_start",
     "connection_id": <id>,
@@ -91,34 +44,12 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 6,
-    "class": "parse",
-    "event": "query_rewritten",
-    "connection_id": <id>,
-    "parse_data": {
-      "flags": 0,
-      "query": "INSERT INTO t1 VALUES (1)",
-      "rewritten_query": ""}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 7,
-    "class": "parse",
-    "event": "prepared_statement",
-    "connection_id": <id>,
-    "parse_data": {
-      "flags": 0,
-      "query": "INSERT INTO t1 VALUES (1)",
-      "rewritten_query": ""}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 8,
+    "id": 1,
     "class": "general",
     "event": "log",
     "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
     "general_data": {
       "command": "Query",
       "sql_command": "insert",
@@ -128,7 +59,7 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 9,
+    "id": 2,
     "class": "query",
     "event": "query_start",
     "connection_id": <id>,
@@ -139,12 +70,12 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 10,
+    "id": 3,
     "class": "table_access",
     "event": "insert",
     "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
     "table_access_data": {
       "db": "test",
       "table": "t1",
@@ -154,7 +85,7 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 11,
+    "id": 4,
     "class": "query",
     "event": "query_status_end",
     "connection_id": <id>,
@@ -165,12 +96,12 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 12,
+    "id": 5,
     "class": "general",
     "event": "result",
     "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
     "general_data": {
       "command": "Query",
       "sql_command": "insert",
@@ -180,12 +111,12 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 13,
+    "id": 6,
     "class": "general",
     "event": "status",
     "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
     "general_data": {
       "command": "Query",
       "sql_command": "insert",
@@ -195,7 +126,7 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 14,
+    "id": 7,
     "class": "command",
     "event": "command_end",
     "connection_id": <id>,
@@ -206,62 +137,64 @@ Print audit log filter output
   },
   {
     "timestamp": "<hidden>",
-    "id": 15,
+    "id": 8,
     "class": "command",
     "event": "command_start",
     "connection_id": <id>,
     "command_data": {
       "name": "command_start",
       "status": 0,
-      "command": "Query"}
+      "command": "Quit"}
   },
   {
     "timestamp": "<hidden>",
-    "id": 16,
-    "class": "parse",
-    "event": "query_rewritten",
-    "connection_id": <id>,
-    "parse_data": {
-      "flags": 0,
-      "query": "SELECT audit_log_filter_remove_filter('log_all')",
-      "rewritten_query": ""}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 17,
-    "class": "parse",
-    "event": "prepared_statement",
-    "connection_id": <id>,
-    "parse_data": {
-      "flags": 0,
-      "query": "SELECT audit_log_filter_remove_filter('log_all')",
-      "rewritten_query": ""}
-  },
-  {
-    "timestamp": "<hidden>",
-    "id": 18,
+    "id": 9,
     "class": "general",
     "event": "log",
     "connection_id": <id>,
-    "account": { "user": "root", "host": "localhost" },
-    "login": { "user": "root", "os": "", "ip": "", "proxy": "" },
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
     "general_data": {
-      "command": "Query",
-      "sql_command": "select",
-      "query": "SELECT audit_log_filter_remove_filter('log_all')",
+      "command": "Quit",
       "status": 0
     }
   },
   {
     "timestamp": "<hidden>",
-    "id": 19,
-    "class": "query",
-    "event": "query_start",
+    "id": 10,
+    "class": "general",
+    "event": "result",
     "connection_id": <id>,
-    "query_data": {
-      "query": "SELECT audit_log_filter_remove_filter('log_all')",
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
+    "general_data": {
+      "command": "Quit",
+      "status": 0
+    }
+  },
+  {
+    "timestamp": "<hidden>",
+    "id": 11,
+    "class": "general",
+    "event": "status",
+    "connection_id": <id>,
+    "account": { "user": "user1", "host": "localhost" },
+    "login": { "user": "user1", "os": "", "ip": "", "proxy": "" },
+    "general_data": {
+      "command": "Quit",
+      "status": 0
+    }
+  },
+  {
+    "timestamp": "<hidden>",
+    "id": 12,
+    "class": "command",
+    "event": "command_end",
+    "connection_id": <id>,
+    "command_data": {
+      "name": "command_end",
       "status": 0,
-      "sql_command": "select"}
+      "command": "Quit"}
   }
 ]
 Validate audit log filter output
@@ -270,43 +203,40 @@ Export output of audit_log_read('$start_bookmark_esc') to a file
 SET @start_bookmark_esc := REPLACE(@start_bookmark, '"', '\\"');
 Validate output of audit_log_read('$start_bookmark_esc')
 File format Ok
+Ignore first event as our bookmark points to the last event in the previous log
+SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 1));
 Start processing audit log from the beginning. Get 5 events from "audit_log_read"
-SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5));
-audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5))
+SELECT audit_log_read('{"max_array_length": 4}');
+audit_log_read('{"max_array_length": 4}')
 [
-{"timestamp": "<hidden>", "id": 0, "class": "audit", "event": "audit", "server_id": 1},
-{"timestamp": "<hidden>", "id": 1, "class": "query", "event": "query_status_end", "connection_id": <id>, "query_data": {"query": "SELECT audit_log_filter_set_user('%', 'log_all')", "status": 0, "sql_command": "select"}},
-{"timestamp": "<hidden>", "id": 2, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "select", "query": "SELECT audit_log_filter_set_user('%', 'log_all')", "status": 0}},
-{"timestamp": "<hidden>", "id": 3, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "select", "query": "SELECT audit_log_filter_set_user('%', 'log_all')", "status": 0}},
-{"timestamp": "<hidden>", "id": 4, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "Query"}}
+{"timestamp": "<hidden>", "id": 0, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "Query"}},
+{"timestamp": "<hidden>", "id": 1, "class": "general", "event": "log", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
+{"timestamp": "<hidden>", "id": 2, "class": "query", "event": "query_start", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
+{"timestamp": "<hidden>", "id": 3, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}}
 ]
 
 Get 8 events from "INSERT INTO t1 VALUES (1)"
-TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
-SELECT audit_log_read('{"max_array_length": 8}');
-audit_log_read('{"max_array_length": 8}')
+SELECT audit_log_read('{"max_array_length": 7}');
+audit_log_read('{"max_array_length": 7}')
 [
-{"timestamp": "<hidden>", "id": 5, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "Query"}},
-{"timestamp": "<hidden>", "id": 6, "class": "parse", "event": "query_rewritten", "connection_id": <id>, "parse_data": {"flags": 0, "query": "INSERT INTO t1 VALUES (1)", "rewritten_query": ""}},
-{"timestamp": "<hidden>", "id": 7, "class": "parse", "event": "prepared_statement", "connection_id": <id>, "parse_data": {"flags": 0, "query": "INSERT INTO t1 VALUES (1)", "rewritten_query": ""}},
-{"timestamp": "<hidden>", "id": 8, "class": "general", "event": "log", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
-{"timestamp": "<hidden>", "id": 9, "class": "query", "event": "query_start", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
-{"timestamp": "<hidden>", "id": 10, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}},
-{"timestamp": "<hidden>", "id": 11, "class": "query", "event": "query_status_end", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
-{"timestamp": "<hidden>", "id": 12, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
-{"timestamp": "<hidden>", "id": 13, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
-{"timestamp": "<hidden>", "id": 14, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "Query"}},
-{"timestamp": "<hidden>", "id": 15, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "Query"}},
-{"timestamp": "<hidden>", "id": 16, "class": "parse", "event": "query_rewritten", "connection_id": <id>, "parse_data": {"flags": 0, "query": "SELECT audit_log_filter_remove_filter('log_all')", "rewritten_query": ""}},
-{"timestamp": "<hidden>", "id": 17, "class": "parse", "event": "prepared_statement", "connection_id": <id>, "parse_data": {"flags": 0, "query": "SELECT audit_log_filter_remove_filter('log_all')", "rewritten_query": ""}},
-{"timestamp": "<hidden>", "id": 18, "class": "general", "event": "log", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "select", "query": "SELECT audit_log_filter_remove_filter('log_all')", "status": 0}},
-{"timestamp": "<hidden>", "id": 19, "class": "query", "event": "query_start", "connection_id": <id>, "query_data": {"query": "SELECT audit_log_filter_remove_filter('log_all')", "status": 0, "sql_command": "select"}},
-null
+{"timestamp": "<hidden>", "id": 4, "class": "query", "event": "query_status_end", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
+{"timestamp": "<hidden>", "id": 5, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
+{"timestamp": "<hidden>", "id": 6, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
+{"timestamp": "<hidden>", "id": 7, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "Query"}},
+{"timestamp": "<hidden>", "id": 8, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "Quit"}},
+{"timestamp": "<hidden>", "id": 9, "class": "general", "event": "log", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Quit", "status": 0}},
+{"timestamp": "<hidden>", "id": 10, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Quit", "status": 0}}
 ]
 
 Get remaining events
-SELECT audit_log_read('null');
-audit_log_read('null')
-OK
+SELECT audit_log_read();
+audit_log_read()
+[
+{"timestamp": "<hidden>", "id": 11, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "user1", "host": "localhost"}, "login": {"user": "user1", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Quit", "status": 0}},
+{"timestamp": "<hidden>", "id": 12, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "Quit"}},
+null
+]
+
 # Cleanup
 DROP TABLE t1;
+DROP USER user1@localhost;

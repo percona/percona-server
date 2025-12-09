@@ -769,6 +769,9 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
     }
   }
 
+  // Do not allocate space for more rows than the handler asked for.
+  rows_in_buffer = std::min(rows_in_buffer, max_rows);
+
   // After adjustments made above, we still need a minimum of 2 rows to
   // use a record buffer.
   if (rows_in_buffer <= 1) {

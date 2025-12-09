@@ -51,13 +51,12 @@ SET @start_bookmark_esc := REPLACE(@start_bookmark, '"', '\\"');
 SELECT audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5));
 
 --echo Get 8 events from "INSERT INTO t1 VALUES (1)"
---echo TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
 --replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
 SELECT audit_log_read('{"max_array_length": 8}');
 
 --echo Get remaining events
 --replace_regex /"connection_id": \d*/"connection_id": <id>/ /"timestamp":\s*"[^"]*"/"timestamp": "<hidden>"/
-SELECT audit_log_read('null');
+SELECT audit_log_read();
 
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc

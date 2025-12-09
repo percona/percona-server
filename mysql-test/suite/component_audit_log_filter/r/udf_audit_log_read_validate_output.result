@@ -282,7 +282,6 @@ audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5))
 ]
 
 Get 8 events from "INSERT INTO t1 VALUES (1)"
-TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
 SELECT audit_log_read('{"max_array_length": 8}');
 audit_log_read('{"max_array_length": 8}')
 [
@@ -293,7 +292,13 @@ audit_log_read('{"max_array_length": 8}')
 {"timestamp": "<hidden>", "id": 9, "class": "query", "event": "query_start", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
 {"timestamp": "<hidden>", "id": 10, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}},
 {"timestamp": "<hidden>", "id": 11, "class": "query", "event": "query_status_end", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
-{"timestamp": "<hidden>", "id": 12, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
+{"timestamp": "<hidden>", "id": 12, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}}
+]
+
+Get remaining events
+SELECT audit_log_read();
+audit_log_read()
+[
 {"timestamp": "<hidden>", "id": 13, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
 {"timestamp": "<hidden>", "id": 14, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "Query"}},
 {"timestamp": "<hidden>", "id": 15, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "Query"}},
@@ -304,9 +309,5 @@ audit_log_read('{"max_array_length": 8}')
 null
 ]
 
-Get remaining events
-SELECT audit_log_read('null');
-audit_log_read('null')
-OK
 # Cleanup
 DROP TABLE t1;

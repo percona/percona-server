@@ -62,3 +62,15 @@ IF(WITH_MECAB)
     MODULE_OUTPUT_NAME "libpluginmecab"
     )
 ENDIF()
+
+# Custom Mecab parser
+IF(WITH_MECAB)
+  INCLUDE_DIRECTORIES(${MECAB_INCLUDE_DIR})
+
+  MYSQL_ADD_PLUGIN(mecab_parser_custom
+    mecab_parser_custom/plugin_mecab_custom.cc
+    LINK_LIBRARIES ${MECAB_LIBRARY}
+    MODULE_ONLY
+    MODULE_OUTPUT_NAME "libpluginmecab_custom"
+    )
+ENDIF()

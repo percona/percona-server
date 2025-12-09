@@ -228,7 +228,6 @@ audit_log_read(JSON_SET(@start_bookmark, '$.max_array_length', 5))
 ]
 
 Get 8 events from "INSERT INTO t1 VALUES (1)"
-TODO: We have a bug here that audit_log_read() returns all records instead of just 8 records
 SELECT audit_log_read('{"max_array_length": 8}');
 audit_log_read('{"max_array_length": 8}')
 [
@@ -239,16 +238,18 @@ audit_log_read('{"max_array_length": 8}')
 {"timestamp": "<hidden>", "id": 9, "class": "query", "event": "query_status_end", "connection_id": <id>, "query_data": {"query": "INSERT INTO t1 VALUES (1)", "status": 0, "sql_command": "insert"}},
 {"timestamp": "<hidden>", "id": 10, "class": "general", "event": "result", "connection_id": <id>, "account": {"user": "root[root] @ localhost []", "host": "localhost"}, "login": {"user": "root[root] @ localhost []", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
 {"timestamp": "<hidden>", "id": 11, "class": "general", "event": "status", "connection_id": <id>, "account": {"user": "root[root] @ localhost []", "host": "localhost"}, "login": {"user": "root[root] @ localhost []", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "insert", "query": "INSERT INTO t1 VALUES (1)", "status": 0}},
-{"timestamp": "<hidden>", "id": 12, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "query"}},
+{"timestamp": "<hidden>", "id": 12, "class": "command", "event": "command_end", "connection_id": <id>, "command_data": {"name": "command_end", "status": 0, "command": "query"}}
+]
+
+Get remaining events
+SELECT audit_log_read();
+audit_log_read()
+[
 {"timestamp": "<hidden>", "id": 13, "class": "command", "event": "command_start", "connection_id": <id>, "command_data": {"name": "command_start", "status": 0, "command": "query"}},
 {"timestamp": "<hidden>", "id": 14, "class": "general", "event": "log", "connection_id": <id>, "account": {"user": "root[root] @ localhost []", "host": "localhost"}, "login": {"user": "root[root] @ localhost []", "os": "", "ip": "", "proxy": ""}, "general_data": {"command": "Query", "sql_command": "select", "query": "SELECT audit_log_filter_remove_filter('log_all')", "status": 0}},
 {"timestamp": "<hidden>", "id": 15, "class": "query", "event": "query_start", "connection_id": <id>, "query_data": {"query": "SELECT audit_log_filter_remove_filter('log_all')", "status": 0, "sql_command": "select"}},
 null
 ]
 
-Get remaining events
-SELECT audit_log_read('null');
-audit_log_read('null')
-OK
 # Cleanup
 DROP TABLE t1;

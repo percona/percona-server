@@ -125,7 +125,6 @@ include/assert.inc [number of records for the special string containing '%' is e
 *** mode: "NATURAL LANGUAGE", pattern: "abc%", expected result: 0, result: 1
 *** mode: "NATURAL LANGUAGE", pattern: "%def", expected result: 0, result: 1
 *** mode: "NATURAL LANGUAGE", pattern: "zabc%def", expected result: 0, result: 1
-*** mode: "BOOLEAN", pattern: "abc%def", expected result: 0, result: 1
 *** mode: "BOOLEAN", pattern: "abc%", expected result: 0, result: 1
 *** mode: "BOOLEAN", pattern: "%def", expected result: 0, result: 1
 include/assert.inc [number of records for the special string containing '&' is expected to be 2]

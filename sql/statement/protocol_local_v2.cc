@@ -188,8 +188,9 @@ bool Protocol_local_v2::store_date(const MYSQL_TIME &time) {
   return store_temporal(time);
 }
 
-bool Protocol_local_v2::store_time(const MYSQL_TIME &time, uint) {
-  return store_temporal(time);
+bool Protocol_local_v2::store_time(const Time_val &time, uint) {
+  MYSQL_TIME tm = MYSQL_TIME(time);
+  return store_temporal(tm);
 }
 
 bool Protocol_local_v2::store_floating_type(double value) {
@@ -441,7 +442,7 @@ bool Protocol_local_v2::send_field_metadata(Send_field *field,
   if (m_current_metadata_column == nullptr) return true;
 
   // Note: since database, column and table name cannot contain \0
-  // (https://dev.mysql.com/doc/refman/8.0/en/identifiers.html), strlen can be
+  // (https://dev.mysql.com/doc/refman/en/identifiers.html), strlen can be
   // used here.
   auto database_name = convert_and_store(
       &m_result_set_mem_root, field->db_name, strlen(field->db_name),

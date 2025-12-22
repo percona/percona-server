@@ -51,6 +51,7 @@ a	b	c	d	a	b	c	d
 4	1	4	5	1	4	2	3
 4	3	1	2	3	1	1	2
 4	4	4	4	4	4	4	4
+SET explain_json_format_version = 1;
 explain format=JSON
 select *
 from t1
@@ -145,6 +146,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+SET explain_json_format_version = DEFAULT;
 explain
 select straight_join count(*) 
 from t1 as x1 

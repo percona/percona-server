@@ -32,6 +32,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF()
 
 FOREACH(warning
+    "array-bounds" # GlobalData.hpp:217 with gcc 14
     "cast-qual"
     # Warnings in Dbtup.hpp
     "class-memaccess"

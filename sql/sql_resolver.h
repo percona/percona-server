@@ -25,8 +25,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <functional>
+#include "sql/item.h"
 
-class Item;
 class THD;
 struct TABLE;
 class Table_ref;
@@ -58,6 +58,10 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                         Table_ref *tables, ORDER *order,
                         mem_root_deque<Item *> *fields, bool is_group_field,
                         bool is_window_order);
+
+bool walk_join_conditions(mem_root_deque<Table_ref *> &list,
+                          std::function<bool(Item **expr_p)> action,
+                          Item::Collect_scalar_subquery_info *info);
 
 struct ReplaceResult {
   enum {

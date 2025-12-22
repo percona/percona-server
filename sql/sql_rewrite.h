@@ -356,8 +356,8 @@ class Rewriter_start_group_replication final : public I_rewriter {
   bool rewrite(String &rlb) const override;
 };
 
-/** Rewrites the par URL used in external tables. */
-void redact_par_url(String original_query_str, String &rlb);
+/** Rewrites the par URL and OCID used in external tables. */
+void redact_external_metadata(String original_query_str, String &rlb);
 
 /** Rewrites the SELECT statement. */
 class Rewriter_select_query final : public I_rewriter {

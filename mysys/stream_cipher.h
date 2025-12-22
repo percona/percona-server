@@ -24,7 +24,9 @@
 #ifndef STREAM_CIPHER_INCLUDED
 #define STREAM_CIPHER_INCLUDED
 
-#include <openssl/evp.h>
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include "my_ssl_algo_cache.h"

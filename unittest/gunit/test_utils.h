@@ -146,6 +146,13 @@ class TraceGuard final {
   UnstructuredTrace m_trace;
 };
 
+/// Counts the number of (possibly overlapping) occurrences of 'needle' in
+/// 'hay'.
+/// @param hay    The string to search within.
+/// @param needle The substring to search for.
+/// @return       The number of times 'needle' appears in 'hay'.
+size_t get_number_of_occurrences(std::string_view hay, std::string_view needle);
+
 }  // namespace my_testing
 
 /// To allow SCOPED_TRACE(trace_buffer), as this requires

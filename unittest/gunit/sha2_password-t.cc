@@ -568,8 +568,8 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
                                               DEFAULT_STORED_DIGEST_ROUNDS);
   std::string digest;
   ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
-                  plaintext_buffer_arthur, salt_buffer_arthur, digest, 5000) ==
-              false);
+                  plaintext_buffer_arthur, salt_buffer_arthur, digest,
+                  ROUNDS_DEFAULT) == false);
   ASSERT_TRUE(digest == digest_string1);
 
   /*Try with random salt */
@@ -586,8 +586,8 @@ TEST_F(SHA256_digestTest, Caching_sha2_password_generate_sha2_multi_hash) {
       digest_string1.find('$', 3 + CRYPT_SALT_LENGTH) + 1, std::string::npos);
 
   ASSERT_TRUE(caching_sha2_password.generate_sha2_multi_hash(
-                  plaintext_buffer_arthur, salt_buffer_arthur, digest, 5000) ==
-              false);
+                  plaintext_buffer_arthur, salt_buffer_arthur, digest,
+                  ROUNDS_DEFAULT) == false);
   ASSERT_TRUE(digest == digest_string1);
 }
 

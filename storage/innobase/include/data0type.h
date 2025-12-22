@@ -547,6 +547,12 @@ struct dtype_t {
   bool is_mtype_valid() const;
 
   std::ostream &print(std::ostream &out) const;
+
+  std::string to_string() const {
+    std::ostringstream sout;
+    print(sout);
+    return sout.str();
+  }
 };
 
 inline std::ostream &operator<<(std::ostream &out, const dtype_t &obj) {

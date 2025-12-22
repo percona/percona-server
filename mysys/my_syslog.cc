@@ -32,13 +32,12 @@
   @file mysys/my_syslog.cc
 */
 
-#include <cstddef>
+#include <cassert>
 
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/my_loglevel.h"
-#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/m_ctype.h"  // IWYU pragma: keep
 #if defined(_WIN32)
 #include <stdio.h>
 

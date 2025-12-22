@@ -267,6 +267,114 @@ SET @@global.component_connection_control.min_connection_delay= @saved_min_delay
 SET @@global.component_connection_control.max_connection_delay = @saved_value;
 SELECT @@global.component_connection_control.max_connection_delay;
 
+--echo # Test setting component_connection_control.exempt_unknown_users to invalid values
+
+SET @saved_exempt= @@global.component_connection_control.exempt_unknown_users;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= -1;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= 7;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "YESS";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "ye";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "NOOOOO";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "n";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "ONN";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "OF";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "offf";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "NO";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= NO;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "YES";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= YES;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "no";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "yes";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "FALSE";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "TRUE";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "false";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.component_connection_control.exempt_unknown_users= "true";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+--echo # Test setting component_connection_control.exempt_unknown_users to valid values
+
+SET @@global.component_connection_control.exempt_unknown_users= 0;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= 1;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+SET @@global.component_connection_control.exempt_unknown_users= "OFF";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= "ON";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= FALSE;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= TRUE;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+SET @@global.component_connection_control.exempt_unknown_users= "off";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= "on";
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= false;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+SET @@global.component_connection_control.exempt_unknown_users= true;
+SELECT @@global.component_connection_control.exempt_unknown_users;
+
+SET @@global.component_connection_control.exempt_unknown_users= @saved_exempt;
+
 --echo #-----------------------------------------------------------------------
 --echo # Cleanup
 disconnect conn_no_privs;

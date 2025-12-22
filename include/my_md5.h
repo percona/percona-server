@@ -24,10 +24,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-
-#include "dig_vec.h"
-#include "my_inttypes.h"
+#include <stddef.h>
 
 /**
   @file include/my_md5.h
@@ -41,10 +38,11 @@ extern int compute_md5_hash(char *digest, const char *buf, size_t len);
 
   Used to generate a hexadecimal representation of a message digest.
 */
-static inline void array_to_hex(char *to, const unsigned char *str, uint len) {
+static inline void array_to_hex(char *to, const unsigned char *str,
+                                unsigned len) {
   static const char *hex_lower = "0123456789abcdef";
-  for (uint i = 0; i < len; ++i) {
-    const uint offset = 2 * i;
+  for (unsigned i = 0; i < len; ++i) {
+    const unsigned offset = 2 * i;
     to[offset] = hex_lower[str[i] >> 4];
     to[offset + 1] = hex_lower[str[i] & 0x0F];
   }

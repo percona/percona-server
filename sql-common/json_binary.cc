@@ -670,6 +670,22 @@ static enum_serialization_result serialize_decimal(const Json_decimal *jd,
 }
 
 /**
+  Serialize a TIME value at the end of the destination string.
+  @param[in]  jdt       the TIME value
+  @param[in]  type_pos  where to write the type specifier
+  @param[out] dest      the destination string
+  @return serialization status
+*/
+static enum_serialization_result serialize_time(const Json_time *jdt,
+                                                size_t type_pos, String *dest) {
+  // Store TIME as opaque value.
+  char buf[Json_time::PACKED_SIZE];
+  jdt->to_packed(buf);
+  Json_opaque const o(jdt->field_type(), buf, sizeof(buf));
+  return serialize_opaque(&o, type_pos, dest);
+}
+
+/**
   Serialize a DATETIME value at the end of the destination string.
   @param[in]  jdt       the DATETIME value
   @param[in]  type_pos  where to write the type specifier
@@ -841,9 +857,12 @@ static enum_serialization_result serialize_json_value(
       result = serialize_decimal(down_cast<const Json_decimal *>(dom), type_pos,
                                  dest);
       break;
+    case enum_json_type::J_TIME:
+      result =
+          serialize_time(down_cast<const Json_time *>(dom), type_pos, dest);
+      break;
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_DATE:
-    case enum_json_type::J_TIME:
     case enum_json_type::J_TIMESTAMP:
       result = serialize_datetime(down_cast<const Json_datetime *>(dom),
                                   type_pos, dest);

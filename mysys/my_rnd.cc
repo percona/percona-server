@@ -31,11 +31,16 @@
   @file mysys/my_rnd.cc
 */
 
-#include "my_rnd.h"
-#include <mysql_com.h>
+#include <limits.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include "my_inttypes.h"  // uint
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_rnd.h"
+
+#include "my_inttypes.h"  // IWYU pragma: keep
+#include "mysql_com.h"
 
 /*
   A wrapper to use OpenSSL PRNGs.

@@ -57,6 +57,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t2` `ot` anti join (`test`.`t1` `it`) on((`test`.`it`.`uk` = `test`.`ot`.`pk`)) where (`test`.`ot`.`pk` < 25)
+SET explain_json_format_version = 1;
 EXPLAIN FORMAT=JSON SELECT pk FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it WHERE it.uk=ot.pk)
 AND ot.pk<25;
@@ -194,6 +195,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.ot.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk` from `test`.`t2` `ot` anti join (`test`.`t1` `it`) on((`<subquery2>`.`uk` = `test`.`ot`.`pk`)) where (`test`.`ot`.`pk` < 25)
+SET explain_json_format_version = 1;
 EXPLAIN FORMAT=JSON SELECT pk FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it WHERE it.uk=ot.pk)
 AND ot.pk<25;

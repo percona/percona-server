@@ -55,9 +55,9 @@ class HistogramsTest : public ::testing::Test {
   Value_map<ulonglong> uint_values;
   Value_map<longlong> int_values;
   Value_map<my_decimal> decimal_values;
-  Value_map<MYSQL_TIME> datetime_values;
-  Value_map<MYSQL_TIME> date_values;
-  Value_map<MYSQL_TIME> time_values;
+  Value_map<Datetime_val> datetime_values;
+  Value_map<Datetime_val> date_values;
+  Value_map<Time_val> time_values;
   Value_map<String> blob_values;
 
   /*
@@ -135,7 +135,7 @@ class HistogramsTest : public ::testing::Test {
     decimal_values.add_values(decimal5, 10);
 
     /*
-      Datetime values (MYSQL_TIME).
+      Datetime values.
 
       We are using these packed values for testing:
 
@@ -145,87 +145,78 @@ class HistogramsTest : public ::testing::Test {
       9147936188962652735 => 9999-12-31 23:59:59.999999
       9147936188962652734 => 9999-12-31 23:59:59.999998
     */
-    MYSQL_TIME datetime1;
+    Datetime_val datetime1;
     TIME_from_longlong_datetime_packed(&datetime1, 9147936188962652734);
     datetime_values.add_values(datetime1, 10);
 
-    MYSQL_TIME datetime2;
+    Datetime_val datetime2;
     TIME_from_longlong_datetime_packed(&datetime2, 914866242077065217);
     datetime_values.add_values(datetime2, 10);
 
-    MYSQL_TIME datetime3;
+    Datetime_val datetime3;
     TIME_from_longlong_datetime_packed(&datetime3, 914866242077065216);
     datetime_values.add_values(datetime3, 10);
 
-    MYSQL_TIME datetime4;
+    Datetime_val datetime4;
     TIME_from_longlong_datetime_packed(&datetime4, 1845541820734373888);
     datetime_values.add_values(datetime4, 10);
 
-    MYSQL_TIME datetime5;
+    Datetime_val datetime5;
     TIME_from_longlong_datetime_packed(&datetime5, 9147936188962652735);
     datetime_values.add_values(datetime5, 10);
 
     /*
-      Date values (MYSQL_TIME).
+      Date values.
 
       Do not test negative values, since negative DATETIME is not supported by
       MySQL. We also call "set_zero_time", to initialize the entire MYSQL_TIME
       structure. If we don't, valgrind will complain on uninitialised values.
     */
-    MYSQL_TIME date1;
+    Date_val date1;
     set_zero_time(&date1, MYSQL_TIMESTAMP_DATE);
     set_max_hhmmss(&date1);
     date_values.add_values(date1, 10);
 
-    MYSQL_TIME date2;
+    Date_val date2;
     set_zero_time(&date2, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date2, 10000);
     date_values.add_values(date2, 10);
 
-    MYSQL_TIME date3;
+    Date_val date3;
     set_zero_time(&date3, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date3, 0);
     date_values.add_values(date3, 10);
 
-    MYSQL_TIME date4;
+    Date_val date4;
     set_zero_time(&date4, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date4, 100);
     date_values.add_values(date4, 10);
 
-    MYSQL_TIME date5;
+    Date_val date5;
     set_zero_time(&date5, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date5, 100000);
     date_values.add_values(date5, 10);
 
     /*
-      Time values (MYSQL_TIME).
+      Time values.
 
       Do not test negative values, since negative DATETIME is not supported by
       MySQL.
     */
-    MYSQL_TIME time1;
-    set_zero_time(&time1, MYSQL_TIMESTAMP_TIME);
-    set_max_time(&time1, false);
+    Time_val time1;
+    time1.set_extreme_value(false);
     time_values.add_values(time1, 10);
 
-    MYSQL_TIME time2;
-    set_zero_time(&time2, MYSQL_TIMESTAMP_TIME);
-    TIME_from_longlong_time_packed(&time2, 12);
+    Time_val time2(false, 0, 0, 12, 0);
     time_values.add_values(time2, 10);
 
-    MYSQL_TIME time3;
-    set_zero_time(&time3, MYSQL_TIMESTAMP_TIME);
-    TIME_from_longlong_time_packed(&time3, 0);
+    Time_val time3;
     time_values.add_values(time3, 10);
 
-    MYSQL_TIME time4;
-    set_zero_time(&time4, MYSQL_TIMESTAMP_TIME);
-    TIME_from_longlong_time_packed(&time4, 42);
+    Time_val time4(false, 0, 0, 42, 0);
     time_values.add_values(time4, 10);
 
-    MYSQL_TIME time5;
-    set_zero_time(&time5, MYSQL_TIMESTAMP_TIME);
-    TIME_from_longlong_time_packed(&time5, 100000);
+    Time_val time5(false, 0, 0, 0, 100000);
     time_values.add_values(time5, 10);
 
     // Blob values.
@@ -461,6 +452,37 @@ void VerifySingletonBucketConstraintsDecimal(Histogram *histogram) {
   }
 }
 
+void VerifySingletonBucketConstraintsTime(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
+  Json_object json_object;
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
+
+  Json_dom *buckets_dom = json_object.get("buckets");
+  auto *buckets = down_cast<Json_array *>(buckets_dom);
+
+  Time_val previous_value;
+  double previous_cumulative_frequency = 0.0;
+  for (size_t i = 0; i < buckets->size(); ++i) {
+    Json_dom *bucket_dom = (*buckets)[i];
+    auto *bucket = static_cast<Json_array *>(bucket_dom);
+
+    auto *json_frequency = down_cast<Json_double *>((*bucket)[1]);
+    double const current_cumulative_frequency = json_frequency->value();
+    EXPECT_GT(current_cumulative_frequency, 0.0);
+    EXPECT_LE(current_cumulative_frequency, 1.0);
+
+    auto *json_time = down_cast<Json_time *>((*bucket)[0]);
+    const Time_val current_value = json_time->value();
+    if (i > 0) {
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
+      EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
+    }
+    previous_value = current_value;
+    previous_cumulative_frequency = current_cumulative_frequency;
+  }
+}
+
 void VerifySingletonBucketConstraintsTemporal(Histogram *histogram) {
   ASSERT_TRUE(histogram != nullptr);
 
@@ -470,7 +492,7 @@ void VerifySingletonBucketConstraintsTemporal(Histogram *histogram) {
   Json_dom *buckets_dom = json_object.get("buckets");
   auto *buckets = down_cast<Json_array *>(buckets_dom);
 
-  const MYSQL_TIME *previous_value = nullptr;
+  const Datetime_val *previous_value = nullptr;
   double previous_cumulative_frequency = 0.0;
   for (size_t i = 0; i < buckets->size(); ++i) {
     Json_dom *bucket_dom = (*buckets)[i];
@@ -482,7 +504,7 @@ void VerifySingletonBucketConstraintsTemporal(Histogram *histogram) {
     EXPECT_LE(current_cumulative_frequency, 1.0);
 
     auto *json_datetime = down_cast<Json_datetime *>((*bucket)[0]);
-    const MYSQL_TIME *current_value = json_datetime->value();
+    const Datetime_val *current_value = json_datetime->value();
     if (i > 0) {
       EXPECT_TRUE(Histogram_comparator()(*previous_value, *current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
@@ -742,6 +764,53 @@ void VerifyEquiHeightBucketConstraintsDecimal(Histogram *histogram) {
   }
 }
 
+void VerifyEquiHeightBucketConstraintsTime(Histogram *histogram) {
+  ASSERT_TRUE(histogram != nullptr);
+
+  Json_object json_object;
+  EXPECT_FALSE(histogram->histogram_to_json(&json_object));
+
+  Json_dom *buckets_dom = json_object.get("buckets");
+  auto *buckets = down_cast<Json_array *>(buckets_dom);
+
+  Time_val previous_upper_value;
+  double previous_cumulative_frequency = 0.0;
+  for (size_t i = 0; i < buckets->size(); ++i) {
+    Json_dom *bucket_dom = (*buckets)[i];
+    auto *bucket = static_cast<Json_array *>(bucket_dom);
+
+    auto *json_frequency = down_cast<Json_double *>((*bucket)[2]);
+    double const current_cumulative_frequency = json_frequency->value();
+    EXPECT_GT(current_cumulative_frequency, 0.0);
+    EXPECT_LE(current_cumulative_frequency, 1.0);
+
+    auto *json_num_distinct = down_cast<Json_uint *>((*bucket)[3]);
+    EXPECT_GE(json_num_distinct->value(), 1ULL);
+
+    /*
+      Index 1 should be lower inclusive value, and index 2 should be upper
+      inclusive value.
+    */
+    auto *json_time_lower = down_cast<Json_time *>((*bucket)[0]);
+    auto *json_time_upper = down_cast<Json_time *>((*bucket)[1]);
+
+    const Time_val current_lower_value(json_time_lower->value());
+    const Time_val current_upper_value(json_time_upper->value());
+
+    if (i > 0) {
+      EXPECT_TRUE(
+          Histogram_comparator()(previous_upper_value, current_lower_value));
+      EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
+    }
+
+    EXPECT_FALSE(
+        Histogram_comparator()(current_upper_value, current_lower_value));
+
+    previous_upper_value = current_upper_value;
+    previous_cumulative_frequency = current_cumulative_frequency;
+  }
+}
+
 void VerifyEquiHeightBucketConstraintsTemporal(Histogram *histogram) {
   ASSERT_TRUE(histogram != nullptr);
 
@@ -751,7 +820,7 @@ void VerifyEquiHeightBucketConstraintsTemporal(Histogram *histogram) {
   Json_dom *buckets_dom = json_object.get("buckets");
   auto *buckets = down_cast<Json_array *>(buckets_dom);
 
-  const MYSQL_TIME *previous_upper_value = nullptr;
+  const Datetime_val *previous_upper_value = nullptr;
   double previous_cumulative_frequency = 0.0;
   for (size_t i = 0; i < buckets->size(); ++i) {
     Json_dom *bucket_dom = (*buckets)[i];
@@ -772,8 +841,8 @@ void VerifyEquiHeightBucketConstraintsTemporal(Histogram *histogram) {
     auto *json_datetime_lower = down_cast<Json_datetime *>((*bucket)[0]);
     auto *json_datetime_upper = down_cast<Json_datetime *>((*bucket)[1]);
 
-    const MYSQL_TIME *current_lower_value(json_datetime_lower->value());
-    const MYSQL_TIME *current_upper_value(json_datetime_upper->value());
+    const Datetime_val *current_lower_value(json_datetime_lower->value());
+    const Datetime_val *current_upper_value(json_datetime_upper->value());
 
     if (i > 0) {
       EXPECT_TRUE(
@@ -884,9 +953,9 @@ void VerifySingletonJSONStructure(Histogram *histogram,
     - Uint
     - Int
     - Decimal
-    - Datetime (MYSQL_TIME)
-    - Date (MYSQL_TIME)
-    - Time (MYSQL_TIME)
+    - Datetime
+    - Date
+    - Time
     - Blob/binary
 */
 TEST_F(HistogramsTest, DoubleSingletonToJSON) {
@@ -956,7 +1025,7 @@ TEST_F(HistogramsTest, DecimalSingletonToJSON) {
 }
 
 TEST_F(HistogramsTest, DatetimeSingletonToJSON) {
-  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+  Singleton<Datetime_val> *histogram = Singleton<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -970,7 +1039,7 @@ TEST_F(HistogramsTest, DatetimeSingletonToJSON) {
 }
 
 TEST_F(HistogramsTest, DateSingletonToJSON) {
-  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+  Singleton<Datetime_val> *histogram = Singleton<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -983,7 +1052,7 @@ TEST_F(HistogramsTest, DateSingletonToJSON) {
 }
 
 TEST_F(HistogramsTest, TimeSingletonToJSON) {
-  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+  Singleton<Time_val> *histogram = Singleton<Time_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -992,7 +1061,7 @@ TEST_F(HistogramsTest, TimeSingletonToJSON) {
   EXPECT_EQ(time_values.size(), histogram->get_num_distinct_values());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_TIME);
-  VerifySingletonBucketConstraintsTemporal(histogram);
+  VerifySingletonBucketConstraintsTime(histogram);
 }
 
 /*
@@ -1004,9 +1073,9 @@ TEST_F(HistogramsTest, TimeSingletonToJSON) {
     - Uint
     - Int
     - Decimal
-    - Datetime (MYSQL_TIME)
-    - Date (MYSQL_TIME)
-    - Time (MYSQL_TIME)
+    - Datetime
+    - Date
+    - Time
     - Blob/binary
 
   Create equi-height histograms with the same number of buckets as the number
@@ -1083,7 +1152,7 @@ TEST_F(HistogramsTest, DecimalEquiHeightToJSON) {
 }
 
 TEST_F(HistogramsTest, DatetimeEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1097,7 +1166,7 @@ TEST_F(HistogramsTest, DatetimeEquiHeightToJSON) {
 }
 
 TEST_F(HistogramsTest, DateEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1110,7 +1179,7 @@ TEST_F(HistogramsTest, DateEquiHeightToJSON) {
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightToJSON) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Time_val> *histogram = Equi_height<Time_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1119,7 +1188,7 @@ TEST_F(HistogramsTest, TimeEquiHeightToJSON) {
   EXPECT_EQ(time_values.size(), histogram->get_num_distinct_values());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsTime(histogram);
 }
 
 /*
@@ -1181,7 +1250,7 @@ TEST_F(HistogramsTest, DecimalEquiHeightFewBuckets) {
 }
 
 TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1191,7 +1260,7 @@ TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets) {
 }
 
 TEST_F(HistogramsTest, DateEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Datetime_val> *histogram = Equi_height<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATE);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1201,13 +1270,13 @@ TEST_F(HistogramsTest, DateEquiHeightFewBuckets) {
 }
 
 TEST_F(HistogramsTest, TimeEquiHeightFewBuckets) {
-  Equi_height<MYSQL_TIME> *histogram = Equi_height<MYSQL_TIME>::create(
+  Equi_height<Time_val> *histogram = Equi_height<Time_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::TIME);
   ASSERT_TRUE(histogram != nullptr);
 
   EXPECT_FALSE(histogram->build_histogram(time_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
-  VerifyEquiHeightBucketConstraintsTemporal(histogram);
+  VerifyEquiHeightBucketConstraintsTime(histogram);
 }
 
 /*
@@ -1359,7 +1428,7 @@ void VerifySingletonBucketContentsDecimal(Json_array *singleton_buckets,
 void VerifySingletonBucketContentsTemporal(Json_array *singleton_buckets,
                                            int bucket_index,
                                            double cumulative_frequency,
-                                           MYSQL_TIME value) {
+                                           Datetime_val value) {
   auto *json_bucket =
       down_cast<Json_array *>((*singleton_buckets)[bucket_index]);
 
@@ -1850,7 +1919,7 @@ TEST_F(HistogramsTest, VerifySingletonContentsDecimal) {
   property in every bucket.
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDateTime) {
-  Singleton<MYSQL_TIME> *histogram = Singleton<MYSQL_TIME>::create(
+  Singleton<Datetime_val> *histogram = Singleton<Datetime_val>::create(
       &m_mem_root, "db1", "tbl1", "col1", Value_map_type::DATETIME);
   ASSERT_TRUE(histogram != nullptr);
 
@@ -1858,7 +1927,8 @@ TEST_F(HistogramsTest, VerifySingletonContentsDateTime) {
   EXPECT_STREQ(histogram->get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram->get_column_name().str, "col1");
 
-  Value_map<MYSQL_TIME> value_map(&my_charset_latin1, Value_map_type::DATETIME);
+  Value_map<Datetime_val> value_map(&my_charset_latin1,
+                                    Value_map_type::DATETIME);
   value_map.add_null_values(10);
   value_map.insert(datetime_values.begin(), datetime_values.end());
 
@@ -1872,19 +1942,19 @@ TEST_F(HistogramsTest, VerifySingletonContentsDateTime) {
   Json_dom *buckets_dom = json_object.get("buckets");
   auto *json_buckets = static_cast<Json_array *>(buckets_dom);
 
-  MYSQL_TIME time1;
+  Datetime_val time1;
   TIME_from_longlong_datetime_packed(&time1, 914866242077065216);
 
-  MYSQL_TIME time2;
+  Datetime_val time2;
   TIME_from_longlong_datetime_packed(&time2, 914866242077065217);
 
-  MYSQL_TIME time3;
+  Datetime_val time3;
   TIME_from_longlong_datetime_packed(&time3, 1845541820734373888);
 
-  MYSQL_TIME time4;
+  Datetime_val time4;
   TIME_from_longlong_datetime_packed(&time4, 9147936188962652734);
 
-  MYSQL_TIME time5;
+  Datetime_val time5;
   TIME_from_longlong_datetime_packed(&time5, 9147936188962652735);
 
   VerifySingletonBucketContentsTemporal(json_buckets, 0, (10.0 / 60.0), time1);

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t1,t2;
 #
 # Start of 5.5 tests
@@ -3308,3 +3309,4 @@ SELECT a FROM t1 WHERE a = 'aaa ';
 a
 aaa
 DROP TABLE t1;
+include/rpl/set_gtid_mode_on.inc

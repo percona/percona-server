@@ -80,24 +80,15 @@ The lock algorithm allows one to have one TL_WRITE_CONCURRENT_INSERT
 lock at the same time as multiple read locks.
 */
 
-#include "my_config.h"
-
 #include <sys/types.h>
-#include <cerrno>
+#include <cassert>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <ctime>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
+#include <new>
 
-#include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_list.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
@@ -105,13 +96,13 @@ lock at the same time as multiple read locks.
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_table.h"
 #include "mysys/mysys_priv.h"
-#include "template_utils.h"
+#include "template_utils.h"  // IWYU pragma: keep
 #include "thr_lock.h"
 #include "thr_mutex.h"
+
+struct mysql_cond_t;  // IWYU pragma: keep
 
 ulong locks_immediate = 0L, locks_waited = 0L;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
@@ -1109,6 +1100,16 @@ void thr_print_locks() {
 ****************************************************************************/
 
 #ifdef MAIN
+
+#include "my_config.h"
+
+#include <errno.h>
+#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "mysql/psi/mysql_thread.h"
 
 struct st_test {
   uint lock_nr;

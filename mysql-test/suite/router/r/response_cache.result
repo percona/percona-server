@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 # DB `basic_schema` - created
@@ -98,7 +99,8 @@ POST /svc/basic/t1auth (payload-size:9)
         }
     ],
     "_metadata": {
-        "etag": "6AF4F18B73FB04387AC2237DE50A4D2A2AD1CBEBD1A038349FA580548CD75BAC"
+        "etag": "6AF4F18B73FB04387AC2237DE50A4D2A2AD1CBEBD1A038349FA580548CD75BAC",
+        "gtid": "GTID"
     }
 }
 OK
@@ -112,7 +114,10 @@ OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 DELETE /svc/basic/t1auth/11
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
@@ -428,7 +433,10 @@ OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 DELETE /svc/basic/t1auth/50
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 GET /svc/basic/t1auth/50
@@ -494,6 +502,9 @@ GET /svc/basic/proc
     "resultSets": [],
     "outParameters": {
         "result": "1"
+    },
+    "_metadata": {
+        "gtid": "GTID"
     }
 }
 OK
@@ -503,6 +514,9 @@ GET /svc/basic/proc
     "resultSets": [],
     "outParameters": {
         "result": "1"
+    },
+    "_metadata": {
+        "gtid":GTID
     }
 }
 OK
@@ -512,6 +526,9 @@ POST /svc/basic/proc (payload-size:2)
     "resultSets": [],
     "outParameters": {
         "result": "2"
+    },
+    "_metadata": {
+        "gtid": "GTID"
     }
 }
 OK
@@ -521,38 +538,53 @@ POST /svc/basic/proc (payload-size:2)
     "resultSets": [],
     "outParameters": {
         "result": "3"
+    },
+    "_metadata": {
+        "gtid":GTID
     }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 GET /svc/basic/func
 {
-    "result": "4"
+    "result": "4",
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 GET /svc/basic/func
 {
-    "result": "4"
+    "result": "4",
+    "_metadata": {
+        "gtid":GTID
+    }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 POST /svc/basic/func (payload-size:2)
 {
-    "result": "5"
+    "result": "5",
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 POST /svc/basic/func (payload-size:2)
 {
-    "result": "6"
+    "result": "6",
+    "_metadata": {
+        "gtid":GTID
+    }
 }
 OK
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 select max(TIMER_END) into @initial_time from performance_schema.events_statements_history_long;
 stats
-{"files": 1, "items": 6, "fileHits": 1.0, "itemHits": 10.0, "endpoints": 11, "fileLoads": 2.0, "itemLoads": 9.0, "fileEjects": 1.0, "fileMisses": 2.0, "itemEjects": 2.0, "itemMisses": 10.0}
+{"files": 1, "items": 5, "fileHits": 1.0, "itemHits": 10.0, "endpoints": 11, "fileLoads": 2.0, "itemLoads": 9.0, "fileEjects": 1.0, "fileMisses": 2.0, "itemEjects": 3.0, "itemMisses": 10.0}
 update performance_schema.setup_consumers set enabled="YES" where name='events_statements_history_long';
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;

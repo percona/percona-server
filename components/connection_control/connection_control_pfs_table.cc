@@ -38,7 +38,7 @@ Connection_control_pfs_table_data_row::Connection_control_pfs_table_data_row(
     : m_userhost(userhost), m_failed_attempts(failed_attempts) {}
 
 void Failed_attempts_list_imp::failed_attempts_define(const char *userhost) {
-  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
+  const std::unique_lock<std::shared_mutex> lock(mutex_);
   auto pos = failed_attempts_map.find(userhost);
   if (pos == failed_attempts_map.end()) {
     PSI_ulong failed_attempts;
@@ -51,13 +51,13 @@ void Failed_attempts_list_imp::failed_attempts_define(const char *userhost) {
 }
 
 bool Failed_attempts_list_imp::failed_attempts_undefine(const char *userhost) {
-  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
+  const std::unique_lock<std::shared_mutex> lock(mutex_);
   return failed_attempts_map.erase(userhost) == 0;
 }
 
 Connection_control_pfs_table_data *
 Failed_attempts_list_imp::copy_pfs_table_data() {
-  std::unique_lock<std::mutex> const LOCK_failed_attempts_list;
+  const std::unique_lock<std::shared_mutex> lock(mutex_);
   try {
     auto *ret = new Connection_control_pfs_table_data;
     if (failed_attempts_map.empty()) return ret;
@@ -71,13 +71,13 @@ Failed_attempts_list_imp::copy_pfs_table_data() {
 }
 
 unsigned long long Failed_attempts_list_imp::get_failed_attempts_list_count() {
-  std::shared_lock<std::shared_mutex> const LOCK_shared_failed_attempts_list;
+  const std::shared_lock<std::shared_mutex> lock(mutex_);
   return failed_attempts_map.size();
 }
 
 unsigned long long Failed_attempts_list_imp::get_failed_attempts_count(
     const char *userhost) {
-  std::shared_lock<std::shared_mutex> const LOCK_shared_failed_attempts_list;
+  const std::shared_lock<std::shared_mutex> lock(mutex_);
   auto pos = failed_attempts_map.find(userhost);
   if (pos == failed_attempts_map.end()) {
     return 0;

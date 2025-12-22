@@ -21,15 +21,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <gtest/gtest.h>
+#include <string.h>
 #include "my_config.h"
+#include "sql/manifest_file_option_parser_helper.h"
 
 #ifdef HAVE_GETPWNAM
-#include <gtest/gtest.h>
 #include "my_getpwnam.h"  // PasswdValue
+#endif                    /* HAVE_GETPWNAM */
 
 // Unit tests for functions in mysqld.cc.
-extern bool opt_initialize;
 namespace mysqld_funcs_unit_test {
+#ifdef HAVE_GETPWNAM
 PasswdValue check_user_drv(const char *user);
 
 TEST(MysqldFuncs, CheckUser) {
@@ -51,5 +54,39 @@ TEST(MysqldFuncs, CheckUser) {
     EXPECT_TRUE(check_user_drv("bin").IsVoid());
   }
 }
-}  // namespace mysqld_funcs_unit_test
 #endif /* HAVE_GETPWNAM */
+
+constexpr const char *lorem_ipsum_510 =
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ut "
+    "perspiciatis unde omnis iste natus error sit voluptatem accusantium "
+    "doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo "
+    "inventore veritatis et quasi architecto beatae vitae dicta sunt "
+    "explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut "
+    "odit aut fugit, sed quia consequuntur magni dolores eos qui ratione "
+    "voluptatem sequi nesciunt. Neque porro quisquam.";
+
+TEST(MysqldFuncs, CheckManifestFileOptionParserHelper) {
+  const char *argv[] = {"path", "--datadir=d", "--plugin-dir=p"};
+  constexpr int argc = std::size(argv);
+
+  strncpy(mysql_real_data_home, lorem_ipsum_510,
+          std::size(mysql_real_data_home));
+  strncpy(opt_plugin_dir, lorem_ipsum_510, std::size(opt_plugin_dir));
+
+  {
+    Manifest_file_option_parser_helper obj{argc, const_cast<char **>(argv)};
+#ifdef _WIN32
+    EXPECT_TRUE(strcmp(mysql_real_data_home, "d\\") == 0);
+    EXPECT_TRUE(strcmp(opt_plugin_dir, "\\p\\") == 0);
+#else
+    EXPECT_TRUE(strcmp(mysql_real_data_home, "d/") == 0);
+    EXPECT_TRUE(strcmp(opt_plugin_dir, "/p/") == 0);
+#endif
+  }
+
+  // mysql_real_data_home and opt_plugin_dir must be preserved
+  EXPECT_TRUE(strcmp(mysql_real_data_home, lorem_ipsum_510) == 0);
+  EXPECT_TRUE(strcmp(opt_plugin_dir, lorem_ipsum_510) == 0);
+}
+
+}  // namespace mysqld_funcs_unit_test

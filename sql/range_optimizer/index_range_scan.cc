@@ -201,7 +201,7 @@ static bool has_blob_primary_key(const TABLE *table) {
                      });
 }
 
-bool IndexRangeScanIterator::Init() {
+bool IndexRangeScanIterator::DoInit() {
   empty_record(table());
 
   /*
@@ -357,7 +357,7 @@ bool IndexRangeScanIterator::shared_reset() {
   return false;
 }
 
-int IndexRangeScanIterator::Read() {
+int IndexRangeScanIterator::DoRead() {
   MY_BITMAP *const save_read_set = table()->read_set;
   MY_BITMAP *const save_write_set = table()->write_set;
   DBUG_TRACE;

@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 # DB `basic_schema` - created
@@ -390,7 +391,8 @@ Modify the document using etag received in the previous step, that should be acc
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "0B7B3C86CAEDD06538D988741273A932A5961C65C88A9F3C13A67DC2004CC31F"
+        "etag": "0B7B3C86CAEDD06538D988741273A932A5961C65C88A9F3C13A67DC2004CC31F",
+        "gtid": "GTID"
     }
 }
 Try that again, should be rejected as the checksum has changed due to the update in the previous step
@@ -451,7 +453,8 @@ IV. Verify that the PUT is accepted if the request does not contain etag
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "C04F2D532D9348F07303BEBACAB421DDEDD33FADD2A0E806C10E1F2EA63496C5"
+        "etag": "C04F2D532D9348F07303BEBACAB421DDEDD33FADD2A0E806C10E1F2EA63496C5",
+        "gtid": "GTID"
     }
 }
 
@@ -505,7 +508,8 @@ V. Verify the POST will also have etag in response (GET and PUT checked before).
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "9B3B05CB043E174E609B42550D38BE388CA980824064A9AC6EFAC98823009FA8"
+        "etag": "9B3B05CB043E174E609B42550D38BE388CA980824064A9AC6EFAC98823009FA8",
+        "gtid": "GTID"
     }
 }
 
@@ -559,7 +563,8 @@ VI. Verify the etag is ignored if PUT does an insert
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "91A98B8B4E2EE2CB7FCDC311A05B55FAC3A7ED01F66AFA80813A3383E2A8693E"
+        "etag": "91A98B8B4E2EE2CB7FCDC311A05B55FAC3A7ED01F66AFA80813A3383E2A8693E",
+        "gtid": "GTID"
     }
 }
 

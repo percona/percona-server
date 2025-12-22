@@ -69,8 +69,8 @@ ELSEIF(APPLE)
   CMAKE_MINIMUM_REQUIRED(VERSION 3.19)
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
-  IF(CMAKE_VERSION VERSION_LESS 3.14.6)
-    # Default cmake is 2.8.12.2 on RedHat
+  IF(CMAKE_VERSION VERSION_LESS 3.17.5)
+    # Default cmake is 2.8.12.2 on RedHat 7
     IF(EXISTS "/etc/redhat-release")
       MESSAGE(WARNING "Please use cmake3 rather than cmake on this platform")
       FIND_PROGRAM(MY_CMAKE3 cmake3 /bin /usr/bin /usr/local/bin)
@@ -85,7 +85,7 @@ ELSEIF(UNIX)
       IF(MY_UNAME)
         EXECUTE_PROCESS(COMMAND uname -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
         IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
-          FIND_PROGRAM(MY_CMAKE cmake /usr/bin
+          FIND_PROGRAM(MY_CMAKE cmake /usr/bin /bin
             NO_CMAKE_ENVIRONMENT_PATH
             NO_SYSTEM_ENVIRONMENT_PATH
             )
@@ -104,7 +104,7 @@ ENDIF()
 # CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
 # CMake 3.7 is needeed for VERSION_GREATER_EQUAL
 # For the set of currently supported platforms, we can bump up to:
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.17.5)
 
 # Will set GIT_EXECUTABLE and GIT_FOUND
 FIND_PACKAGE(Git)
@@ -234,8 +234,8 @@ IF(APPLE)
 ENDIF()
 
 # Add all policies *after* CMAKE_MINIMUM_REQUIRED
-# Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.14.6
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14.6)
+# Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.17.5
+CMAKE_MINIMUM_REQUIRED(VERSION 3.17.5)
 INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
 MACRO(STRING_APPEND STRING_VAR INPUT)
@@ -328,7 +328,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
       IF(LINUX_RHEL7)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
       ELSEIF(LINUX_RHEL8)
-        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-13")
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-14")
       ELSEIF(LINUX_RHEL9)
         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-14")
       ELSEIF(LINUX_RHEL10)
@@ -389,9 +389,9 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
             "devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils")
         ELSEIF(LINUX_RHEL8)
           SET(DEV_PACKAGES
-            "gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils")
-          STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-annocheck")
-          STRING_APPEND(DEV_PACKAGES " gcc-toolset-13-annobin-plugin-gcc")
+            "gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-14-annobin-annocheck")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-14-annobin-plugin-gcc")
         ELSEIF(LINUX_RHEL9)
           SET(DEV_PACKAGES
             "gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils")
@@ -547,6 +547,18 @@ IF(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY)
   SET(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY OFF CACHE INTERNAL "" FORCE)
 ENDIF()
 
+# We have our own WITH_UNIT_TESTS option, and call ENABLE_TESTING() accordingly.
+# We do not INCLUDE(CTest) here.
+# Various 3rd party libraries use this option, so set it to OFF.
+OPTION(BUILD_TESTING "See <cmake root>/Modules/CTest.cmake" OFF)
+IF(BUILD_TESTING)
+  MESSAGE(WARNING "Do not set BUILD_TESTING to ON/TRUE, "
+    "use the cmake option WITH_UNIT_TESTS instead."
+    )
+  SET(BUILD_TESTING OFF)
+  SET(BUILD_TESTING OFF CACHE INTERNAL "" FORCE)
+ENDIF()
+
 # Ninja only: List of available pools.
 SET_PROPERTY(GLOBAL PROPERTY JOB_POOLS one_job=1)
 
@@ -696,9 +708,6 @@ ENDIF()
 
 # To add c/c++ code specific for MySQL AI release using #ifdef..#endif
 OPTION(WITH_MYSQL_AI "To Add MySQL AI Release C/C++ Code" OFF)
-IF (WITH_MYSQL_AI)
-  ADD_COMPILE_DEFINITIONS(MYSQL_AI)
-ENDIF()
 
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
@@ -719,6 +728,13 @@ ELSE()
   SET(WITH_SOME_SANITIZER OFF)
 ENDIF()
 
+OPTION(WITH_IWYU "Run include-what-you-use" OFF)
+IF(WITH_IWYU)
+  SET(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
+    include-what-you-use
+    -Xiwyu --mapping_file=${CMAKE_SOURCE_DIR}/iwyu_mappings.imp
+    )
+ENDIF()
 
 # Add RPM or DEB platform flags for STANDALONE build.
 # Not for DEBUG builds, since both platforms use -O2 and _FORTIFY_SOURCE.
@@ -1257,22 +1273,17 @@ IF(CMAKE_C_FLAGS MATCHES "-fsanitize" OR CMAKE_CXX_FLAGS MATCHES "-fsanitize")
   SET(CMAKE_COMPILER_FLAG_WITH_SANITIZE 1)
 ENDIF()
 
-# Older versions of ccache must be disabled: export CCACHE_DISABLE=1
-# See https://gitlab.kitware.com/cmake/community/-/wikis/doc/ctest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
-  STRING_APPEND(CMAKE_C_FLAGS
-  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -DHAVE_GCOV")
-  STRING_APPEND(CMAKE_CXX_FLAGS
-  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -DHAVE_GCOV")
+  SET(GCOV_COMPILER_OPTIONS
+    "-fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${GCOV_COMPILER_OPTIONS} -DHAVE_GCOV")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${GCOV_COMPILER_OPTIONS} -DHAVE_GCOV")
   STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--dynamic-list-data")
   STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--dynamic-list-data")
-  STRING_APPEND(CMAKE_EXE_LINKER_FLAGS
-  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
-  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS
-  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
-  STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS
-  " -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -lgcov")
+  STRING_APPEND(CMAKE_EXE_LINKER_FLAGS    " ${GCOV_COMPILER_OPTIONS} -lgcov")
+  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " ${GCOV_COMPILER_OPTIONS} -lgcov")
+  STRING_APPEND(CMAKE_MODULE_LINKER_FLAGS " ${GCOV_COMPILER_OPTIONS} -lgcov")
 ENDIF()
 
 OPTION(ENABLE_GPROF "Enable gprof (optimized, Linux builds only)" OFF)
@@ -2225,6 +2236,14 @@ IF(HAVE_ASAN AND MY_COMPILER_IS_CLANG AND WITH_PROTOBUF STREQUAL "bundled")
   ADD_COMPILE_OPTIONS(-mllvm -asan-use-private-alias=1)
 ENDIF()
 
+# Are we using "bundled" ICU? Shared libs currently only used on Linux.
+IF(TARGET icuuc)
+  GET_TARGET_PROPERTY(type icuuc TYPE)
+  IF(type MATCHES "SHARED_LIBRARY")
+    SET(ADD_INSTALL_RPATH_FOR_ICU 1)
+  ENDIF()
+ENDIF()
+
 IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
@@ -2509,10 +2528,12 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       # The mold linker and RelWithDebInfo build complains about
       # the new expression in Rpl_info_values::init()
       # We get stringop warnings in functions generated by protobuf.
+      # We get even more stringop warnings from gcc 14.2 lto-wrapper.
       IF(MY_COMPILER_IS_GNU)
-        TARGET_LINK_OPTIONS(server_unittest_library PRIVATE
+        TARGET_LINK_OPTIONS(server_unittest_library PUBLIC
           -Wno-alloc-size-larger-than
           -Wno-stringop-overflow
+          -Wno-stringop-overread
           )
       ENDIF()
     ENDIF()
@@ -2529,11 +2550,11 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     ENDIF()
     ADD_LIBRARY(server_unittest_library STATIC
       ${DUMMY_SOURCE_FILE} ${MYSQLD_EXTRA_SOURCES})
-    TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
-    TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
-    TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
-    TARGET_LINK_LIBRARIES(server_unittest_library ext::icu)
-    TARGET_LINK_LIBRARIES(server_unittest_library binlog)
+    TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC perfschema)
+    TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC sql_main)
+    TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC minchassis)
+    TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC ext::icu)
+    TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC binlog)
   ENDIF()
 ENDIF()
 
@@ -2556,6 +2577,8 @@ INCLUDE(cmake/tags.cmake)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
                ${CMAKE_BINARY_DIR}/include/mysql_version.h )
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/mysql_server_suffix.h.in
+               ${CMAKE_BINARY_DIR}/include/mysql_server_suffix.h)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
 

@@ -183,6 +183,7 @@ SET(SYS_SCHEMA_SOURCES
   procedures/ps_setup_show_enabled_consumers.sql
   procedures/ps_setup_show_enabled_instruments.sql
   procedures/ps_truncate_all_tables.sql
+  procedures/revoke_schema_privileges_from_all_accounts_except.sql
   procedures/statement_performance_analyzer.sql
   procedures/table_exists.sql
 

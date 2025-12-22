@@ -146,7 +146,7 @@ client_query_attributes *telemetry_client_attrs = nullptr;
 
 /** default set of patterns used for history exclusion filter */
 const static std::string HI_DEFAULTS(
-    "*IDENTIFIED*:*PASSWORD*:*https?*/p/?*/n/?*/b/?*/o/*");
+    "*IDENTIFIED*:*PASSWORD*:*https?*/p/?*/n/?*/b/?*/o/*:*ocid1.stream*");
 
 /** used for matching which history lines to ignore */
 static Pattern_matcher ignore_matcher;

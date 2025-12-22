@@ -1,3 +1,4 @@
+SET explain_json_format_version = 1;
 #---------------- Index merge test 1 -------------------------------------------
 # (Start of test file: index_merge1.inc)
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;

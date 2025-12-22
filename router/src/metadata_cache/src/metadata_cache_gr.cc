@@ -269,7 +269,7 @@
  * availability/quorum calculations will be skewed. We run checks to detect such
  * situation, and log a warning like so:
  *
- *     log_error("Member %s:%d (%s) found in Group Replication, yet is not
+ *     log_error("Member %s (%s) found in Group Replication, yet is not
  * defined in metadata!"
  *
  * but beyond that we just act defensively by having our quorum calculation be
@@ -440,7 +440,7 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
         res.error() !=
             metadata_cache::metadata_errc::no_metadata_read_successful;
 
-    on_refresh_failed(terminated_, md_servers_reachable);
+    on_refresh_failed(md_servers_reachable);
     return false;
   }
 
@@ -481,10 +481,11 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
             cluster.name.c_str(), cluster.members.size(),
             cluster.single_primary_mode ? "single-primary" : "multi-primary");
         for (const auto &mi : cluster.members) {
-          log_info(
-              "    %s:%i / %i - mode=%s%s%s%s", mi.host.c_str(), mi.port,
-              mi.xport, to_string(mi.mode).c_str(), get_hidden_info(mi).c_str(),
-              get_read_replica_info(mi).c_str(), get_ignored_info(mi).c_str());
+          log_info("    %s / %i - mode=%s%s%s%s",
+                   mi.classic_destination().str().c_str(), mi.xport,
+                   to_string(mi.mode).c_str(), get_hidden_info(mi).c_str(),
+                   get_read_replica_info(mi).c_str(),
+                   get_ignored_info(mi).c_str());
         }
       }
     }

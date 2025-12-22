@@ -30,9 +30,9 @@
 */
 
 /* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_psi_config.h"
 
-#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"  // IWYU pragma: export
 #include "mysql/psi/psi_rwlock.h"
 #include "thr_rwlock.h"
 

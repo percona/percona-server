@@ -833,22 +833,25 @@ const char *Item_func_geomfromgeojson::GEOMETRIES_MEMBER = "geometries";
 const char *Item_func_geomfromgeojson::COORDINATES_MEMBER = "coordinates";
 const char *Item_func_geomfromgeojson::CRS_NAME_MEMBER = "name";
 const char *Item_func_geomfromgeojson::NAMED_CRS = "name";
-const char *Item_func_geomfromgeojson::SHORT_EPSG_PREFIX = "EPSG:";
 const char *Item_func_geomfromgeojson::POINT_TYPE = "Point";
 const char *Item_func_geomfromgeojson::MULTIPOINT_TYPE = "MultiPoint";
 const char *Item_func_geomfromgeojson::LINESTRING_TYPE = "LineString";
 const char *Item_func_geomfromgeojson::MULTILINESTRING_TYPE = "MultiLineString";
 const char *Item_func_geomfromgeojson::POLYGON_TYPE = "Polygon";
 const char *Item_func_geomfromgeojson::MULTIPOLYGON_TYPE = "MultiPolygon";
+const char *Item_func_geomfromgeojson::GEOMETRYCOLLECTION_TYPE =
+    "GeometryCollection";
 const char *Item_func_geomfromgeojson::FEATURE_TYPE = "Feature";
 const char *Item_func_geomfromgeojson::FEATURECOLLECTION_TYPE =
     "FeatureCollection";
+const char *Item_func_geomfromgeojson::SHORT_EPSG_PREFIX = "EPSG:";
+const char *Item_func_geomfromgeojson::SHORT_MYSQL_PREFIX = "MySQL:";
 const char *Item_func_geomfromgeojson::LONG_EPSG_PREFIX =
     "urn:ogc:def:crs:EPSG::";
+const char *Item_func_geomfromgeojson::LONG_MYSQL_PREFIX =
+    "urn:ogc:def:crs:MySQL::";
 const char *Item_func_geomfromgeojson::CRS84_URN =
     "urn:ogc:def:crs:OGC:1.3:CRS84";
-const char *Item_func_geomfromgeojson::GEOMETRYCOLLECTION_TYPE =
-    "GeometryCollection";
 
 /**
   @<geometry@> = ST_GEOMFROMGEOJSON(@<string@>[, @<options@>[, @<srid@>]])
@@ -993,22 +996,31 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
   if (m_user_provided_srid) {
     write_at_position(0, m_user_srid, buf);
   } else if (m_srid_found_in_document > -1) {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs = nullptr;
-    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
-        new dd::cache::Dictionary_client ::Auto_releaser(
-            current_thd->dd_client()));
-    if (fetcher.acquire(m_srid_found_in_document, &srs)) {
-      return error_str(); /* purecov: inspected */
-    }
+    if (m_srid_found_in_document == 0) {
+      write_at_position(0, static_cast<uint32>(m_srid_found_in_document), buf);
+    } else {
+      Srs_fetcher fetcher(current_thd);
+      const dd::Spatial_reference_system *srs = nullptr;
+      std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+          new dd::cache::Dictionary_client ::Auto_releaser(
+              current_thd->dd_client()));
+      if (fetcher.acquire(m_srid_found_in_document, &srs)) {
+        /* purecov: begin inspected */
+        delete result_geometry;
+        return error_str();
+        /* purecov: end inspected */
+      }
 
-    if (srs == nullptr) {
-      delete result_geometry;
-      my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
-      return error_str();
-    }
+      if (srs == nullptr) {
+        /* purecov: begin inspected */
+        delete result_geometry;
+        my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+        return error_str();
+        /* purecov: end inspected */
+      }
 
-    write_at_position(0, static_cast<uint32>(m_srid_found_in_document), buf);
+      write_at_position(0, static_cast<uint32>(m_srid_found_in_document), buf);
+    }
   }
 
   const bool return_result = result_geometry->as_wkb(buf, false);
@@ -1725,10 +1737,21 @@ bool Item_func_geomfromgeojson::parse_crs_object(
     size_t start_index;
     const size_t name_length = crs_name_member_str->size();
     const char *crs_name = crs_name_member_str->value().c_str();
-    if (native_strncasecmp(crs_name, SHORT_EPSG_PREFIX, 5) == 0) {
-      start_index = 5;
-    } else if (native_strncasecmp(crs_name, LONG_EPSG_PREFIX, 22) == 0) {
-      start_index = 22;
+    bool is_mysql_prefix = false;
+    if (native_strncasecmp(crs_name, SHORT_EPSG_PREFIX,
+                           strlen(SHORT_EPSG_PREFIX)) == 0) {
+      start_index = strlen(SHORT_EPSG_PREFIX);
+    } else if (native_strncasecmp(crs_name, LONG_EPSG_PREFIX,
+                                  strlen(LONG_EPSG_PREFIX)) == 0) {
+      start_index = strlen(LONG_EPSG_PREFIX);
+    } else if (native_strncasecmp(crs_name, SHORT_MYSQL_PREFIX,
+                                  strlen(SHORT_MYSQL_PREFIX)) == 0) {
+      is_mysql_prefix = true;
+      start_index = strlen(SHORT_MYSQL_PREFIX);
+    } else if (native_strncasecmp(crs_name, LONG_MYSQL_PREFIX,
+                                  strlen(LONG_MYSQL_PREFIX)) == 0) {
+      is_mysql_prefix = true;
+      start_index = strlen(LONG_MYSQL_PREFIX);
     } else {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
@@ -1742,8 +1765,10 @@ bool Item_func_geomfromgeojson::parse_crs_object(
       Check that the whole ending got parsed, and that the value is within
       valid SRID range.
     */
-    if (end_of_parse == (crs_name + name_length) && parsed_value > 0 &&
-        parsed_value <= UINT_MAX32) {
+    if (end_of_parse == (crs_name + name_length) &&
+        parsed_value <= UINT_MAX32 &&
+        ((parsed_value > 0 && !is_mysql_prefix) ||
+         (parsed_value == 0 && is_mysql_prefix))) {
       parsed_srid = static_cast<uint32>(parsed_value);
     } else {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
@@ -1751,16 +1776,14 @@ bool Item_func_geomfromgeojson::parse_crs_object(
     }
   }
 
-  if (parsed_srid > 0) {
-    if (m_srid_found_in_document > 0 &&
-        parsed_srid != m_srid_found_in_document) {
-      // A SRID has already been found, which had a different value.
-      my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
-      return true;
-    } else {
-      m_srid_found_in_document = parsed_srid;
-    }
+  if (m_srid_found_in_document > 0 && parsed_srid != m_srid_found_in_document) {
+    // A SRID has already been found, which had a different value.
+    my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
+    return true;
   }
+
+  m_srid_found_in_document = parsed_srid;
+
   return false;
 }
 
@@ -2127,7 +2150,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry) {
 static bool append_crs(Json_object *geometry, bool add_short_crs_urn,
                        bool add_long_crs_urn, uint32 geometry_srid) {
   assert(add_long_crs_urn || add_short_crs_urn);
-  assert(geometry_srid > 0);
 
   Json_object *crs_object = new (std::nothrow) Json_object();
   if (crs_object == nullptr || geometry->add_alias("crs", crs_object) ||
@@ -2141,19 +2163,24 @@ static bool append_crs(Json_object *geometry, bool add_short_crs_urn,
     return true;
   }
 
-  // Max width of SRID + '\0'
-  char srid_string[MAX_INT_WIDTH + 1];
-  llstr(geometry_srid, srid_string);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> crs_name;
+  if (add_long_crs_urn) {
+    if (geometry_srid == 0) {
+      crs_name.append(Item_func_geomfromgeojson::LONG_MYSQL_PREFIX);
+    } else {
+      crs_name.append(Item_func_geomfromgeojson::LONG_EPSG_PREFIX);
+    }
+  } else if (add_short_crs_urn) {
+    if (geometry_srid == 0) {
+      crs_name.append(Item_func_geomfromgeojson::SHORT_MYSQL_PREFIX);
+    } else {
+      crs_name.append(Item_func_geomfromgeojson::SHORT_EPSG_PREFIX);
+    }
+  }
+  crs_name.append_ulonglong(geometry_srid);
 
-  char crs_name[MAX_CRS_WIDTH];
-  if (add_long_crs_urn)
-    strcpy(crs_name, Item_func_geomfromgeojson::LONG_EPSG_PREFIX);
-  else if (add_short_crs_urn)
-    strcpy(crs_name, Item_func_geomfromgeojson::SHORT_EPSG_PREFIX);
-
-  strcat(crs_name, srid_string);
-  if (crs_properties->add_alias("name",
-                                new (std::nothrow) Json_string(crs_name))) {
+  if (crs_properties->add_alias(
+          "name", new (std::nothrow) Json_string{to_string(crs_name)})) {
     return true;
   }
 
@@ -2316,9 +2343,7 @@ static bool append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
     }
   }
 
-  // Only add a CRS object if the SRID of the GEOMETRY is not 0.
-  if (is_root_object && (add_long_crs_urn || add_short_crs_urn) &&
-      geometry_srid > 0) {
+  if (is_root_object && (add_long_crs_urn || add_short_crs_urn)) {
     append_crs(geometry, add_short_crs_urn, add_long_crs_urn, geometry_srid);
   }
 

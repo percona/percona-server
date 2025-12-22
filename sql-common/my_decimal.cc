@@ -318,14 +318,17 @@ my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
 
 /**
   Convert time value to my_decimal in format hhmmss.ffffff
-  @param ltime  Date value to convert from.
+  @param time   Date value to convert from.
   @param dec    Decimal value to convert to.
 */
-my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
+my_decimal *time2my_decimal(const Time_val *time, my_decimal *dec) {
   lldiv_t lld;
-  lld.quot = TIME_to_ulonglong_time(*ltime);
-  lld.rem = (longlong)ltime->second_part * 1000;
-  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+  lld.quot = time->to_int_truncated();
+  if (time->is_negative()) {
+    lld.quot = -lld.quot;
+  }
+  lld.rem = (longlong)time->microsecond() * 1000;
+  return lldiv_t2my_decimal(&lld, time->is_negative(), dec);
 }
 
 /**

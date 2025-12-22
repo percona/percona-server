@@ -699,6 +699,21 @@ static void log_fix_first_rec_group(lsn_t block_lsn,
 
 dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
                   bool allow_checkpoints) {
+  /* Declare function that figures out which of the two header locations stores
+  the checkpoint_lsn. We don't expose it through header, because the header is
+  used in various places of InnoDB, while this is a technical detail of the
+  low-level log implementation. */
+  Log_checkpoint_header_no recv_find_checkpoint_header_no(log_t & log,
+                                                          lsn_t checkpoint_lsn);
+
+  /* Make the preservation of max checkpoint info on disk certain by writing
+  the next checkpoint to the other checkpoint header. This is an extra
+  protection in case next checkpoint write will become corrupted because of
+  crash during the write. */
+
+  log.next_checkpoint_header_no = log_next_checkpoint_header(
+      recv_find_checkpoint_header_no(log, checkpoint_lsn));
+
   ut_a(log_sys != nullptr);
   ut_a(checkpoint_lsn >= OS_FILE_LOG_BLOCK_SIZE);
   ut_a(checkpoint_lsn >= LOG_START_LSN);

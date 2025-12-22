@@ -219,6 +219,14 @@ JsonValue MockGrMetadata::as_json() const {
   return json_doc;
 }
 
+void MockGrMetadata::send(uint16_t http_port, std::string http_host) {
+  const auto globals_json = json_to_string(this->as_json());
+
+  ASSERT_NO_THROW(
+      MockServerRestClient(http_port, http_host).set_globals(globals_json))
+      << globals_json;
+}
+
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<GRNode> &gr_nodes,
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,

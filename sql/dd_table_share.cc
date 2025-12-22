@@ -61,6 +61,7 @@
 #include "sql/dd/impl/utils.h"  // dd::eat_str
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/check_constraint.h"     // dd::Check_constraint
 #include "sql/dd/types/column.h"               // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
@@ -71,6 +72,7 @@
 #include "sql/dd/types/partition.h"            // dd::Partition
 #include "sql/dd/types/partition_value.h"      // dd::Partition_value
 #include "sql/dd/types/table.h"                // dd::Table
+#include "sql/dd/types/view.h"
 #include "sql/default_values.h"  // prepare_default_value_buffer...
 #include "sql/error_handler.h"   // Internal_error_handler
 #include "sql/field.h"
@@ -582,6 +584,31 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
   return ROW_TYPE_FIXED;
 }
 
+static bool set_table_share_db_plugin(THD *thd, TABLE_SHARE *share,
+                                      LEX_CSTRING engine_name, bool is_table) {
+  plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
+  if (tmp_plugin != nullptr) {
+#ifndef NDEBUG
+    auto *hton = plugin_data<handlerton *>(tmp_plugin);
+#endif
+
+    assert(hton && ha_storage_engine_is_enabled(hton));
+    assert(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
+
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
+  } else {
+    if (is_table) {
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
+      return true;
+    } else {
+      share->db_plugin = nullptr;
+    }
+  }
+
+  return false;
+}
+
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
                                const dd::Table *tab_obj) {
@@ -599,22 +626,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Read table engine type
   LEX_CSTRING engine_name = lex_cstring_handle(tab_obj->engine());
-  if (share->is_secondary_engine())
-    engine_name = {share->secondary_engine.str, share->secondary_engine.length};
+  if (share->is_secondary_engine()) {
+    engine_name = {.str = share->secondary_engine.str,
+                   .length = share->secondary_engine.length};
+  }
 
-  plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
-  if (tmp_plugin) {
-#ifndef NDEBUG
-    handlerton *hton = plugin_data<handlerton *>(tmp_plugin);
-#endif
-
-    assert(hton && ha_storage_engine_is_enabled(hton));
-    assert(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
-
-    plugin_unlock(nullptr, share->db_plugin);
-    share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
-  } else {
-    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
+  if (set_table_share_db_plugin(thd, share, engine_name, true)) {
     return true;
   }
 
@@ -722,8 +739,9 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   table_options.get("key_block_size", &share->key_block_size);
 
   // Prepare the default_value buffer.
-  if (prepare_default_value_buffer_and_table_share(thd, *tab_obj, share))
+  if (prepare_default_value_buffer_and_table_share(thd, tab_obj, share)) {
     return true;
+  }
 
   // Storage media flags
   if (table_options.exists("storage")) {
@@ -1165,11 +1183,11 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
 /**
   Populate TABLE_SHARE::field array according to column metadata
-  from dd::Table object.
+  from dd::Abstract_table object.
 */
 
 static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
-                                 const dd::Table *tab_obj) {
+                                 const dd::Abstract_table *tab_obj) {
   // Allocate space for fields in TABLE_SHARE.
   const uint fields_size = ((share->fields + 1) * sizeof(Field *));
   share->field = (Field **)share->mem_root.Alloc((uint)fields_size);
@@ -2399,6 +2417,42 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
     return false;
   }
   return true;
+}
+
+bool open_view_def(THD *thd, TABLE_SHARE *share,
+                   const dd::Abstract_table *abstract_table) {
+  share->is_mv_se_materialized =
+      abstract_table->options().exists("materialization_engine");
+  if (share->is_mv_se_materialized) {
+    MEM_ROOT *old_root = thd->mem_root;
+    thd->mem_root = &share->mem_root;  // Needed for make_field()++
+    share->blob_fields = 0;
+
+    LEX_CSTRING engine_name{};
+    abstract_table->options().get("materialization_engine", &engine_name,
+                                  thd->mem_root);
+    share->secondary_engine = engine_name;
+    bool error = set_table_share_db_plugin(thd, share, engine_name, false) ||
+                 prepare_default_value_buffer_and_table_share(
+                     thd, abstract_table, share) ||
+                 fill_columns_from_dd(thd, share, abstract_table);
+    thd->mem_root = old_root;
+    if (error || prepare_share(thd, share, nullptr)) {
+      return true;
+    }
+  }
+
+  //  Clone the view reference object and hold it in
+  //  TABLE_SHARE member view_object.
+  share->is_view = true;
+  const auto *tmp_view = dynamic_cast<const dd::View *>(abstract_table);
+  share->view_object = tmp_view->clone();
+
+  share->table_category = get_table_category(share->db, share->table_name);
+  thd->status_var.opened_shares++;
+  global_aggregated_stats.get_shard(thd->thread_id()).opened_shares++;
+
+  return false;
 }
 
 /*

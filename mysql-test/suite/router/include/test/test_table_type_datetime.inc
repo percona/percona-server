@@ -75,11 +75,13 @@ INSERT INTO `test`.`datetime_values` (id, dt) VALUES
 --echo
 --echo #
 --echo # I.3
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/datetime/2'
 --let $mrs_client_arg_payload='{"id":2,"dt":"2002-02-02 02:02:02.1234"}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/datetime/2'
 --let $mrs_client_arg_payload='{"id":2,"dt":"2000-01-01 00:00:00.1234"}'
 --let $mrs_client_arg_request_type='PUT'

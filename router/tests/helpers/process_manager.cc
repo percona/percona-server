@@ -252,6 +252,35 @@ ProcessWrapper &ProcessManager::Spawner::launch_command(
 
   processes_.emplace_back(std::move(pw), expected_exit_status_);
 
+#ifdef _WIN32
+  // add the process to the job-object.
+
+  if (!job_object_.is_open()) {
+    auto create_res = mysql_harness::win32::JobObject::create();
+    if (!create_res) {
+      throw std::system_error(create_res.error());
+    }
+    job_object_ = std::move(*create_res);
+
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION job_limit{};
+    job_limit.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+    auto set_info_res = job_object_.set_information(
+        JobObjectExtendedLimitInformation, &job_limit, sizeof(job_limit));
+    if (!set_info_res) {
+      throw std::system_error(set_info_res.error());
+    }
+  }
+
+  auto process_handle = std::get<0>(processes_.back())->process_handle();
+
+  auto assign_res = job_object_.assign_process(process_handle);
+  if (!assign_res) {
+    throw std::system_error(assign_res.error());
+  }
+#endif
+
   return *std::get<0>(processes_.back()).get();
 }
 
@@ -358,8 +387,16 @@ ProcessWrapper &ProcessManager::Spawner::spawn(
 
 ProcessManager::Spawner ProcessManager::spawner(std::string executable,
                                                 std::string logging_file) {
-  return {executable, logging_dir_.name(), logging_file,
-          generate_notify_socket_path(get_test_temp_dir_name()), processes_};
+  return {
+      std::move(executable),
+      logging_dir_.name(),
+      std::move(logging_file),
+      generate_notify_socket_path(get_test_temp_dir_name()),
+      processes_,
+#ifdef _WIN32
+      job_object_,
+#endif
+  };
 }
 
 stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(

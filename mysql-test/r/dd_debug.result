@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 ###################################################################
 #
 # Bug#20290768 - server crash in table_share_utils::fill_partitioning_from_dd
@@ -277,3 +278,4 @@ connection default;
 SET debug = DEFAULT;
 DROP TABLE t1;
 ###################################################################
+include/rpl/set_gtid_mode_on.inc

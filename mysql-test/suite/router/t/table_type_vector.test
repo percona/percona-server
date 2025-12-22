@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -62,11 +64,13 @@ INSERT INTO test.vec(v)
 --echo
 --echo #
 --echo # I.3
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/vec/2'
 --let $mrs_client_arg_payload='{"id":2,"v":[2,2.3]}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/vec/2'
 --let $mrs_client_arg_payload='{"id":2,"v":[0,3]}'
 --let $mrs_client_arg_request_type='PUT'

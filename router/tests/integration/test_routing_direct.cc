@@ -3378,6 +3378,8 @@ TEST_P(ConnectionTest, classic_protocol_unknown_command) {
  *    as neither SUPER nor normal connections are allowed.
  */
 TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
+  constexpr auto kWaitForServerToCloseConnectionTimeout{500ms};
+
   SCOPED_TRACE("// set max-connections = 1, globally");
   {
     MysqlClient admin_cli;
@@ -3445,9 +3447,25 @@ TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
       cli.username(account.username);
       cli.password(account.password);
 
-      auto connect_res =
-          cli_connect(cli, shared_router()->router_tcp_destination(GetParam()));
-      ASSERT_NO_ERROR(connect_res);
+      using clock_type = std::chrono::steady_clock;
+      const auto end_time =
+          clock_type::now() + kWaitForServerToCloseConnectionTimeout;
+
+      // wait until the server has closed the connection from the previous
+      // connect of 'admin_cli'
+      while (true) {
+        const auto connect_res = cli_connect(
+            cli, shared_router()->router_tcp_destination(GetParam()));
+
+        if (!connect_res && connect_res.error().value() == 1040 &&
+            clock_type::now() < end_time) {
+          std::this_thread::sleep_for(10ms);
+          continue;
+        }
+
+        ASSERT_NO_ERROR(connect_res);
+        break;
+      }
     }
 
     // fails at auth as the a SUPER account could still connect
@@ -3473,9 +3491,25 @@ TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
       cli_super.username(admin_account.username);
       cli_super.password(admin_account.password);
 
-      auto connect_res = cli_connect(
-          cli_super, shared_router()->router_tcp_destination(GetParam()));
-      ASSERT_NO_ERROR(connect_res);
+      using clock_type = std::chrono::steady_clock;
+      const auto end_time =
+          clock_type::now() + kWaitForServerToCloseConnectionTimeout;
+
+      // wait until the server has closed the connection from the previous
+      // connect of 'cli2'
+      while (true) {
+        const auto connect_res = cli_connect(
+            cli_super, shared_router()->router_tcp_destination(GetParam()));
+
+        if (!connect_res && connect_res.error().value() == 1040 &&
+            clock_type::now() < end_time) {
+          std::this_thread::sleep_for(10ms);
+          continue;
+        }
+
+        ASSERT_NO_ERROR(connect_res);
+        break;
+      }
     }
 
     // fails at greeting, as one SUPER-connection and ${max_connections}
@@ -3666,7 +3700,8 @@ TEST_P(ConnectionTest, classic_protocol_replay_session_trackers) {
     oss << "SET @@SESSION." << var[0] << "=";
 
     if (var[1].empty()) {
-      if (var[0] == "innodb_ft_user_stopword_table") {
+      if (var[0] == "innodb_ft_user_stopword_table" ||
+          var[0] == "external_table_storage_engine") {
         oss << "NULL";
       } else {
         oss << "''";

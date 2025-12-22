@@ -57,7 +57,8 @@ class HandlerContentFile : public mrs::rest::Handler {
   HandlerContentFile(
       std::weak_ptr<ContentFileEndpoint> endpoint,
       mrs::interface::AuthorizeManager *auth_manager,
-      std::shared_ptr<PersistentDataContentFile> persistent_data_content_file);
+      std::shared_ptr<PersistentDataContentFile> persistent_data_content_file,
+      const bool is_index = false);
 
   UniversalId get_service_id() const override;
   UniversalId get_db_object_id() const override;

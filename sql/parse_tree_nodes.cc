@@ -3933,7 +3933,7 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
         With no format specified:
         - With ANALYZE, convert TRADITIONAL[_STRICT] to TREE unconditionally.
         - With hypergraph, convert TRADITIONAL to TREE. Don't convert
-          TRADITIONAL_STRICT, because it's purpose is to prevent exactly this
+          TRADITIONAL_STRICT, because its purpose is to prevent exactly this
           silent conversion with hypergraph. TRADITIONAL_STRICT will throw an
           error, later.
       */
@@ -5522,7 +5522,9 @@ PT_install_component::PT_install_component(
 
 Sql_cmd *PT_install_component::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_INSTALL_COMPONENT;
-
+  thd->lex->expr_allows_subquery = false;
+  auto f =
+      create_scope_guard([thd]() { thd->lex->expr_allows_subquery = true; });
   if (!m_set_elements->is_empty()) {
     Parse_context pc(thd, thd->lex->current_query_block());
     for (auto &elt : *m_set_elements) {

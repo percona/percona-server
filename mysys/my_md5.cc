@@ -31,14 +31,14 @@
   Wrapper functions for OpenSSL.
 */
 
-#include "my_md5.h"
-#include "my_compiler.h"
-#include "my_ssl_algo_cache.h"
-#include "template_utils.h"
-
-#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
+#include <stddef.h>
+
+#include "my_compiler.h"
+#include "my_md5.h"
+#include "my_ssl_algo_cache.h"
+#include "template_utils.h"
 
 // returns 1 for success and 0 for failure
 [[nodiscard]] int my_md5_hash(unsigned char *digest, unsigned const char *buf,

@@ -361,22 +361,7 @@ DROP TABLE t0;
 CREATE TABLE t0(a int, b BLOB NOT NULL DEFAULT "a");
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
 CREATE TABLE t0(a int, b JSON NOT NULL DEFAULT '');
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
-INSERT INTO t0(a) VALUES (1),(2);
-SHOW CREATE TABLE t0;
-Table	Create Table
-t0	CREATE TABLE `t0` (
-  `a` int DEFAULT NULL,
-  `b` json NOT NULL /*  DEFAULT 'null' */ 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
-SELECT * from t0;
-a	b
-1	null
-2	null
-DROP TABLE t0;
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
 CREATE TABLE t1(a int, b JSON NOT NULL DEFAULT 'null');
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'b' can't have a default value
 SET SESSION sql_mode = @save_mode;

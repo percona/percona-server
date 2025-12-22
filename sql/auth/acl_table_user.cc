@@ -1736,7 +1736,8 @@ void Acl_table_user_reader::read_password_last_changed(ACL_USER &user) {
       if (password_last_changed &&
           memcmp(password_last_changed, INVALID_DATE, sizeof(INVALID_DATE))) {
         String str(password_last_changed, &my_charset_bin);
-        str_to_time_with_warn(&str, &(user.password_last_changed));
+        str_to_datetime_with_warn(&str, &user.password_last_changed,
+                                  TIME_DATETIME_ONLY);
       }
     }
   }
@@ -2224,10 +2225,7 @@ static bool replace_user_metadata(const std::string &json_blob,
     }
     Json_object_ptr patch_obj(
         down_cast<Json_object *>(metadata_patch.release()));
-    if (metadata->cardinality() == 0)
-      metadata->consume(std::move(patch_obj));
-    else
-      metadata->merge_patch(std::move(patch_obj));
+    metadata->merge_patch(std::move(patch_obj));
   }
   Json_wrapper jw(json_dom.get(), true);  // alias == don't take ownership
   json_field->set_notnull();

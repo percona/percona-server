@@ -56,8 +56,7 @@ class Failed_attempts_list_imp : public Connection_control_alloc {
     }
   };
   std::map<std::string, PSI_ulong, ciLessLibC> failed_attempts_map;
-  std::mutex LOCK_failed_attempts_list;
-  std::shared_mutex LOCK_shared_failed_attempts_list;
+  std::shared_mutex mutex_;
 };
 }  // namespace connection_control
 extern connection_control::Failed_attempts_list_imp g_failed_attempts_list;

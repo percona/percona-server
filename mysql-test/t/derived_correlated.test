@@ -655,6 +655,9 @@ eval $query;
 let $query=
 select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t1.a+1) as dt2;
+
+SET explain_json_format_version = 1;
+
 --replace_regex $elide_costs
 eval explain $query;
 --skip_if_hypergraph  # Depends on the query plan.
@@ -675,6 +678,8 @@ eval explain format=json $query;
 eval $query;
 --skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_trace;
+
+SET explain_json_format_version = DEFAULT;
 
 --echo # Test when a dependency of LDT uses BKA: BKA code must
 --echo # refresh LDT's content when it provides a row.

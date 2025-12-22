@@ -29,6 +29,7 @@
 #include <gtest/gtest.h>
 
 #include "my_alloc.h"                    // MEM_ROOT
+#include "my_temporal.h"                 // Time_val
 #include "my_time.h"                     // MYSQL_TIME
 #include "mysql/strings/m_ctype.h"       // my_charset_utf8mb4_0900_ai_ci
 #include "sql-common/my_decimal.h"       // my_decimal
@@ -82,11 +83,11 @@ std::string key_to_string(const my_decimal &decimal) {
   return std::to_string(value);
 }
 
-void set_default(MYSQL_TIME *datetime) {
+void set_default(Datetime_val *datetime) {
   set_zero_time(datetime, MYSQL_TIMESTAMP_DATETIME);
 }
 
-void increment(MYSQL_TIME *datetime) {
+void increment(Datetime_val *datetime) {
   datetime->year = (datetime->year + 1) % 10000;
   datetime->month = (datetime->month + 1) % 12;
   datetime->day = (datetime->day + 1) % 28;
@@ -95,7 +96,7 @@ void increment(MYSQL_TIME *datetime) {
   datetime->second = (datetime->second + 1) % 60;
 }
 
-std::string key_to_string(const MYSQL_TIME &datetime) {
+std::string key_to_string(const Datetime_val &datetime) {
   char datetime_characters[MAX_DATE_STRING_REP_LENGTH];
   my_datetime_to_str(datetime, datetime_characters, 0);
   return std::string(datetime_characters);
@@ -413,10 +414,20 @@ TEST_F(HistogramSelectivityTest, EquiHeightSelectivity) {
                 number_of_buckets);
             break;
           }
-          case Value_map_type::DATE:
-          case Value_map_type::TIME:
+          case Value_map_type::TIME: {
+            VerifySelectivityEstimates<Datetime_val>(
+                &m_mem_root, &my_charset_numeric, histogram_type, distribution,
+                number_of_buckets);
+            break;
+          }
+          case Value_map_type::DATE: {
+            VerifySelectivityEstimates<Datetime_val>(
+                &m_mem_root, &my_charset_numeric, histogram_type, distribution,
+                number_of_buckets);
+            break;
+          }
           case Value_map_type::DATETIME: {
-            VerifySelectivityEstimates<MYSQL_TIME>(
+            VerifySelectivityEstimates<Datetime_val>(
                 &m_mem_root, &my_charset_numeric, histogram_type, distribution,
                 number_of_buckets);
             break;

@@ -2785,27 +2785,41 @@ flag_ok:
         }
         n_v_size = mach_read_from_2(next_mrec);
         next_mrec += n_v_size;
-
         if (next_mrec > mrec_end) {
           return (nullptr);
         }
 
-        /* if there is more than 2 bytes length info */
-        if (n_v_size > 2) {
-          if (next_mrec + 2 > mrec_end) {
-            return (nullptr);
+        /* Check whether any of the virtual columns are part of an index. */
+        bool virt_in_idx = false;
+        for (ulint col_no = 0;
+             col_no < dict_table_get_n_v_cols(new_index->table); col_no++) {
+          const dict_v_col_t *col =
+              dict_table_get_nth_v_col(new_index->table, col_no);
+          if (col->m_col.ord_part) {
+            virt_in_idx = true;
           }
-          o_v_size = mach_read_from_2(next_mrec);
-          if (next_mrec + o_v_size > mrec_end) {
-            return (nullptr);
-          }
-
-          trx_undo_read_v_cols(log->table, const_cast<byte *>(next_mrec),
-                               old_pk, false, true,
-                               &(log->col_map[log->n_old_col]), heap);
         }
 
-        next_mrec += o_v_size;
+        /* Values of only virtual columns that are in index are fully
+         serialized into undo log. */
+        if (virt_in_idx) {
+          /* if there is more than 2 bytes length info */
+          if (n_v_size > 2) {
+            if (next_mrec + 2 > mrec_end) {
+              return (nullptr);
+            }
+            o_v_size = mach_read_from_2(next_mrec);
+            if (next_mrec + o_v_size > mrec_end) {
+              return (nullptr);
+            }
+
+            trx_undo_read_v_cols(log->table, const_cast<byte *>(next_mrec),
+                                 old_pk, false, true,
+                                 &(log->col_map[log->n_old_col]), heap);
+          }
+
+          next_mrec += o_v_size;
+        }
         ut_ad(next_mrec <= mrec_end);
       }
 

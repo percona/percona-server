@@ -78,8 +78,8 @@ TEST_F(UtilsTests, copy_file) {
   for (int i = 0; i < 2000; i++) dataf << "somedata\n";
   dataf.close();
 
-  mysqlrouter::copy_file("empty.tf", "empty.tf2");
-  mysqlrouter::copy_file("data.tf", "data.tf2");
+  mysql_harness::copy_file("empty.tf", "empty.tf2");
+  mysql_harness::copy_file("data.tf", "data.tf2");
 
   try {
     EXPECT_TRUE(files_equal("empty.tf", "empty.tf2"));

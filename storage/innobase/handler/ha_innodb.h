@@ -661,6 +661,13 @@ class ha_innobase : public handler {
   /** Returns statistics information of the table to the MySQL interpreter, in
   various fields of the handle object.
   @param[in]    flag            what information is requested
+                                HA_STATUS_NO_LOCK is supported only for:
+                                ha_statistics::delete_length
+                                it is not supported for others like:
+                                ha_statistics::records
+                                But it will not lock for the duration of stats
+                                calculation. Only during copy to make sure
+                                stats are consistent.
   @param[in]    is_analyze      True if called from "::analyze()".
   @return HA_ERR_* error code or 0 */
   virtual int info_low(uint flag, bool is_analyze);
@@ -772,6 +779,21 @@ class ha_innobase : public handler {
 
   /** If mysql has locked with external_lock() */
   bool m_mysql_has_locked;
+
+  /** Get the table stats.
+  @param[in]  flag       flag indicating which statistics to return
+  @param[in]  ib_table   table
+  @param[out] n_rows     estimated number of rows
+  @param[out] stat_clustered_index_size      size of the clustered index
+  @param[out] stat_sum_of_other_index_sizes  total size of all indexes */
+  void info_low_table_stats(uint flag, const dict_table_t *ib_table,
+                            uint64_t &n_rows, ulint &stat_clustered_index_size,
+                            ulint &stat_sum_of_other_index_sizes) const;
+
+  /** Get number of records per key. Save them into array ib_table->key_info.
+  @param[in]      flag      flag indicating which statistics to return
+  @param[in,out]  ib_table  table */
+  void info_low_key(uint flag, const dict_table_t *ib_table);
 };
 
 struct trx_t;

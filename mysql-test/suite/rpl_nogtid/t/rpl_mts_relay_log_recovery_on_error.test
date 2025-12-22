@@ -40,7 +40,6 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
---source include/have_replica_parallel_type_database.inc
 call mtr.add_suppression("Duplicate entry*");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Failed to initialize the connection metadata structure");
@@ -70,6 +69,7 @@ START REPLICA;
 # Remove the affending rows from slave.
 --exec echo "Eliminate the cause of MTS error"
 DELETE FROM d2.t WHERE a=2;
+DELETE FROM d2.t WHERE a=3;
 DELETE FROM d1.t WHERE a=3;
 
 --let $table=d2.t

@@ -1229,7 +1229,9 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
     key_buffer->sort(&dup);
 
     if (dup.m_n_dup > 0) {
-      set_error(DB_DUPLICATE_KEY);
+      if (set_error(DB_DUPLICATE_KEY)) {
+        dup.report();
+      }
       return get_error();
     }
   } else {
@@ -1435,7 +1437,9 @@ dberr_t Builder::add_to_key_buffer(Copy_ctx &ctx,
     fields. Which is fine for key comparison, but not enough for reporting. */
     if (m_prev_fields != nullptr &&
         Key_sort_buffer::compare(fields, m_prev_fields, &m_clust_dup) == 0) {
-      set_error(DB_DUPLICATE_KEY);
+      if (set_error(DB_DUPLICATE_KEY)) {
+        m_clust_dup.report();
+      }
       return get_error();
     }
 
@@ -1919,6 +1923,9 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
     auto err = check_duplicates(dupcheck, &dup);
 
     if (err != DB_SUCCESS) {
+      if (err == DB_DUPLICATE_KEY) {
+        dup.report();
+      }
       return err;
     }
   }

@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 select * from (select 2 from DUAL) AS b;
 2
 2
@@ -4841,3 +4842,4 @@ column_0
 3
 DEALLOCATE PREPARE stmt1;
 SET optimizer_switch= @optimizer_switch_saved;
+include/rpl/set_gtid_mode_on.inc

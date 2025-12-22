@@ -54,6 +54,7 @@
 #include "my_macros.h"
 #include "my_systime.h"
 #include "my_table_map.h"
+#include "my_temporal.h"
 #include "my_time.h"  // MAX_DATE_STRING_REP_LENGTH
 #include "mysql.h"    // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "mysql/binlog/event/debug_vars.h"
@@ -1979,9 +1980,9 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       snprintf(typestr, typestr_length, "TIME(%d)", meta);
       if (!ptr) return my_b_printf(file, "NULL");
       char buf[MAX_DATE_STRING_REP_LENGTH];
-      MYSQL_TIME ltime;
-      const longlong packed = my_time_packed_from_binary(ptr, meta);
-      TIME_from_longlong_time_packed(&ltime, packed);
+      Time_val time;
+      Time_val::load_time(ptr, meta, &time);
+      MYSQL_TIME ltime = MYSQL_TIME(time);
       const int buflen = my_time_to_str(ltime, buf, meta);
       my_b_write_quoted(file, (uchar *)buf, buflen);
       return my_time_binary_length(meta);
@@ -2497,48 +2498,6 @@ inline Log_event::enum_skip_reason Log_event::continue_group(
   return Log_event::do_shall_skip(rli);
 }
 
-/**
-   @param end_group_sets_max_dbs  when true the group terminal event
-                          can carry partition info, see a note below.
-   @return true  in cases the current event
-                 carries partition data,
-           false otherwise
-
-   @note Some events combination may force to adjust partition info.
-         In particular BEGIN, BEGIN_LOAD_QUERY_EVENT, COMMIT
-         where none of the events holds partitioning data
-         causes the sequential applying of the group through
-         assigning OVER_MAX_DBS_IN_EVENT_MTS to mts_accessed_dbs
-         of the group terminator (e.g COMMIT query) event.
-*/
-bool Log_event::contains_partition_info(bool end_group_sets_max_dbs) {
-  bool res;
-
-  switch (get_type_code()) {
-    case mysql::binlog::event::TABLE_MAP_EVENT:
-    case mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT:
-    case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT:
-      res = true;
-
-      break;
-
-    case mysql::binlog::event::QUERY_EVENT: {
-      Query_log_event *qev = static_cast<Query_log_event *>(this);
-      if ((ends_group() && end_group_sets_max_dbs) ||
-          (qev->is_query_prefix_match(STRING_WITH_LEN("XA COMMIT")) ||
-           qev->is_query_prefix_match(STRING_WITH_LEN("XA ROLLBACK")))) {
-        res = true;
-        qev->mts_accessed_dbs = OVER_MAX_DBS_IN_EVENT_MTS;
-      } else
-        res = (!ends_group() && !starts_group()) ? true : false;
-      break;
-    }
-    default:
-      res = false;
-  }
-
-  return res;
-}
 /*
   SYNOPSIS
     This function assigns a parent ID to the job group being scheduled in
@@ -2589,8 +2548,7 @@ static bool schedule_next_event(Log_event *ev, Relay_log_info *rli) {
    The method maps the event to a Worker and return a pointer to it.
    Sending the event to the Worker is done by the caller.
 
-   Irrespective of the type of Group marking (DB partitioned or BGC) the
-   following holds true:
+   The following holds true:
 
    - recognize the beginning of a group to allocate the group descriptor
      and queue it;
@@ -2643,7 +2601,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
   Slave_job_group group = Slave_job_group(), *ptr_group = nullptr;
   bool is_s_event;
   Slave_worker *ret_worker = nullptr;
-  char llbuff[22];
   Slave_committed_queue *gaq = rli->gaq;
   DBUG_TRACE;
   bool is_after_metrics_breakpoint =
@@ -2678,8 +2635,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       assert(gaq->assigned_group_index < gaq->capacity);
       assert(gaq->get_job_group(rli->gaq->assigned_group_index)
                  ->group_relay_log_name == nullptr);
-      assert(rli->last_assigned_worker == nullptr ||
-             !is_mts_db_partitioned(rli));
+      assert(rli->last_assigned_worker == nullptr);
 
       if (is_s_event || is_any_gtid_event(this)) {
         Slave_job_item job_item = {this,
@@ -2696,7 +2652,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
 
         if (starts_group()) {
           // mark the current group as started with explicit B-event
-          rli->mts_end_group_sets_max_dbs = true;
           rli->curr_group_seen_begin = true;
         }
 
@@ -2733,7 +2688,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       // B-event is appended to the Deferred Array associated with GCAP
       rli->curr_group_da.push_back(job_item);
       rli->curr_group_seen_begin = true;
-      rli->mts_end_group_sets_max_dbs = true;
       if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli)) {
         rli->abort_slave = true;
         return nullptr;
@@ -2750,180 +2704,20 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
   }
 
   ptr_group = gaq->get_job_group(rli->gaq->assigned_group_index);
-  if (!is_mts_db_partitioned(rli)) {
-    /* Get least occupied worker */
-    ret_worker = rli->current_mts_submode->get_least_occupied_worker(
-        rli, &rli->workers, this);
-    if (ret_worker == nullptr) {
-      /* get_least_occupied_worker may return NULL if the thread is killed */
-      Slave_job_item job_item = {this,
-                                 rli->get_event_start_pos(),
-                                 {'\0'},
-                                 is_after_metrics_breakpoint};
-      if (rli->get_event_relay_log_name())
-        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
-      rli->curr_group_da.push_back(job_item);
-
-      assert(thd->killed);
-      return nullptr;
-    }
-    ptr_group->worker_id = ret_worker->id;
-  } else if (contains_partition_info(rli->mts_end_group_sets_max_dbs)) {
-    int i = 0;
-    Mts_db_names mts_dbs;
-
-    get_mts_dbs(&mts_dbs, rli->rpl_filter);
-    /*
-      Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
-      Logging on master can create a group with no events holding
-      the partition info.
-      The following assert proves there's the only reason
-      for such group.
-    */
-#ifndef NDEBUG
-    {
-      bool empty_group_with_gtids = rli->curr_group_seen_begin &&
-                                    rli->curr_group_seen_gtid && ends_group();
-
-      bool begin_load_query_event =
-          ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
-           (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
-          (rli->curr_group_da.back().data->get_type_code() ==
-           mysql::binlog::event::BEGIN_LOAD_QUERY_EVENT);
-
-      bool delete_file_event =
-          ((rli->curr_group_da.size() == 4 && rli->curr_group_seen_gtid) ||
-           (rli->curr_group_da.size() == 3 && !rli->curr_group_seen_gtid)) &&
-          (rli->curr_group_da.back().data->get_type_code() ==
-           mysql::binlog::event::DELETE_FILE_EVENT);
-
-      assert((!ends_group() ||
-              (get_type_code() ==
-               mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT) ||
-              (get_type_code() == mysql::binlog::event::QUERY_EVENT &&
-               static_cast<Query_log_event *>(this)->is_query_prefix_match(
-                   STRING_WITH_LEN("XA ROLLBACK")))) ||
-             empty_group_with_gtids ||
-             (rli->mts_end_group_sets_max_dbs &&
-              (begin_load_query_event || delete_file_event)));
-    }
-#endif
-
-    // partitioning info is found which drops the flag
-    rli->mts_end_group_sets_max_dbs = false;
-    ret_worker = rli->last_assigned_worker;
-    if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
-      // Worker with id 0 to handle serial execution
-      if (!ret_worker) ret_worker = rli->workers.at(0);
-      // No need to know a possible error out of synchronization call.
-      (void)rli->current_mts_submode->wait_for_workers_to_finish(rli,
-                                                                 ret_worker);
-      /*
-        this marking is transferred further into T-event of the current group.
-      */
-      rli->curr_group_isolated = true;
-    }
-#ifndef NDEBUG
-    {
-      std::ostringstream oss;
-      for (i = 0;
-           i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
-           i++) {
-        if (mts_dbs.name[i] != nullptr) {
-          oss << mts_dbs.name[i] << ", ";
-        }
-      }
-      DBUG_PRINT("debug", ("ASSIGN %p %s", current_thd, oss.str().c_str()));
-    }
-#endif
-
-    /* One run of the loop in the case of over-max-db:s */
-    for (i = 0;
-         i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
-         i++) {
-      /*
-        The over max db:s case handled through passing to map_db_to_worker
-        such "all" db as encoded as  the "" empty string.
-        Note, the empty string is allocated in a large buffer
-        to satisfy hashcmp() implementation.
-      */
-      const char all_db[NAME_LEN] = {0};
-      if (!(ret_worker = map_db_to_worker(
-                mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS ? all_db
-                                                         : mts_dbs.name[i],
-                rli, &mts_assigned_partitions[i],
-                /*
-                  todo: optimize it. Although pure
-                  rows- event load in insensitive to the flag value
-                */
-                true, ret_worker))) {
-        llstr(rli->get_event_relay_log_pos(), llbuff);
-        my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
-                 rli->get_event_relay_log_name(), llbuff,
-                 "could not distribute the event to a Worker");
-        return ret_worker;
-      }
-      // all temporary tables are transferred from Coordinator in over-max case
-      assert(mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS ||
-             !thd->temporary_tables);
-      assert(!strcmp(
-          mts_assigned_partitions[i]->db,
-          mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS ? mts_dbs.name[i] : all_db));
-      assert(ret_worker == mts_assigned_partitions[i]->worker);
-      assert(mts_assigned_partitions[i]->usage >= 0);
-    }
-
-    if ((ptr_group = gaq->get_job_group(rli->gaq->assigned_group_index))
-            ->worker_id == MTS_WORKER_UNDEF) {
-      ptr_group->worker_id = ret_worker->id;
-
-      assert(ptr_group->group_relay_log_name == nullptr);
-    }
-
-    assert(i == mts_dbs.num || mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS);
-  } else {
-    // a mini-group internal "regular" event
-    if (rli->last_assigned_worker) {
-      ret_worker = rli->last_assigned_worker;
-
-      assert(rli->curr_group_assigned_parts.size() > 0 || ret_worker->id == 0);
-    } else  // int_, rand_, user_ var:s, load-data events
-    {
-      if (get_type_code() != mysql::binlog::event::INTVAR_EVENT &&
-          get_type_code() != mysql::binlog::event::RAND_EVENT &&
-          get_type_code() != mysql::binlog::event::USER_VAR_EVENT &&
-          get_type_code() != mysql::binlog::event::BEGIN_LOAD_QUERY_EVENT &&
-          get_type_code() != mysql::binlog::event::APPEND_BLOCK_EVENT &&
-          get_type_code() != mysql::binlog::event::DELETE_FILE_EVENT &&
-          !is_ignorable_event()) {
-        assert(!ret_worker);
-
-        llstr(rli->get_event_relay_log_pos(), llbuff);
-        my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
-                 rli->get_event_relay_log_name(), llbuff,
-                 "the event is a part of a group that is unsupported in "
-                 "the parallel execution mode");
-
-        return ret_worker;
-      }
-      /*
-        In the logical clock scheduler any internal gets scheduled directly.
-        That is Int_var, @User_var and Rand bypass the deferred array.
-        Their association with relay-log physical coordinates is provided
-        by the same mechanism that applies to a regular event.
-      */
-      Slave_job_item job_item = {this,
-                                 rli->get_event_start_pos(),
-                                 {'\0'},
-                                 is_after_metrics_breakpoint};
-      if (rli->get_event_relay_log_name())
-        strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
-      rli->curr_group_da.push_back(job_item);
-
-      assert(!ret_worker);
-      return ret_worker;
-    }
+  /* Get least occupied worker */
+  ret_worker = rli->current_mts_submode->get_least_occupied_worker(
+      rli, &rli->workers, this);
+  if (ret_worker == nullptr) {
+    /* get_least_occupied_worker may return NULL if the thread is killed */
+    Slave_job_item job_item = {
+        this, rli->get_event_start_pos(), {'\0'}, is_after_metrics_breakpoint};
+    if (rli->get_event_relay_log_name())
+      strcpy(job_item.event_relay_log_name, rli->get_event_relay_log_name());
+    rli->curr_group_da.push_back(job_item);
+    assert(thd->killed);
+    return nullptr;
   }
+  ptr_group->worker_id = ret_worker->id;
 
   assert(ret_worker);
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
@@ -3156,32 +2950,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
       */
 
       if (actual_exec_mode != EVENT_EXEC_ASYNC) {
-        /*
-          this  event does not split the current group but is indeed
-          a separator between two masters' binlogs therefore requiring
-          Workers to sync.
-        */
-        if (rli->curr_group_da.size() > 0 && is_mts_db_partitioned(rli) &&
-            get_type_code() != mysql::binlog::event::INCIDENT_EVENT) {
-          char llbuff[22];
-          /*
-             Possible reason is a old version binlog sequential event
-             wrappped with BEGIN/COMMIT or preceded by User|Int|Random- var.
-             MTS has to stop to suggest restart in the permanent sequential
-             mode.
-          */
-          llstr(rli->get_event_relay_log_pos(), llbuff);
-          my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
-                   rli->get_event_relay_log_name(), llbuff,
-                   "possible malformed group of events from an old source");
-
-          /* Coordinator can't continue, it marks MTS group status accordingly
-           */
-          rli->mts_group_status = Relay_log_info::MTS_KILLED_GROUP;
-
-          goto err;
-        }
-
         if (get_type_code() == mysql::binlog::event::INCIDENT_EVENT &&
             rli->curr_group_da.size() > 0 &&
             rli->current_mts_submode->get_type() ==
@@ -3215,12 +2983,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
         }
         rli->get_applier_metrics().check_metrics_breakpoint(
             rli->get_group_relay_log_name());
-        /*
-          Given not in-group mark the event handler can invoke checkpoint
-          update routine in the following course.
-        */
-        assert(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP ||
-               !is_mts_db_partitioned(rli));
 
         if (get_type_code() == mysql::binlog::event::INCIDENT_EVENT &&
             rli->curr_group_da.size() > 0) {
@@ -3237,7 +2999,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
 #ifndef NDEBUG
         /* all Workers are idle as done through wait_for_workers_to_finish */
         for (uint k = 0; k < rli->curr_group_da.size(); k++) {
-          assert(!(rli->workers[k]->usage_partition));
           assert(!(rli->workers[k]->jobs.get_length()));
         }
 #endif
@@ -3285,7 +3046,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
          */
          (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
           ends_group()) ||
-         is_mts_db_partitioned(rli) || rli->last_assigned_worker ||
+         rli->last_assigned_worker ||
          /*
            Begin_load_query can be logged w/o db info and within
            Begin/Commit. That's a pattern forcing sequential
@@ -3313,7 +3074,6 @@ int Log_event::apply_event(Relay_log_info *rli) {
                ("Assigning job to worker %lu", rli->last_assigned_worker->id));
 #endif
 
-err:
   if (rli_thd->is_error() || (!worker && rli->abort_slave)) {
     assert(!worker);
 
@@ -3327,8 +3087,6 @@ err:
       if (this != ev_buf) delete ev_buf;
     }
     rli->curr_group_da.clear();
-  } else {
-    assert(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
   return (!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
@@ -3576,6 +3334,11 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     start += invoker_host.length;
   }
 
+  /*
+    Even though we remove the DATABASE parallelization scheme, we keep the
+    writing of databases accessed here. Other consumers of the log may
+    be used to consume this information.
+  */
   if (thd && thd->get_binlog_accessed_db_names() != nullptr) {
     uchar dbs;
     *start++ = Q_UPDATED_DB_NAMES;
@@ -5783,8 +5546,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
 
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() && !in_group) {
-    if (!is_mts_db_partitioned(rli) &&
-        (server_id != ::server_id || rli->replicate_same_server_id)) {
+    if ((server_id != ::server_id || rli->replicate_same_server_id)) {
       // force the coordinator to start a new binlog segment.
       static_cast<Mts_submode_logical_clock *>(rli->current_mts_submode)
           ->start_new_group();
@@ -14403,41 +14165,6 @@ void Transaction_payload_log_event::claim_memory_ownership(bool claim) {
 }
 
 #ifdef MYSQL_SERVER
-uint8 Transaction_payload_log_event::get_mts_dbs(Mts_db_names *arg,
-                                                 Rpl_filter *rpl_filter
-                                                 [[maybe_unused]]) {
-  Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
-  if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
-    arg->name[0] = nullptr;
-    arg->num = OVER_MAX_DBS_IN_EVENT_MTS;
-  } else {
-    for (int i = 0; i < mts_dbs.num; i++) arg->name[i] = mts_dbs.name[i];
-    arg->num = mts_dbs.num;
-  }
-
-  return arg->num;
-}
-
-void Transaction_payload_log_event::set_mts_dbs(Mts_db_names &arg) {
-  m_applier_ctx.reset();
-  Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
-  mts_dbs.num = arg.num;
-  if (mts_dbs.num < MAX_DBS_IN_EVENT_MTS) {
-    for (int i = 0; i < arg.num; i++)
-      // strndup already adds the string terminator
-      mts_dbs.name[i] = mysql::binlog::event::strndup(
-          arg.name[i], static_cast<std::size_t>(NAME_LEN));
-  }
-#ifndef NDEBUG
-  else
-    assert(mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS);
-#endif
-}
-
-uint8 Transaction_payload_log_event::mts_number_dbs() {
-  return m_applier_ctx.get_mts_db_names().num;
-}
-
 int Transaction_payload_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_TRACE;
   using Istream_t =

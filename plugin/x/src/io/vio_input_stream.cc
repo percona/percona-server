@@ -141,9 +141,7 @@ bool Vio_input_stream::Skip(int count) {
   return true;
 }
 
-Vio_input_stream::gint64 Vio_input_stream::ByteCount() const {
-  return m_bytes_count;
-}
+int64_t Vio_input_stream::ByteCount() const { return m_bytes_count; }
 
 bool Vio_input_stream::peek_data(const void **data, int *size) {
   if (m_buffer_data_pos < m_buffer_data_count) {

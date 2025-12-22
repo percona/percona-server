@@ -410,7 +410,6 @@ bool Create_field::init(
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_JSON:
       if (fld_default_value) {
         /* Allow empty as default value. */
         String str, *res;
@@ -432,11 +431,12 @@ bool Create_field::init(
                               ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT), fld_name);
         }
         constant_default = nullptr;
-        if (fld_type != MYSQL_TYPE_JSON) flags |= NO_DEFAULT_VALUE_FLAG;
+        flags |= NO_DEFAULT_VALUE_FLAG;
       }
 
       flags |= BLOB_FLAG;
       break;
+    case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_GEOMETRY:
       if (fld_default_value) {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);

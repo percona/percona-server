@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 SET @global_optimizer_switch_saved = @@global.optimizer_switch;
 #---------------- Index merge test 1 -------------------------------------------
 # (Start of test file: index_merge1.inc)
@@ -862,14 +863,13 @@ explain select * from t1
 where exists (select 1 from t2, t3 
 where t2.a=t1.a and (t3.a=t2.b or t3.b=t2.b or t3.b=t2.b+1));
 EXPLAIN
--> Inner hash join (LooseScan) (t1.a = t2.a)  (rows=0.283)
-    -> Sort with duplicate removal: t2.a  (rows=1.41)
+-> Hash semijoin (FirstMatch) (t1.a = t2.a)  (rows=0.283)
+    -> Table scan on t1  (rows=2)
+    -> Hash
         -> Inner hash join (no condition), extra conditions: ((t3.a = t2.b) or (t3.b = t2.b) or (t3.b = (t2.b + 1)))  (rows=2004)
             -> Table scan on t3  (rows=1002)
             -> Hash
                 -> Table scan on t2  (rows=2)
-    -> Hash
-        -> Table scan on t1  (rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1608,9 +1608,8 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Intersect rows sorted by row ID  (rows=2.48)
-        -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
-        -> Index range scan on t1 using i2 over (key2a = 2 AND key2b = NULL)  (rows=114)
+    -> Filter: ((t1.key2a = 2) and (t1.key2b is null))  (rows=2.48)
+        -> Index lookup on t1 using i1 (key1a = 2, key1b = NULL)  (rows=2.48)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
@@ -1620,9 +1619,8 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Intersect rows sorted by row ID  (rows=2.48)
-        -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
-        -> Index range scan on t1 using i3 over (key3a = 2 AND key3b = NULL)  (rows=114)
+    -> Filter: ((t1.key3a = 2) and (t1.key3b is null))  (rows=2.48)
+        -> Index lookup on t1 using i1 (key1a = 2, key1b = NULL)  (rows=2.48)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -2698,3 +2696,4 @@ Variable_name	Value
 optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
 set @@global.optimizer_switch=@global_optimizer_switch_saved;
 drop table t0, t1;
+include/rpl/set_gtid_mode_on.inc

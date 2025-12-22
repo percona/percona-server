@@ -3348,25 +3348,25 @@ ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED
 ER_DD_NO_VERSION_FOUND
   eng "No data dictionary version number found."
 
-ER_THREAD_POOL_NOT_SUPPORTED_ON_PLATFORM
+OBSOLETE_ER_THREAD_POOL_NOT_SUPPORTED_ON_PLATFORM
   eng "Thread pool not supported, requires a minimum of %s."
 
-ER_THREAD_POOL_SIZE_TOO_LOW
+OBSOLETE_ER_THREAD_POOL_SIZE_TOO_LOW
   eng "thread_pool_size=0 means thread pool disabled, Allowed range of thread_pool_size is %d-%d."
 
-ER_THREAD_POOL_SIZE_TOO_HIGH
+OBSOLETE_ER_THREAD_POOL_SIZE_TOO_HIGH
   eng "thread_pool_size=%lu is too high, %d is maximum, thread pool is disabled. Allowed range of thread_pool_size is %d-%d."
 
-ER_THREAD_POOL_ALGORITHM_INVALID
+OBSOLETE_ER_THREAD_POOL_ALGORITHM_INVALID
   eng "thread_pool_algorithm can be set to 0 and 1, 0 indicates the default low concurrency algorithm, 1 means a high concurrency algorithm."
 
-ER_THREAD_POOL_INVALID_STALL_LIMIT
+OBSOLETE_ER_THREAD_POOL_INVALID_STALL_LIMIT
   eng "thread_pool_stall_limit can be %d at minimum and %d at maximum, smaller values would render the thread pool fairly useless and higher values could make it possible to have undetected deadlock issues in the MySQL Server."
 
-ER_THREAD_POOL_INVALID_PRIO_KICKUP_TIMER
+OBSOLETE_ER_THREAD_POOL_INVALID_PRIO_KICKUP_TIMER
   eng "Invalid value of thread_pool_prio_kickup_timer specified. Value of thread_pool_prio_kickup_timer should be in range 0-4294967294."
 
-ER_THREAD_POOL_MAX_UNUSED_THREADS_INVALID
+OBSOLETE_ER_THREAD_POOL_MAX_UNUSED_THREADS_INVALID
   eng "thread_pool_max_unused_threads cannot be set higher than %d."
 
 ER_THREAD_POOL_CON_HANDLER_INIT_FAILED
@@ -4629,7 +4629,7 @@ ER_GRP_RPL_TRANS_NOT_PRESENT_IN_GRP
 ER_GRP_RPL_TRANS_GREATER_THAN_GRP
   eng "It was not possible to assess if the member has more transactions than the group. The member will now exit the group."
 
-ER_GRP_RPL_MEMBER_VERSION_LOWER_THAN_GRP
+OBSOLETE_ER_GRP_RPL_MEMBER_VERSION_LOWER_THAN_GRP
   eng "Member version is lower than some group member, but since option 'group_replication_allow_local_lower_version_join is enabled, member will be allowed to join."
 
 ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR
@@ -5100,7 +5100,7 @@ ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE
 ER_GRP_RPL_CONNECTION_METADATA_REPO_MUST_BE_TABLE
   eng "Connection metadata repository must be set to TABLE."
 
-ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
+OBSOLETE_ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
   eng "In order to use parallel applier on Group Replication, parameter replica-parallel-type must be set to 'LOGICAL_CLOCK'."
 
 ER_GRP_RPL_REPLICA_PRESERVE_COMMIT_ORDER_NOT_SET
@@ -11941,10 +11941,10 @@ ER_IB_MSG_BUF_POOL_RESIZE_PROGRESS_UPDATE
 ER_IB_MSG_BUF_POOL_RESIZE_CODE_STATUS
   eng "Status code %u: %s"
 
-ER_THREAD_POOL_QUERY_THREADS_PER_GROUP_INVALID
+OBSOLETE_ER_THREAD_POOL_QUERY_THREADS_PER_GROUP_INVALID
   eng "Invalid value set to thread_pool_query_threads_per_group. Valid value range is %u - %u."
 
-ER_THREAD_POOL_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
+OBSOLETE_ER_THREAD_POOL_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
   eng "Query threads count(%u) exceeds transaction threads limit(%u) per group. Please use query threads count per group smaller or equal to max transaction threads limit per group"
 
 ER_IB_MSG_INVALID_PAGE_TYPE
@@ -12347,6 +12347,12 @@ ER_IB_MSG_WAITING_ON_LAGGING_REDO_LOG_CONSUMER
 
 ER_IB_MSG_ABORTING_LOG_ARCHIVER
   eng "The redo log archiver is aborted as it was lagging behind at LSN = %llu and unable to advance for more than 2 seconds. Consider increasing the innodb_redo_log_capacity."
+
+ER_IB_INSTANT_ADD_DROP_COLUMN_NOT_ALLOWED
+  eng "Trying to add or drop column(s) in table '%s' for which the current record size is %zu which is more than the maximum allowed size (%zu) for a record. Therefore ADD or DROP column with ALGORITHM = INSTANT is not allowed."
+
+ER_IB_INSTANT_ADD_NOT_POSSIBLE
+  eng "Cannot add %zu field(s) in table '%s' because after adding it, the record size would be %zu which is more than the maximum allowed size (%zu) for a record."
 
 #
 # End of 8.0 error messages intended to be written to the server error log.
@@ -13163,6 +13169,120 @@ ER_AUDIT_LOG_OFFLOAD_ERROR
 
 ER_WARN_SERVER_MEMORY_INIT_FAIL
   eng "Failed to read or validate server_memory, and falling back to total physical memory."
+
+ER_KEYRING_COMPONENT_KMIP_PATH_EMPTY
+   eng "Keyring kmip path is empty in configuration file."
+
+ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_TYPE
+   eng "Invalid key type: %s used. Should be AES or SECRET."
+
+ER_KEYRING_COMPONENT_KMIP_INVALID_KEY_LENGTH
+   eng "Invalid key length: %d used."
+
+ER_KEYRING_COMPONENT_KMIP_GENERATE_KEY_INVALID_PARAMETER
+   eng "Invalid key generate parameter: %s = %s, must be %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_KEY_UID
+   eng "Could not load keys uids from the KMIP server"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ALLOCATE
+   eng "Could not allocate memory for %s object."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ADD_ATTRIBUTE
+  eng "Could not add attribute, attribute_name=%s attribute value=%s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_FETCH_KEY
+  eng "Could not fetch generated key"
+
+ER_KEYRING_COMPONENT_KMIP_INIT_PRIMARY
+   eng "Could not initialize bio with primary server!"
+
+ER_KEYRING_COMPONENT_KMIP_INIT_STANDBY
+   eng "Could not initialize bio with standby server: %s"
+
+ER_KEYRING_COMPONENT_KMIP_TRYING_STANDBY
+   eng "Could not connect to the primary server %s. Trying the standby servers."
+
+ER_KEYRING_COMPONENT_KMIP_KEY_MISMATCH
+  eng "Private key does not match the certificate public key because of %s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_KEY_FILE
+  eng "Error while setting the private key '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_SET_CERTIFICATE_FILE
+  eng "Error while setting the certificate '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_LOAD_SSL_TRUST_STORE
+  eng "Error while setting the ca certificate '%s' file: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_REMOVE_KEY
+  eng "Could not remove the '%s' key."
+
+ER_KEYRING_COMPONENT_KMIP_CONNECTION_TO_SERVER_FAILED
+  eng "Could not connect to the OKV server"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_CLIENT
+  eng "Could not initialize OKV client, failed to allocate memory for client environment settings."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_INIT_SSL_LAYER
+  eng "Could not initialize SSL layer, because of the following SSL error: %s"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY_SIGNATURE
+  eng "Could not retrieve key signature from custom attributes"
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_RETRIEVE_KEY
+  eng "Could not retrieve key from OKV"
+
+ER_KEYRING_COMPONENT_KMIP_STANDBY_SERVER_COUNT_EXCEEDED
+  eng "Number of STANDBY_SERVER values exceeded maximum limit of 64."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_GENERATE_KEY
+  eng "Could not generate the key."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_KEY
+  eng "Could not store the key."
+
+ER_WARN_COMPONENT_KEYRING_KMIP_DUPLICATE_KEY
+  eng "Duplicate key found in kmip keyring with Name: %s and Owner: %s."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_ACTIVATE_KEYS
+  eng "Could not activate the key."
+
+ER_KEYRING_COMPONENT_KMIP_FAILED_TO_STORE_OR_GENERATE_KEY
+  eng "Could not store/generate the key - failed to set key attribute x-key-ready"
+
+ER_WARN_DEPRECATED_SASL_MECHANISM
+  eng "Value '%s' of variable authentication_ldap_sasl_auth_method_name is deprecated and will be removed in future. Consider using more secure '%s'."
+
+ER_INVALID_SERVER_OPTION_CHARSET
+  eng "Character set 'utf8' rejected as command line option."
+
+ER_INVALID_SERVER_OPTION_COLLATION
+  eng "Collation '%s' rejected as command line option."
+
+ER_FAILED_TO_FIND_CHARSET_NAME
+  eng "Unknown character set: '%-.64s'."
+
+ER_WARN_THREAD_POOL_QUERY_THREADS_INCOMPATIBLE_MTL
+  eng "The default or user configured value thread_pool_query_threads_per_group(%u) exceeds transaction threads limit per group (%u). To ensure correct operation, the server is automatically setting thread_pool_query_threads_per_group to %u. If this is not intended, consider setting thread_pool_max_transactions_limit to a higher value.%s"
+
+ER_WARN_THREAD_POOL_QUERY_THREADS_MISMATCH_INCOMPATIBLE_ALGO
+  eng "The configured value thread_pool_query_threads_per_group(1) is not recommended when used with HIGH_CONCURRENCY_ALGORITHM. Consider setting thread_pool_query_threads_per_group to a higher value for better performance."
+
+ER_WARN_THREAD_POOL_DEDICATED_LISTENERS_INCOMPATIBLE_MTL
+  eng "The thread_pool_dedicated_listeners option can only be set to ON if thread_pool_max_transaction_limit > 0. Since this requirement is not met, the server is automatically disabling thread_pool_dedicated_listeners. To use dedicated listeners, please consider enabling thread_pool_max_transactions_limit."
+
+ER_CONN_CONTROL_STAT_CONN_EXEMPTED_USERS_UPDATE_FAILED
+  eng "Failed to update connection delay user exempt stats"
+
+ER_AUTOPILOT_OLTP_ADVISOR_INFO
+  eng "%s"
+
+ER_AUTOPILOT_OLTP_ADVISOR_WARNING
+  eng "%s"
+
+ER_AUTOPILOT_OLTP_ADVISOR_ERROR
+  eng "%s"
 
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.

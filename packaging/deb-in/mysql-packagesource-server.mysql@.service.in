@@ -26,7 +26,7 @@
 [Unit]
 Description=MySQL @DEB_PRODUCTNAMEC@ Server
 Documentation=man:mysqld(8)
-Documentation=http://dev.mysql.com/doc/refman/en/using-systemd.html
+Documentation=https://dev.mysql.com/doc/refman/en/using-systemd.html
 After=network-online.target
 Wants=network-online.target
 

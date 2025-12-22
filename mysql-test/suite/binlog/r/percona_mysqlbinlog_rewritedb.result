@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 #
 # Apply log with ''
 #
@@ -116,3 +117,4 @@ f
 2
 # use d
 f
+include/rpl/set_gtid_mode_on.inc

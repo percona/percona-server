@@ -26,6 +26,7 @@
 #include "core_dumper.h"
 
 #include <fstream>
+#include <iostream>
 #include <regex>
 #include <string>
 

@@ -267,6 +267,7 @@ int tok_row_single_value_list = 0;
 int tok_row_multiple_value = 0;
 int tok_row_multiple_value_list = 0;
 int tok_in_generic_value_expression = 0;
+int tok_by_numeric_column = 0;
 int tok_ident = 0;
 int tok_ident_at = 0;  ///< Fake token for the left part of table\@query_block.
 int tok_hint_comment_open =
@@ -366,6 +367,8 @@ static void compute_tokens() {
 
   tok_in_generic_value_expression =
       range_for_digests.add_token("IN (...)", __LINE__);
+
+  tok_by_numeric_column = range_for_digests.add_token("(by_num_col)", __LINE__);
 
   /* Add new digest tokens here */
 
@@ -486,6 +489,7 @@ static void print_tokens() {
   printf("#define TOK_HINT_COMMENT_CLOSE %d\n", tok_hint_comment_close);
   printf("#define TOK_IN_GENERIC_VALUE_EXPRESSION %d\n",
          tok_in_generic_value_expression);
+  printf("#define TOK_BY_NUMERIC_COLUMN %d\n", tok_by_numeric_column);
   printf("#define TOK_UNUSED %d\n", tok_unused);
 }
 

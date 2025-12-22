@@ -55,19 +55,23 @@
 #define HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
 #define HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
 
+#include "my_config.h"
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <sys/types.h>
 #include <ctime>
 
-#include "my_compiler.h"
 #include "my_inttypes.h"
-#include "my_io.h"
-#include "my_macros.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_idle_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_tls_channel_bits.h"
+#include "mysql/components/services/bits/psi_transaction_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -90,6 +94,8 @@
 
 class THD;
 struct MDL_key;
+struct PSI_logger;
+struct log_attribute_t;
 
 // ===========================================================================
 

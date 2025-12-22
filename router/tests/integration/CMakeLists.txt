@@ -25,6 +25,24 @@ IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND DEBUG_EXTNAME)
   ADD_COMPILE_DEFINITIONS(HAVE_DEBUG_EXTNAME)
 ENDIF()
 
+
+# Build idc_metadata_schema.h
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/idc_metadata_schema.h
+  COMMAND comp_sql
+  idc_metadata_schema
+  ${CMAKE_SOURCE_DIR}/router/tests/component/data/metadata-model-2.1.0.sql
+  idc_metadata_schema.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_SOURCE_DIR}/router/tests/component/data/metadata-model-2.1.0.sql
+)
+# Add target for the above to be built
+MY_ADD_CUSTOM_TARGET(RouterIdcMetadataSchema
+ ALL
+ DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/idc_metadata_schema.h
+)
+
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
@@ -33,7 +51,9 @@ FOREACH(test_file
     test_routing_sharing.cc
     test_routing_sharing_constrained_pools.cc
     test_routing_sharing_openid_connect.cc
+    test_routing_sharing_reconnect.cc
     test_routing_sharing_restart.cc
+    test_routing_sharing_statement.cc
     test_routing_splitting.cc
     test_routing_tracing.cc
     )
@@ -44,6 +64,10 @@ FOREACH(test_file
     router_mysqlxclient
     router_mysqlxmessages
     mysql_protocol
+    DEPENDS
+    RouterIdcMetadataSchema
+    INCLUDE_DIRS
+    ${CMAKE_CURRENT_BINARY_DIR}
     )
 ENDFOREACH()
 

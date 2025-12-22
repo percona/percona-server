@@ -222,8 +222,17 @@ bool Singleton<longlong>::add_value_json_bucket(const longlong &value,
 }
 
 template <>
-bool Singleton<MYSQL_TIME>::add_value_json_bucket(const MYSQL_TIME &value,
-                                                  Json_array *json_bucket) {
+bool Singleton<Time_val>::add_value_json_bucket(const Time_val &value,
+                                                Json_array *json_bucket) {
+  const Json_time json_value(value);
+  if (json_bucket->append_clone(&json_value))
+    return true; /* purecov: inspected */
+  return false;
+}
+
+template <>
+bool Singleton<Datetime_val>::add_value_json_bucket(const Datetime_val &value,
+                                                    Json_array *json_bucket) {
   enum_field_types field_type;
   switch (value.time_type) {
     case MYSQL_TIMESTAMP_DATE:
@@ -231,9 +240,6 @@ bool Singleton<MYSQL_TIME>::add_value_json_bucket(const MYSQL_TIME &value,
       break;
     case MYSQL_TIMESTAMP_DATETIME:
       field_type = MYSQL_TYPE_DATETIME;
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      field_type = MYSQL_TYPE_TIME;
       break;
     default:
       /* purecov: begin deadcode */
@@ -438,7 +444,8 @@ template class Singleton<double>;
 template class Singleton<String>;
 template class Singleton<ulonglong>;
 template class Singleton<longlong>;
-template class Singleton<MYSQL_TIME>;
+template class Singleton<Time_val>;
+template class Singleton<Datetime_val>;
 template class Singleton<my_decimal>;
 
 }  // namespace histograms

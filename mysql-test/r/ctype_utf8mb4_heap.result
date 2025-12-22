@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t1,t2;
 #
 # Start of 5.5 tests
@@ -2381,3 +2382,4 @@ DROP TABLE t1;
 #
 # End of tests
 #
+include/rpl/set_gtid_mode_on.inc

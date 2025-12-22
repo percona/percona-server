@@ -28,8 +28,8 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 2048/2
 SET @data_volume = FLOOR(2048/2);
-SET @ceil = 41;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t1;
+SET @ceil = 3*SQRT(2048*1/2*1/2) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t1;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -68,15 +68,15 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 3072/3
 SET @data_volume = FLOOR(3072/3);
-SET @ceil = 62;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t2;
+SET @ceil = 3*SQRT(3072*1/3*2/3) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 2*(3072/3)
 SET @data_volume = FLOOR(2*(3072/3));
-SET @ceil = 62;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t2;
+SET @ceil = 3*SQRT(3072*2/3*1/3) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
@@ -116,22 +116,22 @@ COUNT(*)
 include/rpl/mysqlbinlog.inc
 # Should be close to 6144/4
 SET @data_volume = FLOOR(6144/4);
-SET @ceil = 123;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t3;
+SET @ceil = 3*SQRT(6144*1/4*3/4) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 2*(6144/4)
 SET @data_volume = FLOOR(2*(6144/4));
-SET @ceil = 123;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t3;
+SET @ceil = 3*SQRT(6144*2/4*2/4) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc
 # Should be close to 3*(6144/4)
 SET @data_volume = FLOOR(3*(6144/4));
-SET @ceil = 123;
-SELECT IF(COUNT(*) >= @data_volume-@ceil AND COUNT(*) <= @data_volume+@ceil, 'YES', 'NO') AS BALANCED FROM t3;
+SET @ceil = 3*SQRT(6144*3/4*1/4) # 3 sigma confidence interval;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -@ceil AND +@ceil, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 BALANCED
 YES
 include/rpl/mysqlbinlog.inc

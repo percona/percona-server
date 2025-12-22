@@ -29,10 +29,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 namespace table_access_all_empty_spc {
 // TODO: copy the method signatures here and provide them instead of the
 // nullptrs that we currently do
+Table_access create_table_access(MYSQL_THD /*thd*/, size_t /*count*/) {
+  return nullptr;
+}
+void destroy_table_access(Table_access /*ta*/) {}
 }  // namespace table_access_all_empty_spc
 
 BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_factory_v1)
-nullptr, nullptr END_SERVICE_IMPLEMENTATION();
+table_access_all_empty_spc::create_table_access,
+    table_access_all_empty_spc::destroy_table_access,
+    END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, table_access_v1)
 nullptr, nullptr, nullptr, nullptr, nullptr,

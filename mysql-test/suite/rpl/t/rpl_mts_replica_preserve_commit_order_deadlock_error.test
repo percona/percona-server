@@ -39,9 +39,6 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 --source include/rpl/sync_to_replica.inc
 
-# switched to slave connection
---source include/have_replica_parallel_type_logical_clock.inc
-
 --echo #
 --echo # 2. Initial setup on Slave.
 --echo #

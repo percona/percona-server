@@ -33,7 +33,6 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,7 +41,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/filesystem.h"
@@ -78,7 +76,7 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
                                     .http_port(cluster_http_port)
                                     .args());
 
-    set_globals();
+    set_globals("uuid");
     set_router_accepting_ports();
 
     custom_port = port_pool_.get_next_available();
@@ -411,8 +409,11 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
   void set_globals(std::string cluster_id = "") {
     set_mock_metadata(cluster_http_port, cluster_id,
                       classic_ports_to_gr_nodes({cluster_node_port}), 0,
-                      {cluster_node_port}, 0 /*view_id*/,
-                      false /*error_on_md_query*/);
+                      {{
+                          cluster_node_port,
+                          "uuid-1",
+                      }},
+                      0 /*view_id*/, false /*error_on_md_query*/);
   }
 
   void setup_paths() {

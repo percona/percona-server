@@ -712,14 +712,13 @@ bool Prepared_statement_handle::internal_execute() {
   expanded_query.set_charset(default_charset_info);
 
   // If no error happened while setting the parameters, execute statement.
-  bool rc = false;
-  if (!m_stmt->set_parameters(
+  bool rc =
+      m_stmt->set_parameters(
           m_thd, &expanded_query, m_bound_new_parameter_types, m_parameters,
-          Prepared_statement::enum_param_pack_type::UNPACKED)) {
-    rc = m_stmt->execute_loop(m_thd, &expanded_query, enable_cursor());
-    m_bound_new_parameter_types = false;
-    if (!is_cursor_open()) send_statement_status();
-  }
+          Prepared_statement::enum_param_pack_type::UNPACKED) ||
+      m_stmt->execute_loop(m_thd, &expanded_query, enable_cursor());
+  m_bound_new_parameter_types = false;
+  if (!is_cursor_open()) send_statement_status();
 
   m_thd->set_secondary_engine_optimization(saved_secondary_engine);
 

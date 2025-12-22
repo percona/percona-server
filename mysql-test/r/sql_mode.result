@@ -389,8 +389,8 @@ set sql_mode=32+(65536*4);
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
-set sql_mode=4294967296*2;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
+set sql_mode=cast(power(2,34) as unsigned);
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '17179869184'
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI

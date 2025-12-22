@@ -420,6 +420,7 @@ static int Init(MYSQL_PLUGIN p) {
       MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
   hton->secondary_engine_modify_view_ap_cost = ModifyViewAccessPathCost;
   hton->partition_flags = PartitionFlags;
+  hton->secondary_engine_nrows = nullptr;
   return 0;
 }
 

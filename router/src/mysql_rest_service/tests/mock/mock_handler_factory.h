@@ -62,7 +62,8 @@ class MockHandlerFactory : public mrs::interface::HandlerFactory {
   MOCK_METHOD(
       std::shared_ptr<Handler>, create_content_file,
       (EndpointBasePtr content_file_endpoint,
-       std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>),
+       std::shared_ptr<mrs::endpoint::handler::PersistentDataContentFile>,
+       const bool),
       (override));
   MOCK_METHOD(std::shared_ptr<Handler>, create_string_handler,
               (EndpointBasePtr endpoint, const UniversalId &service_id,

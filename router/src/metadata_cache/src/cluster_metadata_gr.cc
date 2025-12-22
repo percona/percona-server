@@ -33,6 +33,7 @@
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "log_suppressor.h"
+#include "mysql/harness/destination.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/ranges.h"  // enumerate
@@ -296,7 +297,8 @@ GRClusterMetadata::GRClusterMetadata(
 }
 
 // throws metadata_cache::metadata_error
-void GRClusterMetadata::update_cluster_status_from_gr(
+stdx::expected<void, std::error_code>
+GRClusterMetadata::update_cluster_status_from_gr(
     const bool unreachable_quorum_allowed_traffic,
     metadata_cache::ManagedCluster &cluster) {
   log_debug("Updating cluster status from GR for '%s'", cluster.name.c_str());
@@ -318,7 +320,7 @@ void GRClusterMetadata::update_cluster_status_from_gr(
   bool single_primary_mode = true, metadata_gr_discrepancy = false;
   bool found_quorum = false;
   for (const metadata_cache::ManagedInstance *mi : gr_members) {
-    const std::string mi_addr = mi->host + ":" + std::to_string(mi->port);
+    const std::string mi_addr = mi->classic_destination().str();
 
     auto connection = get_connection();
 
@@ -460,7 +462,11 @@ void GRClusterMetadata::update_cluster_status_from_gr(
           "in cluster '");
       msg += cluster.name + "'";
       log_error("%s", msg.c_str());
+      return stdx::unexpected(make_error_code(
+          metadata_cache::metadata_errc::gr_status_update_fail));
   }
+
+  return {};
 }
 
 static std::optional<uint16_t> parse_server_version(
@@ -552,9 +558,9 @@ GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
       const auto log_level =
           node_in_metadata_changed ? LogLevel::kWarning : LogLevel::kDebug;
       log_custom(log_level,
-                 "GR member %s:%d (%s), state: '%s' missing in the metadata, "
+                 "GR member %s (%s), state: '%s' missing in the metadata, "
                  "ignoring",
-                 status_node.second.host.c_str(), status_node.second.port,
+                 status_node.second.dest.str().c_str(),
                  status_node.first.c_str(),
                  to_string(status_node.second.state));
 
@@ -575,8 +581,10 @@ GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
     if (node_in_gr) {
       auto version_res = parse_server_version(status->second.version);
       if (!version_res) {
-        log_warning("Member %s:%d (%s): invalid member version format '%s'",
-                    member->host.c_str(), member->port,
+        log_warning("Member %s (%s): invalid member version format '%s'",
+                    mysql_harness::TcpDestination(member->host, member->port)
+                        .str()
+                        .c_str(),
                     member->mysql_server_uuid.c_str(),
                     status->second.version.c_str());
       } else {
@@ -691,10 +699,14 @@ bool backends_compatible(const ClusterType a, const ClusterType b) {
 }
 }  // namespace
 
-void GRClusterMetadata::update_backend(
+stdx::expected<void, std::string> GRClusterMetadata::update_backend(
     const mysqlrouter::MetadataSchemaVersion &version, unsigned int router_id) {
-  const auto cluster_type = mysqlrouter::get_cluster_type(
+  const auto res = mysqlrouter::get_cluster_type(
       version, metadata_connection_.get(), router_id);
+  if (!res) {
+    return stdx::unexpected(res.error());
+  }
+  const auto cluster_type = res.value();
 
   // if the current backend does not fit the metadata version that we just
   // discovered, we need to recreate it
@@ -703,11 +715,13 @@ void GRClusterMetadata::update_backend(
     if (metadata_backend_) {
       if (!backends_compatible(cluster_type,
                                metadata_backend_->get_cluster_type())) {
-        return;
+        return {};
       }
     }
     reset_metadata_backend(cluster_type);
   }
+
+  return {};
 }
 
 // sort the cluster nodes based on already sorted metadata servers list in the
@@ -816,10 +830,13 @@ GRMetadataBackend::fetch_cluster_topology(
   // unreachable_quorum_allowed_traffic option is configured for the Router)
   const auto unreachable_quorum_allowed_traffic =
       router_options.get_unreachable_quorum_allowed_traffic();
-  metadata_->update_cluster_status_from_gr(
+  const auto update_res = metadata_->update_cluster_status_from_gr(
       unreachable_quorum_allowed_traffic !=
           QuorumConnectionLostAllowTraffic::none,
       cluster);  // throws metadata_cache::metadata_error
+  if (!update_res) {
+    return stdx::unexpected(update_res.error());
+  }
 
   // we are using status reported by the node with no quorum, since the
   // unreachable_quorum_allowed_traffic configured is "read" we demote potential
@@ -923,7 +940,11 @@ GRClusterMetadata::fetch_cluster_topology(
         const auto version =
             get_and_check_metadata_schema_version(*metadata_connection_);
 
-        update_backend(version, router_id);
+        if (const auto res = update_backend(version, router_id); !res) {
+          log_warning("Failed determining the type of the cluster: %s.",
+                      res.error().c_str());
+          continue;
+        }
 
         if (!backend_reset) {
           metadata_backend_->reset();
@@ -1002,6 +1023,15 @@ GRClusterMetadata::fetch_cluster_topology(
       } else {
         if (!result) {
           result = std::move(result_tmp);
+        }
+
+        // if we failed updating the GR status we leave the inner loop (the one
+        // that iterates over cluster nodes) as GR state update already iterated
+        // over GR nodes and failed. For standalone cluster that means return,
+        // for ClusterSet we go for the next Cluster nodes.
+        if (result_tmp.error() ==
+            metadata_cache::metadata_errc::gr_status_update_fail) {
+          break;
         }
       }
     }

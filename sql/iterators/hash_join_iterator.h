@@ -322,7 +322,7 @@ class HashJoinIterator final : public RowIterator {
   ///   block the iterator is a part of has been asked to clear hash tables,
   ///   since outer references may have changed value. It is used to know when
   ///   we need to drop our hash table; when the value changes, we need to drop
-  ///   it. If it is nullptr, we _always_ drop it on Init().
+  ///   it. If it is nullptr, we _always_ drop it in DoInit().
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
                    const Prealloced_array<TABLE *, 4> &build_input_tables,
                    double estimated_build_rows,
@@ -337,14 +337,7 @@ class HashJoinIterator final : public RowIterator {
                    HashJoinInput first_input, bool probe_input_batch_mode,
                    uint64_t *hash_table_generation);
 
-  bool Init() override;
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
-    // Don't call this after Init() but before calling Read() for the first
-    // time. Init() may have loaded a row that is (partially or fully) a null
-    // row, so resetting the null row flags is incorrect.
     assert(!m_probe_row_read || m_state == State::END_OF_ROWS);
     m_build_input->SetNullRowFlag(is_null_row);
     m_probe_input->SetNullRowFlag(is_null_row);
@@ -363,6 +356,10 @@ class HashJoinIterator final : public RowIterator {
   int ChunkCount() { return m_chunk_files_on_disk.size(); }
 
  private:
+  bool DoInit() override;
+
+  int DoRead() override;
+
   /// Read all rows from the build input and store the rows into the in-memory
   /// hash table. If the hash table goes full, the rest of the rows are written
   /// out to chunk files on disk. See the class comment for more details.
@@ -679,6 +676,10 @@ class HashJoinIterator final : public RowIterator {
   };
   HashJoinType m_hash_join_type{HashJoinType::IN_MEMORY};
 
+  /// If m_probe_row_read is true, the contents of the first row of
+  /// m_probe_input is stored in this member.
+  String m_cached_probe_row;
+
   // The match flag for the last probe row read from chunk file.
   //
   // This is needed if a outer join spills to disk; a probe row can match a row
@@ -686,7 +687,7 @@ class HashJoinIterator final : public RowIterator {
   // because the hash table was full). So when reading a probe row from a chunk
   // file, this variable holds the match flag. This flag must be a class member,
   // since one probe row may match multiple rows from the hash table; the
-  // execution will go out of HashJoinIterator::Read() between each matching
+  // execution will go out of HashJoinIterator::DoRead() between each matching
   // row, causing any local match flag to lose the match flag info from the last
   // probe row read.
   bool m_probe_row_match_flag{false};
@@ -696,13 +697,13 @@ class HashJoinIterator final : public RowIterator {
   /// another.
   bool m_probe_row_read{false};
 
-  /// Helper function for Init(). Read the first row from m_probe_input.
+  /// Helper function for DoInit(). Read the first row from m_probe_input.
   /// @returns 'true' if there was an error.
   bool ReadFirstProbeRow();
 
-  /// Helper function for Init(). Build the hash table and check for empty query
-  /// results (empty build input or non-empty build input in case of degenerate
-  /// antijoin.)
+  /// Helper function for DoInit(). Build the hash table and check for empty
+  /// query results (empty build input or non-empty build input in case of
+  /// degenerate antijoin.)
   /// @returns 'true' in case of error.
   bool InitHashTable();
 };

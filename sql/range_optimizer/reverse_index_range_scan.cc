@@ -69,7 +69,7 @@ ReverseIndexRangeScanIterator::~ReverseIndexRangeScanIterator() {
   }
 }
 
-bool ReverseIndexRangeScanIterator::Init() {
+bool ReverseIndexRangeScanIterator::DoInit() {
   current_range_idx = ranges.size();
   empty_record(table());
 
@@ -121,7 +121,7 @@ bool ReverseIndexRangeScanIterator::Init() {
   return false;
 }
 
-int ReverseIndexRangeScanIterator::Read() {
+int ReverseIndexRangeScanIterator::DoRead() {
   DBUG_TRACE;
 
   /* The max key is handled as follows:

@@ -26,6 +26,7 @@
 #ifndef PLUGIN_X_SRC_HELPER_MULTITHREAD_RW_LOCK_H_
 #define PLUGIN_X_SRC_HELPER_MULTITHREAD_RW_LOCK_H_
 
+#include <assert.h>
 #include "mysql/psi/mysql_rwlock.h"
 
 namespace xpl {

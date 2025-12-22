@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 create schema test_schema;
@@ -249,7 +250,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803"
+        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803",
+        "gtid": "GTID"
     }
 }
 OK
@@ -269,7 +271,10 @@ PUT /svc/db/tbl/10 (payload-size:10)
 OK
 DELETE /svc/db/tbl/10
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc/db/sp (payload-size:2)
@@ -368,7 +373,8 @@ POST /svc2/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975"
+        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975",
+        "gtid": "GTID"
     }
 }
 OK
@@ -388,7 +394,10 @@ PUT /svc2/db/tbl/20 (payload-size:10)
 OK
 DELETE /svc2/db/tbl/20
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc2/db/sp (payload-size:2)
@@ -490,7 +499,8 @@ POST /svc2/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803"
+        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803",
+        "gtid": "GTID"
     }
 }
 OK
@@ -510,7 +520,10 @@ PUT /svc2/db/tbl/10 (payload-size:10)
 OK
 DELETE /svc2/db/tbl/10
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc2/db/sp (payload-size:2)
@@ -648,7 +661,8 @@ POST /svc3/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "401BEF6FF5D090E4940E2CD305950DA145FE42D394EB94FD4D6E7D1FE7E541F1"
+        "etag": "401BEF6FF5D090E4940E2CD305950DA145FE42D394EB94FD4D6E7D1FE7E541F1",
+        "gtid": "GTID"
     }
 }
 OK
@@ -668,7 +682,10 @@ PUT /svc3/db/tbl/50 (payload-size:10)
 OK
 DELETE /svc3/db/tbl/50
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc3/db/sp (payload-size:2)
@@ -788,7 +805,8 @@ PUT /svc2/db/tbl/50 (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "401BEF6FF5D090E4940E2CD305950DA145FE42D394EB94FD4D6E7D1FE7E541F1"
+        "etag": "401BEF6FF5D090E4940E2CD305950DA145FE42D394EB94FD4D6E7D1FE7E541F1",
+        "gtid": "GTID"
     }
 }
 OK
@@ -893,7 +911,8 @@ POST /svc2/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803"
+        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803",
+        "gtid": "GTID"
     }
 }
 OK
@@ -913,7 +932,10 @@ PUT /svc2/db/tbl/10 (payload-size:10)
 OK
 DELETE /svc2/db/tbl/10
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc2/db/sp (payload-size:2)
@@ -1026,7 +1048,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975"
+        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1046,7 +1069,10 @@ PUT /svc/db/tbl/20 (payload-size:10)
 OK
 DELETE /svc/db/tbl/20
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc/db/sp (payload-size:2)
@@ -1319,7 +1345,8 @@ POST /svc2/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803"
+        "etag": "983EB86E5628B3683934F099D27E05BD8D1258AE6D225FBD112319121DF31803",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1363,7 +1390,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975"
+        "etag": "B02684351033D76F7BC8CA1C96BDB1DBD9BB0AEA3CE86034E7554BFAC72D1975",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1552,7 +1580,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "0A6DF11DF58BF9E0EFB14BD817580ADE5570361E89B937B18866C6050F128CD4"
+        "etag": "0A6DF11DF58BF9E0EFB14BD817580ADE5570361E89B937B18866C6050F128CD4",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1572,7 +1601,10 @@ PUT /svc/db/tbl/30 (payload-size:10)
 OK
 DELETE /svc/db/tbl/30
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc/db/sp (payload-size:2)
@@ -2083,7 +2115,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "6AF4F18B73FB04387AC2237DE50A4D2A2AD1CBEBD1A038349FA580548CD75BAC"
+        "etag": "6AF4F18B73FB04387AC2237DE50A4D2A2AD1CBEBD1A038349FA580548CD75BAC",
+        "gtid": "GTID"
     }
 }
 OK
@@ -2254,7 +2287,8 @@ POST /svc/db/tbl (payload-size:10)
         }
     ],
     "_metadata": {
-        "etag": "037676F97A8FAFC0B4210F8339387DF7F57E0E04BCAA1BEC6F68301D39EBF63E"
+        "etag": "037676F97A8FAFC0B4210F8339387DF7F57E0E04BCAA1BEC6F68301D39EBF63E",
+        "gtid": "GTID"
     }
 }
 OK
@@ -2274,7 +2308,10 @@ PUT /svc/db/tbl/12 (payload-size:10)
 OK
 DELETE /svc/db/tbl/12
 {
-    "itemsDeleted": 1
+    "itemsDeleted": 1,
+    "_metadata": {
+        "gtid": "GTID"
+    }
 }
 OK
 POST /svc/db/sp (payload-size:2)

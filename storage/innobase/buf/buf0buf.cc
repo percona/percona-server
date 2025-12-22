@@ -1325,6 +1325,16 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     buf_pool->chunks = reinterpret_cast<buf_chunk_t *>(ut::zalloc_withkey(
         UT_NEW_THIS_FILE_PSI_KEY, buf_pool->n_chunks * sizeof(*chunk)));
+
+    if (buf_pool->chunks == nullptr) {
+      ib::error(ER_IB_MSG_64) << "buffer pool " << instance_no
+                              << " : failed to allocate"
+                                 " the chunk array.";
+      err = DB_ERROR;
+      mutex_exit(&buf_pool->chunks_mutex);
+      return;
+    }
+
     buf_pool->chunks_old = nullptr;
 
     UT_LIST_INIT(buf_pool->LRU);
@@ -1580,13 +1590,15 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
       n = n_instances;
     }
 
-    std::vector<std::thread> threads;
+    std::vector<IB_thread> threads;
 
     std::mutex m;
 
     for (ulint id = i; id < n; ++id) {
-      threads.emplace_back(std::thread(buf_pool_create, &buf_pool_ptr[id], size,
-                                       id, &m, std::ref(errs[id]), populate));
+      threads.emplace_back(os_thread_create(
+          buf_pool_create_thread_key, 0, buf_pool_create, &buf_pool_ptr[id],
+          size, id, &m, std::ref(errs[id]), populate));
+      threads[id - i].start();
     }
 
     for (ulint id = i; id < n; ++id) {

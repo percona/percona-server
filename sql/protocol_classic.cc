@@ -377,7 +377,7 @@
   @page page_protocol_basic_character_set Character Set
 
   MySQL has a very flexible character set support as documented in
-  [Character Set Support](http://dev.mysql.com/doc/refman/5.7/en/charset.html).
+  [Character Set Support](https://dev.mysql.com/doc/refman/en/charset.html).
   The list of character sets and their IDs can be queried as follows:
 
 <pre>
@@ -990,7 +990,7 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
   the @ref page_protocol_basic_ok_packet packets (such as session
   state tracking), and to avoid repeating the changes in
   the @ref page_protocol_basic_eof_packet packet, the
-  @ref page_protocol_basic_ok_packet is deprecated as of MySQL 5.7.5.
+  @ref page_protocol_basic_eof_packet is deprecated as of MySQL 5.7.5.
 
   @warning
   The @ref page_protocol_basic_eof_packet packet may appear in places where
@@ -3546,13 +3546,14 @@ bool Protocol_text::store_date(const MYSQL_TIME &tm) {
                         packet);
 }
 
-bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
+bool Protocol_text::store_time(const Time_val &time, uint precision) {
   // field_types check is needed because of the embedded protocol
   assert(send_metadata || field_types == nullptr ||
          field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
+  MYSQL_TIME tm = MYSQL_TIME(time);
   return store_temporal(
-      [&tm, decimals](char *to) { return my_time_to_str(tm, to, decimals); },
+      [&tm, precision](char *to) { return my_time_to_str(tm, to, precision); },
       packet);
 }
 
@@ -3844,20 +3845,20 @@ bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
   return false;
 }
 
-bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
-  if (send_metadata) return Protocol_text::store_time(tm, precision);
+bool Protocol_binary::store_time(const Time_val &time, uint precision) {
+  if (send_metadata) return Protocol_text::store_time(time, precision);
   // field_types check is needed because of the embedded protocol
   assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 
   size_t length;
-  if (tm.second_part)
+  if (time.microsecond() != 0) {
     length = 12;
-  else if (tm.hour || tm.minute || tm.second || tm.day)
+  } else if (time.hour() != 0 || time.minute() != 0 || time.second() != 0) {
     length = 8;
-  else
+  } else {
     length = 0;
-
+  }
   char *pos = packet->prep_append(length + 1, PACKET_BUFFER_EXTRA_ALLOC);
   if (pos == nullptr) return false;
   *pos++ = char(length);
@@ -3866,19 +3867,19 @@ bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
   if (pos == end) return false;  // zero date
 
   // Move hours to days if we have 24 hours or more.
-  const unsigned days = tm.day + tm.hour / 24;
-  const unsigned hours = tm.hour % 24;
+  const unsigned days = time.hour() / 24;
+  const unsigned hours = time.hour() % 24;
 
-  *pos++ = tm.neg ? 1 : 0;
+  *pos++ = time.is_negative() ? 1 : 0;
   int4store(pos, days);
   pos += 4;
   *pos++ = char(hours);
-  *pos++ = char(tm.minute);
-  *pos++ = char(tm.second);
+  *pos++ = char(time.minute());
+  *pos++ = char(time.second());
 
   if (pos == end) return false;  // no second part
 
-  int4store(pos, tm.second_part);
+  int4store(pos, time.microsecond());
   assert(pos + 4 == end);
   return false;
 }

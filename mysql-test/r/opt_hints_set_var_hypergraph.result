@@ -50,13 +50,13 @@ Warnings:
 Warning	1064	A size parameter was incorrectly specified, either number or on the form 10M near '900010050018247362846826482468000) */ 1' at line 1
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on') SET_VAR(optimizer_switch = 'batched_key_access=off')*/ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3126	Hint SET_VAR(optimizer_switch='batched_key_access=off')  is ignored as conflicting/duplicated
 explain SELECT /*+ SET_VAR(max_join_size=1) SET_VAR(max_join_size=1) */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3126	Hint SET_VAR(max_join_size=1)  is ignored as conflicting/duplicated
@@ -64,37 +64,37 @@ explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=on')
 SET_VAR(big_tables=on)
 SET_VAR(big_tables=off) */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3126	Hint SET_VAR(big_tables='off')  is ignored as conflicting/duplicated
 explain SELECT /*+ SET_VAR(optimizer_switc = 'batched_key_access=off') */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3128	Unresolved name 'optimizer_switc' for SET_VAR hint
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_access=yes') */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_access=yes'
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
 explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	3637	Variable 'max_allowed_packet' cannot be set using SET_VAR hint.
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 Warnings:
 Warning	1231	Variable 'optimizer_switch' can't be set to the value of 'batched_key_acces=off'
@@ -319,7 +319,7 @@ VARIABLE_VALUE
 CREATE TABLE t1(f1 INT);
 EXPLAIN SELECT /*+ SET_VAR(max_error_count=0) SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 EXPLAIN
--> Table scan on t1  (cost=0.295..0.295 rows=1)
+-> Table scan on t1  (rows=1)
 
 DROP TABLE t1;
 CALL test_hint("SET_VAR(max_error_count=0)", "max_error_count");
@@ -423,41 +423,41 @@ test.t3	analyze	status	OK
 EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
--> Nested loop inner join  (cost=15.8..18.3 rows=1.73)
-    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (cost=13.9..14.9 rows=1.73)
-        -> Table scan on t1  (cost=0.359..1.44 rows=4)
+-> Nested loop inner join  (...)
+    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
+        -> Table scan on t1  (...)
         -> Hash
-            -> Inner hash join (t3.b = t4.b)  (cost=6.27..7.93 rows=3)
-                -> Table scan on t4  (cost=0.313..1.25 rows=4)
+            -> Inner hash join (t3.b = t4.b)  (...)
+                -> Table scan on t4  (...)
                 -> Hash
-                    -> Table scan on t3  (cost=0.313..0.94 rows=3)
-    -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
+                    -> Covering index scan on t3 using a  (...)
+    -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
 EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
--> Nested loop inner join  (cost=15.8..18.3 rows=1.73)
-    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (cost=13.9..14.9 rows=1.73)
-        -> Table scan on t1  (cost=0.359..1.44 rows=4)
+-> Nested loop inner join  (...)
+    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
+        -> Table scan on t1  (...)
         -> Hash
-            -> Inner hash join (t3.b = t4.b)  (cost=6.27..7.93 rows=3)
-                -> Table scan on t4  (cost=0.313..1.25 rows=4)
+            -> Inner hash join (t3.b = t4.b)  (...)
+                -> Table scan on t4  (...)
                 -> Hash
-                    -> Table scan on t3  (cost=0.313..0.94 rows=3)
-    -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
+                    -> Covering index scan on t3 using a  (...)
+    -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
 EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 EXPLAIN
--> Nested loop inner join  (cost=15.8..18.3 rows=1.73)
-    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (cost=13.9..14.9 rows=1.73)
-        -> Table scan on t1  (cost=0.359..1.44 rows=4)
+-> Nested loop inner join  (...)
+    -> Hash semijoin (FirstMatch) (t1.b = t4.b)  (...)
+        -> Table scan on t1  (...)
         -> Hash
-            -> Inner hash join (t3.b = t4.b)  (cost=6.27..7.93 rows=3)
-                -> Table scan on t4  (cost=0.313..1.25 rows=4)
+            -> Inner hash join (t3.b = t4.b)  (...)
+                -> Table scan on t4  (...)
                 -> Hash
-                    -> Table scan on t3  (cost=0.313..0.94 rows=3)
-    -> Covering index lookup on t2 using a (a = t1.b)  (cost=1.93..1.93 rows=1)
+                    -> Covering index scan on t3 using a  (...)
+    -> Covering index lookup on t2 using a (a = t1.b)  (...)
 
 CALL test_hint("SET_VAR(optimizer_search_depth=1)", "optimizer_search_depth");
 VARIABLE_VALUE
@@ -535,11 +535,11 @@ set optimizer_switch=default;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=VAL,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=VAL,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=VAL,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=on,derived_condition_pushdown=on,hash_set_operations=on,favor_range_scan=off
 CALL test_hint("SET_VAR(range_alloc_block_size=8192)", "range_alloc_block_size");
 VARIABLE_VALUE
 4096

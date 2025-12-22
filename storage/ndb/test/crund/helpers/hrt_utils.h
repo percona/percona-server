@@ -69,11 +69,13 @@ extern "C" {
  * Supported values for these macros are (by descending accuracy)
  * HRT_REALTIME_METHOD:
  *     HRT_USE_CLOCK_GETTIME
+ *     HRT_USE_WINDOWS
  *     HRT_USE_GETTIMEOFDAY
  *     HRT_USE_TIMES
  *     HRT_USE_ANSI_TIME
  * HRT_CPUTIME_METHOD:
  *     HRT_USE_CLOCK_GETTIME
+ *     HRT_USE_WINDOWS
  *     HRT_USE_GETRUSAGE
  *     HRT_USE_TIMES
  *     HRT_USE_ANSI_CLOCK
@@ -82,35 +84,31 @@ extern "C" {
  * detailed information, however, consult the system's man pages.
  */
 
-/*
- * For now, require all subsequent system header files.
- *
- * Alternatives:
- * - Determine the availability of APIs by the Unix standards macros
- *     http://predef.sourceforge.net/prestd.html
- *     POSIX.1-2001:	_POSIX_VERSION = 200112L
- *     SUSv2:  		_XOPEN_VERSION = 500
- *     SUSv3:  		_XOPEN_VERSION = 600
- *   from <unistd.h> for their existence/value before including headers.
- * - Check autoconf-generated macros:
- *     #include "config.h"
- *     #if HAVE_UNISTD_H
- *     #  include <unistd.h>
- *     #endif
- *     #if HAVE_SYS_TIMES_H
- *     #  include <sys/times.h>
- *     #endif
- *     #if HAVE_GETRUSAGE
- *     #  include <sys/time.h>
- *     #endif
- *     ...
- */
-#include <stdlib.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#include <sys/times.h>
 #include <time.h>
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
+#ifdef HAVE_SYS_TIMES_H
+#include <sys/times.h>
+#endif
+
+#ifdef _WIN32
+#include <processthreadsapi.h>
+#include <profileapi.h>
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 /*
  * Method definitions for measuring real and cpu times.
@@ -181,6 +179,14 @@ extern "C" {
  */
 #define HRT_USE_ANSI_CLOCK 6
 
+/**
+ * Use: QueryPerformanceCounter() for real time
+ * Use: GetProcessTimes() for CPU time
+ *
+ * These are the preferred timers on Windows systems.
+ */
+#define HRT_USE_WINDOWS 7
+
 /*
  * Default method selection of measuring real and cpu times.
  */
@@ -189,9 +195,12 @@ extern "C" {
 #if !(HRT_REALTIME_METHOD == HRT_USE_CLOCK_GETTIME || \
       HRT_REALTIME_METHOD == HRT_USE_GETTIMEOFDAY ||  \
       HRT_REALTIME_METHOD == HRT_USE_TIMES ||         \
+      HRT_REALTIME_METHOD == HRT_USE_WINDOWS ||       \
       HRT_REALTIME_METHOD == HRT_USE_ANSI_TIME)
 #error "unsupported HRT_REALTIME_METHOD: " HRT_REALTIME_METHOD
 #endif
+#elif defined(_WIN32)
+#define HRT_REALTIME_METHOD HRT_USE_WINDOWS
 #else
 #if HAVE_CLOCK_GETTIME
 #define HRT_REALTIME_METHOD HRT_USE_CLOCK_GETTIME
@@ -199,13 +208,17 @@ extern "C" {
 #define HRT_REALTIME_METHOD HRT_USE_GETTIMEOFDAY
 #endif
 #endif
+
 #ifdef HRT_CPUTIME_METHOD
 #if !(HRT_CPUTIME_METHOD == HRT_USE_CLOCK_GETTIME || \
       HRT_CPUTIME_METHOD == HRT_USE_GETRUSAGE ||     \
       HRT_CPUTIME_METHOD == HRT_USE_TIMES ||         \
+      HRT_CPUTIME_METHOD == HRT_USE_WINDOWS ||       \
       HRT_CPUTIME_METHOD == HRT_USE_ANSI_CLOCK)
 #error "unsupported HRT_CPUTIME_METHOD: " HRT_CPUTIME_METHOD
 #endif
+#elif defined(_WIN32)
+#define HRT_CPUTIME_METHOD HRT_USE_WINDOWS
 #else
 #if HAVE_CLOCK_GETTIME
 #define HRT_CPUTIME_METHOD HRT_USE_CLOCK_GETTIME
@@ -230,6 +243,8 @@ typedef struct {
   clock_t time;
 #elif (HRT_REALTIME_METHOD == HRT_USE_ANSI_TIME)
   time_t time;
+#elif (HRT_REALTIME_METHOD == HRT_USE_WINDOWS)
+  LARGE_INTEGER time;
 #endif
 } hrt_rtstamp;
 
@@ -245,6 +260,8 @@ typedef struct {
   struct tms time;
 #elif (HRT_CPUTIME_METHOD == HRT_USE_ANSI_CLOCK)
   clock_t time;
+#elif (HRT_CPUTIME_METHOD == HRT_USE_WINDOWS)
+  LARGE_INTEGER time;
 #endif
 } hrt_ctstamp;
 

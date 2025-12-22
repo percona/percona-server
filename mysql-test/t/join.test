@@ -721,6 +721,7 @@ flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 --echo We expect rnd_next=5, and read_key must be 0 because of short-cutting:
+--skip_if_hypergraph # Hypergraph uses hash join instead.
 show status like 'Handler_read%'; 
 drop table t1, t2, t3;
 
@@ -1237,6 +1238,7 @@ insert into parent values (1,1,1,1);
 insert into eq_child select * from parent;
 
 # Need JSON explain format in order to make the where condition visible.
+SET explain_json_format_version = 1;
 --skip_if_hypergraph  # Depends on the query plan.
 explain format=json select straight_join count(*) from parent
  join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
@@ -1244,6 +1246,7 @@ explain format=json select straight_join count(*) from parent
  join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
  join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
 ;
+SET explain_json_format_version = DEFAULT;
 
 drop table parent, eq_child;
 

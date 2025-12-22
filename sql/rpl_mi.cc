@@ -184,7 +184,7 @@ Master_info::Master_info(
       key_info_rotate_lock(param_key_info_rotate_lock),
       key_info_rotate_cond(param_key_info_rotate_cond),
 #endif
-      ssl(false),
+      ssl(true),
       ssl_verify_server_cert(false),
       get_public_key(false),
       port(MYSQL_PORT),

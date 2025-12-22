@@ -121,8 +121,8 @@ namespace jdv {
 
   if (sl->where_cond() != nullptr) {
     Item *where_cond = sl->where_cond();
-    Item_func *item = down_cast<Item_func *>(where_cond);
-    if (item->argument_count() != 2 ||
+    Item_func *item = dynamic_cast<Item_func *>(where_cond);
+    if (item == nullptr || item->argument_count() != 2 ||
         dynamic_cast<Item_ident *>(item->get_arg(0)) == nullptr ||
         dynamic_cast<Item_ident *>(item->get_arg(1)) == nullptr ||
         item->functype() != Item_func::EQ_FUNC) {

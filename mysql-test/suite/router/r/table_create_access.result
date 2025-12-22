@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
 # DB `basic_schema` - created
@@ -67,7 +68,8 @@ POST /svc/basic/t2/ (payload-size:85)
     ],
     "comments": "something-new",
     "_metadata": {
-        "etag": "625F2B0C107AE737E6608EE8AC15DBC84B56888E681418392C3F40C9DC350449"
+        "etag": "625F2B0C107AE737E6608EE8AC15DBC84B56888E681418392C3F40C9DC350449",
+        "gtid": "GTID"
     }
 }
 OK
@@ -106,7 +108,8 @@ POST /svc/basic/t2 (payload-size:73)
     ],
     "comments": "",
     "_metadata": {
-        "etag": "6700B0D3D16088C1C968E64F7EF51ADAB8EB9CE66F956F526B8C4A8B422204E5"
+        "etag": "6700B0D3D16088C1C968E64F7EF51ADAB8EB9CE66F956F526B8C4A8B422204E5",
+        "gtid": "GTID"
     }
 }
 OK

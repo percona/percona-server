@@ -29,7 +29,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
-#include <memory>
 
 #include "ndb_config.h"
 #include "portlib/NdbTimestamp.h"
@@ -431,12 +430,11 @@ int NdbTimestamp_GetDefaultStringFormatLength() {
  *   - timezones[][1] is used on Windows
  */
 static const char *timezones[5][2] = {
-    {"TZ=:Etc/UTC" /* "TZ=UTC" */, "TZ=UTC"},
-    {"TZ=:Europe/Stockholm" /* "TZ=CET-01CEST-02,M3.5.0,M10.5.0" */, nullptr},
-    {"TZ=:America/Los_Angeles" /* "TZ=PST+08PDT+07,M3.3.0,M11.1.0" */,
-     "TZ=PST+08PDT"},
-    {"TZ=:Pacific/Pago_Pago" /* "TZ=SST+11" */, "TZ=SST+11"},
-    {"TZ=:Pacific/Kiritimati" /* "TZ=LINT-14" */, "TZ=UTC-14"}};
+    {":Etc/UTC" /* "UTC" */, "UTC"},
+    {":Europe/Stockholm" /* "CET-01CEST-02,M3.5.0,M10.5.0" */, nullptr},
+    {":America/Los_Angeles" /* "PST+08PDT+07,M3.3.0,M11.1.0" */, "PST+08PDT"},
+    {":Pacific/Pago_Pago" /* "SST+11" */, "SST+11"},
+    {":Pacific/Kiritimati" /* "LINT-14" */, "UTC-14"}};
 
 static struct {
   time_t t;
@@ -504,22 +502,19 @@ static void test_UTC() {
   }
 }
 
-using char_buffer_ptr = std::unique_ptr<char, decltype(&std::free)>;
-static char_buffer_ptr guarded_tzenv(nullptr, &std::free);
-
 static void test_TZ(int itz) {
 #ifndef _WIN32
   const char *tzenv = timezones[itz][0];
+  setenv("TZ", tzenv, 1);
 #else
   const char *tzenv = timezones[itz][1];
   if (tzenv == nullptr) {
     skip(16, "Timezone '%s' not supported on Windows.", timezones[itz][0]);
     return;
   }
+  _putenv_s("TZ", tzenv);
 #endif
-  guarded_tzenv.reset(strdup(tzenv));
-  putenv(guarded_tzenv.get());
-  printf("%s\n", tzenv);
+  printf("TZ=%s\n", tzenv);
   NdbTimestamp_Reset();
 
   std::timespec t = NdbTimestamp_GetCurrentTime();

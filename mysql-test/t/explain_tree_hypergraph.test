@@ -225,7 +225,12 @@ SET @@optimizer_switch = @save_optimizer_switch;
 --echo #
 
 CREATE TABLE t(a INTEGER,b INTEGER);
-INSERT INTO t VALUES(1,2),(2,3);
+
+INSERT INTO t
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<19)
+SELECT n,n+1 FROM qn;
+
 ANALYZE TABLE t;
 # FirstMatch strategy - Semijoin converted to inner join by
 # limiting one row from the table on the inner side.
@@ -251,7 +256,7 @@ ALTER TABLE t ADD KEY(b);
 ANALYZE TABLE t;
 # FirstMatch strategy - Nested Loop Semijoin
 let $query = SELECT b FROM t WHERE a IN
-(SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1);
+(SELECT /*+ SEMIJOIN(FIRSTMATCH) */t1.b FROM t AS t1) LIMIT 1;
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval EXPLAIN FORMAT=JSON INTO @var $query;

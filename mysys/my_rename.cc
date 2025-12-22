@@ -32,7 +32,6 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <cstring>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

@@ -32,7 +32,7 @@
 
 #include "my_getpwnam.h"
 
-#include <atomic>
+#include <cstddef>
 #include <vector>
 
 #include <unistd.h>

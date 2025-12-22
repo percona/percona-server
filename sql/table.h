@@ -952,6 +952,8 @@ struct TABLE_SHARE {
   bool db_low_byte_first{false}; /* Portable row format */
   bool crashed{false};
   bool is_view{false};
+  /// Materialized view, materialized directly by a storage engine
+  bool is_mv_se_materialized{false};
   bool m_open_in_progress{false}; /* True: alloc'ed, false: def opened */
   mysql::binlog::event::Table_id table_map_id; /* for row-based replication */
 
@@ -3255,6 +3257,11 @@ class Table_ref {
   /// Return true if this represents a named view or a derived table
   bool is_view_or_derived() const { return derived != nullptr; }
 
+  /// Return true if this represents a non-materialized view or a derived table
+  bool is_non_materialized_view_or_derived() const {
+    return is_view_or_derived() && !is_mv_se_available();
+  }
+
   /// Return true if this represents a table function
   bool is_table_function() const { return table_function != nullptr; }
   /**
@@ -3862,6 +3869,19 @@ class Table_ref {
  private:
   LEX *view{nullptr}; /* link on VIEW lex for merging */
 
+  /// m_mv_se_materialized true indicates that the view is a materialized view
+  /// that is materialized by a storage engine directly.
+  bool m_mv_se_materialized{false};
+  /// m_mv_se_name is the name of the storage engine that might do the
+  /// materialization.
+  LEX_CSTRING m_mv_se_name{.str = nullptr, .length = 0};
+  /// m_mv_se_available indicates that the current Table_ref is using
+  /// the materialized view. A Table_ref can be a materialized view (as
+  /// indicated by m_mv_se_materialized), which is determined by its definition,
+  /// yet the materialization might not be used during the current lifetime of
+  /// this object, if the SE does not make it available for some reason.
+  bool m_mv_se_available{false};
+
  public:
   /// Array of selected expressions from a derived table or view.
   Field_translator *field_translation{nullptr};
@@ -3937,6 +3957,28 @@ class Table_ref {
     Prefer to use is_updatable() during preparation and optimization.
   */
   ulonglong updatable_view{0};  ///< VIEW can be updated
+
+  bool is_mv_se_available() const { return m_mv_se_available; }
+
+  void set_mv_se_available(bool mv_available) {
+    m_mv_se_available = mv_available;
+  }
+
+  bool is_mv_se_materialized() const { return m_mv_se_materialized; }
+
+  void set_mv_se_materialized(bool is_mv) { m_mv_se_materialized = is_mv; }
+
+  const LEX_CSTRING &get_mv_se_name() const { return m_mv_se_name; }
+
+  void set_mv_se_name(const char *engine_name) {
+    m_mv_se_name.str = engine_name;
+    m_mv_se_name.length = strlen(engine_name);
+  }
+
+  void set_mv_se_name(const LEX_CSTRING &engine_name) {
+    m_mv_se_name = engine_name;
+  }
+
   /**
       @brief The declared algorithm, if this is a view.
       @details One of

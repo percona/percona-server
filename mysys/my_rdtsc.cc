@@ -64,12 +64,10 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
-#include <cstdint>
-#include <cstdio>
+#include "my_rdtsc.h"
 
 #include "my_config.h"
 #include "my_inttypes.h"
-#include "my_rdtsc.h"
 #if defined(_WIN32)
 #include "windows.h"
 #endif

@@ -60,7 +60,7 @@
 }
 
 {
-   semi_sync_master_plugin_init
+   semi_sync_source_plugin_init
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc

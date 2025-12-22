@@ -57,8 +57,8 @@ enum enum_channel_type {
   Know parallelization options that can be applied to channel appliers
 */
 enum enum_multi_threaded_workers_type {
-  CHANNEL_MTS_PARALLEL_TYPE_DB_NAME,
-  CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK
+  /* CHANNEL_MTS_PARALLEL_TYPE_DB_NAME, */ /* UNUSED, REMOVED */
+  CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK = 1
 };
 
 /**

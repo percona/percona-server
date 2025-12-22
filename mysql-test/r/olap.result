@@ -2460,6 +2460,88 @@ SUM(UTC_DATE()) OVER()
 SET timestamp=default;
 DROP TABLE t1;
 #
+# Bug#38203473: Assertion `is_nullable()' in Item_typecast_signed::val_int
+#               at sql/item_func.cc
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1));
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
+EXPLAIN
+-> Zero input rows (no matching row in const table), aggregated into one output row  (cost=0..0 rows=1)
+
+SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
+f1
+NULL
+EXPLAIN FORMAT=tree SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
+EXPLAIN
+-> Zero input rows (no matching row in const table), aggregated into one output row  (cost=0..0 rows=1)
+
+SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1);
+f1	AVG(f2)	COUNT(f2)
+NULL	NULL	0
+EXPLAIN FORMAT=tree SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1) HAVING FALSE;
+EXPLAIN
+-> Zero rows (Impossible HAVING)  (cost=0..0 rows=0)
+
+SELECT f1, AVG(f2), COUNT(f2) FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f1) HAVING FALSE;
+f1	AVG(f2)	COUNT(f2)
+SET @saved_sql_mode = @@sql_mode;
+SET @saved_opt_switch = @@optimizer_switch;
+SET sql_mode='';
+SET optimizer_switch="subquery_to_derived=on";
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) ORDER BY CAST(f1 AS SIGNED);
+EXPLAIN
+-> Sort: cast(t1.f1 as signed)
+    -> Stream results  (rows=2)
+        -> Group (no aggregates)  (rows=2)
+            -> Constant row from t1  (rows=1)
+
+SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) ORDER BY CAST(f1 AS SIGNED);
+f1
+NULL
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) HAVING f1 IS NOT NULL;
+EXPLAIN
+-> Filter: (t1.f1 is not null)  (rows=2)
+    -> Group (no aggregates)  (rows=2)
+        -> Constant row from t1  (rows=1)
+
+SELECT f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2) HAVING f1 IS NOT NULL;
+f1
+SELECT (SELECT 'a' FROM t1 AS t2 WHERE t2.f1 = CAST(t1.f1 AS SIGNED)) = 'aa' FROM t1 GROUP BY ROLLUP(f1);
+(SELECT 'a' FROM t1 AS t2 WHERE t2.f1 = CAST(t1.f1 AS SIGNED)) = 'aa'
+NULL
+SET optimizer_switch=@saved_opt_switch;
+EXPLAIN FORMAT=tree SELECT /*+NO_INDEX(t1) */ f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2);
+EXPLAIN
+-> Group (no aggregates)  (rows=2)
+    -> Sort: f2  (rows=1)
+        -> Filter: (t1.f1 = 10)  (rows=1)
+            -> Table scan on t1  (rows=1)
+
+SELECT /*+NO_INDEX(t1) */ f1 FROM t1 WHERE f1 = 10 GROUP BY ROLLUP(f2);
+f1
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY ROLLUP(f2);
+EXPLAIN
+-> Group (no aggregates)  (rows=2)
+    -> Sort: f2  (rows=1)
+        -> Table scan on t1  (rows=1)
+
+SELECT f1 FROM t1 GROUP BY ROLLUP(f2);
+f1
+NULL
+EXPLAIN FORMAT=tree SELECT ANY_VALUE(f1) FROM t1 GROUP BY ROLLUP(f2);
+EXPLAIN
+-> Group (no aggregates)  (rows=2)
+    -> Sort: f2  (rows=1)
+        -> Table scan on t1  (rows=1)
+
+SELECT ANY_VALUE(f1) FROM t1 GROUP BY ROLLUP(f2);;
+ANY_VALUE(f1)
+NULL
+SET sql_mode=@saved_sql_mode;
+DROP TABLE t1;
+#
 # PS-8328: MySQL 8 Crash when using group_concat with group by with
 #          rollup.
 #

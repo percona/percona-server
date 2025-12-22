@@ -84,8 +84,8 @@ class HandlerFactory : public mrs::interface::HandlerFactory {
       EndpointBasePtr db_object_endpoint) override;
   std::shared_ptr<Handler> create_content_file(
       EndpointBasePtr db_object_endpoint,
-      std::shared_ptr<handler::PersistentDataContentFile> persistent_data)
-      override;
+      std::shared_ptr<handler::PersistentDataContentFile> persistent_data,
+      const bool handle_index) override;
 
   std::shared_ptr<Handler> create_string_handler(
       EndpointBasePtr endpoint, const UniversalId &service_id,

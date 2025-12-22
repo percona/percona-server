@@ -37,12 +37,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <pthread.h>
 #endif /* HAVE_PTHREAD_SETNAME_NP_LINUX */
-
-#ifdef HAVE_PTHREAD_SETNAME_NP_MACOS
-#include <pthread.h>
-#endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -52,7 +47,6 @@
 #include <stringapiset.h>
 #endif /* _WIN32 */
 #include "my_thread.h"
-#include "mysql/components/services/bits/my_thread_bits.h"
 
 #ifdef _WIN32
 #include <errno.h>

@@ -366,7 +366,7 @@ class Sql_resultset {
   /*
     get field flag.
     Check
-      https://dev.mysql.com/doc/refman/5.7/en/c-api-data-structures.html
+      https://dev.mysql.com/doc/refman/en/c-api-data-structures.html
     for all flags
   */
   unsigned int get_flags(uint rowIndex = 0) {

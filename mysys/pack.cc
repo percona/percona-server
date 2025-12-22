@@ -26,13 +26,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql.h"
-#include "mysql_com.h"
 
 /* Get the length of next field. Change parameter to point at fieldstart */
 ulong STDCALL net_field_length(uchar **packet) {

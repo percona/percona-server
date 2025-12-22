@@ -2,6 +2,8 @@
 --echo # WL#15658: Make mysqldump dump logical ACL statements
 --echo #
 
+-- source include/have_log_bin.inc
+
 --source include/no_valgrind_without_big.inc
 
 # Save the initial number of concurrent sessions
@@ -397,6 +399,10 @@ DROP USER 'wl15658_hst'@'quote\'localhost';
 --remove_file $MYSQLTEST_VARDIR/tmp/wl15658_fr47.sql
 
 --echo # Test FR3.6: --include-user=nonexistent@nosuchhost must fail
+
+--let $executed_gtid_set= `SELECT @@GLOBAL.GTID_EXECUTED`
+--replace_result "$executed_gtid_set" GTID_SET
+
 --error 2
 --exec $MYSQL_DUMP --compact --users --include-user=nonexistent@nosuchhost 2>&1
 

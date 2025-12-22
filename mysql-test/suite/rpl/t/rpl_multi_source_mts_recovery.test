@@ -14,9 +14,6 @@
 --source include/rpl/init.inc
 --source include/rpl/default_connections.inc
 
---source include/rpl/connection_replica.inc
---source include/have_replica_parallel_type_logical_clock.inc
-
 --source common/rpl/rpl_parallel_recovery_core.test
 
 --let $rpl_skip_sync= 1

@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_class.h>
 #include "clone0api.h"
 #include "clone0clone.h"
+#include "debug_sync.h" /* CONDITIONAL_SYNC_POINT */
 #include "dict0dd.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
@@ -239,6 +240,43 @@ void trx_purge_sys_mem_create() {
   purge_sys->heap = mem_heap_create(8 * 1024, UT_LOCATION_HERE);
 }
 
+/** Updates the purge_sys->view and purge_sys->m_lowest_needed_trx_no, to the
+safe, most current estimates which are based on oldest currently open read view
+and progress of GTID persistor.
+Because the value of lowest needed transaction number returned by
+Clone_persist_gtid::get_oldest_trx_no() is not monotone over time, the
+m_lowest_needed_trx_no may sometimes get smaller, perhaps smaller than already
+purged trx no - when this happens it doesn't mean that we've lost important data
+as the value returned by GTID persistor in such cases is lower than really
+needed.
+The estimates should eventually converge on the right value if system is idle.
+This function is called at startup and then periodically by purge thread, to
+learn how much can be purged - which is limited by m_lowest_needed_trx_no.
+Note that m_lowest_needed_trx_no might be lower than needed by purge_sys->view
+in case GTID persistor is lagging. */
+static void trx_purge_update_oldest_needed() {
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
+  trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
+  const auto needed_by_purge_view = purge_sys->view.low_limit_no();
+  /* The Clone_persist_gtid::get_oldest_trx_no() can return TRX_ID_MAX, if there
+  are no GTIDs pending to be persisted. It is crucial for correctness, that
+  get_oldest_trx_no() must be called after the oldest view was cloned, so that
+  in case it returns TRX_ID_MAX, we properly cap it to no more than
+  trx_sys->serialisation_min_trx_no seen at an earlier moment (which is an upper
+  bound for purge_sys->view->low_limit_no() on the one hand, and at
+  the same time a lower bound for trx->no of any trx assigned a new GTID since
+  then and at the same time ). If we do that in opposite order, it could be the
+  case that new GTIDs were assigned after the get_oldest_trx_no() has returned
+  TRX_ID_MAX and we clone an oldest read view even later and thus decide to
+  remove all Undo Logs not needed by this read view, including the Undo Log
+  Header which stored the newly assigned GTID, before it is persisted.*/
+  const auto needed_by_persistor =
+      clone_sys->get_gtid_persistor().get_oldest_trx_no();
+  purge_sys->m_lowest_needed_trx_no =
+      std::min(needed_by_purge_view, needed_by_persistor);
+  rw_lock_x_unlock(&purge_sys->latch);
+}
+
 void trx_purge_sys_initialize(uint32_t n_purge_threads,
                               purge_pq_t *purge_queue) {
   /* Take ownership of purge_queue, we are responsible for freeing it. */
@@ -265,8 +303,7 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
   purge_sys->query = trx_purge_graph_build(purge_sys->trx, n_purge_threads);
 
   new (&purge_sys->view) ReadView();
-
-  trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
+  trx_purge_update_oldest_needed();
 
   purge_sys->rseg_iter = ut::new_withkey<TrxUndoRsegsIterator>(
       UT_NEW_THIS_FILE_PSI_KEY, purge_sys);
@@ -1610,23 +1647,22 @@ static bool trx_purge_truncate_marked_undo() {
 NOTE that when this function is called, the caller must not
 have any latches on undo log pages!
 @param[in]  limit  Truncate limit
-@param[in]  view   Purge view */
-static void trx_purge_truncate_history(purge_iter_t *limit,
-                                       const ReadView *view) {
+*/
+static void trx_purge_truncate_history(purge_iter_t *limit) {
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
 
   auto counter_time_truncate_history = std::chrono::steady_clock::now();
-
+  const auto lowest_needed_trx_no = purge_sys->m_lowest_needed_trx_no;
   /* We play safe and set the truncate limit at most to the purge view
   low_limit number, though this is not necessary */
 
-  if (limit->trx_no >= view->low_limit_no()) {
-    limit->trx_no = view->low_limit_no();
+  if (limit->trx_no >= lowest_needed_trx_no) {
+    limit->trx_no = lowest_needed_trx_no;
     limit->undo_no = 0;
     limit->undo_rseg_space = SPACE_UNKNOWN;
   }
 
-  ut_ad(limit->trx_no <= purge_sys->view.low_limit_no());
+  ut_ad(limit->trx_no <= lowest_needed_trx_no);
 
   /* Purge rollback segments in all undo tablespaces.  This may take
   some time and we do not want an undo DDL to attempt an x_lock during
@@ -1901,7 +1937,7 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
   mtr_t mtr;
 
   ut_ad(purge_sys->next_stored);
-  ut_ad(purge_sys->iter.trx_no < purge_sys->view.low_limit_no());
+  ut_ad(purge_sys->iter.trx_no < purge_sys->m_lowest_needed_trx_no);
 
   space = purge_sys->rseg->space_id;
   page_no = purge_sys->page_no;
@@ -2222,7 +2258,7 @@ void Purge_groups_t::distribute_if_needed() {
     }
   }
 
-  if (purge_sys->iter.trx_no >= purge_sys->view.low_limit_no()) {
+  if (purge_sys->iter.trx_no >= purge_sys->m_lowest_needed_trx_no) {
     return nullptr;
   }
 
@@ -2386,9 +2422,9 @@ static void trx_purge_truncate(void) {
   ut_ad(trx_purge_check_limit());
 
   if (purge_sys->limit.trx_no == 0) {
-    trx_purge_truncate_history(&purge_sys->iter, &purge_sys->view);
+    trx_purge_truncate_history(&purge_sys->iter);
   } else {
-    trx_purge_truncate_history(&purge_sys->limit, &purge_sys->view);
+    trx_purge_truncate_history(&purge_sys->limit);
   }
 
   /* Attempt to truncate an undo tablespace. */
@@ -2413,12 +2449,8 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   /* The number of tasks submitted should be completed. */
   ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
-  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
-
-  trx_sys->mvcc->clone_oldest_view(&purge_sys->view);
-
-  rw_lock_x_unlock(&purge_sys->latch);
-
+  trx_purge_update_oldest_needed();
+  CONDITIONAL_SYNC_POINT("after_clone_oldest_view");
 #ifdef UNIV_DEBUG
   if (srv_purge_view_update_only_debug) {
     return (0);

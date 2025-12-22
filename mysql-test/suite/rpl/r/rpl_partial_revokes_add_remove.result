@@ -1,3 +1,5 @@
+SET @saved_mandatory_roles = @@global.mandatory_roles;
+SET GLOBAL mandatory_roles = '';
 include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -1635,3 +1637,4 @@ DROP DATABASE pr_db;
 DROP DATABASE normal_db;
 call mtr.add_suppression(".*Nothing to revoke. Global privilege.*");
 include/rpl/deinit.inc
+SET global mandatory_roles = @saved_mandatory_roles;

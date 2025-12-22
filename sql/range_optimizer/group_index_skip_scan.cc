@@ -140,7 +140,7 @@ GroupIndexSkipScanIterator::~GroupIndexSkipScanIterator() {
     true if error
 */
 
-bool GroupIndexSkipScanIterator::Init() {
+bool GroupIndexSkipScanIterator::DoInit() {
   empty_record(table());
   m_seen_eof = false;
 
@@ -197,7 +197,7 @@ bool GroupIndexSkipScanIterator::Init() {
   Get the next key containing the MIN and/or MAX key for the next group.
 
   SYNOPSIS
-    GroupIndexSkipScanIterator::Read()
+    GroupIndexSkipScanIterator::DoRead()
 
   DESCRIPTION
     The method finds the next subsequent group of records that satisfies the
@@ -217,7 +217,7 @@ bool GroupIndexSkipScanIterator::Init() {
   RETURN
     See RowIterator::Read()
  */
-int GroupIndexSkipScanIterator::Read() {
+int GroupIndexSkipScanIterator::DoRead() {
   if (m_seen_eof) {
     return -1;
   }

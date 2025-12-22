@@ -34,9 +34,8 @@
 
 #include "my_config.h"
 
-#include <cerrno>
 #include <cstring>
-#ifdef SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #ifdef HAVE_UNISTD_H
@@ -48,7 +47,7 @@
 #if defined(_WIN32)
 #include "mysys/mysys_priv.h"
 #endif
-#include "mysql/service_mysql_alloc.h"
+#include "mysql/service_mysql_alloc.h"  // IWYU pragma: keep
 
 #ifndef MAIN
 

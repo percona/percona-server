@@ -123,7 +123,7 @@ IndexSkipScanIterator::~IndexSkipScanIterator() {
   if (table()->file->inited) table()->file->ha_index_or_rnd_end();
 }
 
-bool IndexSkipScanIterator::Init(void) {
+bool IndexSkipScanIterator::DoInit() {
   DBUG_TRACE;
 
   if (distinct_prefix == nullptr) {
@@ -230,7 +230,7 @@ bool IndexSkipScanIterator::next_eq_prefix() {
   Get the next row for skip scan.
 
   SYNOPSIS
-    IndexSkipScanIterator::Read()
+    IndexSkipScanIterator::DoRead()
 
   DESCRIPTION
     Find the next record in the skip scan. The scan is broken into groups
@@ -259,7 +259,7 @@ bool IndexSkipScanIterator::next_eq_prefix() {
   RETURN
     See RowIterator::Read()
  */
-int IndexSkipScanIterator::Read() {
+int IndexSkipScanIterator::DoRead() {
   DBUG_TRACE;
   int result = HA_ERR_END_OF_FILE;
   int past_eq_prefix = 0;

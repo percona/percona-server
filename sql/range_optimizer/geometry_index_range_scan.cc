@@ -32,7 +32,7 @@
 
 /* Get next for geometrical indexes */
 
-int GeometryIndexRangeScanIterator::Read() {
+int GeometryIndexRangeScanIterator::DoRead() {
   DBUG_TRACE;
 
   for (;;) {

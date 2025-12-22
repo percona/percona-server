@@ -31,7 +31,6 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "my_macros.h"
 
 uint32 murmur3_32(const uchar *key, size_t len, uint32 seed);
 

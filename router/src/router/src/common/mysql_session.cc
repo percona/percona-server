@@ -35,6 +35,7 @@
 #include <string>
 
 #include "mysql.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "violite.h"
 
 #include "mysql/harness/logging/logger.h"
@@ -390,8 +391,18 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
        CLIENT_MULTI_RESULTS | extra_client_flags);
-  std::string endpoint_str =
-      !unix_socket.empty() ? unix_socket : host + ":" + std::to_string(port);
+  std::string endpoint_str;
+
+  if (!unix_socket.empty()) {
+    endpoint_str = unix_socket;
+  } else {
+    if (net::ip::make_address_v6(host.c_str())) {
+      endpoint_str = "[" + host + "]";
+    } else {
+      endpoint_str = host;
+    }
+    endpoint_str += ":" + std::to_string(port);
+  }
 
   const bool ssl_disabled = ssl_mode() == SSL_MODE_DISABLED;
   auto &ssl_sessions_cache = SSLSessionsCache::instance();

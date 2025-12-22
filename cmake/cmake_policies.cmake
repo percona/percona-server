@@ -94,3 +94,11 @@ ENDIF()
 IF(POLICY CMP0107)
   CMAKE_POLICY(SET CMP0107 NEW)
 ENDIF()
+
+# versionadded:: 3.15
+# When using MSVC-like compilers in CMake 3.14 and below, warning flags
+# like ``/W3`` are added to ``CMAKE_<LANG>_FLAGS`` by default.
+IF(WIN32)
+  # NEW here: cmake will not add /W3, we add it in cmake/os/Windows.cmake
+  CMAKE_POLICY(SET CMP0092 NEW)
+ENDIF()

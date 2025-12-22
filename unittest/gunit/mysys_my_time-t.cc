@@ -373,7 +373,7 @@ TEST(MysysMyTime, DatetimeAddInterval) {
   int warnings = 0;
   EXPECT_EQ(false,
             date_add_interval(&tr.t, INTERVAL_MICROSECOND, i, &warnings));
-  MysqlTime const ex(2020, 3, 1, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
+  MysqlTime const ex(2020, 3, 1, 0, 0, 0, 0);
   EXPECT_EQ(true, (tr.t == ex));
 }
 
@@ -402,32 +402,8 @@ TEST(MysysMyTime, MyPackedTimeMakeInt) {
   EXPECT_EQ(9149918308668014592LL, DRV_my_packed_time_make_int(pt));
 }
 
-// Test packed access functions on negative time values
-TEST(MysysMyTime, MyPackedTimeGetFracPartNeg) {
-  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
-                     MYSQL_TIMESTAMP_DATETIME);
-  longlong const pt = TIME_to_longlong_datetime_packed(mt);
-  EXPECT_EQ(-670000LL, my_packed_time_get_frac_part(pt));
-}
-
-TEST(MysysMyTime, MyPackedTimeGetIntPartNeg) {
-  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
-                     MYSQL_TIMESTAMP_DATETIME);
-  longlong const pt = TIME_to_longlong_datetime_packed(mt);
-
-  EXPECT_EQ(-110154710780LL, DRV_my_packed_time_get_int_part(pt));
-}
-
 TEST(MysysMyTime, MyPackedTimeMakeNeg) {
   EXPECT_EQ(-16107216LL, DRV_my_packed_time_make(-1LL, 670000LL));
-}
-
-TEST(MysysMyTime, MyPackedTimeMakeIntNeg) {
-  const MysqlTime mt(2020U, 2U, 29U, 23U, 59U, 59U, 670000, true,
-                     MYSQL_TIMESTAMP_DATETIME);
-  longlong const pt = TIME_to_longlong_datetime_packed(mt);
-
-  EXPECT_EQ(-9149918308668014592LL, DRV_my_packed_time_make_int(pt));
 }
 
 /**
@@ -551,8 +527,8 @@ BENCHMARK(BM_my_micro_time)
 static void BM_my_time_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MysqlTime date(0, 0, 0, 123, 59, 59, 670000, false,
-                       MYSQL_TIMESTAMP_TIME);
+  const Time_val time(false, 123, 59, 59, 670000);
+  const MYSQL_TIME date = MYSQL_TIME(time);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();
@@ -568,7 +544,7 @@ BENCHMARK(BM_my_time_to_str)
 static void BM_my_date_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MysqlTime date(2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
+  const MysqlTime date(2020, 2, 29, 0, 0, 0, 0);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();
@@ -584,14 +560,13 @@ BENCHMARK(BM_my_date_to_str)
 static void BM_my_datetime_to_str(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  const MysqlTime date(2020, 2, 29, 23, 59, 59, 670000, false,
-                       MYSQL_TIMESTAMP_DATETIME);
+  const MysqlTime dt(2020, 2, 29, 23, 59, 59, 670000);
   char buffer[MAX_DATE_STRING_REP_LENGTH];
 
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    my_datetime_to_str(date, buffer, 6);
+    my_datetime_to_str(dt, buffer, 6);
   }
 
   StopBenchmarkTiming();

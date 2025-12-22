@@ -40,7 +40,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 
 #include "my_sharedlib.h"
-#include "mysql/components/services/bits/psi_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"  // IWYU pragma: export
 
 /*
   MAINTAINER:

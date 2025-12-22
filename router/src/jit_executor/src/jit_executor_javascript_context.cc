@@ -60,6 +60,7 @@ std::string JavaScriptContext::execute(
 }
 
 bool JavaScriptContext::wait_for_idle() { return m_language->wait_for_idle(); }
+bool JavaScriptContext::is_idle() { return m_language->is_idle(); }
 
 size_t JavaScriptContext::id() { return m_language->id(); }
 

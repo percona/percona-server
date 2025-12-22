@@ -100,7 +100,7 @@ IndexMergeIterator::~IndexMergeIterator() {
     true if error
 */
 
-bool IndexMergeIterator::Init() {
+bool IndexMergeIterator::DoInit() {
   empty_record(table());
 
   handler *file = table()->file;
@@ -217,7 +217,7 @@ bool IndexMergeIterator::Init() {
     The sets of rows retrieved in 1) and 2) are guaranteed to be disjoint.
 */
 
-int IndexMergeIterator::Read() {
+int IndexMergeIterator::DoRead() {
   int result;
   DBUG_TRACE;
 

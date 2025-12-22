@@ -94,6 +94,12 @@ leak:ndb_select_count
 leak:ndb_show_tables
 leak:ndb_sign_keys
 
+# Internal leak in Graal's libjitexecutor.so
+# https://jira.oci.oraclecorp.com/browse/GR-67473
+# Originally reported in "Bug#37977799 Memory leak issue with
+#   router.app_specific_metadata_v_latest test on asan build"
+leak:Source*buildSource
+
 # The following line is needed to suppress memory leaks coming from standard /usr/bin/grep
 # utility on Ubuntu 22.04 Jammy
 leak:re_compile_internal

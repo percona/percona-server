@@ -26,18 +26,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <memory>
+#include <assert.h>
+#include <openssl/crypto.h>  // for CRYPTO_cleanup_all_ex_data
+#include <openssl/err.h>     // for ERR_print_errors_fp, ERR_erro...
+#include <openssl/evp.h>
+#include <openssl/opensslv.h>  // for OPENSSL_VERSION_NUMBER
+#include <openssl/ssl.h>       // for SSL_CTX_free, SSL_CTX_set_verify
+#include <openssl/x509.h>      // for X509_STORE_load_locations
+#include <stdio.h>
+#include <string.h>
+
 #include <string>
 
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_thread.h"  // IWYU pragma: keep my_thread_self
 #include "mysql/my_loglevel.h"
-#include "mysql/strings/m_ctype.h"
-#if !defined(HAVE_PSI_INTERFACE)
-#include "mysql/psi/mysql_rwlock.h"
-#endif
+#include "mysql/psi/mysql_rwlock.h"  // IWYU pragma: keep PSI_rwlock_key
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "template_utils.h"
 #include "vio/vio_priv.h"

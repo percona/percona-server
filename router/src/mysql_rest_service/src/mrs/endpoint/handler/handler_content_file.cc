@@ -53,13 +53,13 @@ namespace handler {
 namespace {
 
 auto get_path_for_db_object(
-    std::weak_ptr<mrs::endpoint::ContentFileEndpoint> endpoint) {
+    std::weak_ptr<mrs::endpoint::ContentFileEndpoint> endpoint,
+    const bool is_index) {
   auto ep = mrs::endpoint::handler::lock(endpoint);
   auto parent_ep = ep->get_parent_ptr();
 
   const std::string &object_path = ep->get()->request_path;
   const std::string &service_schema_path = parent_ep->get_url_path();
-  const bool is_index = ep->is_index();
 
   return mrs::endpoint::handler::path_file(service_schema_path, object_path,
                                            is_index);
@@ -70,9 +70,10 @@ auto get_path_for_db_object(
 HandlerContentFile::HandlerContentFile(
     std::weak_ptr<ContentFileEndpoint> endpoint,
     mrs::interface::AuthorizeManager *auth_manager,
-    std::shared_ptr<PersistentDataContentFile> persistent_data_content_file)
+    std::shared_ptr<PersistentDataContentFile> persistent_data_content_file,
+    const bool is_index)
     : Handler(handler::get_protocol(endpoint), get_endpoint_host(endpoint),
-              get_path_for_db_object(endpoint),
+              get_path_for_db_object(endpoint, is_index),
               get_endpoint_options(lock(endpoint)), auth_manager),
       endpoint_{endpoint},
       persistent_data_content_file_{persistent_data_content_file} {

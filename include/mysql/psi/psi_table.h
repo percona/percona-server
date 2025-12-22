@@ -40,7 +40,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 
 #include "my_sharedlib.h"
-#include "mysql/components/services/bits/psi_table_bits.h"
+#include "mysql/components/services/bits/psi_table_bits.h"  // IWYU pragma: export
 
 /**
   @def PSI_TABLE_VERSION_1

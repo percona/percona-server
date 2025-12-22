@@ -116,7 +116,7 @@ void MetadataCache::refresh_thread() {
           "Cluster metadata upgrade in progress, aborting the metada refresh");
     } catch (const std::exception &e) {
       log_info("Failed refreshing metadata: %s", e.what());
-      on_refresh_failed(true);
+      on_refresh_failed();
     }
 
     if (!refresh_ok || close_connection_after_refresh_ ||
@@ -365,8 +365,7 @@ std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
   return result;
 }
 
-void MetadataCache::on_refresh_failed(bool terminated,
-                                      bool md_servers_reachable) {
+void MetadataCache::on_refresh_failed(bool md_servers_reachable) {
   stats_([](auto &stats) {
     stats.refresh_failed++;
     stats.last_refresh_failed = std::chrono::system_clock::now();
@@ -377,7 +376,7 @@ void MetadataCache::on_refresh_failed(bool terminated,
           false, EventStateTracker::EventId::MetadataRefreshOk);
 
   // we failed to fetch metadata from any of the metadata servers
-  if (!terminated) {
+  if (!md_servers_reachable) {
     const auto log_level =
         refresh_state_changed ? LogLevel::kError : LogLevel::kDebug;
     log_custom(log_level,

@@ -27,9 +27,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_user.h"
-#include "m_string.h"
+
+#include <string.h>
+
 #include "my_hostname.h"  // HOSTNAME_LENGTH
-#include "my_inttypes.h"  // uint
 #include "mysql_com.h"    // USERNAME_LENGTH
 
 /*
@@ -55,8 +56,8 @@ void parse_user(const char *user_id_str, size_t user_id_len,
     *user_name_len = 0;
     *host_name_len = 0;
   } else {
-    *user_name_len = (uint)(p - user_id_str);
-    *host_name_len = (uint)(user_id_len - *user_name_len - 1);
+    *user_name_len = (unsigned)(p - user_id_str);
+    *host_name_len = (unsigned)(user_id_len - *user_name_len - 1);
 
     if (*user_name_len > USERNAME_LENGTH) *user_name_len = USERNAME_LENGTH;
 

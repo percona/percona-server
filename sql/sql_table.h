@@ -58,6 +58,7 @@ namespace dd {
 class Foreign_key;
 class Schema;
 class Table;
+class View;
 }  // namespace dd
 
 struct HA_CHECK_OPT;
@@ -666,6 +667,13 @@ bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
 
 extern std::atomic_ulong deprecated_use_fk_on_non_standard_key_count;
 extern std::atomic_ullong deprecated_use_fk_on_non_standard_key_last_timestamp;
+
+/**
+  Unloads the materialized view from a secondary engine, where it might be
+  materialized.
+ */
+bool secondary_engine_unload_materialized_view(THD *thd, const Table_ref *view,
+                                               const dd::View *view_def);
 
 /**
   Resolves the secondary engine handled via its name and calls the unload

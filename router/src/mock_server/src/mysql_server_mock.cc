@@ -99,7 +99,8 @@ make_destination_endpoint(net::io_context &io_ctx,
     net::ip::tcp::resolver resolver(io_ctx);
 
     auto resolve_res =
-        resolver.resolve(tcp_dest.hostname(), std::to_string(tcp_dest.port()));
+        resolver.resolve(tcp_dest.hostname(), std::to_string(tcp_dest.port()),
+                         net::ip::resolver_base::passive);
     if (!resolve_res) return stdx::unexpected(resolve_res.error());
 
     for (const auto &ainfo : resolve_res.value()) {

@@ -81,26 +81,27 @@
 
 #include "my_config.h"
 
+#include <string.h>
 #include <sys/types.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <cerrno>
-#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 
-#include <algorithm>
-
 #include "dig_vec.h"
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_io.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/attribute.h"
 #include "mysql/strings/int2str.h"
 #include "nulls.h"
 #include "thr_mutex.h"
@@ -122,6 +123,9 @@
 #endif
 
 #ifndef NDEBUG
+
+struct CODE_STATE;
+struct settings;
 
 /*
  *            Manifest constants which may be "tuned" if desired.

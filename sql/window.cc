@@ -201,12 +201,22 @@ static Item_cache *make_result_item(Item *value) {
       result = new Item_cache_decimal();
       break;
     case STRING_RESULT:
-      if (value->is_temporal())
-        result = new Item_cache_datetime(value->data_type());
-      else if (value->data_type() == MYSQL_TYPE_JSON)
-        result = new Item_cache_json();
-      else
-        result = new Item_cache_str(value);
+      switch (value->data_type()) {
+        case MYSQL_TYPE_JSON:
+          result = new Item_cache_json();
+          break;
+        case MYSQL_TYPE_TIME:
+          result = new Item_cache_time();
+          break;
+        case MYSQL_TYPE_DATE:
+        case MYSQL_TYPE_DATETIME:
+        case MYSQL_TYPE_TIMESTAMP:
+          result = new Item_cache_datetime(value->data_type());
+          break;
+        default:
+          result = new Item_cache_str(value);
+          break;
+      }
       break;
     default:
       assert(false);

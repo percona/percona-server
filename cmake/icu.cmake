@@ -122,6 +122,7 @@ FUNCTION(FIND_ICU install_root)
 ENDFUNCTION(FIND_ICU)
 
 SET(ICU_VERSION_DIR "icu-release-77-1")
+SET(ICU_SO_VERSION "77.1")
 SET(BUNDLED_ICU_PATH ${CMAKE_SOURCE_DIR}/extra/icu/${ICU_VERSION_DIR})
 
 # ICU data files come in two flavours, big and little endian.

@@ -31,10 +31,12 @@ ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, LIBRARY_CATALOG, LIBRARY_SC
 --echo # Make sure that no library is dumped:
 --exec $MYSQL_DUMP --skip-comments --routines --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 --echo # Console dump.
---replace_result $version <version>
+--let $executed_gtid_set = `SELECT @@GLOBAL.GTID_EXECUTED`
+--replace_result $version <version> $executed_gtid_set GTID_SET
 --exec $MYSQL_DUMP --skip-comments --routines --databases mysqldump_test_db
 --echo # Console XML dump.
---replace_result $version <version>
+--let $executed_gtid_set = `SELECT @@GLOBAL.GTID_EXECUTED`
+--replace_result $version <version> $executed_gtid_set GTID_SET
 --exec $MYSQL_DUMP --skip-comments --routines --databases mysqldump_test_db --xml
 
 --echo # Grep for this error message : WARNING: old server version - Libraries missing. The following dump may be incomplete.

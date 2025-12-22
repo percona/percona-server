@@ -38,7 +38,6 @@
   @param to   A pathname.
 */
 
-#include "my_compiler.h"
 #include "my_io.h"
 
 void to_unix_path(char *to [[maybe_unused]]) {

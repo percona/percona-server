@@ -123,11 +123,10 @@
 #include "sql/rpl_info_factory.h"       // Rpl_info_factory
 #include "sql/rpl_info_handler.h"       // INFO_REPOSITORY_TABLE
 #include "sql/rpl_log_encryption.h"
-#include "sql/rpl_mi.h"           // Master_info
-#include "sql/rpl_msr.h"          // channel_map
-#include "sql/rpl_mta_submode.h"  // MTS_PARALLEL_TYPE_DB_NAME
-#include "sql/rpl_replica.h"      // SLAVE_THD_TYPE
-#include "sql/rpl_rli.h"          // Relay_log_info
+#include "sql/rpl_mi.h"                                    // Master_info
+#include "sql/rpl_msr.h"                                   // channel_map
+#include "sql/rpl_replica.h"                               // SLAVE_THD_TYPE
+#include "sql/rpl_rli.h"                                   // Relay_log_info
 #include "sql/server_component/log_builtins_filter_imp.h"  // until we have pluggable variables
 #include "sql/server_component/log_builtins_imp.h"
 #include "sql/session_tracker.h"
@@ -4248,25 +4247,6 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var) {
   return result;
 }
 
-static const char *mts_parallel_type_names[] = {"DATABASE", "LOGICAL_CLOCK",
-                                                nullptr};
-static Sys_var_enum Sys_replica_parallel_type(
-    "replica_parallel_type",
-    "The method used by the replication applier to parallelize "
-    "transactions. DATABASE, indicates that it "
-    "may apply transactions in parallel in case they update different "
-    "databases. LOGICAL_CLOCK, which is the default, indicates that it decides "
-    "whether two "
-    "transactions can be applied in parallel using the logical timestamps "
-    "computed by the source.",
-    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option),
-    CMD_LINE(REQUIRED_ARG, OPT_REPLICA_PARALLEL_TYPE), mts_parallel_type_names,
-    DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
-
-static Sys_var_deprecated_alias Sys_slave_parallel_type(
-    "slave_parallel_type", Sys_replica_parallel_type);
-
 static PolyLock_mutex PLock_slave_trans_dep_tracker(
     &LOCK_replica_trans_dep_tracker);
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
@@ -4274,7 +4254,7 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
     "Maximum number of rows to keep in the writeset history.",
     GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()
                    ->m_opt_max_history_size),
-    CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
+    CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 100000000), DEFAULT(10000000),
     BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
@@ -4972,9 +4952,8 @@ static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type) {
   return false;
 }
 /*
-  WARNING: When adding new SQL modes don't forget to update the
-  tables definitions that stores it's value (ie: mysql.event, mysql.routines,
-  mysql.triggers)
+  These strings are used as SET element values in mysql.events, mysql.routines,
+  mysql.triggers.
 */
 static const char *sql_mode_names[] = {"REAL_AS_FLOAT",
                                        "PIPES_AS_CONCAT",
@@ -5009,6 +4988,7 @@ static const char *sql_mode_names[] = {"REAL_AS_FLOAT",
                                        "NO_ENGINE_SUBSTITUTION",
                                        "PAD_CHAR_TO_FULL_LENGTH",
                                        "TIME_TRUNCATE_FRACTIONAL",
+                                       "INTERPRET_UTF8_AS_UTF8MB4",
                                        nullptr};
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls) {
@@ -7062,7 +7042,7 @@ static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
     PERSIST_AS_READONLY GLOBAL_VAR(_gtid_consistency_mode),
     CMD_LINE(OPT_ARG, OPT_ENFORCE_GTID_CONSISTENCY),
     enforce_gtid_consistency_aliases, 3,
-    DEFAULT(3 /*position of "FALSE" in enforce_gtid_consistency_aliases*/),
+    DEFAULT(1 /*position of "ON" in enforce_gtid_consistency_aliases*/),
     DEFAULT(GTID_CONSISTENCY_MODE_ON), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_session_admin_outside_trx_outside_sf_outside_sp));
 const char *fixup_enforce_gtid_consistency_command_line(char *value_arg) {
@@ -7558,6 +7538,13 @@ static Sys_var_bool Sys_always_activate_granted_roles(
     GLOBAL_VAR(opt_always_activate_granted_roles), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_activate_mandatory_roles(
+    "activate_mandatory_roles",
+    "Automatically set all mandatory roles as active after the user has "
+    "authenticated successfully.",
+    GLOBAL_VAR(opt_activate_mandatory_roles), CMD_LINE(OPT_ARG), DEFAULT(true),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static PolyLock_mutex plock_sys_password_history(&LOCK_password_history);
 static Sys_var_uint Sys_password_history(
@@ -8267,12 +8254,12 @@ static const char *explain_format_names[] = {
 static Sys_var_enum Sys_explain_format(
     "explain_format",
     "The default format in which the EXPLAIN statement displays information. "
-    "Valid values are TRADITIONAL (default), TREE, JSON and TRADITIONAL_STRICT."
+    "Valid values are TRADITIONAL, TREE (default), JSON and TRADITIONAL_STRICT."
     " TRADITIONAL_STRICT is only used internally by the mtr test suite, and is "
     "not meant to be used anywhere else.",
     SESSION_VAR(explain_format), CMD_LINE(OPT_ARG), explain_format_names,
-    DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+    DEFAULT(static_cast<ulong>(Explain_format_type::TREE)), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_uint Sys_explain_json_format_version(
     "explain_json_format_version",
@@ -8280,7 +8267,7 @@ static Sys_var_uint Sys_explain_json_format_version(
     "(non-hypergraph) join optimizer. "
     "Valid values are 1 and 2.",
     SESSION_VAR(explain_json_format_version), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1, 2), DEFAULT(1), BLOCK_SIZE(1));
+    VALID_RANGE(1, 2), DEFAULT(2), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_tls_certificates_enforced_validation(
     "tls_certificates_enforced_validation",

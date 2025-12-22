@@ -199,8 +199,9 @@ class Item_json_func : public Item_func {
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
   String *val_str(String *arg) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  bool get_time(MYSQL_TIME *ltime) override;
+  bool val_date(Date_val *date, my_time_flags_t flags) override;
+  bool val_time(Time_val *time) override;
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override;
   longlong val_int() override;
   double val_real() override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
@@ -1117,11 +1118,15 @@ class Item_func_array_cast final : public Item_func {
     assert(false);
     return 0;
   }
-  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
+  bool val_date(Date_val *, my_time_flags_t) override {
     assert(false);
     return true;
   }
-  bool get_time(MYSQL_TIME *) override {
+  bool val_time(Time_val *) override {
+    assert(false);
+    return true;
+  }
+  bool val_datetime(Datetime_val *, my_time_flags_t) override {
     assert(false);
     return true;
   }
@@ -1196,8 +1201,9 @@ class Item_func_json_value final : public Item_func {
   double val_real() override;
   longlong val_int() override;
   my_decimal *val_decimal(my_decimal *value) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t flags) override;
-  bool get_time(MYSQL_TIME *ltime) override;
+  bool val_date(Date_val *date, my_time_flags_t flags) override;
+  bool val_time(Time_val *time) override;
+  bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override;
   Json_on_response_type on_empty_response_type() const;
   Json_on_response_type on_error_response_type() const;
 
@@ -1247,12 +1253,12 @@ class Item_func_json_value final : public Item_func {
   int64_t extract_integer_value();
   /// Implements val_int() for RETURNING YEAR
   int64_t extract_year_value();
-  /// Implements get_date() for RETURNING DATE.
-  bool extract_date_value(MYSQL_TIME *ltime);
-  /// Implements get_time() for RETURNING TIME.
-  bool extract_time_value(MYSQL_TIME *ltime);
-  /// Implements get_date() for RETURNING DATETIME.
-  bool extract_datetime_value(MYSQL_TIME *ltime);
+  /// Implements val_date() for RETURNING DATE.
+  bool extract_date_value(Date_val *date);
+  /// Implements val_time() for RETURNING TIME.
+  bool extract_time_value(Time_val *time);
+  /// Implements val_datetime() for RETURNING DATETIME.
+  bool extract_datetime_value(Datetime_val *dt);
   /// Implements val_decimal() for RETURNING DECIMAL.
   my_decimal *extract_decimal_value(my_decimal *value);
   /// Implements val_str() for RETURNING CHAR and RETURNING BINARY.

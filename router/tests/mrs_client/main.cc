@@ -101,6 +101,16 @@ class CustomHex {
   int operator()(const char &v) { return (int)static_cast<uint8_t>(v); }
 };
 
+template <typename OptionalValue>
+bool optional_set(const std::optional<OptionalValue> &opt_value,
+                  OptionalValue *holder) {
+  if (holder && opt_value.has_value()) {
+    *holder = opt_value.value();
+    return true;
+  }
+  return opt_value.has_value();
+}
+
 static void check_payload() {
   if (g_configuration.request != HttpMethod::Post &&
       g_configuration.request != HttpMethod::Put) {
@@ -109,10 +119,11 @@ static void check_payload() {
   }
 }
 
-static bool display_type_convert(const std::string &value,
-                                 http_client::ApplicationDisplay &d) {
+static std::optional<http_client::ApplicationDisplay> display_type_convert(
+    const std::string &value) {
   using Display = http_client::ApplicationDisplay;
   using MemberBool = bool Display::*;
+  Display result;
   static std::map<std::string, MemberBool> allowed_values{
       {"request", &Display::request}, {"status", &Display::status},
       {"header", &Display::header},   {"body", &Display::body},
@@ -120,35 +131,35 @@ static bool display_type_convert(const std::string &value,
 
   if ("all" == value) {
     for (auto &[key, value] : allowed_values) {
-      d.*(value) = true;
+      result.*(value) = true;
     }
-    return true;
+    return {result};
   }
 
   for (auto &[key, value] : allowed_values) {
-    d.*(value) = false;
+    result.*(value) = false;
   }
 
   if ("none" == value) {
-    return true;
+    return {result};
   }
 
   auto types = mysql_harness::split_string(value, ',', false);
 
-  if (types.empty()) return false;
+  if (types.empty()) return {};
 
   for (auto &type : types) {
     auto ltype = mysql_harness::make_lower(type);
     auto it = allowed_values.find(ltype);
-    if (allowed_values.end() == it) return false;
-    d.*(it->second) = true;
+    if (allowed_values.end() == it) return {};
+    result.*(it->second) = true;
   }
 
-  return true;
+  return {result};
 }
 
-static bool protocol_type_convert(std::string value,
-                                  http_client::WireProtocol *out_at = nullptr) {
+static std::optional<http_client::WireProtocol> protocol_type_convert(
+    std::string value) {
   using namespace http_client;
   const static std::map<std::string, WireProtocol> map{
       {"http2", WireProtocol::kHttp_2}, {"http1", WireProtocol::kHttp_1_1}};
@@ -156,14 +167,13 @@ static bool protocol_type_convert(std::string value,
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) return false;
-  if (out_at) *out_at = it->second;
+  if (map.end() == it) return {};
 
-  return true;
+  return {it->second};
 }
 
-static bool session_type_convert(std::string value,
-                                 http_client::SessionType *out_at = nullptr) {
+static std::optional<http_client::SessionType> session_type_convert(
+    std::string value) {
   using namespace http_client;
   const static std::map<std::string, SessionType> map{
       {"cookie", SessionType::kCookie}, {"jwt", SessionType::kJWT}};
@@ -171,14 +181,12 @@ static bool session_type_convert(std::string value,
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) return false;
-  if (out_at) *out_at = it->second;
-
-  return true;
+  if (map.end() == it) return {};
+  return {it->second};
 }
 
-static bool authentication_type_convert(
-    std::string value, http_client::WriteFileFormat *out_at = nullptr) {
+static std::optional<http_client::WriteFileFormat> wire_format_convert(
+    std::string value) {
   using namespace http_client;
   const static std::map<std::string, WriteFileFormat> map{
       {"raw", WriteFileFormat::kRaw}, {"mtr", WriteFileFormat::kMTR}};
@@ -186,15 +194,13 @@ static bool authentication_type_convert(
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) return false;
+  if (map.end() == it) return {};
 
-  if (out_at) *out_at = it->second;
-
-  return true;
+  return {it->second};
 }
 
-static bool authentication_type_convert(
-    std::string value, http_client::AuthenticationType *out_at = nullptr) {
+static std::optional<http_client::AuthenticationType>
+authentication_type_convert(std::string value) {
   using namespace http_client;
   const static std::map<std::string, AuthenticationType> map{
       {"none", AuthenticationType::kNone},
@@ -207,15 +213,13 @@ static bool authentication_type_convert(
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) return false;
+  if (map.end() == it) return {};
 
-  if (out_at) *out_at = it->second;
-
-  return true;
+  return {it->second};
 }
 
-static bool response_type_convert(std::string value,
-                                  http_client::ResponseType *out_at = nullptr) {
+static std::optional<http_client::ResponseType> response_type_convert(
+    std::string value) {
   using namespace http_client;
   const static std::map<std::string, ResponseType> map{
       {"json", ResponseType::kJson},
@@ -225,12 +229,8 @@ static bool response_type_convert(std::string value,
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) {
-    return false;
-  }
-  if (out_at) *out_at = it->second;
-
-  return true;
+  if (map.end() == it) return {};
+  return {it->second};
 }
 
 static const std::map<std::string, HttpStatusCode::key_type>
@@ -255,8 +255,8 @@ static const std::map<std::string, HttpStatusCode::key_type>
   return map;
 }
 
-static bool status_code_convert(std::string value,
-                                HttpStatusCode::key_type *out_at = nullptr) {
+static std::optional<HttpStatusCode::key_type> status_code_convert(
+    std::string value) {
   using namespace http_client;
 
   auto &map = get_status_code_map();
@@ -264,10 +264,8 @@ static bool status_code_convert(std::string value,
   mysql_harness::lower(value);
   auto it = map.find(value);
 
-  if (map.end() == it) return false;
-  if (out_at) *out_at = it->second;
-
-  return true;
+  if (map.end() == it) return {};
+  return {it->second};
 }
 
 static void print_usage() {
@@ -382,7 +380,8 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "meta_auth",
      [](const std::string &value) {
-       if (!authentication_type_convert(value, &g_configuration.authentication))
+       if (!optional_set(authentication_type_convert(value),
+                         &g_configuration.authentication))
          throw std::invalid_argument(
              "Invalid parameter for authentication type.");
 
@@ -442,7 +441,7 @@ std::vector<CmdOption> g_options{
      [](const std::string &value) {
        std::ifstream file{value};
        if (!file.is_open()) {
-         std::runtime_error("File with `payload`, cannot be opened.");
+         throw std::runtime_error("File with `payload`, cannot be opened.");
        }
 
        g_configuration.payload =
@@ -474,7 +473,8 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "write_format",
      [](const std::string &value) {
-       if (!authentication_type_convert(value, &g_configuration.write_format))
+       if (!optional_set(wire_format_convert(value),
+                         &g_configuration.write_format))
          throw std::invalid_argument("Invalid parameter for output format.");
      },
      [](const std::string &) {}},
@@ -541,7 +541,8 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "meta_auth_session",
      [](const std::string &value) {
-       if (!session_type_convert(value, &g_configuration.session_type))
+       if (!optional_set(session_type_convert(value),
+                         &g_configuration.session_type))
          throw std::invalid_argument(
              "Invalid parameter for authentication type.");
      },
@@ -641,7 +642,8 @@ std::vector<CmdOption> g_options{
      [](const std::string &value) {
        g_configuration.expected_status = atoi(value.c_str());
        if (0 == g_configuration.expected_status) {
-         if (!status_code_convert(value, &g_configuration.expected_status)) {
+         if (!optional_set(status_code_convert(value),
+                           &g_configuration.expected_status)) {
            using namespace std::string_literals;
            auto &map = get_status_code_map();
            throw std::invalid_argument(
@@ -662,7 +664,7 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "meta_display",
      [](const std::string &value) {
-       if (!display_type_convert(value, g_configuration.display))
+       if (!optional_set(display_type_convert(value), &g_configuration.display))
          throw std::invalid_argument("Invalid parameter for display.");
      }},
 
@@ -697,7 +699,8 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "type",
      [](const std::string &value) {
-       if (!response_type_convert(value, &g_configuration.response_type))
+       if (!optional_set(response_type_convert(value),
+                         &g_configuration.response_type))
          throw std::invalid_argument("Invalid parameter for response type.");
      },
      [](const std::string &) {
@@ -793,7 +796,8 @@ std::vector<CmdOption> g_options{
      CmdOptionValueReq::required,
      "meta_protcol",
      [](const std::string &value) {
-       if (!protocol_type_convert(value, &g_configuration.wire_protocol)) {
+       if (!optional_set(protocol_type_convert(value),
+                         &g_configuration.wire_protocol)) {
          throw std::invalid_argument("Invalid value for wire-protocol: " +
                                      value);
        }
@@ -1014,7 +1018,7 @@ static bool is_debug_log_enabled() {
 static void print_error_info(std::ostream &out,
                              const std::vector<std::string> &messages) {
   for (const auto &m : messages) {
-    out << "ERROR: " << m << std::endl;
+    out << "ERROR: " << m << "\n";
   }
   out << std::endl;
 }

@@ -30,8 +30,9 @@
   @file mysys/posix_timers.cc
 */
 
-#include <sys/time.h>
-#include <cerrno>
+#include <time.h>
+
+// IWYU pragma: no_include <bits/types/sigevent_t.h>
 #include <csignal>
 #include <cstring> /* memset */
 

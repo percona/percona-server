@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <bitset>
+#include <iomanip>
 #include <sstream>
 #include <string>
 

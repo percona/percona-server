@@ -61,7 +61,6 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ResumeReq.hpp>
 #include <signaldata/SchemaTrans.hpp>
-#include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/StartOrd.hpp>
 #include <signaldata/Sync.hpp>
 #include <signaldata/TamperOrd.hpp>
@@ -145,10 +144,6 @@ void MgmtSrvr::logLevelThreadRun() {
 
         if (setEventReportingLevelImpl(node, req)) {
           failed_started_nodes.push_back(node);
-        } else {
-          SetLogLevelOrd ord;
-          ord.assign(m_nodeLogLevel[node]);
-          setNodeLogLevelImpl(node, ord);
         }
         m_started_nodes.lock();
       }
@@ -164,12 +159,6 @@ void MgmtSrvr::logLevelThreadRun() {
       if (req.blockRef == 0) {
         req.blockRef = _ownReference;
         if (setEventReportingLevelImpl(0, req)) {
-          failed_log_level_requests.push_back(req);
-        }
-      } else {
-        SetLogLevelOrd ord;
-        ord.assign(req);
-        if (setNodeLogLevelImpl(req.blockRef, ord)) {
           failed_log_level_requests.push_back(req);
         }
       }
@@ -2464,20 +2453,6 @@ int MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
   }
   if (error) return SEND_OR_RECEIVE_FAILED;
   return 0;
-}
-
-//****************************************************************************
-//****************************************************************************
-int MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd &ll) {
-  INIT_SIGNAL_SENDER(ss, nodeId);
-
-  SimpleSignal ssig;
-  ssig.set(ss, TestOrd::TraceAPI, CMVMI, GSN_SET_LOGLEVELORD,
-           SetLogLevelOrd::SignalLength);
-  SetLogLevelOrd *const dst = CAST_PTR(SetLogLevelOrd, ssig.getDataPtrSend());
-  *dst = ll;
-
-  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 //****************************************************************************

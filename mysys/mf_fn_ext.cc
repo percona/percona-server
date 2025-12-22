@@ -33,7 +33,6 @@
 #include <cstring>
 
 #include "m_string.h"
-#include "my_dbug.h"
 #include "my_io.h"
 #if defined(FN_DEVCHAR) || defined(_WIN32)
 #include "my_sys.h"

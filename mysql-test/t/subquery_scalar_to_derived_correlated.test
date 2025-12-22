@@ -317,6 +317,7 @@ where p_pkey = l_pkey and
       l_quantity < (select 0.9 * avg(l_quantity)
                     from l where l_pkey = p_pkey);
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 

@@ -36,24 +36,44 @@
 
 #include "my_config.h"
 
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>  // for htonl
+#endif
+#include <assert.h>  // for assert
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>  // for sockaddr_in
+#endif
+#include <openssl/evp.h>
+#include <openssl/ssl.h>  // for SSL_pending
+#include <signal.h>       // for pthread_...
+#include <string.h>       // for memcpy
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>  // for AF_INET
+#endif
 #include <fcntl.h>
 #include <sys/types.h>
-#include <cerrno>
-#include <ctime>
+
 #ifndef _WIN32
 #include <netdb.h>
 #endif
-#include <cstdio>
-#include <cstdlib>
 
 #include <algorithm>
+#include <atomic>  // for atomic_flag
+#include <cerrno>
+#include <cstdio>  // IWYU pragma: keep snprintf
+#include <cstdlib>
+#include <ctime>
+#include <optional>  // for optional
 
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sys.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/psi_socket.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 #include "template_utils.h"
@@ -74,7 +94,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#include "mysql/psi/mysql_socket.h"
+struct timespec;
 
 /* Network io wait callbacks  for threadpool */
 static void (*before_io_wait)(void) = nullptr;

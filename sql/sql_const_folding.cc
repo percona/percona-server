@@ -929,8 +929,10 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
           }
           i = new (thd->mem_root) Item_date_literal(&ltime);
         } else if (!check_time_zone_convertibility(ltime)) {
+          Datetime_val dt;
+          *implicit_cast<MYSQL_TIME *>(&dt) = ltime;
           i = new (thd->mem_root) Item_datetime_literal(
-              &ltime, actual_decimals(&ltime), thd->time_zone());
+              &dt, actual_decimals(&ltime), thd->time_zone());
         }
         if (i == nullptr) return true;
         thd->change_item_tree(const_val, i);
@@ -962,16 +964,16 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
   }
 
   /*
-    An OK TIME constant, represented as Item_time_with_ref.
+    An OK TIME constant, represented as Item_time_literal.
     Note that excessive decimals have already been rounded, so there is no
     opportunity for folding. This is in contrast to DATETIME/TIMESTAMP
     btw, which retains any excessive decimals digits when comparing.
     Cf. Bug#28320529
   */
-  MYSQL_TIME ltime;
-  TIME_from_longlong_time_packed(&ltime, (*const_val)->val_time_temporal());
-  auto i =
-      new (thd->mem_root) Item_time_literal(&ltime, actual_decimals(&ltime));
+  Time_val time;
+  if ((*const_val)->val_time(&time)) return true;
+  Item *i =
+      new (thd->mem_root) Item_time_literal(&time, time.actual_decimals());
   if (i == nullptr) return true;
   thd->change_item_tree(const_val, i);
   return false;

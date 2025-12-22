@@ -38,24 +38,8 @@
 
 namespace segfault_unittest {
 
-using my_testing::Mock_error_handler;
+using my_testing::get_number_of_occurrences;
 using my_testing::Server_initializer;
-
-size_t get_number_of_occurrences(std::string hay, std::string needle) {
-  size_t pos = hay.find(needle);
-  size_t count = 0;
-  if (pos != std::string::npos) {
-    for (;;) {
-      count++;
-      const auto new_pos = hay.substr(pos + 1).find(needle);
-      if (new_pos == std::string::npos) {
-        break;
-      }
-      pos += 1 + new_pos;
-    }
-  }
-  return count;
-}
 
 MATCHER_P3(ContainsRangeOfOccurrences, n, m, str, "") {
   const auto count = get_number_of_occurrences(arg, str);

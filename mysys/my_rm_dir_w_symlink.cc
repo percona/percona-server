@@ -26,17 +26,20 @@
 #include <direct.h>
 #endif
 
+#include "my_config.h"
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
 #include <cerrno>
 #include "m_string.h"
+#include "my_inttypes.h"
 #include "my_io.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql_com.h"
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_misc;

@@ -282,6 +282,7 @@ bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
       builder = find_qualified_function_builder(thd);
       assert(builder);
       *res = builder->create_func(thd, m_pos, ident, opt_udf_expr_list);
+      pc->select->n_stored_func_calls++;
     }
   }
   return *res == nullptr || (*res)->itemize(pc, res);

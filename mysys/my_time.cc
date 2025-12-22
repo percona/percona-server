@@ -41,23 +41,29 @@
    @page LOW_LEVEL_FORMATS Low-level memory and disk formats
 
    - @subpage datetime_and_date_low_level_rep
-   - @subpage time_low_level_rep
- */
+*/
 
 #include "my_time.h"
 
+#include <sys/types.h>
+#include <time.h>
 #include <algorithm>  // std::max
-#include <cassert>    // assert
-#include <cctype>     // std::isspace
-#include <climits>    // UINT_MAX
-#include <cstdio>     // std::sprintf
-#include <cstring>    // std::memset
+#include <cassert>
+#include <cctype>   // std::isspace
+#include <climits>  // UINT_MAX
+#include <cstdint>
+#include <cstdio>   // std::sprintf
+#include <cstdlib>  // std::for abs
+#include <cstring>  // std::memset
 
 #include "field_types.h"     // enum_field_types
 #include "integer_digits.h"  // count_digits, write_digits, write_two_digits
 #include "my_byteorder.h"    // int3store
-#include "my_systime.h"      // localtime_r
-#include "myisampack.h"      // mi_int2store
+#include "my_inttypes.h"     // longlong, ulonglong, uchar
+#include "my_systime.h"      // IWYU pragma: keep localtime_r
+#include "my_time_t.h"
+#include "myisampack.h"  // mi_int2store
+#include "mysql_time.h"
 #include "template_utils.h"  // pointer_cast
 
 const ulonglong log_10_int[20] = {1,
@@ -254,6 +260,10 @@ bool check_datetime_range(const MYSQL_TIME &my_time) {
     In case of MYSQL_TIMESTAMP_TIME hour value can be up to TIME_MAX_HOUR.
     In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
   */
+  assert(my_time.time_type == MYSQL_TIMESTAMP_TIME ||
+         my_time.time_type == MYSQL_TIMESTAMP_DATE ||
+         my_time.time_type == MYSQL_TIMESTAMP_DATETIME ||
+         my_time.time_type == MYSQL_TIMESTAMP_DATETIME_TZ);
   return my_time.year > 9999U || my_time.month > 12U || my_time.day > 31U ||
          my_time.minute > 59U || my_time.second > 59U ||
          my_time.second_part > 999999U ||
@@ -904,7 +914,7 @@ fractional:
 
   if (check_time_mmssff_range(*l_time)) {
     status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
-    l_time->time_type = MYSQL_TIMESTAMP_ERROR;
+    set_zero_time(l_time, MYSQL_TIMESTAMP_ERROR);
     return true;
   }
 
@@ -988,6 +998,11 @@ void adjust_time_range(MYSQL_TIME *my_time, int *warning) {
     my_time->day = my_time->second_part = 0;
     set_max_hhmmss(my_time);
     *warning |= MYSQL_TIME_WARN_OUT_OF_RANGE;
+  }
+  // -00:00:00 is not valid:
+  if (my_time->neg && my_time->hour == 0 && my_time->minute == 0 &&
+      my_time->second == 0 && my_time->second_part == 0) {
+    my_time->neg = false;
   }
 }
 
@@ -1662,178 +1677,6 @@ ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME &my_time) {
 }
 
 /**
-   @page time_low_level_rep TIME
-
-  In-memory format:
-
-| Bits  | Field         | Value range |
-| ----: | :----         | :---- |
-|   1   | sign          |(Used for sign, when on disk) |
-|   1   | unused        |(Reserved for wider hour range, e.g. for intervals) |
-|   10  | hour          |(0-838) |
-|   6   | minute        |(0-59) |
-|   6   | second        |(0-59) |
-|  24   | microseconds  |(0-999999) |
-
- Total: 48 bits = 6 bytes
-
-@verbatim
-Format: Suhhhhhh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
-@endverbatim
-*/
-
-/**
-  Convert time value to numeric packed representation.
-
-  @param    my_time The value to convert.
-  @return           Numeric packed representation.
-*/
-longlong TIME_to_longlong_time_packed(const MYSQL_TIME &my_time) {
-  /* If month is 0, we mix day with hours: "1 00:10:10" -> "24:00:10" */
-  const long hms =
-      (((my_time.month ? 0 : my_time.day * 24) + my_time.hour) << 12) |
-      (my_time.minute << 6) | my_time.second;
-  const longlong tmp = my_packed_time_make(hms, my_time.second_part);
-  return my_time.neg ? -tmp : tmp;
-}
-
-/**
-  Convert time packed numeric representation to time.
-
-  @param [out] ltime  The MYSQL_TIME variable to set.
-  @param      tmp    The packed numeric representation.
-*/
-void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp) {
-  longlong hms;
-  if ((ltime->neg = (tmp < 0))) tmp = -tmp;
-  hms = my_packed_time_get_int_part(tmp);
-  ltime->year = static_cast<uint>(0);
-  ltime->month = static_cast<uint>(0);
-  ltime->day = static_cast<uint>(0);
-  ltime->hour =
-      static_cast<uint>(hms >> 12) % (1 << 10); /* 10 bits starting at 12th */
-  ltime->minute =
-      static_cast<uint>(hms >> 6) % (1 << 6); /* 6 bits starting at 6th   */
-  ltime->second =
-      static_cast<uint>(hms) % (1 << 6); /* 6 bits starting at 0th   */
-  ltime->second_part = my_packed_time_get_frac_part(tmp);
-  ltime->time_type = MYSQL_TIMESTAMP_TIME;
-}
-
-/**
-  On disk we convert from signed representation to unsigned
-  representation using TIMEF_OFS, so all values become binary comparable.
-*/
-#define TIMEF_OFS 0x800000000000LL
-#define TIMEF_INT_OFS 0x800000LL
-
-/**
-  Convert in-memory numeric time representation to on-disk representation
-
-  @param       nr   Value in packed numeric time format.
-  @param [out] ptr  The buffer to put value at.
-  @param       dec  Precision.
-*/
-void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec) {
-  assert(dec <= DATETIME_MAX_DECIMALS);
-  /* Make sure the stored value was previously properly rounded or truncated */
-  assert((my_packed_time_get_frac_part(nr) %
-          static_cast<int>(log_10_int[DATETIME_MAX_DECIMALS - dec])) == 0);
-
-  switch (dec) {
-    case 0:
-    default:
-      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
-      break;
-
-    case 1:
-    case 2:
-      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
-      ptr[3] = static_cast<unsigned char>(
-          static_cast<char>(my_packed_time_get_frac_part(nr) / 10000));
-      break;
-
-    case 4:
-    case 3:
-      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
-      mi_int2store(ptr + 3, my_packed_time_get_frac_part(nr) / 100);
-      break;
-
-    case 5:
-    case 6:
-      mi_int6store(ptr, nr + TIMEF_OFS);
-      break;
-  }
-}
-
-/**
-  Convert on-disk time representation to in-memory packed numeric
-  representation.
-
-  @param   ptr  The pointer to read the value at.
-  @param   dec  Precision.
-  @return       Packed numeric time representation.
-*/
-longlong my_time_packed_from_binary(const uchar *ptr, uint dec) {
-  assert(dec <= DATETIME_MAX_DECIMALS);
-
-  switch (dec) {
-    case 0:
-    default: {
-      const longlong intpart = mi_uint3korr(ptr) - TIMEF_INT_OFS;
-      return my_packed_time_make_int(intpart);
-    }
-    case 1:
-    case 2: {
-      longlong intpart = mi_uint3korr(ptr) - TIMEF_INT_OFS;
-      int frac = static_cast<uint>(ptr[3]);
-      if (intpart < 0 && frac) {
-        /*
-           Negative values are stored with
-           reverse fractional part order,
-           for binary sort compatibility.
-
-            Disk value  intpart frac   Time value   Memory value
-            800000.00    0      0      00:00:00.00  0000000000.000000
-            7FFFFF.FF   -1      255   -00:00:00.01  FFFFFFFFFF.FFD8F0
-            7FFFFF.9D   -1      99    -00:00:00.99  FFFFFFFFFF.F0E4D0
-            7FFFFF.00   -1      0     -00:00:01.00  FFFFFFFFFF.000000
-            7FFFFE.FF   -1      255   -00:00:01.01  FFFFFFFFFE.FFD8F0
-            7FFFFE.F6   -2      246   -00:00:01.10  FFFFFFFFFE.FE7960
-
-            Formula to convert fractional part from disk format
-            (now stored in "frac" variable) to absolute value: "0x100 - frac".
-            To reconstruct in-memory value, we shift
-            to the next integer value and then substruct fractional part.
-        */
-        intpart++;     /* Shift to the next integer value */
-        frac -= 0x100; /* -(0x100 - frac) */
-      }
-      return my_packed_time_make(intpart, frac * 10000);
-    }
-
-    case 3:
-    case 4: {
-      longlong intpart = mi_uint3korr(ptr) - TIMEF_INT_OFS;
-      int frac = mi_uint2korr(ptr + 3);
-      if (intpart < 0 && frac) {
-        /*
-          Fix reverse fractional part order: "0x10000 - frac".
-          See comments for FSP=1 and FSP=2 above.
-        */
-        intpart++;       /* Shift to the next integer value */
-        frac -= 0x10000; /* -(0x10000-frac) */
-      }
-      return my_packed_time_make(intpart, frac * 100);
-    }
-
-    case 5:
-    case 6:
-      return (static_cast<longlong>(mi_uint6korr(ptr))) - TIMEF_OFS;
-  }
-}
-
-/**
    @page datetime_and_date_low_level_rep DATETIME and DATE
 
 | Bits  | Field         | Value |
@@ -2091,6 +1934,8 @@ void my_date_to_binary(const MYSQL_TIME *ltime, uchar *ptr) {
   @return  Packed numeric time/date/datetime representation.
 */
 longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
+  assert(my_time.time_type != MYSQL_TIMESTAMP_TIME);
+
   switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATE:
       return TIME_to_longlong_date_packed(my_time);
@@ -2098,10 +1943,11 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
       assert(false);  // Should not be this type at this point.
     case MYSQL_TIMESTAMP_DATETIME:
       return TIME_to_longlong_datetime_packed(my_time);
-    case MYSQL_TIMESTAMP_TIME:
-      return TIME_to_longlong_time_packed(my_time);
     case MYSQL_TIMESTAMP_NONE:
     case MYSQL_TIMESTAMP_ERROR:
+      return 0;
+    default:
+      assert(false);
       return 0;
   }
   assert(false);
@@ -2805,9 +2651,9 @@ int my_time_compare(const MYSQL_TIME &my_time_a, const MYSQL_TIME &my_time_b) {
 */
 longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
                                  enum enum_field_types type) {
+  assert(type != MYSQL_TYPE_TIME);
+
   switch (type) {
-    case MYSQL_TYPE_TIME:
-      return TIME_to_longlong_time_packed(my_time);
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       return TIME_to_longlong_datetime_packed(my_time);
@@ -2828,10 +2674,9 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
 */
 void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
                                longlong packed_value) {
+  assert(type != MYSQL_TYPE_TIME);
+
   switch (type) {
-    case MYSQL_TYPE_TIME:
-      TIME_from_longlong_time_packed(ltime, packed_value);
-      break;
     case MYSQL_TYPE_DATE:
       TIME_from_longlong_date_packed(ltime, packed_value);
       break;
@@ -2858,10 +2703,10 @@ void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
 longlong longlong_from_datetime_packed(enum enum_field_types type,
                                        longlong packed_value) {
   MYSQL_TIME ltime;
+
+  assert(type != MYSQL_TYPE_TIME);
+
   switch (type) {
-    case MYSQL_TYPE_TIME:
-      TIME_from_longlong_time_packed(&ltime, packed_value);
-      return TIME_to_ulonglong_time(ltime);
     case MYSQL_TYPE_DATE:
       TIME_from_longlong_date_packed(&ltime, packed_value);
       return TIME_to_ulonglong_date(ltime);

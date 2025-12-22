@@ -136,7 +136,7 @@ THD *thd_get_current_thd() { return current_thd; }
 
 bool check_address_is_wildcard(const char *, size_t) { return false; }
 
-void conditional_sync_point(std::string) {}
+void conditional_sync_point(std::string, unsigned short) {}
 
 uint opt_debug_sync_timeout;
 void debug_sync(THD *, char const *, size_t) {}

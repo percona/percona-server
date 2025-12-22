@@ -35,9 +35,9 @@
 
 #include <sys/stat.h>
 #include <algorithm>
+#include <cassert>
 #include <cerrno>
 #include <cstring>
-#include <memory>
 #include <new>
 
 #include "m_string.h"

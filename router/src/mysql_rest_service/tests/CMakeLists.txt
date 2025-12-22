@@ -78,6 +78,14 @@ ADD_TEST_FILE(test_plugin.cc
     ./test_mrs_route_manager.cc
     ./test_handler_object.cc
     ./test_object_checksum.cc
+    ./test_trace_password_masking.cc
   LIB_DEPENDS mysql_rest_service test-helpers
   )
 
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15)
+  ADD_COMPILE_FLAGS(./test_mrs_gtid_manager.cc COMPILE_FLAGS
+    "-Wno-error=free-nonheap-object"
+  )
+  ROUTERTEST_GET_TARGET(T test_plugin.cc mrs)
+  TARGET_LINK_OPTIONS(${T} PRIVATE "-Wno-error=free-nonheap-object")
+ENDIF()

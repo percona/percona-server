@@ -148,7 +148,7 @@ static const std::string &get_method_as_string(
   return it->second;
 }
 
-// `CallbakcsPrivateImpl` class is declared as private and
+// `CallbakcsImpl` class is declared as private and
 // its implemented later one.
 // To workaround the mentioned limitations, here we use it
 // as templated type.
@@ -185,12 +185,11 @@ impl::Connection create_connection_object(
 
 PayloadCallback::~PayloadCallback() = default;
 
-class Client::CallbacksPrivateImpl
-    : public PayloadCallback,
-      public ConnectionTls::ConnectionStatusCallbacks,
-      public ConnectionRaw::ConnectionStatusCallbacks {
+class Client::CallbacksImpl : public PayloadCallback,
+                              public ConnectionTls::ConnectionStatusCallbacks,
+                              public ConnectionRaw::ConnectionStatusCallbacks {
  public:
-  explicit CallbacksPrivateImpl(Client *client) : parent_{client} {}
+  explicit CallbacksImpl(Client *client) : parent_{client} {}
 
  public:  // PayloadCallback
   void on_connection_ready() override;
@@ -265,20 +264,12 @@ class TraceCallbacks : public Callbacks {
     PRINT_AND_CALL(Callbacks::on_connection_io_error(connection, ec));
   }
 
-  void print_single() {}
-
-  template <typename Arg, typename... Args>
-  void print_single(const Arg &arg, const Args... args) {
-    *out_ << arg;
-    print_single(args...);
-  }
-
   std::ostream *out_;
   template <typename... Args>
   void print(const Args &...args) {
     *out_ << "this:" << this << ", thread:" << std::this_thread::get_id()
           << ": ";
-    print_single(args...);
+    ((*out_ << args), ...);
     *out_ << std::endl;
     out_->flush();
   }
@@ -287,8 +278,8 @@ class TraceCallbacks : public Callbacks {
 #undef PRINT_AND_CALL
 
 // Choose one of following.
-using UsedCallbackImpl = Client::CallbacksPrivateImpl;
-// TraceCallbacks<Client::CallbacksPrivateImpl>;
+using UsedCallbackImpl = Client::CallbacksImpl;
+// TraceCallbacks<Client::CallbacksImpl>;
 
 Client::Client(io_context &io_context, TlsClientContext &&tls_context,
                bool use_http2)
@@ -426,7 +417,7 @@ std::string Client::error_message() const { return error_code_.message(); }
 
 const Client::Statistics &Client::statistics() const { return statistics_; }
 
-void Client::CallbacksPrivateImpl::on_input_begin(
+void Client::CallbacksImpl::on_input_begin(
     int status_code, [[maybe_unused]] const std::string &status_text) {
   auto *holder = parent_->fill_request_by_callback_->holder_.get();
   holder->status = status_code;
@@ -435,7 +426,7 @@ void Client::CallbacksPrivateImpl::on_input_begin(
   holder->buffer_input.clear();
 }
 
-void Client::CallbacksPrivateImpl::on_input_end() {
+void Client::CallbacksImpl::on_input_end() {
   bool close_connection = false;
   auto &oh = parent_->fill_request_by_callback_->get_output_headers();
   auto &ih = parent_->fill_request_by_callback_->get_input_headers();
@@ -453,17 +444,17 @@ void Client::CallbacksPrivateImpl::on_input_end() {
   }
 }
 
-void Client::CallbacksPrivateImpl::on_output_end_payload() {
+void Client::CallbacksImpl::on_output_end_payload() {
   if (!parent_->use_http2_) parent_->connection_->start();
 }
 
-void Client::CallbacksPrivateImpl::on_input_header(std::string &&key,
-                                                   std::string &&value) {
+void Client::CallbacksImpl::on_input_header(std::string &&key,
+                                            std::string &&value) {
   parent_->fill_request_by_callback_->holder_->headers_input.add(
       std::move(key), std::move(value));
 }
 
-void Client::CallbacksPrivateImpl::on_connection_ready() {
+void Client::CallbacksImpl::on_connection_ready() {
   auto request = parent_->fill_request_by_callback_;
   const auto &url = request->get_uri();
   const auto &method = impl::get_method_as_string(request->get_method());
@@ -472,19 +463,18 @@ void Client::CallbacksPrivateImpl::on_connection_ready() {
                              request->get_output_buffer());
 }
 
-void Client::CallbacksPrivateImpl::on_input_payload(const char *data,
-                                                    size_t size) {
+void Client::CallbacksImpl::on_input_payload(const char *data, size_t size) {
   parent_->fill_request_by_callback_->holder_->buffer_input.get().append(data,
                                                                          size);
 }
 
-void Client::CallbacksPrivateImpl::on_connection_close(
+void Client::CallbacksImpl::on_connection_close(
     ConnectionTls::Parent *connection) {
   connection->get_socket().close();
   parent_->is_connected_ = false;
 }
 
-void Client::CallbacksPrivateImpl::on_connection_io_error(
+void Client::CallbacksImpl::on_connection_io_error(
     [[maybe_unused]] ConnectionTls::Parent *connection,
     const std::error_code &ec) {
   parent_->error_code_ = ec;
@@ -496,13 +486,13 @@ void Client::CallbacksPrivateImpl::on_connection_io_error(
   }
 }
 
-void Client::CallbacksPrivateImpl::on_connection_close(
+void Client::CallbacksImpl::on_connection_close(
     ConnectionRaw::Parent *connection) {
   connection->get_socket().close();
   parent_->is_connected_ = false;
 }
 
-void Client::CallbacksPrivateImpl::on_connection_io_error(
+void Client::CallbacksImpl::on_connection_io_error(
     [[maybe_unused]] ConnectionRaw::Parent *connection,
     const std::error_code &ec) {
   parent_->error_code_ = ec;

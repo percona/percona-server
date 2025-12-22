@@ -134,6 +134,20 @@ static bool is_trx_unsafe_for_parallel_slave(const THD *thd) {
 }
 
 /**
+  Check if the current statement is a CREATE TABLE ... SELECT (CTAS)
+  or any other transactional DDL that should be treated similarly.
+
+  @param thd Current THD handle.
+  @return true  if the statement is a CTAS or a transactional DDL.
+  @return false otherwise.
+*/
+[[nodiscard]] static bool is_create_table_as_query_block(THD *thd) {
+  return ((thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+           !thd->lex->query_block->field_list_is_empty()) ||
+          thd->m_transactional_ddl.inited());
+}
+
+/**
   Get the sequence_number for a transaction, and get the last_commit based
   on parallel committing transactions.
 
@@ -235,6 +249,11 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
          they can be executed in parallel.
        */
        is_empty_transaction_in_binlog_cache(thd)) &&
+      /*
+        'CREATE TABLE ... AS SELECT' is considered a DML, though in reality
+        it is DDL + DML, which write-sets do not capture all dependencies.
+      */
+      !is_create_table_as_query_block(thd) &&
       // binlog format must be ROW
       thd->variables.binlog_format == BINLOG_FORMAT_ROW &&
       // must not use foreign keys

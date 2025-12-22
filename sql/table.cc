@@ -4567,7 +4567,7 @@ bool Table_ref::merge_underlying_tables(Query_block *select) {
 */
 void Table_ref::reset() {
   // Reset connection to TABLE
-  if (is_base_table()) table = nullptr;
+  if (is_base_table() || is_mv_se_available()) table = nullptr;
 
   // Needed for I_S tables.
   schema_table_filled = false;
@@ -6666,7 +6666,8 @@ void init_mdl_requests(Table_ref *table_list) {
   technical constraints.
 */
 bool Table_ref::is_mergeable() const {
-  if (!is_view_or_derived() || algorithm == VIEW_ALGORITHM_TEMPTABLE)
+  if (!is_view_or_derived() || algorithm == VIEW_ALGORITHM_TEMPTABLE ||
+      is_mv_se_available())
     return false;
   /*
     If the table's content is non-deterministic and the query references it
@@ -6758,7 +6759,10 @@ int Table_ref::fetch_number_of_rows(ha_rows fallback_estimate) {
                  // Recursive reference is never a const table
                  fallback_estimate);
   } else {
-    int error = table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    uint flags = HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK;
+    DBUG_EXECUTE_IF("fetch_number_of_rows_info_const",
+                    { flags |= HA_STATUS_CONST; });
+    int error = table->file->info(flags);
     DBUG_EXECUTE_IF("bug35208539_raise_error", error = HA_ERR_GENERIC;);
     if (error) {
       return error;

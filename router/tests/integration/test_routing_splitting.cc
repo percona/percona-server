@@ -49,6 +49,7 @@
 #include <rapidjson/pointer.h>
 
 #include "hexify.h"
+#include "idc_metadata_schema.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
@@ -483,30 +484,12 @@ class TestEnv : public ::testing::Environment {
     ASSERT_NO_ERROR(primary_cli_res);
     auto primary_cli = std::move(*primary_cli_res);
 
-    std::stringstream ss;
-    {
-      std::ifstream ifs(ProcessManager::get_data_dir()
-                            .join("metadata-model-2.1.0.sql")
-                            .str());
-
-      ASSERT_TRUE(ifs.good());
-      ss << ifs.rdbuf();
-    }
-
-    auto &proc_mgr = srv->process_manager();
-    {
-      auto &mysql_proc =
-          proc_mgr.spawner(proc_mgr.get_origin().join("mysql").str())
-              .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
-              .spawn({"--host", "127.0.0.1", "--port",
-                      std::to_string(srv->classic_tcp_destination().port()),
-                      "--user", "root", "--password=", "--commands", "-e",
-                      "source " + ProcessManager::get_data_dir()
-                                      .join("metadata-model-2.1.0.sql")
-                                      .str()});
-      ASSERT_NO_THROW(mysql_proc.wait_for_exit(20s))
-          << mysql_proc.get_current_output();
-      ASSERT_EQ(mysql_proc.exit_code(), 0) << mysql_proc.get_full_output();
+    // create a metadata schema
+    const char **query_ptr;
+    for (query_ptr = &idc_metadata_schema[0]; *query_ptr != nullptr;
+         query_ptr++) {
+      const std::string query{*query_ptr};
+      ASSERT_NO_ERROR(primary_cli.query(query));
     }
 
     // create a cluster

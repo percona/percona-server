@@ -112,10 +112,13 @@
 
 #include "decimal.h"
 
+#include "my_config.h"
+
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
 #include <algorithm>
+#include <cassert>
 #include <climits>
 #include <cmath>
 #include <cstdint>

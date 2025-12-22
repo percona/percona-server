@@ -278,8 +278,10 @@ static type_conversion_status check_value_aux(Field *field,
   return field->store(*nr, true);
 }
 
-// Field::store_time() should be updated to use a const pointer. We assume that
-// the input value is not modified.
+static type_conversion_status check_value_aux(Field *field, Time_val *time) {
+  return field->store_time(*time, DATETIME_MAX_DECIMALS);
+}
+
 static type_conversion_status check_value_aux(Field *field, MYSQL_TIME *ltime) {
   return field->store_time(ltime);
 }
@@ -301,7 +303,8 @@ template bool Error_context::check_value(double *);
 template bool Error_context::check_value(String *);
 template bool Error_context::check_value(longlong *);
 template bool Error_context::check_value(ulonglong *);
-template bool Error_context::check_value(MYSQL_TIME *);
+template bool Error_context::check_value(Time_val *);
+template bool Error_context::check_value(Datetime_val *);
 template bool Error_context::check_value(my_decimal *);
 
 /**
@@ -370,7 +373,7 @@ bool Histogram::histogram_to_json(Json_object *json_object) const {
   my_timeval time_value;
   my_micro_time_to_timeval(my_micro_time(), &time_value);
 
-  MYSQL_TIME current_time;
+  Datetime_val current_time;
   my_tz_UTC->gmt_sec_to_TIME(&current_time, time_value);
 
   // last-updated
@@ -547,15 +550,15 @@ Histogram *Histogram::json_to_histogram(MEM_ROOT *mem_root,
           Equi_height<String>::create(mem_root, schema_name, table_name,
                                       column_name, Value_map_type::STRING);
     } else if (data_type->value() == "date") {
-      histogram = Equi_height<MYSQL_TIME>::create(
+      histogram = Equi_height<Datetime_val>::create(
           mem_root, schema_name, table_name, column_name, Value_map_type::DATE);
     } else if (data_type->value() == "time") {
-      histogram = Equi_height<MYSQL_TIME>::create(
+      histogram = Equi_height<Time_val>::create(
           mem_root, schema_name, table_name, column_name, Value_map_type::TIME);
     } else if (data_type->value() == "datetime") {
-      histogram = Equi_height<MYSQL_TIME>::create(mem_root, schema_name,
-                                                  table_name, column_name,
-                                                  Value_map_type::DATETIME);
+      histogram = Equi_height<Datetime_val>::create(mem_root, schema_name,
+                                                    table_name, column_name,
+                                                    Value_map_type::DATETIME);
     } else if (data_type->value() == "decimal") {
       histogram =
           Equi_height<my_decimal>::create(mem_root, schema_name, table_name,
@@ -587,14 +590,14 @@ Histogram *Histogram::json_to_histogram(MEM_ROOT *mem_root,
           Singleton<String>::create(mem_root, schema_name, table_name,
                                     column_name, Value_map_type::STRING);
     } else if (data_type->value() == "datetime") {
-      histogram =
-          Singleton<MYSQL_TIME>::create(mem_root, schema_name, table_name,
-                                        column_name, Value_map_type::DATETIME);
+      histogram = Singleton<Datetime_val>::create(mem_root, schema_name,
+                                                  table_name, column_name,
+                                                  Value_map_type::DATETIME);
     } else if (data_type->value() == "date") {
-      histogram = Singleton<MYSQL_TIME>::create(
+      histogram = Singleton<Datetime_val>::create(
           mem_root, schema_name, table_name, column_name, Value_map_type::DATE);
     } else if (data_type->value() == "time") {
-      histogram = Singleton<MYSQL_TIME>::create(
+      histogram = Singleton<Time_val>::create(
           mem_root, schema_name, table_name, column_name, Value_map_type::TIME);
     } else if (data_type->value() == "decimal") {
       histogram =
@@ -888,8 +891,44 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom, longlong *out,
 }
 
 template <>
+bool Histogram::extract_json_dom_value(const Json_dom *json_dom, Time_val *out,
+                                       Error_context *context) {
+  if (json_dom->json_type() == enum_json_type::J_TIME) {
+    assert(context->binary());
+    *out = down_cast<const Json_time *>(json_dom)->value();
+  } else if (!context->binary() &&
+             json_dom->json_type() == enum_json_type::J_STRING) {
+    const Json_string *json_string = down_cast<const Json_string *>(json_dom);
+    String str{json_string->value().c_str(), json_string->value().size(),
+               &my_charset_utf8mb4_bin};
+    MYSQL_TIME_STATUS status;
+    MYSQL_TIME mtime;
+
+    if (get_data_type() == Value_map_type::TIME) {
+      if (str_to_time(&str, &mtime, 0, &status) || status.warnings != 0) {
+        context->report_node(json_dom, Message::JSON_VALUE_FORMAT_ERROR);
+        return true;
+      }
+      if (mtime.time_type != enum_mysql_timestamp_type::MYSQL_TIMESTAMP_TIME) {
+        context->report_node(json_dom, Message::JSON_VALUE_OUT_OF_RANGE);
+        return true;
+      }
+      *out = Time_val(mtime);
+    } else {
+      assert(false);
+      return true;
+    }
+  } else {
+    context->report_node(json_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
+    return true;
+  }
+
+  return false;
+}
+
+template <>
 bool Histogram::extract_json_dom_value(const Json_dom *json_dom,
-                                       MYSQL_TIME *out,
+                                       Datetime_val *out,
                                        Error_context *context) {
   if (json_dom->json_type() == enum_json_type::J_DATE ||
       json_dom->json_type() == enum_json_type::J_TIME ||
@@ -1047,13 +1086,15 @@ static bool prepare_value_maps(const Mem_root_array<HistogramSetting> &settings,
                                                          value_map_type);
         break;
       }
+      case histograms::Value_map_type::TIME:
+        value_map = new histograms::Value_map<Time_val>(field->charset(),
+                                                        value_map_type);
+        break;
       case histograms::Value_map_type::DATETIME:
       case histograms::Value_map_type::DATE:
-      case histograms::Value_map_type::TIME: {
-        value_map = new histograms::Value_map<MYSQL_TIME>(field->charset(),
-                                                          value_map_type);
+        value_map = new histograms::Value_map<Datetime_val>(field->charset(),
+                                                            value_map_type);
         break;
-      }
       case histograms::Value_map_type::DECIMAL: {
         value_map = new histograms::Value_map<my_decimal>(field->charset(),
                                                           value_map_type);
@@ -1169,32 +1210,29 @@ static bool fill_value_maps(const Mem_root_array<HistogramSetting> &settings,
           break;
         }
         case histograms::Value_map_type::DATE: {
-          MYSQL_TIME time_value;
-          TIME_from_longlong_date_packed(&time_value,
-                                         field->val_date_temporal());
+          Datetime_val date;
+          TIME_from_longlong_date_packed(&date, field->val_date_temporal());
           if (field->is_null())
             value_map->add_null_values(1);
-          else if (value_map->add_values(time_value, 1))
+          else if (value_map->add_values(date, 1))
             return true; /* purecov: deadcode */
           break;
         }
         case histograms::Value_map_type::TIME: {
-          MYSQL_TIME time_value;
-          TIME_from_longlong_time_packed(&time_value,
-                                         field->val_time_temporal());
+          Time_val time;
+          (void)field->val_time(&time);
           if (field->is_null())
             value_map->add_null_values(1);
-          else if (value_map->add_values(time_value, 1))
+          else if (value_map->add_values(time, 1))
             return true; /* purecov: deadcode */
           break;
         }
         case histograms::Value_map_type::DATETIME: {
-          MYSQL_TIME time_value;
-          TIME_from_longlong_datetime_packed(&time_value,
-                                             field->val_date_temporal());
+          Datetime_val dt;
+          TIME_from_longlong_datetime_packed(&dt, field->val_date_temporal());
           if (field->is_null())
             value_map->add_null_values(1);
-          else if (value_map->add_values(time_value, 1))
+          else if (value_map->add_values(dt, 1))
             return true; /* purecov: deadcode */
           break;
         }
@@ -1218,12 +1256,21 @@ static bool fill_value_maps(const Mem_root_array<HistogramSetting> &settings,
 
     res = table->file->ha_sample_next(scan_ctx, table->record[0]);
 
-    DBUG_EXECUTE_IF(
-        "sample_read_sample_half", static uint count = 1;
-        if (count == std::max(1ULL, table->file->stats.records) / 2) {
-          res = HA_ERR_END_OF_FILE;
-          break;
-        } ++count;);
+    DBUG_EXECUTE_IF("sample_read_sample_five", {
+      // Use thread_local not to have interference from background threads.
+      static thread_local uint count = 1;
+
+      // Decided to use a constant value instead of stats. That's because
+      // stats values are estimates. Sometimes they are updated during the
+      // iteration over records.
+      if (count == 5) {
+        res = HA_ERR_END_OF_FILE;
+        count = 1;  // reset count to have the same effect in every call of
+                    // fill_value_maps
+        break;
+      }
+      ++count;
+    });
   }
 
   if (res != HA_ERR_END_OF_FILE) return true; /* purecov: deadcode */
@@ -2192,25 +2239,29 @@ double Histogram::get_equal_to_selectivity_dispatcher(const T &value) const {
 }
 
 static bool get_temporal(Item *item, Value_map_type preferred_type,
-                         MYSQL_TIME *time_value) {
+                         Datetime_val *dt) {
   if (item->is_temporal_with_date_and_time()) {
-    TIME_from_longlong_datetime_packed(time_value, item->val_date_temporal());
+    TIME_from_longlong_datetime_packed(dt, item->val_date_temporal());
   } else if (item->is_temporal_with_date()) {
-    TIME_from_longlong_date_packed(time_value, item->val_date_temporal());
+    TIME_from_longlong_date_packed(dt, item->val_date_temporal());
   } else if (item->is_temporal_with_time()) {
-    TIME_from_longlong_time_packed(time_value, item->val_time_temporal());
+    // Function is never called for a TIME data type.
+    assert(false);
   } else {
     switch (preferred_type) {
       case Value_map_type::DATE:
       case Value_map_type::DATETIME:
-        if (item->get_date_from_non_temporal(time_value, 0)) return true;
+        if (item->get_datetime_from_non_temporal(dt, 0)) return true;
         break;
-      case Value_map_type::TIME:
-        if (item->get_time_from_non_temporal(time_value)) return true;
+      case Value_map_type::TIME: {
+        Time_val time;
+        if (item->get_time_from_non_temporal(&time)) return true;
+        *implicit_cast<MYSQL_TIME *>(dt) = MYSQL_TIME(time);
         break;
+      }
       default:
         /* purecov: begin deadcode */
-        assert(0);
+        assert(false);
         break;
         /* purecov: end deadcode */
     }
@@ -2342,15 +2393,21 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
       *selectivity = apply_operator(op, *value);
       return false;
     }
+    case Value_map_type::TIME: {
+      Time_val time_value;
+      assert(get_data_type() == Value_map_type::TIME);
+      if (item->val_time(&time_value) || item->is_null()) return true;
+
+      *selectivity = apply_operator(op, time_value);
+      return false;
+    }
     case Value_map_type::DATE:
-    case Value_map_type::TIME:
     case Value_map_type::DATETIME: {
-      MYSQL_TIME temporal_value;
-      if (get_temporal(item, get_data_type(), &temporal_value) ||
-          item->is_null())
+      Datetime_val dt;
+      if (get_temporal(item, get_data_type(), &dt) || item->is_null())
         return true;
 
-      *selectivity = apply_operator(op, temporal_value);
+      *selectivity = apply_operator(op, dt);
       return false;
     }
   }
@@ -2688,7 +2745,11 @@ template Histogram *build_histogram(MEM_ROOT *, const Value_map<longlong> &,
                                     size_t, const std::string &,
                                     const std::string &, const std::string &);
 
-template Histogram *build_histogram(MEM_ROOT *, const Value_map<MYSQL_TIME> &,
+template Histogram *build_histogram(MEM_ROOT *, const Value_map<Time_val> &,
+                                    size_t, const std::string &,
+                                    const std::string &, const std::string &);
+
+template Histogram *build_histogram(MEM_ROOT *, const Value_map<Datetime_val> &,
                                     size_t, const std::string &,
                                     const std::string &, const std::string &);
 

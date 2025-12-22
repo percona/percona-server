@@ -32,4 +32,4 @@ exec $MYSQLROUTER_BOOTSTRAP
    -B admin:admin_pass@127.0.0.1:$port
    --directory $MYSQL_TMP_DIR/bootstrap_folder/
    --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
-   --mrs --mrs-global-secret something_important 2>&1;
+   --force --mrs --mrs-global-secret something_important 2>&1;

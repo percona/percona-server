@@ -11919,15 +11919,15 @@ static void test_bug6096() {
 
 /*
   Test of basic checks that are performed in server for components
-  of MYSQL_TIME parameters.
+  of temporal parameters.
 */
 
 static void test_datetime_ranges() {
   const char *stmt_text;
   int rc, i;
   MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[6];
-  MYSQL_TIME tm[6];
+  MYSQL_BIND my_bind[7];
+  MYSQL_TIME tm[7];
 
   myheader("test_datetime_ranges");
 
@@ -11936,24 +11936,15 @@ static void test_datetime_ranges() {
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
-  stmt_text =
-      "create table t1 (year datetime, month datetime, day datetime, "
-      "hour datetime, min datetime, sec datetime)";
+  stmt_text = "create table t1 (dt datetime)";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
-  stmt =
-      mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?, ?, ?, ?, ?, ?)");
-  check_stmt(stmt);
-  verify_param_count(stmt, 6);
-
   memset(my_bind, 0, sizeof(my_bind));
-  for (i = 0; i < 6; i++) {
+  for (i = 0; i < 7; i++) {
     my_bind[i].buffer_type = MYSQL_TYPE_DATETIME;
     my_bind[i].buffer = &tm[i];
   }
-  rc = mysql_stmt_bind_named_param(stmt, my_bind, std::size(my_bind), nullptr);
-  check_execute(stmt, rc);
 
   tm[0].year = 2004;
   tm[0].month = 11;
@@ -11965,54 +11956,131 @@ static void test_datetime_ranges() {
   tm[0].neg = false;
   tm[0].time_type = MYSQL_TIMESTAMP_DATETIME;
 
-  tm[5] = tm[4] = tm[3] = tm[2] = tm[1] = tm[0];
-  tm[0].year = 10000;
-  tm[1].month = 13;
-  tm[2].day = 32;
-  tm[3].hour = 24;
-  tm[4].minute = 60;
-  tm[5].second = 60;
+  tm[6] = tm[5] = tm[4] = tm[3] = tm[2] = tm[1] = tm[0];
+  tm[1].year = 10000;
+  tm[2].month = 13;
+  tm[3].day = 32;
+  tm[4].hour = 24;
+  tm[5].minute = 60;
+  tm[6].second = 60;
+
+  stmt = mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 0, 1, nullptr);
+  check_execute(stmt, rc);
 
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  /* behaviour changed by WL#5928 */
-  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 12 : 6);
+  my_process_warnings(mysql, 0);
 
-  verify_col_data("t1", "year", "0000-00-00 00:00:00");
-  verify_col_data("t1", "month", "0000-00-00 00:00:00");
-  verify_col_data("t1", "day", "0000-00-00 00:00:00");
-  verify_col_data("t1", "hour", "0000-00-00 00:00:00");
-  verify_col_data("t1", "min", "0000-00-00 00:00:00");
-  verify_col_data("t1", "sec", "0000-00-00 00:00:00");
+  verify_col_data("t1", "dt", "2004-11-10 12:30:30");
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 1, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 2, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 3, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 4, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 5, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 6, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
 
   mysql_stmt_close(stmt);
 
-  stmt_text = "delete from t1";
+  stmt_text = "DELETE FROM t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
-
-  stmt = mysql_simple_prepare(mysql,
-                              "INSERT INTO t1 (year, month, day) "
-                              "VALUES (?, ?, ?)");
-  check_stmt(stmt);
-  verify_param_count(stmt, 3);
 
   /*
     We reuse contents of bind and tm arrays left from previous part of test.
   */
-  for (i = 0; i < 3; i++) my_bind[i].buffer_type = MYSQL_TYPE_DATE;
+  for (i = 0; i < 7; i++) my_bind[i].buffer_type = MYSQL_TYPE_DATE;
 
-  rc = mysql_stmt_bind_named_param(stmt, my_bind, std::size(my_bind), nullptr);
+  stmt = mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 0, 1, nullptr);
   check_execute(stmt, rc);
 
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  /* behaviour changed by WL#5928 */
-  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 6 : 3);
+  my_process_warnings(mysql, 0);
 
-  verify_col_data("t1", "year", "0000-00-00 00:00:00");
-  verify_col_data("t1", "month", "0000-00-00 00:00:00");
-  verify_col_data("t1", "day", "0000-00-00 00:00:00");
+  verify_col_data("t1", "dt", "2004-11-10 00:00:00");
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 1, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 2, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 3, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
 
   mysql_stmt_close(stmt);
 
@@ -12020,50 +12088,80 @@ static void test_datetime_ranges() {
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
-  stmt_text =
-      "create table t1 (day_ovfl time, day time, hour time, min time, sec "
-      "time)";
+  stmt_text = "create table t1 (t time)";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
-
-  stmt = mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?, ?, ?, ?, ?)");
-  check_stmt(stmt);
-  verify_param_count(stmt, 5);
 
   /*
     Again we reuse what we can from previous part of test.
   */
   for (i = 0; i < 5; i++) my_bind[i].buffer_type = MYSQL_TYPE_TIME;
 
-  rc = mysql_stmt_bind_named_param(stmt, my_bind, std::size(my_bind), nullptr);
-  check_execute(stmt, rc);
-
   tm[0].year = 0;
   tm[0].month = 0;
-  tm[0].day = 10;
+  tm[0].day = 0;
   tm[0].hour = 12;
   tm[0].minute = 30;
   tm[0].second = 30;
   tm[0].second_part = 0;
   tm[0].neg = false;
 
-  tm[4] = tm[3] = tm[2] = tm[1] = tm[0];
-  tm[0].day = 35;
-  tm[1].day = 34;
-  tm[2].hour = 30;
+  tm[5] = tm[4] = tm[3] = tm[2] = tm[1] = tm[0];
+  tm[0].day = 34;
+  tm[1].day = 35;
+  tm[2].day = 25;
+  tm[2].hour = 255;
   tm[3].minute = 60;
   tm[4].second = 60;
 
+  stmt = mysql_simple_prepare(mysql, "INSERT INTO t1 VALUES (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 0, 1, nullptr);
+  check_execute(stmt, rc);
+
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  /* behaviour changed by WL#5928 */
-  my_process_warnings(mysql, mysql_get_server_version(mysql) < 50702 ? 2 : 0);
+  my_process_warnings(mysql, 0);
 
-  verify_col_data("t1", "day_ovfl", "838:59:59");
-  verify_col_data("t1", "day", "828:30:30");
-  verify_col_data("t1", "hour", "270:30:30");
-  verify_col_data("t1", "min", "00:00:00");
-  verify_col_data("t1", "sec", "00:00:00");
+  verify_col_data("t1", "t", "828:30:30");
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 1, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 2, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 3, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
+
+  rc = mysql_stmt_bind_named_param(stmt, my_bind + 4, 1, nullptr);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc != 0);
+  if (!opt_silent)
+    printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
+           mysql_stmt_error(stmt));
 
   mysql_stmt_close(stmt);
 
@@ -16826,7 +16924,7 @@ static void test_wl4166_2() {
 
 /**
   Test how warnings generated during assignment of parameters
-  are (currently not) preserve in case of reprepare.
+  are preserved in case of reprepare.
 */
 
 static void test_wl4166_3() {
@@ -16869,15 +16967,9 @@ static void test_wl4166_3() {
   myquery(rc);
 
   rc = mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-  /*
-    Sic: only one warning, instead of two. The warning
-    about data truncation when assigning a parameter is lost.
-    This is a bug.
-  */
-  my_process_warnings(mysql, 1);
-
-  verify_col_data("t1", "year", "0000-00-00 00:00:00");
+  DIE_UNLESS(rc != 0);
+  fprintf(stdout, "\n execute failed as expected:");
+  fprintf(stdout, "\n %s", mysql_stmt_error(stmt));
 
   mysql_stmt_close(stmt);
 
@@ -18500,7 +18592,7 @@ static void test_wl6791() {
   }
 
   for (idx = 0; idx < sizeof(err_opts) / sizeof(enum mysql_option); idx++) {
-    void *dummy_arg;
+    void *dummy_arg = nullptr;
     if (!opt_silent)
       fprintf(stdout, "testing invalid option #%d (%d)\n", idx,
               (int)err_opts[idx]);

@@ -64,7 +64,7 @@
 static constexpr bool openssl_version_ok =
     (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
-static void systemInfo(const Configuration &config, const LogLevel &logLevel) {
+static void systemInfo(const Configuration &config) {
 #ifdef _WIN32
   int processors = 0;
   int speed;
@@ -96,19 +96,15 @@ static void systemInfo(const Configuration &config, const LogLevel &logLevel) {
   speed = pinfo.pi_clock;
 #endif
 
-  if (logLevel.getLogLevel(LogLevel::llStartUp) > 0) {
-    g_eventLogger->info("NDB Cluster -- DB node %d", globalData.ownId);
-    g_eventLogger->info("%s --", NDB_VERSION_STRING);
+  g_eventLogger->info("NDB Cluster -- DB node %d", globalData.ownId);
+  g_eventLogger->info("%s --", NDB_VERSION_STRING);
 #ifdef NDB_SOLARIS
-    g_eventLogger->info(
-        "NDB is running on a machine with %d processor(s) at %d MHz", processor,
-        speed);
+  g_eventLogger->info(
+      "NDB is running on a machine with %d processor(s) at %d MHz", processor,
+      speed);
 #endif
-  }
-  if (logLevel.getLogLevel(LogLevel::llStartUp) > 3) {
-    Uint32 t = config.timeBetweenWatchDogCheck();
-    g_eventLogger->info("WatchDog timer is set to %d ms", t);
-  }
+  Uint32 t = config.timeBetweenWatchDogCheck();
+  g_eventLogger->info("WatchDog timer is set to %d ms", t);
 }
 
 static Uint64 parse_size(const char *src) {
@@ -1088,7 +1084,7 @@ void ndbd_run(bool foreground, int report_fd, const char *connect_str,
     stop_async_log_func(log_threadvar, thread_args);
     ndbd_exit(-1);
   }
-  systemInfo(*theConfig, *theConfig->m_logLevel);
+  systemInfo(*theConfig);
 
   /**
     Start the watch-dog thread before we start allocating memory.

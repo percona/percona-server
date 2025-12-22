@@ -1,3 +1,4 @@
+SET explain_json_format_version = 1;
 #
 # WL#15588 Store EXPLAIN FORMAT=JSON SELECT output in user variable.
 #

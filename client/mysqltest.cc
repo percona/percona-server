@@ -3005,13 +3005,16 @@ static void var_set_escape(struct st_command *command, VAR *dst) {
   var_set_query_get_value()
 
   DESCRIPTION
-  let $variable= query_get_value(<query to run>,<column name>,<row no>);
+  let $variable= query_get_value(<query to run>,<column name>,<row no>,
+  <resultset no>);
 
   <query to run> -    The query that should be sent to the server
   <column name> -     Name of the column that holds the field be compared
                       against the expected value
   <row no> -          Number of the row that holds the field to be
                       compared against the expected value
+  <resultset no> -    Optional, number of the result set which holds the
+                      required field.
 
 */
 
@@ -3024,10 +3027,13 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
   static DYNAMIC_STRING ds_query;
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
+  static DYNAMIC_STRING ds_rset;
+
   const struct command_arg query_get_value_args[] = {
       {"query", ARG_STRING, true, &ds_query, "Query to run"},
       {"column name", ARG_STRING, true, &ds_col, "Name of column"},
-      {"row number", ARG_STRING, true, &ds_row, "Number for row"}};
+      {"row number", ARG_STRING, true, &ds_row, "Number for row"},
+      {"resultset number", ARG_STRING, false, &ds_rset, "Resultset number"}};
 
   DBUG_TRACE;
 
@@ -3039,12 +3045,32 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
 
   DBUG_PRINT("info", ("query: %s", ds_query.str));
   DBUG_PRINT("info", ("col: %s", ds_col.str));
+  DBUG_PRINT("info", ("row: %s", ds_row.str));
+  DBUG_PRINT("info", ("result_set: %s", ds_rset.str));
 
   /* Convert row number to int */
   if (!str2int(ds_row.str, 10, (long)0, (long)INT_MAX, &row_no))
     die("Invalid row number: '%s'", ds_row.str);
   DBUG_PRINT("info", ("row: %s, row_no: %ld", ds_row.str, row_no));
   dynstr_free(&ds_row);
+
+  /* Check if resultset number is passed, and if it is an integer */
+  int reqd_rset = 0;
+  if (ds_rset.length) {
+    reqd_rset = get_int_val(ds_rset.str);
+    if (reqd_rset < 0) {
+      /* In case of invalid result set number, copy the value passed to
+         print later
+      */
+      char buf[32];
+      strmake(buf, ds_rset.str, sizeof(buf) - 1);
+      dynstr_free(&ds_rset);
+      die("Invalid value '%s' for result set number argument given to "
+          "'query_get_value' command.",
+          buf);
+    }
+  }
+  dynstr_free(&ds_rset);
 
   /* Remove any surrounding "'s from the query - if there is any */
   if (strip_surrounding(ds_query.str, '"', '"'))
@@ -3062,8 +3088,32 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     return;
   }
 
-  if (!(res = mysql_store_result_wrapper(mysql)))
-    die("Query '%s' didn't return a result set", ds_query.str);
+  if (reqd_rset > 1) {
+    int next_res = 0, cur_rset = 1;
+    do {
+      if (cur_rset == reqd_rset) break;
+      if ((res = mysql_store_result_wrapper(mysql)) != nullptr) {
+        DBUG_PRINT(
+            "info",
+            ("Ignoring result-set number %d for query '%s' with %d fields",
+             cur_rset, ds_query.str, mysql_num_fields(res)));
+        mysql_free_result_wrapper(res);
+      } else {
+        DBUG_PRINT("info", ("No result-set number %d returned for query '%s'",
+                            cur_rset, ds_query.str));
+      }
+      cur_rset++;
+      next_res = mysql_next_result_wrapper(mysql);
+    } while (!next_res);
+  }
+
+  if (!(res = mysql_store_result_wrapper(mysql))) {
+    if (reqd_rset > 1)
+      die("Query '%s' didn't return result set number '%d'", ds_query.str,
+          reqd_rset);
+    else
+      die("Query '%s' didn't return a result set", ds_query.str);
+  }
 
   {
     /* Find column number from the given column name */
@@ -3108,8 +3158,26 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     }
     eval_expr(var, value, nullptr, false, false);
   }
-  dynstr_free(&ds_query);
   mysql_free_result_wrapper(res);
+
+  DBUG_PRINT("info", ("End of result extraction for query_get_value('%s')",
+                      ds_query.str));
+  /* Using a procedure with multiple result sets returned can cause commands
+     to go out of sync. We read all result sets sent, ignore and free them to
+     allow further queries to execute.
+  */
+  int next_res = 0;
+  while (!(next_res = mysql_next_result_wrapper(mysql))) {
+    if ((res = mysql_store_result_wrapper(mysql)) != nullptr) {
+      DBUG_PRINT("info", ("Ignoring result with %d fields for query '%s'",
+                          mysql_num_fields(res), ds_query.str));
+      mysql_free_result_wrapper(res);
+    }
+  }
+  // Call was successful and there are no more results.
+  assert(next_res == -1);
+
+  dynstr_free(&ds_query);
 }
 
 static void var_copy(VAR *dest, VAR *src) {

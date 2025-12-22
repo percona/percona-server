@@ -45,6 +45,12 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#if defined(_WIN32)
+// needed for BootstrapCertTest.CheckGeneratedCertDetails
+// OPENSSL_Uplink(00007FFD74D4CC88,08): no OPENSSL_Applink
+#include <openssl/applink.c>
+#endif
+
 #include "common.h"  // truncate_string
 #include "config_builder.h"
 #include "dim.h"
@@ -1549,8 +1555,11 @@ TEST_P(RouterComponentBootstrapTestOld, BootstrapPidfileOpt) {
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       config, ClusterType::GR_V2, router_options, EXIT_FAILURE,
-      {"^(Error: Option --pid-file cannot be used together "
-       "with -B/--bootstrap|Error: unknown option '--pid-file')"},
+      {GetParam() ? "^Error: unknown option '--pid-file'"
+                  : "^Error: Option --pid-file cannot be used together with "
+                    "-B/--bootstrap"
+
+      },
       10s));
 }
 

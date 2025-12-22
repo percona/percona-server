@@ -82,6 +82,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
       requested_algorithm(rhs.requested_algorithm),
       requested_lock(rhs.requested_lock),
       with_validation(rhs.with_validation),
+      guided_load(rhs.guided_load),
       new_db_name(rhs.new_db_name),
       new_table_name(rhs.new_table_name) {
   /*

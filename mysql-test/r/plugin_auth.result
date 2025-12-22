@@ -269,6 +269,10 @@ DROP DATABASE shared;
 # Executing 'mysqladmin'
 mysqld is alive
 # Executing 'mysqldump'
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
+SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 #
 # Bug #59657: Move the client authentication_pam plugin into the
 #  server repository

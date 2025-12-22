@@ -50,7 +50,7 @@
      user account
    */
     {"password1",
-     MYSQL_OPT_USER_PASSWORD,
+     OPT_MFA_PASSWORD1,
      "Password for first factor authentication plugin.",
      nullptr,
      nullptr,
@@ -64,7 +64,7 @@
      0,
      nullptr},
     {"password2",
-     MYSQL_OPT_USER_PASSWORD,
+     OPT_MFA_PASSWORD2,
      "Password for second factor authentication plugin.",
      nullptr,
      nullptr,
@@ -78,7 +78,7 @@
      0,
      nullptr},
     {"password3",
-     MYSQL_OPT_USER_PASSWORD,
+     OPT_MFA_PASSWORD3,
      "Password for third factor authentication plugin.",
      nullptr,
      nullptr,

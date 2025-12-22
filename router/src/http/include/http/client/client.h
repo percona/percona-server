@@ -80,7 +80,7 @@ class HTTP_CLIENT_EXPORT Client {
   int error_code() const;
   std::string error_message() const;
   const Statistics &statistics() const;
-  class CallbacksPrivateImpl;
+  class CallbacksImpl;
 
  private:
   void start_http_flow();
@@ -91,7 +91,7 @@ class HTTP_CLIENT_EXPORT Client {
   io_context &io_context_;
   TlsClientContext tls_context_;
   std::unique_ptr<http::base::ConnectionInterface> connection_;
-  std::unique_ptr<CallbacksPrivateImpl> callbacks_;
+  std::unique_ptr<CallbacksImpl> callbacks_;
   Request *fill_request_by_callback_{nullptr};
   Statistics statistics_;
   bool use_http2_{false};

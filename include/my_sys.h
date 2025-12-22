@@ -66,6 +66,7 @@
 #include "my_psi_config.h" /* IWYU pragma: keep */
 
 #include "my_sharedlib.h"
+// IWYU pragma: begin_exports
 #include "mysql/components/services/bits/my_io_bits.h"
 #include "mysql/components/services/bits/my_syslog_bits.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
@@ -76,6 +77,7 @@
 #include "mysql/components/services/bits/psi_metric_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/bits/server_telemetry_logs_client_bits.h"
+// IWYU pragma: end_exports
 #include "string_with_len.h"
 
 class MY_CHARSET_LOADER;

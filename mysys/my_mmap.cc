@@ -37,7 +37,7 @@
 #include <sys/mman.h>
 #endif
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // IWYU pragma: keep
 #include "my_inttypes.h"
 #include "my_sys.h"
 

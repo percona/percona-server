@@ -66,3 +66,6 @@ ADD_CUSTOM_TARGET(
 
 # An alias target.
 ADD_CUSTOM_TARGET(run-unit-tests DEPENDS test-unit)
+# CMake 4.1.0 adds test-unit to the default build when run-unit-tests DEPENDS on it,
+# which is an undesired side-effect, so we explicitly exclude it again.
+SET_PROPERTY(TARGET test-unit PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)

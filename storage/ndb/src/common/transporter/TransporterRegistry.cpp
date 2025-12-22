@@ -930,8 +930,7 @@ SendStatus TransporterRegistry::prepareSendTemplate(
   const TrpId trp_id = t->getTransporterIndex();
 
   if (likely(!(ioStates[trp_id] & HaltOutput)) ||
-      (signalHeader->theReceiversBlockNumber == QMGR) ||
-      (signalHeader->theReceiversBlockNumber == API_CLUSTERMGR)) {
+      is_permitted_halt_signal(signalHeader)) {
     if (likely(sendHandle->isSendEnabled(trp_id))) {
       const Uint32 lenBytes =
           t->m_packer.getMessageLength(signalHeader, section.m_ptr);
@@ -3513,6 +3512,21 @@ void calculate_send_buffer_level(Uint64 node_send_buffer_size,
   }
   level = SB_CRITICAL_LEVEL;
   return;
+}
+
+bool TransporterRegistry::is_permitted_halt_signal(
+    const SignalHeader *signalHeader) {
+  /**
+   * LowLevel signals are permitted in HaltInput or HaltOutput
+   * states, and must be directly between QMGR + API_CLUSTERMGR
+   * blocks only
+   */
+  return (  // receiverLowLevel
+      ((signalHeader->theReceiversBlockNumber == QMGR) ||
+       (signalHeader->theReceiversBlockNumber == API_CLUSTERMGR)) &&
+      (  // senderLowLevel
+          ((signalHeader->theSendersBlockRef == QMGR) ||
+           (signalHeader->theSendersBlockRef == API_CLUSTERMGR))));
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;

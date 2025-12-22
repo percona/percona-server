@@ -165,6 +165,14 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+# gcc/ubsan bug ?:
+# member call on address ... which does point to ... OptionProvider
+# object is of type GeneratedOptionProvider
+IF(MY_COMPILER_IS_GNU AND WITH_UBSAN AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "14")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fno-sanitize=vptr")
+ENDIF()
+
 SET(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
 SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 

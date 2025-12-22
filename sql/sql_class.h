@@ -3538,6 +3538,10 @@ class THD : public MDL_context_owner,
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
 
+  bool interpret_utf8_as_utf8mb4() const {
+    return (variables.sql_mode & MODE_INTERPRET_UTF8_AS_UTF8MB4);
+  }
+
   static inline ulonglong current_utime() noexcept { return my_micro_time(); }
 
   /**

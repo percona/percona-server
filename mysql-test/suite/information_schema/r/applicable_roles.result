@@ -1,3 +1,5 @@
+SET @save_activate_mandatory_roles = @@global.activate_mandatory_roles;
+SET GLOBAL activate_mandatory_roles = 0;
 # SETUP SCHEMA
 #
 # SETUP SCHEMA
@@ -833,3 +835,4 @@ DROP ROLE project_lead;
 DROP ROLE product_lead;
 DROP ROLE hr_access;
 DROP ROLE hr_rules;
+SET global activate_mandatory_roles = @save_activate_mandatory_roles;

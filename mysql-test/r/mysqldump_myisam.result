@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 create table t1 (a int) engine=myisam;
 create view v1 as select * from t1;
 test.t1                                            OK
@@ -831,3 +832,4 @@ DROP DATABASE BUG52792;
 SET NAMES default;
 USE test;
 SET GLOBAL EVENT_SCHEDULER = ON;
+include/rpl/set_gtid_mode_on.inc

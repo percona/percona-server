@@ -29,3 +29,11 @@ MYSQL_ADD_COMPONENT(mysqlbackup
   MODULE_ONLY
   LINK_LIBRARIES library_mysys
   )
+
+IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
+  IF(MY_COMPILER_IS_GNU)
+    TARGET_LINK_OPTIONS(component_mysqlbackup PRIVATE
+      -Wno-error=stringop-overflow
+      )
+  ENDIF()
+ENDIF()

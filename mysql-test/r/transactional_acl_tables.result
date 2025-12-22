@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 CALL mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
 CALL mtr.add_suppression("Column count of mysql.* is wrong. "
                          "Expected .*, found .*. "
@@ -1793,6 +1794,7 @@ call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28")
 # Starting mysqld in the regular mode...
 
 # restart:--loose-percona-telemetry-disable=1
+include/rpl/set_gtid_mode_off.inc
 
 # Check that any ACL statement is failed when privilege tables
 # have engine type MyISAM
@@ -1828,6 +1830,7 @@ user	MyISAM
 
 # mysql_upgrade...
 # restart:--upgrade=FORCE --loose-percona-telemetry-disable=1
+include/rpl/set_gtid_mode_off.inc
 
 # The ACL tables must have been upgraded.
 SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
@@ -1891,3 +1894,4 @@ SET innodb_lock_wait_timeout= 1;
 GRANT ALL ON t1 TO 'u1';
 DROP USER u1;
 DROP TABLE t1;
+include/rpl/set_gtid_mode_on.inc

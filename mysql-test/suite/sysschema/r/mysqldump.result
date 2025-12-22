@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
 CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
 DROP DATABASE sys;

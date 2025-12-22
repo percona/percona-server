@@ -877,13 +877,13 @@ static int format_time_column(THD *thd, const Column_text &text_col,
     return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
   }
 
-  MYSQL_TIME *time = &ltime;
+  MYSQL_TIME *my_time = &ltime;
   MYSQL_TIME tz_ltime;
   my_timeval tm;
 
   if (ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
     tz_ltime = ltime;
-    time = &tz_ltime;
+    my_time = &tz_ltime;
 
     const Time_zone *tz = thd->time_zone();
 
@@ -903,17 +903,16 @@ static int format_time_column(THD *thd, const Column_text &text_col,
     }
   }
 
-  if (non_zero_date(*time)) {
+  if (non_zero_date(*my_time)) {
     error_details.column_type = "time";
     log_conversion_error(text_col, "TIME includes DATE: ");
     return ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD;
   }
 
-  auto packed = TIME_to_longlong_time_packed(*time);
+  Time_val time = Time_val(*my_time);
   /* Convert to storage format. */
   auto field_begin = (unsigned char *)sql_col.get_data();
-  my_time_packed_to_binary(packed, field_begin,
-                           field_date->get_fractional_digits());
+  time.store_time(field_begin, field_date->get_fractional_digits());
 
   return 0;
 }
@@ -1235,7 +1234,7 @@ static int format_set_column(const Column_text &text_col,
 @param[in]   single_byte_char assume single byte char length is enough
 @param[out]  completed       if all rows are processed
 @param[out]  error_details   the error details
-@return error code. */
+@return 0 on success or error code  */
 static int format_row(THD *thd, const TABLE_SHARE *table_share,
                       const Rows_text &text_rows, size_t text_row_index,
                       char *&buffer, size_t &buffer_length,
@@ -1344,6 +1343,9 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     /* If field is a nullptr, then it is generated rowid column */
     sql_col.m_is_null =
         (field == nullptr) ? false : (text_col.m_data_ptr == nullptr);
+
+    assert(!is_rowid || !sql_col.m_is_null);
+    assert(!is_rowid || field == nullptr);
 
     /* If field is a nullptr, then it is generated rowid column */
     sql_col.m_type = (field == nullptr) ? MYSQL_TYPE_LONGLONG
@@ -1532,6 +1534,7 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     buffer = saved_buffer;
     buffer_length = saved_buffer_length;
   }
+
   return err;
 }
 
@@ -1565,6 +1568,7 @@ static int fill_column_data(char *row_begin, char *buffer, size_t buffer_length,
 #endif /* NDEBUG */
 
   if (sql_col.m_is_null) {
+    assert(col_meta.m_is_nullable);
     sql_col.row(row_begin);
     return 0;
   }
@@ -2204,6 +2208,8 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
     Column_meta col_meta;
     col_meta.m_field_name = "DB_ROW_ID";
     col_meta.m_is_pk = false;
+    col_meta.m_is_key = true;
+    col_meta.m_is_prefix_key = false;
     col_meta.m_index = col_index++;
     col_meta.m_is_nullable = false;
     col_meta.m_is_unsigned = true;
@@ -2212,6 +2218,8 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
     col_meta.m_max_len = 8;   /* Refer to DATA_ROW_ID_LEN */
     col_meta.m_compare = Column_meta::Compare::INTEGER_UNSIGNED;
     col_meta.m_is_desc_key = false;
+    col_meta.m_null_byte = col_meta.m_index / 8;
+    col_meta.m_null_bit = col_meta.m_index % 8;
     all_key_int_signed_asc = false;
     row_meta.m_approx_row_len += col_meta.m_fixed_len;
     columns.push_back(col_meta);
@@ -2377,10 +2385,6 @@ bool get_row_metadata_for_pk(THD *thd [[maybe_unused]], const TABLE *table,
   /* Add other columns */
   for (size_t index = 0; index < table_share->fields; ++index) {
     auto field = table_share->field[index];
-
-    if (field->is_gcol()) {
-      return false;
-    }
 
     if (field_added[index]) {
       continue;
@@ -2759,6 +2763,12 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
                "LOAD DATA ALGORITHM = BULK");
       return false;
     }
+
+    if (key.is_functional_index()) {
+      my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Functional Index",
+               "LOAD DATA ALGORITHM = BULK");
+      return false;
+    }
   }
 
   for (size_t keynr = 0; keynr < share->keys; ++keynr) {
@@ -2786,15 +2796,6 @@ DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {
 
   for (size_t index = 0; index < share->fields; ++index) {
     auto field = share->field[index];
-    if (field->is_gcol()) {
-      std::ostringstream err_strm;
-      err_strm << "LOAD DATA ALGORITHM = BULK not supported for tables with "
-                  "generated columns.";
-      LogErr(INFORMATION_LEVEL, ER_BULK_LOADER_INFO, err_strm.str().c_str());
-      my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "GENERATED columns",
-               "LOAD DATA ALGORITHM = BULK");
-      return false;
-    }
 
     switch (field->real_type()) {
       case MYSQL_TYPE_VECTOR:

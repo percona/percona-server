@@ -229,6 +229,7 @@ class GrNotificationsTest : public RouterComponentTest {
   void send_globals(const uint16_t http_port) {
     JsonAllocator allocator;
     JsonValue json_doc(rapidjson::kObjectType);
+    json_doc.AddMember("gr_node_host", "127.0.0.1", allocator);
     if (gr_id_) {
       json_doc.AddMember("gr_id", *gr_id_, allocator);
     }

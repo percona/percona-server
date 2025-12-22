@@ -36,6 +36,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"  // ha_rows
+#include "my_temporal.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/histograms/value_map_type.h"
@@ -324,8 +325,11 @@ template <>
 bool Histogram_comparator::operator()(const String &, const String &) const;
 
 template <>
-bool Histogram_comparator::operator()(const MYSQL_TIME &,
-                                      const MYSQL_TIME &) const;
+bool Histogram_comparator::operator()(const Time_val &, const Time_val &) const;
+
+template <>
+bool Histogram_comparator::operator()(const Datetime_val &,
+                                      const Datetime_val &) const;
 
 template <>
 bool Histogram_comparator::operator()(const my_decimal &,

@@ -211,4 +211,21 @@ void DD_initializer::TearDown() {
   delete dd::Dictionary_impl::s_instance;
 }
 
+size_t get_number_of_occurrences(std::string_view hay,
+                                 std::string_view needle) {
+  size_t pos = hay.find(needle);
+  size_t count = 0;
+  if (pos != std::string::npos) {
+    for (;;) {
+      count++;
+      const auto new_pos = hay.substr(pos + 1).find(needle);
+      if (new_pos == std::string::npos) {
+        break;
+      }
+      pos += 1 + new_pos;
+    }
+  }
+  return count;
+}
+
 }  // namespace my_testing

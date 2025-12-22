@@ -46,6 +46,7 @@
 #include "sql/iterators/hash_join_buffer.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/pack_rows.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/sql_class.h"
 #include "sql/sql_list.h"
@@ -172,10 +173,8 @@ bool HashJoinIterator::ReadFirstProbeRow() {
   } else {
     assert(result == 0);
     m_probe_row_read = true;
-    // Prepare to read the build input into the hash map.
-    m_build_input_tables.PrepareForRequestRowId();
-
-    return false;
+    return pack_rows::StoreFromTableBuffers(m_probe_input_tables,
+                                            &m_cached_probe_row);
   }
 }
 
@@ -208,7 +207,7 @@ bool HashJoinIterator::InitHashTable() {
   return false;
 }
 
-bool HashJoinIterator::Init() {
+bool HashJoinIterator::DoInit() {
   // If Init() is called multiple times (e.g., if hash join is inside a
   // dependent subquery), we must clear the NULL row flag, as it may have been
   // set by the previous execution of this hash join.
@@ -252,9 +251,10 @@ bool HashJoinIterator::Init() {
     }
   }
 
+  m_build_input_tables.PrepareForRequestRowId();
+
   if (m_first_input == HashJoinInput::kBuild) {
     // Prepare to read the build input into the hash map.
-    m_build_input_tables.PrepareForRequestRowId();
     if (m_build_input->Init()) {
       assert(thd()->is_error() ||
              thd()->killed);  // my_error should have been called.
@@ -280,9 +280,15 @@ bool HashJoinIterator::Init() {
   }
 
   if (!m_probe_input_tables.has_blob_column()) {
-    upper_row_size =
-        std::max(upper_row_size,
-                 ComputeRowSizeUpperBoundSansBlobs(m_probe_input_tables));
+    const size_t probe_row_size =
+        ComputeRowSizeUpperBoundSansBlobs(m_probe_input_tables);
+
+    if (m_first_input == HashJoinInput::kProbe &&
+        m_cached_probe_row.reserve(probe_row_size)) {
+      return true;
+    }
+
+    upper_row_size = std::max(upper_row_size, probe_row_size);
   }
 
   if (m_temporary_row_and_join_key_buffer.reserve(upper_row_size)) {
@@ -734,8 +740,15 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
 
 bool HashJoinIterator::ReadRowFromProbeIterator() {
   assert(m_current_chunk == -1);
-  const int result = m_probe_row_read ? 0 : m_probe_input->Read();
-  m_probe_row_read = false;
+  int result = 0;
+  if (m_probe_row_read) {
+    pack_rows::LoadIntoTableBuffers(
+        m_probe_input_tables,
+        pointer_cast<const uchar *>(m_cached_probe_row.ptr()));
+    m_probe_row_read = false;
+  } else {
+    result = m_probe_input->Read();
+  }
 
   if (result == 1) {
     assert(thd()->is_error() ||
@@ -1120,7 +1133,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
   return 0;
 }
 
-int HashJoinIterator::Read() {
+int HashJoinIterator::DoRead() {
   for (;;) {
     if (thd()->killed) {  // Aborted by user.
       thd()->send_kill_message();

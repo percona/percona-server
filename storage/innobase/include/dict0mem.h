@@ -770,8 +770,8 @@ struct dict_col_t {
   bool assert_equal(const dtype_t *type) const {
     ut_ad(type);
 
-    ut_ad(mtype == type->mtype);
-    ut_ad(prtype == type->prtype);
+    ut_ad_eq(mtype, type->mtype);
+    ut_ad_eq((prtype | DATA_VIRTUAL), (type->prtype | DATA_VIRTUAL));
     // ut_ad(col->len == type->len);
 #ifndef UNIV_HOTBACKUP
     ut_ad(mbminmaxlen == type->mbminmaxlen);
@@ -1640,6 +1640,15 @@ struct dict_index_t {
   /** Get the space id of the tablespace to which this index belongs.
   @return the space id. */
   space_id_t space_id() const { return space; }
+
+  /** Check if it is a full-text search (FTS) index
+  @return true if this is a FTS index, false otherwise. */
+  bool is_fts_index() const { return type & DICT_FTS; }
+
+#ifndef UNIV_HOTBACKUP
+  /** Check whether index's stats are initialized (assert if they are not).*/
+  void assert_stats_initialized() const;
+#endif /* !UNIV_HOTBACKUP */
 };
 
 /** The status of online index creation */
@@ -2114,6 +2123,9 @@ struct dict_table_t {
   reason s_cols is a part of dict_table_t */
   dict_s_col_list *s_cols;
 
+  /** Check if the given column is a stored generated column. */
+  dict_s_col_t *is_stored_gcol(dict_col_t *col) const;
+
   /** Column names packed in a character string
   "name1\0name2\0...nameN\0". Until the string contains n_cols, it will
   be allocated from a temporary heap. The final string will be allocated
@@ -2232,6 +2244,12 @@ struct dict_table_t {
   (*) Those are not always protected for
   performance reasons. */
   rw_lock_t *stats_latch;
+
+  /** Creation state of 'stats_compute_mutex'. */
+  std::atomic<os_once::state_t> stats_compute_mutex_created;
+
+  /** Mutex protecting table and index statistics calculation process. */
+  ib_mutex_t *stats_compute_mutex;
 
   /** true if statistics have been calculated the first time after
   database startup or table creation. */
@@ -2731,6 +2749,17 @@ detect this and will eventually quit sooner. */
   inline bool support_instant_add_drop() const;
 };
 
+inline dict_s_col_t *dict_table_t::is_stored_gcol(dict_col_t *col) const {
+  if (s_cols != nullptr) {
+    for (auto &stored_gcol : *s_cols) {
+      if (stored_gcol.m_col == col) {
+        return &stored_gcol;
+      }
+    }
+  }
+  return nullptr;
+}
+
 static inline void DICT_TF2_FLAG_SET(dict_table_t *table, uint32_t flag) {
   table->flags2 |= flag;
 }
@@ -3116,6 +3145,31 @@ inline bool dict_table_autoinc_own(const dict_table_t *table) {
   return (mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
+
+#ifndef UNIV_HOTBACKUP
+/* Data structure storing index statistics. Used as temporary state during
+statistics calculation. The final version of statistics for reading by
+optimizer are stored in dict_index_t.*/
+struct dict_index_stats_t {
+  /*----------------------*/
+  /** Statistics for query optimization */
+  /** @{ */
+  uint64_t *n_diff_key_vals;
+  uint64_t *n_sample_sizes;
+  uint64_t *n_non_null_key_vals;
+  ulint index_size;
+  ulint n_leaf_pages;
+  /** @} */
+
+  unsigned type : DICT_IT_BITS;
+
+  unsigned n_uniq : 10;
+
+  /** Check whether index's stats are initialized (assert if they are not). */
+  void assert_initialized() const;
+};
+
+#endif /* !UNIV_HOTBACKUP */
 
 #include "dict0mem.ic"
 

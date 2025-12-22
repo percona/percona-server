@@ -22,7 +22,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 # This should be REQUIRED, but we have to support source tarball build.
-# https://dev.mysql.com/doc/refman/8.0/en/source-installation.html
+# https://dev.mysql.com/doc/refman/en/source-installation.html
 
 SET(MIN_BISON_VERSION_REQUIRED "3.0.4")
 

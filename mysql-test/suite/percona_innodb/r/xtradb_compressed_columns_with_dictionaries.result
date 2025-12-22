@@ -164,6 +164,7 @@ WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'db1';
 references_cleared
 1
 SET @saved_default_storage_engine = @@default_storage_engine;
+include/rpl/set_gtid_mode_off.inc
 # check if "CREATE TABLE ... LIKE ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute
 *** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
@@ -380,6 +381,7 @@ original_dictionary_reference_cleared
 original_dictionary_references_cleaned
 1
 
+include/rpl/set_gtid_mode_on.inc
 SET default_storage_engine = @saved_default_storage_engine;
 # check if "TRUNCATE TABLE ..." updates compression dictionary references in SYS_ZIP_DICT_COLS
 *** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1", ALGORITHM=DEFAULT

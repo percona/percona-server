@@ -33,7 +33,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <mysql/components/services/bits/my_thread_bits.h>
+#include <mysql/components/services/bits/my_thread_bits.h>  // IWYU pragma: export
 
 #include "my_compiler.h"
 #include "my_config.h"

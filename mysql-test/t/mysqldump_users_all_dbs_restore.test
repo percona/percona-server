@@ -3,6 +3,8 @@
 --echo #
 
 --source include/no_valgrind_without_big.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -31,3 +33,6 @@ DROP ROLE wl15658_role@localhost;
 DROP TABLE wl15658_table;
 
 --echo # End if 9.3 tests
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

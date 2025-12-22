@@ -302,7 +302,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     IGNORE keyword within federated storage engine. If federated engine is
     removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
     HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from
-    delete_from_single_table(), DeleteRowsIterator::Init() and
+    delete_from_single_table(), DeleteRowsIterator::DoInit() and
     handler::ha_reset().
   */
   if (lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -1102,7 +1102,7 @@ bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
   return false;
 }
 
-bool DeleteRowsIterator::Init() {
+bool DeleteRowsIterator::DoInit() {
   if (CheckSqlSafeUpdate(thd(), m_join)) {
     return true;
   }
@@ -1290,7 +1290,7 @@ bool DeleteRowsIterator::DoDelayedDeletesFromTable(TABLE *table) {
   return local_error;
 }
 
-int DeleteRowsIterator::Read() {
+int DeleteRowsIterator::DoRead() {
   bool local_error = false;
 
   // First process all the rows returned by the join. Delete immediately from

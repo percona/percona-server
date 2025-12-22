@@ -46,8 +46,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "my_inttypes.h"
-#include "my_macros.h"
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "my_thread.h"
 
 /*
@@ -55,7 +54,7 @@
   - native_mutex_t
   - my_mutex_t
 */
-#include "mysql/components/services/bits/thr_mutex_bits.h"
+#include "mysql/components/services/bits/thr_mutex_bits.h"  // IWYU pragma: export
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW NULL

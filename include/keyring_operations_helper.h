@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 #include <mysql/components/services/keyring_reader_with_status.h>
 #include <mysql/service_mysql_alloc.h>
-#include "my_sys.h"
-#include "scope_guard.h"
 
 namespace keyring_operations_helper {
 

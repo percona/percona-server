@@ -1082,6 +1082,9 @@ static bool AddPathCosts(const AccessPath *path,
                                        path->type == AccessPath::MATERIALIZE
                                            ? path->materialize().subquery_rows
                                            : path->num_output_rows());
+    DBUG_EXECUTE_IF("print_ap_signature", {
+      error |= AddMemberToObject<Json_uint>(obj, "signature", path->signature);
+    });
   } /* if (path->num_output_rows() >= 0.0) */
 
   /* Add analyze figures */
@@ -2417,6 +2420,12 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
       stream << "  (cost=" << FormatNumberReadably(last_cost)
              << " rows=" << FormatNumberReadably(rows) << ")";
     }
+    DBUG_EXECUTE_IF("print_ap_signature", {
+      stream << " signature=("
+             << std::to_string(
+                    down_cast<Json_uint *>(obj->get("signature"))->value())
+             << ")";
+    });
 
     *explain += stream.str();
   }

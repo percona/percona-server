@@ -38,5 +38,10 @@ perl mysql-test-run.pl --timer --force     --comment=eits-tests-myisam-engine  -
 perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine  --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --mysqld=--loose-group_replication_ssl_mode=REQUIRED
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
 
+# Connection Control component
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=component_connection_control-big  --vardir=var-component_connection_control-big --suite=component_connection_control --no-skip
+
+# Connection Control plugin
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=connection_control-big  --vardir=var-connection_control-big --suite=connection_control --no-skip

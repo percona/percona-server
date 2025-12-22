@@ -85,10 +85,6 @@ class FilterIterator final : public RowIterator {
                  Item *condition)
       : RowIterator(thd), m_source(std::move(source)), m_condition(condition) {}
 
-  bool Init() override { return m_source->Init(); }
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -100,6 +96,9 @@ class FilterIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
+  bool DoInit() override { return m_source->Init(); }
+  int DoRead() override;
+
   unique_ptr_destroy_only<RowIterator> m_source;
   Item *m_condition;
 };
@@ -139,10 +138,6 @@ class LimitOffsetIterator final : public RowIterator {
     }
   }
 
-  bool Init() override;
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -154,6 +149,9 @@ class LimitOffsetIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   unique_ptr_destroy_only<RowIterator> m_source;
 
   // Note: The number of seen rows starts off at m_limit if we have OFFSET,
@@ -213,8 +211,6 @@ class AggregateIterator final : public RowIterator {
                     std::span<AccessPath *> single_row_index_lookups,
                     bool rollup);
 
-  bool Init() override;
-  int Read() override;
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -231,6 +227,9 @@ class AggregateIterator final : public RowIterator {
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   enum {
     READING_FIRST_ROW,
     LAST_ROW_STARTED_NEW_GROUP,
@@ -350,10 +349,6 @@ class NestedLoopIterator final : public RowIterator {
     }
   }
 
-  bool Init() override;
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     // TODO: write something here about why we can't do this lazily.
     m_source_outer->SetNullRowFlag(is_null_row);
@@ -375,6 +370,9 @@ class NestedLoopIterator final : public RowIterator {
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   enum {
     NEEDS_OUTER_ROW,
     READING_FIRST_INNER_ROW,
@@ -407,16 +405,18 @@ class CacheInvalidatorIterator final : public RowIterator {
         m_source_iterator(std::move(source_iterator)),
         m_name(name) {}
 
-  bool Init() override {
+ private:
+  bool DoInit() override {
     ++m_generation;
     return m_source_iterator->Init();
   }
 
-  int Read() override {
+  int DoRead() override {
     ++m_generation;
     return m_source_iterator->Read();
   }
 
+ public:
   void SetNullRowFlag(bool is_null_row) override {
     ++m_generation;
     m_source_iterator->SetNullRowFlag(is_null_row);
@@ -584,10 +584,6 @@ class StreamingIterator final : public TableRowIterator {
                     Temp_table_param *temp_table_param, TABLE *table,
                     bool provide_rowid, JOIN *join, int ref_slice);
 
-  bool Init() override;
-
-  int Read() override;
-
   void StartPSIBatchMode() override {
     m_subquery_iterator->StartPSIBatchMode();
   }
@@ -597,6 +593,8 @@ class StreamingIterator final : public TableRowIterator {
   void UnlockRow() override { m_subquery_iterator->UnlockRow(); }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   Temp_table_param *m_temp_table_param;
   ha_rows m_row_number;
@@ -626,8 +624,6 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
       THD *thd, Table_function *table_function, TABLE *table,
       unique_ptr_destroy_only<RowIterator> table_iterator);
 
-  bool Init() override;
-  int Read() override { return m_table_iterator->Read(); }
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
@@ -642,6 +638,9 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
   void UnlockRow() override {}
 
  private:
+  bool DoInit() override;
+  int DoRead() override { return m_table_iterator->Read(); }
+
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
   Table_function *m_table_function;
@@ -671,9 +670,6 @@ class WeedoutIterator final : public RowIterator {
   WeedoutIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                   SJ_TMP_TABLE *sj, table_map tables_to_get_rowid_for);
 
-  bool Init() override;
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -684,6 +680,8 @@ class WeedoutIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
   unique_ptr_destroy_only<RowIterator> m_source;
   SJ_TMP_TABLE *m_sj;
   const table_map m_tables_to_get_rowid_for;
@@ -705,9 +703,6 @@ class RemoveDuplicatesIterator final : public RowIterator {
                            unique_ptr_destroy_only<RowIterator> source,
                            JOIN *join, std::span<Item *> group_items);
 
-  bool Init() override;
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -719,6 +714,8 @@ class RemoveDuplicatesIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
   unique_ptr_destroy_only<RowIterator> m_source;
   Bounds_checked_array<Cached_item *> m_caches;
   bool m_first_row;
@@ -736,9 +733,6 @@ class RemoveDuplicatesOnIndexIterator final : public RowIterator {
                                   unique_ptr_destroy_only<RowIterator> source,
                                   const TABLE *table, KEY *key, size_t key_len);
 
-  bool Init() override;
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source->SetNullRowFlag(is_null_row);
   }
@@ -750,6 +744,9 @@ class RemoveDuplicatesOnIndexIterator final : public RowIterator {
   void UnlockRow() override { m_source->UnlockRow(); }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   unique_ptr_destroy_only<RowIterator> m_source;
   const TABLE *m_table;
   KEY *m_key;
@@ -797,10 +794,6 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
       unique_ptr_destroy_only<RowIterator> source_inner, const TABLE *table,
       KEY *key, size_t key_len);
 
-  bool Init() override;
-
-  int Read() override;
-
   void SetNullRowFlag(bool is_null_row) override {
     m_source_outer->SetNullRowFlag(is_null_row);
     m_source_inner->SetNullRowFlag(is_null_row);
@@ -817,6 +810,9 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
   }
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   unique_ptr_destroy_only<RowIterator> const m_source_outer;
   unique_ptr_destroy_only<RowIterator> const m_source_inner;
 
@@ -837,9 +833,6 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
       THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
       Table_ref *table_list, Item *condition);
 
-  bool Init() override;
-  int Read() override { return m_table_iterator->Read(); }
-
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
   }
@@ -854,6 +847,9 @@ class MaterializeInformationSchemaTableIterator final : public RowIterator {
   void UnlockRow() override {}
 
  private:
+  bool DoInit() override;
+  int DoRead() override { return m_table_iterator->Read(); }
+
   /// The iterator that reads from the materialized table.
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
   Table_ref *m_table_list;
@@ -871,9 +867,6 @@ class AppendIterator final : public RowIterator {
       THD *thd,
       std::vector<unique_ptr_destroy_only<RowIterator>> &&sub_iterators);
 
-  bool Init() override;
-  int Read() override;
-
   void StartPSIBatchMode() override;
   void EndPSIBatchModeIfStarted() override;
 
@@ -881,6 +874,9 @@ class AppendIterator final : public RowIterator {
   void UnlockRow() override;
 
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   std::vector<unique_ptr_destroy_only<RowIterator>> m_sub_iterators;
   size_t m_current_iterator_index = 0;
   bool m_pfs_batch_mode_enabled = false;

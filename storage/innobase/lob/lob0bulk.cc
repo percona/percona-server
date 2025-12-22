@@ -63,6 +63,7 @@ void first_page_t::init(Btree_multi::Page_load *page_load) {
   ut_ad(page_load->is_leaf());
   ut_ad(page_load->get_page_no() != FIL_NULL);
   ut_ad(m_mtr == nullptr);
+  m_blocks.clear();
 
   m_page_load = page_load;
   m_block = page_load->get_block();

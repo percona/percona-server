@@ -184,7 +184,7 @@ bool sp_drop_db_routines(THD *thd, const dd::Schema &schema);
  */
 bool lock_db_routines(THD *thd, const dd::Schema &schema);
 
-sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
+sp_head *sp_find_routine(THD *thd, enum_sp_type type, const sp_name *name,
                          sp_cache **cp, bool cache_only);
 
 sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,

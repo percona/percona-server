@@ -725,6 +725,8 @@ INSTANTIATE_TEST_SUITE_P(
                       "$.server.clusterRole"));
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();  // WSAStartup
+
   ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

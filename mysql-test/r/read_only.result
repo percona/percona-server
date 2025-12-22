@@ -4,6 +4,7 @@
 # Creating manifest file for current MySQL server instance
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
+include/rpl/set_gtid_mode_off.inc
 set @start_read_only= @@global.read_only;
 DROP TABLE IF EXISTS t1,t2,t3;
 set @orig_sql_mode= @@sql_mode;
@@ -989,3 +990,4 @@ DROP USER user1@localhost;
 # Removing local configuration file for keyring component: component_keyring_file
 # Restarting server without the manifest file
 # ----------------------------------------------------------------------
+include/rpl/set_gtid_mode_on.inc

@@ -9,24 +9,23 @@
 
 # Supressors
 --connection mysqld1
---disable_query_log ONCE
+--disable_query_log
 call mtr.add_suppression("mysqld startup An incident event has been written");
 call mtr.add_suppression("Failed to setup binlogging");
 --connection mysqld2
---disable_query_log ONCE
 call mtr.add_suppression("mysqld startup An incident event has been written");
 call mtr.add_suppression("Failed to setup binlogging");
+call mtr.add_suppression("Failed to install table");
 call mtr.add_suppression("Distribution of CREATE TABLE");
 --connection mysqld3
---disable_query_log ONCE
 call mtr.add_suppression("mysqld startup An incident event has been written");
 call mtr.add_suppression("Failed to setup binlogging");
 call mtr.add_suppression("Distribution of CREATE TABLE");
 --connection mysqld4
---disable_query_log ONCE
 call mtr.add_suppression("mysqld startup An incident event has been written");
 call mtr.add_suppression("Failed to setup binlogging");
 call mtr.add_suppression("Distribution of CREATE TABLE");
+--enable_query_log
 
 --echo ######################################################
 --echo # WL#15413 Subscriber row hash filter
@@ -131,7 +130,7 @@ SELECT COUNT(*) FROM t1;
 
 --echo # Should be close to $data_volume/2
 --eval SET @data_volume = $data_volume/2
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t1;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t1;
 
 --connection mysqld2
 --let $MYSQLD_DATADIR= `select @@datadir;`
@@ -253,7 +252,7 @@ SELECT COUNT(*) FROM t2;
 
 --echo # Should be close to $data_volume/3
 --eval SET @data_volume = $data_volume/3
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t2;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 #SELECT COUNT(*) FROM t2; # comment out
 
 --connection mysqld2
@@ -267,7 +266,7 @@ SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO'
 # Shoud be different to 12.
 --echo # Should be close to 2*($data_volume/3)
 --eval SET @data_volume = 2*($data_volume/3)
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t2;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t2;
 #SELECT COUNT(*) FROM t2; # comment out
 
 --connection mysqld1
@@ -391,7 +390,7 @@ SELECT COUNT(*) FROM t3;
 
 --echo # Should be close to $data_volume/4
 --eval SET @data_volume = $data_volume/4
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -2 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 #SELECT COUNT(*) FROM t3; # comment out
 
 --connection mysqld3
@@ -404,7 +403,7 @@ SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO'
 
 --echo # Should be close to 2*($data_volume/4)
 --eval SET @data_volume = 2*($data_volume/4)
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 #SELECT COUNT(*) FROM t3; # comment out
 
 --connection mysqld2
@@ -417,7 +416,7 @@ SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO'
 
 --echo # Should be close to 3*($data_volume/4)
 --eval SET @data_volume = 3*($data_volume/4)
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t3;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +2, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t3;
 #SELECT COUNT(*) FROM t3; # comment out
 
 --connection mysqld1
@@ -543,7 +542,7 @@ SELECT COUNT(*) FROM t4;
 
 --echo # Should be close to $data_volume/3
 --eval SET @data_volume = $data_volume/3
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t4;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t4;
 #SELECT COUNT(*) FROM t4; # comment out
 
 --connection mysqld3
@@ -556,7 +555,7 @@ SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO'
 
 --echo # Should be close to 2*($data_volume/3)
 --eval SET @data_volume = 2*($data_volume/3)
-SELECT IF(COUNT(*) >= @data_volume-1 AND COUNT(*) <= @data_volume+1, 'YES', 'NO') AS BALANCED FROM t4;
+SELECT IF(COUNT(*)-@data_volume BETWEEN -3 AND +3, 'YES', CONCAT('NO - ',COUNT(*))) AS BALANCED FROM t4;
 #SELECT COUNT(*) FROM t4; # comment out
 
 --connection mysqld2
@@ -613,7 +612,87 @@ CREATE TABLE t5 (k INT PRIMARY KEY, b BLOB, t TEXT) ENGINE = NDB;
 SHOW WARNINGS;
 --echo # Using mysqld.1 (no binlog row slices) it fails DISTRIBUTION
 --connection mysqld1
+--sorted_result
 CREATE TABLE t5 (k INT PRIMARY KEY, b BLOB, t TEXT) ENGINE = NDB;
+
+--echo # #######################################################################
+--echo # Sixth scenario:
+--echo #
+--echo # This tests uses the same configuration as before, but the created table
+--echo # contains a FK/UK relationship. The table is created but there are warnings
+--echo # that the applying of splitted rows will invalidate the constraints
+--echo # enforced on the relation.
+--echo
+
+--let $warning= logging row slice for table with Foreign Key or Unique Key
+--let $qry= SELECT count(DATA) AS warnings FROM performance_schema.error_log WHERE SUBSYSTEM = "NDB" AND DATA REGEXP "$warning"
+
+--echo # Using mysqld.2 it must log the warning
+--connection mysqld2
+CREATE TABLE t6_p (k INT PRIMARY KEY, v VARCHAR(8)) ENGINE = NDB;
+CREATE TABLE t6_c (j INT PRIMARY KEY,
+                   p_id INT NOT NULL,
+                   CONSTRAINT p_id_fk FOREIGN KEY(p_id) REFERENCES t6_p(k)) ENGINE = NDB;
+--let $assert_text= Warns that table with Foreign Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 1
+--source include/assert.inc
+
+--echo # Using mysqld.1, a warning is logged only on binlog servers configured for row-slices (e.g. mysqld.2)
+--echo # [connection mysqld.1]
+--connection mysqld1
+CREATE TABLE t6_p1 (k INT PRIMARY KEY, v VARCHAR(8)) ENGINE = NDB;
+CREATE TABLE t6_c1 (j INT PRIMARY KEY,
+                    p_id INT NOT NULL,
+                    CONSTRAINT p1_id_fk FOREIGN KEY(p_id) REFERENCES t6_p1(k)) ENGINE = NDB;
+--let $assert_text= Does NOT warn that table with Foreign Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 0
+--source include/assert.inc
+
+--echo # [connection mysqld.2]
+--connection mysqld2
+--let $assert_text= Warns that table with Foreign Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 2
+--source include/assert.inc
+
+--echo # Restarting binlog on mysqld.2 must log warning for parent tables as well
+--let $restart_parameters= restart:--ndb-log-row-slice-count=3 --ndb-log-row-slice-id=0
+--let $mysqld_name= mysqld.2.1
+--source include/restart_mysqld.inc
+
+--let $assert_text= Warns that parent and child tables with Foreign Key relation will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 4
+--source include/assert.inc
+
+
+--echo # #######################################################################
+--echo # Seventh scenario:
+--echo #
+--echo # This tests uses a table with a Unique Key, so the table is created but
+--echo # there are warnings that the applying of splitted rows will invalidate
+--echo # the constraints.
+--echo
+
+--echo # Using mysqld.2 it must log the warning
+--connection mysqld2
+CREATE TABLE t7 (k INT PRIMARY KEY, j INT NOT NULL, UNIQUE KEY(j)) ENGINE = NDB;
+--let $assert_text= Warns that table with Unique Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 5
+--source include/assert.inc
+
+--echo # Using mysqld.1, a warning is logged only on binlog servers configured for row-slices (e.g. mysqld.2)
+--echo # [connection mysqld.1]
+--connection mysqld1
+CREATE TABLE t7_1 (k INT PRIMARY KEY, j INT NOT NULL, UNIQUE KEY(j)) ENGINE = NDB;
+--let $assert_text= Does NOT warn that table with Unique Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 0
+--source include/assert.inc
+
+--echo # [connection mysqld.2]
+--connection mysqld2
+--let $assert_text= Warns that table with Unique Key will log row slice
+--let $assert_cond= [$qry, warnings, 1] = 6
+--source include/assert.inc
+
 
 --echo # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/mysql1_binlog.sql
@@ -627,6 +706,12 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
+DROP TABLE t6_c;
+DROP TABLE t6_p;
+DROP TABLE t6_c1;
+DROP TABLE t6_p1;
+DROP TABLE t7;
+DROP TABLE t7_1;
 --let $restart_parameters= restart:
 --let $mysqld_name= mysqld.1.1
 --source include/restart_mysqld.inc

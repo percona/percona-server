@@ -43,6 +43,7 @@
 #include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/destination.h"
 #include "mysql/harness/dynamic_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -259,9 +260,11 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       // one.
       http_servers.emplace(section->name, HttpServerFactory::create(config));
 
-      log_info("listening on %s%s:%u",
-               (config.with_ssl ? "https://" : "http://"),
-               config.srv_address.c_str(), config.srv_port);
+      log_info(
+          "listening on %s%s", (config.with_ssl ? "https://" : "http://"),
+          mysql_harness::TcpDestination(config.srv_address, config.srv_port)
+              .str()
+              .c_str());
 
       auto srv = http_servers.at(section->name);
 

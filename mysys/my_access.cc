@@ -30,9 +30,6 @@
   @file mysys/my_access.cc
 */
 
-#include <cerrno>
-
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep
@@ -41,6 +38,7 @@
 
 #ifdef _WIN32
 
+#include "m_string.h"
 #include "my_io.h"
 #include "my_thread_local.h"
 

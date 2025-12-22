@@ -397,9 +397,6 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
                      local_and_donor_member_versions)) {
         suitable_donors.push_back(member);
         valid_donor = true;
-      } else if (get_allow_local_lower_version_join()) {
-        suitable_donors.push_back(member);
-        valid_donor = true;
       }
     }
 

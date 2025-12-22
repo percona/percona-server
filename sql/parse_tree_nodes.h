@@ -5096,16 +5096,21 @@ class PT_alter_table_secondary_load final
   using super = PT_alter_table_standalone_action;
 
   const List<String> *opt_use_partition = nullptr;
+  const Alter_info::enum_with_validation m_guided;
 
  public:
   explicit PT_alter_table_secondary_load(
-      const POS &pos, const List<String> *opt_use_partition = nullptr)
+      const POS &pos, Alter_info::enum_with_validation guided,
+      const List<String> *opt_use_partition = nullptr)
       : super(pos, Alter_info::ALTER_SECONDARY_LOAD),
-        opt_use_partition{opt_use_partition} {}
+        opt_use_partition{opt_use_partition},
+        m_guided(guided) {}
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     if (opt_use_partition != nullptr)
       pc->alter_info->partition_names = *opt_use_partition;
+
+    pc->alter_info->guided_load = m_guided;
 
     return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
   }

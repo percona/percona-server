@@ -13,6 +13,8 @@
 # Also we are using SBR to check that statements are executed
 # in proper order.
 --source include/rpl/force_binlog_format_statement.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 --source include/count_sessions.inc
 
@@ -378,7 +380,8 @@ disconnect addconroot2;
 set debug_sync='RESET';
 
 --source include/rpl/restore_default_binlog_format.inc
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

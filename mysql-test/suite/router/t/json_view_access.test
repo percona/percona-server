@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 --source ../include/mrs/is_mrs_schema_v3_or_v4.inc
 
@@ -244,7 +246,7 @@ exec $MRS_CLIENT_ARGS
 --source ../include/mrs/mrs_client.inc
 
 ## PUT with auth (ok)
---replace_regex /"etag": .*/"etag": ETAG/
+--replace_regex /"etag": .*/"etag": ETAG/  /"gtid":.*/"gtid":GTID/
 --let $mrs_client_arg_path='/svc/sakila/city/55'
 --let $mrs_client_arg_request_type=PUT
 --let $mrs_client_arg_payload=$payload1
@@ -270,7 +272,7 @@ exec $MRS_CLIENT_ARGS
 --source ../include/mrs/mrs_client.inc
 
 ## PUT with auth (ok)
---replace_regex /"etag": .*/"etag": ETAG/
+--replace_regex /"etag": .*/"etag": ETAG/  /"gtid":.*/"gtid":GTID/
 --let $mrs_client_arg_path='/svc/sakila/city/1000'
 --let $mrs_client_arg_request_type=PUT
 --let $mrs_client_arg_payload=$new_payload1
@@ -293,6 +295,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/updater_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_path='/svc/sakila/city_C'
 --let $mrs_client_arg_payload=$new_payload2
@@ -320,6 +323,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_client_arg_session_file=$MYSQL_TMP_DIR/creater_session.dat
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_request_type=POST
 --let $mrs_client_arg_path='/svc/sakila/city_C'
 --let $mrs_client_arg_payload=$new_payload2

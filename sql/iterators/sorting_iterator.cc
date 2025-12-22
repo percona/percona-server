@@ -103,7 +103,7 @@ SortFileIndirectIterator::~SortFileIndirectIterator() {
   my_free(m_io_cache);
 }
 
-bool SortFileIndirectIterator::Init() {
+bool SortFileIndirectIterator::DoInit() {
   m_sum_ref_length = 0;
 
   for (TABLE *table : m_tables) {
@@ -154,7 +154,7 @@ static int HandleError(THD *thd, TABLE *table, int error) {
   }
 }
 
-int SortFileIndirectIterator::Read() {
+int SortFileIndirectIterator::DoRead() {
   for (;;) {
     if (my_b_read(m_io_cache, m_ref_pos, m_sum_ref_length))
       return -1; /* End of file */
@@ -226,7 +226,7 @@ SortFileIterator<Packed_addon_fields>::~SortFileIterator() {
     -1   There is no record to be read anymore.
 */
 template <bool Packed_addon_fields>
-int SortFileIterator<Packed_addon_fields>::Read() {
+int SortFileIterator<Packed_addon_fields>::DoRead() {
   uchar *destination = m_rec_buf;
   if (Packed_addon_fields) {
     const uint len_sz = Addon_fields::size_of_length_field;
@@ -269,7 +269,7 @@ SortBufferIterator<Packed_addon_fields>::~SortBufferIterator() {
 }
 
 template <bool Packed_addon_fields>
-bool SortBufferIterator<Packed_addon_fields>::Init() {
+bool SortBufferIterator<Packed_addon_fields>::DoInit() {
   m_unpack_counter = 0;
   return false;
 }
@@ -293,7 +293,7 @@ bool SortBufferIterator<Packed_addon_fields>::Init() {
     -1   There is no record to be read anymore.
 */
 template <bool Packed_addon_fields>
-int SortBufferIterator<Packed_addon_fields>::Read() {
+int SortBufferIterator<Packed_addon_fields>::DoRead() {
   if (m_unpack_counter ==
       m_sort_result->found_records)  // XXX send in as a parameter?
     return -1;                       /* End of buffer */
@@ -327,7 +327,7 @@ SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   }
 }
 
-bool SortBufferIndirectIterator::Init() {
+bool SortBufferIndirectIterator::DoInit() {
   m_sum_ref_length = 0;
   for (TABLE *table : m_tables) {
     // The sort's source iterator could have initialized an index
@@ -360,7 +360,7 @@ bool SortBufferIndirectIterator::Init() {
   return false;
 }
 
-int SortBufferIndirectIterator::Read() {
+int SortBufferIndirectIterator::DoRead() {
   for (;;) {
     if (m_cache_pos == m_cache_end) return -1; /* End of file */
     uchar *cache_pos = m_cache_pos;
@@ -436,7 +436,7 @@ void SortingIterator::ReleaseBuffers() {
   // Keep the sort buffer in m_fs_info.
 }
 
-bool SortingIterator::Init() {
+bool SortingIterator::DoInit() {
   ReleaseBuffers();
 
   // Invalidate the cache in all single-row index lookups below us. The previous

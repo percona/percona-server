@@ -1,3 +1,6 @@
+include/suppress_messages.inc
+# Connection 1 suppresses message <Failed to compress the gtid_executed table>.
+# Connection 1 suppresses message <Failed to save the set of Global Transaction Identifiers>.
 #########################################################
 # WL#6599: New data dictionary and I_S.
 # 
@@ -308,6 +311,18 @@ DROP TABLE t1;
 # mysqldump tool.
 #########################################################
 CREATE DATABASE test1;
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
+SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
+SET @@SESSION.SQL_LOG_BIN= 0;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'GTID_SET';
 # Following statements should pass as INFORMATION_SCHEMA db is not used.
 DROP DATABASE test1;
 ########################################################################

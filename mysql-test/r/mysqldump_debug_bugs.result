@@ -5,10 +5,12 @@ CREATE DATABASE test_bug36248967;
 -- Run mysqldump with payload injected to server version.
 A warning must be issued.
 -- Warning: version string returned by server is incorrect.
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don't want to restore GTIDs, pass --set-gtid-purged=OFF. To make a complete dump, pass --all-databases --triggers --routines --events. 
 The test version must be found:
 Pattern found.
 The test injected string must not be found:
 Pattern not found.
 -- Run mysqldump with correct server version.
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don't want to restore GTIDs, pass --set-gtid-purged=OFF. To make a complete dump, pass --all-databases --triggers --routines --events. 
 A warning must not be issued.
 DROP DATABASE test_bug36248967;

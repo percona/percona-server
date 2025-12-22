@@ -603,6 +603,7 @@ delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
 ANALYZE TABLE t1, t2;
 --replace_column 10 6
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
+--sorted_result
 select c from t2 where a = 2 and b = 'val-2' group by c;
 drop table t1,t2;
 
@@ -1122,6 +1123,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Different plan.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 --let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
 --eval EXPLAIN $query

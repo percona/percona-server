@@ -73,27 +73,31 @@ class Parse_tree_item : public Item {
 
   enum Type type() const override { return INVALID_ITEM; }
   double val_real() override {
-    assert(0);
+    assert(false);
     return 0;
   }
   longlong val_int() override {
-    assert(0);
+    assert(false);
     return 0;
   }
   String *val_str(String *) override {
-    assert(0);
+    assert(false);
     return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
-    assert(0);
+    assert(false);
     return nullptr;
   }
-  bool get_date(MYSQL_TIME *, uint) override {
-    assert(0);
+  bool val_date(Date_val *, uint) override {
+    assert(false);
     return false;
   }
-  bool get_time(MYSQL_TIME *) override {
-    assert(0);
+  bool val_time(Time_val *) override {
+    assert(false);
+    return false;
+  }
+  bool val_datetime(Datetime_val *, uint) override {
+    assert(false);
     return false;
   }
 };

@@ -31,12 +31,15 @@ select keyring_key_fetch('Key_1',NULL);
 # Error cases -- wrong argument type
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(1);
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(1);
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(1);
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch(NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('Key_1','AES','123');
@@ -56,6 +59,7 @@ select keyring_key_generate('Key_1',123,'123');
 select keyring_key_generate('Key_invalid_key_type',123,123);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(1);
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove(NULL);
 # End of wrong argument type
 
@@ -215,27 +219,29 @@ select keyring_key_type_fetch('Rob1');
 select keyring_key_length_fetch('Rob1');
 
 # Errors comming from keyring
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_fetch('') into @x;
 select @x;
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_length_fetch('') into @x;
 select @x;
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_type_fetch('') into @x;
 select @x;
 # Remove not existing
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
 select keyring_key_remove('Rob_not_existing') into @x;
-select @x;
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+let $is_null= `select isnull(@x)`;
+if (!$is_null) {
+	die Result should be NULL;
+}
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_remove('') into @x;
 select @x;
 # Generate wrong key type
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('Wrong_type','xxx', 16) into @x;
 select @x;
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
+--error ER_CANT_INITIALIZE_UDF
 select keyring_key_generate('','AES', 16) into @x;
 select @x;
 
@@ -267,9 +273,10 @@ let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
 eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user you can access another user's keys
---replace_result $roots_key_id roots_key_id
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-eval select keyring_key_remove('$roots_key_id');
+let $is_null= `select isnull(keyring_key_remove('$roots_key_id'))`;
+if (!$is_null) {
+	die Result should be NULL;
+}
 
 --echo #Check that the user is able to access the key via procedure
 --replace_column 1 #
@@ -287,12 +294,11 @@ let key_id = `select CONCAT('Rob_DSA_no_privilege', '$server_uuid')`;
 eval select keyring_key_generate('$key_id','DSA',384);
 
 --echo #Check if user with larger privileges can access another user's key
-
 let key_id = `select CONCAT('another_Rob_DSA_no_privilege', '$server_uuid')`;
-
---replace_result $key_id key_id
---error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-eval select keyring_key_remove('$key_id');
+let $is_null= `select isnull(keyring_key_remove('$key_id'))`;
+if (!$is_null) {
+	die Result should be NULL;
+}
 
 --echo #Cleanup
 

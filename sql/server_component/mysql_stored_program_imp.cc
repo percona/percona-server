@@ -448,13 +448,13 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_time_imp::get,
   if (item == nullptr) return MYSQL_FAILURE;
   *is_null = item->is_null();
   if (*is_null) return MYSQL_SUCCESS;
-  auto date = MYSQL_TIME{};
-  item->get_time(&date);
-  *hour = date.hour;
-  *minute = date.minute;
-  *second = date.second;
-  *micro = date.second_part;
-  *negative = date.neg;
+  auto time = Time_val{};
+  item->val_time(&time);
+  *hour = time.hour();
+  *minute = time.minute();
+  *second = time.second();
+  *micro = time.microsecond();
+  *negative = time.is_negative();
   return MYSQL_SUCCESS;
 }
 
@@ -489,20 +489,20 @@ static int runtime_argument_datetime_get(
     int32_t *time_zone_offset, bool *is_null) {
   auto item = get_item(sp_runtime_context, index);
   if (item == nullptr) return MYSQL_FAILURE;
+  auto dt = Datetime_val{};
+  item->val_datetime(&dt, TIME_FUZZY_DATE);
   *is_null = item->is_null();
   if (*is_null) return MYSQL_SUCCESS;
-  auto date = MYSQL_TIME{};
-  item->get_time(&date);
-  *year = date.year;
-  *month = date.month;
-  *day = date.day;
-  *hour = date.hour;
-  *minute = date.minute;
-  *second = date.second;
-  *micro = date.second_part;
-  *negative = date.neg;
-  *time_zone_offset = date.time_zone_displacement;
-  assert(date.time_type == enum_mysql_timestamp_type::MYSQL_TIMESTAMP_DATETIME);
+  *year = dt.year;
+  *month = dt.month;
+  *day = dt.day;
+  *hour = dt.hour;
+  *minute = dt.minute;
+  *second = dt.second;
+  *micro = dt.second_part;
+  *negative = dt.neg;
+  *time_zone_offset = dt.time_zone_displacement;
+  assert(dt.time_type == enum_mysql_timestamp_type::MYSQL_TIMESTAMP_DATETIME);
   return MYSQL_SUCCESS;
 }
 
@@ -611,18 +611,13 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_time_imp::set,
                     uint16_t index, uint32_t hour, uint32_t minute,
                     uint32_t second, uint64_t micro, bool negative,
                     uint8_t decimals)) {
-  auto time = MYSQL_TIME{static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(hour),
-                         static_cast<unsigned int>(minute),
-                         static_cast<unsigned int>(second),
-                         static_cast<unsigned long>(micro),
-                         negative,
-                         MYSQL_TIMESTAMP_TIME,
-                         {}};
-  if (check_datetime_range(time)) return MYSQL_FAILURE;
+  Time_val time;
+  if (Time_val::make_time(negative, hour, minute, second,
+                          static_cast<uint32_t>(micro), &time)) {
+    return MYSQL_FAILURE;
+  }
   auto item = new Item_time_literal(&time, decimals);
+  if (item == nullptr) return MYSQL_FAILURE;
   return set_variable(sp_runtime_context, item, index);
 }
 
@@ -649,8 +644,8 @@ DEFINE_BOOL_METHOD(mysql_stored_program_runtime_argument_date_imp::get,
   if (item == nullptr) return MYSQL_FAILURE;
   *is_null = item->is_null();
   if (*is_null) return MYSQL_SUCCESS;
-  auto date = MYSQL_TIME{};
-  item->get_date(&date, TIME_FUZZY_DATE);
+  auto date = Date_val{};
+  item->val_date(&date, TIME_FUZZY_DATE);
   *year = date.year;
   *month = date.month;
   *day = date.day;
@@ -729,8 +724,10 @@ static int runtime_argument_datetime_set(
                          ts_type,
                          static_cast<int>(time_zone_offset)};
   if (check_datetime_range(time)) return MYSQL_FAILURE;
+  Datetime_val dt;
+  *implicit_cast<MYSQL_TIME *>(&dt) = time;
   auto item =
-      new Item_datetime_literal(&time, decimals, current_thd->time_zone());
+      new Item_datetime_literal(&dt, decimals, current_thd->time_zone());
   return set_variable(sp_runtime_context, item, index);
 }
 
@@ -1072,18 +1069,10 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_time_imp::set,
                    (stored_program_runtime_context sp_runtime_context,
                     uint32_t hour, uint32_t minute, uint32_t second,
                     uint64_t micro, bool negative, uint8_t decimals)) {
-  auto time = MYSQL_TIME{static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(0),
-                         static_cast<unsigned int>(hour),
-                         static_cast<unsigned int>(minute),
-                         static_cast<unsigned int>(second),
-                         static_cast<unsigned long>(micro),
-                         negative,
-                         MYSQL_TIMESTAMP_TIME,
-                         {}};
-  if (check_datetime_range(time)) return MYSQL_FAILURE;
+  auto time =
+      Time_val(negative, hour, minute, second, static_cast<uint32_t>(micro));
   auto item = new Item_time_literal(&time, decimals);
+  if (item == nullptr) return MYSQL_FAILURE;
   return set_return_value(sp_runtime_context, item);
 }
 
@@ -1156,8 +1145,10 @@ static int return_value_datetime_set(
                          ts_type,
                          time_zone_offset};
   if (check_datetime_range(time)) return MYSQL_FAILURE;
+  Datetime_val dt;
+  *implicit_cast<MYSQL_TIME *>(&dt) = time;
   auto *item =
-      new Item_datetime_literal(&time, decimals, current_thd->time_zone());
+      new Item_datetime_literal(&dt, decimals, current_thd->time_zone());
   return set_return_value(sp_runtime_context, item);
 }
 

@@ -1256,9 +1256,10 @@ std::string MySQLRouterConf::bootstrap(
   };
 
   if (!mysql_) mysql_ = std::make_unique<MySQLSession>();
+  accounts_cleaner_.set_session(mysql_.get());
 
   mysqlrouter::ConfigGenerator config_gen(
-      out_stream_, err_stream_
+      auto_cleaner_, accounts_cleaner_, out_stream_, err_stream_
 #ifndef _WIN32
       ,
       sys_user_operations ? sys_user_operations

@@ -121,6 +121,7 @@ TODO:
 #include "nulls.h"
 #include "print_version.h"
 #include "thr_cond.h"
+#include "thr_mutex.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

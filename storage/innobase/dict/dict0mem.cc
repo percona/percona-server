@@ -925,9 +925,44 @@ page_size_t dict_index_t::get_page_size() const {
   return (dict_table_page_size(table));
 }
 
+#ifndef UNIV_HOTBACKUP
+
+void dict_index_t::assert_stats_initialized() const {
+  UNIV_MEM_ASSERT_RW_ABORT(stat_n_diff_key_vals,
+                           n_uniq * sizeof(stat_n_diff_key_vals[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(stat_n_sample_sizes,
+                           n_uniq * sizeof(stat_n_sample_sizes[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(stat_n_non_null_key_vals,
+                           n_uniq * sizeof(stat_n_non_null_key_vals[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&stat_index_size, sizeof(stat_index_size));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&stat_n_leaf_pages, sizeof(stat_n_leaf_pages));
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
 bool dict_table_t::has_pk() const {
   const dict_index_t *first = first_index();
   const size_t len = strlen(innobase_index_reserve_name);
   const int cmp = strncmp(innobase_index_reserve_name, first->name(), len);
   return cmp != 0;
 }
+
+#ifndef UNIV_HOTBACKUP
+void dict_index_stats_t::assert_initialized() const {
+  UNIV_MEM_ASSERT_RW_ABORT(n_diff_key_vals,
+                           n_uniq * sizeof(n_diff_key_vals[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(n_sample_sizes, n_uniq * sizeof(n_sample_sizes[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(n_non_null_key_vals,
+                           n_uniq * sizeof(n_non_null_key_vals[0]));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&index_size, sizeof(index_size));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&n_leaf_pages, sizeof(n_leaf_pages));
+}
+#endif /* !UNIV_HOTBACKUP */

@@ -27,16 +27,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA  */
 
 #include "base64_encode.h"
+
+#include <openssl/bio.h>
 #include <openssl/err.h>
-#include <regex>
-#include <sstream>
-#include "encode_ptr.h"
+#include <openssl/evp.h>
+// IWYU pragma: no_include <openssl/types.h>
+#include <openssl/pem.h>
+
+#include <stdio.h>
 
 #include <cassert>
 #include <fstream>
-#include <iomanip>
-#include <ios>
 #include <iostream>
+#include <memory>
+#include <sstream>
+
+#include "encode_ptr.h"  // EVP_PKEY_ptr
 
 namespace oci::ssl {
 /**

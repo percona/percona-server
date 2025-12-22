@@ -41,6 +41,7 @@
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 #include "template_utils.h"
 #include "thr_cond.h"
+#include "thr_mutex.h"
 
 static constexpr int STRING_BUFFER = 1024 * 4;
 

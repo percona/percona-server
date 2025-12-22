@@ -141,12 +141,14 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
     uint64_t view_id{0};
     int target_cluster_id{0};
     int primary_cluster_id{0};
+    unsigned int primary_node_id{0};
     std::string tracefile;
     std::string router_options{""};
     std::string expected_target_cluster{".*"};
     std::string expected_local_cluster{".*"};
     bool simulate_cluster_not_found{false};
     bool simulate_config_defaults_stored_is_null{false};
+    bool simulate_router_options_no_rows{false};
     bool use_gr_notifications{false};
     std::vector<size_t> gr_nodes_number{3, 3, 3};
     std::vector<size_t> read_replicas_number{};

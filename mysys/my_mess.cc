@@ -32,9 +32,7 @@
 
 #include <sys/types.h>
 #include <cstdio>
-#include <cstring>
 
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

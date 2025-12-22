@@ -57,7 +57,7 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    */
   static constexpr std::array unacceptable_cipher_spec{
       "!aNULL", "!eNULL", "!EXPORT", "!LOW", "!MD5", "!DES",
-      "!3DES",  "!RC2",   "!RC4",    "!PSK", "!kDH", "!SSLv3",
+      "!3DES",  "!RC2",   "!RC4",    "!PSK", "!kDH",
   };
 
   /**

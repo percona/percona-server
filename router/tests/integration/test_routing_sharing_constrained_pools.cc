@@ -974,6 +974,14 @@ class ShareConnectionTestTemp
   static void SetUpTestSuite() {
     for (const auto &s : shared_servers()) {
       if (s->mysqld_failed_to_start()) GTEST_SKIP();
+
+      auto admin_cli_res = s->admin_cli();
+      ASSERT_NO_ERROR(admin_cli_res);
+
+      ASSERT_NO_ERROR(
+          admin_cli_res->query("DROP TABLE IF EXISTS testing.locked"));
+      ASSERT_NO_ERROR(admin_cli_res->query(
+          "CREATE TABLE testing.locked (id SERIAL) SELECT 1"));
     }
 
     TestWithSharedRouter::SetUpTestSuite(
@@ -1314,6 +1322,20 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
+  // connection to the server to block the cli1-connection with a transaction.
+  MysqlClient cli_server;
+
+  {
+    auto account = SharedServer::admin_account();
+
+    cli_server.username(account.username);
+    cli_server.password(account.password);
+
+    auto connect_res =
+        cli_connect(cli_server, shared_servers()[0]->classic_tcp_destination());
+    ASSERT_NO_ERROR(connect_res);
+  }
+
   MysqlClient cli1;
   MysqlClient cli2;
   MysqlClient cli3;
@@ -1363,9 +1385,22 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
 
   // - set-option
   // - add to stash
-  // - do
+  // - select
 
-  ASSERT_NO_ERROR(cli1.send_query("DO SLEEP(0.2)"));
+  // prepare to block the cli1-connection
+  SCOPED_TRACE("// block the 1st connection for a bit.");
+  ASSERT_NO_ERROR(cli_server.query("START TRANSACTION"));
+  {
+    auto locked_res =
+        cli_server.query("SELECT * FROM testing.locked FOR UPDATE");
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
+
+  // block until cli2-connect is finished.
+  ASSERT_NO_ERROR(cli1.send_query("SELECT * FROM testing.locked FOR UPDATE"));
 
   ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(0, 10s));
 
@@ -1404,12 +1439,26 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
     }
   }
 
-  // - do
-  SCOPED_TRACE("// wait until 1st connection finished SLEEP()ing.");
-  ASSERT_NO_ERROR(cli1.read_query_result());
+  // - select
+  SCOPED_TRACE("// release the lock to unblock cli1.");
+  ASSERT_NO_ERROR(cli_server.query("ROLLBACK"));
+
+  SCOPED_TRACE("// wait until 1st connection finished waiting on the lock.");
+  {
+    auto locked_res = cli1.read_query_result();
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
 
   // cli2 should be stashed
   // cli1 should be stashed
+
+  if (can_share && can_fetch_password) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(2, 10s));
+  }
 
   {
     auto events_res = changed_event_counters(cli1);  // the (+ select)
@@ -1420,21 +1469,18 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
         // cli1: set-option
         // cli1: do (+ select)
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/sql/do", 1),
-                                Pair("statement/sql/select", 2),
+                    ElementsAre(Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 1)));
       } else {
         // cli1: set-option
         // cli1: do (+ select)
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/sql/do", 1),
-                                Pair("statement/sql/select", 1),
+                    ElementsAre(Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 1)));
       }
     } else {
       // no sharing possible, router is not injection SET statements.
-      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/do", 1),
-                                           Pair("statement/sql/select", 1)));
+      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/select", 2)));
     }
   }
 
@@ -1495,8 +1541,21 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
     }
   }
 
-  // start a long running query, takes the connection from the stash.
-  ASSERT_NO_ERROR(cli3.send_query("SELECT SLEEP(0.2), CONNECTION_ID()"));
+  // prepare to block cli3
+  ASSERT_NO_ERROR(cli_server.query("START TRANSACTION"));
+  {
+    auto locked_res =
+        cli_server.query("SELECT * FROM testing.locked FOR UPDATE");
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
+
+  SCOPED_TRACE(
+      "// start a long running query, takes the connection from the stash.");
+  ASSERT_NO_ERROR(cli3.send_query(
+      "SELECT id, CONNECTION_ID() FROM testing.locked FOR UPDATE"));
 
   ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(0, 10s));
 
@@ -1516,6 +1575,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
       }
     }
   }
+
+  // unblock cli3
+  ASSERT_NO_ERROR(cli_server.query("ROLLBACK"));
 
   {
     auto cmd_res = cli3.read_query_result();
@@ -1634,6 +1696,20 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
     s->flush_privileges();  // reset the auth-cache
   }
 
+  // connection to the server to block the cli1-connection with a transaction.
+  MysqlClient cli_server;
+
+  {
+    auto account = SharedServer::admin_account();
+
+    cli_server.username(account.username);
+    cli_server.password(account.password);
+
+    auto connect_res =
+        cli_connect(cli_server, shared_servers()[0]->classic_tcp_destination());
+    ASSERT_NO_ERROR(connect_res);
+  }
+
   MysqlClient cli1;
   MysqlClient cli2;
   MysqlClient cli3;
@@ -1690,9 +1766,21 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   // - add to stash
 
   SCOPED_TRACE("// block the 1st connection for a bit.");
-  ASSERT_NO_ERROR(cli1.send_query("DO SLEEP(0.2)"));
+  // prepare to block the cli1-connection
+  ASSERT_NO_ERROR(cli_server.query("START TRANSACTION"));
+  {
+    auto locked_res =
+        cli_server.query("SELECT * FROM testing.locked FOR UPDATE");
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
 
-  // - do
+  // block until cli2-connect is finished.
+  ASSERT_NO_ERROR(cli1.send_query("SELECT * FROM testing.locked FOR UPDATE"));
+
+  // - select
   ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(0, 10s));
 
   SCOPED_TRACE("// open a 2nd connection, that gets added to the pool.");
@@ -1749,11 +1837,25 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   // - set-option
   // - select
 
-  SCOPED_TRACE("// wait until 1st connection finished SLEEP()ing.");
-  ASSERT_NO_ERROR(cli1.read_query_result());
+  SCOPED_TRACE("// release the lock to unblock cli1.");
+  ASSERT_NO_ERROR(cli_server.query("ROLLBACK"));
+
+  SCOPED_TRACE("// wait until 1st connection finished waiting on the lock.");
+  {
+    auto locked_res = cli1.read_query_result();
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
 
   // cli2 should be stashed
   // cli1 should be stashed
+  if (can_share && can_fetch_password) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(2, 10s));
+  }
+
   {
     auto events_res = changed_event_counters(cli1);  // the (+ select)
     ASSERT_NO_ERROR(events_res);
@@ -1763,21 +1865,18 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         // cli1: set-option
         // cli1: do (+ select)
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/sql/do", 1),
-                                Pair("statement/sql/select", 2),
+                    ElementsAre(Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 1)));
       } else {
         // cli1: set-option
         // cli1: do (+ select)
         EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/sql/do", 1),
-                                Pair("statement/sql/select", 1),
+                    ElementsAre(Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 1)));
       }
     } else {
       // no sharing possible, router is not injection SET statements.
-      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/do", 1),
-                                           Pair("statement/sql/select", 1)));
+      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/sql/select", 2)));
     }
   }
 
@@ -1840,7 +1939,19 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   SCOPED_TRACE(
       "// start a long running query, takes the connection from the pool.");
-  ASSERT_NO_ERROR(cli3.send_query("SELECT SLEEP(0.2), CONNECTION_ID()"));
+  // prepare to block cli3
+  ASSERT_NO_ERROR(cli_server.query("START TRANSACTION"));
+  {
+    auto locked_res =
+        cli_server.query("SELECT * FROM testing.locked FOR UPDATE");
+    ASSERT_NO_ERROR(locked_res);
+    for (const auto &_ [[maybe_unused]] : locked_res.value()) {
+      // traverse the resultset to take from the connection.
+    }
+  }
+
+  ASSERT_NO_ERROR(cli3.send_query(
+      "SELECT id, CONNECTION_ID() FROM testing.locked FOR UPDATE"));
 
   ASSERT_NO_ERROR(shared_router()->wait_for_stashed_server_connections(0, 10s));
 
@@ -1861,6 +1972,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       }
     }
   }
+
+  // unblock cli3
+  ASSERT_NO_ERROR(cli_server.query("ROLLBACK"));
 
   SCOPED_TRACE("// check that the 3rd connection was pooled.");
   {

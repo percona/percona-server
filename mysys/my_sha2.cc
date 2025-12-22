@@ -32,10 +32,14 @@
   oft-used external library, OpenSSL.
 */
 
+#include <stddef.h>
+
 #include "my_compiler.h"
-#include "my_ssl_algo_cache.h"
+#include "my_ssl_algo_cache.h"  // IWYU pragma: keep
 #include "sha2.h"
 
+#include <openssl/opensslv.h>  // for OPENSSL_VERSION_NUMBER
+#include <openssl/sha.h>       // for SHA224_Final, SHA224_Init, SHA224_Update
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 
 // OpenSSL3.x EVP APIs are 6x slower than these (deprecated) APIs

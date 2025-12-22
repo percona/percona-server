@@ -30,7 +30,6 @@
 #define MY_RDTSC_H
 
 #include "my_inttypes.h"
-#include "my_macros.h"
 
 /**
   Characteristics of a timer.

@@ -341,9 +341,6 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                                       .http_port(http_port)
                                       .args());
 
-  ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(primary_node, cluster_nodes_ports[0]));
-  EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
   set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
@@ -353,8 +350,6 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
     auto &secondary_node = launch_cluster_node(cluster_nodes_ports[port]);
     cluster_nodes.emplace_back(&secondary_node);
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(secondary_node, cluster_nodes_ports[port]));
   }
 
   // launch the router with metadata-cache configuration
@@ -369,18 +364,6 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   auto &router = launch_router(temp_test_dir.name(),
                                metadata_cache_section + monitoring_section,
                                routing_section, {cluster_nodes_ports[0]});
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
-
-  // give the router a chance to initialise metadata-cache module
-  // there is currently now easy way to check that
-  SCOPED_TRACE("// waiting " +
-               std::to_string(wait_for_cache_ready_timeout.count()) +
-               "ms until metadata is initialized");
-  RestMetadataClient::MetadataStatus metadata_status;
-  RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
-                                          kRestApiUsername, kRestApiPassword);
-  ASSERT_NO_ERROR_CODE(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status));
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
@@ -417,7 +400,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       ASSERT_TRUE(result);
       ASSERT_THAT(*result, testing::SizeIs(1));
 
-      connected_ports.push_back((*result)[0]);
+      connected_ports.emplace_back((*result)[0]);
     }
 
     EXPECT_THAT(connected_ports,

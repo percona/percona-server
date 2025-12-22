@@ -132,9 +132,17 @@ class Loader {
     @param[in]  prebuilt   prebuilt structures from innodb table handler
     @param[in]  rows       sql rows with column data
     @param[in]  row_index  current row index
+    @param[in]  gcol_heap  memory heap used for generated columns
+    @param[in,out]  gcol_blobs_flushed true if blobs are flushed, false
+                 otherwise.  This is needed only when we have gcol on blobs.
     @return innodb error code. */
     dberr_t fill_tuple(const row_prebuilt_t *prebuilt, const Rows_mysql &rows,
-                       size_t row_index);
+                       size_t row_index, mem_heap_t *gcol_heap,
+                       bool &gcol_blobs_flushed);
+
+    dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
+                         const Column_mysql &sql_col, dfield_t *src_dfield,
+                         dfield_t *dst_dfield);
 
     /** Fill he cluster index entry from tuple data.
     @param[in]  prebuilt  prebuilt structures from innodb table handler */
@@ -232,8 +240,8 @@ class Loader {
   dberr_t close_blob(size_t thread_index, Blob_context blob_ctx,
                      lob::ref_t &ref);
 
-  /** Finish bulk load operation, combining the sub-trees produced by concurrent
-  threads.
+  /** Finish bulk load operation, combining the sub-trees produced by
+  concurrent threads.
   @param[in]  is_error  true if called for cleanup and rollback after an error
   @return innodb error code */
   dberr_t end(bool is_error);
@@ -298,6 +306,8 @@ class Loader {
 
   /** Flush queue size used by the Bulk_flusher */
   size_t m_queue_size;
+
+  std::mutex m_gcol_mutex;
 };
 
 inline std::string Loader::get_error_string() const {

@@ -76,7 +76,6 @@ int init_reader_template(
     if (data_id == nullptr || !*data_id) {
       LogComponentErr(INFORMATION_LEVEL,
                       ER_NOTE_KEYRING_COMPONENT_EMPTY_DATA_ID);
-      assert(false);
       return 0;
     }
 

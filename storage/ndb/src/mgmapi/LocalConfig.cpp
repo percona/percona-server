@@ -53,9 +53,7 @@ bool LocalConfig::init(const char *connectString, const char *fileName) {
    *  1. Check connectString
    *  2. Check given filename
    *  3. Check environment variable NDB_CONNECTSTRING
-   *  4. Check Ndb.cfg in NDB_HOME
-   *  5. Check Ndb.cfg in cwd
-   *  6. Check defaultConnectString
+   *  4. Check defaultConnectString
    */
 
   _ownNodeId = 0;
@@ -82,25 +80,7 @@ bool LocalConfig::init(const char *connectString, const char *fileName) {
     return readConnectString(buf, "NDB_CONNECTSTRING");
   }
 
-  // 4. Check Ndb.cfg in NDB_HOME
-  {
-    bool fopenError;
-    char *buf2 = NdbConfig_NdbCfgName(1 /*true*/);
-    NdbAutoPtr<char> tmp_aptr(buf2);
-    if (readFile(buf2, fopenError)) return true;
-    if (!fopenError) return false;
-  }
-
-  // 5. Check Ndb.cfg in cwd
-  {
-    bool fopenError;
-    char *buf2 = NdbConfig_NdbCfgName(0 /*false*/);
-    NdbAutoPtr<char> tmp_aptr(buf2);
-    if (readFile(buf2, fopenError)) return true;
-    if (!fopenError) return false;
-  }
-
-  // 7. Use default connect string
+  // 4. Use default connect string
   {
     if (readConnectString("host=localhost:" STR_VALUE(NDB_PORT),
                           "default connect string"))

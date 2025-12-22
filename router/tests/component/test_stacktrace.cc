@@ -23,10 +23,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <chrono>
-#include <fstream>
-#include <stdexcept>
-#include <thread>
+#include <csignal>  // SIGABRT
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -34,8 +31,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "my_config.h"  // HAVE_ASAN & HAVE_UBSAN
 #include "mysql/harness/filesystem.h"
-#include "process_launcher.h"
-#include "process_manager.h"
 #include "router_component_test.h"
 
 mysql_harness::Path g_origin_path;

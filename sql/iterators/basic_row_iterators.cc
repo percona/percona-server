@@ -75,7 +75,7 @@ IndexScanIterator<Reverse>::~IndexScanIterator() {
 }
 
 template <bool Reverse>
-bool IndexScanIterator<Reverse>::Init() {
+bool IndexScanIterator<Reverse>::DoInit() {
   if (!table()->file->inited) {
     if (table()->covering_keys.is_set(m_idx) && !table()->no_keyread) {
       table()->set_keyread(true);
@@ -99,7 +99,7 @@ bool IndexScanIterator<Reverse>::Init() {
 
 //! @cond
 template <>
-int IndexScanIterator<false>::Read() {  // Forward read.
+int IndexScanIterator<false>::DoRead() {  // Forward read.
   int error;
   if (m_first) {
     error = table()->file->prepare_index_scan();
@@ -117,7 +117,7 @@ int IndexScanIterator<false>::Read() {  // Forward read.
 }
 
 template <>
-int IndexScanIterator<true>::Read() {  // Backward read.
+int IndexScanIterator<true>::DoRead() {  // Backward read.
   int error;
   if (m_first) {
     error = table()->file->prepare_index_scan();
@@ -151,10 +151,11 @@ IndexDistanceScanIterator::IndexDistanceScanIterator(THD *thd, TABLE *table,
       m_examined_rows(examined_rows) {}
 
 // WL9440: purecov should be removed from below functions
-// i.e. IndexDistanceScanIterator destructor, IndexDistanceScanIterator::Init(),
-// IndexDistanceScanIterator::Read() when innodb implements index distance scan.
+// i.e. IndexDistanceScanIterator destructor,
+// IndexDistanceScanIterator::DoInit(), IndexDistanceScanIterator::DoRead()
+// when innodb implements index distance scan.
 
-bool IndexDistanceScanIterator::Init() {
+bool IndexDistanceScanIterator::DoInit() {
   if (!table()->file->inited) {
     int error = table()->file->ha_index_init(m_idx, true);
     if (error) {
@@ -172,7 +173,7 @@ bool IndexDistanceScanIterator::Init() {
   return false;
 }
 
-int IndexDistanceScanIterator::Read() {  // Forward read.
+int IndexDistanceScanIterator::DoRead() {  // Forward read.
   int error;
   if (m_first) {
     error = table()->file->ha_index_read_map(m_record, m_query_mbr->min_key,
@@ -252,7 +253,7 @@ TableScanIterator::~TableScanIterator() {
   }
 }
 
-bool TableScanIterator::Init() {
+bool TableScanIterator::DoInit() {
   empty_record(table());
 
   /*
@@ -276,7 +277,7 @@ bool TableScanIterator::Init() {
   return false;
 }
 
-int TableScanIterator::Read() {
+int TableScanIterator::DoRead() {
   int tmp;
   if (table()->is_union_or_table()) {
     while ((tmp = table()->file->ha_rnd_next(m_record))) {
@@ -367,7 +368,7 @@ FollowTailIterator::~FollowTailIterator() {
   }
 }
 
-bool FollowTailIterator::Init() {
+bool FollowTailIterator::DoInit() {
   empty_record(table());
 
   // BeginMaterialization() must be called before this.
@@ -381,7 +382,7 @@ bool FollowTailIterator::Init() {
 
   if (first_init) {
     // Before starting a new WITH RECURSIVE execution,
-    // MaterializeIterator::Init() does ha_index_or_rnd_end() on all read
+    // MaterializeIterator::DoInit() does ha_index_or_rnd_end() on all read
     // cursors of recursive members, which sets file->inited = false, so we can
     // use that as a signal.
     if (!table()->is_created()) {
@@ -417,7 +418,7 @@ bool FollowTailIterator::Init() {
   return false;
 }
 
-int FollowTailIterator::Read() {
+int FollowTailIterator::DoRead() {
   if (m_read_rows == *m_stored_rows) {
     /*
       Return EOF without even checking if there are more rows

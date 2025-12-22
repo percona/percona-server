@@ -37,8 +37,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
+#include "my_thread.h"
 #include "my_thread_local.h"
+#include "thr_mutex.h"
 
 int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp, const char *file,
                    uint line) {

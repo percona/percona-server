@@ -67,9 +67,9 @@ const char DELIMITER = '$';
 /* Store digest length */
 const unsigned int STORED_SHA256_DIGEST_LENGTH = 43;
 /* stored digest rounds*/
-const size_t MIN_STORED_DIGEST_ROUNDS = ROUNDS_MIN;
-const size_t DEFAULT_STORED_DIGEST_ROUNDS = ROUNDS_DEFAULT;
-const size_t MAX_STORED_DIGEST_ROUNDS = ROUNDS_MAX;
+const size_t MIN_STORED_DIGEST_ROUNDS = SHA2_ROUNDS_MIN;
+const size_t DEFAULT_STORED_DIGEST_ROUNDS = SHA2_ROUNDS_DEFAULT;
+const size_t MAX_STORED_DIGEST_ROUNDS = SHA2_ROUNDS_MAX;
 /* Maximum password length */
 const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
 /* Maximum supported passwords */

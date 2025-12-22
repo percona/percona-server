@@ -41,9 +41,9 @@
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/filesystem.h"    // copy_file
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/keyring_info.h"
-#include "mysqlrouter/utils.h"  // copy_file
 #include "process_manager.h"
 #include "random_generator.h"
 #include "router_component_test.h"
@@ -770,7 +770,7 @@ class MasterKeyReaderWriterSystemDeploymentTest
     mysql_harness::mkdir(tmp_dir_.name() + "/stage", 0700);
     mysql_harness::mkdir(tmp_dir_.name() + "/stage/bin", 0700);
     exec_file_ = tmp_dir_.name() + "/stage/bin/mysqlrouter";
-    mysqlrouter::copy_file(get_mysqlrouter_exec().str(), exec_file_);
+    mysql_harness::copy_file(get_mysqlrouter_exec().str(), exec_file_);
 #ifndef _WIN32
     chmod(exec_file_.c_str(), 0700);
 #endif

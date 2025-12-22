@@ -32,17 +32,13 @@
 
 #include "my_config.h"
 
-#include <fcntl.h>
 #include <cerrno>
-#include <cstddef>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"

@@ -1815,11 +1815,12 @@ TEST_P(MatchConnectionAttributesTest, MatchConnectionAttributes) {
 
 INSTANTIATE_TEST_SUITE_P(
     MatchConnectionAttributes, MatchConnectionAttributesTest,
-    ::testing::Values("$.session.connectAttrs._client_name = 'libmysql'",
-                      "NUMBER($.session.connectAttrs._pid) > 1000",
-                      "$.session.connectAttrs._client_version <> ''",
-                      "$.session.connectAttrs._os <> ''",
-                      "$.session.connectAttrs._platform <> ''"),
+    ::testing::Values(
+        "$.session.connectAttrs._client_name = 'libmysql'",
+        "NUMBER($.session.connectAttrs._pid) > 1",  // 0 is not used, 1 is init
+        "$.session.connectAttrs._client_version <> ''",
+        "$.session.connectAttrs._os <> ''",
+        "$.session.connectAttrs._platform <> ''"),
     [](const auto &arg) {
       // Extract connection attribute name from matching condition
       const std::string connect_attrs = "connectAttrs.";
@@ -2659,6 +2660,8 @@ TEST_F(RoutingGuidelinesTest, MatchClusterRole) {
 }
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();  // WSAStartup
+
   ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

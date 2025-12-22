@@ -50,14 +50,14 @@
 */
 
 #include <sys/types.h>
-#include <cstring>
 
 #include <algorithm>
+#include <atomic>
+#include <iterator>
 
 #include "lf.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"

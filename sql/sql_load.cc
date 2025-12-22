@@ -2594,6 +2594,15 @@ found_eof:
   return true;
 }
 
+/** Check if the given string is made up of whitespace characters only.
+@param[in]  s   the input string to be checked
+@return true iff s is made up of whitespace characters */
+static inline bool is_whitespace(const std::string &s) {
+  return s.empty() || std::find_if(s.begin(), s.end(), [](unsigned char c) {
+                        return !std::isspace(c);
+                      }) == s.end();
+}
+
 bool Sql_cmd_load_table::execute(THD *thd) {
   LEX *const lex = thd->lex;
   bool need_file_acl = false;
@@ -2634,6 +2643,12 @@ bool Sql_cmd_load_table::execute(THD *thd) {
                "IGNORE clause");
       return true;
     }
+    if (is_whitespace(m_exchange.file_name)) {
+      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK Algorithm",
+               "filename is empty/has only whitespace characters.");
+      return true;
+    }
+
     /* We need FILE_ACL only if the data source files are in server. */
     need_file_acl = (m_bulk_source == LOAD_SOURCE_FILE);
 

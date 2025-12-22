@@ -1,3 +1,6 @@
+# Enabling read-only mode blocks gtid_executed table compression.
+CALL mtr.add_suppression("Failed to compress the gtid_executed table.");
+
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0), (1);
 

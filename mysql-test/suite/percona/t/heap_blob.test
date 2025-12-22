@@ -6,6 +6,9 @@
 # Modified tests from type_blob.test
 ########################################################################
 
+# CREATE TABLE ... SELECT on MEMORY tables doesn't work with GTID.
+--source include/rpl/set_gtid_mode_off.inc
+
 SET default_storage_engine=MEMORY;
 
 #
@@ -654,3 +657,6 @@ disconnect con1;
 connection default;
 
 SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

@@ -32,12 +32,11 @@
 
 #include <sys/types.h>
 #include <algorithm>
+#include <utility>
 
 #include "my_base.h"
-#include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "myisampack.h"
 #include "mysql/strings/m_ctype.h"
 

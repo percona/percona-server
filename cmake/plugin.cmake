@@ -160,13 +160,8 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
-    IF(ARG_MANDATORY)
-      SET(${with_var} ON CACHE INTERNAL
-        "Link ${plugin} statically to the server" FORCE)
-    ELSE()	
-      SET(${with_var} ON CACHE BOOL
-        "Link ${plugin} statically to the server" FORCE)
-    ENDIF()
+    SET(${with_var} ON CACHE BOOL
+      "Link ${plugin} statically to the server" FORCE)
 
     SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
     SET(PLUGINS_IN_THIS_SCOPE

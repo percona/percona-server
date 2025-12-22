@@ -1776,8 +1776,11 @@ CREATE TABLE t1 (
   c11 CHAR(6) CHECK (c11 IS NULL));
 SHOW CREATE TABLE t1;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_DUMP --databases test1 > $MYSQLTEST_VARDIR/tmp/test1_db.sql 2>&1
+--exec $MYSQL_DUMP --databases test1 > $MYSQLTEST_VARDIR/tmp/test1_db.sql
 DROP DATABASE test1;
+
+RESET BINARY LOGS AND GTIDS;
+
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1_db.sql
 USE test1;
 SHOW CREATE TABLE t1;

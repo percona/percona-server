@@ -714,7 +714,7 @@ INSTANTIATE_TEST_SUITE_P(
              {"mysql_read_write_route", "rw"},
              {"router_id", "1"}},
             "main ERROR .* Could not fetch value for 'user_not_in_keying' "
-            "from the keyring: map::at.*"),
+            "from the keyring: (map::at.*|invalid map.*)"),
         MRSConfigErrorParam("mysql_read_write_route_missing",
                             {{"mysql_user", "mysql_user_mrs"}},
                             "main ERROR .* Configuration error: option "

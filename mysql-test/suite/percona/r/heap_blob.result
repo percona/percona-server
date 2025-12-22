@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 SET default_storage_engine=MEMORY;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
@@ -1018,3 +1019,4 @@ length(data)
 65535
 drop table t1;
 SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
+include/rpl/set_gtid_mode_on.inc

@@ -1,5 +1,7 @@
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
+include/rpl/set_gtid_mode_off.inc
 set end_markers_in_json=on;
+SET explain_json_format_version = 1;
 # new "FORMAT" keyword doesn't conflict with the FORMAT() function name:
 SELECT FORMAT(1, 2), FORMAT(1, 2, 3);
 FORMAT(1, 2)	FORMAT(1, 2, 3)
@@ -8830,7 +8832,6 @@ DROP TABLE t;
 #
 #  WL#15684 System variable to select JSON EXPLAIN format
 #
-SET @saved_json_format_version = @@explain_json_format_version;
 SET @@end_markers_in_json=OFF;
 SET @@explain_json_format_version = 1;
 CREATE TABLE t (i INT);
@@ -8958,11 +8959,10 @@ SELECT @@explain_json_format_version;
 DROP PROCEDURE p;
 DROP TABLE t;
 SET @@end_markers_in_json=ON;
-SET @@explain_json_format_version = @saved_json_format_version;
+SET @@explain_json_format_version = DEFAULT;
 #
 # Bug#36134568 Add query type to iterator-based EXPLAIN FORMAT=JSON
 #
-SET @saved_json_format_version = @@explain_json_format_version;
 SET @@explain_json_format_version = 2;
 CREATE TABLE t1 (i1 INT PRIMARY KEY, i2 INT);
 CREATE TABLE t2 (i3 INT, i4 INT);
@@ -9018,11 +9018,10 @@ JSON_EXTRACT(@v1, '$.query_type') = 'delete'
 1
 DROP TABLE t1, t2;
 SET @v1=NULL;
-SET @@explain_json_format_version = @saved_json_format_version;
+SET @@explain_json_format_version = DEFAULT;
 #
 # Bug#37126176 Add lookup references to iterator-based EXPLAIN FORMAT=JSON for index lookups
 #
-SET @saved_json_format_version = @@explain_json_format_version;
 SET @@explain_json_format_version = 2;
 SET @v1 = NULL;
 CREATE TABLE t (pk INT PRIMARY KEY AUTO_INCREMENT, i INT DEFAULT NULL, INDEX idx(i));
@@ -9130,12 +9129,10 @@ fulltext_search_references_const
 1
 SET @v1 = NULL;
 DROP TABLE t;
-SET @@explain_json_format_version = @saved_json_format_version;
+SET @@explain_json_format_version = DEFAULT;
 #
 # Bug#35239659 Separate query attributes and iterator attributes in iterator-based EXPLAIN JSON
 #
-SET @saved_json_format_version = @@explain_json_format_version;
-SET @@explain_json_format_version = 2;
 CREATE TABLE t (i INT);
 EXPLAIN FORMAT=TREE SELECT * FROM t t1 JOIN t t2 WHERE t1.i = t2.i;
 EXPLAIN
@@ -9147,14 +9144,13 @@ JSON_KEYS(@var)
 ["query", "query_plan", "query_type", "json_schema_version"]
 DROP TABLE t;
 SET @var = NULL;
-SET @@explain_json_format_version = @saved_json_format_version;
 #
 # Bug#37838599 EXPLAIN ANALYZE FORMAT=JSON did not handle queries with
 # subqueries correctly when explain_json_format_version=1.
 #
-SET @saved_json_format_version = @@explain_json_format_version;
 SET @@explain_json_format_version = 1;
 EXPLAIN ANALYZE FORMAT=JSON SELECT * FROM (SELECT 1) b;
 ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
-SET @@explain_json_format_version = @saved_json_format_version;
+SET @@explain_json_format_version = DEFAULT;
+include/rpl/set_gtid_mode_on.inc
 set optimizer_switch=default;

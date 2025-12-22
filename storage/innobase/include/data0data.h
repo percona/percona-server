@@ -806,6 +806,11 @@ struct dtuple_t {
   /** Choose a field suitable for storing externally. */
   dfield_t *choose_ext(dict_index_t *index);
   dtuple_t *deep_copy(mem_heap_t *heap) const;
+
+#ifdef UNIV_DEBUG
+  void validate() const;
+  void validate_for_index(const dict_index_t *index) const;
+#endif /* UNIV_DEBUG */
 };
 
 /** A slot for a field in a big rec vector */

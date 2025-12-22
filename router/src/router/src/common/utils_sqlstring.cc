@@ -393,7 +393,7 @@ std::string quote_identifier(const std::string &identifier,
 
 /**
  * Quotes the given identifier, but only if it needs to be quoted.
- * http://dev.mysql.com/doc/refman/5.1/en/identifiers.html specifies what is
+ * http://dev.mysql.com/doc/refman/en/identifiers.html specifies what is
  * allowed in unquoted identifiers. Leading numbers are not strictly forbidden
  * but discouraged as they may lead to ambiguous behavior.
  */

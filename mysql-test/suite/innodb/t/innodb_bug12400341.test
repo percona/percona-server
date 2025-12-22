@@ -3,6 +3,9 @@
 --source include/have_debug.inc
 --source include/have_innodb_default_undo_tablespaces.inc
 
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
+
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot find a free slot for an undo log");
 
@@ -114,3 +117,6 @@ set global innodb_rollback_segments = @old_innodb_rollback_segments;
 --disable_query_log
 set global innodb_trx_rseg_n_slots_debug = @old_innodb_trx_rseg_n_slots_debug;
 --enable_query_log
+
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

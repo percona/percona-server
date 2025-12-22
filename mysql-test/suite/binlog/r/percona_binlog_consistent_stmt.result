@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after");
+include/rpl/set_gtid_mode_off.inc
 RESET BINARY LOGS AND GTIDS;
 # Connection default
 CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
@@ -198,3 +199,4 @@ binlog.000001	2278	Query	1	2380	use `test`; INSERT INTO t2 VALUES (3)
 binlog.000001	2380	Xid	1	2411	COMMIT /* XID */
 binlog.000001	2411	Rotate	1	2455	binlog.000002;pos=4
 DROP TABLE t1,t2;
+include/rpl/set_gtid_mode_on.inc

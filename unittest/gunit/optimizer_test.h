@@ -153,11 +153,6 @@ class HypergraphOptimizerTestBase : public OptimizerTestBase {
   }
 };
 
-// Template for parameterized optimizer tests.
-template <class T>
-class OptimizerTestWithParam : public OptimizerTestBase,
-                               public ::testing::WithParamInterface<T> {};
-
 inline Query_block *ParseAndResolve(
     const char *query, bool nullable, const Server_initializer &initializer,
     std::unordered_map<string, Fake_TABLE *> *fake_tables) {
@@ -377,6 +372,7 @@ inline handlerton *OptimizerTestBase::EnableSecondaryEngine(
         MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
   }
   hton->secondary_engine_modify_view_ap_cost = nullptr;
+  hton->secondary_engine_nrows = nullptr;
   hton->secondary_engine_check_optimizer_request =
       [](THD *, const JoinHypergraph &, const AccessPath *, int, int, bool,
          std::string *) {

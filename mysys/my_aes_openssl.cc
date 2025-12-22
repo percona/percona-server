@@ -30,15 +30,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <utility>
 
-#include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
-#include <cassert>
+#include <openssl/evp.h>  // IWYU pragma: keep
+// IWYU pragma: no_include <openssl/types.h>
+#include <openssl/opensslv.h>
+#include <sys/types.h>
 
-#include "m_string.h"
+#include <cassert>
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "my_aes.h"
 #include "my_aes_impl.h"
+#include "my_inttypes.h"
 #include "my_ssl_algo_cache.h"
 #include "mysys/my_kdf.h"
 

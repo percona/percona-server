@@ -9,8 +9,10 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 include/suppress_messages.inc
 # Connection 1 suppresses message <Timeout waiting for reply of binlog>.
 # Connection 1 suppresses message <Got an error reading communication packets>.
+# Connection 1 suppresses message <Semi-sync source failed on net_flush.. before waiting for replica reply>.
 # Connection 2 suppresses message <Timeout waiting for reply of binlog>.
 # Connection 2 suppresses message <Got an error reading communication packets>.
+# Connection 2 suppresses message <Semi-sync source failed on net_flush.. before waiting for replica reply>.
 [connection slave]
 include/rpl/stop_receiver.inc
 #

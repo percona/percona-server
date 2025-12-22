@@ -157,9 +157,11 @@ bool Protocol_callback::store_date(const MYSQL_TIME &time) {
   return false;
 }
 
-bool Protocol_callback::store_time(const MYSQL_TIME &time, uint precision) {
-  if (callbacks.get_time)
-    return callbacks.get_time(callbacks_ctx, &time, precision);
+bool Protocol_callback::store_time(const Time_val &time, uint precision) {
+  if (callbacks.get_time != nullptr) {
+    MYSQL_TIME tm = MYSQL_TIME(time);
+    if (callbacks.get_time(callbacks_ctx, &tm, precision) != 0) return true;
+  }
   return false;
 }
 

@@ -14,7 +14,6 @@ replace_regex
    ;
 
 --error 1,2,256
-
 exec $MYSQLROUTER_BOOTSTRAP
    --name MyRouterName
    --conf-set-option=DEFAULT.plugin_folder=$ROUTER_PLUGIN_DIRECTORY
@@ -24,6 +23,5 @@ exec $MYSQLROUTER_BOOTSTRAP
 
 # Cleanup
 DROP USER 'mrs_bootstrap_user'@'%';
---force-rmdir $MYSQL_TMP_DIR/bootstrap_folder
 --let $cleanup_arg_mrs_skip_service_disable=1
 --source ../include/mrs/cleanup.inc

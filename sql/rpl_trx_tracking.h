@@ -193,7 +193,7 @@ class Writeset_trx_dependency_tracker {
 */
 class Transaction_dependency_tracker {
  public:
-  Transaction_dependency_tracker() : m_writeset(25000) {}
+  Transaction_dependency_tracker() : m_writeset(10000000) {}
 
   void get_dependency(THD *thd, bool parallelization_barrier,
                       int64 &sequence_number, int64 &commit_parent);

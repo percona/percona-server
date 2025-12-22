@@ -154,6 +154,7 @@ my $opt_tmpdir;
 my $opt_tmpdir_pid;
 my $opt_trace_protocol;
 my $opt_user_args;
+my $opt_valgrind_ld_preload;
 my $opt_valgrind_path;
 my $opt_view_protocol;
 my $opt_wait_all;
@@ -735,6 +736,18 @@ sub main {
   # Environment variable to hold number of CPUs
   my $sys_info = My::SysInfo->new();
   $ENV{NUMBER_OF_CPUS} = $sys_info->num_cpus();
+
+  # Valgrind shows many errors in dload-ed library which is fixed by setting
+  # LD_PRELOAD env to the library ($opt_valgrind_ld_preload option).
+  # The option is valid only with other Valgrind options to not disturb
+  # non-Valgrind tests.
+  if ($opt_valgrind and $opt_valgrind_ld_preload) {
+    my $ld_preload = find_plugin($opt_valgrind_ld_preload, "plugin_output_directory");
+    if($ld_preload) {
+      $ENV{LD_PRELOAD} = $ld_preload;
+      print "LD_PRELOAD = $ld_preload\n";
+    }
+  }
 
   if ($opt_parallel eq "auto") {
     # Try to find a suitable value for number of workers
@@ -1927,6 +1940,7 @@ sub command_line_setup {
     'helgrind'                  => \$opt_helgrind,
     'lock-order=i'              => \$opt_lock_order,
     'sanitize'                  => \$opt_sanitize,
+    'valgrind-ld-preload=s'     => \$opt_valgrind_ld_preload,
     'valgrind-clients'          => \$opt_valgrind_clients,
     'valgrind-mysqld'           => \$opt_valgrind_mysqld,
     'valgrind-mysqltest'        => \$opt_valgrind_mysqltest,
@@ -6421,7 +6435,7 @@ sub check_expected_crash_and_restart($$) {
           my $pre_config_state = prepare_secondary_engine_plugin_for_config($application, $tinfo);
           configure_secondary_engine_plugin($application, $tinfo, $pre_config_state);
           # Start secondary engine servers.
-          start_secondary_engine_servers($tinfo, $restart_flag);
+          start_secondary_engine_servers($tinfo, $restart_flag, $application->after('mysqld.'));
         }
 
         return 1;
@@ -8752,6 +8766,8 @@ Options for valgrind
                         valgrind with default options.
   valgrind-all          Synonym for --valgrind.
   valgrind-clients      Run clients started by .test files with valgrind.
+  valgrind-ld-preload=<LIBRARY>
+                        Set LD_PRELOAD system variable to LIBRARY.
   valgrind-mysqld       Run the "mysqld" executable with valgrind.
   valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
                         with valgrind.

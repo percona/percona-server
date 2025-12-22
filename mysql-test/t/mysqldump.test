@@ -3,6 +3,8 @@
 
 # Binlog is required
 --source include/have_log_bin.inc
+# This test doesn't support GTID
+--source include/rpl/set_gtid_mode_off.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -3127,3 +3129,5 @@ show create library mysqldump_test_db.lib3;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 
 drop database mysqldump_test_db;
+# Restore the default for gtid_mode which is ON
+--source include/rpl/set_gtid_mode_on.inc

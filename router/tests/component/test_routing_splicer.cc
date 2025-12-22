@@ -2109,8 +2109,8 @@ TEST_P(SplicerParamTest, classic_protocol_unix_socket) {
 
   proc.wait_for_exit();
 
-  EXPECT_THAT(proc.get_full_output(),
-              ::testing::HasSubstr("option destination in [routing"));
+  EXPECT_THAT(proc.get_logfile_content(),
+              ::testing::HasSubstr("option destinations in [routing"));
 
   return;
 #else

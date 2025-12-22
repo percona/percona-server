@@ -33,13 +33,26 @@
   the file descriptor.
 */
 
+#include <assert.h>       // for assert
+#include <openssl/bio.h>  // for BIO_get_callback_arg, BIO_CB_RETURN
+#include <openssl/err.h>  // for ERR_get_error, ERR_peek_error
+#include <openssl/evp.h>
+#include <openssl/opensslv.h>   // for OPENSSL_VERSION_NUMBER
+#include <openssl/safestack.h>  // IWYU pragma: keep STACK_OF
+#include <openssl/ssl.h>        // for SSL_get_error, SSL_free, SSL_get...
+#include <openssl/x509.h>       // IWYU pragma: keep X509_free
+#include <stdio.h>              // IWYU pragma: keep sprintf
+#include <string.h>             // IWYU pragma: keep strcpy
+
 #include <cerrno>
-#include <cstddef>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/psi_socket.h"
 #include "vio/vio_priv.h"
 
 /*

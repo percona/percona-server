@@ -47,6 +47,8 @@ if ($mrs_check_result == "")
 --let $mrs_client_arg_session_file=$mrs_check_session_file
 --let $mrs_client_arg_display=$mrs_check_display
 --let $mrs_client_arg_response_type=$mrs_check_response_type
+# Masking off the gtid value
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --source mrs_client.inc
 
 
@@ -55,6 +57,7 @@ if ($mrs_check_result == "")
 --source ../check_statements_history.inc
 
 # second execution should load from cache, so no additional query executed
+--replace_regex /"gtid":.*/"gtid":GTID/
 --let $mrs_client_arg_path=$mrs_check_path
 --let $mrs_client_arg_payload=$mrs_check_payload
 --let $mrs_client_arg_request_type=$mrs_check_request_type

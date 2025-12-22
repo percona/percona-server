@@ -93,6 +93,7 @@ static const std::set<String_type> default_valid_option_keys = {
     "view_valid",
     "gipk",
     "view_type",
+    "materialization_engine",
     "encryption_key_id",     // Added by Percona InnoDB KEYRING encryption
     "explicit_encryption"};  // Added by Percona InnoDB KEYRING encryption
 

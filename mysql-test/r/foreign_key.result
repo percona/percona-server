@@ -1,6 +1,7 @@
 SET @saved_binlog_format= @@SESSION.binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t_34455;
 create table t_34455 (
 a int not null,
@@ -524,6 +525,7 @@ fld1	fld2
 # Triggers different code path in InnoDB which was not
 # covered by original fix for the bug.
 # restart
+include/rpl/set_gtid_mode_off.inc
 UPDATE t1 SET fld1= 3;
 SELECT * FROM t1;
 fld1
@@ -5991,3 +5993,4 @@ DROP TABLE referencing, referenced;
 SET sql_generate_invisible_primary_key=DEFAULT;
 # End:WL#16131 Check implicit references for foreign key
 SET FOREIGN_KEY_CHECKS = DEFAULT;
+include/rpl/set_gtid_mode_on.inc

@@ -184,7 +184,7 @@ SHOW STATUS LIKE 'select%';
 # A join with a table scan on the left side and a primary index lookup
 # on the right side will count the table scan as "select_scan", and
 # the index lookup is not counted at all.
-let $query = SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id;
+let $query = SELECT * FROM t AS t1, t AS t2 WHERE t1.y = t2.id LIMIT 1;
 --replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 FLUSH STATUS;

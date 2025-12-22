@@ -32,33 +32,30 @@
   thread variables.
 */
 
-#include <sys/types.h>
-#include <cstdlib>
+#include <cassert>
+#include <cstdlib>  // IWYU pragma: keep free()
 #ifdef _WIN32
 #include <signal.h>
 #endif
-#include <ctime>
+#include <ctime>  // IWYU pragma: keep timespec
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
+#include "my_dbug.h"  // IWYU pragma: keep DBUG_POP()
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "my_systime.h"
+#include "my_systime.h"  // IWYU pragma: keep Timeout_type
 #include "my_thread.h"
 #include "my_thread_local.h"
-#include "mysql/my_loglevel.h"
-#include "mysql/psi/mysql_cond.h"
+#include "mysql/my_loglevel.h"     // IWYU pragma: keep ERROR_LEVEL
+#include "mysql/psi/mysql_cond.h"  // IWYU pragma: keep mysql_cond_destroy
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_thread.h"
 #include "mysys/mysys_priv.h"
-#include "mysys_err.h"
+#include "mysys_err.h"  // IWYU pragma: keep EE_FAILED_TO_KILL_ALL_THREADS
 #include "thr_mutex.h"
 
 static bool my_thread_global_init_done = false;
 #ifndef NDEBUG
-static uint THR_thread_count = 0;
+static unsigned THR_thread_count = 0;
 static Timeout_type my_thread_end_wait_time = 5;
 static my_thread_id thread_id = 0;
 struct st_my_thread_var;
@@ -93,6 +90,7 @@ static void install_sigabrt_handler();
 #endif
 
 #ifndef NDEBUG
+struct CODE_STATE;
 struct st_my_thread_var {
   my_thread_id id;
   struct CODE_STATE *dbug;

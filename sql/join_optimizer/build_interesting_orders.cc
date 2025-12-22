@@ -228,8 +228,7 @@ static void CollectFunctionalDependenciesFromJoins(
  */
 static void CollectFunctionalDependenciesFromPredicates(
     THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
-  for (size_t i = 0; i < graph->num_where_predicates; ++i) {
-    Predicate &pred = graph->predicates[i];
+  for (Predicate &pred : graph->filter_predicates()) {
     bool always_active =
         !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
         has_single_bit(pred.total_eligibility_set);

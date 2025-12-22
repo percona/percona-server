@@ -1,3 +1,4 @@
+RESET BINARY LOGS AND GTIDS;
 ## Run parametric tests, where REST object column under test is
 ## DATETIME, and its compared against dates encoded inside a JsonObject using "" key.
 # MySQL Rest Service schema created.
@@ -79,7 +80,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538"
+        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538",
+        "gtid": "GTID"
     }
 }
 OK
@@ -94,7 +96,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9"
+        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9",
+        "gtid": "GTID"
     }
 }
 OK
@@ -436,7 +439,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538"
+        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538",
+        "gtid": "GTID"
     }
 }
 OK
@@ -451,7 +455,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9"
+        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9",
+        "gtid": "GTID"
     }
 }
 OK
@@ -793,7 +798,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538"
+        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538",
+        "gtid": "GTID"
     }
 }
 OK
@@ -808,7 +814,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9"
+        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1150,7 +1157,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538"
+        "etag": "CF0705ED394A748E8C59DCD276B557D946368AB747D4661CC3DAA0197E7DE538",
+        "gtid": "GTID"
     }
 }
 OK
@@ -1165,7 +1173,8 @@ PUT /svc/test/datetime/2 (payload-size:40)
         }
     ],
     "_metadata": {
-        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9"
+        "etag": "4927534F19FEB423292D19D17B958DC4CBC1C92969C3DCEF2F5E2D2793C9DBE9",
+        "gtid": "GTID"
     }
 }
 OK

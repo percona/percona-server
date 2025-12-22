@@ -1,3 +1,4 @@
+include/rpl/set_gtid_mode_off.inc
 drop table if exists t1;
 create table t1 (
 a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(248) default ' '
@@ -5631,3 +5632,4 @@ SELECT MIN( a ) FROM t1 WHERE a IS NULL;
 MIN( a )
 NULL
 DROP TABLE t1;
+include/rpl/set_gtid_mode_on.inc

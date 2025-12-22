@@ -1,3 +1,5 @@
+RESET BINARY LOGS AND GTIDS;
+
 --source include/have_router.inc
 
 --let $extra_mrs_router_id=1
@@ -67,11 +69,14 @@ INSERT INTO `test`.`date_values` (id, dt) VALUES
 --echo
 --echo #
 --echo # I.3
+
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/date/2'
 --let $mrs_client_arg_payload='{"id":2,"dt":"2002-02-02"}'
 --let $mrs_client_arg_request_type='PUT'
 --source ../include/mrs/mrs_client.inc
 
+--let $mrs_client_replace_regexp=/(.*)"gtid": ".*"/\1"gtid": "GTID"/
 --let $mrs_client_arg_path='/svc/test/date/2'
 --let $mrs_client_arg_payload='{"id":2,"dt":"2000-01-01"}'
 --let $mrs_client_arg_request_type='PUT'

@@ -85,7 +85,7 @@ struct TABLE;
       deactivate 'index only';
     }
 
-    Phase 2 (implemented as sequence of IndexMergeIterator::Read()
+    Phase 2 (implemented as sequence of IndexMergeIterator::DoRead()
     calls):
 
     fetch()
@@ -96,7 +96,7 @@ struct TABLE;
     }
 */
 
-class IndexMergeIterator : public TableRowIterator {
+class IndexMergeIterator final : public TableRowIterator {
  public:
   // NOTE: Both pk_quick_select (if non-nullptr) and all children must be
   // of the type IndexRangeScanIterator, possibly wrapped in a TimingIterator.
@@ -106,10 +106,10 @@ class IndexMergeIterator : public TableRowIterator {
       Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
   ~IndexMergeIterator() override;
 
-  bool Init() override;
-  int Read() override;
-
  private:
+  bool DoInit() override;
+  int DoRead() override;
+
   unique_ptr_destroy_only<Unique> unique;
 
   /* used to get rows collected in Unique */

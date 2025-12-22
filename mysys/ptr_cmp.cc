@@ -30,12 +30,8 @@
   @file mysys/ptr_cmp.cc
 */
 
-#include "my_config.h"
-
 #include <cassert>
 #include <cstddef>
-
-#include "my_byteorder.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep

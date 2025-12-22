@@ -4,6 +4,7 @@
 CREATE DATABASE bug36816986;
 USE bug36816986;
 -- Run mysqldump with tablespace_injection_test.
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don't want to restore GTIDs, pass --set-gtid-purged=OFF. To make a complete dump, pass --all-databases --triggers --routines --events. 
 The test injected string must be found:
 Pattern found.
 The ` must be escaped:
@@ -62,6 +63,7 @@ GRANT PROCESS, LOCK TABLES ON *.* TO 'dump_user'@'localhost';
 GRANT SELECT ON bug37607195.* TO 'dump_user'@'localhost';
 SET @saved_init_connect = @@global.init_connect;
 SET GLOBAL init_connect = "SET @@sql_mode='ANSI_QUOTES,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'";
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don't want to restore GTIDs, pass --set-gtid-purged=OFF. To make a complete dump, pass --all-databases --triggers --routines --events. 
 SET GLOBAL init_connect = @saved_init_connect;
 REVOKE SELECT ON bug37607195.* FROM 'dump_user'@'localhost';
 REVOKE PROCESS, LOCK TABLES ON *.* FROM 'dump_user'@'localhost';

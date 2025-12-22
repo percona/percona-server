@@ -33,6 +33,7 @@
 let $messages =
 Timeout waiting for reply of binlog
 Got an error reading communication packets
+Semi-sync source failed on net_flush.. before waiting for replica reply
 ;
 --source include/suppress_messages.inc
 
